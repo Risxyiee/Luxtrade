@@ -147,10 +147,10 @@ function EquityWidget() {
   const changePercent = ((changeAmount / 10500) * 100).toFixed(2)
   
   return (
-    <div className="rounded-2xl bg-gradient-to-br from-[#1a0f2e] to-[#0d0715] border border-purple-500/20 p-6 backdrop-blur-sm">
+    <div className="rounded-2xl bg-gradient-to-br from-[#1a0f2e] to-[#0d0715] border border-violet-500/20 p-6 backdrop-blur-sm">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-sm text-purple-300/70 font-medium">Portfolio Equity</p>
+          <p className="text-sm text-violet-300/70 font-medium">Portfolio Equity</p>
           <div className="flex items-baseline gap-3">
             <span className="text-3xl font-bold text-white tracking-tight">
               ${currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -184,7 +184,7 @@ function EquityWidget() {
         className="w-full h-32"
       />
       
-      <div className="flex items-center justify-between mt-4 text-xs text-purple-300/50">
+      <div className="flex items-center justify-between mt-4 text-xs text-violet-300/50">
         <span>Start: $10,500.00</span>
         <span>Updated just now</span>
       </div>
@@ -389,7 +389,7 @@ export default function LuxTradeLanding() {
       icon: BarChart3,
       title: 'Performance Analytics',
       description: 'Track win rate, profit factor, and monthly performance with interactive charts.',
-      gradient: 'from-amber-500 to-orange-600'
+      gradient: 'from-violet-500 to-purple-600'
     },
     {
       icon: BookOpen,
@@ -401,25 +401,25 @@ export default function LuxTradeLanding() {
       icon: Brain,
       title: 'AI Market Insights',
       description: 'Get personalized trading tips powered by advanced AI analysis.',
-      gradient: 'from-cyan-500 to-blue-600'
+      gradient: 'from-fuchsia-500 to-purple-600'
     },
     {
       icon: Eye,
       title: 'Smart Watchlist',
       description: 'Track opportunities with price alerts and detailed notes.',
-      gradient: 'from-emerald-500 to-teal-600'
+      gradient: 'from-violet-500 to-indigo-600'
     },
     {
       icon: LineChart,
       title: 'P/L Tracking',
       description: 'Automatic profit/loss calculations for every position.',
-      gradient: 'from-rose-500 to-pink-600'
+      gradient: 'from-purple-500 to-fuchsia-600'
     },
     {
       icon: Shield,
       title: 'Bank-Grade Security',
       description: 'Your trading data is encrypted and never shared.',
-      gradient: 'from-indigo-500 to-purple-600'
+      gradient: 'from-indigo-500 to-violet-600'
     }
   ]
 
@@ -467,10 +467,10 @@ export default function LuxTradeLanding() {
         {/* Deep purple gradient base */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0612] via-[#110a1f] to-[#0a0612]" />
         
-        {/* Gold/amber accent glows */}
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-amber-500/5 rounded-full blur-[150px]" />
+        {/* Purple accent glows */}
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-violet-500/8 rounded-full blur-[150px]" />
         <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-500/10 rounded-full blur-[100px]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-amber-500/3 rounded-full blur-[120px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-violet-500/5 rounded-full blur-[120px]" />
         
         {/* Subtle grid pattern */}
         <div className="absolute inset-0 opacity-[0.02]" style={{
@@ -496,10 +496,10 @@ export default function LuxTradeLanding() {
                   <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[#0a0612]" />
                 </div>
                 <div>
-                  <span className="text-xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent">
+                  <span className="text-xl font-bold bg-gradient-to-r from-violet-200 via-violet-400 to-purple-200 bg-clip-text text-transparent">
                     LuxTrade
                   </span>
-                  <span className="hidden sm:inline text-[10px] text-amber-500/60 ml-2 tracking-widest">PREMIUM</span>
+                  <span className="hidden sm:inline text-[10px] text-violet-500/60 ml-2 tracking-widest">PREMIUM</span>
                 </div>
               </div>
               
@@ -517,7 +517,7 @@ export default function LuxTradeLanding() {
                   </Button>
                 </Link>
                 <Link href="/auth/signup">
-                  <Button className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold shadow-lg shadow-amber-500/25">
+                  <Button className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-semibold shadow-lg shadow-violet-500/25">
                     Sign Up
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -539,9 +539,9 @@ export default function LuxTradeLanding() {
           >
             {/* Badge */}
             <motion.div variants={fadeInUp} className="flex justify-center mb-6">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
-                <Sparkles className="w-4 h-4 text-amber-400" />
-                <span className="text-sm text-amber-300">AI-Powered Trading Intelligence</span>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-violet-500/10 to-purple-500/10 border border-violet-500/20">
+                <Sparkles className="w-4 h-4 text-violet-400" />
+                <span className="text-sm text-violet-300">AI-Powered Trading Intelligence</span>
               </div>
             </motion.div>
             
@@ -552,7 +552,7 @@ export default function LuxTradeLanding() {
             >
               <span className="text-white">Elevate Your Trading with</span>
               <br />
-              <span className="bg-gradient-to-r from-amber-200 via-amber-400 to-orange-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-violet-200 via-purple-400 to-violet-400 bg-clip-text text-transparent">
                 Intelligent Journaling
               </span>
             </motion.h1>
@@ -571,7 +571,7 @@ export default function LuxTradeLanding() {
               className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
             >
               <Link href="/auth/signup">
-                <Button size="lg" className="h-14 px-8 text-lg bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold shadow-xl shadow-amber-500/25">
+                <Button size="lg" className="h-14 px-8 text-lg bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-semibold shadow-xl shadow-violet-500/25">
                   Start Free Trial
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
@@ -594,7 +594,7 @@ export default function LuxTradeLanding() {
                   key={index}
                   className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.05] backdrop-blur-sm hover:bg-white/[0.05] transition-all"
                 >
-                  <stat.icon className="w-4 h-4 text-amber-400/60 mb-2 mx-auto" />
+                  <stat.icon className="w-4 h-4 text-violet-400/60 mb-2 mx-auto" />
                   <div className="text-2xl font-bold text-white">{stat.value}</div>
                   <div className="text-xs text-white/40">{stat.label}</div>
                 </div>
@@ -623,13 +623,13 @@ export default function LuxTradeLanding() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 mb-4">
-              <Zap className="w-4 h-4 text-purple-400" />
-              <span className="text-sm text-purple-300">Powerful Features</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-500/10 border border-violet-500/20 mb-4">
+              <Zap className="w-4 h-4 text-violet-400" />
+              <span className="text-sm text-violet-300">Powerful Features</span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
               <span className="text-white">Everything You Need to</span>
-              <span className="bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent"> Trade Smarter</span>
+              <span className="bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent"> Trade Smarter</span>
             </h2>
             <p className="text-lg text-white/40 max-w-xl mx-auto">
               Professional tools designed by traders, for traders. Every feature built to give you an edge.
@@ -662,7 +662,7 @@ export default function LuxTradeLanding() {
       </section>
 
       {/* Live Demo Section */}
-      <section id="demo" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/5 to-transparent">
+      <section id="demo" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-violet-900/5 to-transparent">
         <div className="max-w-7xl mx-auto">
           <motion.div 
             className="text-center mb-12"
@@ -685,7 +685,7 @@ export default function LuxTradeLanding() {
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#1a0f2e] to-[#0d0715] p-1 shadow-2xl shadow-purple-500/10"
+            className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#1a0f2e] to-[#0d0715] p-1 shadow-2xl shadow-violet-500/10"
           >
             <div className="rounded-xl overflow-hidden">
               {/* Mock Dashboard Header */}
@@ -713,12 +713,12 @@ export default function LuxTradeLanding() {
                     <div className="text-lg font-bold text-emerald-400">+$1,247</div>
                   </motion.div>
                   <motion.div 
-                    className="p-3 rounded-lg bg-gradient-to-br from-amber-500/20 to-transparent border border-white/5"
+                    className="p-3 rounded-lg bg-gradient-to-br from-violet-500/20 to-transparent border border-white/5"
                     animate={{ scale: [1, 1.02, 1] }}
                     transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
                   >
                     <div className="text-[10px] text-white/40 mb-1">Win Rate</div>
-                    <div className="text-lg font-bold text-amber-400">68%</div>
+                    <div className="text-lg font-bold text-violet-400">68%</div>
                   </motion.div>
                   <motion.div 
                     className="p-3 rounded-lg bg-gradient-to-br from-cyan-500/20 to-transparent border border-white/5"
@@ -729,17 +729,17 @@ export default function LuxTradeLanding() {
                     <div className="text-lg font-bold text-cyan-400">3</div>
                   </motion.div>
                   <motion.div 
-                    className="p-3 rounded-lg bg-gradient-to-br from-purple-500/20 to-transparent border border-white/5"
+                    className="p-3 rounded-lg bg-gradient-to-br from-violet-500/20 to-transparent border border-white/5"
                     animate={{ scale: [1, 1.02, 1] }}
                     transition={{ duration: 2, repeat: Infinity, delay: 1.5 }}
                   >
                     <div className="text-[10px] text-white/40 mb-1">Profit Factor</div>
-                    <div className="text-lg font-bold text-purple-400">2.14</div>
+                    <div className="text-lg font-bold text-violet-400">2.14</div>
                   </motion.div>
                 </div>
                 
                 {/* Mini Chart */}
-                <div className="h-28 rounded-lg bg-gradient-to-br from-purple-500/10 to-transparent border border-white/5 p-3">
+                <div className="h-28 rounded-lg bg-gradient-to-br from-violet-500/10 to-transparent border border-white/5 p-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs text-white/40">Equity Curve</span>
                     <motion.div 
@@ -755,7 +755,7 @@ export default function LuxTradeLanding() {
                     {[40, 55, 45, 60, 50, 70, 65, 80, 75, 90, 85, 95, 88, 92, 100, 95, 98, 105, 100, 110].map((h, i) => (
                       <motion.div 
                         key={i}
-                        className="flex-1 bg-gradient-to-t from-purple-500 to-amber-500 rounded-t"
+                        className="flex-1 bg-gradient-to-t from-violet-500 to-purple-500 rounded-t"
                         style={{ height: `${h}%` }}
                         animate={{ opacity: [0.5, 1, 0.5] }}
                         transition={{ duration: 1, delay: i * 0.05, repeat: Infinity }}
@@ -813,12 +813,12 @@ export default function LuxTradeLanding() {
                   <CardContent className="p-6">
                     <div className="flex gap-1 mb-3">
                       {[...Array(testimonial.rating)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
+                        <Star key={i} className="w-4 h-4 fill-violet-400 text-violet-400" />
                       ))}
                     </div>
                     <p className="text-white/60 mb-4 text-sm leading-relaxed">&ldquo;{testimonial.content}&rdquo;</p>
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-semibold text-sm">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center text-white font-semibold text-sm">
                         {testimonial.avatar}
                       </div>
                       <div>
@@ -835,7 +835,7 @@ export default function LuxTradeLanding() {
       </section>
 
       {/* Pricing - Hanya 2 Paket: Free dan Elite Pro Rp 49.000 */}
-      <section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-amber-900/5 to-transparent">
+      <section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-violet-900/5 to-transparent">
         <div className="max-w-4xl mx-auto">
           <motion.div 
             className="text-center mb-16"
@@ -843,13 +843,13 @@ export default function LuxTradeLanding() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 mb-4">
-              <Crown className="w-4 h-4 text-amber-400" />
-              <span className="text-sm text-amber-300">Simple Pricing</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-500/10 border border-violet-500/20 mb-4">
+              <Crown className="w-4 h-4 text-violet-400" />
+              <span className="text-sm text-violet-300">Simple Pricing</span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
               <span className="text-white">Start Free,</span>
-              <span className="bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent"> Upgrade When Ready</span>
+              <span className="bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent"> Upgrade When Ready</span>
             </h2>
             
             {/* Money-Back Guarantee Badge */}
@@ -940,12 +940,12 @@ export default function LuxTradeLanding() {
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
             >
-              <Card className="h-full relative bg-gradient-to-b from-amber-500/10 to-transparent border-amber-500/30">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-xs font-semibold text-white">
+              <Card className="h-full relative bg-gradient-to-b from-violet-500/10 to-transparent border-violet-500/30">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-violet-500 to-purple-500 text-xs font-semibold text-white">
                   Best Value
                 </div>
                 <CardContent className="p-6 pt-8">
-                  <div className="text-sm text-amber-400 mb-1">Elite Pro</div>
+                  <div className="text-sm text-violet-400 mb-1">Elite Pro</div>
                   <div className="text-4xl font-bold text-white mb-1">
                     Rp 49.000
                     <span className="text-base font-normal text-white/40"> /bulan</span>
@@ -970,7 +970,7 @@ export default function LuxTradeLanding() {
                   </ul>
                   <Button 
                     onClick={() => setShowPayment(true)}
-                    className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold"
+                    className="w-full bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-semibold"
                   >
                     Go Elite Pro
                   </Button>
@@ -992,7 +992,7 @@ export default function LuxTradeLanding() {
                   <tr className="border-b border-white/5">
                     <th className="p-4 text-left text-white/40 font-medium">Features</th>
                     <th className="p-4 text-center text-white/40 font-medium">Free</th>
-                    <th className="p-4 text-center text-amber-400 font-semibold">Elite Pro</th>
+                    <th className="p-4 text-center text-violet-400 font-semibold">Elite Pro</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -1037,8 +1037,8 @@ export default function LuxTradeLanding() {
                     className="flex flex-col items-center p-4"
                     whileHover={{ scale: 1.05 }}
                   >
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center mb-3">
-                      <item.icon className="w-5 h-5 text-amber-400" />
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/30 flex items-center justify-center mb-3">
+                      <item.icon className="w-5 h-5 text-violet-400" />
                     </div>
                     <span className="text-white font-semibold">{item.title}</span>
                     <span className="text-white/40 text-sm">{item.time}</span>
@@ -1161,15 +1161,15 @@ export default function LuxTradeLanding() {
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
             >
-              <Card className="h-full bg-gradient-to-br from-[#1a0f2e] to-[#0d0715] border-amber-500/20">
+              <Card className="h-full bg-gradient-to-br from-[#1a0f2e] to-[#0d0715] border-violet-500/20">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center">
-                      <Lightning className="w-5 h-5 text-amber-400" />
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/30 flex items-center justify-center">
+                      <Lightning className="w-5 h-5 text-violet-400" />
                     </div>
                     <div>
                       <h3 className="font-bold text-white">Bulan Ini</h3>
-                      <p className="text-xs text-amber-400">In Development</p>
+                      <p className="text-xs text-violet-400">In Development</p>
                     </div>
                   </div>
                   <ul className="space-y-3">
@@ -1180,7 +1180,7 @@ export default function LuxTradeLanding() {
                     ].map((item, index) => (
                       <motion.li 
                         key={index}
-                        className="flex items-start gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/5 hover:border-amber-500/20 transition-colors"
+                        className="flex items-start gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/5 hover:border-violet-500/20 transition-colors"
                         initial={{ opacity: 0, y: 10 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
@@ -1248,12 +1248,12 @@ export default function LuxTradeLanding() {
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto">
           <motion.div 
-            className="text-center p-10 rounded-3xl bg-gradient-to-br from-amber-500/10 via-purple-500/5 to-amber-500/10 border border-amber-500/20"
+            className="text-center p-10 rounded-3xl bg-gradient-to-br from-violet-500/10 via-purple-500/5 to-violet-500/10 border border-violet-500/20"
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
           >
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-amber-500/25">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-violet-500/25">
               <Crown className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-white">
@@ -1263,7 +1263,7 @@ export default function LuxTradeLanding() {
               Join traders who are using LuxTrade to track, analyze, and improve their trading performance.
             </p>
             <Link href="/auth/signup">
-              <Button size="lg" className="h-14 px-8 text-lg bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold shadow-xl shadow-amber-500/25">
+              <Button size="lg" className="h-14 px-8 text-lg bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-semibold shadow-xl shadow-violet-500/25">
                 Start Your Free Trial
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
@@ -1371,10 +1371,10 @@ export default function LuxTradeLanding() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-400 to-purple-600 flex items-center justify-center">
                   <Crown className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-lg font-bold bg-gradient-to-r from-amber-200 to-amber-400 bg-clip-text text-transparent">
+                <span className="text-lg font-bold bg-gradient-to-r from-violet-200 to-purple-400 bg-clip-text text-transparent">
                   LuxTrade
                 </span>
               </div>
@@ -1438,7 +1438,7 @@ export default function LuxTradeLanding() {
             <motion.div 
               initial={{ scale: 0.9 }} 
               animate={{ scale: 1 }} 
-              className="bg-[#0A0A0A] border-2 border-amber-500/50 p-8 rounded-3xl max-w-md w-full shadow-[0_0_80px_rgba(245,158,11,0.3)] text-center relative"
+              className="bg-[#0A0A0A] border-2 border-violet-500/50 p-8 rounded-3xl max-w-md w-full shadow-[0_0_80px_rgba(139,92,246,0.3)] text-center relative"
             >
               <button 
                 onClick={() => setShowPayment(false)} 
@@ -1447,7 +1447,7 @@ export default function LuxTradeLanding() {
                 ✕
               </button>
               
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center mx-auto mb-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-400 to-purple-600 flex items-center justify-center mx-auto mb-4">
                 <Crown className="w-6 h-6 text-white" />
               </div>
               
@@ -1455,20 +1455,20 @@ export default function LuxTradeLanding() {
               
               <div className="bg-white/5 p-6 rounded-2xl border border-white/10 mb-6 text-left space-y-4">
                 <div>
-                  <p className="text-amber-400 text-xs font-bold uppercase mb-1">Bank Tujuan</p>
+                  <p className="text-violet-400 text-xs font-bold uppercase mb-1">Bank Tujuan</p>
                   <p className="text-white font-bold text-xl">Bank Jago</p>
                 </div>
                 <div>
-                  <p className="text-amber-400 text-xs font-bold uppercase mb-1">Nomor Rekening</p>
+                  <p className="text-violet-400 text-xs font-bold uppercase mb-1">Nomor Rekening</p>
                   <p className="text-white font-bold text-2xl font-mono">104051474194</p>
                 </div>
                 <div>
-                  <p className="text-amber-400 text-xs font-bold uppercase mb-1">Atas Nama</p>
+                  <p className="text-violet-400 text-xs font-bold uppercase mb-1">Atas Nama</p>
                   <p className="text-white/70 font-semibold">RIZQI AKBAR PRATAMA</p>
                 </div>
                 <div className="pt-4 border-t border-white/10 text-center">
                   <p className="text-white/40 text-xs mb-1">Total Pembayaran</p>
-                  <p className="text-amber-400 font-bold text-3xl">Rp 49.000</p>
+                  <p className="text-violet-400 font-bold text-3xl">Rp 49.000</p>
                   <p className="text-white/40 text-xs">per bulan</p>
                 </div>
               </div>
