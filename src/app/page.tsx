@@ -1410,14 +1410,18 @@ export default function LuxTradeLanding() {
             <div>
               <h4 className="font-semibold text-white mb-4">Legal</h4>
               <ul className="space-y-2 text-sm text-white/40">
-                <li><a href="#faq" className="hover:text-white transition-colors">Privacy Policy</a></li>
-                <li><a href="#faq" className="hover:text-white transition-colors">Terms of Service</a></li>
-                <li><a href="#faq" className="hover:text-white transition-colors">Refund Policy</a></li>
+                <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
+                <li><a href="#pricing" className="hover:text-white transition-colors">Refund Policy</a></li>
               </ul>
             </div>
           </div>
           <div className="border-t border-white/5 pt-8 text-center text-white/40 text-sm">
-            <p>&copy; {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
+            <div className="flex justify-center gap-6 mt-4">
+              <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+              <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+            </div>
           </div>
         </div>
       </footer>

@@ -148,6 +148,7 @@ const menuItems = [
   { id: 'trades', label: 'Trades', labelId: 'Transaksi', icon: Activity, category: 'utama', proOnly: false },
   { id: 'calendar', label: 'Calendar', labelId: 'Kalender', icon: Calendar, category: 'utama', proOnly: false },
   { id: 'journal', label: 'Journal', labelId: 'Jurnal', icon: BookOpen, category: 'utama', proOnly: false },
+  { id: 'watchlist', label: 'Watchlist', labelId: 'Watchlist', icon: Eye, category: 'utama', proOnly: false },
   
   // ALAT - PRO Emas
   { id: 'risk', label: 'Risk Calculator', labelId: 'Kalkulator Risiko', icon: Target, category: 'alat', proOnly: true, proType: 'gold' },
