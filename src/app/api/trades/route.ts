@@ -1,6 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
+// Free user trade limit
+const FREE_TRADE_LIMIT = 5
+
+// Helper: Check if user is PRO
+async function isUserPro(userId: string): Promise<boolean> {
+  try {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('is_pro, subscription_until')
+      .eq('id', userId)
+      .single()
+    
+    if (error || !profile) return false
+    
+    // Check if subscription is still valid
+    if (profile.is_pro && profile.subscription_until) {
+      const until = new Date(profile.subscription_until)
+      return until > new Date()
+    }
+    
+    return false
+  } catch {
+    return false
+  }
+}
+
+// Helper: Count user trades
+async function countUserTrades(userId: string): Promise<number> {
+  try {
+    const { count, error } = await supabase
+      .from('trades')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+    
+    if (error) return 0
+    return count || 0
+  } catch {
+    return 0
+  }
+}
+
 // GET - Fetch all trades
 export async function GET(request: NextRequest) {
   try {
@@ -40,9 +81,24 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    const userId = body.user_id || 'demo-user'
+    
+    // SERVER-SIDE LIMIT CHECK: Free users can only have 5 trades
+    const isPro = await isUserPro(userId)
+    if (!isPro) {
+      const tradeCount = await countUserTrades(userId)
+      if (tradeCount >= FREE_TRADE_LIMIT) {
+        return NextResponse.json({ 
+          error: `Free users are limited to ${FREE_TRADE_LIMIT} trades. Upgrade to PRO for unlimited trades!`,
+          code: 'TRADE_LIMIT_EXCEEDED',
+          limit: FREE_TRADE_LIMIT,
+          current: tradeCount
+        }, { status: 403 })
+      }
+    }
     
     const tradeData = {
-      user_id: body.user_id || 'demo-user',
+      user_id: userId,
       symbol: body.symbol.toUpperCase(),
       type: body.type, // BUY or SELL
       open_price: parseFloat(body.open_price),

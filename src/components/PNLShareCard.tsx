@@ -234,18 +234,18 @@ const PNLShareCard = forwardRef<HTMLDivElement, PNLShareCardProps>(function PNLS
           }}
         />
 
-        {/* Content Container */}
-        <div className="relative z-10 h-full flex flex-col p-8">
+        {/* Content Container - Perfectly Centered */}
+        <div className="relative z-10 h-full flex flex-col items-center justify-between p-8">
           
-          {/* Header - Logo & Brand */}
-          <div className="flex items-center justify-center gap-3 mb-8">
+          {/* Header - Logo & Brand (Centered) */}
+          <div className="flex items-center justify-center gap-3 w-full mb-6">
             {/* Phoenix Logo */}
             <img 
               src="/logo-premium.png" 
               alt="LuxTrade Logo" 
-              className="w-14 h-14 rounded-xl"
+              className="w-14 h-14 rounded-xl flex-shrink-0"
             />
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center justify-center">
               <span className="text-2xl font-bold text-white tracking-tight">
                 LuxTrade
               </span>
@@ -255,135 +255,139 @@ const PNLShareCard = forwardRef<HTMLDivElement, PNLShareCardProps>(function PNLS
             </div>
           </div>
 
-          {/* Symbol & Type Badge */}
-          <div className="flex items-center gap-3 mb-6">
-            <span className="text-3xl font-bold text-white tracking-tight">
-              {symbol}
-            </span>
-            <span 
-              className="px-4 py-1.5 rounded-lg text-sm font-bold tracking-wider"
-              style={{ 
-                backgroundColor: type === 'BUY' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                color: type === 'BUY' ? EMERALD_GREEN : RED_LOSS,
-                border: `1px solid ${type === 'BUY' ? EMERALD_GREEN : RED_LOSS}30`
-              }}
-            >
-              {type}
-            </span>
+          {/* Main Content - Centered */}
+          <div className="flex-1 flex flex-col items-center justify-center w-full">
+            {/* Symbol & Type Badge (Centered) */}
+            <div className="flex items-center justify-center gap-3 mb-6 w-full">
+              <span className="text-3xl font-bold text-white tracking-tight">
+                {symbol}
+              </span>
+              <span 
+                className="px-4 py-1.5 rounded-lg text-sm font-bold tracking-wider"
+                style={{ 
+                  backgroundColor: type === 'BUY' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                  color: type === 'BUY' ? EMERALD_GREEN : RED_LOSS,
+                  border: `1px solid ${type === 'BUY' ? EMERALD_GREEN : RED_LOSS}30`
+                }}
+              >
+                {type}
+              </span>
+            </div>
+
+            {/* Profit/Loss - Main Display (Centered) */}
+            <div className="text-center mb-6 w-full">
+              <p 
+                className="text-sm uppercase tracking-widest mb-2 text-center"
+                style={{ color: FADED_WHITE }}
+              >
+                Profit / Loss
+              </p>
+              <motion.p 
+                className="text-6xl font-bold tracking-tight leading-none text-center"
+                style={{ color: profitColor }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                {isProfit ? '+' : ''}{formatCurrency(profitLoss)}
+              </motion.p>
+              <p 
+                className="text-base mt-3 text-center"
+                style={{ color: FADED_WHITE }}
+              >
+                {isProfit ? '+' : ''}{calculatedPips.toFixed(1)} pips
+              </p>
+            </div>
+
+            {/* Glassmorphism Data Boxes (Centered Grid) */}
+            <div className="grid grid-cols-2 gap-4 w-full max-w-[400px]">
+              {/* Entry Price */}
+              <div 
+                className="rounded-xl p-4 border text-center"
+                style={{
+                  background: 'rgba(139, 92, 246, 0.03)',
+                  backdropFilter: 'blur(12px)',
+                  borderColor: 'rgba(139, 92, 246, 0.08)'
+                }}
+              >
+                <p 
+                  className="text-xs uppercase tracking-widest mb-1"
+                  style={{ color: FADED_WHITE }}
+                >
+                  Entry Price
+                </p>
+                <p className="text-xl font-semibold text-white font-mono">
+                  {formatPrice(entryPrice)}
+                </p>
+              </div>
+
+              {/* Exit Price */}
+              <div 
+                className="rounded-xl p-4 border text-center"
+                style={{
+                  background: 'rgba(139, 92, 246, 0.03)',
+                  backdropFilter: 'blur(12px)',
+                  borderColor: 'rgba(139, 92, 246, 0.08)'
+                }}
+              >
+                <p 
+                  className="text-xs uppercase tracking-widest mb-1"
+                  style={{ color: FADED_WHITE }}
+                >
+                  Exit Price
+                </p>
+                <p className="text-xl font-semibold text-white font-mono">
+                  {formatPrice(exitPrice)}
+                </p>
+              </div>
+
+              {/* Lot Size */}
+              <div 
+                className="rounded-xl p-4 border text-center"
+                style={{
+                  background: 'rgba(139, 92, 246, 0.03)',
+                  backdropFilter: 'blur(12px)',
+                  borderColor: 'rgba(139, 92, 246, 0.08)'
+                }}
+              >
+                <p 
+                  className="text-xs uppercase tracking-widest mb-1"
+                  style={{ color: FADED_WHITE }}
+                >
+                  Lot Size
+                </p>
+                <p className="text-xl font-semibold text-white">
+                  {lotSize.toFixed(2)}
+                </p>
+              </div>
+
+              {/* Session */}
+              <div 
+                className="rounded-xl p-4 border text-center"
+                style={{
+                  background: 'rgba(139, 92, 246, 0.03)',
+                  backdropFilter: 'blur(12px)',
+                  borderColor: 'rgba(139, 92, 246, 0.08)'
+                }}
+              >
+                <p 
+                  className="text-xs uppercase tracking-widest mb-1"
+                  style={{ color: FADED_WHITE }}
+                >
+                  Session
+                </p>
+                <p className="text-xl font-semibold text-white">
+                  {session}
+                </p>
+              </div>
+            </div>
           </div>
 
-          {/* Profit/Loss - Main Display (Largest Text) */}
-          <div className="mb-8">
+          {/* Bottom Section (Centered) */}
+          <div className="w-full mt-6">
+            {/* Date (Centered) */}
             <p 
-              className="text-sm uppercase tracking-widest mb-2"
-              style={{ color: FADED_WHITE }}
-            >
-              Profit / Loss
-            </p>
-            <motion.p 
-              className="text-6xl font-bold tracking-tight leading-none"
-              style={{ color: profitColor }}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              {isProfit ? '+' : ''}{formatCurrency(profitLoss)}
-            </motion.p>
-            <p 
-              className="text-base mt-3"
-              style={{ color: FADED_WHITE }}
-            >
-              {isProfit ? '+' : ''}{calculatedPips.toFixed(1)} pips
-            </p>
-          </div>
-
-          {/* Glassmorphism Data Boxes */}
-          <div className="grid grid-cols-2 gap-4 mb-auto">
-            {/* Entry Price */}
-            <div 
-              className="rounded-xl p-4 border"
-              style={{
-                background: 'rgba(139, 92, 246, 0.03)',
-                backdropFilter: 'blur(12px)',
-                borderColor: 'rgba(139, 92, 246, 0.08)'
-              }}
-            >
-              <p 
-                className="text-xs uppercase tracking-widest mb-1"
-                style={{ color: FADED_WHITE }}
-              >
-                Entry Price
-              </p>
-              <p className="text-xl font-semibold text-white font-mono">
-                {formatPrice(entryPrice)}
-              </p>
-            </div>
-
-            {/* Exit Price */}
-            <div 
-              className="rounded-xl p-4 border"
-              style={{
-                background: 'rgba(139, 92, 246, 0.03)',
-                backdropFilter: 'blur(12px)',
-                borderColor: 'rgba(139, 92, 246, 0.08)'
-              }}
-            >
-              <p 
-                className="text-xs uppercase tracking-widest mb-1"
-                style={{ color: FADED_WHITE }}
-              >
-                Exit Price
-              </p>
-              <p className="text-xl font-semibold text-white font-mono">
-                {formatPrice(exitPrice)}
-              </p>
-            </div>
-
-            {/* Lot Size */}
-            <div 
-              className="rounded-xl p-4 border"
-              style={{
-                background: 'rgba(139, 92, 246, 0.03)',
-                backdropFilter: 'blur(12px)',
-                borderColor: 'rgba(139, 92, 246, 0.08)'
-              }}
-            >
-              <p 
-                className="text-xs uppercase tracking-widest mb-1"
-                style={{ color: FADED_WHITE }}
-              >
-                Lot Size
-              </p>
-              <p className="text-xl font-semibold text-white">
-                {lotSize.toFixed(2)}
-              </p>
-            </div>
-
-            {/* Session */}
-            <div 
-              className="rounded-xl p-4 border"
-              style={{
-                background: 'rgba(139, 92, 246, 0.03)',
-                backdropFilter: 'blur(12px)',
-                borderColor: 'rgba(139, 92, 246, 0.08)'
-              }}
-            >
-              <p 
-                className="text-xs uppercase tracking-widest mb-1"
-                style={{ color: FADED_WHITE }}
-              >
-                Session
-              </p>
-              <p className="text-xl font-semibold text-white">
-                {session}
-              </p>
-            </div>
-          </div>
-
-          {/* Date */}
-          <div className="mt-6">
-            <p 
-              className="text-sm"
+              className="text-sm text-center mb-4"
               style={{ color: '#64748B' }}
             >
               {date || new Date().toLocaleDateString('en-US', {
@@ -393,13 +397,13 @@ const PNLShareCard = forwardRef<HTMLDivElement, PNLShareCardProps>(function PNLS
                 year: 'numeric'
               })}
             </p>
-          </div>
 
-          {/* Footer */}
-          <div className="mt-6 pt-6 border-t border-white/5">
-            <p className="text-xs text-center tracking-widest" style={{ color: 'rgba(255,255,255,0.25)' }}>
-              measured by <span className="font-semibold" style={{ color: 'rgba(255,255,255,0.4)' }}>LuxTrade</span>
-            </p>
+            {/* Footer (Centered) */}
+            <div className="pt-4 border-t border-white/5">
+              <p className="text-xs text-center tracking-widest" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                measured by <span className="font-semibold" style={{ color: 'rgba(255,255,255,0.4)' }}>LuxTrade</span>
+              </p>
+            </div>
           </div>
         </div>
 
