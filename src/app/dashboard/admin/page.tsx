@@ -327,12 +327,12 @@ export default function AdminPanel() {
           <Card className="bg-[#1a0f2e]/50 border-purple-500/20 backdrop-blur-sm">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 rounded-lg bg-amber-500/20">
-                  <Ban className="w-6 h-6 text-amber-400" />
+                <div className="p-3 rounded-lg bg-purple-500/20">
+                  <Ban className="w-6 h-6 text-purple-400" />
                 </div>
                 <div>
                   <p className="text-white/60 text-sm">Free Users</p>
-                  <p className="text-2xl font-bold text-amber-400">{freeUsers}</p>
+                  <p className="text-2xl font-bold text-purple-400">{freeUsers}</p>
                 </div>
               </div>
             </CardContent>

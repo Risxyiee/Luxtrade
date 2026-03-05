@@ -249,7 +249,7 @@ const emptyFormData: TradeFormData = {
 
 const moodOptions = [
   { value: 'confident', label: 'Confident', icon: Smile, color: 'text-emerald-400' },
-  { value: 'neutral', label: 'Neutral', icon: Meh, color: 'text-amber-400' },
+  { value: 'neutral', label: 'Neutral', icon: Meh, color: 'text-purple-400' },
   { value: 'anxious', label: 'Anxious', icon: Frown, color: 'text-red-400' },
 ]
 
@@ -406,7 +406,7 @@ const TradeForm = memo(function TradeForm({
         <Button 
           onClick={onSave} 
           disabled={saving}
-          className="flex-1 bg-gradient-to-r from-amber-500 to-orange-600"
+          className="flex-1 bg-gradient-to-r from-purple-500 to-violet-600"
         >
           {saving ? 'Saving...' : isEdit ? 'Update Trade' : 'Add Trade'}
         </Button>
@@ -714,7 +714,7 @@ export default function LuxTradeDashboard() {
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           >
-            <Loader2 className="w-10 h-10 text-amber-500 mx-auto mb-4" />
+            <Loader2 className="w-10 h-10 text-purple-500 mx-auto mb-4" />
           </motion.div>
           <p className="text-white/60">Loading your dashboard...</p>
         </div>
@@ -727,7 +727,7 @@ export default function LuxTradeDashboard() {
     return (
       <div className="min-h-screen bg-[#0a0712] flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 text-amber-500 animate-spin mx-auto mb-4" />
+          <Loader2 className="w-8 h-8 text-purple-500 animate-spin mx-auto mb-4" />
           <p className="text-white/60">Redirecting to login...</p>
         </div>
       </div>
@@ -1356,11 +1356,11 @@ export default function LuxTradeDashboard() {
               alt="LuxTrade Logo" 
               width={40} 
               height={40}
-              className="rounded-xl shadow-lg shadow-amber-500/20"
+              className="rounded-xl shadow-lg shadow-purple-500/20"
             />
             {sidebarOpen && (
               <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-amber-200 via-amber-300 to-amber-400 bg-clip-text text-transparent">LuxTrade</h1>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-purple-200 via-purple-300 to-purple-400 bg-clip-text text-transparent">LuxTrade</h1>
                 <p className="text-xs text-purple-300/60">Trading Journal</p>
               </div>
             )}
@@ -1382,7 +1382,7 @@ export default function LuxTradeDashboard() {
                       category === 'utama' 
                         ? 'text-gray-500' 
                         : category === 'alat'
-                          ? 'text-amber-500'
+                          ? 'text-purple-500'
                           : 'text-purple-400'
                     }`}>
                       {catInfo.label}
@@ -1390,7 +1390,7 @@ export default function LuxTradeDashboard() {
                     {category !== 'utama' && (
                       <span className={`text-[7px] font-black px-1.5 py-0.5 rounded ${
                         category === 'alat'
-                          ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
+                          ? 'bg-gradient-to-r from-purple-500 to-violet-500 text-white'
                           : 'bg-gradient-to-r from-purple-500 to-violet-500 text-white'
                       }`}>
                         PRO
@@ -1418,7 +1418,7 @@ export default function LuxTradeDashboard() {
                       }}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative ${
                         activeTab === item.id
-                          ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/10 text-amber-400 border border-amber-500/30'
+                          ? 'bg-gradient-to-r from-purple-500/20 to-violet-500/10 text-purple-400 border border-purple-500/30'
                           : 'text-gray-400 hover:bg-purple-500/10 hover:text-white'
                       } ${isLocked ? 'opacity-60' : ''}`}
                       whileHover={isLocked ? {} : { x: 4 }}
@@ -1433,10 +1433,10 @@ export default function LuxTradeDashboard() {
                       {/* PRO Badge */}
                       {sidebarOpen && item.proOnly && (
                         <span className="flex items-center gap-1">
-                          <Lock className={`w-3 h-3 ${proType === 'gold' ? 'text-amber-400' : 'text-purple-400'}`} />
+                          <Lock className={`w-3 h-3 ${proType === 'gold' ? 'text-purple-400' : 'text-purple-400'}`} />
                           <span className={`text-[7px] font-black px-1 py-0.5 rounded ${
                             proType === 'gold'
-                              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
+                              ? 'bg-gradient-to-r from-purple-500 to-violet-500 text-white'
                               : 'bg-gradient-to-r from-purple-500 to-violet-500 text-white'
                           }`}>
                             PRO
@@ -1477,7 +1477,7 @@ export default function LuxTradeDashboard() {
           {!isPro && sidebarOpen && !demoMode && (
             <motion.button
               onClick={() => setPaymentModalOpen(true)}
-              className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 text-sm font-bold text-white hover:scale-[1.02] transition-all shadow-lg shadow-amber-500/20"
+              className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-purple-500 to-violet-600 text-sm font-bold text-white hover:scale-[1.02] transition-all shadow-lg shadow-purple-500/20"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -1485,9 +1485,9 @@ export default function LuxTradeDashboard() {
             </motion.button>
           )}
           {(isPro || demoMode) && sidebarOpen && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/20 border border-amber-500/30">
-              <Zap className="w-4 h-4 text-amber-400" />
-              <span className="text-sm font-bold text-amber-400">{demoMode ? 'DEMO' : 'ELITE PRO'}</span>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-500/20 border border-purple-500/30">
+              <Zap className="w-4 h-4 text-purple-400" />
+              <span className="text-sm font-bold text-purple-400">{demoMode ? 'DEMO' : 'ELITE PRO'}</span>
             </div>
           )}
           
@@ -1502,7 +1502,7 @@ export default function LuxTradeDashboard() {
                 <Shield className="w-4 h-4" />
                 <span className="flex items-center gap-1">
                   Admin Panel
-                  <Crown className="w-3 h-3 text-amber-400" />
+                  <Crown className="w-3 h-3 text-purple-400" />
                 </span>
               </motion.button>
             </Link>
@@ -1525,7 +1525,7 @@ export default function LuxTradeDashboard() {
               }
               setSidebarOpen(!sidebarOpen)
             }}
-            className="w-full flex items-center justify-center p-2 text-gray-400 hover:text-amber-400 transition-colors"
+            className="w-full flex items-center justify-center p-2 text-gray-400 hover:text-purple-400 transition-colors"
           >
             {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -1547,7 +1547,7 @@ export default function LuxTradeDashboard() {
             </h2>
             <button 
               onClick={fetchData}
-              className="p-2 text-gray-400 hover:text-amber-400 transition-colors"
+              className="p-2 text-gray-400 hover:text-purple-400 transition-colors"
               title="Refresh data"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -1590,7 +1590,7 @@ export default function LuxTradeDashboard() {
               if (!open) setFormData(emptyFormData)
             }}>
               <DialogTrigger asChild>
-                <Button className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-lg shadow-amber-500/20">
+                <Button className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 shadow-lg shadow-purple-500/20">
                   <Plus className="w-4 h-4 mr-0 lg:mr-2" />
                   <span className="hidden lg:inline">New Trade</span>
                 </Button>
@@ -1902,7 +1902,7 @@ export default function LuxTradeDashboard() {
                     setViewTradeOpen(false)
                     openEditModal(selectedTrade)
                   }}
-                  className="flex-1 bg-gradient-to-r from-amber-500 to-orange-600"
+                  className="flex-1 bg-gradient-to-r from-purple-500 to-violet-600"
                 >
                   <Edit className="w-4 h-4 mr-2" /> Edit
                 </Button>
@@ -2181,7 +2181,7 @@ export default function LuxTradeDashboard() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm text-gray-400">Preview ({csvPreview.length} trades)</p>
-                  <Badge variant="outline" className="border-amber-500/30 text-amber-400">
+                  <Badge variant="outline" className="border-purple-500/30 text-purple-400">
                     {csvPreview.filter(t => t.profit_loss > 0).length} wins / {csvPreview.filter(t => t.profit_loss < 0).length} losses
                   </Badge>
                 </div>
@@ -2221,7 +2221,7 @@ export default function LuxTradeDashboard() {
               <Button 
                 onClick={handleCsvImport} 
                 disabled={csvImporting || csvPreview.length === 0}
-                className="flex-1 bg-gradient-to-r from-amber-500 to-orange-600"
+                className="flex-1 bg-gradient-to-r from-purple-500 to-violet-600"
               >
                 {csvImporting ? 'Importing...' : `Import ${csvPreview.length} Trades`}
               </Button>
@@ -2290,7 +2290,7 @@ export default function LuxTradeDashboard() {
                     </div>
                     <div className="p-3 rounded-lg bg-white/5">
                       <div className="text-xs text-gray-500">Win Rate</div>
-                      <div className="text-lg font-bold text-amber-400">{smartImportPreview.winRate.toFixed(1)}%</div>
+                      <div className="text-lg font-bold text-purple-400">{smartImportPreview.winRate.toFixed(1)}%</div>
                     </div>
                     <div className="p-3 rounded-lg bg-white/5">
                       <div className="text-xs text-gray-500">Total Profit</div>
@@ -2411,7 +2411,7 @@ function AnimatedStatCard({
       <Card className={`bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30 relative overflow-hidden transition-all duration-300 ${isHovered ? 'shadow-lg shadow-purple-500/10 border-purple-500/30' : ''}`}>
         {isHovered && (
           <motion.div 
-            className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-amber-500/5"
+            className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-purple-500/5"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -2466,7 +2466,7 @@ function NewsTicker() {
               key={index} 
               className={`inline-flex items-center gap-2 px-4 ${
                 news.type === 'high' ? 'text-red-400' : 
-                news.type === 'medium' ? 'text-amber-400' : 
+                news.type === 'medium' ? 'text-purple-400' : 
                 news.type === 'tip' ? 'text-purple-400' : 'text-white/60'
               }`}
             >
@@ -2508,7 +2508,7 @@ function DashboardTab({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <RefreshCw className="w-8 h-8 animate-spin text-amber-400" />
+        <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
       </div>
     )
   }
@@ -2545,7 +2545,7 @@ function DashboardTab({
           prefix="$"
           subtitle={`${analytics?.totalTrades || 0} trades`}
           icon={DollarSign}
-          iconColor="bg-amber-500/20"
+          iconColor="bg-purple-500/20"
           valueColor={(analytics?.totalPL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}
         />
         <AnimatedStatCard
@@ -2620,13 +2620,13 @@ function DashboardTab({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.2 }}
           >
-            <Card className="bg-gradient-to-br from-amber-500/10 to-transparent border-amber-500/20">
+            <Card className="bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/20">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <Sparkles className="w-4 h-4 text-purple-400" />
                   <span className="text-xs text-gray-400">Best Trade</span>
                 </div>
-                <div className="text-2xl font-bold text-amber-400">
+                <div className="text-2xl font-bold text-purple-400">
                   +{trades.length > 0 ? Math.max(...trades.map(t => t.profit_loss)) : 0}
                 </div>
               </CardContent>
@@ -2754,16 +2754,16 @@ function DashboardTab({
           <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
             <CardContent className="py-16 lg:py-20 text-center">
               <motion.div 
-                className="w-16 h-16 lg:w-20 lg:h-20 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center mx-auto mb-6"
+                className="w-16 h-16 lg:w-20 lg:h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-violet-500/20 flex items-center justify-center mx-auto mb-6"
                 animate={{ scale: [1, 1.05, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                <BarChart3 className="w-8 h-8 lg:w-10 lg:h-10 text-amber-400" />
+                <BarChart3 className="w-8 h-8 lg:w-10 lg:h-10 text-purple-400" />
               </motion.div>
-              <h3 className="text-xl lg:text-2xl font-bold mb-3 bg-gradient-to-r from-amber-200 to-amber-400 bg-clip-text text-transparent">Welcome to LuxTrade!</h3>
+              <h3 className="text-xl lg:text-2xl font-bold mb-3 bg-gradient-to-r from-purple-200 to-purple-400 bg-clip-text text-transparent">Welcome to LuxTrade!</h3>
               <p className="text-gray-400 mb-8 max-w-md mx-auto">Start tracking your trades to see powerful analytics and insights.</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button onClick={() => setAddTradeOpen(true)} className="bg-gradient-to-r from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20">
+                <Button onClick={() => setAddTradeOpen(true)} className="bg-gradient-to-r from-purple-500 to-violet-600 shadow-lg shadow-purple-500/20">
                   <Plus className="w-4 h-4 mr-2" />Add Your First Trade
                 </Button>
                 {!demoMode && (
@@ -2868,7 +2868,7 @@ function TradesTab({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <RefreshCw className="w-8 h-8 animate-spin text-amber-400" />
+        <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
       </div>
     )
   }
@@ -2896,7 +2896,7 @@ function TradesTab({
           <Button onClick={onSmartImport} variant="outline" className="border-purple-500/30 text-purple-400">
             <Upload className="w-4 h-4 mr-2" /> Smart Import
           </Button>
-          <Button onClick={onImport} className="bg-gradient-to-r from-amber-500 to-orange-600">
+          <Button onClick={onImport} className="bg-gradient-to-r from-purple-500 to-violet-600">
             <FileText className="w-4 h-4 mr-2" /> Import CSV
           </Button>
         </div>
@@ -2992,7 +2992,7 @@ function TradesTab({
                           </button>
                           <button 
                             onClick={() => onEdit(trade)}
-                            className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-amber-400 transition-colors"
+                            className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-purple-400 transition-colors"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
@@ -3035,7 +3035,7 @@ function JournalTab({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <RefreshCw className="w-8 h-8 animate-spin text-amber-400" />
+        <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
       </div>
     )
   }
@@ -3043,7 +3043,7 @@ function JournalTab({
   const getMoodIcon = (mood: string | null) => {
     switch (mood) {
       case 'confident': return <Smile className="w-4 h-4 text-emerald-400" />
-      case 'neutral': return <Meh className="w-4 h-4 text-amber-400" />
+      case 'neutral': return <Meh className="w-4 h-4 text-purple-400" />
       case 'anxious': return <Frown className="w-4 h-4 text-red-400" />
       default: return null
     }
@@ -3091,7 +3091,7 @@ function JournalTab({
                 <p className="text-gray-400 text-sm line-clamp-2">{entry.content}</p>
                 <div className="flex gap-2 mt-3">
                   {entry.market_condition && (
-                    <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-400">
+                    <Badge variant="outline" className="text-xs border-purple-500/30 text-purple-400">
                       {entry.market_condition}
                     </Badge>
                   )}
@@ -3120,7 +3120,7 @@ function WatchlistTab({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <RefreshCw className="w-8 h-8 animate-spin text-amber-400" />
+        <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
       </div>
     )
   }
@@ -3194,7 +3194,7 @@ function AnalyticsTab({ analytics, loading, trades }: { analytics: Analytics | n
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <RefreshCw className="w-8 h-8 animate-spin text-amber-400" />
+        <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
       </div>
     )
   }
@@ -3271,7 +3271,7 @@ function AnalyticsTab({ analytics, loading, trades }: { analytics: Analytics | n
       <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-amber-400" />
+            <AlertCircle className="w-5 h-5 text-purple-400" />
             Risk Metrics
           </CardTitle>
         </CardHeader>
@@ -3286,7 +3286,7 @@ function AnalyticsTab({ analytics, loading, trades }: { analytics: Analytics | n
             </div>
             <div className="p-4 rounded-xl bg-white/5 border border-purple-900/30">
               <div className="text-sm text-gray-400 mb-1">Sharpe Ratio</div>
-              <div className="text-2xl font-bold text-amber-400">
+              <div className="text-2xl font-bold text-purple-400">
                 <AnimatedNumber value={analytics.sharpeRatio || 0} decimals={2} />
               </div>
               <p className="text-xs text-gray-500 mt-1">Risk-adjusted return</p>
@@ -3342,17 +3342,17 @@ function AITab({
     <div className="space-y-6">
       {/* PRO Paywall */}
       {!isPro && (
-        <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/30">
+        <Card className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border-purple-500/30">
           <CardContent className="py-8 text-center">
             <motion.div
               animate={{ scale: [1, 1.1, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              <Lock className="w-12 h-12 mx-auto mb-4 text-amber-400" />
+              <Lock className="w-12 h-12 mx-auto mb-4 text-purple-400" />
             </motion.div>
-            <h3 className="text-lg font-bold text-amber-400 mb-2">AI Insights - PRO Feature</h3>
+            <h3 className="text-lg font-bold text-purple-400 mb-2">AI Insights - PRO Feature</h3>
             <p className="text-gray-400 mb-4">Unlock AI-powered trading insights and recommendations</p>
-            <Button onClick={onUpgrade} className="bg-gradient-to-r from-amber-500 to-orange-600">
+            <Button onClick={onUpgrade} className="bg-gradient-to-r from-purple-500 to-violet-600">
               <Zap className="w-4 h-4 mr-2" /> Upgrade to PRO
             </Button>
           </CardContent>
@@ -3364,11 +3364,11 @@ function AITab({
         <CardHeader>
           <CardTitle className="flex items-center gap-3 text-xl">
             <motion.div 
-              className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center"
+              className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-violet-500/20 flex items-center justify-center"
               animate={{ rotate: [0, 5, -5, 0] }}
               transition={{ duration: 4, repeat: Infinity }}
             >
-              <Brain className="w-5 h-5 text-amber-400" />
+              <Brain className="w-5 h-5 text-purple-400" />
             </motion.div>
             AI Trading Assistant
           </CardTitle>
@@ -3382,7 +3382,7 @@ function AITab({
             <Button 
               onClick={onGetTips}
               disabled={loading || !hasEnoughTrades}
-              className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-amber-400 hover:bg-amber-500/30 justify-start"
+              className="bg-gradient-to-r from-purple-500/20 to-violet-500/20 border border-purple-500/30 text-purple-400 hover:bg-purple-500/30 justify-start"
             >
               {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
               Get Performance Tips
@@ -3398,8 +3398,8 @@ function AITab({
           </div>
           
           {!hasEnoughTrades && (
-            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 mt-4">
-              <p className="text-sm text-amber-400 flex items-center gap-2">
+            <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20 mt-4">
+              <p className="text-sm text-purple-400 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" />
                 Add at least 5 closed trades to unlock AI-powered performance tips.
               </p>
@@ -3413,8 +3413,8 @@ function AITab({
         <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
           <CardContent className="p-6">
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                <Sparkles className="w-4 h-4 text-amber-400" />
+              <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-4 h-4 text-purple-400" />
               </div>
               <div>
                 <p className="text-sm text-gray-400 mb-1">AI Insight</p>
@@ -3477,17 +3477,17 @@ function PsychologyTab({ isPro, onUpgrade, trades }: { isPro: boolean; onUpgrade
   return (
     <div className="space-y-6">
       {!isPro ? (
-        <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/30">
+        <Card className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border-purple-500/30">
           <CardContent className="py-8 text-center">
             <motion.div
               animate={{ scale: [1, 1.1, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              <Lock className="w-12 h-12 mx-auto mb-4 text-amber-400" />
+              <Lock className="w-12 h-12 mx-auto mb-4 text-purple-400" />
             </motion.div>
-            <h3 className="text-lg font-bold text-amber-400 mb-2">Psychology Tracking - PRO Feature</h3>
+            <h3 className="text-lg font-bold text-purple-400 mb-2">Psychology Tracking - PRO Feature</h3>
             <p className="text-gray-400 mb-4">Track your emotional patterns and improve trading discipline</p>
-            <Button onClick={onUpgrade} className="bg-gradient-to-r from-amber-500 to-orange-600">
+            <Button onClick={onUpgrade} className="bg-gradient-to-r from-purple-500 to-violet-600">
               <Zap className="w-4 h-4 mr-2" /> Upgrade to PRO
             </Button>
           </CardContent>
@@ -3514,9 +3514,9 @@ function PsychologyTab({ isPro, onUpgrade, trades }: { isPro: boolean; onUpgrade
                   <div className="text-2xl font-bold text-red-400">{longestLoseStreak}</div>
                   <p className="text-xs text-gray-500 mt-1">Worst consecutive losses</p>
                 </div>
-                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
                   <div className="text-sm text-gray-400 mb-1">Best Session</div>
-                  <div className="text-xl font-bold text-amber-400">{bestSession?.[0] || '-'}</div>
+                  <div className="text-xl font-bold text-purple-400">{bestSession?.[0] || '-'}</div>
                   <p className="text-xs text-gray-500 mt-1">{bestSession ? `+${bestSession[1].totalPL.toFixed(0)} P/L` : ''}</p>
                 </div>
                 <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
@@ -3566,7 +3566,7 @@ function PsychologyTab({ isPro, onUpgrade, trades }: { isPro: boolean; onUpgrade
                   <ul className="text-sm text-gray-300 space-y-2">
                     {revengeTrades.length > 2 && (
                       <li className="flex items-start gap-2">
-                        <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5" />
+                        <AlertTriangle className="w-4 h-4 text-purple-400 mt-0.5" />
                         <span>Consider taking a break after a loss. You have {revengeTrades.length} potential revenge trades.</span>
                       </li>
                     )}
@@ -3654,17 +3654,17 @@ function HeatmapTab({ isPro, onUpgrade, trades }: { isPro: boolean; onUpgrade: (
   return (
     <div className="space-y-6">
       {!isPro ? (
-        <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/30">
+        <Card className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border-purple-500/30">
           <CardContent className="py-8 text-center">
             <motion.div
               animate={{ scale: [1, 1.1, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              <Lock className="w-12 h-12 mx-auto mb-4 text-amber-400" />
+              <Lock className="w-12 h-12 mx-auto mb-4 text-purple-400" />
             </motion.div>
-            <h3 className="text-lg font-bold text-amber-400 mb-2">Market Heatmap - PRO Feature</h3>
+            <h3 className="text-lg font-bold text-purple-400 mb-2">Market Heatmap - PRO Feature</h3>
             <p className="text-gray-400 mb-4">Visualize market strength across all pairs</p>
-            <Button onClick={onUpgrade} className="bg-gradient-to-r from-amber-500 to-orange-600">
+            <Button onClick={onUpgrade} className="bg-gradient-to-r from-purple-500 to-violet-600">
               <Zap className="w-4 h-4 mr-2" /> Upgrade to PRO
             </Button>
           </CardContent>
@@ -3675,7 +3675,7 @@ function HeatmapTab({ isPro, onUpgrade, trades }: { isPro: boolean; onUpgrade: (
           <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <Grid3X3 className="w-5 h-5 text-amber-400" />
+                <Grid3X3 className="w-5 h-5 text-purple-400" />
                 Performance Heatmap
               </CardTitle>
             </CardHeader>
@@ -3823,7 +3823,7 @@ function CalendarTab({ trades, language }: { trades: Trade[]; language: string }
       <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-amber-400" />
+            <Calendar className="w-5 h-5 text-purple-400" />
             {monthNames[today.getMonth()]} {today.getFullYear()}
           </CardTitle>
         </CardHeader>
@@ -3846,7 +3846,7 @@ function CalendarTab({ trades, language }: { trades: Trade[]; language: string }
                   whileHover={{ scale: 1.1 }}
                   className={"aspect-square flex items-center justify-center rounded-lg text-sm relative cursor-pointer " + (
                     isToday 
-                      ? "bg-amber-500 text-white font-bold" 
+                      ? "bg-purple-500 text-white font-bold" 
                       : tradeCount > 0 
                         ? "bg-purple-500/20 text-purple-300" 
                         : "hover:bg-white/5"
@@ -3870,7 +3870,7 @@ function CalendarTab({ trades, language }: { trades: Trade[]; language: string }
         <CardContent>
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <div className="text-3xl font-bold text-amber-400">{trades.length}</div>
+              <div className="text-3xl font-bold text-purple-400">{trades.length}</div>
               <div className="text-xs text-gray-500">{language === "id" ? "Total Transaksi" : "Total Trades"}</div>
             </div>
             <div>
@@ -3900,14 +3900,14 @@ function RiskCalculatorTab({ isPro, onUpgrade, language }: { isPro: boolean; onU
 
   if (!isPro) {
     return (
-      <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/30">
+      <Card className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border-purple-500/30">
         <CardContent className="py-8 text-center">
           <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: Infinity }}>
-            <Lock className="w-12 h-12 mx-auto mb-4 text-amber-400" />
+            <Lock className="w-12 h-12 mx-auto mb-4 text-purple-400" />
           </motion.div>
-          <h3 className="text-lg font-bold text-amber-400 mb-2">{language === "id" ? "Kalkulator Risiko - Fitur PRO" : "Risk Calculator - PRO Feature"}</h3>
+          <h3 className="text-lg font-bold text-purple-400 mb-2">{language === "id" ? "Kalkulator Risiko - Fitur PRO" : "Risk Calculator - PRO Feature"}</h3>
           <p className="text-gray-400 mb-4">{language === "id" ? "Hitung ukuran lot optimal dengan presisi" : "Calculate optimal lot size with precision"}</p>
-          <Button onClick={onUpgrade} className="bg-gradient-to-r from-amber-500 to-orange-600">
+          <Button onClick={onUpgrade} className="bg-gradient-to-r from-purple-500 to-violet-600">
             <Zap className="w-4 h-4 mr-2" /> {language === "id" ? "Upgrade ke PRO" : "Upgrade to PRO"}
           </Button>
         </CardContent>
@@ -3920,7 +3920,7 @@ function RiskCalculatorTab({ isPro, onUpgrade, language }: { isPro: boolean; onU
       <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Target className="w-5 h-5 text-amber-400" />
+            <Target className="w-5 h-5 text-purple-400" />
             {language === "id" ? "Kalkulator Risiko" : "Risk Calculator"}
           </CardTitle>
         </CardHeader>
@@ -3944,7 +3944,7 @@ function RiskCalculatorTab({ isPro, onUpgrade, language }: { isPro: boolean; onU
         </CardContent>
       </Card>
 
-      <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/30">
+      <Card className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border-purple-500/30">
         <CardContent className="py-6">
           <div className="grid grid-cols-2 gap-4 text-center">
             <div>
@@ -4000,7 +4000,7 @@ function TargetsTab({ isPro, onUpgrade, language }: { isPro: boolean; onUpgrade:
               <CardContent className="py-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-medium">{target.name}</span>
-                  <span className={"text-sm font-bold " + (isCompleted ? "text-emerald-400" : "text-amber-400")}>
+                  <span className={"text-sm font-bold " + (isCompleted ? "text-emerald-400" : "text-purple-400")}>
                     {target.unit === "$" ? "$" : ""}{target.current}{target.unit !== "$" ? target.unit : ""} / {target.unit === "$" ? "$" : ""}{target.target}{target.unit !== "$" ? target.unit : ""}
                   </span>
                 </div>
