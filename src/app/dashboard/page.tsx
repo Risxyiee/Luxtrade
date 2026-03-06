@@ -174,6 +174,7 @@ interface Trade {
   close_time: string
   session: string | null
   notes?: string
+  image_url?: string | null
 }
 
 interface JournalEntry {
@@ -221,6 +222,7 @@ interface TradeFormData {
   close_time: string
   session: string
   notes: string
+  image_url: string
 }
 
 interface MTReportPreview {
@@ -245,6 +247,25 @@ const emptyFormData: TradeFormData = {
   close_time: '',
   session: '',
   notes: '',
+  image_url: '',
+}
+
+// Helper: Format date to local timezone (YYYY-MM-DD HH:mm:ss)
+function formatLocalDateTime(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
+
+// Helper: Convert datetime-local value to local format
+function datetimeLocalToFormat(value: string): string {
+  if (!value) return ''
+  const date = new Date(value)
+  return formatLocalDateTime(date)
 }
 
 const moodOptions = [
@@ -365,7 +386,7 @@ const TradeForm = memo(function TradeForm({
             type="datetime-local" 
             className="bg-[#0a0712] border-purple-900/30 mt-1"
             value={formData.open_time ? formData.open_time.slice(0, 16) : ''}
-            onChange={(e) => onFormChange('open_time', e.target.value ? new Date(e.target.value).toISOString() : '')}
+            onChange={(e) => onFormChange('open_time', e.target.value ? datetimeLocalToFormat(e.target.value) : '')}
           />
         </div>
         <div>
@@ -374,7 +395,7 @@ const TradeForm = memo(function TradeForm({
             type="datetime-local" 
             className="bg-[#0a0712] border-purple-900/30 mt-1"
             value={formData.close_time ? formData.close_time.slice(0, 16) : ''}
-            onChange={(e) => onFormChange('close_time', e.target.value ? new Date(e.target.value).toISOString() : '')}
+            onChange={(e) => onFormChange('close_time', e.target.value ? datetimeLocalToFormat(e.target.value) : '')}
           />
         </div>
       </div>
@@ -401,6 +422,35 @@ const TradeForm = memo(function TradeForm({
           value={formData.notes}
           onChange={(e) => onFormChange('notes', e.target.value)}
         />
+      </div>
+      {/* Image Upload */}
+      <div>
+        <Label>Trade Screenshot (Optional)</Label>
+        <Input 
+          type="file"
+          accept="image/*"
+          className="bg-[#0a0712] border-purple-900/30 mt-1"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) {
+              // For now, store as base64 data URL
+              const reader = new FileReader()
+              reader.onload = (ev) => {
+                onFormChange('image_url', ev.target?.result as string || '')
+              }
+              reader.readAsDataURL(file)
+            }
+          }}
+        />
+        {formData.image_url && (
+          <div className="mt-2">
+            <img 
+              src={formData.image_url} 
+              alt="Trade preview" 
+              className="w-full h-32 object-cover rounded-lg border border-purple-900/30"
+            />
+          </div>
+        )}
       </div>
       <div className="flex gap-3 pt-2">
         <Button 
@@ -778,10 +828,11 @@ export default function LuxTradeDashboard() {
         close_price: parseFloat(formData.close_price),
         lot_size: parseFloat(formData.lot_size) || 0.1,
         profit_loss: parseFloat(formData.profit_loss),
-        open_time: formData.open_time || new Date().toISOString(),
-        close_time: formData.close_time || new Date().toISOString(),
+        open_time: formData.open_time || formatLocalDateTime(new Date()),
+        close_time: formData.close_time || formatLocalDateTime(new Date()),
         session: formData.session || null,
         notes: formData.notes || null,
+        image_url: formData.image_url || null,
       }
       setTrades(prev => [newTrade, ...prev])
       toast.success('Trade added! (Demo mode)')
@@ -802,10 +853,11 @@ export default function LuxTradeDashboard() {
           close_price: parseFloat(formData.close_price),
           lot_size: parseFloat(formData.lot_size) || 0.1,
           profit_loss: parseFloat(formData.profit_loss),
-          open_time: formData.open_time || new Date().toISOString(),
-          close_time: formData.close_time || new Date().toISOString(),
+          open_time: formData.open_time || formatLocalDateTime(new Date()),
+          close_time: formData.close_time || formatLocalDateTime(new Date()),
           session: formData.session || null,
           notes: formData.notes || null,
+          image_url: formData.image_url || null,
         }),
       })
 
@@ -842,6 +894,7 @@ export default function LuxTradeDashboard() {
         profit_loss: parseFloat(formData.profit_loss),
         session: formData.session || null,
         notes: formData.notes || null,
+        image_url: formData.image_url || null,
       } : t))
       toast.success('Trade updated! (Demo mode)')
       setEditTradeOpen(false)
@@ -865,6 +918,7 @@ export default function LuxTradeDashboard() {
           profit_loss: parseFloat(formData.profit_loss),
           session: formData.session || null,
           notes: formData.notes || null,
+          image_url: formData.image_url || null,
         }),
       })
 

@@ -86,7 +86,7 @@ const PNLShareCard = forwardRef<HTMLDivElement, PNLShareCardProps>(function PNLS
     }).format(value)
   }
 
-  // Export to PNG (1080x1080)
+  // Export to PNG (1080x1350)
   const handleExport = async () => {
     if (!actualRef.current) return
     
@@ -94,7 +94,7 @@ const PNLShareCard = forwardRef<HTMLDivElement, PNLShareCardProps>(function PNLS
     try {
       const dataUrl = await toPng(actualRef.current, {
         width: 1080,
-        height: 1080,
+        height: 1350,
         pixelRatio: 2,
         backgroundColor: DEEP_BLACK,
         cacheBust: true,
@@ -121,7 +121,7 @@ const PNLShareCard = forwardRef<HTMLDivElement, PNLShareCardProps>(function PNLS
     try {
       const dataUrl = await toPng(actualRef.current, {
         width: 1080,
-        height: 1080,
+        height: 1350,
         pixelRatio: 2,
         backgroundColor: DEEP_BLACK,
       })
@@ -176,15 +176,22 @@ const PNLShareCard = forwardRef<HTMLDivElement, PNLShareCardProps>(function PNLS
 
   return (
     <div className="space-y-4 flex flex-col items-center">
-      {/* Card - 1080x1080 aspect ratio */}
+      {/* Card - 1080x1350 aspect ratio with proper centering */}
       <div 
         ref={actualRef}
         id={id}
-        className="relative w-full max-w-[540px] mx-auto overflow-hidden"
+        className="relative overflow-hidden"
         style={{ 
-          aspectRatio: '1/1',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          width: '1080px',
+          height: '1350px',
           backgroundColor: DEEP_BLACK,
-          fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace'
+          fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+          maxWidth: '540px',
+          margin: '0 auto'
         }}
       >
         {/* Watermark Equity Curve SVG */}
@@ -455,7 +462,7 @@ export async function exportPnlCardAsPng(
 ): Promise<string> {
   const dataUrl = await toPng(element, {
     width: 1080,
-    height: 1080,
+    height: 1350,
     pixelRatio: 2,
     backgroundColor: DEEP_BLACK,
     cacheBust: true,
