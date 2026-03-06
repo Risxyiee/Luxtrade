@@ -109,33 +109,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    // Get initial session quickly - don't wait for profile
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        let profileData = await fetchProfile(session.user.id);
-        // Check for expired subscription
-        profileData = await checkAndLockExpired(profileData);
-        setProfile(profileData);
-      }
+      // Set loading to false immediately so auth doesn't block
       setLoading(false);
+      
+      // Fetch profile in background (non-blocking)
+      if (session?.user) {
+        fetchProfile(session.user.id).then(async (profileData) => {
+          const checkedProfile = await checkAndLockExpired(profileData);
+          setProfile(checkedProfile);
+        });
+      }
     });
 
+    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
+        console.log('Auth state changed:', event);
+        
+        // Handle sign out - clear everything immediately
+        if (event === 'SIGNED_OUT') {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
+        
         setSession(session);
         setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          let profileData = await fetchProfile(session.user.id);
-          // Check for expired subscription
-          profileData = await checkAndLockExpired(profileData);
-          setProfile(profileData);
-        } else {
-          setProfile(null);
-        }
         setLoading(false);
+        
+        // Fetch profile in background for sign in
+        if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+          fetchProfile(session.user.id).then(async (profileData) => {
+            const checkedProfile = await checkAndLockExpired(profileData);
+            setProfile(checkedProfile);
+          });
+        }
       }
     );
 

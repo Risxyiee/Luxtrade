@@ -53,9 +53,9 @@ export default function AuthCallbackPage() {
 
           setStatus('success')
 
-          // Redirect to dashboard after 3 seconds
+          // HARD REDIRECT - Use window.location for immediate navigation
           setTimeout(() => {
-            router.push('/dashboard')
+            window.location.href = '/dashboard'
           }, 3000)
         } else {
           // No code in URL

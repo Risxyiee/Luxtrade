@@ -58,12 +58,9 @@ export default function LoginPage() {
       }
 
       if (data.session && data.user) {
-        // Use router.push for client-side navigation
-        // Small delay to ensure session is persisted
-        setTimeout(() => {
-          router.push('/dashboard')
-          router.refresh()
-        }, 100)
+        // HARD REDIRECT - Use window.location for immediate navigation
+        // This ensures a full page reload and prevents "stuck" states
+        window.location.href = '/dashboard'
       } else {
         setError('Login gagal. Tidak ada session yang dibuat.')
         setIsLoading(false)

@@ -90,8 +90,9 @@ export default function SignUpPage() {
         console.log('✅ User created:', data.user.id)
         console.log('✅ User email:', data.user.email)
         setSuccess(true)
+        // Use hard redirect after showing success message
         setTimeout(() => {
-          router.push('/dashboard')
+          window.location.href = '/dashboard'
         }, 3000)
       } else {
         console.error('❌ No user in response:', data)
@@ -169,8 +170,8 @@ export default function SignUpPage() {
               Kamu akan dialihkan ke dashboard dalam beberapa detik...
             </p>
             <Button 
-              onClick={() => router.push('/dashboard')}
-              className="w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold"
+              onClick={() => window.location.href = '/dashboard'}
+              className="w-full bg-gradient-to-r from-purple-500 to-violet-600 text-white font-semibold"
             >
               Lanjut ke Dashboard
               <ArrowRight className="w-4 h-4 ml-2" />
