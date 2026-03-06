@@ -201,11 +201,11 @@ export default function SignUpPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-3">
             <Image 
-              src="/logo-premium.png" 
+              src="/logo.png" 
               alt="LuxTrade Logo" 
               width={48} 
               height={48}
-              className="rounded-xl shadow-lg shadow-amber-500/20"
+              className="rounded-xl shadow-lg shadow-purple-500/20"
             />
             <span className="text-2xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent">
               LuxTrade

@@ -248,7 +248,7 @@ const PNLShareCard = forwardRef<HTMLDivElement, PNLShareCardProps>(function PNLS
           <div className="flex items-center justify-center gap-3 w-full mb-6">
             {/* Phoenix Logo */}
             <img 
-              src="/logo-premium.png" 
+              src="/logo.png" 
               alt="LuxTrade Logo" 
               className="w-14 h-14 rounded-xl flex-shrink-0"
             />

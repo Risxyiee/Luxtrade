@@ -1406,7 +1406,7 @@ export default function LuxTradeDashboard() {
         <div className="p-4 border-b border-purple-900/30">
           <Link href="/" className="flex items-center gap-3">
             <Image 
-              src="/logo-premium.png" 
+              src="/logo.png" 
               alt="LuxTrade Logo" 
               width={40} 
               height={40}

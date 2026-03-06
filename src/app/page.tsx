@@ -487,7 +487,7 @@ export default function LuxTradeLanding() {
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <Image 
-                    src="/logo-premium.png" 
+                    src="/logo.png" 
                     alt="LuxTrade Logo" 
                     width={40} 
                     height={40}

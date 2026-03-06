@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   keywords: ["Trading", "Journal", "Stocks", "Investment", "Portfolio", "Analytics", "AI"],
   authors: [{ name: "LuxTrade Team" }],
   icons: {
-    icon: "/logo-premium.png",
+    icon: "/logo.png",
   },
   openGraph: {
     title: "LuxTrade - Trading Journal",
