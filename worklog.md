@@ -118,3 +118,26 @@ Comprehensive update to the LuxTrade Dashboard with bug fixes, animations, PRO f
 
 **Files Modified:**
 - `/home/z/my-project/src/app/dashboard/page.tsx` - Complete comprehensive update
+
+---
+## Task ID: Logo CSS Fix for White Background
+### Agent: Main Agent
+### Task: Apply CSS mix-blend-mode to remove logo white background
+
+### Work Log:
+- Checked logo file transparency (IMG_4302.png is already RGBA)
+- Applied CSS fix: `mixBlendMode: 'multiply', filter: 'contrast(110%)'`
+- Updated all logo components:
+  - Landing page (Navbar)
+  - Login page
+  - Signup page
+  - Dashboard (Sidebar)
+- PNL Share Card kept original (dark background, no fix needed)
+- Pushed to master branch with force-with-lease
+
+- Lint check: PASSED
+
+### Stage Summary:
+- Logo now blends properly with all backgrounds using CSS mix-blend-mode
+- White background removed visually without modifying the original PNG
+- All logo components updated consistently
