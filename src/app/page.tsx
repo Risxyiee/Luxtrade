@@ -492,7 +492,6 @@ export default function LuxTradeLanding() {
                     width={40} 
                     height={40}
                     className="rounded-xl shadow-lg"
-                    style={{ mixBlendMode: 'multiply', filter: 'contrast(110%)' }}
                   />
                   <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[#0a0612]" />
                 </div>

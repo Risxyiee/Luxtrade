@@ -1411,7 +1411,6 @@ export default function LuxTradeDashboard() {
               width={40} 
               height={40}
               className="rounded-xl shadow-lg shadow-purple-500/20"
-              style={{ mixBlendMode: 'multiply', filter: 'contrast(110%)' }}
             />
             {sidebarOpen && (
               <div>

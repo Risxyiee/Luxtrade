@@ -251,7 +251,6 @@ const PNLShareCard = forwardRef<HTMLDivElement, PNLShareCardProps>(function PNLS
               src="/logo.png" 
               alt="LuxTrade Logo" 
               className="w-14 h-14 rounded-xl flex-shrink-0"
-              style={{ mixBlendMode: 'multiply' }}
             />
             <div className="flex flex-col items-center justify-center">
               <span className="text-2xl font-bold text-white tracking-tight">

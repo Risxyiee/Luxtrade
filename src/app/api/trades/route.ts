@@ -108,6 +108,8 @@ export async function POST(request: NextRequest) {
       open_time: body.open_time || new Date().toISOString(),
       close_time: body.close_time || new Date().toISOString(),
       session: body.session || null,
+      notes: body.notes || null,
+      image_url: body.image_url || null,
     }
     
     const { data, error } = await supabase
