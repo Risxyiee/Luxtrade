@@ -9,7 +9,7 @@ import {
   Eye, Brain, Menu, X, DollarSign, Target,
   Activity, PieChart, Sparkles, AlertTriangle,
   Zap, RefreshCw, Database, LogOut, Upload, Edit, Trash2, Eye as ViewIcon, Calendar, Clock,
-  Smile, Meh, Frown, Sun, Moon, Cloud, AlertCircle, Search, Send, MessageSquare,
+  Smile, Meh, Frown, Sun, Moon, Cloud, AlertCircle, Search, Send, MessageSquare, MessageCircle, Bot, User,
   TrendingUp as TrendingUpIcon, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, FileText, Play, Share2, Download, Shield, Crown, AlertCircle as AlertCircleIcon, Camera
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -2059,7 +2059,7 @@ export default function LuxTradeDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <TargetsTab isPro={isPro} onUpgrade={() => setPaymentModalOpen(true)} language={language} />
+                <TargetsTab isPro={isPro} onUpgrade={() => setPaymentModalOpen(true)} language={language} analytics={analytics} trades={trades} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -3768,6 +3768,10 @@ function AITab({
   loading, 
   onGetTips, 
   onGetMarket,
+  chatMessages,
+  chatInput,
+  onChatChange,
+  onSendChat,
   isPro,
   onUpgrade
 }: { 
@@ -3785,6 +3789,14 @@ function AITab({
   onUpgrade: () => void
 }) {
   const hasEnoughTrades = analytics && analytics.totalTrades >= 5
+  const chatContainerRef = React.useRef<HTMLDivElement>(null)
+
+  // Auto-scroll to bottom when new messages arrive
+  React.useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
+    }
+  }, [chatMessages])
 
   return (
     <div className="space-y-6">
@@ -3868,6 +3880,112 @@ function AITab({
                 <p className="text-sm text-gray-400 mb-1">AI Insight</p>
                 <p className="text-gray-200 whitespace-pre-wrap">{insight}</p>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* AI Chat Section */}
+      {isPro && (
+        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <MessageCircle className="w-5 h-5 text-purple-400" />
+              Chat with AI Coach
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {/* Chat Messages */}
+            <div 
+              ref={chatContainerRef}
+              className="h-64 overflow-y-auto space-y-3 mb-4 p-3 rounded-lg bg-black/20 border border-purple-900/20"
+            >
+              {chatMessages.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-gray-500 text-sm">
+                  <div className="text-center">
+                    <Bot className="w-8 h-8 mx-auto mb-2 text-purple-400/50" />
+                    <p>Ask me anything about your trading!</p>
+                    <p className="text-xs mt-1 text-gray-600">e.g., &quot;What&apos;s my best trading session?&quot;</p>
+                  </div>
+                </div>
+              ) : (
+                chatMessages.map((msg, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    {msg.role === 'assistant' && (
+                      <div className="w-7 h-7 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                        <Bot className="w-4 h-4 text-purple-400" />
+                      </div>
+                    )}
+                    <div className={`max-w-[80%] p-3 rounded-xl text-sm ${
+                      msg.role === 'user' 
+                        ? 'bg-purple-500/20 text-purple-100 rounded-br-none' 
+                        : 'bg-gray-800/50 text-gray-200 rounded-bl-none'
+                    }`}>
+                      {msg.content}
+                    </div>
+                    {msg.role === 'user' && (
+                      <div className="w-7 h-7 rounded-full bg-purple-500/30 flex items-center justify-center flex-shrink-0">
+                        <User className="w-4 h-4 text-purple-300" />
+                      </div>
+                    )}
+                  </motion.div>
+                ))
+              )}
+              {loading && chatMessages.length > 0 && chatMessages[chatMessages.length - 1]?.role === 'user' && (
+                <div className="flex gap-2 justify-start">
+                  <div className="w-7 h-7 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                    <Bot className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <div className="bg-gray-800/50 p-3 rounded-xl rounded-bl-none">
+                    <div className="flex gap-1">
+                      <motion.span 
+                        className="w-2 h-2 bg-purple-400 rounded-full"
+                        animate={{ opacity: [0.4, 1, 0.4] }}
+                        transition={{ duration: 1, repeat: Infinity, delay: 0 }}
+                      />
+                      <motion.span 
+                        className="w-2 h-2 bg-purple-400 rounded-full"
+                        animate={{ opacity: [0.4, 1, 0.4] }}
+                        transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
+                      />
+                      <motion.span 
+                        className="w-2 h-2 bg-purple-400 rounded-full"
+                        animate={{ opacity: [0.4, 1, 0.4] }}
+                        transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Chat Input */}
+            <div className="flex gap-2">
+              <Input
+                value={chatInput}
+                onChange={(e) => onChatChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    onSendChat()
+                  }
+                }}
+                placeholder="Ask about your trading performance..."
+                className="bg-black/30 border-purple-900/30 focus:border-purple-500/50 text-gray-200 placeholder-gray-500"
+                disabled={loading}
+              />
+              <Button
+                onClick={onSendChat}
+                disabled={loading || !chatInput.trim()}
+                className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -4411,12 +4529,33 @@ function RiskCalculatorTab({ isPro, onUpgrade, language }: { isPro: boolean; onU
 }
 
 // ==================== TARGETS TAB ====================
-function TargetsTab({ isPro, onUpgrade, language }: { isPro: boolean; onUpgrade: () => void; language: string }) {
+function TargetsTab({ isPro, onUpgrade, language, analytics, trades }: { isPro: boolean; onUpgrade: () => void; language: string; analytics: Analytics | null; trades: Trade[] }) {
+  // Calculate real progress from trades
+  const now = new Date()
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const weekStart = new Date(todayStart)
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay())
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+
+  const todayPL = trades
+    .filter(t => new Date(t.close_time) >= todayStart)
+    .reduce((sum, t) => sum + t.profit_loss, 0)
+  
+  const weekPL = trades
+    .filter(t => new Date(t.close_time) >= weekStart)
+    .reduce((sum, t) => sum + t.profit_loss, 0)
+  
+  const monthPL = trades
+    .filter(t => new Date(t.close_time) >= monthStart)
+    .reduce((sum, t) => sum + t.profit_loss, 0)
+
+  const currentWinRate = analytics?.winRate || 0
+
   const targets = [
-    { id: 1, name: language === "id" ? "Target Harian" : "Daily Target", target: 100, current: 75, unit: "$" },
-    { id: 2, name: language === "id" ? "Target Mingguan" : "Weekly Target", target: 500, current: 320, unit: "$" },
-    { id: 3, name: language === "id" ? "Target Bulanan" : "Monthly Target", target: 2000, current: 1450, unit: "$" },
-    { id: 4, name: language === "id" ? "Target Win Rate" : "Win Rate Target", target: 70, current: 75, unit: "%" },
+    { id: 1, name: language === "id" ? "Target Harian" : "Daily Target", target: 100, current: todayPL, unit: "$" },
+    { id: 2, name: language === "id" ? "Target Mingguan" : "Weekly Target", target: 500, current: weekPL, unit: "$" },
+    { id: 3, name: language === "id" ? "Target Bulanan" : "Monthly Target", target: 2000, current: monthPL, unit: "$" },
+    { id: 4, name: language === "id" ? "Target Win Rate" : "Win Rate Target", target: 70, current: currentWinRate, unit: "%" },
   ]
 
   if (!isPro) {
