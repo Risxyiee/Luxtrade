@@ -9,7 +9,7 @@ import {
   Gift, Copy, Check, ArrowLeft, Users, Wallet, Clock,
   TrendingUp, Banknote, ChevronDown, ChevronUp,
   Loader2, AlertCircle, CheckCircle, XCircle, RefreshCw,
-  Send, ExternalLink, Shield, Zap, ArrowRight, Star, Crown
+  Send, ExternalLink, Shield, Zap, ArrowRight, Star, Crown, BarChart3
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -771,5 +771,3 @@ export default function AffiliatePage() {
   )
 }
 
-// Need this import
-import { BarChart3 } from 'lucide-react'
