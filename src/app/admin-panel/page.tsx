@@ -24,12 +24,21 @@ interface AdminUser {
   id: string
   email: string
   full_name: string
-  subscription_status: 'FREE' | 'PRO'
-  pro_status: 'active' | 'inactive' | 'expired'
-  pro_expiry_date: string | null
-  referral_code: string
-  referral_count: number
+  subscription_status: string
+  is_pro: boolean
+  subscription_until: string | null
+  my_referral_code: string | null
+  referred_by_code: string | null
+  affiliate_balance: number
+  referral_status: string | null
+  has_ever_been_pro: boolean
+  commission_paid: boolean
   created_at: string
+  // Extra fields
+  referred_by: { email: string; name: string | null } | null
+  referral_code_changes: number
+  has_duplicate_device: boolean
+  device_id: string | null
 }
 
 interface AdminWithdrawal {
@@ -82,15 +91,24 @@ export default function AdminPanel() {
   const fetchUsers = async () => {
     setIsLoading(true)
     try {
+      // Get session token for admin API auth
+      const { supabase } = await import('@/lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token || ''
+
       const [usersRes, withdrawalsRes] = await Promise.all([
-        fetch(`/api/admin/users?email=${encodeURIComponent(user?.email || '')}`),
+        fetch('/api/admin/users', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
         fetch(`/api/admin/withdrawals?adminEmail=${encodeURIComponent(user?.email || '')}`),
       ])
       const usersData = await usersRes.json()
       const withdrawalsData = await withdrawalsRes.json()
       
-      if (usersData.success) setUsers(usersData.users)
-      if (withdrawalsData.success) setWithdrawals(withdrawalsData.withdrawals)
+      // Users API returns { users, count } directly
+      const usersList = usersData.users || []
+      setUsers(usersList)
+      if (withdrawalsData.success) setWithdrawals(withdrawalsData.withdrawals || [])
     } catch (error) {
       console.error('Error fetching data:', error)
       toast.error('Failed to fetch data')
@@ -232,9 +250,10 @@ export default function AdminPanel() {
 
   // Stats
   const totalUsers = users.length
-  const proUsers = users.filter(u => u.subscription_status === 'PRO').length
+  const proUsers = users.filter(u => u.is_pro || u.subscription_status === 'active').length
   const freeUsers = totalUsers - proUsers
-  const totalReferrals = users.reduce((sum, u) => sum + (u.referral_count || 0), 0)
+  const totalReferrals = users.filter(u => u.referred_by_code).length
+  const totalAffiliateBalance = users.reduce((sum, u) => sum + (u.affiliate_balance || 0), 0)
   const pendingWithdrawals = withdrawals.filter(w => w.status === 'pending').length
 
   if (loading || !user || user.email !== ADMIN_EMAIL) {
@@ -434,15 +453,15 @@ export default function AdminPanel() {
                           {user.full_name}
                         </td>
                         <td className="p-4">
-                          {user.subscription_status === 'PRO' ? (
+                          {user.is_pro ? (
                             <div className="flex items-center gap-2">
                               <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
                                 <Crown className="w-3 h-3 mr-1" /> PRO
                               </Badge>
-                              {isExpiringSoon(user.pro_expiry_date) && (
+                              {isExpiringSoon(user.subscription_until) && (
                                 <AlertTriangle className="w-4 h-4 text-yellow-500" title="Expiring soon" />
                               )}
-                              {isExpired(user.pro_expiry_date) && (
+                              {isExpired(user.subscription_until) && (
                                 <XCircle className="w-4 h-4 text-red-500" title="Expired" />
                               )}
                             </div>
@@ -453,18 +472,18 @@ export default function AdminPanel() {
                           )}
                         </td>
                         <td className="p-4">
-                          {user.pro_expiry_date ? (
+                          {user.subscription_until ? (
                             <div className="text-sm">
-                              <p>{formatDate(user.pro_expiry_date)}</p>
-                              {getDaysRemaining(user.pro_expiry_date) !== null && (
+                              <p>{formatDate(user.subscription_until)}</p>
+                              {getDaysRemaining(user.subscription_until) !== null && (
                                 <p className={`text-xs ${
-                                  isExpired(user.pro_expiry_date) ? 'text-red-400' :
-                                  isExpiringSoon(user.pro_expiry_date) ? 'text-yellow-400' :
+                                  isExpired(user.subscription_until) ? 'text-red-400' :
+                                  isExpiringSoon(user.subscription_until) ? 'text-yellow-400' :
                                   'text-gray-500'
                                 }`}>
-                                  {isExpired(user.pro_expiry_date) 
+                                  {isExpired(user.subscription_until) 
                                     ? 'Expired' 
-                                    : `${getDaysRemaining(user.pro_expiry_date)} days left`}
+                                    : `${getDaysRemaining(user.subscription_until)} days left`}
                                 </p>
                               )}
                             </div>
@@ -474,10 +493,7 @@ export default function AdminPanel() {
                         </td>
                         <td className="p-4">
                           <div className="flex items-center gap-1">
-                            <span className="font-semibold">{user.referral_count}</span>
-                            {user.referral_code && user.referral_code !== '-' && (
-                              <span className="text-xs text-gray-500 font-mono">({user.referral_code})</span>
-                            )}
+                            <span className="font-semibold">{user.my_referral_code || '-'}</span>
                           </div>
                         </td>
                         <td className="p-4 text-sm text-gray-400">
@@ -485,7 +501,7 @@ export default function AdminPanel() {
                         </td>
                         <td className="p-4">
                           <div className="flex items-center justify-end gap-2">
-                            {user.subscription_status === 'PRO' ? (
+                            {user.is_pro ? (
                               <Button
                                 variant="outline"
                                 size="sm"
