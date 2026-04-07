@@ -28,3 +28,30 @@ Stage Summary:
 - All dependencies installed
 - Site accessible at / route with landing page rendering correctly
 - Lint passes with no errors
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix AI Insight feature, fix screenshot import, enhance journal, check all features
+
+Work Log:
+- Analyzed uploaded image (IMG_4965.png) showing "Failed to generate AI insight" error on luxtradee.web.id
+- Rewrote /src/app/api/ai/route.ts with smart local insight engine (no SDK dependency)
+  - generatePerformanceTips() - analyzes win rate, profit factor, R:R ratio, drawdown
+  - generateMarketInsight() - market session tips, risk management reminders
+  - generateChatResponse() - handles various questions (sessions, win rate, risk, strategy, performance)
+  - Falls back to SDK only for trade_analysis type
+- Fixed /src/app/api/import/screenshot/route.ts - converted static z-ai-web-dev-sdk import to dynamic import with graceful error handling
+- Enhanced JournalTab with new features:
+  - Journal Streak tracker (consecutive days of journaling)
+  - Daily Reflection Prompts (15 rotating prompts)
+  - Journal Analytics panel (mood distribution, mood trend chart, weekly summary)
+  - Enhanced journal API with analytics calculation
+  - PRO upgrade banner for free users
+- Verified all AI endpoints work: performance_tips, market_insight, chat (session analysis, win rate, risk management, strategy, performance questions)
+- Ran ESLint - all clean
+
+Stage Summary:
+- AI Insight: FIXED - works without z-ai-web-dev-sdk, generates smart local insights
+- Screenshot Import: FIXED - dynamic import prevents build failure on Vercel
+- Journal: ENHANCED - streak, daily prompts, mood analytics, weekly AI summary
+- All lint checks pass
