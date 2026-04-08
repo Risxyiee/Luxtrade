@@ -957,11 +957,27 @@ export default function LuxTradeLanding() {
                     </li>
                     <li className="flex items-center gap-2 text-sm text-white/60">
                       <Check className="w-4 h-4 text-emerald-400" />
-                      Advanced analytics & AI insights
+                      Trading Performance Score (0-100)
                     </li>
                     <li className="flex items-center gap-2 text-sm text-white/60">
                       <Check className="w-4 h-4 text-emerald-400" />
-                      Psychology tracking & heatmap
+                      AI Weekly Report & Insights
+                    </li>
+                    <li className="flex items-center gap-2 text-sm text-white/60">
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      Streaks & Achievement Badges
+                    </li>
+                    <li className="flex items-center gap-2 text-sm text-white/60">
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      Advanced analytics & heatmap
+                    </li>
+                    <li className="flex items-center gap-2 text-sm text-white/60">
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      Psychology tracking & mood journal
+                    </li>
+                    <li className="flex items-center gap-2 text-sm text-white/60">
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      Export P/L cards for social media
                     </li>
                     <li className="flex items-center gap-2 text-sm text-white/60">
                       <Check className="w-4 h-4 text-emerald-400" />

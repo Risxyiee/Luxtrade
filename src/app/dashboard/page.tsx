@@ -10,7 +10,7 @@ import {
   Activity, PieChart, Sparkles, AlertTriangle,
   Zap, RefreshCw, Database, LogOut, Upload, Edit, Trash2, Eye as ViewIcon, Calendar, Clock,
   Smile, Meh, Frown, Sun, Moon, Cloud, AlertCircle, Search, Send, MessageSquare, MessageCircle, Bot, User,
-  TrendingUp as TrendingUpIcon, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, FileText, Play, Share2, Download, Shield, Crown, AlertCircle as AlertCircleIcon, Camera, Gift
+  TrendingUp as TrendingUpIcon, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, FileText, Play, Share2, Download, Shield, Crown, AlertCircle as AlertCircleIcon, Camera, Gift, Trophy, Flame
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -29,6 +29,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/lib/auth-context'
 import PaymentModal from '@/components/PaymentModal'
 import PNLShareCard from '@/components/PNLShareCard'
+import TradingScore from '@/components/TradingScore'
+import AIWeeklyReport from '@/components/AIWeeklyReport'
+import TradingStreaks from '@/components/TradingStreaks'
 import { formatCurrency } from '@/lib/supabase'
 
 // ==================== DEMO DATA ====================
@@ -157,6 +160,9 @@ const menuItems = [
   { id: 'analytics', label: 'Analytics', labelId: 'Analitik', icon: PieChart, category: 'lanjutan', proOnly: true, proType: 'purple' },
   { id: 'targets', label: 'Targets', labelId: 'Target', icon: Target, category: 'lanjutan', proOnly: true, proType: 'purple' },
   { id: 'ai', label: 'AI Insights', labelId: 'Insight AI', icon: Brain, category: 'lanjutan', proOnly: true, proType: 'purple' },
+  { id: 'score', label: 'Trading Score', labelId: 'Skor Trading', icon: Trophy, category: 'lanjutan', proOnly: true, proType: 'purple' },
+  { id: 'report', label: 'Weekly Report', labelId: 'Laporan Mingguan', icon: FileText, category: 'lanjutan', proOnly: true, proType: 'purple' },
+  { id: 'streaks', label: 'Streaks', labelId: 'Streak', icon: Flame, category: 'lanjutan', proOnly: true, proType: 'purple' },
   { id: 'psychology', label: 'Psychology Tracking', labelId: 'Psikologi', icon: Heart, category: 'lanjutan', proOnly: true, proType: 'purple' },
 ]
 
@@ -2019,6 +2025,39 @@ export default function LuxTradeDashboard() {
                   isPro={isPro}
                   onUpgrade={() => setPaymentModalOpen(true)}
                 />
+              </motion.div>
+            )}
+            {activeTab === 'score' && (
+              <motion.div
+                key="score"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <TradingScore analytics={analytics} trades={trades} isPro={isPro} onUpgrade={() => setPaymentModalOpen(true)} />
+              </motion.div>
+            )}
+            {activeTab === 'report' && (
+              <motion.div
+                key="report"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <AIWeeklyReport analytics={analytics} trades={trades} isPro={isPro} onUpgrade={() => setPaymentModalOpen(true)} />
+              </motion.div>
+            )}
+            {activeTab === 'streaks' && (
+              <motion.div
+                key="streaks"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <TradingStreaks trades={trades} isPro={isPro} onUpgrade={() => setPaymentModalOpen(true)} />
               </motion.div>
             )}
             {activeTab === 'psychology' && (
