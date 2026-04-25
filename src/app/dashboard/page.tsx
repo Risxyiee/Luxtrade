@@ -151,6 +151,7 @@ const menuItems = [
   { id: 'trades', label: 'Trades', labelId: 'Transaksi', icon: Activity, category: 'utama', proOnly: false },
   { id: 'calendar', label: 'Calendar', labelId: 'Kalender', icon: Calendar, category: 'utama', proOnly: false },
   { id: 'journal', label: 'Journal', labelId: 'Jurnal', icon: BookOpen, category: 'utama', proOnly: false },
+  { id: 'watchlist', label: 'Watchlist', labelId: 'Daftar Pantauan', icon: Eye, category: 'utama', proOnly: false },
   
   // ALAT - PRO Emas
   { id: 'risk', label: 'Risk Calculator', labelId: 'Kalkulator Risiko', icon: Target, category: 'alat', proOnly: true, proType: 'gold' },
@@ -1777,6 +1778,40 @@ export default function LuxTradeDashboard() {
             </motion.button>
           </Link>
 
+          {/* Settings Link */}
+          <Link href="/settings" className="block">
+            <motion.button
+              className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-gray-600/30 to-gray-700/30 text-gray-300 border border-gray-500/30 hover:from-gray-600/40 hover:to-gray-700/40 transition-all flex items-center justify-center gap-2 text-sm font-bold"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Settings className="w-4 h-4" />
+              {sidebarOpen && <span>Settings</span>}
+            </motion.button>
+          </Link>
+
+          {/* User Profile Card */}
+          {sidebarOpen && (
+            <div className="bg-white/[0.02] rounded-xl p-3 border border-white/5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                  {demoMode ? 'DU' : userInitials}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold truncate">{demoMode ? 'Demo User' : profile?.full_name || user?.email || 'User'}</span>
+                    {(isPro || demoMode) ? (
+                      <Badge className="bg-gradient-to-r from-purple-500/30 to-violet-500/30 text-purple-300 border-purple-500/30 text-[10px] px-1.5 py-0">PRO</Badge>
+                    ) : (
+                      <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30 text-[10px] px-1.5 py-0">Free Plan</Badge>
+                    )}
+                  </div>
+                  <Link href="/settings" className="text-xs text-gray-500 hover:text-purple-400 transition-colors">Settings</Link>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Admin Panel Link - Only for admins */}
           {isAdmin && sidebarOpen && (
             <Link href="/dashboard/admin" className="block">
@@ -2980,6 +3015,24 @@ function NewsTicker() {
   )
 }
 
+// ==================== HELPER: Consecutive Streaks ====================
+function calculateConsecutiveStreaks(trades: Trade[], type: 'win' | 'lose'): number {
+  if (trades.length === 0) return 0
+  const sorted = [...trades].sort((a, b) => new Date(a.close_time).getTime() - new Date(b.close_time).getTime())
+  let maxStreak = 0
+  let currentStreak = 0
+  for (const trade of sorted) {
+    const isMatch = type === 'win' ? trade.profit_loss > 0 : trade.profit_loss < 0
+    if (isMatch) {
+      currentStreak++
+      maxStreak = Math.max(maxStreak, currentStreak)
+    } else {
+      currentStreak = 0
+    }
+  }
+  return maxStreak
+}
+
 // ==================== DASHBOARD TAB ====================
 function DashboardTab({ 
   analytics, 
@@ -3094,7 +3147,7 @@ function DashboardTab({
                   <span className="text-xs text-gray-400">Win Streak</span>
                 </div>
                 <div className="text-2xl font-bold text-emerald-400">
-                  {trades.length > 0 ? Math.max(...trades.map(t => t.profit_loss >= 0 ? 1 : 0)) : 0}
+                  {calculateConsecutiveStreaks(trades, 'win')}
                 </div>
               </CardContent>
             </Card>
@@ -3111,7 +3164,7 @@ function DashboardTab({
                   <span className="text-xs text-gray-400">Lose Streak</span>
                 </div>
                 <div className="text-2xl font-bold text-red-400">
-                  {trades.length > 0 ? Math.max(...trades.map(t => t.profit_loss < 0 ? 1 : 0)) : 0}
+                  {calculateConsecutiveStreaks(trades, 'lose')}
                 </div>
               </CardContent>
             </Card>
@@ -3366,6 +3419,33 @@ function TradesTab({
     })
   }, [trades, searchTerm, filterType, filterSession])
 
+  // Export CSV
+  const handleExportCSV = () => {
+    const headers = ['Symbol','Type','Entry','Exit','Lot Size','P/L','Session','Open Time','Close Time','Notes']
+    const rows = filteredTrades.map(t => [
+      t.symbol,
+      t.type,
+      t.open_price,
+      t.close_price,
+      t.lot_size,
+      t.profit_loss,
+      t.session || '',
+      t.open_time,
+      t.close_time,
+      (t.notes || '').replace(/,/g, ';')
+    ])
+    const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const date = new Date().toISOString().slice(0, 10)
+    link.href = url
+    link.download = `luxtrade-trades-${date}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+    toast.success('Trades exported successfully!')
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -3399,6 +3479,9 @@ function TradesTab({
           </Button>
           <Button onClick={onImport} className="bg-gradient-to-r from-purple-500 to-violet-600">
             <FileText className="w-4 h-4 mr-2" /> Import CSV
+          </Button>
+          <Button onClick={handleExportCSV} variant="outline" className="border-emerald-500/30 text-emerald-400">
+            <Download className="w-4 h-4 mr-2" /> Export CSV
           </Button>
         </div>
       </div>
