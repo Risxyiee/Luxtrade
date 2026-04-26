@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
+import TelegramFloatingWidget from "@/components/TelegramFloatingWidget";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -80,6 +81,9 @@ export default function RootLayout({
             `,
           }}
         />
+        
+        {/* Telegram Floating Widget */}
+        <TelegramFloatingWidget />
         
         {/* Chatbase Bubble Position Styles */}
         <style
