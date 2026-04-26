@@ -5,6 +5,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
 import TelegramFloatingWidget from "@/components/TelegramFloatingWidget";
+import AIChatWidget from "@/components/AIChatWidget";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -84,6 +85,9 @@ export default function RootLayout({
         
         {/* Telegram Floating Widget */}
         <TelegramFloatingWidget />
+        
+        {/* AI Chat Widget - LuxTrade AI Assistant */}
+        <AIChatWidget />
         
         {/* Chatbase Bubble Position Styles */}
         <style
