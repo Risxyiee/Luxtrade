@@ -10,7 +10,7 @@ import {
   Activity, PieChart, Sparkles, AlertTriangle,
   Zap, RefreshCw, Database, LogOut, Upload, Edit, Trash2, Eye as ViewIcon, Calendar, Clock,
   Smile, Meh, Frown, Sun, Moon, Cloud, AlertCircle, Search, Send, MessageSquare, MessageCircle, Bot, User,
-  TrendingUp as TrendingUpIcon, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, FileText, Play, Share2, Download, Shield, Crown, AlertCircle as AlertCircleIcon, Camera, Gift, Trophy, Flame
+  TrendingUp as TrendingUpIcon, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, FileText, Play, Share2, Download, Shield, Crown, AlertCircle as AlertCircleIcon, Camera, Gift, Trophy, Flame, ExternalLink
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -3003,19 +3003,37 @@ function AnimatedStatCard({
   )
 }
 
-// ==================== NEWS TICKER COMPONENT ====================
-const tradingNews = [
-  { text: "🔴 HIGH IMPACT: US NFP Report - Friday 14:30 GMT", type: "high" },
-  { text: "🟡 MEDIUM: ECB Interest Rate Decision - Thursday 13:45 GMT", type: "medium" },
-  { text: "🟡 MEDIUM: UK GDP m/m - Wednesday 07:00 GMT", type: "medium" },
-  { text: "🔴 HIGH IMPACT: FOMC Statement - Next Week Wednesday", type: "high" },
-  { text: "🟢 LOW: Crude Oil Inventories - Wednesday 15:30 GMT", type: "low" },
-  { text: "🔴 HIGH IMPACT: CPI Data Release - Tuesday 13:30 GMT", type: "high" },
-  { text: "🟡 MEDIUM: ADP Non-Farm Employment - Wednesday 13:15 GMT", type: "medium" },
-  { text: "💡 TIP: Avoid trading during HIGH IMPACT news sessions", type: "tip" },
-]
+// ==================== REAL-TIME NEWS TICKER ====================
 
 function NewsTicker() {
+  const [news, setNews] = useState<Array<{ text: string; type: string; url?: string }>>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchNews() {
+      try {
+        const res = await fetch('/api/news')
+        if (res.ok) {
+          const data = await res.json()
+          setNews(data.news || [])
+        }
+      } catch {
+        // Keep fallback if fetch fails
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchNews()
+    // Refresh every 30 minutes
+    const interval = setInterval(fetchNews, 30 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Fallback while loading
+  const displayNews = news.length > 0 ? news : [
+    { text: '📊 Memuat berita forex terbaru...', type: 'tip' },
+  ]
+
   return (
     <div className="relative overflow-hidden bg-gradient-to-r from-[#0f0b18] via-[#1a0f2e] to-[#0f0b18] border border-purple-900/30 rounded-xl py-3 mb-6">
       {/* Left gradient fade */}
@@ -3026,17 +3044,21 @@ function NewsTicker() {
       {/* Scrolling container */}
       <div className="animate-ticker-scroll">
         <div className="flex gap-12 whitespace-nowrap">
-          {[...tradingNews, ...tradingNews].map((news, index) => (
-            <span 
-              key={index} 
-              className={`inline-flex items-center gap-2 px-4 ${
-                news.type === 'high' ? 'text-red-400' : 
-                news.type === 'medium' ? 'text-purple-400' : 
-                news.type === 'tip' ? 'text-purple-400' : 'text-white/60'
-              }`}
+          {[...displayNews, ...displayNews].map((item, index) => (
+            <a
+              key={index}
+              href={item.url || '#'}
+              target={item.url ? '_blank' : undefined}
+              rel={item.url ? 'noopener noreferrer' : undefined}
+              className={`inline-flex items-center gap-2 px-4 transition-colors ${
+                item.type === 'high' ? 'text-red-400 hover:text-red-300' : 
+                item.type === 'medium' ? 'text-purple-400 hover:text-purple-300' : 
+                item.type === 'tip' ? 'text-purple-400' : 'text-white/60 hover:text-white/80'
+              } ${!item.url ? 'pointer-events-none' : ''}`}
             >
-              {news.text}
-            </span>
+              {item.text}
+              {item.url && <ExternalLink className="w-3 h-3 opacity-50" />}
+            </a>
           ))}
         </div>
       </div>
