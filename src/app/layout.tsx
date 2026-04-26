@@ -85,6 +85,31 @@ export default function RootLayout({
         {/* Telegram Floating Widget */}
         <TelegramFloatingWidget />
         
+        {/* Page View Tracker */}
+        <Script
+          id="page-view-tracker"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(){
+                try {
+                  var data = {
+                    path: window.location.pathname,
+                    referrer: document.referrer,
+                    userAgent: navigator.userAgent,
+                    screenWidth: screen.width
+                  };
+                  fetch('/api/track', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                  }).catch(function(){});
+                } catch(e) {}
+              })();
+            `,
+          }}
+        />
+        
         
         {/* Chatbase Bubble Position Styles */}
         <style

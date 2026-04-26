@@ -45,6 +45,18 @@ model AffiliateProfile {
   updatedAt         DateTime @updatedAt
 }
 
+model PageVisit {
+  id        String   @id @default(cuid())
+  path      String
+  referrer  String   @default("")
+  device    String   @default("")
+  browser   String   @default("")
+  os        String   @default("")
+  country   String   @default("")
+  ip        String   @default("")
+  createdAt DateTime @default(now())
+}
+
 model Withdrawal {
   id              String   @id @default(cuid())
   userId          String
