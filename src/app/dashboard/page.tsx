@@ -32,6 +32,10 @@ import PNLShareCard from '@/components/PNLShareCard'
 import TradingScore from '@/components/TradingScore'
 import AIWeeklyReport from '@/components/AIWeeklyReport'
 import TradingStreaks from '@/components/TradingStreaks'
+import NotificationCenter from '@/components/NotificationCenter'
+import ActivityFeed from '@/components/ActivityFeed'
+import QuickStats from '@/components/QuickStats'
+import WelcomeOnboarding from '@/components/WelcomeOnboarding'
 import { formatCurrency } from '@/lib/supabase'
 
 // ==================== DEMO DATA ====================
@@ -657,6 +661,9 @@ export default function LuxTradeDashboard() {
   const [aiChatMessages, setAiChatMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
   const [aiChatInput, setAiChatInput] = useState('')
   
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  
   // Animation states
   const [chartAnimated, setChartAnimated] = useState(false)
   
@@ -794,6 +801,15 @@ export default function LuxTradeDashboard() {
     
     return () => clearTimeout(timeoutId)
   }, [authLoading, user, fetchData, demoMode])
+
+  // Check onboarding for first-time users
+  useEffect(() => {
+    const onboardingDone = localStorage.getItem('luxtrade_onboarding_done')
+    if (!onboardingDone && trades.length === 0) {
+      const timer = setTimeout(() => setShowOnboarding(true), 1500)
+      return () => clearTimeout(timer)
+    }
+  }, [trades.length])
 
   // Show loading screen while checking auth
   if (!demoMode && (authLoading || !authChecked)) {
@@ -1876,6 +1892,9 @@ export default function LuxTradeDashboard() {
           </div>
           
           <div className="flex items-center gap-2 lg:gap-3">
+            {/* Notification Center */}
+            <NotificationCenter trades={trades} isPro={isPro} demoMode={demoMode} />
+            
             {/* Server Status Indicator */}
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
               <motion.div
@@ -1960,6 +1979,7 @@ export default function LuxTradeDashboard() {
                 <DashboardTab 
                   analytics={analytics} 
                   trades={trades} 
+                  journalEntries={journalEntries}
                   loading={loading}
                   setAddTradeOpen={setAddTradeOpen}
                   onSeedData={handleSeedData}
@@ -1969,6 +1989,7 @@ export default function LuxTradeDashboard() {
                   onDelete={openDeleteModal}
                   chartAnimated={chartAnimated}
                   demoMode={demoMode}
+                  language={language}
                 />
               </motion.div>
             )}
@@ -2908,6 +2929,14 @@ export default function LuxTradeDashboard() {
         userId={user?.id}
         email={user?.email}
       />
+
+      {/* Welcome Onboarding */}
+      <WelcomeOnboarding
+        isOpen={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+        onUpgrade={() => setPaymentModalOpen(true)}
+        language={language}
+      />
     </div>
   )
 }
@@ -3037,6 +3066,7 @@ function calculateConsecutiveStreaks(trades: Trade[], type: 'win' | 'lose'): num
 function DashboardTab({ 
   analytics, 
   trades, 
+  journalEntries,
   loading, 
   setAddTradeOpen,
   onSeedData,
@@ -3045,10 +3075,12 @@ function DashboardTab({
   onEdit,
   onDelete,
   chartAnimated,
-  demoMode
+  demoMode,
+  language
 }: { 
   analytics: Analytics | null
   trades: Trade[]
+  journalEntries: JournalEntry[]
   loading: boolean
   setAddTradeOpen: (open: boolean) => void
   onSeedData: () => void
@@ -3058,6 +3090,7 @@ function DashboardTab({
   onDelete: (trade: Trade) => void
   chartAnimated: boolean
   demoMode: boolean
+  language: 'id' | 'en'
 }) {
   if (loading) {
     return (
@@ -3204,6 +3237,17 @@ function DashboardTab({
             </Card>
           </motion.div>
         </div>
+      )}
+
+      {/* Quick Stats Grid */}
+      {hasData && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.12 }}
+        >
+          <QuickStats trades={trades} analytics={analytics} language={language} />
+        </motion.div>
       )}
 
       {/* Session Performance Chart */}
@@ -3378,6 +3422,27 @@ function DashboardTab({
                   </motion.div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Activity Feed */}
+      {hasData && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.35 }}
+        >
+          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Activity className="w-5 h-5 text-purple-400" />
+                {language === 'id' ? 'Aktivitas Terbaru' : 'Recent Activity'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ActivityFeed trades={trades} journalEntries={journalEntries} language={language} />
             </CardContent>
           </Card>
         </motion.div>
