@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
-// Simple device detection
 function detectDevice(ua: string): string {
   if (!ua) return 'Unknown'
   if (/Mobile|Android.*Mobile|iPhone|iPod/.test(ua)) return 'Mobile'
@@ -9,7 +8,6 @@ function detectDevice(ua: string): string {
   return 'Desktop'
 }
 
-// Simple browser detection
 function detectBrowser(ua: string): string {
   if (!ua) return 'Unknown'
   if (/Edg\//.test(ua)) return 'Edge'
@@ -20,7 +18,6 @@ function detectBrowser(ua: string): string {
   return 'Other'
 }
 
-// Simple OS detection
 function detectOS(ua: string): string {
   if (!ua) return 'Unknown'
   if (/Windows/.test(ua)) return 'Windows'
@@ -33,18 +30,43 @@ function detectOS(ua: string): string {
 
 // Rate limit: only record once per IP per page per 5 minutes
 const recentVisits = new Map<string, number>()
-const RATE_LIMIT_MS = 5 * 60 * 1000 // 5 minutes
+const RATE_LIMIT_MS = 5 * 60 * 1000
+
+// Auto-create table if not exists (for production deploy)
+async function ensureTable() {
+  try {
+    await db.pageVisit.count()
+  } catch {
+    try {
+      await db.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "PageVisit" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "path" TEXT NOT NULL DEFAULT '',
+          "referrer" TEXT NOT NULL DEFAULT '',
+          "device" TEXT NOT NULL DEFAULT '',
+          "browser" TEXT NOT NULL DEFAULT '',
+          "os" TEXT NOT NULL DEFAULT '',
+          "country" TEXT NOT NULL DEFAULT '',
+          "ip" TEXT NOT NULL DEFAULT '',
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `)
+      console.log('PageVisit table auto-created (track)')
+    } catch (e) {
+      console.error('Failed to create PageVisit table:', e)
+    }
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { path, referrer, userAgent, screenWidth } = body
+    const { path, referrer, userAgent } = body
 
     if (!path) {
       return NextResponse.json({ ok: true })
     }
 
-    // Get IP
     const forwarded = request.headers.get('x-forwarded-for')
     const ip = forwarded ? forwarded.split(',')[0].trim() : 'direct'
 
@@ -56,13 +78,15 @@ export async function POST(request: NextRequest) {
     }
     recentVisits.set(cacheKey, Date.now())
 
-    // Clean up old entries every 1000 requests
+    // Clean up old entries
     if (recentVisits.size > 1000) {
       const now = Date.now()
       for (const [key, time] of recentVisits.entries()) {
         if (now - time > RATE_LIMIT_MS) recentVisits.delete(key)
       }
     }
+
+    await ensureTable()
 
     const ua = userAgent || ''
 
@@ -80,6 +104,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true })
   } catch (error) {
     console.error('Track error:', error)
-    return NextResponse.json({ ok: true }) // Silent fail
+    return NextResponse.json({ ok: true }) // Silent fail - never break the page
   }
 }

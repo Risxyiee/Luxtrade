@@ -87,16 +87,23 @@ function MiniBarChart({ data, maxValue, color = 'bg-purple-500' }: { data: numbe
 function TrafficTab() {
   const [data, setData] = useState<TrafficData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [range, setRange] = useState('7d')
 
   const fetchTraffic = async () => {
     setLoading(true)
+    setError(null)
     try {
       const res = await fetch(`/api/analytics/traffic?range=${range}`)
       const json = await res.json()
-      if (res.ok) setData(json)
-    } catch (error) {
-      console.error('Traffic fetch error:', error)
+      if (res.ok) {
+        setData(json)
+      } else {
+        setError(json.error || `HTTP ${res.status}`)
+      }
+    } catch (err) {
+      setError('Gagal terhubung ke server')
+      console.error('Traffic fetch error:', err)
     } finally {
       setLoading(false)
     }
@@ -126,11 +133,27 @@ function TrafficTab() {
     )
   }
 
+  if (error && !data) {
+    return (
+      <div className="text-center py-16">
+        <AlertCircle className="w-12 h-12 text-red-400/50 mx-auto mb-4" />
+        <p className="text-white/60 mb-2">Gagal memuat data traffic</p>
+        <p className="text-white/30 text-sm mb-4">Error: {error}</p>
+        <p className="text-white/30 text-xs mb-4">Jika pertama kali deploy, table database belum tersedia. Coba akses halaman web lain dulu, lalu refresh ini.</p>
+        <Button onClick={fetchTraffic} variant="outline" className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10">
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Coba Lagi
+        </Button>
+      </div>
+    )
+  }
+
   if (!data) {
     return (
-      <div className="text-center py-20">
+      <div className="text-center py-16">
         <AlertCircle className="w-12 h-12 text-white/20 mx-auto mb-4" />
-        <p className="text-white/60">Gagal memuat data traffic</p>
+        <p className="text-white/60">Tidak ada data traffic</p>
+        <p className="text-white/30 text-sm mt-1">Data akan muncul setelah ada visitor yang mengakses web</p>
       </div>
     )
   }

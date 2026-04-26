@@ -2,36 +2,76 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { Prisma } from '@prisma/client'
 
+// Auto-create table if not exists (for production deploy)
+async function ensureTable() {
+  try {
+    await db.pageVisit.count()
+  } catch {
+    // Table doesn't exist, run migration
+    try {
+      await db.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "PageVisit" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "path" TEXT NOT NULL DEFAULT '',
+          "referrer" TEXT NOT NULL DEFAULT '',
+          "device" TEXT NOT NULL DEFAULT '',
+          "browser" TEXT NOT NULL DEFAULT '',
+          "os" TEXT NOT NULL DEFAULT '',
+          "country" TEXT NOT NULL DEFAULT '',
+          "ip" TEXT NOT NULL DEFAULT '',
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `)
+      console.log('PageVisit table auto-created')
+    } catch (e) {
+      console.error('Failed to create PageVisit table:', e)
+    }
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
+    await ensureTable()
+
     const { searchParams } = new URL(request.url)
-    const range = searchParams.get('range') || '7d' // 7d, 30d, 90d
+    const range = searchParams.get('range') || '7d'
 
     const days = range === '90d' ? 90 : range === '30d' ? 30 : 7
     const since = new Date()
     since.setDate(since.getDate() - days)
 
-    // Get all visits in range
-    const visits = await db.pageVisit.findMany({
-      where: { createdAt: { gte: since } },
-      orderBy: { createdAt: 'desc' },
-    })
+    let visits: Array<{
+      id: string
+      path: string
+      referrer: string
+      device: string
+      browser: string
+      os: string
+      country: string
+      ip: string
+      createdAt: Date
+    }>
 
-    // Total page views
+    try {
+      visits = await db.pageVisit.findMany({
+        where: { createdAt: { gte: since } },
+        orderBy: { createdAt: 'desc' },
+      })
+    } catch {
+      visits = []
+    }
+
     const totalPageViews = visits.length
 
-    // Unique visitors (by IP)
     const uniqueIPs = new Set(visits.map(v => v.ip))
     const uniqueVisitors = uniqueIPs.size
 
-    // Today's stats
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
     const todayVisits = visits.filter(v => v.createdAt >= todayStart)
     const todayPageViews = todayVisits.length
     const todayUniqueVisitors = new Set(todayVisits.map(v => v.ip)).size
 
-    // Yesterday stats
     const yesterdayStart = new Date()
     yesterdayStart.setDate(yesterdayStart.getDate() - 1)
     yesterdayStart.setHours(0, 0, 0, 0)
@@ -41,7 +81,7 @@ export async function GET(request: NextRequest) {
     const yesterdayVisits = visits.filter(v => v.createdAt >= yesterdayStart && v.createdAt <= yesterdayEnd)
     const yesterdayPageViews = yesterdayVisits.length
 
-    // Daily chart data
+    // Daily chart
     const dailyMap = new Map<string, { views: number; unique: Set<string> }>()
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date()
