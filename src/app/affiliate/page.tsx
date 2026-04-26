@@ -9,7 +9,7 @@ import {
   Gift, Copy, Check, ArrowLeft, Users, Wallet, Clock,
   TrendingUp, Banknote, ChevronDown, ChevronUp,
   Loader2, AlertCircle, CheckCircle, XCircle, RefreshCw,
-  Send, ExternalLink, Shield, Zap, ArrowRight, Star, Crown, BarChart3
+  Send, ExternalLink, Shield, Zap, ArrowRight, Star, Crown, BarChart3, Edit, Pencil
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -124,6 +124,13 @@ export default function AffiliatePage() {
   const [pageLoading, setPageLoading] = useState(true)
   const [copied, setCopied] = useState(false)
 
+  // Edit referral code
+  const [editCodeOpen, setEditCodeOpen] = useState(false)
+  const [newCode, setNewCode] = useState('')
+  const [codeChangesLeft, setCodeChangesLeft] = useState(0)
+  const [codeMaxChanges, setCodeMaxChanges] = useState(2)
+  const [savingCode, setSavingCode] = useState(false)
+
   // Withdraw form
   const [withdrawOpen, setWithdrawOpen] = useState(false)
   const [withdrawForm, setWithdrawForm] = useState({
@@ -197,6 +204,69 @@ export default function AffiliatePage() {
       setTimeout(() => setCopied(false), 2000)
     } catch {
       toast.error('Gagal menyalin link')
+    }
+  }
+
+  // Fetch referral code change info
+  const fetchReferralInfo = useCallback(async () => {
+    if (!session?.access_token) return
+    try {
+      const res = await fetch('/api/referral', {
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setCodeChangesLeft(data.changesLeft ?? 2)
+        setCodeMaxChanges(data.maxChanges ?? 2)
+      }
+    } catch {
+      // silent
+    }
+  }, [session])
+
+  useEffect(() => {
+    if (session?.access_token) fetchReferralInfo()
+  }, [session, fetchReferralInfo])
+
+  // Save new referral code
+  const saveReferralCode = async () => {
+    if (!newCode.trim() || !session?.access_token) return
+
+    if (newCode.length < 4 || newCode.length > 15) {
+      toast.error('Kode referral harus 4-15 karakter')
+      return
+    }
+
+    if (!/^[A-Z0-9]+$/i.test(newCode)) {
+      toast.error('Kode hanya boleh huruf dan angka (tanpa spasi)')
+      return
+    }
+
+    setSavingCode(true)
+    try {
+      const res = await fetch('/api/referral', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ newCode: newCode.trim() }),
+      })
+      const data = await res.json()
+
+      if (res.ok) {
+        toast.success(data.message)
+        setEditCodeOpen(false)
+        setNewCode('')
+        fetchReferralInfo()
+        fetchAffiliateData()
+      } else {
+        toast.error(data.error || 'Gagal mengubah kode')
+      }
+    } catch {
+      toast.error('Gagal mengubah kode referral')
+    } finally {
+      setSavingCode(false)
     }
   }
 
@@ -414,7 +484,19 @@ export default function AffiliatePage() {
                     </div>
                     <div>
                       <p className="font-bold text-white">Link Referral Anda</p>
-                      <p className="text-xs text-white/40">{affiliate?.myReferralCode || '...'}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-xs text-white/40 font-mono">{affiliate?.myReferralCode || '...'}</p>
+                        {codeChangesLeft > 0 && (
+                          <Badge className="bg-purple-500/15 text-purple-400 border-purple-500/20 text-[10px] h-4 px-1.5">
+                            {codeChangesLeft}/{codeMaxChanges} edit
+                          </Badge>
+                        )}
+                        {codeChangesLeft === 0 && (
+                          <Badge className="bg-white/5 text-white/30 border-white/10 text-[10px] h-4 px-1.5">
+                            Edit habis
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex-1 w-full">
@@ -433,18 +515,29 @@ export default function AffiliatePage() {
                         } text-white font-semibold shadow-lg`}
                       >
                         {copied ? (
-                          <>
-                            <Check className="w-4 h-4 mr-1" /> Tersalin
-                          </>
+                          <><Check className="w-4 h-4 mr-1" /> Tersalin</>
                         ) : (
-                          <>
-                            <Copy className="w-4 h-4 mr-1" /> Salin
-                          </>
+                          <><Copy className="w-4 h-4 mr-1" /> Salin</>
                         )}
                       </Button>
                     </div>
                   </div>
                 </div>
+
+                {/* Edit Code Button */}
+                {codeChangesLeft > 0 && (
+                  <div className="mt-3">
+                    <Button
+                      onClick={() => setEditCodeOpen(true)}
+                      variant="outline"
+                      size="sm"
+                      className="border-purple-500/20 text-purple-400 hover:bg-purple-500/10 text-xs h-8"
+                    >
+                      <Edit className="w-3 h-3 mr-1" />
+                      Ubah Kode Referral
+                    </Button>
+                  </div>
+                )}
 
                 {/* Share buttons */}
                 <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/5">
@@ -762,6 +855,82 @@ export default function AffiliatePage() {
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Mengirim...</>
               ) : (
                 <><Banknote className="w-4 h-4 mr-2" /> Ajukan Penarikan</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Edit Referral Code Modal */}
+      <Dialog open={editCodeOpen} onOpenChange={setEditCodeOpen}>
+        <DialogContent className="bg-[#0f0b18] border-purple-900/30 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-white">
+              <Edit className="w-5 h-5 text-purple-400" />
+              Ubah Kode Referral
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Current Code */}
+            <div className="p-3 rounded-lg bg-white/5 border border-white/10">
+              <p className="text-xs text-white/40 mb-1">Kode sekarang</p>
+              <p className="font-mono font-bold text-purple-400 text-lg">{affiliate?.myReferralCode || '-'}</p>
+            </div>
+
+            {/* Changes Left */}
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+              <p className="text-xs text-amber-300/80">
+                Sisa <span className="font-bold text-amber-400">{codeChangesLeft}</span> dari {codeMaxChanges}x perubahan. Pilih kode yang mudah diingat!
+              </p>
+            </div>
+
+            {/* New Code Input */}
+            <div className="space-y-2">
+              <Label className="text-white/70 text-sm">Kode Baru</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={newCode.toUpperCase()}
+                  onChange={e => {
+                    const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+                    setNewCode(val.substring(0, 15))
+                  }}
+                  placeholder="Contoh: RISXYIEE"
+                  className="bg-white/[0.03] border-white/10 text-white h-12 font-mono text-lg tracking-widest uppercase"
+                  maxLength={15}
+                />
+              </div>
+              <p className="text-[11px] text-white/30">4-15 karakter, huruf & angka saja. Otomatis uppercase.</p>
+            </div>
+
+            {/* Preview */}
+            {newCode.length >= 4 && (
+              <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                <p className="text-[10px] text-white/30 mb-1">Preview link baru:</p>
+                <p className="text-xs text-emerald-400 font-mono break-all">
+                  {(process.env.NEXT_PUBLIC_APP_URL || '')}/auth/signup?ref={newCode.toUpperCase()}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => { setEditCodeOpen(false); setNewCode('') }}
+              className="border-white/10 text-white"
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={saveReferralCode}
+              disabled={savingCode || newCode.length < 4}
+              className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white font-semibold"
+            >
+              {savingCode ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Menyimpan...</>
+              ) : (
+                <><Check className="w-4 h-4 mr-2" /> Simpan Kode</>
               )}
             </Button>
           </DialogFooter>

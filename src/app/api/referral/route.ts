@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { db } from '@/lib/db'
 
-// ============================================
-// REFERRAL API - For users to manage their referral codes
-// ============================================
+// Max 2 times user can change their referral code
+const MAX_CODE_CHANGES = 2
 
 // GET - Get user's referral info
 export async function GET(request: NextRequest) {
@@ -31,42 +31,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
     }
 
-    // Get referral stats
-    const { data: referrals } = await supabase
-      .from('referral_tracking')
-      .select('id, status, commission_amount, created_at')
-      .eq('referrer_id', user.id)
-
-    const stats = {
-      totalReferrals: referrals?.length || 0,
-      validReferrals: referrals?.filter(r => r.status === 'commissioned').length || 0,
-      pendingReferrals: referrals?.filter(r => r.status === 'pending').length || 0,
-      fraudReferrals: referrals?.filter(r => r.status === 'fraud').length || 0,
-      totalEarnings: referrals?.reduce((sum, r) => sum + (r.commission_amount || 0), 0) || 0
-    }
-
-    // Get referrer info if user was referred
-    let referrer = null
-    if (profile.referred_by_code) {
-      const { data: referrerData } = await supabase
-        .from('profiles')
-        .select('email, full_name')
-        .eq('my_referral_code', profile.referred_by_code)
-        .single()
-      
-      if (referrerData) {
-        referrer = { email: referrerData.email, name: referrerData.full_name }
-      }
-    }
+    const changesMade = profile.referral_code_changes || 0
+    const changesLeft = MAX_CODE_CHANGES - changesMade
 
     return NextResponse.json({
       referralCode: profile.my_referral_code,
       affiliateBalance: profile.affiliate_balance || 0,
-      referralCodeChanges: profile.referral_code_changes || 0,
-      canChangeCode: (profile.referral_code_changes || 0) < 1,
-      stats,
+      referralCodeChanges: changesMade,
+      changesLeft,
+      canChangeCode: changesLeft > 0,
+      maxChanges: MAX_CODE_CHANGES,
       referredByCode: profile.referred_by_code,
-      referrer
     })
   } catch (error) {
     console.error('Referral API error:', error)
@@ -74,7 +49,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PATCH - Change referral code (max 1 time)
+// PATCH - Change referral code (max 2 times)
 export async function PATCH(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
@@ -93,9 +68,9 @@ export async function PATCH(request: NextRequest) {
     const { newCode } = body
 
     // Validate new code
-    if (!newCode || newCode.length < 5 || newCode.length > 15) {
+    if (!newCode || newCode.length < 4 || newCode.length > 15) {
       return NextResponse.json({ 
-        error: 'Kode referral harus 5-15 karakter' 
+        error: 'Kode referral harus 4-15 karakter' 
       }, { status: 400 })
     }
 
@@ -110,7 +85,7 @@ export async function PATCH(request: NextRequest) {
     // Get current profile
     const { data: profile, error: fetchError } = await supabase
       .from('profiles')
-      .select('referral_code_changes')
+      .select('referral_code_changes, my_referral_code')
       .eq('id', user.id)
       .single()
 
@@ -118,45 +93,85 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
     }
 
-    // Check if already changed once
-    if ((profile.referral_code_changes || 0) >= 1) {
+    // Check if already changed MAX times
+    const currentChanges = profile.referral_code_changes || 0
+    if (currentChanges >= MAX_CODE_CHANGES) {
       return NextResponse.json({ 
-        error: 'Kode referral hanya bisa diubah 1 kali' 
+        error: `Kode referral sudah diubah ${MAX_CODE_CHANGES} kali. Tidak bisa diubah lagi.` 
       }, { status: 400 })
     }
 
-    // Check if code already exists
+    const upperCode = newCode.toUpperCase()
+
+    // Don't allow same code
+    if (upperCode === profile.my_referral_code) {
+      return NextResponse.json({ 
+        error: 'Kode baru harus berbeda dari kode sekarang' 
+      }, { status: 400 })
+    }
+
+    // Check if code already exists in Supabase
     const { data: existingCode } = await supabase
       .from('profiles')
       .select('id')
-      .eq('my_referral_code', newCode.toUpperCase())
+      .eq('my_referral_code', upperCode)
       .single()
 
     if (existingCode) {
       return NextResponse.json({ 
-        error: 'Kode referral sudah digunakan' 
+        error: 'Kode referral sudah digunakan orang lain' 
       }, { status: 400 })
     }
 
-    // Update code
+    // Check if code exists in Prisma
+    const existingPrisma = await db.affiliateProfile.findUnique({
+      where: { myReferralCode: upperCode },
+    })
+    if (existingPrisma) {
+      return NextResponse.json({ 
+        error: 'Kode referral sudah digunakan orang lain' 
+      }, { status: 400 })
+    }
+
+    // Update in Supabase
     const { error: updateError } = await supabase
       .from('profiles')
       .update({
-        my_referral_code: newCode.toUpperCase(),
-        referral_code_changes: 1,
+        my_referral_code: upperCode,
+        referral_code_changes: currentChanges + 1,
         updated_at: new Date().toISOString()
       })
       .eq('id', user.id)
 
     if (updateError) {
-      console.error('Error updating referral code:', updateError)
+      console.error('Error updating referral code in Supabase:', updateError)
       return NextResponse.json({ error: 'Gagal mengubah kode referral' }, { status: 500 })
     }
 
+    // Also update in Prisma AffiliateProfile
+    try {
+      const prismaAffiliate = await db.affiliateProfile.findUnique({
+        where: { userId: user.id },
+      })
+      if (prismaAffiliate) {
+        await db.affiliateProfile.update({
+          where: { userId: user.id },
+          data: { myReferralCode: upperCode },
+        })
+      }
+    } catch (e) {
+      console.error('Error syncing referral code to Prisma:', e)
+    }
+
+    const remaining = MAX_CODE_CHANGES - (currentChanges + 1)
+
     return NextResponse.json({
       success: true,
-      message: 'Kode referral berhasil diubah!',
-      newCode: newCode.toUpperCase()
+      message: remaining > 0 
+        ? `Kode referral berhasil diubah! Sisa ${remaining}x perubahan.` 
+        : 'Kode referral berhasil diubah! Ini perubahan terakhir.',
+      newCode: upperCode,
+      changesLeft: remaining,
     })
   } catch (error) {
     console.error('Referral update error:', error)
