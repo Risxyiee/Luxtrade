@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Copy, Check, MessageCircle, Banknote, Clock, Shield } from 'lucide-react';
+import { X, Copy, Check, Send, Banknote, Clock, Shield } from 'lucide-react';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -27,7 +27,8 @@ export default function PaymentModal({ isOpen, onClose, userId, email }: Payment
     accountHolder: 'RIZQI AKBAR PRATAMA',
     amount: 49000,
   });
-  const [waLink, setWaLink] = useState('');
+  const [tgLink, setTgLink] = useState('');
+  const [adminTelegram, setAdminTelegram] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -49,7 +50,8 @@ export default function PaymentModal({ isOpen, onClose, userId, email }: Payment
       const data = await response.json();
       if (data.success) {
         setPaymentDetails(data.bankDetails);
-        setWaLink(data.waLink);
+        setTgLink(data.tgLink);
+        setAdminTelegram(data.adminTelegram || '');
       }
     } catch (error) {
       console.error('Failed to fetch payment details:', error);
@@ -155,15 +157,15 @@ export default function PaymentModal({ isOpen, onClose, userId, email }: Payment
                     <div className="text-xs text-white/40 mt-1">/bulan</div>
                   </motion.div>
 
-                  {/* Bank Details */}
+                  {/* Step 1: Transfer */}
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
                     className="space-y-3"
                   >
-                    <div className="flex items-center gap-2 text-purple-300 text-sm font-semibold mb-3">
-                      <Banknote className="w-4 h-4" />
+                    <div className="flex items-center gap-2 text-purple-300 text-sm font-semibold">
+                      <span className="w-5 h-5 rounded-full bg-purple-500/20 text-purple-400 text-xs flex items-center justify-center font-bold">1</span>
                       Transfer ke Rekening Berikut
                     </div>
 
@@ -212,11 +214,24 @@ export default function PaymentModal({ isOpen, onClose, userId, email }: Payment
                     </div>
                   </motion.div>
 
-                  {/* Info */}
+                  {/* Step 2: Confirm */}
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
+                    className="space-y-3"
+                  >
+                    <div className="flex items-center gap-2 text-purple-300 text-sm font-semibold">
+                      <span className="w-5 h-5 rounded-full bg-[#0088cc]/20 text-[#0088cc] text-xs flex items-center justify-center font-bold">2</span>
+                      Konfirmasi via Telegram
+                    </div>
+                  </motion.div>
+
+                  {/* Info */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.45 }}
                     className="flex items-center gap-3 p-3 rounded-lg bg-purple-500/10 border border-purple-500/20"
                   >
                     <Clock className="w-5 h-5 text-purple-400 flex-shrink-0" />
@@ -225,9 +240,9 @@ export default function PaymentModal({ isOpen, onClose, userId, email }: Payment
                     </div>
                   </motion.div>
 
-                  {/* WhatsApp Button */}
+                  {/* Telegram Button */}
                   <motion.a
-                    href={waLink}
+                    href={tgLink}
                     target="_blank"
                     rel="noopener noreferrer"
                     initial={{ opacity: 0, y: 10 }}
@@ -235,11 +250,27 @@ export default function PaymentModal({ isOpen, onClose, userId, email }: Payment
                     transition={{ delay: 0.5 }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="flex items-center justify-center gap-3 w-full py-4 rounded-xl bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white font-bold text-lg shadow-lg shadow-green-500/30 transition-all"
+                    className="flex items-center justify-center gap-3 w-full py-4 rounded-xl bg-gradient-to-r from-[#0088cc] to-[#00a8e8] hover:from-[#0077b3] hover:to-[#0096d6] text-white font-bold text-lg shadow-lg shadow-[#0088cc]/30 transition-all"
                   >
-                    <MessageCircle className="w-5 h-5" />
-                    Konfirmasi via WhatsApp
+                    {/* Telegram Icon */}
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0h-.056zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.492-1.302.48-.428-.012-1.252-.242-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.015 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                    </svg>
+                    Konfirmasi via Telegram
                   </motion.a>
+
+                  {/* Admin info */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.55 }}
+                    className="text-center"
+                  >
+                    <p className="text-xs text-white/40">
+                      Akan terhubung ke{' '}
+                      <span className="text-[#0088cc] font-semibold">{adminTelegram || '@Risxyiee'}</span>
+                    </p>
+                  </motion.div>
 
                   {/* Security Badge */}
                   <motion.div

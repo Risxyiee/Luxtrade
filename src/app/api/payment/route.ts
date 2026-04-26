@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { notifyPaymentConfirmation } from '@/lib/telegram'
 
 // Payment configuration
 const PAYMENT_CONFIG = {
@@ -6,15 +7,15 @@ const PAYMENT_CONFIG = {
   accountNumber: '104051474194',
   accountHolder: 'RIZQI AKBAR PRATAMA',
   amount: 49000, // Rp 49.000
-  waNumber: '6287874831212', // WhatsApp number for confirmation
+  adminTelegram: '@Risxyiee',
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { userId, email } = body
+    const { userId, email, fullName } = body
 
-    // Generate WhatsApp link with pre-filled message
+    // Generate Telegram deep link with pre-filled message
     const message = encodeURIComponent(
       `Halo Admin LuxTrade! 👋\n\n` +
       `Saya ingin konfirmasi pembayaran PRO Membership:\n\n` +
@@ -27,7 +28,21 @@ export async function POST(request: NextRequest) {
       `Mohon diaktivasi ya, terima kasih! 🙏`
     )
 
-    const waLink = `https://wa.me/${PAYMENT_CONFIG.waNumber}?text=${message}`
+    const tgLink = `https://t.me/${PAYMENT_CONFIG.adminTelegram.replace('@', '')}?text=${message}`
+
+    // Send silent notification to admin's Telegram bot (background)
+    // This acts as a backup notification so admin always sees payment requests
+    notifyPaymentConfirmation({
+      email: email || 'Not provided',
+      userId: userId || 'guest',
+      fullName: fullName || '',
+      amount: PAYMENT_CONFIG.amount,
+      bankName: PAYMENT_CONFIG.bankName,
+      accountNumber: PAYMENT_CONFIG.accountNumber,
+      accountHolder: PAYMENT_CONFIG.accountHolder,
+    }).catch(() => {
+      // Silent fail — don't block the payment flow
+    })
 
     return NextResponse.json({
       success: true,
@@ -37,7 +52,8 @@ export async function POST(request: NextRequest) {
         accountHolder: PAYMENT_CONFIG.accountHolder,
         amount: PAYMENT_CONFIG.amount,
       },
-      waLink,
+      tgLink,
+      adminTelegram: PAYMENT_CONFIG.adminTelegram,
       message: 'Payment details generated successfully',
     })
   } catch (error) {

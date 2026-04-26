@@ -450,18 +450,18 @@ export default function AffiliatePage() {
                 <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/5">
                   <span className="text-xs text-white/30 mr-1">Bagikan via:</span>
                   <a
-                    href={`https://wa.me/?text=${encodeURIComponent(`Trading journal terbaik! Daftar gratis di LuxTrade pakai link saya: ${affiliate?.referralLink || ''}`)}`}
+                    href={`https://t.me/share/url?url=${encodeURIComponent(affiliate?.referralLink || '')}&text=${encodeURIComponent('Trading journal terbaik! Daftar gratis di LuxTrade pakai link saya: ' + (affiliate?.referralLink || ''))}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-medium hover:bg-green-500/20 transition-colors"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#0088cc]/10 border border-[#0088cc]/20 text-[#0088cc] text-xs font-medium hover:bg-[#0088cc]/20 transition-colors"
                   >
-                    <Send className="w-3 h-3" /> WhatsApp
+                    <Send className="w-3 h-3" /> Telegram
                   </a>
                   <a
                     href={`https://t.me/share/url?url=${encodeURIComponent(affiliate?.referralLink || '')}&text=${encodeURIComponent('Join LuxTrade - Premium Trading Journal!')}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-medium hover:bg-blue-500/20 transition-colors"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-medium hover:bg-purple-500/20 transition-colors"
                   >
                     <Send className="w-3 h-3" /> Telegram
                   </a>
