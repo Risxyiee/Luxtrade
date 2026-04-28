@@ -133,3 +133,35 @@ Stage Summary:
 - Users can collapse/expand via hover button, preference saved to localStorage
 - Scrolling speed reduced from 40s to 60s cycle
 - Less visually intrusive while still providing forex news value
+---
+Task ID: 3
+Agent: Main Agent
+Task: Create dedicated Market News page, separate from dashboard
+
+Work Log:
+- Removed NewsTicker component entirely from DashboardTab
+- Added "Market News" (Berita Pasar) tab to sidebar menu under UTAMA category, free for all users
+- Added Newspaper icon import from lucide-react
+- Created MarketNewsTab component with:
+  - Full structured news cards (not ticker scroll)
+  - High/Medium/Low impact classification with color-coded cards (red/amber/emerald)
+  - Summary badges showing count per impact category
+  - Filter tabs (All / High / Medium / Low)
+  - Auto-refresh every 30 minutes with manual refresh button
+  - Expandable snippets with line-clamp
+  - Click-to-read links to original sources
+  - Bilingual support (ID/EN)
+  - Staggered animation on news card load
+- Rewrote /api/news/route.ts to support ?format=full query param
+  - Full format returns structured objects (title, source, url, snippet, date, type) up to 30 items
+  - Ticker format kept for backward compatibility
+  - Better search queries focused on high-impact events
+  - 4 search queries instead of 3 for more comprehensive results
+  - Cleaned up unused imports (ChevronDown, ChevronUp)
+- Lint passes clean, dev server running, dashboard 200, news API 200
+
+Stage Summary:
+- News now has its own dedicated tab in the sidebar (Market News / Berita Pasar)
+- Dashboard is cleaner — no more scrolling ticker
+- News page features impact-based filtering, color-coded cards, bilingual labels
+- API supports both full (structured) and ticker (legacy) formats

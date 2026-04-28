@@ -10,7 +10,7 @@ import {
   Activity, PieChart, Sparkles, AlertTriangle,
   Zap, RefreshCw, Database, LogOut, Upload, Edit, Trash2, Eye as ViewIcon, Calendar, Clock,
   Smile, Meh, Frown, Sun, Moon, Cloud, AlertCircle, Search, Send, MessageSquare, MessageCircle, Bot, User,
-  TrendingUp as TrendingUpIcon, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, FileText, Play, Share2, Download, Shield, Crown, AlertCircle as AlertCircleIcon, Camera, Gift, Trophy, Flame, ExternalLink, ChevronDown, ChevronUp
+  TrendingUp as TrendingUpIcon, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, FileText, Play, Share2, Download, Shield, Crown, AlertCircle as AlertCircleIcon, Camera, Gift, Trophy, Flame, ExternalLink, Newspaper
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -156,6 +156,7 @@ const menuItems = [
   { id: 'calendar', label: 'Calendar', labelId: 'Kalender', icon: Calendar, category: 'utama', proOnly: false },
   { id: 'journal', label: 'Journal', labelId: 'Jurnal', icon: BookOpen, category: 'utama', proOnly: false },
   { id: 'watchlist', label: 'Watchlist', labelId: 'Daftar Pantauan', icon: Eye, category: 'utama', proOnly: false },
+  { id: 'news', label: 'Market News', labelId: 'Berita Pasar', icon: Newspaper, category: 'utama', proOnly: false },
   
   // ALAT - PRO Emas
   { id: 'risk', label: 'Risk Calculator', labelId: 'Kalkulator Risiko', icon: Target, category: 'alat', proOnly: true, proType: 'gold' },
@@ -2149,6 +2150,17 @@ export default function LuxTradeDashboard() {
                 <CalendarTab trades={trades} language={language} />
               </motion.div>
             )}
+            {activeTab === 'news' && (
+              <motion.div
+                key="news"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <MarketNewsTab language={language} />
+              </motion.div>
+            )}
             {activeTab === 'risk' && (
               <motion.div
                 key="risk"
@@ -3003,101 +3015,228 @@ function AnimatedStatCard({
   )
 }
 
-// ==================== REAL-TIME NEWS TICKER ====================
+// ==================== MARKET NEWS TAB ====================
 
-function NewsTicker() {
-  const [news, setNews] = useState<Array<{ text: string; type: string; url?: string }>>([])
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('luxtrade_news_collapsed') === 'true'
-    }
-    return false
-  })
+interface FullNewsItem {
+  title: string
+  source: string
+  url: string
+  snippet: string
+  date: string
+  type: 'high' | 'medium' | 'low'
+}
 
-  useEffect(() => {
-    async function fetchNews() {
-      try {
-        const res = await fetch('/api/news')
-        if (res.ok) {
-          const data = await res.json()
-          setNews(data.news || [])
-        }
-      } catch {
-        // Keep fallback if fetch fails
+function MarketNewsTab({ language }: { language: 'id' | 'en' }) {
+  const [news, setNews] = useState<FullNewsItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all')
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [lastFetched, setLastFetched] = useState<string>('')
+
+  const fetchNews = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/news?format=full')
+      if (res.ok) {
+        const data = await res.json()
+        setNews(data.news || [])
+        setLastFetched(data.fetchedAt || '')
       }
+    } catch {
+      // keep existing
+    } finally {
+      setLoading(false)
     }
-    fetchNews()
-    // Refresh every 30 minutes
-    const interval = setInterval(fetchNews, 30 * 60 * 1000)
-    return () => clearInterval(interval)
   }, [])
 
-  const handleToggle = () => {
-    const next = !collapsed
-    setCollapsed(next)
-    localStorage.setItem('luxtrade_news_collapsed', String(next))
+  useEffect(() => {
+    fetchNews()
+    const interval = setInterval(fetchNews, 30 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [fetchNews])
+
+  const highImpact = news.filter(n => n.type === 'high')
+  const mediumImpact = news.filter(n => n.type === 'medium')
+  const lowImpact = news.filter(n => n.type === 'low')
+
+  const filtered = filter === 'all' ? news :
+    filter === 'high' ? highImpact :
+    filter === 'medium' ? mediumImpact : lowImpact
+
+  const labels = {
+    id: {
+      title: 'Berita Pasar Forex',
+      subtitle: 'Berita berdampak tinggi untuk keputusan trading Anda',
+      high: 'Dampak Tinggi',
+      medium: 'Dampak Sedang',
+      low: 'Dampak Rendah',
+      all: 'Semua',
+      noNews: 'Tidak ada berita untuk kategori ini',
+      noNewsAll: 'Belum ada berita yang dimuat',
+      refresh: 'Refresh',
+      lastUpdated: 'Terakhir diperbarui',
+      clickToRead: 'Klik untuk baca selengkapnya',
+      impactBadge: 'Dampak',
+      source: 'Sumber',
+    },
+    en: {
+      title: 'Forex Market News',
+      subtitle: 'High-impact news for your trading decisions',
+      high: 'High Impact',
+      medium: 'Medium Impact',
+      low: 'Low Impact',
+      all: 'All',
+      noNews: 'No news for this category',
+      noNewsAll: 'No news loaded yet',
+      refresh: 'Refresh',
+      lastUpdated: 'Last updated',
+      clickToRead: 'Click to read more',
+      impactBadge: 'Impact',
+      source: 'Source',
+    }
   }
 
-  // Fallback while loading
-  const displayNews = news.length > 0 ? news : [
-    { text: '📊 Memuat berita forex terbaru...', type: 'tip' },
-  ]
+  const t = labels[language]
 
-  // Collapsed state: thin expandable bar
-  if (collapsed) {
-    return (
-      <button
-        onClick={handleToggle}
-        className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all group"
-      >
-        <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
-        <span className="text-xs text-white/30 group-hover:text-white/50 transition-colors">
-          Forex News
-        </span>
-        <ChevronDown className="w-3 h-3 text-white/20 group-hover:text-white/40" />
-      </button>
-    )
+  const impactConfig = {
+    high: { bg: 'bg-red-500/10 border-red-500/30', badge: 'bg-red-500/20 text-red-400', dot: 'bg-red-500', icon: AlertTriangle, label: t.high },
+    medium: { bg: 'bg-amber-500/10 border-amber-500/30', badge: 'bg-amber-500/20 text-amber-400', dot: 'bg-amber-500', icon: Zap, label: t.medium },
+    low: { bg: 'bg-emerald-500/10 border-emerald-500/30', badge: 'bg-emerald-500/20 text-emerald-400', dot: 'bg-emerald-500', icon: Sparkles, label: t.low },
   }
 
   return (
-    <div className="relative">
-      {/* Compact ticker bar */}
-      <div className="relative overflow-hidden rounded-lg bg-white/[0.03] border border-white/[0.06] group">
-        {/* Collapse button */}
-        <button
-          onClick={handleToggle}
-          className="absolute right-2 top-1/2 -translate-y-1/2 z-20 p-1 rounded-full bg-white/[0.05] hover:bg-white/[0.1] transition-all opacity-0 group-hover:opacity-100"
-          title="Sembunyikan news"
-        >
-          <ChevronUp className="w-3 h-3 text-white/40" />
-        </button>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <Newspaper className="w-5 h-5 text-purple-400" />
+            {t.title}
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">{t.subtitle}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {lastFetched && (
+            <span className="text-xs text-gray-600 hidden sm:inline">
+              {t.lastUpdated}: {new Date(lastFetched).toLocaleTimeString(language === 'id' ? 'id-ID' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchNews}
+            disabled={loading}
+            className="border-purple-900/30 hover:bg-purple-500/10"
+          >
+            <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+            {t.refresh}
+          </Button>
+        </div>
+      </div>
 
-        {/* Left gradient fade */}
-        <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#0a0712] to-transparent z-10 pointer-events-none" />
-        {/* Right gradient fade */}
-        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#0a0712] to-transparent z-10 pointer-events-none" />
-        
-        {/* Scrolling container */}
-        <div className="animate-ticker-scroll py-1.5">
-          <div className="flex gap-10 whitespace-nowrap">
-            {[...displayNews, ...displayNews].map((item, index) => (
-              <a
-                key={index}
+      {/* Summary Badges */}
+      {!loading && news.length > 0 && (
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20">
+            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-sm font-medium text-red-400">{highImpact.length} {t.high}</span>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+            <div className="w-2 h-2 rounded-full bg-amber-500" />
+            <span className="text-sm font-medium text-amber-400">{mediumImpact.length} {t.medium}</span>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span className="text-sm font-medium text-emerald-400">{lowImpact.length} {t.low}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Filter Tabs */}
+      <div className="flex gap-2 flex-wrap">
+        {(['all', 'high', 'medium', 'low'] as const).map(f => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+              filter === f
+                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                : 'bg-white/[0.03] text-gray-400 border border-white/[0.06] hover:bg-white/[0.06] hover:text-gray-300'
+            }`}
+          >
+            {f === 'all' ? t.all : impactConfig[f].label}
+          </button>
+        ))}
+      </div>
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-16">
+          <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
+        </div>
+      )}
+
+      {/* News Cards */}
+      {!loading && filtered.length === 0 && (
+        <div className="text-center py-16">
+          <Newspaper className="w-12 h-12 text-gray-700 mx-auto mb-3" />
+          <p className="text-gray-500">{filter === 'all' ? t.noNewsAll : t.noNews}</p>
+        </div>
+      )}
+
+      {!loading && filtered.length > 0 && (
+        <div className="grid gap-3">
+          {filtered.map((item, index) => {
+            const cfg = impactConfig[item.type]
+            const Icon = cfg.icon
+            const isExpanded = expandedId === `${item.url}-${index}`
+
+            return (
+              <motion.a
+                key={`${item.url}-${index}`}
                 href={item.url || '#'}
                 target={item.url ? '_blank' : undefined}
                 rel={item.url ? 'noopener noreferrer' : undefined}
-                className={`inline-flex items-center gap-2 px-3 transition-colors ${
-                  item.type === 'high' ? 'text-red-400/70 hover:text-red-300' : 
-                  item.type === 'medium' ? 'text-purple-400/70 hover:text-purple-300' : 
-                  item.type === 'tip' ? 'text-purple-400/60' : 'text-white/40 hover:text-white/60'
-                } ${!item.url ? 'pointer-events-none' : ''}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2, delay: index * 0.03 }}
+                onClick={() => setExpandedId(isExpanded ? null : `${item.url}-${index}`)}
+                className={`block rounded-xl border p-4 transition-all hover:scale-[1.005] ${cfg.bg} ${!item.url ? 'pointer-events-none' : 'cursor-pointer'}`}
               >
-                <span className="text-[11px] leading-tight">{item.text}</span>
-              </a>
-            ))}
-          </div>
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5">
+                    <Icon className={`w-4 h-4 ${item.type === 'high' ? 'text-red-400' : item.type === 'medium' ? 'text-amber-400' : 'text-emerald-400'}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <Badge variant="outline" className={`${cfg.badge} text-[10px] px-2 py-0 border-0`}>
+                        {cfg.label}
+                      </Badge>
+                      <span className="text-[11px] text-gray-500">{item.source}</span>
+                      {item.date && (
+                        <span className="text-[11px] text-gray-600">• {new Date(item.date).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      )}
+                    </div>
+                    <h3 className={`font-semibold text-sm leading-snug ${item.type === 'high' ? 'text-white' : 'text-gray-200'}`}>
+                      {item.title}
+                    </h3>
+                    {item.snippet && (
+                      <p className={`mt-2 text-xs leading-relaxed text-gray-400 transition-all ${isExpanded ? '' : 'line-clamp-2'}`}>
+                        {item.snippet}
+                      </p>
+                    )}
+                    {item.url && (
+                      <span className="inline-flex items-center gap-1 mt-2 text-[11px] text-purple-400/70 hover:text-purple-400">
+                        {t.clickToRead} <ExternalLink className="w-3 h-3" />
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </motion.a>
+            )
+          })}
         </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -3304,9 +3443,6 @@ function DashboardTab({
           <QuickStats trades={trades} analytics={analytics} language={language} />
         </motion.div>
       )}
-
-      {/* Compact Forex News Ticker */}
-      <NewsTicker />
 
       {/* Session Performance Chart */}
       {hasData && analytics?.sessionPerformance && (

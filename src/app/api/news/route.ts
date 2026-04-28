@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
 
-// In-memory cache: { data, timestamp }
-let newsCache: { items: NewsItem[]; timestamp: number } | null = null;
+// In-memory cache
+let fullNewsCache: { items: FullNewsItem[]; timestamp: number } | null = null;
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
-interface NewsItem {
+interface FullNewsItem {
   title: string;
   source: string;
   url: string;
@@ -47,83 +47,100 @@ function classifyImpact(title: string, snippet: string): 'high' | 'medium' | 'lo
   return 'low';
 }
 
-function getImpactEmoji(type: 'high' | 'medium' | 'low'): string {
-  switch (type) {
-    case 'high': return '🔴';
-    case 'medium': return '🟡';
-    case 'low': return '🟢';
-  }
-}
+async function fetchFullNews(): Promise<FullNewsItem[]> {
+  const zai = await ZAI.create();
 
-export async function GET() {
-  try {
-    // Return cached news if still fresh
-    if (newsCache && Date.now() - newsCache.timestamp < CACHE_DURATION) {
-      return NextResponse.json({
-        success: true,
-        cached: true,
-        news: newsCache.items,
-        fetchedAt: new Date(newsCache.timestamp).toISOString(),
+  const queries = [
+    'forex market news today high impact',
+    'currency trading news latest',
+    'central bank interest rate decision forex',
+    'economic calendar high impact events',
+  ];
+
+  const searchResults = await Promise.allSettled(
+    queries.map(query =>
+      zai.functions.invoke('web_search', {
+        query,
+        num: 8,
+        recency_days: 3,
+      })
+    )
+  );
+
+  const seen = new Set<string>();
+  const allResults: FullNewsItem[] = [];
+
+  for (const result of searchResults) {
+    if (result.status !== 'fulfilled' || !Array.isArray(result.value)) continue;
+    for (const item of result.value) {
+      if (!item?.name || seen.has(item.url)) continue;
+      seen.add(item.url);
+
+      const type = classifyImpact(item.name || '', item.snippet || '');
+      allResults.push({
+        title: item.name,
+        source: item.host_name || 'News',
+        url: item.url,
+        snippet: item.snippet || '',
+        date: item.date || '',
+        type,
       });
     }
+  }
 
-    const zai = await ZAI.create();
+  // Sort: high impact first, then by date
+  allResults.sort((a, b) => {
+    const impactOrder = { high: 0, medium: 1, low: 2 };
+    const impactDiff = impactOrder[a.type] - impactOrder[b.type];
+    if (impactDiff !== 0) return impactDiff;
+    if (a.date && b.date) {
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    }
+    return 0;
+  });
 
-    // Search for latest forex trading news
-    const queries = [
-      'forex market news today',
-      'currency trading news latest',
-      'economic calendar forex',
-    ];
+  return allResults;
+}
 
-    // Run searches in parallel
-    const searchResults = await Promise.allSettled(
-      queries.map(query =>
-        zai.functions.invoke('web_search', {
-          query,
-          num: 8,
-          recency_days: 3,
-        })
-      )
-    );
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const format = searchParams.get('format') || 'ticker';
 
-    // Merge and deduplicate results
-    const seen = new Set<string>();
-    const allResults: NewsItem[] = [];
-
-    for (const result of searchResults) {
-      if (result.status !== 'fulfilled' || !Array.isArray(result.value)) continue;
-      for (const item of result.value) {
-        if (!item?.name || seen.has(item.url)) continue;
-        seen.add(item.url);
-
-        const type = classifyImpact(item.name || '', item.snippet || '');
-        allResults.push({
-          title: item.name,
-          source: item.host_name || 'News',
-          url: item.url,
-          snippet: item.snippet || '',
-          date: item.date || '',
-          type,
+  try {
+    // Check cache
+    if (fullNewsCache && Date.now() - fullNewsCache.timestamp < CACHE_DURATION) {
+      if (format === 'full') {
+        return NextResponse.json({
+          success: true,
+          cached: true,
+          news: fullNewsCache.items,
+          fetchedAt: new Date(fullNewsCache.timestamp).toISOString(),
         });
       }
     }
 
-    // Sort by impact priority, then by date descending
-    allResults.sort((a, b) => {
-      const impactOrder = { high: 0, medium: 1, low: 2 };
-      const impactDiff = impactOrder[a.type] - impactOrder[b.type];
-      if (impactDiff !== 0) return impactDiff;
-      if (a.date && b.date) {
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
-      }
-      return 0;
-    });
+    // Fetch fresh data
+    const allResults = await fetchFullNews();
 
-    // Take top 12 for ticker
+    // Update cache
+    fullNewsCache = {
+      items: allResults,
+      timestamp: Date.now(),
+    };
+
+    if (format === 'full') {
+      // Return structured news items for the dedicated news page
+      return NextResponse.json({
+        success: true,
+        cached: false,
+        news: allResults.slice(0, 30),
+        fetchedAt: new Date().toISOString(),
+        totalSources: allResults.length,
+      });
+    }
+
+    // Legacy ticker format
     const newsItems = allResults.slice(0, 12);
-
-    // Add a random trading tip
     const tips = [
       { title: '💡 TIP: Selalu gunakan Stop Loss untuk mengelola risiko', type: 'low' as const },
       { title: '💡 TIP: Jangan overtrade — kualitas lebih penting dari kuantitas', type: 'low' as const },
@@ -132,19 +149,20 @@ export async function GET() {
     ];
     const randomTip = tips[Math.floor(Math.random() * tips.length)];
 
-    // Format for ticker display
+    const impactEmoji = (type: string) => {
+      switch (type) {
+        case 'high': return '🔴';
+        case 'medium': return '🟡';
+        default: return '🟢';
+      }
+    };
+
     const tickerItems = newsItems.map(item => ({
-      text: `${getImpactEmoji(item.type)} ${item.title} — ${item.source}`,
+      text: `${impactEmoji(item.type)} ${item.title} — ${item.source}`,
       type: item.type,
       url: item.url,
     }));
     tickerItems.push({ text: randomTip.title, type: 'tip', url: '' });
-
-    // Update cache
-    newsCache = {
-      items: tickerItems,
-      timestamp: Date.now(),
-    };
 
     return NextResponse.json({
       success: true,
@@ -156,7 +174,15 @@ export async function GET() {
   } catch (error) {
     console.error('News API error:', error);
 
-    // Fallback: return static tips if API fails
+    if (format === 'full') {
+      return NextResponse.json({
+        success: true,
+        fallback: true,
+        news: [],
+        fetchedAt: new Date().toISOString(),
+      });
+    }
+
     const fallbackNews = [
       { text: '🔴 HIGH IMPACT: Perhatikan jadwal economic calendar hari ini', type: 'high' as const, url: '' },
       { text: '🟡 MEDIUM: Pantau pergerakan major currency pairs', type: 'medium' as const, url: '' },
