@@ -112,3 +112,24 @@ Stage Summary:
 - Commit d1e401e pushed to GitHub Risxyiee/Luxtrade
 - All lint checks passing
 - Dashboard accessible at /dashboard with all new features integrated
+---
+Task ID: 2
+Agent: Main Agent
+Task: Redesign NewsTicker to be less distracting
+
+Work Log:
+- Analyzed current NewsTicker: full-width scrolling bar at top of dashboard, always visible
+- Made ticker compact: reduced padding (py-3 → py-1.5), smaller text (11px), thinner borders
+- Added collapsible/expandable functionality with localStorage persistence
+- Moved NewsTicker from above stats cards to below QuickStats (less prominent position)
+- Slowed animation speed: 40s → 60s for less visual distraction
+- Added hover-to-dismiss button (ChevronUp) on expanded state
+- Added subtle collapsed state with pulse dot and "Forex News" label
+- Added ChevronDown and ChevronUp to lucide-react imports
+- Lint passes clean, dev server running, dashboard returns 200
+
+Stage Summary:
+- NewsTicker is now compact, collapsible, and positioned below stats
+- Users can collapse/expand via hover button, preference saved to localStorage
+- Scrolling speed reduced from 40s to 60s cycle
+- Less visually intrusive while still providing forex news value

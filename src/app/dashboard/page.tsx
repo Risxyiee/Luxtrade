@@ -10,7 +10,7 @@ import {
   Activity, PieChart, Sparkles, AlertTriangle,
   Zap, RefreshCw, Database, LogOut, Upload, Edit, Trash2, Eye as ViewIcon, Calendar, Clock,
   Smile, Meh, Frown, Sun, Moon, Cloud, AlertCircle, Search, Send, MessageSquare, MessageCircle, Bot, User,
-  TrendingUp as TrendingUpIcon, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, FileText, Play, Share2, Download, Shield, Crown, AlertCircle as AlertCircleIcon, Camera, Gift, Trophy, Flame, ExternalLink
+  TrendingUp as TrendingUpIcon, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, FileText, Play, Share2, Download, Shield, Crown, AlertCircle as AlertCircleIcon, Camera, Gift, Trophy, Flame, ExternalLink, ChevronDown, ChevronUp
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -3007,7 +3007,12 @@ function AnimatedStatCard({
 
 function NewsTicker() {
   const [news, setNews] = useState<Array<{ text: string; type: string; url?: string }>>([])
-  const [loading, setLoading] = useState(true)
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('luxtrade_news_collapsed') === 'true'
+    }
+    return false
+  })
 
   useEffect(() => {
     async function fetchNews() {
@@ -3019,8 +3024,6 @@ function NewsTicker() {
         }
       } catch {
         // Keep fallback if fetch fails
-      } finally {
-        setLoading(false)
       }
     }
     fetchNews()
@@ -3029,37 +3032,70 @@ function NewsTicker() {
     return () => clearInterval(interval)
   }, [])
 
+  const handleToggle = () => {
+    const next = !collapsed
+    setCollapsed(next)
+    localStorage.setItem('luxtrade_news_collapsed', String(next))
+  }
+
   // Fallback while loading
   const displayNews = news.length > 0 ? news : [
     { text: '📊 Memuat berita forex terbaru...', type: 'tip' },
   ]
 
+  // Collapsed state: thin expandable bar
+  if (collapsed) {
+    return (
+      <button
+        onClick={handleToggle}
+        className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all group"
+      >
+        <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+        <span className="text-xs text-white/30 group-hover:text-white/50 transition-colors">
+          Forex News
+        </span>
+        <ChevronDown className="w-3 h-3 text-white/20 group-hover:text-white/40" />
+      </button>
+    )
+  }
+
   return (
-    <div className="relative overflow-hidden bg-gradient-to-r from-[#0f0b18] via-[#1a0f2e] to-[#0f0b18] border border-purple-900/30 rounded-xl py-3 mb-6">
-      {/* Left gradient fade */}
-      <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-[#0f0b18] to-transparent z-10" />
-      {/* Right gradient fade */}
-      <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-[#0f0b18] to-transparent z-10" />
-      
-      {/* Scrolling container */}
-      <div className="animate-ticker-scroll">
-        <div className="flex gap-12 whitespace-nowrap">
-          {[...displayNews, ...displayNews].map((item, index) => (
-            <a
-              key={index}
-              href={item.url || '#'}
-              target={item.url ? '_blank' : undefined}
-              rel={item.url ? 'noopener noreferrer' : undefined}
-              className={`inline-flex items-center gap-2 px-4 transition-colors ${
-                item.type === 'high' ? 'text-red-400 hover:text-red-300' : 
-                item.type === 'medium' ? 'text-purple-400 hover:text-purple-300' : 
-                item.type === 'tip' ? 'text-purple-400' : 'text-white/60 hover:text-white/80'
-              } ${!item.url ? 'pointer-events-none' : ''}`}
-            >
-              {item.text}
-              {item.url && <ExternalLink className="w-3 h-3 opacity-50" />}
-            </a>
-          ))}
+    <div className="relative">
+      {/* Compact ticker bar */}
+      <div className="relative overflow-hidden rounded-lg bg-white/[0.03] border border-white/[0.06] group">
+        {/* Collapse button */}
+        <button
+          onClick={handleToggle}
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-20 p-1 rounded-full bg-white/[0.05] hover:bg-white/[0.1] transition-all opacity-0 group-hover:opacity-100"
+          title="Sembunyikan news"
+        >
+          <ChevronUp className="w-3 h-3 text-white/40" />
+        </button>
+
+        {/* Left gradient fade */}
+        <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#0a0712] to-transparent z-10 pointer-events-none" />
+        {/* Right gradient fade */}
+        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#0a0712] to-transparent z-10 pointer-events-none" />
+        
+        {/* Scrolling container */}
+        <div className="animate-ticker-scroll py-1.5">
+          <div className="flex gap-10 whitespace-nowrap">
+            {[...displayNews, ...displayNews].map((item, index) => (
+              <a
+                key={index}
+                href={item.url || '#'}
+                target={item.url ? '_blank' : undefined}
+                rel={item.url ? 'noopener noreferrer' : undefined}
+                className={`inline-flex items-center gap-2 px-3 transition-colors ${
+                  item.type === 'high' ? 'text-red-400/70 hover:text-red-300' : 
+                  item.type === 'medium' ? 'text-purple-400/70 hover:text-purple-300' : 
+                  item.type === 'tip' ? 'text-purple-400/60' : 'text-white/40 hover:text-white/60'
+                } ${!item.url ? 'pointer-events-none' : ''}`}
+              >
+                <span className="text-[11px] leading-tight">{item.text}</span>
+              </a>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -3142,9 +3178,6 @@ function DashboardTab({
           </div>
         </motion.div>
       )}
-      
-      {/* News Ticker */}
-      <NewsTicker />
       
       {/* Stats Cards with Animation */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
@@ -3271,6 +3304,9 @@ function DashboardTab({
           <QuickStats trades={trades} analytics={analytics} language={language} />
         </motion.div>
       )}
+
+      {/* Compact Forex News Ticker */}
+      <NewsTicker />
 
       {/* Session Performance Chart */}
       {hasData && analytics?.sessionPerformance && (
