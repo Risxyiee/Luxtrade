@@ -8,7 +8,7 @@ import {
   TrendingUp, TrendingDown, Plus, BarChart3, BookOpen, 
   Eye, Brain, Menu, X, DollarSign, Target,
   Activity, PieChart, Sparkles, AlertTriangle,
-  Zap, RefreshCw, Database, LogOut, Upload, Edit, Trash2, Eye as ViewIcon, Calendar, Clock,
+  Zap, RefreshCw, Database, LogOut, CalendarDays, Upload, Edit, Trash2, Eye as ViewIcon, Calendar, Clock,
   Smile, Meh, Frown, Sun, Moon, Cloud, AlertCircle, Search, Send, MessageSquare, MessageCircle, Bot, User,
   TrendingUp as TrendingUpIcon, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, FileText, Play, Share2, Download, Shield, Crown, AlertCircle as AlertCircleIcon, Camera, Gift, Trophy, Flame, ExternalLink, Newspaper
 } from 'lucide-react'
@@ -156,6 +156,7 @@ const menuItems = [
   { id: 'calendar', label: 'Calendar', labelId: 'Kalender', icon: Calendar, category: 'utama', proOnly: false },
   { id: 'journal', label: 'Journal', labelId: 'Jurnal', icon: BookOpen, category: 'utama', proOnly: false },
   { id: 'watchlist', label: 'Watchlist', labelId: 'Daftar Pantauan', icon: Eye, category: 'utama', proOnly: false },
+  { id: 'ecal', label: 'Economic Calendar', labelId: 'Kalender Ekonomi', icon: CalendarDays, category: 'utama', proOnly: false },
   { id: 'news', label: 'Market News', labelId: 'Berita Pasar', icon: Newspaper, category: 'utama', proOnly: false },
   
   // ALAT - PRO Emas
