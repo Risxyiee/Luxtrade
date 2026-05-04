@@ -263,3 +263,38 @@ Stage Summary:
 - News API filters out non-article URLs for cleaner results
 - Calendar has responsive desktop table + mobile card views
 - Currency and impact filters on calendar page
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix database error on user registration + push to GitHub
+
+Work Log:
+- Analyzed screenshot: error is "Database error saving new user" from Supabase Auth
+- Root cause: Supabase has a trigger on auth.users that auto-creates profiles, but the profiles table is missing required columns (or the table doesn not exist), causing the entire auth signup transaction to fail
+- Created comprehensive SQL setup script at supabase/setup.sql:
+  - Creates profiles table with ALL required columns (17 columns including affiliate fields)
+  - Creates referral_tracking table with proper foreign keys
+  - Sets up RLS policies allowing anon inserts (needed for signup)
+  - Creates handle_new_user() trigger function that only inserts basic columns
+  - Creates updated_at auto-update trigger
+  - Drops old broken triggers first to prevent conflicts
+- Rewrote /api/auth/signup/route.ts to be resilient:
+  - Pre-flight check for profiles table existence
+  - Try UPDATE first then INSERT (handles trigger-created profiles)
+  - Better error classification: DB errors, duplicate email, rate limiting
+  - Returns needsSetup flag for frontend detection
+  - Profile/referral creation failure no longer blocks signup
+- Rewrote /api/setup/route.ts with diagnostics:
+  - GET: checks profiles table, referral_tracking table, auth users, profile data
+  - POST: auto-creates profiles for existing auth users, upgrades admin
+  - Returns full SQL script for manual setup
+- Updated signup page error handling:
+  - Detects database setup errors from API response
+  - Shows amber warning panel with admin instructions when DB not configured
+- Pushed to GitHub: Risxyiee/Luxtrade (commit 86064a8)
+
+Stage Summary:
+- Registration error fix: The error "Database error saving new user" was caused by a failing Supabase trigger on auth.users. The fix requires running supabase/setup.sql in Supabase SQL Editor.
+- Code is more resilient: signup no longer fails if profile creation fails
+- Better UX: users see helpful setup instructions instead of a cryptic error
+- SQL script at supabase/setup.sql needs to be run once in Supabase Dashboard SQL Editor
