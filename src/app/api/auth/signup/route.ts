@@ -47,7 +47,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Sign up user with Supabase Auth
+    // ============================================
+    // Step 1: Pre-flight check - verify profiles table exists
+    // ============================================
+    try {
+      const { error: tableCheck } = await supabase
+        .from('profiles')
+        .select('id')
+        .limit(1)
+
+      if (tableCheck) {
+        const msg = tableCheck.message || String(tableCheck)
+        if (msg.includes('does not exist') || msg.includes('relation') || msg.includes('42P01')) {
+          console.error('❌ Profiles table does not exist!')
+          return NextResponse.json(
+            {
+              error: 'Database belum di-setup. Silakan jalankan setup terlebih dahulu.',
+              code: 'DB_NOT_SETUP',
+              needsSetup: true
+            },
+            { status: 503 }
+          )
+        }
+      }
+    } catch (checkErr) {
+      console.warn('⚠️ Could not verify profiles table:', checkErr)
+      // Continue anyway - might be a network issue
+    }
+
+    // ============================================
+    // Step 2: Sign up user with Supabase Auth
+    // ============================================
     console.log('🚀 Calling supabase.auth.signUp...')
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
@@ -62,42 +92,99 @@ export async function POST(request: NextRequest) {
 
     if (signUpError) {
       console.error('❌ Supabase signup error:', signUpError)
+
+      // Parse common errors and provide helpful messages
+      const errorMsg = signUpError.message || 'Unknown error'
+
+      // Check for database-related errors
+      if (errorMsg.toLowerCase().includes('database') || 
+          errorMsg.toLowerCase().includes('saving new user') ||
+          errorMsg.toLowerCase().includes('relation') ||
+          errorMsg.toLowerCase().includes('does not exist') ||
+          errorMsg.toLowerCase().includes('trigger')) {
+        return NextResponse.json(
+          {
+            error: 'Database error. Tabel profiles belum dibuat di Supabase. Jalankan setup database terlebih dahulu di /api/setup',
+            code: 'DB_ERROR',
+            originalError: errorMsg,
+            needsSetup: true
+          },
+          { status: 503 }
+        )
+      }
+
+      // Check for duplicate email
+      if (errorMsg.toLowerCase().includes('already registered') || 
+          errorMsg.toLowerCase().includes('already been registered') ||
+          errorMsg.toLowerCase().includes('unique') ||
+          errorMsg.toLowerCase().includes('duplicate') ||
+          errorMsg.toLowerCase().includes('already exists')) {
+        return NextResponse.json(
+          { error: 'Email sudah terdaftar. Silakan login atau gunakan email lain.' },
+          { status: 409 }
+        )
+      }
+
+      // Check for rate limiting
+      if (errorMsg.toLowerCase().includes('rate limit') || 
+          errorMsg.toLowerCase().includes('too many') ||
+          errorMsg.toLowerCase().includes('security')) {
+        return NextResponse.json(
+          { error: 'Terlalu banyak percobaan. Tunggu beberapa menit dan coba lagi.' },
+          { status: 429 }
+        )
+      }
+
+      // Generic Supabase error
       return NextResponse.json(
-        { error: signUpError.message },
+        { error: `Gagal membuat akun: ${errorMsg}` },
         { status: 400 }
       )
     }
 
-    // User created successfully
-    if (data.user) {
-      console.log('✅ User created:', data.user.id)
-      console.log('✅ User email:', data.user.email)
-      
-      // Generate unique referral code for this user
-      let myReferralCode = generateReferralCode()
-      
-      // Ensure uniqueness
-      let attempts = 0
-      while (attempts < 10) {
+    // ============================================
+    // Step 3: User created in auth - now handle profile & referral
+    // ============================================
+    if (!data.user) {
+      console.error('❌ No user returned from signUp')
+      return NextResponse.json(
+        { error: 'Gagal membuat akun. Silakan coba lagi.' },
+        { status: 500 }
+      )
+    }
+
+    console.log('✅ User created:', data.user.id)
+    console.log('✅ User email:', data.user.email)
+
+    // Generate unique referral code for this user
+    let myReferralCode = generateReferralCode()
+    let attempts = 0
+    while (attempts < 10) {
+      try {
         const { data: existingCode } = await supabase
           .from('profiles')
           .select('my_referral_code')
           .eq('my_referral_code', myReferralCode)
           .single()
-        
+
         if (!existingCode) break
         myReferralCode = generateReferralCode()
         attempts++
+      } catch {
+        // Table might not exist - break and use the code
+        break
       }
+    }
 
-      // ============================================
-      // ANTI-FRAUD CHECK: Validate referral code if provided
-      // ============================================
-      let referralStatus = 'none'
-      let fraudReason = null
-      let referrerId = null
+    // ============================================
+    // ANTI-FRAUD CHECK: Validate referral code if provided
+    // ============================================
+    let referralStatus = 'none'
+    let fraudReason: string | null = null
+    let referrerId: string | null = null
 
-      if (referralCode) {
+    if (referralCode) {
+      try {
         // Check if referral code exists
         const { data: referrer } = await supabase
           .from('profiles')
@@ -107,7 +194,7 @@ export async function POST(request: NextRequest) {
 
         if (referrer) {
           referrerId = referrer.id
-          
+
           // FRAUD CHECK 1: Self-referral (same device)
           if (deviceId && referrer.device_id === deviceId) {
             referralStatus = 'fraud'
@@ -138,18 +225,24 @@ export async function POST(request: NextRequest) {
         } else {
           console.log('⚠️ Invalid referral code provided:', referralCode)
         }
+      } catch (refErr) {
+        console.warn('⚠️ Could not validate referral code:', refErr)
+        // Don't fail signup because of referral validation issues
       }
+    }
 
-      // Create profile in profiles table with affiliate columns
-      const { error: profileError } = await supabase
+    // ============================================
+    // Step 4: Try to create/update profile (non-blocking)
+    // ============================================
+    try {
+      // First try to update (in case trigger already created a basic profile)
+      const { error: updateError } = await supabase
         .from('profiles')
-        .insert({
-          id: data.user.id,
+        .update({
           email: data.user.email,
           full_name: fullName,
           subscription_status: 'FREE',
           is_pro: false,
-          // Affiliate columns
           device_id: deviceId || null,
           my_referral_code: myReferralCode,
           referred_by_code: referralCode ? referralCode.toUpperCase() : null,
@@ -158,20 +251,47 @@ export async function POST(request: NextRequest) {
           referral_status: referralStatus,
           has_ever_been_pro: false,
           commission_paid: false,
-          created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
-      
-      if (profileError) {
-        console.error('⚠️ Profile creation error:', profileError)
-        // Don't fail signup if profile creation fails
+        .eq('id', data.user.id)
+
+      if (!updateError) {
+        console.log('✅ Profile updated with referral code:', myReferralCode)
       } else {
-        console.log('✅ Profile created with referral code:', myReferralCode)
-        
-        // ============================================
-        // Create referral tracking record if code was used
-        // ============================================
-        if (referralCode && referrerId) {
+        // If update failed, try insert
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            email: data.user.email,
+            full_name: fullName,
+            subscription_status: 'FREE',
+            is_pro: false,
+            device_id: deviceId || null,
+            my_referral_code: myReferralCode,
+            referred_by_code: referralCode ? referralCode.toUpperCase() : null,
+            affiliate_balance: 0,
+            referral_code_changes: 0,
+            referral_status: referralStatus,
+            has_ever_been_pro: false,
+            commission_paid: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+
+        if (insertError) {
+          console.error('⚠️ Profile creation error:', insertError.message)
+          // Don't fail signup - user was created in auth
+        } else {
+          console.log('✅ Profile created with referral code:', myReferralCode)
+        }
+      }
+
+      // ============================================
+      // Create referral tracking record if code was used
+      // ============================================
+      if (referralCode && referrerId) {
+        try {
           const { error: trackingError } = await supabase
             .from('referral_tracking')
             .insert({
@@ -186,28 +306,29 @@ export async function POST(request: NextRequest) {
             })
 
           if (trackingError) {
-            console.error('⚠️ Referral tracking error:', trackingError)
+            console.error('⚠️ Referral tracking error:', trackingError.message)
           } else {
             console.log('✅ Referral tracking created')
           }
+        } catch (trackErr) {
+          console.warn('⚠️ Could not create referral tracking:', trackErr)
         }
       }
-      
-      return NextResponse.json({
-        success: true,
-        message: 'Akun berhasil dibuat! Cek email untuk konfirmasi.',
-        user: {
-          id: data.user.id,
-          email: data.user.email,
-          referralCode: myReferralCode // Return user's own referral code
-        }
-      })
+    } catch (profileErr) {
+      console.error('⚠️ Profile setup error (non-fatal):', profileErr)
+      // User was already created in auth, so signup is still successful
     }
 
-    return NextResponse.json(
-      { error: 'Terjadi kesalahan. Silakan coba lagi.' },
-      { status: 500 }
-    )
+    return NextResponse.json({
+      success: true,
+      message: 'Akun berhasil dibuat! Cek email untuk konfirmasi.',
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        referralCode: myReferralCode
+      }
+    })
+
   } catch (error) {
     console.error('Signup API error:', error)
     return NextResponse.json(
