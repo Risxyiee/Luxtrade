@@ -1,32 +1,35 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { readFileSync } from 'fs'
-import { join } from 'path'
+import { supabase } from '@/lib/supabase'
 
 // One-time setup script for LuxTrade
-// Run this endpoint to check database status and get setup instructions
+// Run this endpoint to check database status
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://biqtkulvmqtikflcmqad.supabase.co'
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-
-// Admin emails to auto-upgrade to PRO
+// Admin emails
 const ADMIN_EMAILS = ['luxtradee@gmail.com']
 
-// Full SQL setup script
+// Full SQL setup script - INCLUDES nuclear option to drop ALL triggers
 const SETUP_SQL = `-- ============================================================
 -- LuxTrade Supabase Database Setup
 -- Run this in Supabase SQL Editor
 -- ============================================================
 
--- 1. Drop existing triggers that may cause errors
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-DROP TRIGGER IF EXISTS handle_new_user ON auth.users;
-DROP TRIGGER IF EXISTS on_user_created ON auth.users;
-DROP TRIGGER IF EXISTS profiles_updated_at ON public.profiles;
-DROP FUNCTION IF EXISTS public.handle_new_user();
-DROP FUNCTION IF EXISTS public.update_updated_at_column();
+-- 0. NUCLEAR OPTION: Drop ALL triggers on auth.users (fixes broken triggers)
+DO $$ 
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN (SELECT trigger_name, event_object_table FROM information_schema.triggers WHERE event_object_table = 'users' AND trigger_schema = 'auth') LOOP
+    EXECUTE 'DROP TRIGGER IF EXISTS "' || r.trigger_name || '" ON auth.users';
+    RAISE NOTICE 'Dropped trigger: %', r.trigger_name;
+  END LOOP;
+END $$;
 
--- 2. Create profiles table with ALL required columns
+-- Also drop any functions that might be broken
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+DROP FUNCTION IF EXISTS public.update_updated_at_column() CASCADE;
+DROP FUNCTION IF EXISTS public.on_auth_user_created() CASCADE;
+
+-- 1. Create profiles table with ALL required columns
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
@@ -50,7 +53,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Create referral_tracking table
+-- 2. Create referral_tracking table
 CREATE TABLE IF NOT EXISTS public.referral_tracking (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   referrer_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -63,17 +66,17 @@ CREATE TABLE IF NOT EXISTS public.referral_tracking (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Create indexes
+-- 3. Create indexes
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);
 CREATE INDEX IF NOT EXISTS idx_profiles_my_referral_code ON public.profiles(my_referral_code);
 CREATE INDEX IF NOT EXISTS idx_profiles_device_id ON public.profiles(device_id);
 CREATE INDEX IF NOT EXISTS idx_referral_tracking_referrer ON public.referral_tracking(referrer_id);
 
--- 5. Enable RLS
+-- 4. Enable RLS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.referral_tracking ENABLE ROW LEVEL SECURITY;
 
--- 6. Drop existing policies (to avoid duplicates)
+-- 5. Drop existing policies (to avoid duplicates)
 DO $$ 
 DECLARE
   r RECORD;
@@ -83,17 +86,17 @@ BEGIN
   END LOOP;
 END $$;
 
--- 7. RLS Policies for profiles
+-- 6. RLS Policies for profiles
 CREATE POLICY "Allow anon insert for signup" ON public.profiles FOR INSERT WITH CHECK (true);
 CREATE POLICY "Profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
--- 8. RLS Policies for referral_tracking
+-- 7. RLS Policies for referral_tracking
 CREATE POLICY "Allow anon insert for referral" ON public.referral_tracking FOR INSERT WITH CHECK (true);
 CREATE POLICY "Referral viewable by everyone" ON public.referral_tracking FOR SELECT USING (true);
 CREATE POLICY "Users can update own referral" ON public.referral_tracking FOR UPDATE USING (auth.uid() = referrer_id OR auth.uid() = referee_id);
 
--- 9. Auto-create profile trigger
+-- 8. Auto-create profile trigger (SAFE version - only inserts basic columns)
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -108,7 +111,7 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
 
--- 10. Auto-update updated_at trigger
+-- 9. Auto-update updated_at trigger
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -124,26 +127,34 @@ CREATE TRIGGER profiles_updated_at
 
 -- DONE! Your Supabase is ready for LuxTrade.`
 
+// SQL to ONLY drop all triggers (emergency fix)
+const EMERGENCY_DROP_SQL = `-- Emergency: Drop ALL triggers on auth.users
+DO $$ 
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN (SELECT trigger_name FROM information_schema.triggers WHERE event_object_table = 'users' AND trigger_schema = 'auth') LOOP
+    EXECUTE 'DROP TRIGGER IF EXISTS "' || r.trigger_name || '" ON auth.users';
+    RAISE NOTICE 'Dropped trigger: %', r.trigger_name;
+  END LOOP;
+END $$;
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+-- After this, registration will work but profiles won't auto-create.
+-- Then run the full setup.sql to recreate with correct trigger.`
+
 export async function GET() {
   const results = {
     success: false,
     checks: [] as { name: string; status: 'ok' | 'error' | 'warning'; message: string }[],
     errors: [] as string[],
     sql: SETUP_SQL,
-    users: [] as unknown,
+    emergencySql: EMERGENCY_DROP_SQL,
     profiles: [] as unknown,
   }
 
   try {
-    // Create Supabase admin client
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    })
-
-    // Check 1: Can we connect?
+    // Use the same anon client as the rest of the app
+    // Check 1: profiles table
     try {
       const { error } = await supabase.from('profiles').select('id').limit(1)
       if (error) {
@@ -152,7 +163,7 @@ export async function GET() {
           results.checks.push({
             name: 'Profiles Table',
             status: 'error',
-            message: 'Table "profiles" does not exist. Run the SQL below to create it.'
+            message: 'Table "profiles" does NOT exist. Run the SQL below.'
           })
         } else {
           results.checks.push({
@@ -165,14 +176,14 @@ export async function GET() {
         results.checks.push({
           name: 'Profiles Table',
           status: 'ok',
-          message: 'Profiles table exists'
+          message: 'Profiles table exists and is accessible'
         })
       }
     } catch (e) {
       results.checks.push({
         name: 'Profiles Table',
         status: 'error',
-        message: `Failed to check: ${e}`
+        message: `Failed: ${e}`
       })
     }
 
@@ -185,7 +196,7 @@ export async function GET() {
           results.checks.push({
             name: 'Referral Tracking Table',
             status: 'error',
-            message: 'Table "referral_tracking" does not exist. Run the SQL below to create it.'
+            message: 'Table "referral_tracking" does NOT exist. Run the SQL below.'
           })
         } else {
           results.checks.push({
@@ -205,40 +216,11 @@ export async function GET() {
       results.checks.push({
         name: 'Referral Tracking Table',
         status: 'error',
-        message: `Failed to check: ${e}`
+        message: `Failed: ${e}`
       })
     }
 
-    // Check 3: Try to list auth users
-    try {
-      const { data: { users }, error: usersError } = await supabase.auth.admin.listUsers()
-      if (usersError) {
-        results.checks.push({
-          name: 'Auth Users',
-          status: 'warning',
-          message: `Cannot list users (service role key needed): ${usersError.message}`
-        })
-      } else {
-        results.checks.push({
-          name: 'Auth Users',
-          status: 'ok',
-          message: `Found ${users.length} registered users`
-        })
-        results.users = users.map((u: { id: string; email: string | null; created_at: string }) => ({
-          id: u.id,
-          email: u.email,
-          created_at: u.created_at
-        }))
-      }
-    } catch (e) {
-      results.checks.push({
-        name: 'Auth Users',
-        status: 'warning',
-        message: `Cannot list users (anon key used): Need service role key`
-      })
-    }
-
-    // Check 4: Get existing profiles
+    // Check 3: Get existing profiles
     try {
       const { data: existingProfiles, error: profilesError } = await supabase
         .from('profiles')
@@ -258,12 +240,18 @@ export async function GET() {
         })
         results.profiles = existingProfiles
       }
-    } catch (e) {
+    } catch {
       // skip
     }
 
-    results.success = results.errors.length === 0
+    // Check 4: Test signup flow (dry-run)
+    results.checks.push({
+      name: 'Registration Test',
+      status: 'warning',
+      message: 'Cannot test signup from server. Try registering a new account to verify.'
+    })
 
+    results.success = results.errors.length === 0
     return NextResponse.json(results, { status: 200 })
 
   } catch (error) {
@@ -272,7 +260,7 @@ export async function GET() {
   }
 }
 
-// POST to trigger setup checks and auto-create profiles for existing users
+// POST to trigger setup checks
 export async function POST() {
   const results = {
     success: false,
@@ -281,84 +269,50 @@ export async function POST() {
   }
 
   try {
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
+    // Use anon client to check profiles
+    const { error } = await supabase.from('profiles').select('id').limit(1)
+
+    if (error) {
+      const msg = error.message || String(error)
+      if (msg.includes('does not exist')) {
+        results.actions.push('❌ Profiles table does not exist')
+        results.errors.push('Run the SQL from /api/setup in Supabase SQL Editor')
+      } else {
+        results.actions.push('⚠️ Profiles table error: ' + msg)
       }
-    })
+    } else {
+      results.actions.push('✅ Profiles table exists and accessible')
+      
+      // Try to count profiles
+      const { count } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+      
+      results.actions.push(`📊 Found ${count || 0} profiles`)
+    }
 
-    // Try to get all auth users
-    try {
-      const { data: { users }, error: usersError } = await supabase.auth.admin.listUsers()
-
-      if (usersError) {
-        results.actions.push('⚠️ Cannot list users - need SUPABASE_SERVICE_ROLE_KEY')
-        results.errors.push(usersError.message)
-      } else if (users && users.length > 0) {
-        results.actions.push(`Found ${users.length} users in auth`)
-
-        // Get existing profiles
-        const { data: existingProfiles } = await supabase
-          .from('profiles')
-          .select('id')
-
-        const profileMap = new Map(
-          (existingProfiles || []).map((p: { id: string }) => [p.id, true])
-        )
-
-        // Create profiles for users who don't have one
-        for (const user of users) {
-          if (!profileMap.has(user.id)) {
-            const isAdmin = ADMIN_EMAILS.includes(user.email || '')
-
-            const { error: insertError } = await supabase
-              .from('profiles')
-              .insert({
-                id: user.id,
-                email: user.email,
-                full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
-                subscription_status: isAdmin ? 'PRO' : 'FREE',
-                is_pro: isAdmin,
-                my_referral_code: `LUX${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              })
-
-            if (insertError) {
-              results.errors.push(`Profile for ${user.email}: ${insertError.message}`)
-            } else {
-              results.actions.push(`Created profile for ${user.email}${isAdmin ? ' (PRO)' : ''}`)
-            }
-          }
-        }
-
-        // Upgrade admin users
-        for (const adminEmail of ADMIN_EMAILS) {
-          const adminUser = users.find((u: { email: string | null }) => u.email === adminEmail)
-          if (adminUser) {
-            const { error: updateError } = await supabase
-              .from('profiles')
-              .update({
-                subscription_status: 'PRO',
-                is_pro: true,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', adminUser.id)
-
-            if (updateError) {
-              results.errors.push(`Admin upgrade failed: ${updateError.message}`)
-            } else {
-              results.actions.push(`👑 Upgraded ${adminEmail} to PRO`)
-            }
-          }
-        }
+    // Check referral_tracking
+    const { error: refError } = await supabase.from('referral_tracking').select('id').limit(1)
+    if (refError) {
+      const msg = refError.message || String(refError)
+      if (msg.includes('does not exist')) {
+        results.actions.push('❌ Referral tracking table does not exist')
+        results.errors.push('Run the SQL from /api/setup in Supabase SQL Editor')
       }
-    } catch (e) {
-      results.actions.push('⚠️ Service role key not available - cannot auto-create profiles')
+    } else {
+      results.actions.push('✅ Referral tracking table exists')
     }
 
     results.success = results.errors.length === 0
+
+    if (results.success) {
+      results.actions.push('')
+      results.actions.push('🎉 Database is ready! Try registering a new account.')
+    } else {
+      results.actions.push('')
+      results.actions.push('⚠️ Database needs setup. Run the SQL from supabase/setup.sql in Supabase Dashboard → SQL Editor.')
+    }
+
     return NextResponse.json(results, { status: 200 })
 
   } catch (error) {
