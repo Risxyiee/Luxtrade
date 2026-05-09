@@ -5,8 +5,14 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://klxkdrfsfco
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
 // Validate configuration
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('⚠️ Supabase credentials not configured. Auth features will not work.')
+if (!supabaseUrl || supabaseUrl === 'undefined' || supabaseUrl.trim() === '') {
+  console.error('❌ NEXT_PUBLIC_SUPABASE_URL is not configured or invalid')
+  console.error('   Please set NEXT_PUBLIC_SUPABASE_URL in Vercel Environment Variables')
+  console.error('   Expected format: https://your-project.supabase.co')
+}
+
+if (!supabaseAnonKey || supabaseAnonKey === 'undefined' || supabaseAnonKey.trim() === '') {
+  console.warn('⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY is not configured')
 }
 
 // Create Supabase client (for client-side & regular operations)
