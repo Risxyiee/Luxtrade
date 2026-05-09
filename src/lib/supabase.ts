@@ -6,13 +6,13 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
 // Validate configuration
 if (!supabaseUrl || supabaseUrl === 'undefined' || supabaseUrl.trim() === '') {
-  console.error('❌ NEXT_PUBLIC_SUPABASE_URL is not configured or invalid')
-  console.error('   Please set NEXT_PUBLIC_SUPABASE_URL in Vercel Environment Variables')
-  console.error('   Expected format: https://your-project.supabase.co')
+  console.warn('⚠️ NEXT_PUBLIC_SUPABASE_URL is not configured')
+  console.warn('   Set NEXT_PUBLIC_SUPABASE_URL in Vercel Environment Variables')
 }
 
 if (!supabaseAnonKey || supabaseAnonKey === 'undefined' || supabaseAnonKey.trim() === '') {
   console.warn('⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY is not configured')
+  console.warn('   Set NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel Environment Variables')
 }
 
 // Create Supabase client (for client-side & regular operations)
