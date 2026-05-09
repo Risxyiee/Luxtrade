@@ -373,6 +373,142 @@ function AnimatedForexTrades() {
   )
 }
 
+// Lifetime Ultra Card Component
+function LifetimeUltraCard() {
+  const [slotsInfo, setSlotsInfo] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [isSoldOut, setIsSoldOut] = useState(false)
+
+  useEffect(() => {
+    // Fetch slot info for Lifetime Ultra
+    // For now, using hardcoded values. In production, fetch from API
+    setSlotsInfo({
+      totalSlots: 30,
+      usedSlots: 0,
+      availableSlots: 30,
+      isSoldOut: false
+    })
+    setLoading(false)
+  }, [])
+
+  if (loading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ delay: 0.3 }}
+      >
+        <Card className="h-full bg-white/[0.02] border-white/[0.05]">
+          <CardContent className="p-6 pt-8">
+            <div className="animate-pulse">
+              <div className="h-6 bg-white/10 rounded mb-4 w-1/2" />
+              <div className="h-8 bg-white/10 rounded mb-2 w-3/4" />
+              <div className="h-4 bg-white/10 rounded mb-6 w-1/3" />
+              <div className="space-y-3">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="h-4 bg-white/10 rounded" />
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    )
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ delay: 0.3 }}
+    >
+      <Card className={`h-full relative ${
+        isSoldOut
+          ? 'bg-gradient-to-b from-red-500/10 to-transparent border-red-500/30'
+          : 'bg-gradient-to-b from-amber-500/10 to-transparent border-amber-500/30'
+      }`}>
+        {slotsInfo?.isSoldOut && (
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-red-500 text-xs font-bold text-white animate-pulse">
+            SOLD OUT
+          </div>
+        )}
+        {!slotsInfo?.isSoldOut && (
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-xs font-semibold text-white flex items-center gap-1">
+            <Sparkles className="w-3 h-3" />
+            LIMITED
+          </div>
+        )}
+        <CardContent className="p-6 pt-8">
+          <div className="text-sm text-amber-400 mb-1">Lifetime Ultra</div>
+          <div className="text-4xl font-bold text-white mb-1">
+            Rp 100.000
+            <span className="text-base font-normal text-white/40"> /lifetime</span>
+          </div>
+          {slotsInfo && (
+            <div className={`mb-4 text-xs font-semibold ${
+              slotsInfo.isSoldOut ? 'text-red-400' : 'text-amber-300'
+            }`}>
+              {slotsInfo.isSoldOut ? (
+                <span>All 30 slots taken</span>
+              ) : (
+                <span>{slotsInfo.availableSlots} of {slotsInfo.totalSlots} slots left</span>
+              )}
+            </div>
+          )}
+          <ul className="space-y-3 my-6">
+            <li className="flex items-center gap-2 text-sm text-white/60">
+              <Check className="w-4 h-4 text-amber-400" />
+              All Elite Pro features
+            </li>
+            <li className="flex items-center gap-2 text-sm text-white/60">
+              <Check className="w-4 h-4 text-amber-400" />
+              LIFETIME access (no renewal)
+            </li>
+            <li className="flex items-center gap-2 text-sm text-white/60">
+              <Check className="w-4 h-4 text-amber-400" />
+              Exclusive trading signals
+            </li>
+            <li className="flex items-center gap-2 text-sm text-white/60">
+              <Check className="w-4 h-4 text-amber-400" />
+              1-on-1 coaching session
+            </li>
+            <li className="flex items-center gap-2 text-sm text-white/60">
+              <Check className="w-4 h-4 text-amber-400" />
+              Private community access
+            </li>
+            <li className="flex items-center gap-2 text-sm text-white/60">
+              <Check className="w-4 h-4 text-amber-400" />
+              Priority feature requests
+            </li>
+            <li className="flex items-center gap-2 text-sm text-white/60">
+              <Check className="w-4 h-4 text-amber-400" />
+              VIP WhatsApp support
+            </li>
+            <li className="flex items-center gap-2 text-sm text-white/60">
+              <Check className="w-4 h-4 text-amber-400" />
+              Custom dashboard setup
+            </li>
+          </ul>
+          <Link href="/auth/signup" className="block">
+            <Button
+              disabled={isSoldOut}
+              className={`w-full font-semibold ${
+                isSoldOut
+                  ? 'bg-white/10 text-white/50 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white'
+              }`}
+            >
+              {isSoldOut ? 'Sold Out' : 'Get Lifetime Access'}
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
+    </motion.div>
+  )
+}
+
 export default function LuxTradeLanding() {
   const [showPayment, setShowPayment] = useState(false)
 
@@ -834,10 +970,10 @@ export default function LuxTradeLanding() {
         </div>
       </section>
 
-      {/* Pricing - Hanya 2 Paket: Free dan Elite Pro Rp 49.000 */}
+      {/* Pricing - 3 Paket: Free, Elite Pro Rp 49.000, dan Lifetime Ultra Rp 100.000 */}
       <section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/5 to-transparent">
-        <div className="max-w-4xl mx-auto">
-          <motion.div 
+        <div className="max-w-6xl mx-auto">
+          <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -851,9 +987,9 @@ export default function LuxTradeLanding() {
               <span className="text-white">Start Free,</span>
               <span className="bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent"> Upgrade When Ready</span>
             </h2>
-            
+
             {/* Money-Back Guarantee Badge */}
-            <motion.div 
+            <motion.div
               className="flex justify-center mt-6"
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
@@ -865,9 +1001,9 @@ export default function LuxTradeLanding() {
                 <span className="text-emerald-400/60 text-sm">• No Questions Asked</span>
               </div>
             </motion.div>
-            
+
             {/* Trust Badges */}
-            <motion.div 
+            <motion.div
               className="flex flex-wrap justify-center gap-4 mt-6"
               initial={{ opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -889,7 +1025,7 @@ export default function LuxTradeLanding() {
             </motion.div>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Free Plan */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -993,6 +1129,9 @@ export default function LuxTradeLanding() {
                 </CardContent>
               </Card>
             </motion.div>
+
+            {/* Lifetime Ultra - Rp 100.000 */}
+            <LifetimeUltraCard />
           </div>
           
           {/* Comparison Table */}
@@ -1009,24 +1148,27 @@ export default function LuxTradeLanding() {
                     <th className="p-4 text-left text-white/40 font-medium">Features</th>
                     <th className="p-4 text-center text-white/40 font-medium">Free</th>
                     <th className="p-4 text-center text-purple-400 font-semibold">Elite Pro</th>
+                    <th className="p-4 text-center text-amber-400 font-semibold">Lifetime Ultra</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {[
-                    { feature: 'Trades per month', free: '5', pro: 'Unlimited' },
-                    { feature: 'CSV Import', free: '✓', pro: '✓' },
-                    { feature: 'Basic Analytics', free: '✓', pro: '✓' },
-                    { feature: 'AI Insights', free: '—', pro: '✓' },
-                    { feature: 'Psychology Tracking', free: '—', pro: '✓' },
-                    { feature: 'Heatmap Analytics', free: '—', pro: '✓' },
-                    { feature: 'Data Export', free: '—', pro: '✓' },
-                    { feature: 'Data Retention', free: '30 days', pro: 'Forever' },
-                    { feature: 'Support', free: 'Email', pro: 'Priority WA' },
+                    { feature: 'Trades per month', free: '5', pro: 'Unlimited', ultra: 'Unlimited' },
+                    { feature: 'CSV Import', free: '✓', pro: '✓', ultra: '✓' },
+                    { feature: 'Basic Analytics', free: '✓', pro: '✓', ultra: '✓' },
+                    { feature: 'AI Insights', free: '—', pro: '✓', ultra: '✓' },
+                    { feature: 'Psychology Tracking', free: '—', pro: '✓', ultra: '✓' },
+                    { feature: 'Heatmap Analytics', free: '—', pro: '✓', ultra: '✓' },
+                    { feature: 'Data Export', free: '—', pro: '✓', ultra: '✓' },
+                    { feature: 'Data Retention', free: '30 days', pro: 'Forever', ultra: 'Forever' },
+                    { feature: 'Support', free: 'Email', pro: 'Priority WA', ultra: 'VIP Support' },
+                    { feature: 'Exclusive Features', free: '—', pro: '—', ultra: '✓' },
                   ].map((row, index) => (
                     <tr key={index} className="hover:bg-white/[0.02] transition-colors">
                       <td className="p-4 text-white/70">{row.feature}</td>
                       <td className="p-4 text-center text-white/40">{row.free}</td>
                       <td className="p-4 text-center text-emerald-400 font-medium">{row.pro}</td>
+                      <td className="p-4 text-center text-amber-400 font-medium">{row.ultra}</td>
                     </tr>
                   ))}
                 </tbody>
