@@ -21,7 +21,7 @@ const validSupabaseUrl = supabaseUrl.startsWith('http://') || supabaseUrl.starts
   : 'https://klxkdrfsfcoankbaoejn.supabase.co'
 
 // Create Supabase client (for client-side & regular operations)
-export const supabase = createClient(validSupabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(validSupabaseUrl, supabaseAnonKey || 'placeholder-for-build', {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
