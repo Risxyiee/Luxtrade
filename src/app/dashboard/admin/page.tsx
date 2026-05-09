@@ -523,6 +523,17 @@ export default function AdminPanel() {
     }
   }, [isAdminUser])
 
+  // Real-time auto-refresh every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isAdminUser) {
+        fetchUsers()
+      }
+    }, 10000)
+
+    return () => clearInterval(interval)
+  }, [isAdminUser])
+
   // Activate 30 Days PRO
   const activatePRO = async (userId: string) => {
     setUpdatingId(userId)
@@ -681,6 +692,9 @@ export default function AdminPanel() {
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
+            <Badge className="bg-emerald-500/20 text-emerald-400 text-xs flex items-center gap-1">
+              Live <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            </Badge>
           </div>
         </div>
       </header>

@@ -88,6 +88,17 @@ export default function AdminPanel() {
     }
   }, [user, loading, router])
 
+  // Real-time auto-refresh every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!loading && user && user.email === ADMIN_EMAIL) {
+        fetchUsers()
+      }
+    }, 10000)
+
+    return () => clearInterval(interval)
+  }, [user, loading])
+
   const fetchUsers = async () => {
     setIsLoading(true)
     try {
@@ -396,16 +407,21 @@ export default function AdminPanel() {
               <Users className="w-5 h-5 text-purple-400" />
               User Management
             </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchUsers}
-              disabled={isLoading}
-              className="border-purple-500/30 text-purple-400"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchUsers}
+                disabled={isLoading}
+                className="border-purple-500/30 text-purple-400"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              <Badge className="bg-emerald-500/20 text-emerald-400 text-xs flex items-center gap-1">
+                Live <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              </Badge>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -602,16 +618,21 @@ export default function AdminPanel() {
                 </Badge>
               )}
             </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchUsers}
-              disabled={isLoading}
-              className="border-purple-500/30 text-purple-400"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchUsers}
+                disabled={isLoading}
+                className="border-purple-500/30 text-purple-400"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              <Badge className="bg-emerald-500/20 text-emerald-400 text-xs flex items-center gap-1">
+                Live <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              </Badge>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">

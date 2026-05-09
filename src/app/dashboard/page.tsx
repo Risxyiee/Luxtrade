@@ -28,6 +28,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/lib/auth-context'
 import PaymentModal from '@/components/PaymentModal'
+import PlanSelectionModal from '@/components/PlanSelectionModal'
 import PNLShareCard from '@/components/PNLShareCard'
 import TradingScore from '@/components/TradingScore'
 import AIWeeklyReport from '@/components/AIWeeklyReport'
@@ -599,7 +600,19 @@ export default function LuxTradeDashboard() {
   const [deleteTradeOpen, setDeleteTradeOpen] = useState(false)
   const [viewTradeOpen, setViewTradeOpen] = useState(false)
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [planSelectionModalOpen, setPlanSelectionModalOpen] = useState(false)
   const [shareCardOpen, setShareCardOpen] = useState(false)
+  
+  const handleSelectPlan = (plan: any) => {
+    setPlanSelectionModalOpen(false)
+    // For free plan, just close modal
+    if (plan.price === 0) {
+      toast.success('You are using Free plan!')
+      return
+    }
+    // For paid plans, open payment modal
+    setPlanSelectionModalOpen(true)
+  }
   
   // Journal modals
   const [addJournalOpen, setAddJournalOpen] = useState(false)
@@ -873,7 +886,7 @@ export default function LuxTradeDashboard() {
     // Check trade limit for free users
     if (isFreeUser && tradeCount >= FREE_TRADE_LIMIT) {
       toast.error(`Free users are limited to ${FREE_TRADE_LIMIT} trades. Upgrade to PRO for unlimited trades!`)
-      setPaymentModalOpen(true)
+      setPlanSelectionModalOpen(true)
       return
     }
 
@@ -1410,7 +1423,7 @@ export default function LuxTradeDashboard() {
     }
     
     if (!isPro) {
-      setPaymentModalOpen(true)
+      setPlanSelectionModalOpen(true)
       return
     }
     
@@ -1574,7 +1587,7 @@ export default function LuxTradeDashboard() {
     }
     
     if (!isPro) {
-      setPaymentModalOpen(true)
+      setPlanSelectionModalOpen(true)
       return
     }
     
@@ -1703,7 +1716,7 @@ export default function LuxTradeDashboard() {
                       key={item.id}
                       onClick={() => {
                         if (item.proOnly && !isPro) {
-                          setPaymentModalOpen(true)
+                          setPlanSelectionModalOpen(true)
                         } else {
                           setActiveTab(item.id)
                           setMobileSidebarOpen(false)
@@ -1769,7 +1782,7 @@ export default function LuxTradeDashboard() {
           
           {!isPro && sidebarOpen && !demoMode && (
             <motion.button
-              onClick={() => setPaymentModalOpen(true)}
+              onClick={() => setPlanSelectionModalOpen(true)}
               className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-purple-500 to-violet-600 text-sm font-bold text-white hover:scale-[1.02] transition-all shadow-lg shadow-purple-500/20"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -2030,7 +2043,7 @@ export default function LuxTradeDashboard() {
                   onEdit={(entry) => { setSelectedJournal(entry); setEditJournalOpen(true) }}
                   onDelete={handleDeleteJournal}
                   isPro={isPro}
-                  onUpgrade={() => setPaymentModalOpen(true)}
+                  onUpgrade={() => setPlanSelectionModalOpen(true)}
                 />
               </motion.div>
             )}
@@ -2081,7 +2094,7 @@ export default function LuxTradeDashboard() {
                   onChatChange={setAiChatInput}
                   onSendChat={sendAiChat}
                   isPro={isPro}
-                  onUpgrade={() => setPaymentModalOpen(true)}
+                  onUpgrade={() => setPlanSelectionModalOpen(true)}
                 />
               </motion.div>
             )}
@@ -2093,7 +2106,7 @@ export default function LuxTradeDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <TradingScore analytics={analytics} trades={trades} isPro={isPro} onUpgrade={() => setPaymentModalOpen(true)} />
+                <TradingScore analytics={analytics} trades={trades} isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
               </motion.div>
             )}
             {activeTab === 'report' && (
@@ -2104,7 +2117,7 @@ export default function LuxTradeDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <AIWeeklyReport analytics={analytics} trades={trades} isPro={isPro} onUpgrade={() => setPaymentModalOpen(true)} />
+                <AIWeeklyReport analytics={analytics} trades={trades} isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
               </motion.div>
             )}
             {activeTab === 'streaks' && (
@@ -2115,7 +2128,7 @@ export default function LuxTradeDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <TradingStreaks trades={trades} isPro={isPro} onUpgrade={() => setPaymentModalOpen(true)} />
+                <TradingStreaks trades={trades} isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
               </motion.div>
             )}
             {activeTab === 'psychology' && (
@@ -2126,7 +2139,7 @@ export default function LuxTradeDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <PsychologyTab isPro={isPro} onUpgrade={() => setPaymentModalOpen(true)} trades={trades} />
+                <PsychologyTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} trades={trades} />
               </motion.div>
             )}
             {activeTab === 'heatmap' && (
@@ -2137,7 +2150,7 @@ export default function LuxTradeDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <HeatmapTab isPro={isPro} onUpgrade={() => setPaymentModalOpen(true)} trades={trades} />
+                <HeatmapTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} trades={trades} />
               </motion.div>
             )}
             {activeTab === 'calendar' && (
@@ -2181,7 +2194,7 @@ export default function LuxTradeDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <RiskCalculatorTab isPro={isPro} onUpgrade={() => setPaymentModalOpen(true)} language={language} />
+                <RiskCalculatorTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} language={language} />
               </motion.div>
             )}
             {activeTab === 'targets' && (
@@ -2192,7 +2205,7 @@ export default function LuxTradeDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <TargetsTab isPro={isPro} onUpgrade={() => setPaymentModalOpen(true)} language={language} analytics={analytics} trades={trades} />
+                <TargetsTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} language={language} analytics={analytics} trades={trades} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -2947,6 +2960,12 @@ export default function LuxTradeDashboard() {
         </DialogContent>
       </Dialog>
 
+      <PlanSelectionModal
+        isOpen={planSelectionModalOpen}
+        onClose={() => setPlanSelectionModalOpen(false)}
+        onSelectPlan={handleSelectPlan}
+      />
+
       <PaymentModal
         isOpen={paymentModalOpen}
         onClose={() => setPaymentModalOpen(false)}
@@ -2958,7 +2977,7 @@ export default function LuxTradeDashboard() {
       <WelcomeOnboarding
         isOpen={showOnboarding}
         onClose={() => setShowOnboarding(false)}
-        onUpgrade={() => setPaymentModalOpen(true)}
+        onUpgrade={() => setPlanSelectionModalOpen(true)}
         language={language}
       />
     </div>
