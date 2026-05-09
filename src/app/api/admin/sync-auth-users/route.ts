@@ -153,29 +153,62 @@ export async function POST(request: NextRequest) {
 // GET to check sync status
 export async function GET(request: NextRequest) {
   try {
+    console.log('📊 Checking sync status...')
+
     // Check if supabaseAdmin is available
     if (!supabaseAdmin) {
+      console.error('❌ supabaseAdmin client not available')
+      const prismaUsers = await db.user.findMany()
       return NextResponse.json({
         error: 'SUPABASE_SERVICE_ROLE_KEY not configured',
+        message: 'Please add SUPABASE_SERVICE_ROLE_KEY in Vercel Environment Variables',
+        supabaseAuthUsers: 0,
+        prismaUsers: prismaUsers.length,
+        syncNeeded: false
+      }, { status: 500 })
+    }
+
+    // Get counts from Supabase Auth
+    console.log('📋 Fetching Supabase Auth users...')
+    const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers()
+
+    if (authError) {
+      console.error('❌ Error fetching Supabase Auth users:', authError)
+      return NextResponse.json({
+        error: 'Failed to fetch Supabase Auth users',
+        details: String(authError),
         supabaseAuthUsers: 0,
         prismaUsers: (await db.user.findMany()).length,
         syncNeeded: false
-      })
+      }, { status: 500 })
     }
 
-    // Get counts
-    const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers()
+    // Get counts from Prisma
+    console.log('📋 Fetching Prisma users...')
     const prismaUsers = await db.user.findMany()
 
+    console.log(`✅ Sync status: Supabase Auth=${authUsers?.users?.length || 0}, Prisma=${prismaUsers.length}`)
+
     return NextResponse.json({
+      success: true,
       supabaseAuthUsers: authUsers?.users?.length || 0,
       prismaUsers: prismaUsers.length,
-      syncNeeded: (authUsers?.users?.length || 0) > prismaUsers.length
+      syncNeeded: (authUsers?.users?.length || 0) > prismaUsers.length,
+      authUsers: authUsers?.users?.map(u => ({
+        id: u.id,
+        email: u.email,
+        name: u.user_metadata?.display_name || u.user_metadata?.name || 'N/A'
+      })) || []
     })
   } catch (error) {
     console.error('❌ Error checking sync status:', error)
+    console.error('Full error:', JSON.stringify(error, null, 2))
     return NextResponse.json(
-      { error: 'Failed to check sync status' },
+      {
+        error: 'Failed to check sync status',
+        details: String(error),
+        message: 'Check Vercel Function Logs for details'
+      },
       { status: 500 }
     )
   }
