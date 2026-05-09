@@ -80,6 +80,17 @@ export default function AdminDashboard() {
     checkAuth()
   }, [router])
 
+  // Real-time auto-refresh every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (currentUser && ADMIN_EMAILS.includes(currentUser.email.toLowerCase())) {
+        fetchUsers()
+      }
+    }, 10000)
+
+    return () => clearInterval(interval)
+  }, [currentUser])
+
   // Fetch users
   const fetchUsers = async (token?: string) => {
     if (!token) {
@@ -264,6 +275,9 @@ export default function AdminDashboard() {
                 <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
+              <Badge className="bg-emerald-500/20 text-emerald-400 text-xs flex items-center gap-1">
+                Live <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              </Badge>
               <Button
                 variant="ghost"
                 size="sm"
