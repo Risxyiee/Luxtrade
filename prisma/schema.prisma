@@ -107,7 +107,7 @@ model UserSubscription {
 
 model SlotTracking {
   id              String   @id @default(cuid())
-  planId          String
+  planId          String   @unique
   totalSlots      Int
   usedSlots       Int      @default(0)
   isActive        Boolean  @default(true)
