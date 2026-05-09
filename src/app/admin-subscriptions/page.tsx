@@ -21,7 +21,9 @@ import {
   Crown,
   Plus,
   RefreshCw,
-  Wifi
+  Wifi,
+  Mail,
+  UserCircle
 } from 'lucide-react'
 
 interface Subscription {
@@ -58,14 +60,32 @@ interface SlotInfo {
   isSoldOut: boolean
 }
 
+interface User {
+  id: string
+  email: string
+  name: string | null
+  createdAt: string
+  updatedAt: string
+  subscriptionCount: number
+}
+
 export default function AdminSubscriptionsPanel() {
+  const [activeTab, setActiveTab] = useState('users')
+
+  // User state
+  const [users, setUsers] = useState<User[]>([])
+
+  // Subscription state
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [plans, setPlans] = useState<Plan[]>([])
   const [slotInfo, setSlotInfo] = useState<SlotInfo | null>(null)
+
+  // Common state
   const [loading, setLoading] = useState(true)
   const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [newSubscriptionDialogOpen, setNewSubscriptionDialogOpen] = useState(false)
+  const [newUserDialogOpen, setNewUserDialogOpen] = useState(false)
   const [isRealTimeConnected, setIsRealTimeConnected] = useState(false)
 
   // Edit form state
@@ -79,13 +99,24 @@ export default function AdminSubscriptionsPanel() {
   const [newUserName, setNewUserName] = useState('')
   const [newPlanId, setNewPlanId] = useState('')
 
+  // New user form state
+  const [createUserEmail, setCreateUserEmail] = useState('')
+  const [createUserName, setCreateUserName] = useState('')
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
+      // Fetch users
+      const userRes = await fetch('/api/admin/users')
+      const userData = await userRes.json()
+      setUsers(userData.users || [])
+
+      // Fetch subscriptions
       const subRes = await fetch('/api/admin/subscriptions')
       const subData = await subRes.json()
       setSubscriptions(subData.subscriptions || [])
 
+      // Fetch plans
       const planRes = await fetch('/api/admin/plans')
       const planData = await planRes.json()
       setPlans(planData.plans || [])
@@ -119,6 +150,57 @@ export default function AdminSubscriptionsPanel() {
 
     return () => clearInterval(interval)
   }, [fetchData])
+
+  const handleCreateUser = async () => {
+    if (!createUserEmail) {
+      alert('Please enter user email')
+      return
+    }
+
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: createUserEmail,
+          name: createUserName || null
+        })
+      })
+
+      if (res.ok) {
+        fetchData()
+        setNewUserDialogOpen(false)
+        setCreateUserEmail('')
+        setCreateUserName('')
+      } else {
+        const errorData = await res.json()
+        alert(errorData.error || 'Failed to create user')
+      }
+    } catch (error) {
+      console.error('Error creating user:', error)
+      alert('Failed to create user')
+    }
+  }
+
+  const handleDeleteUser = async (id: string, email: string) => {
+    if (!confirm(`Are you sure you want to delete user ${email}?`)) return
+
+    try {
+      const res = await fetch(`/api/admin/users/${id}`, {
+        method: 'DELETE'
+      })
+
+      if (res.ok) {
+        fetchData()
+      } else {
+        const errorData = await res.json()
+        alert(errorData.error || 'Failed to delete user')
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error)
+      alert('Failed to delete user')
+    }
+  }
 
   const handleActivate = async (id: string) => {
     try {
@@ -277,9 +359,9 @@ export default function AdminSubscriptionsPanel() {
         >
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-bold mb-2">Subscription Management</h1>
+              <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
               <div className="flex items-center gap-2 text-white/60">
-                <p>Manage user subscriptions and slot allocations</p>
+                <p>Manage users and subscriptions</p>
                 {isRealTimeConnected && (
                   <Badge className="bg-emerald-500/20 text-emerald-400 text-xs flex items-center gap-1">
                     <Wifi className="w-3 h-3" />
@@ -293,63 +375,24 @@ export default function AdminSubscriptionsPanel() {
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh
               </Button>
-              <Dialog open={newSubscriptionDialogOpen} onOpenChange={setNewSubscriptionDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="w-4 h-4 mr-2" />
-                    New Subscription
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-[#1a0f2e] border-white/10 text-white">
-                  <DialogHeader>
-                    <DialogTitle>Create New Subscription</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div>
-                      <Label htmlFor="userEmail">User Email *</Label>
-                      <Input
-                        id="userEmail"
-                        type="email"
-                        value={newUserEmail}
-                        onChange={(e) => setNewUserEmail(e.target.value)}
-                        className="bg-white/5 border-white/10"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="userName">User Name</Label>
-                      <Input
-                        id="userName"
-                        value={newUserName}
-                        onChange={(e) => setNewUserName(e.target.value)}
-                        className="bg-white/5 border-white/10"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="plan">Plan *</Label>
-                      <Select value={newPlanId} onValueChange={setNewPlanId}>
-                        <SelectTrigger className="bg-white/5 border-white/10">
-                          <SelectValue placeholder="Select a plan" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {plans.map((plan) => (
-                            <SelectItem key={plan.id} value={plan.id}>
-                              {plan.name} - {plan.currency} {plan.price.toLocaleString()}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button onClick={handleCreateSubscription} className="w-full">
-                      Create Subscription
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
             </div>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <Card className="bg-white/[0.02] border-white/[0.05]">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-blue-500/20">
+                    <UserCircle className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold">{users.length}</div>
+                    <div className="text-xs text-white/40">Total Users</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
             <Card className="bg-white/[0.02] border-white/[0.05]">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -373,22 +416,7 @@ export default function AdminSubscriptionsPanel() {
                     <div className="text-2xl font-bold">
                       {subscriptions.filter(s => s.isActive).length}
                     </div>
-                    <div className="text-xs text-white/40">Active</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-white/[0.02] border-white/[0.05]">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-yellow-500/20">
-                    <Clock className="w-5 h-5 text-yellow-400" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold">
-                      {subscriptions.filter(s => s.paymentStatus === 'pending').length}
-                    </div>
-                    <div className="text-xs text-white/40">Pending Payment</div>
+                    <div className="text-xs text-white/40">Active Subscriptions</div>
                   </div>
                 </div>
               </CardContent>
@@ -411,164 +439,353 @@ export default function AdminSubscriptionsPanel() {
           </div>
         </motion.div>
 
-        {/* Slot Tracking Card */}
-        {slotInfo && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="mb-8"
-          >
-            <Card className="bg-white/[0.02] border-white/[0.05]">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-amber-400" />
-                  Lifetime Ultra Slot Tracking
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4">
-                  <div className="text-sm text-white/60 mb-2">
-                    {slotInfo.isSoldOut ? (
-                      <span className="text-red-400 font-semibold">All 30 slots taken</span>
-                    ) : (
-                      <span className="text-amber-300 font-semibold">
-                        {slotInfo.availableSlots} of {slotInfo.totalSlots} slots available
-                      </span>
-                    )}
-                  </div>
-                  <div className="w-full bg-white/10 rounded-full h-4 mb-4">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        slotInfo.isSoldOut
-                          ? 'bg-red-500'
-                          : 'bg-gradient-to-r from-amber-500 to-orange-500'
-                      }`}
-                      style={{
-                        width: `${(slotInfo.usedSlots / slotInfo.totalSlots) * 100}%`
-                      }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-xs text-white/40">
-                    <span>{slotInfo.usedSlots} used</span>
-                    <span>{slotInfo.totalSlots} total</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
+        {/* Main Content Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="bg-white/5 w-full md:w-auto">
+            <TabsTrigger value="users">
+              <UserCircle className="w-4 h-4 mr-2" />
+              Users ({users.length})
+            </TabsTrigger>
+            <TabsTrigger value="subscriptions">
+              <Users className="w-4 h-4 mr-2" />
+              Subscriptions ({subscriptions.length})
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Subscriptions Table */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Card className="bg-white/[0.02] border-white/[0.05]">
-            <CardHeader>
-              <CardTitle>Subscriptions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-white/5">
-                      <th className="text-left p-4 text-white/40 font-medium text-sm">User</th>
-                      <th className="text-left p-4 text-white/40 font-medium text-sm">Plan</th>
-                      <th className="text-left p-4 text-white/40 font-medium text-sm">Status</th>
-                      <th className="text-left p-4 text-white/40 font-medium text-sm">Payment</th>
-                      <th className="text-left p-4 text-white/40 font-medium text-sm">Period</th>
-                      <th className="text-left p-4 text-white/40 font-medium text-sm">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {subscriptions.map((sub) => (
-                      <tr key={sub.id} className="border-b border-white/5 hover:bg-white/[0.02]">
-                        <td className="p-4">
-                          <div>
-                            <div className="font-medium">{sub.userName || sub.userEmail}</div>
-                            <div className="text-xs text-white/40">{sub.userEmail}</div>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div>
-                            <div className="font-medium">{sub.plan.name}</div>
-                            <div className="text-xs text-white/40">
-                              {sub.plan.currency} {sub.plan.price.toLocaleString()}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            {sub.isActive ? (
-                              <Badge className="bg-emerald-500/20 text-emerald-400">
-                                <CheckCircle className="w-3 h-3 mr-1" />
-                                Active
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-red-500/20 text-red-400">
-                                <XCircle className="w-3 h-3 mr-1" />
-                                Inactive
-                              </Badge>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          {getPaymentStatusBadge(sub.paymentStatus)}
-                          {sub.amountPaid && (
-                            <div className="text-xs text-white/40 mt-1">
-                              {sub.plan.currency} {sub.amountPaid.toLocaleString()}
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-4">
-                          <div className="text-sm text-white/60">
-                            {sub.endDate ? new Date(sub.endDate).toLocaleDateString() : 'Lifetime'}
-                          </div>
-                          <div className="text-xs text-white/40">
-                            {new Date(sub.startDate).toLocaleDateString()}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openEditDialog(sub)}
-                              className="h-8"
-                            >
-                              <Edit className="w-3 h-3" />
-                            </Button>
-                            {sub.isActive ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleDeactivate(sub.id)}
-                                className="h-8 hover:bg-red-500/20 hover:text-red-400"
-                              >
-                                <XCircle className="w-3 h-3" />
-                              </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                onClick={() => handleActivate(sub.id)}
-                                className="h-8"
-                              >
-                                <CheckCircle className="w-3 h-3 mr-1" />
-                                Activate
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {/* Users Tab */}
+          <TabsContent value="users" className="mt-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">User Management</h2>
+                <Dialog open={newUserDialogOpen} onOpenChange={setNewUserDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <Plus className="w-4 h-4 mr-2" />
+                      New User
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-[#1a0f2e] border-white/10 text-white">
+                    <DialogHeader>
+                      <DialogTitle>Create New User</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div>
+                        <Label htmlFor="userEmail">User Email *</Label>
+                        <Input
+                          id="userEmail"
+                          type="email"
+                          value={createUserEmail}
+                          onChange={(e) => setCreateUserEmail(e.target.value)}
+                          className="bg-white/5 border-white/10"
+                          placeholder="user@example.com"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="userName">User Name</Label>
+                        <Input
+                          id="userName"
+                          value={createUserName}
+                          onChange={(e) => setCreateUserName(e.target.value)}
+                          className="bg-white/5 border-white/10"
+                          placeholder="John Doe"
+                        />
+                      </div>
+                      <Button onClick={handleCreateUser} className="w-full">
+                        Create User
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+
+              <Card className="bg-white/[0.02] border-white/[0.05]">
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-white/5">
+                          <th className="text-left p-4 text-white/40 font-medium text-sm">User</th>
+                          <th className="text-left p-4 text-white/40 font-medium text-sm">Email</th>
+                          <th className="text-left p-4 text-white/40 font-medium text-sm">Subscriptions</th>
+                          <th className="text-left p-4 text-white/40 font-medium text-sm">Created</th>
+                          <th className="text-left p-4 text-white/40 font-medium text-sm">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {users.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="p-8 text-center text-white/40">
+                              No users found. Create a new user to get started.
+                            </td>
+                          </tr>
+                        ) : (
+                          users.map((user) => (
+                            <tr key={user.id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                              <td className="p-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 rounded-full bg-blue-500/20">
+                                    <UserCircle className="w-5 h-5 text-blue-400" />
+                                  </div>
+                                  <div className="font-medium">{user.name || 'No name'}</div>
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <div className="flex items-center gap-2">
+                                  <Mail className="w-4 h-4 text-white/40" />
+                                  {user.email}
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <Badge className="bg-purple-500/20 text-purple-400">
+                                  {user.subscriptionCount}
+                                </Badge>
+                              </td>
+                              <td className="p-4">
+                                <div className="text-sm text-white/60">
+                                  {new Date(user.createdAt).toLocaleDateString()}
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeleteUser(user.id, user.email)}
+                                  className="h-8 hover:bg-red-500/20 hover:text-red-400"
+                                  disabled={user.subscriptionCount > 0}
+                                >
+                                  <XCircle className="w-3 h-3" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </TabsContent>
+
+          {/* Subscriptions Tab */}
+          <TabsContent value="subscriptions" className="mt-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              {/* Slot Tracking Card */}
+              {slotInfo && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="mb-6"
+                >
+                  <Card className="bg-white/[0.02] border-white/[0.05]">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Shield className="w-5 h-5 text-amber-400" />
+                        Lifetime Ultra Slot Tracking
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="mb-4">
+                        <div className="text-sm text-white/60 mb-2">
+                          {slotInfo.isSoldOut ? (
+                            <span className="text-red-400 font-semibold">All 30 slots taken</span>
+                          ) : (
+                            <span className="text-amber-300 font-semibold">
+                              {slotInfo.availableSlots} of {slotInfo.totalSlots} slots available
+                            </span>
+                          )}
+                        </div>
+                        <div className="w-full bg-white/10 rounded-full h-4 mb-4">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              slotInfo.isSoldOut
+                                ? 'bg-red-500'
+                                : 'bg-gradient-to-r from-amber-500 to-orange-500'
+                            }`}
+                            style={{
+                              width: `${(slotInfo.usedSlots / slotInfo.totalSlots) * 100}%`
+                            }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-white/40">
+                          <span>{slotInfo.usedSlots} used</span>
+                          <span>{slotInfo.totalSlots} total</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Subscription Management</h2>
+                <Dialog open={newSubscriptionDialogOpen} onOpenChange={setNewSubscriptionDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <Plus className="w-4 h-4 mr-2" />
+                      New Subscription
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-[#1a0f2e] border-white/10 text-white">
+                    <DialogHeader>
+                      <DialogTitle>Create New Subscription</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div>
+                        <Label htmlFor="userEmail">User Email *</Label>
+                        <Input
+                          id="userEmail"
+                          type="email"
+                          value={newUserEmail}
+                          onChange={(e) => setNewUserEmail(e.target.value)}
+                          className="bg-white/5 border-white/10"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="userName">User Name</Label>
+                        <Input
+                          id="userName"
+                          value={newUserName}
+                          onChange={(e) => setNewUserName(e.target.value)}
+                          className="bg-white/5 border-white/10"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="plan">Plan *</Label>
+                        <Select value={newPlanId} onValueChange={setNewPlanId}>
+                          <SelectTrigger className="bg-white/5 border-white/10">
+                            <SelectValue placeholder="Select a plan" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {plans.map((plan) => (
+                              <SelectItem key={plan.id} value={plan.id}>
+                                {plan.name} - {plan.currency} {plan.price.toLocaleString()}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button onClick={handleCreateSubscription} className="w-full">
+                        Create Subscription
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              <Card className="bg-white/[0.02] border-white/[0.05]">
+                <CardHeader>
+                  <CardTitle>Subscriptions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-white/5">
+                          <th className="text-left p-4 text-white/40 font-medium text-sm">User</th>
+                          <th className="text-left p-4 text-white/40 font-medium text-sm">Plan</th>
+                          <th className="text-left p-4 text-white/40 font-medium text-sm">Status</th>
+                          <th className="text-left p-4 text-white/40 font-medium text-sm">Payment</th>
+                          <th className="text-left p-4 text-white/40 font-medium text-sm">Period</th>
+                          <th className="text-left p-4 text-white/40 font-medium text-sm">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {subscriptions.map((sub) => (
+                          <tr key={sub.id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                            <td className="p-4">
+                              <div>
+                                <div className="font-medium">{sub.userName || sub.userEmail}</div>
+                                <div className="text-xs text-white/40">{sub.userEmail}</div>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div>
+                                <div className="font-medium">{sub.plan.name}</div>
+                                <div className="text-xs text-white/40">
+                                  {sub.plan.currency} {sub.plan.price.toLocaleString()}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                {sub.isActive ? (
+                                  <Badge className="bg-emerald-500/20 text-emerald-400">
+                                    <CheckCircle className="w-3 h-3 mr-1" />
+                                    Active
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-red-500/20 text-red-400">
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                    Inactive
+                                  </Badge>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              {getPaymentStatusBadge(sub.paymentStatus)}
+                              {sub.amountPaid && (
+                                <div className="text-xs text-white/40 mt-1">
+                                  {sub.plan.currency} {sub.amountPaid.toLocaleString()}
+                                </div>
+                              )}
+                            </td>
+                            <td className="p-4">
+                              <div className="text-sm text-white/60">
+                                {sub.endDate ? new Date(sub.endDate).toLocaleDateString() : 'Lifetime'}
+                              </div>
+                              <div className="text-xs text-white/40">
+                                {new Date(sub.startDate).toLocaleDateString()}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openEditDialog(sub)}
+                                  className="h-8"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                </Button>
+                                {sub.isActive ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleDeactivate(sub.id)}
+                                    className="h-8 hover:bg-red-500/20 hover:text-red-400"
+                                  >
+                                    <XCircle className="w-3 h-3" />
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleActivate(sub.id)}
+                                    className="h-8"
+                                  >
+                                    <CheckCircle className="w-3 h-3 mr-1" />
+                                    Activate
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </TabsContent>
+        </Tabs>
 
         {/* Edit Subscription Dialog */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
