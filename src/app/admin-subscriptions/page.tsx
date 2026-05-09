@@ -107,6 +107,41 @@ export default function AdminSubscriptionsPanel() {
   const [activateProDialogOpen, setActivateProDialogOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [selectedPlanForActivation, setSelectedPlanForActivation] = useState('')
+  const [isSyncing, setIsSyncing] = useState(false)
+
+  const handleSyncAuthUsers = async () => {
+    if (!confirm('Sinkronisasi user dari Supabase Auth ke database Prisma. Lanjutkan?')) {
+      return
+    }
+
+    setIsSyncing(true)
+    try {
+      console.log('🔄 Starting manual sync...')
+
+      const res = await fetch('/api/admin/sync-auth-users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      console.log('📥 Sync response status:', res.status)
+
+      const data = await res.json()
+      console.log('📥 Sync response data:', data)
+
+      if (res.ok) {
+        fetchData()
+        alert(`✅ Sinkronisasi Berhasil!\n\n${data.syncedCount} user baru disinkronkan\n${data.skippedCount} user dilewati (sudah ada)\n\nTotal user di Prisma: ${data.totalPrismaUsers}`)
+      } else {
+        console.error('❌ Sync failed:', data)
+        alert(`❌ Gagal sinkronisasi: ${data.error}`)
+      }
+    } catch (error) {
+      console.error('❌ Error syncing auth users:', error)
+      alert('Gagal sinkronisasi user')
+    } finally {
+      setIsSyncing(false)
+    }
+  }
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -454,6 +489,20 @@ export default function AdminSubscriptionsPanel() {
               </div>
             </div>
             <div className="flex gap-3">
+              <Button
+                onClick={handleSyncAuthUsers}
+                variant="outline"
+                size="sm"
+                disabled={isSyncing}
+                className="bg-amber-500/20 border-amber-500/30 text-amber-300 hover:bg-amber-500/30 hover:text-amber-200"
+              >
+                {isSyncing ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                )}
+                Sync Auth
+              </Button>
               <Button onClick={fetchData} variant="outline" size="sm">
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh

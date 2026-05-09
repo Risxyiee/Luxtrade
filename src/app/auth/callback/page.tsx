@@ -38,8 +38,10 @@ export default function AuthCallbackPage() {
             return
           }
 
-          // Create profile if new user
+          // Create profile if new user (to Supabase profiles)
           if (data.user) {
+            console.log('✅ Auth callback successful, syncing to Prisma...')
+
             const { error: profileError } = await supabase.from('profiles').upsert({
               id: data.user.id,
               email: data.user.email,
@@ -49,9 +51,30 @@ export default function AuthCallbackPage() {
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             }, { onConflict: 'id' })
-            
+
             if (profileError) {
               console.error('Profile upsert error:', profileError)
+            }
+
+            // Sync user to Prisma (User table in SQLite)
+            try {
+              const syncResponse = await fetch('/api/auth/sync-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  userId: data.user.id,
+                  email: data.user.email!,
+                  fullName: data.user.user_metadata?.display_name ||
+                             data.user.user_metadata?.full_name ||
+                             data.user.user_metadata?.name ||
+                             data.user.email?.split('@')[0]
+                })
+              })
+
+              const syncData = await syncResponse.json()
+              console.log('Prisma sync result:', syncData)
+            } catch (syncError) {
+              console.error('Prisma sync error:', syncError)
             }
           }
 
