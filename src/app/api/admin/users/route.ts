@@ -1,96 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/lib/db'
 
-// GET all users from Supabase
+// GET all users - WITHOUT ANY FILTER
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 Attempting to fetch users from Supabase...')
+    console.log('🔍 Fetching ALL users from Prisma (no filters)...')
 
-    // Try fetching from 'profiles' table first (common Supabase pattern)
-    let { data: profiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false })
+    // Get ALL users without any filters
+    const users = await db.user.findMany({
+      orderBy: { createdAt: 'desc' }
+    })
 
-    if (profilesError) {
-      console.error('❌ Error fetching from profiles table:', profilesError)
+    console.log(`✅ Found ${users.length} users in database`)
 
-      // Try 'users' table as fallback
-      console.log('🔄 Trying users table...')
-      const { data: users, error: usersError } = await supabase
-        .from('users')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (usersError) {
-        console.error('❌ Error fetching from users table:', usersError)
-        console.error('Full error details:', JSON.stringify(usersError, null, 2))
-
-        return NextResponse.json(
-          { error: 'Failed to fetch users. Check console for details.' },
-          { status: 500 }
-        )
-      }
-
-      if (users) {
-        console.log(`✅ Successfully fetched ${users.length} users from users table`)
-        console.log('Users data:', JSON.stringify(users, null, 2))
-
-        // Get subscription count for each user
-        const usersWithSubCount = await Promise.all(
-          users.map(async (user: any) => {
-            const { count } = await supabase
-              .from('user_subscriptions')
-              .select('*', { count: 'exact', head: true })
-              .eq('user_id', user.id)
-
-            return {
-              id: user.id,
-              email: user.email,
-              name: user.full_name || user.name || null,
-              createdAt: user.created_at,
-              updatedAt: user.updated_at,
-              subscriptionCount: count || 0
-            }
-          })
-        )
-
-        return NextResponse.json({ users: usersWithSubCount })
-      }
-    }
-
-    if (profiles) {
-      console.log(`✅ Successfully fetched ${profiles.length} users from profiles table`)
-      console.log('Profiles data:', JSON.stringify(profiles, null, 2))
-
-      // Get subscription count for each user
-      const usersWithSubCount = await Promise.all(
-        profiles.map(async (profile: any) => {
-          const { count } = await supabase
-            .from('user_subscriptions')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', profile.id)
-
-          return {
-            id: profile.id,
-            email: profile.email,
-            name: profile.full_name || profile.name || null,
-            createdAt: profile.created_at,
-            updatedAt: profile.updated_at,
-            subscriptionCount: count || 0
-          }
+    // Get subscription count for each user
+    const usersWithSubCount = await Promise.all(
+      users.map(async (user) => {
+        const subscriptionCount = await db.userSubscription.count({
+          where: { userId: user.id }
         })
-      )
 
-      return NextResponse.json({ users: usersWithSubCount })
-    }
+        return {
+          ...user,
+          subscriptionCount
+        }
+      })
+    )
 
-    console.log('⚠️ No data found from any table')
-    return NextResponse.json({ users: [] })
-
+    console.log(`✅ Returning ${usersWithSubCount.length} users with subscription counts`)
+    return NextResponse.json({ users: usersWithSubCount })
   } catch (error) {
-    console.error('❌ Unexpected error in GET /api/admin/users:', error)
-    console.error('Full error details:', JSON.stringify(error, null, 2))
+    console.error('❌ Error fetching users:', error)
     return NextResponse.json(
       { error: 'Failed to fetch users' },
       { status: 500 }
@@ -111,51 +51,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('📝 Creating new user:', { email, name })
+    // Check if user already exists
+    const existingUser = await db.user.findUnique({
+      where: { email }
+    })
 
-    // Try inserting into profiles table first
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        email,
-        full_name: name || null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single()
-
-    if (profileError) {
-      console.error('❌ Error creating user in profiles:', profileError)
-
-      // Try users table
-      const { data: user, error: userError } = await supabase
-        .from('users')
-        .insert({
-          email,
-          full_name: name || null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single()
-
-      if (userError) {
-        console.error('❌ Error creating user in users:', userError)
-        return NextResponse.json(
-          { error: 'Failed to create user' },
-          { status: 500 }
-        )
-      }
-
-      console.log('✅ User created successfully:', user)
-      return NextResponse.json({ user })
+    if (existingUser) {
+      return NextResponse.json(
+        { error: 'User with this email already exists' },
+        { status: 400 }
+      )
     }
 
-    console.log('✅ User created successfully:', profile)
-    return NextResponse.json({ user: profile })
+    const user = await db.user.create({
+      data: {
+        email,
+        name: name || null
+      }
+    })
+
+    return NextResponse.json({ user })
   } catch (error) {
-    console.error('❌ Unexpected error creating user:', error)
+    console.error('❌ Error creating user:', error)
     return NextResponse.json(
       { error: 'Failed to create user' },
       { status: 500 }

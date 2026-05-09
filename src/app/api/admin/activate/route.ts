@@ -1,165 +1,175 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
 import { db } from '@/lib/db'
-import { notifyCommissionEarned } from '@/lib/telegram'
 
-// Admin email - only this email can access admin panel
-const ADMIN_EMAIL = 'luxtradee@gmail.com'
-
-// Commission: 30% of Rp 49,000 = Rp 14,700
-const COMMISSION_PER_PRO = 14700
-
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-    const { adminEmail, userId, months } = body
-
-    // Verify admin access
-    if (adminEmail !== ADMIN_EMAIL) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Admin access only.' },
-        { status: 403 }
-      )
-    }
-
-    if (!userId || !months) {
-      return NextResponse.json(
-        { error: 'Missing userId or months parameter' },
-        { status: 400 }
-      )
-    }
-
-    // Calculate expiry date
-    const expiryDate = new Date()
-    expiryDate.setMonth(expiryDate.getMonth() + months)
-
-    // Update user profile
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        subscription_status: 'PRO',
-        pro_status: 'active',
-        pro_expiry_date: expiryDate.toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', userId)
-
-    if (error) {
-      console.error('Error activating PRO:', error)
-      return NextResponse.json(
-        { error: 'Failed to activate PRO status' },
-        { status: 500 }
-      )
-    }
-
-    // ====== AFFILIATE COMMISSION LOGIC ======
-    // When admin activates PRO, give commission to the referrer
-    try {
-      // Get the user's affiliate profile to find who referred them
-      const affiliate = await db.affiliateProfile.findUnique({
-        where: { userId },
-      })
-
-      if (affiliate && affiliate.referredByCode) {
-        // Find the referrer
-        const referrer = await db.affiliateProfile.findUnique({
-          where: { myReferralCode: affiliate.referredByCode },
-        })
-
-        if (referrer) {
-          const commission = COMMISSION_PER_PRO
-
-          // Add commission to referrer's balance
-          await db.affiliateProfile.update({
-            where: { userId: referrer.userId },
-            data: {
-              affiliateBalance: { increment: commission },
-              totalCommission: { increment: commission },
-            },
-          })
-
-          // Also update Supabase profiles table
-          const currentBalance = referrer.affiliateBalance + commission
-          await supabase
-            .from('profiles')
-            .update({ affiliate_balance: currentBalance })
-            .eq('id', referrer.userId)
-
-          // Send Telegram notification
-          await notifyCommissionEarned(
-            referrer.fullName || referrer.email,
-            affiliate.email || 'User',
-            commission
-          )
-        }
-      }
-    } catch (affError) {
-      console.error('Affiliate commission error (non-blocking):', affError)
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: `PRO activated for ${months} month(s)`,
-      expiryDate: expiryDate.toISOString(),
-    })
-  } catch (error) {
-    console.error('Activate API error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
+interface ActivateRequestBody {
+  userId: string
+  planType: 'MONTHLY' | 'YEARLY' | 'LIFETIME'
+  planId?: string
 }
 
-// Deactivate PRO status
-export async function DELETE(request: NextRequest) {
+// POST to activate user subscription
+export async function POST(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const adminEmail = searchParams.get('adminEmail')
-    const userId = searchParams.get('userId')
+    const body: ActivateRequestBody = await request.json()
+    const { userId, planType, planId } = body
 
-    // Verify admin access
-    if (adminEmail !== ADMIN_EMAIL) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Admin access only.' },
-        { status: 403 }
-      )
-    }
+    console.log('🚀 Activating user subscription:', { userId, planType, planId })
 
-    if (!userId) {
+    if (!userId || !planType) {
       return NextResponse.json(
-        { error: 'Missing userId parameter' },
+        { error: 'userId and planType are required' },
         { status: 400 }
       )
     }
 
-    // Update user profile to free
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        subscription_status: 'FREE',
-        pro_status: 'inactive',
-        pro_expiry_date: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', userId)
-
-    if (error) {
-      console.error('Error deactivating PRO:', error)
+    // Validate planType
+    if (!['MONTHLY', 'YEARLY', 'LIFETIME'].includes(planType)) {
       return NextResponse.json(
-        { error: 'Failed to deactivate PRO status' },
-        { status: 500 }
+        { error: 'Invalid planType. Must be MONTHLY, YEARLY, or LIFETIME' },
+        { status: 400 }
       )
+    }
+
+    // Find user
+    const user = await db.user.findUnique({
+      where: { id: userId }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      )
+    }
+
+    console.log(`✅ Found user: ${user.email}`)
+
+    // Get or create plan based on planType
+    let finalPlanId = planId
+
+    if (!finalPlanId) {
+      // Find existing plan
+      let planName = ''
+      let durationMonths = null
+      let isLifetime = false
+      let price = 0
+
+      switch (planType) {
+        case 'MONTHLY':
+          planName = 'Elite Pro'
+          durationMonths = 1
+          price = 49000
+          break
+        case 'YEARLY':
+          planName = 'Elite Pro'
+          durationMonths = 12
+          price = 588000
+          break
+        case 'LIFETIME':
+          planName = 'Lifetime Ultra'
+          isLifetime = true
+          price = 100000
+          break
+      }
+
+      // Find or create plan
+      const existingPlan = await db.subscriptionPlan.findFirst({
+        where: {
+          name: planName,
+          isLifetime,
+          durationMonths: isLifetime ? null : durationMonths
+        }
+      })
+
+      if (existingPlan) {
+        finalPlanId = existingPlan.id
+        console.log(`✅ Found existing plan: ${planName}`)
+      } else {
+        const newPlan = await db.subscriptionPlan.create({
+          data: {
+            name: planName,
+            durationMonths,
+            isLifetime,
+            price,
+            currency: 'IDR',
+            isActive: true,
+            maxSlots: isLifetime ? 30 : null
+          }
+        })
+        finalPlanId = newPlan.id
+        console.log(`✅ Created new plan: ${planName}`)
+      }
+    }
+
+    // Calculate end date
+    let endDate = null
+    if (planType !== 'LIFETIME') {
+      const startDate = new Date()
+      if (planType === 'MONTHLY') {
+        endDate = new Date(startDate.setMonth(startDate.getMonth() + 1))
+      } else if (planType === 'YEARLY') {
+        endDate = new Date(startDate.setFullYear(startDate.getFullYear() + 1))
+      }
+    }
+
+    // Create subscription
+    const subscription = await db.userSubscription.create({
+      data: {
+        userId,
+        userEmail: user.email,
+        userName: user.name,
+        planId: finalPlanId,
+        startDate: new Date(),
+        endDate,
+        isActive: true,
+        paymentStatus: 'completed',
+        amountPaid: planType === 'MONTHLY' ? 49000 : planType === 'YEARLY' ? 588000 : 100000,
+        paymentMethod: 'manual',
+        adminNote: `Activated by admin via Quick Activate (${planType})`
+      }
+    })
+
+    console.log(`✅ Subscription created successfully: ${subscription.id}`)
+
+    // If LIFETIME, update slot tracking
+    if (planType === 'LIFETIME') {
+      console.log('🔄 Updating slot tracking for LIFETIME plan...')
+
+      const slotTracking = await db.slotTracking.findUnique({
+        where: { planId: finalPlanId }
+      })
+
+      if (slotTracking) {
+        const newUsedSlots = slotTracking.usedSlots + 1
+        await db.slotTracking.update({
+          where: { planId: finalPlanId },
+          data: {
+            usedSlots: newUsedSlots
+          }
+        })
+        console.log(`✅ Slot tracking updated: ${newUsedSlots}/${slotTracking.totalSlots}`)
+      } else {
+        // Create slot tracking if not exists
+        await db.slotTracking.create({
+          data: {
+            planId: finalPlanId,
+            totalSlots: 30,
+            usedSlots: 1
+          }
+        })
+        console.log('✅ Slot tracking created')
+      }
     }
 
     return NextResponse.json({
       success: true,
-      message: 'PRO status deactivated',
+      subscription,
+      message: 'User berhasil diaktifkan!'
     })
   } catch (error) {
-    console.error('Deactivate API error:', error)
+    console.error('❌ Error activating subscription:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to activate subscription', details: String(error) },
       { status: 500 }
     )
   }
