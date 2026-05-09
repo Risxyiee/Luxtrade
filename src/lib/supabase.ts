@@ -9,7 +9,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('⚠️ Supabase credentials not configured. Auth features will not work.')
 }
 
-// Create Supabase client
+// Create Supabase client (for client-side & regular operations)
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
@@ -17,6 +17,24 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true
   }
 })
+
+// Create Supabase ADMIN client (for server-side admin operations like listUsers)
+// Uses SERVICE_ROLE_KEY which has full admin privileges
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+export const supabaseAdmin = (() => {
+  if (!supabaseServiceRoleKey) {
+    console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY not configured. Admin operations will not work.')
+    return null
+  }
+
+  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  })
+})()
 
 // Database types
 export interface Trade {
