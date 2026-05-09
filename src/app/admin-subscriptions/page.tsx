@@ -157,7 +157,16 @@ export default function AdminSubscriptionsPanel() {
 
       if (userData.error) {
         console.error('❌ API returned error:', userData.error)
-        alert(`Error fetching users: ${userData.error}`)
+        const errorMsg = userData.details
+          ? `${userData.error}\n\nDetails: ${userData.details}`
+          : userData.error
+
+        if (userData.debug) {
+          console.error('Debug info:', userData.debug)
+          alert(`Error fetching users:\n${errorMsg}\n\nDebug: ${JSON.stringify(userData.debug, null, 2)}`)
+        } else {
+          alert(`Error fetching users: ${errorMsg}`)
+        }
       }
 
       setUsers(userData.users || [])
