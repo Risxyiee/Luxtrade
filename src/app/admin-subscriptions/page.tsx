@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -17,18 +17,18 @@ import {
   Clock,
   TrendingUp,
   Edit,
-  Trash2,
   Shield,
   Crown,
   Plus,
-  RefreshCw
+  RefreshCw,
+  Wifi
 } from 'lucide-react'
 
 interface Subscription {
   id: string
-  userId: string
+  userId: string | null
   userEmail: string
-  userName: string
+  userName: string | null
   planId: string
   startDate: string
   endDate: string | null
@@ -51,22 +51,22 @@ interface Plan {
   maxSlots: number | null
 }
 
-interface SlotTracking {
-  id: string
-  planId: string
+interface SlotInfo {
   totalSlots: number
   usedSlots: number
-  isActive: boolean
+  availableSlots: number
+  isSoldOut: boolean
 }
 
 export default function AdminSubscriptionsPanel() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [plans, setPlans] = useState<Plan[]>([])
-  const [slotTrackings, setSlotTrackings] = useState<{ [key: string]: SlotTracking }>({})
+  const [slotInfo, setSlotInfo] = useState<SlotInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [newSubscriptionDialogOpen, setNewSubscriptionDialogOpen] = useState(false)
+  const [isRealTimeConnected, setIsRealTimeConnected] = useState(false)
 
   // Edit form state
   const [editEndDate, setEditEndDate] = useState('')
@@ -79,41 +79,46 @@ export default function AdminSubscriptionsPanel() {
   const [newUserName, setNewUserName] = useState('')
   const [newPlanId, setNewPlanId] = useState('')
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      // Fetch subscriptions
       const subRes = await fetch('/api/admin/subscriptions')
       const subData = await subRes.json()
       setSubscriptions(subData.subscriptions || [])
 
-      // Fetch plans
       const planRes = await fetch('/api/admin/plans')
       const planData = await planRes.json()
       setPlans(planData.plans || [])
 
-      // Fetch slot trackings for all plans
-      const slotsData: { [key: string]: SlotTracking } = {}
-      for (const plan of planData.plans || []) {
-        if (plan.maxSlots) {
-          const slotRes = await fetch(`/api/lifetime/subscriptions?planId=${plan.id}`)
-          const slotData = await slotRes.json()
-          if (slotData.slotInfo) {
-            slotsData[plan.id] = slotData.slotInfo
-          }
+      // Fetch slot info for Lifetime Ultra
+      const lifetimeUltraPlan = planData.plans?.find((p: Plan) => p.name === 'Lifetime Ultra')
+      if (lifetimeUltraPlan) {
+        const slotRes = await fetch(`/api/lifetime/subscriptions?planId=${lifetimeUltraPlan.id}`)
+        const slotData = await slotRes.json()
+        if (slotData.slotInfo) {
+          setSlotInfo(slotData.slotInfo)
         }
       }
-      setSlotTrackings(slotsData)
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  // Real-time updates with polling
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchData().catch(err => console.error('Polling error:', err))
+      setIsRealTimeConnected(true)
+    }, 10000)
+
+    return () => clearInterval(interval)
+  }, [fetchData])
 
   const handleActivate = async (id: string) => {
     try {
@@ -133,6 +138,7 @@ export default function AdminSubscriptionsPanel() {
       }
     } catch (error) {
       console.error('Error activating subscription:', error)
+      alert('Failed to activate subscription')
     }
   }
 
@@ -151,6 +157,7 @@ export default function AdminSubscriptionsPanel() {
       }
     } catch (error) {
       console.error('Error deactivating subscription:', error)
+      alert('Failed to deactivate subscription')
     }
   }
 
@@ -184,6 +191,7 @@ export default function AdminSubscriptionsPanel() {
       }
     } catch (error) {
       console.error('Error updating subscription:', error)
+      alert('Failed to update subscription')
     }
   }
 
@@ -218,6 +226,7 @@ export default function AdminSubscriptionsPanel() {
       }
     } catch (error) {
       console.error('Error creating subscription:', error)
+      alert('Failed to create subscription')
     }
   }
 
@@ -251,7 +260,7 @@ export default function AdminSubscriptionsPanel() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0612]">
         <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
       </div>
     )
@@ -269,7 +278,15 @@ export default function AdminSubscriptionsPanel() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold mb-2">Subscription Management</h1>
-              <p className="text-white/60">Manage user subscriptions and slot allocations</p>
+              <div className="flex items-center gap-2 text-white/60">
+                <p>Manage user subscriptions and slot allocations</p>
+                {isRealTimeConnected && (
+                  <Badge className="bg-emerald-500/20 text-emerald-400 text-xs flex items-center gap-1">
+                    <Wifi className="w-3 h-3" />
+                    Live
+                  </Badge>
+                )}
+              </div>
             </div>
             <div className="flex gap-3">
               <Button onClick={fetchData} variant="outline" size="sm">
@@ -332,7 +349,7 @@ export default function AdminSubscriptionsPanel() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Card className="bg-white/[0.02] border-white/[0.05]">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -394,8 +411,8 @@ export default function AdminSubscriptionsPanel() {
           </div>
         </motion.div>
 
-        {/* Slot Tracking Cards */}
-        {Object.keys(slotTrackings).length > 0 && (
+        {/* Slot Tracking Card */}
+        {slotInfo && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -406,50 +423,36 @@ export default function AdminSubscriptionsPanel() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Shield className="w-5 h-5 text-amber-400" />
-                  Slot Tracking
+                  Lifetime Ultra Slot Tracking
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {Object.entries(slotTrackings).map(([planId, slots]) => {
-                    const plan = plans.find(p => p.id === planId)
-                    if (!plan) return null
-
-                    const progress = (slots.usedSlots / slots.totalSlots) * 100
-                    const isSoldOut = slots.usedSlots >= slots.totalSlots
-
-                    return (
-                      <Card key={planId} className={`bg-white/[0.02] ${isSoldOut ? 'border-red-500/30' : 'border-white/[0.05]'}`}>
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <div>
-                              <div className="font-semibold">{plan.name}</div>
-                              <div className="text-xs text-white/40">
-                                {slots.availableSlots} of {slots.totalSlots} slots available
-                              </div>
-                            </div>
-                            {isSoldOut ? (
-                              <Badge className="bg-red-500/20 text-red-400">SOLD OUT</Badge>
-                            ) : (
-                              <Badge className="bg-emerald-500/20 text-emerald-400">
-                                {Math.round(progress)}% Full
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="w-full bg-white/10 rounded-full h-2 mb-2">
-                            <div
-                              className={`h-full rounded-full transition-all ${isSoldOut ? 'bg-red-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'}`}
-                              style={{ width: `${Math.min(progress, 100)}%` }}
-                            />
-                          </div>
-                          <div className="flex justify-between text-xs text-white/40">
-                            <span>{slots.usedSlots} used</span>
-                            <span>{slots.totalSlots} total</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
+                <div className="mb-4">
+                  <div className="text-sm text-white/60 mb-2">
+                    {slotInfo.isSoldOut ? (
+                      <span className="text-red-400 font-semibold">All 30 slots taken</span>
+                    ) : (
+                      <span className="text-amber-300 font-semibold">
+                        {slotInfo.availableSlots} of {slotInfo.totalSlots} slots available
+                      </span>
+                    )}
+                  </div>
+                  <div className="w-full bg-white/10 rounded-full h-4 mb-4">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        slotInfo.isSoldOut
+                          ? 'bg-red-500'
+                          : 'bg-gradient-to-r from-amber-500 to-orange-500'
+                      }`}
+                      style={{
+                        width: `${(slotInfo.usedSlots / slotInfo.totalSlots) * 100}%`
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-white/40">
+                    <span>{slotInfo.usedSlots} used</span>
+                    <span>{slotInfo.totalSlots} total</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -611,7 +614,7 @@ export default function AdminSubscriptionsPanel() {
                           className="bg-white/5 border-white/10"
                           placeholder="e.g. 6"
                         />
-                        <Select value={editDurationType} onValueChange={(v: any) => setEditDurationType(v)}>
+                        <Select value={editDurationType} onValueChange={(v) => setEditDurationType(v as 'months' | 'years')}>
                           <SelectTrigger className="bg-white/5 border-white/10 w-32">
                             <SelectValue />
                           </SelectTrigger>
