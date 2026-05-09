@@ -103,6 +103,11 @@ export default function AdminSubscriptionsPanel() {
   const [createUserEmail, setCreateUserEmail] = useState('')
   const [createUserName, setCreateUserName] = useState('')
 
+  // Activate Pro dialog state
+  const [activateProDialogOpen, setActivateProDialogOpen] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [selectedPlanForActivation, setSelectedPlanForActivation] = useState('')
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
@@ -200,6 +205,49 @@ export default function AdminSubscriptionsPanel() {
       console.error('Error deleting user:', error)
       alert('Failed to delete user')
     }
+  }
+
+  const handleActivatePro = async () => {
+    if (!selectedUser || !selectedPlanForActivation) {
+      alert('Please select a plan')
+      return
+    }
+
+    try {
+      const res = await fetch('/api/admin/subscriptions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: selectedUser.id,
+          userEmail: selectedUser.email,
+          userName: selectedUser.name,
+          planId: selectedPlanForActivation,
+          paymentStatus: 'completed',
+          paymentMethod: 'manual',
+          adminNote: 'Activated by admin via Quick Activate'
+        })
+      })
+
+      if (res.ok) {
+        fetchData()
+        setActivateProDialogOpen(false)
+        setSelectedUser(null)
+        setSelectedPlanForActivation('')
+        alert('Pro subscription activated successfully!')
+      } else {
+        const errorData = await res.json()
+        alert(errorData.error || 'Failed to activate Pro subscription')
+      }
+    } catch (error) {
+      console.error('Error activating Pro:', error)
+      alert('Failed to activate Pro subscription')
+    }
+  }
+
+  const openActivateProDialog = (user: User) => {
+    setSelectedUser(user)
+    setSelectedPlanForActivation('')
+    setActivateProDialogOpen(true)
   }
 
   const handleActivate = async (id: string) => {
@@ -549,15 +597,25 @@ export default function AdminSubscriptionsPanel() {
                                 </div>
                               </td>
                               <td className="p-4">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleDeleteUser(user.id, user.email)}
-                                  className="h-8 hover:bg-red-500/20 hover:text-red-400"
-                                  disabled={user.subscriptionCount > 0}
-                                >
-                                  <XCircle className="w-3 h-3" />
-                                </Button>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => openActivateProDialog(user)}
+                                    className="h-8 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                                  >
+                                    <Crown className="w-3 h-3 mr-1" />
+                                    Activate Pro
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleDeleteUser(user.id, user.email)}
+                                    className="h-8 hover:bg-red-500/20 hover:text-red-400"
+                                    disabled={user.subscriptionCount > 0}
+                                  >
+                                    <XCircle className="w-3 h-3" />
+                                  </Button>
+                                </div>
                               </td>
                             </tr>
                           ))
@@ -863,6 +921,98 @@ export default function AdminSubscriptionsPanel() {
                   <Button
                     variant="outline"
                     onClick={() => setEditDialogOpen(false)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Activate Pro Dialog */}
+        <Dialog open={activateProDialogOpen} onOpenChange={setActivateProDialogOpen}>
+          <DialogContent className="bg-[#1a0f2e] border-white/10 text-white">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Crown className="w-5 h-5 text-amber-400" />
+                Activate Pro Subscription
+              </DialogTitle>
+            </DialogHeader>
+            {selectedUser && (
+              <div className="space-y-4 py-4">
+                <div className="bg-white/5 p-4 rounded-lg">
+                  <div className="font-semibold mb-2">{selectedUser.name || 'No name'}</div>
+                  <div className="text-sm text-white/60">{selectedUser.email}</div>
+                </div>
+
+                <div>
+                  <Label htmlFor="plan">Select Plan *</Label>
+                  <Select value={selectedPlanForActivation} onValueChange={setSelectedPlanForActivation}>
+                    <SelectTrigger className="bg-white/5 border-white/10">
+                      <SelectValue placeholder="Select a plan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {plans.filter(p => p.isActive).map((plan) => (
+                        <SelectItem key={plan.id} value={plan.id}>
+                          <div className="flex items-center gap-2">
+                            {plan.isLifetime && <Crown className="w-3 h-3 text-amber-400" />}
+                            <span>{plan.name}</span>
+                            <span className="text-white/60">- {plan.currency} {plan.price.toLocaleString()}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedPlanForActivation && (
+                  <div className="bg-purple-500/10 border border-purple-500/20 p-4 rounded-lg">
+                    <div className="text-sm text-white/60 mb-2">Plan Details:</div>
+                    {(() => {
+                      const plan = plans.find(p => p.id === selectedPlanForActivation)
+                      if (!plan) return null
+                      return (
+                        <div className="space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-white/60">Price:</span>
+                            <span className="font-semibold">{plan.currency} {plan.price.toLocaleString()}</span>
+                          </div>
+                          {plan.isLifetime ? (
+                            <div className="flex justify-between">
+                              <span className="text-white/60">Duration:</span>
+                              <span className="font-semibold text-amber-400">Lifetime</span>
+                            </div>
+                          ) : plan.durationMonths ? (
+                            <div className="flex justify-between">
+                              <span className="text-white/60">Duration:</span>
+                              <span className="font-semibold">{plan.durationMonths} months</span>
+                            </div>
+                          ) : (
+                            <div className="flex justify-between">
+                              <span className="text-white/60">Duration:</span>
+                              <span className="font-semibold">Custom</span>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleActivatePro}
+                    className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                    disabled={!selectedPlanForActivation}
+                  >
+                    <Crown className="w-4 h-4 mr-2" />
+                    Activate Now
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setActivateProDialogOpen(false)}
                     className="flex-1"
                   >
                     Cancel
