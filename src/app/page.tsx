@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import PaymentConfirmationModal from '@/components/PaymentConfirmationModal'
 
 interface EquityPoint {
   time: number;
@@ -374,7 +375,7 @@ function AnimatedForexTrades() {
 }
 
 // Lifetime Ultra Card Component
-function LifetimeUltraCard() {
+function LifetimeUltraCard({ onButtonClick }: { onButtonClick: () => void }) {
   const [slotsInfo, setSlotsInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isSoldOut, setIsSoldOut] = useState(false)
@@ -491,18 +492,17 @@ function LifetimeUltraCard() {
               Custom dashboard setup
             </li>
           </ul>
-          <Link href="/auth/signup" className="block">
-            <Button
-              disabled={isSoldOut}
-              className={`w-full font-semibold ${
-                isSoldOut
-                  ? 'bg-white/10 text-white/50 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white'
-              }`}
-            >
-              {isSoldOut ? 'Sold Out' : 'Get Lifetime Access'}
-            </Button>
-          </Link>
+          <Button
+            disabled={isSoldOut}
+            onClick={onButtonClick}
+            className={`w-full font-semibold ${
+              isSoldOut
+                ? 'bg-white/10 text-white/50 cursor-not-allowed'
+                : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white'
+            }`}
+          >
+            {isSoldOut ? 'Sold Out' : 'Get Lifetime Access'}
+          </Button>
         </CardContent>
       </Card>
     </motion.div>
@@ -511,6 +511,7 @@ function LifetimeUltraCard() {
 
 export default function LuxTradeLanding() {
   const [showPayment, setShowPayment] = useState(false)
+  const [showLifetimePaymentModal, setShowLifetimePaymentModal] = useState(false)
 
   // Realistic stats for a new trading platform
   const stats = [
@@ -1131,7 +1132,7 @@ export default function LuxTradeLanding() {
             </motion.div>
 
             {/* Lifetime Ultra - Rp 100.000 */}
-            <LifetimeUltraCard />
+            <LifetimeUltraCard onButtonClick={() => setShowLifetimePaymentModal(true)} />
           </div>
           
           {/* Comparison Table */}
@@ -1643,6 +1644,14 @@ export default function LuxTradeLanding() {
             </motion.div>
           </motion.div>
         )}
+
+        {/* Payment Confirmation Modal for Lifetime Ultra */}
+        <PaymentConfirmationModal
+          isOpen={showLifetimePaymentModal}
+          onClose={() => setShowLifetimePaymentModal(false)}
+          planName="Lifetime Ultra"
+          planPrice={100000}
+        />
       </AnimatePresence>
     </div>
   )
