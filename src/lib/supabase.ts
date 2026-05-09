@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Supabase configuration
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://biqtkulvmqtikflcmqad.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpcXRrdWx2bXF0aWtmbGNtcWFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMjQ3MDEsImV4cCI6MjA4NzcwMDcwMX0.d3MN6avJI53Py_xBMmJwtFRVmXLb6on9W5YwklPt9hY'
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://klxkdrfsfcoankbaoejn.supabase.co'
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
 // Validate configuration
 if (!supabaseUrl || !supabaseAnonKey) {
