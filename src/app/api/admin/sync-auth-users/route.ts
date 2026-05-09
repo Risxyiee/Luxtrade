@@ -6,12 +6,35 @@ import { db } from '@/lib/db'
 export async function POST(request: NextRequest) {
   try {
     console.log('🔄 Starting sync of Supabase Auth users to Prisma...')
+    console.log('Environment check:', {
+      NODE_ENV: process.env.NODE_ENV,
+      SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'NOT SET',
+      SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET',
+    })
 
     // Check if supabaseAdmin is available
     if (!supabaseAdmin) {
       console.error('❌ supabaseAdmin client is not available. Make sure SUPABASE_SERVICE_ROLE_KEY is configured.')
+      console.error('   Check if SUPABASE_SERVICE_ROLE_KEY is set in Vercel Environment Variables')
+      console.error('   Expected variable name exactly: SUPABASE_SERVICE_ROLE_KEY')
       return NextResponse.json(
-        { error: 'SUPABASE_SERVICE_ROLE_KEY not configured. Please set it in Vercel Environment Variables.' },
+        {
+          error: 'SUPABASE_SERVICE_ROLE_KEY not configured',
+          message: 'Please set SUPABASE_SERVICE_ROLE_KEY in Vercel Environment Variables',
+          troubleshooting: [
+            '1. Go to Vercel Project Settings',
+            '2. Navigate to Environment Variables',
+            '3. Add variable: SUPABASE_SERVICE_ROLE_KEY',
+            '4. Get the key from Supabase Dashboard > Project Settings > API',
+            '5. Redeploy after adding the variable'
+          ],
+          envCheck: {
+            NODE_ENV: process.env.NODE_ENV,
+            NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'NOT SET',
+            NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'SET' : 'NOT SET',
+            SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET'
+          }
+        },
         { status: 500 }
       )
     }
