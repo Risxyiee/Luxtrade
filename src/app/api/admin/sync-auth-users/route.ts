@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
                             null
 
           // Create new user in Prisma with SAME UUID
+          console.log(`   ➕ Creating user in database...`)
           const newUser = await db.user.create({
             data: {
               id: authUser.id, // Use same UUID as Supabase Auth UID
@@ -112,6 +113,18 @@ export async function POST(request: NextRequest) {
           }
         } catch (error) {
           console.error(`   ❌ Error syncing user ${authUser.email}:`, error)
+
+          // Check if it's a unique constraint error (user already exists)
+          if ((error as any)?.code === 'P2002' || (error as any)?.code === 'P2003') {
+            console.log(`   ⏭️ User already exists (duplicate), skipping`)
+            skippedCount++
+            return {
+              email: authUser.email,
+              action: 'skipped',
+              reason: 'duplicate'
+            }
+          }
+
           errorCount++
           return {
             email: authUser.email,
