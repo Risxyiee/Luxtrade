@@ -110,18 +110,32 @@ export default function AdminSubscriptionsPanel() {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
+    console.log('🔄 Fetching data from admin panel...')
     try {
       // Fetch users
+      console.log('📥 Fetching users from /api/admin/users')
       const userRes = await fetch('/api/admin/users')
+      console.log('📥 User response status:', userRes.status)
+
       const userData = await userRes.json()
+      console.log('📥 User data response:', userData)
+
+      if (userData.error) {
+        console.error('❌ API returned error:', userData.error)
+        alert(`Error fetching users: ${userData.error}`)
+      }
+
       setUsers(userData.users || [])
+      console.log(`✅ Set ${userData.users?.length || 0} users to state`)
 
       // Fetch subscriptions
+      console.log('📥 Fetching subscriptions...')
       const subRes = await fetch('/api/admin/subscriptions')
       const subData = await subRes.json()
       setSubscriptions(subData.subscriptions || [])
 
       // Fetch plans
+      console.log('📥 Fetching plans...')
       const planRes = await fetch('/api/admin/plans')
       const planData = await planRes.json()
       setPlans(planData.plans || [])
@@ -136,7 +150,9 @@ export default function AdminSubscriptionsPanel() {
         }
       }
     } catch (error) {
-      console.error('Error fetching data:', error)
+      console.error('❌ Error fetching data in admin panel:', error)
+      console.error('Full error details:', JSON.stringify(error, null, 2))
+      alert('Failed to fetch data. Check console for details.')
     } finally {
       setLoading(false)
     }
