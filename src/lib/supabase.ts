@@ -15,8 +15,13 @@ if (!supabaseAnonKey || supabaseAnonKey === 'undefined' || supabaseAnonKey.trim(
   console.warn('   Set NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel Environment Variables')
 }
 
+// Ensure supabaseUrl is valid (fallback to prevent build errors)
+const validSupabaseUrl = supabaseUrl.startsWith('http://') || supabaseUrl.startsWith('https://')
+  ? supabaseUrl
+  : 'https://klxkdrfsfcoankbaoejn.supabase.co'
+
 // Create Supabase client (for client-side & regular operations)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(validSupabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
@@ -34,7 +39,7 @@ export const supabaseAdmin = (() => {
     return null
   }
 
-  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+  return createClient(validSupabaseUrl, supabaseServiceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false
