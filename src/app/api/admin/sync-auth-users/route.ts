@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 import { db } from '@/lib/db'
 
 // POST to sync all Supabase Auth users to Prisma
@@ -7,8 +7,17 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔄 Starting sync of Supabase Auth users to Prisma...')
 
-    // Get all users from Supabase Auth
-    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers()
+    // Check if supabaseAdmin is available
+    if (!supabaseAdmin) {
+      console.error('❌ supabaseAdmin client is not available. Make sure SUPABASE_SERVICE_ROLE_KEY is configured.')
+      return NextResponse.json(
+        { error: 'SUPABASE_SERVICE_ROLE_KEY not configured. Please set it in Vercel Environment Variables.' },
+        { status: 500 }
+      )
+    }
+
+    // Get all users from Supabase Auth using admin client
+    const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers()
 
     if (authError) {
       console.error('❌ Error fetching Supabase Auth users:', authError)
@@ -121,8 +130,18 @@ export async function POST(request: NextRequest) {
 // GET to check sync status
 export async function GET(request: NextRequest) {
   try {
+    // Check if supabaseAdmin is available
+    if (!supabaseAdmin) {
+      return NextResponse.json({
+        error: 'SUPABASE_SERVICE_ROLE_KEY not configured',
+        supabaseAuthUsers: 0,
+        prismaUsers: (await db.user.findMany()).length,
+        syncNeeded: false
+      })
+    }
+
     // Get counts
-    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers()
+    const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers()
     const prismaUsers = await db.user.findMany()
 
     return NextResponse.json({

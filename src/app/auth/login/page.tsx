@@ -58,6 +58,27 @@ export default function LoginPage() {
       }
 
       if (data.session && data.user) {
+        // Sync user to Prisma database
+        try {
+          await fetch('/api/auth/sync-user', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: data.user.id,
+              email: data.user.email,
+              fullName: data.user.user_metadata?.display_name ||
+                       data.user.user_metadata?.name ||
+                       data.user.user_metadata?.full_name ||
+                       data.user.email?.split('@')[0]
+            })
+          })
+        } catch (syncError) {
+          console.error('Error syncing user:', syncError)
+          // Continue even if sync fails
+        }
+
         // HARD REDIRECT - Use window.location for immediate navigation
         // This ensures a full page reload and prevents "stuck" states
         window.location.href = '/dashboard'
