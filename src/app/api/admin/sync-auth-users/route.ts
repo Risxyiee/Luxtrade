@@ -154,11 +154,20 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     console.log('📊 Checking sync status...')
+    console.log('Environment check:', {
+      NODE_ENV: process.env.NODE_ENV,
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'NOT SET',
+      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET',
+    })
+
+    // First, test database connection
+    console.log('📋 Testing Prisma database connection...')
+    const prismaUsers = await db.user.findMany()
+    console.log(`✅ Prisma connection OK: ${prismaUsers.length} users`)
 
     // Check if supabaseAdmin is available
     if (!supabaseAdmin) {
       console.error('❌ supabaseAdmin client not available')
-      const prismaUsers = await db.user.findMany()
       return NextResponse.json({
         error: 'SUPABASE_SERVICE_ROLE_KEY not configured',
         message: 'Please add SUPABASE_SERVICE_ROLE_KEY in Vercel Environment Variables',
@@ -167,6 +176,8 @@ export async function GET(request: NextRequest) {
         syncNeeded: false
       }, { status: 500 })
     }
+
+    console.log('✅ supabaseAdmin client initialized')
 
     // Get counts from Supabase Auth
     console.log('📋 Fetching Supabase Auth users...')
@@ -177,15 +188,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         error: 'Failed to fetch Supabase Auth users',
         details: String(authError),
+        authErrorName: authError.name,
+        authErrorMessage: authError.message,
         supabaseAuthUsers: 0,
-        prismaUsers: (await db.user.findMany()).length,
+        prismaUsers: prismaUsers.length,
         syncNeeded: false
       }, { status: 500 })
     }
 
-    // Get counts from Prisma
-    console.log('📋 Fetching Prisma users...')
-    const prismaUsers = await db.user.findMany()
+    console.log(`✅ Supabase Auth connection OK: ${authUsers?.users?.length || 0} users`)
 
     console.log(`✅ Sync status: Supabase Auth=${authUsers?.users?.length || 0}, Prisma=${prismaUsers.length}`)
 
@@ -203,11 +214,21 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('❌ Error checking sync status:', error)
     console.error('Full error:', JSON.stringify(error, null, 2))
+
+    // Extract error details
+    const errorDetails = {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : 'UnknownError',
+      stack: error instanceof Error ? error.stack : undefined,
+      raw: String(error)
+    }
+
     return NextResponse.json(
       {
         error: 'Failed to check sync status',
-        details: String(error),
-        message: 'Check Vercel Function Logs for details'
+        details: errorDetails.message,
+        errorName: errorDetails.name,
+        debug: errorDetails
       },
       { status: 500 }
     )
