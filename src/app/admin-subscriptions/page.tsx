@@ -230,32 +230,51 @@ export default function AdminSubscriptionsPanel() {
     }
 
     try {
-      const res = await fetch('/api/admin/subscriptions', {
+      console.log('🚀 Activating Pro for user:', selectedUser.email, 'with plan:', selectedPlanForActivation)
+
+      // Determine plan type based on plan
+      const plan = plans.find(p => p.id === selectedPlanForActivation)
+      let planType: 'MONTHLY' | 'YEARLY' | 'LIFETIME' = 'MONTHLY'
+
+      if (plan?.isLifetime) {
+        planType = 'LIFETIME'
+      } else if (plan?.durationMonths === 12) {
+        planType = 'YEARLY'
+      } else {
+        planType = 'MONTHLY'
+      }
+
+      console.log('📋 Plan type:', planType)
+
+      const res = await fetch('/api/admin/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: selectedUser.id,
-          userEmail: selectedUser.email,
-          userName: selectedUser.name,
-          planId: selectedPlanForActivation,
-          paymentStatus: 'completed',
-          paymentMethod: 'manual',
-          adminNote: 'Activated by admin via Quick Activate'
+          planType,
+          planId: selectedPlanForActivation
         })
       })
+
+      console.log('📥 Activation response status:', res.status)
+
+      const data = await res.json()
+      console.log('📥 Activation response data:', data)
 
       if (res.ok) {
         fetchData()
         setActivateProDialogOpen(false)
         setSelectedUser(null)
         setSelectedPlanForActivation('')
-        alert('Pro subscription activated successfully!')
+
+        // Show success notification
+        alert('✅ User Berhasil Diaktifkan!')
       } else {
-        const errorData = await res.json()
-        alert(errorData.error || 'Failed to activate Pro subscription')
+        console.error('❌ Activation failed:', data)
+        alert(data.error || 'Failed to activate Pro subscription')
       }
     } catch (error) {
-      console.error('Error activating Pro:', error)
+      console.error('❌ Error activating Pro:', error)
       alert('Failed to activate Pro subscription')
     }
   }
