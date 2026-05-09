@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Check, Crown, Sparkles, Zap, Clock, ArrowRight } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import PaymentConfirmationModal from './PaymentConfirmationModal'
 
 interface Plan {
   id: string
@@ -114,6 +115,8 @@ const plans: Plan[] = [
 
 export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan }: PlanSelectionModalProps) {
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -121,6 +124,22 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan }: Pl
       currency: 'IDR',
       minimumFractionDigits: 0
     }).format(price)
+  }
+
+  const handlePlanSelect = (plan: Plan) => {
+    // For Elite Pro and Lifetime Ultra plans, show payment confirmation modal
+    if (plan.name === 'Elite Pro' || plan.name === 'Lifetime Ultra') {
+      setSelectedPlan(plan)
+      setShowPaymentModal(true)
+    } else {
+      // For Free plan, just select it directly
+      onSelectPlan(plan)
+    }
+  }
+
+  const handlePaymentModalClose = () => {
+    setShowPaymentModal(false)
+    setSelectedPlan(null)
   }
 
   if (!isOpen) return null
@@ -180,7 +199,7 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan }: Pl
                   transition={{ delay: index * 0.1, duration: 0.4 }}
                   onMouseEnter={() => setHoveredPlan(plan.id)}
                   onMouseLeave={() => setHoveredPlan(null)}
-                  onClick={() => onSelectPlan(plan)}
+                  onClick={() => handlePlanSelect(plan)}
                   className={`
                     relative rounded-2xl border-2 p-6 cursor-pointer transition-all duration-300
                     ${
@@ -290,6 +309,16 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan }: Pl
           </div>
         </motion.div>
       </motion.div>
+
+      {/* Payment Confirmation Modal */}
+      {selectedPlan && (
+        <PaymentConfirmationModal
+          isOpen={showPaymentModal}
+          onClose={handlePaymentModalClose}
+          planName={selectedPlan.name}
+          planPrice={selectedPlan.price}
+        />
+      )}
     </AnimatePresence>
   )
 }
