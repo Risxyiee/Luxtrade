@@ -1043,22 +1043,36 @@ export default function AdminSubscriptionsPanel() {
 
         {/* Activate Pro Dialog */}
         <Dialog open={activateProDialogOpen} onOpenChange={setActivateProDialogOpen}>
-          <DialogContent className="bg-[#1a0f2e] border-white/10 text-white relative z-50 pointer-events-auto">
+          <DialogContent
+            className="
+              bg-[#1a0f2e]
+              border-white/10
+              text-white
+              z-[9999]
+              pointer-events-auto
+              max-w-[90vw]
+              sm:max-w-lg
+              w-full
+              !translate-x-[-50%]
+              !translate-y-[-50%]
+            "
+            showCloseButton={false}
+          >
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
+              <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
                 <Crown className="w-5 h-5 text-amber-400" />
                 Activate Pro Subscription
               </DialogTitle>
             </DialogHeader>
             {selectedUser && (
-              <div className="space-y-4 py-4">
-                <div className="bg-white/5 p-4 rounded-lg">
-                  <div className="font-semibold mb-2">{selectedUser.name || 'No name'}</div>
-                  <div className="text-sm text-white/60">{selectedUser.email}</div>
+              <div className="space-y-4 py-2 sm:py-4 overflow-y-auto max-h-[70vh]">
+                <div className="bg-white/5 p-3 sm:p-4 rounded-lg">
+                  <div className="font-semibold mb-1 sm:mb-2 text-sm sm:text-base">{selectedUser.name || 'No name'}</div>
+                  <div className="text-xs sm:text-sm text-white/60 break-all">{selectedUser.email}</div>
                 </div>
 
                 <div>
-                  <Label htmlFor="plan">Select Plan *</Label>
+                  <Label htmlFor="plan" className="text-sm sm:text-base">Select Plan *</Label>
                   <Select
                     value={selectedPlanForActivation || undefined}
                     onValueChange={(value) => {
@@ -1066,16 +1080,16 @@ export default function AdminSubscriptionsPanel() {
                       setSelectedPlanForActivation(value)
                     }}
                   >
-                    <SelectTrigger className="bg-white/5 border-white/10">
+                    <SelectTrigger className="bg-white/5 border-white/10 min-h-[44px] sm:min-h-[40px]">
                       <SelectValue placeholder="Select a plan" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[10000] bg-[#1a0f2e] border-white/10">
                       {plans.map((plan) => (
-                        <SelectItem key={plan.id} value={plan.id}>
-                          <div className="flex items-center gap-2">
+                        <SelectItem key={plan.id} value={plan.id} className="min-h-[44px] flex items-center">
+                          <div className="flex items-center gap-2 py-2">
                             {plan.isLifetime && <Crown className="w-3 h-3 text-amber-400" />}
-                            <span>{plan.name}</span>
-                            <span className="text-white/60">- {plan.currency} {plan.price.toLocaleString()}</span>
+                            <span className="text-sm sm:text-base">{plan.name}</span>
+                            <span className="text-white/60 text-xs sm:text-sm">- {plan.currency} {plan.price.toLocaleString()}</span>
                           </div>
                         </SelectItem>
                       ))}
@@ -1084,31 +1098,31 @@ export default function AdminSubscriptionsPanel() {
                 </div>
 
                 {selectedPlanForActivation && (
-                  <div className="bg-purple-500/10 border border-purple-500/20 p-4 rounded-lg">
-                    <div className="text-sm text-white/60 mb-2">Plan Details:</div>
+                  <div className="bg-purple-500/10 border border-purple-500/20 p-3 sm:p-4 rounded-lg">
+                    <div className="text-xs sm:text-sm text-white/60 mb-2">Plan Details:</div>
                     {(() => {
                       const plan = plans.find(p => p.id === selectedPlanForActivation)
                       if (!plan) return null
                       return (
                         <div className="space-y-1">
                           <div className="flex justify-between">
-                            <span className="text-white/60">Price:</span>
-                            <span className="font-semibold">{plan.currency} {plan.price.toLocaleString()}</span>
+                            <span className="text-white/60 text-xs sm:text-sm">Price:</span>
+                            <span className="font-semibold text-xs sm:text-base">{plan.currency} {plan.price.toLocaleString()}</span>
                           </div>
                           {plan.isLifetime ? (
                             <div className="flex justify-between">
-                              <span className="text-white/60">Duration:</span>
-                              <span className="font-semibold text-amber-400">Lifetime</span>
+                              <span className="text-white/60 text-xs sm:text-sm">Duration:</span>
+                              <span className="font-semibold text-amber-400 text-xs sm:text-base">Lifetime</span>
                             </div>
                           ) : plan.durationMonths ? (
                             <div className="flex justify-between">
-                              <span className="text-white/60">Duration:</span>
-                              <span className="font-semibold">{plan.durationMonths} months</span>
+                              <span className="text-white/60 text-xs sm:text-sm">Duration:</span>
+                              <span className="font-semibold text-xs sm:text-base">{plan.durationMonths} months</span>
                             </div>
                           ) : (
                             <div className="flex justify-between">
-                              <span className="text-white/60">Duration:</span>
-                              <span className="font-semibold">Custom</span>
+                              <span className="text-white/60 text-xs sm:text-sm">Duration:</span>
+                              <span className="font-semibold text-xs sm:text-base">Custom</span>
                             </div>
                           )}
                         </div>
@@ -1117,25 +1131,26 @@ export default function AdminSubscriptionsPanel() {
                   </div>
                 )}
 
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
                   <Button
                     onClick={(e) => {
                       console.log('🎯 Activate Now button clicked!')
                       console.log('   Current selectedPlan:', selectedPlanForActivation)
+                      window.alert('Tombol ditekan!')
                       handleActivatePro()
                     }}
-                    className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                    className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 pointer-events-auto min-h-[48px] sm:min-h-[40px]"
                     disabled={false}
                   >
-                    <Crown className="w-4 h-4 mr-2" />
-                    Activate Now
+                    <Crown className="w-4 h-4 mr-1 sm:mr-2" />
+                    <span className="text-sm sm:text-base">Activate Now</span>
                   </Button>
                   <Button
                     variant="outline"
                     onClick={() => setActivateProDialogOpen(false)}
-                    className="flex-1"
+                    className="flex-1 pointer-events-auto min-h-[48px] sm:min-h-[40px]"
                   >
-                    Cancel
+                    <span className="text-sm sm:text-base">Cancel</span>
                   </Button>
                 </div>
               </div>
