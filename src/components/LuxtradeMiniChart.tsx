@@ -61,69 +61,68 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false }: LuxtradeM
         close: k?.close ?? 0,
       }))
 
-        // Validate klineData before processing
-        if (!klineData || klineData.length === 0) {
-          console.error('Invalid klineData after mapping')
-          return
-        }
+      // Validate klineData before processing
+      if (!klineData || klineData.length === 0) {
+        console.error('Invalid klineData after mapping')
+        return
+      }
 
-        // Calculate 80% momentum indicators
-        const calculatedSignals: Signal[] = []
-        for (let i = 2; i < klineData.length; i++) {
-          const current = klineData[i]
-          const prev1 = klineData[i - 1]
-          const prev2 = klineData[i - 2]
+      // Calculate 80% momentum indicators
+      const calculatedSignals: Signal[] = []
+      for (let i = 2; i < klineData.length; i++) {
+        const current = klineData[i]
+        const prev1 = klineData[i - 1]
+        const prev2 = klineData[i - 2]
 
-          // Null check for kline data
-          if (!current || !prev1 || !prev2) continue
+        // Null check for kline data
+        if (!current || !prev1 || !prev2) continue
 
-          const lookbackHigh = Math.max(prev1.high ?? 0, prev2.high ?? 0)
-          const lookbackLow = Math.min(prev1.low ?? Infinity, prev2.low ?? Infinity)
-          const range = (current.high ?? 0) - (current.low ?? 0)
+        const lookbackHigh = Math.max(prev1.high ?? 0, prev2.high ?? 0)
+        const lookbackLow = Math.min(prev1.low ?? Infinity, prev2.low ?? Infinity)
+        const range = (current.high ?? 0) - (current.low ?? 0)
 
-          if (range > 0) {
-            const bodyPercent = Math.abs((current.close ?? 0) - (current.open ?? 0)) / range * 100
+        if (range > 0) {
+          const bodyPercent = Math.abs((current.close ?? 0) - (current.open ?? 0)) / range * 100
 
-            // BUY Signal: Close > lookbackHigh, body >= 80%, and bullish
-            if (
-              (current.close ?? 0) > lookbackHigh &&
-              bodyPercent >= 80 &&
-              (current.close ?? 0) > (current.open ?? 0)
-            ) {
-              calculatedSignals.push({
-                time: current.time ?? 0,
-                type: 'BUY',
-                price: current.close ?? 0,
-              })
-            }
+          // BUY Signal: Close > lookbackHigh, body >= 80%, and bullish
+          if (
+            (current.close ?? 0) > lookbackHigh &&
+            bodyPercent >= 80 &&
+            (current.close ?? 0) > (current.open ?? 0)
+          ) {
+            calculatedSignals.push({
+              time: current.time ?? 0,
+              type: 'BUY',
+              price: current.close ?? 0,
+            })
+          }
 
-            // SELL Signal: Close < lookbackLow, body >= 80%, and bearish
-            if (
-              (current.close ?? 0) < lookbackLow &&
-              bodyPercent >= 80 &&
-              (current.close ?? 0) < (current.open ?? 0)
-            ) {
-              calculatedSignals.push({
-                time: current.time ?? 0,
-                type: 'SELL',
-                price: current.close ?? 0,
-              })
-            }
+          // SELL Signal: Close < lookbackLow, body >= 80%, and bearish
+          if (
+            (current.close ?? 0) < lookbackLow &&
+            bodyPercent >= 80 &&
+            (current.close ?? 0) < (current.open ?? 0)
+          ) {
+            calculatedSignals.push({
+              time: current.time ?? 0,
+              type: 'SELL',
+              price: current.close ?? 0,
+            })
           }
         }
+      }
 
-        setData(klineData)
-        setSignals(calculatedSignals)
+      setData(klineData)
+      setSignals(calculatedSignals)
 
-        // Set current price with null check
-        const lastKline = klineData[klineData.length - 1]
-        if (lastKline?.close !== undefined && lastKline?.close !== null) {
-          setCurrentPrice(lastKline.close)
-          if (klineData.length > 1) {
-            const prevKline = klineData[klineData.length - 2]
-            if (prevKline?.close !== undefined && prevKline?.close !== null && prevKline.close !== 0) {
-              setPriceChange(((lastKline.close - prevKline.close) / prevKline.close) * 100)
-            }
+      // Set current price with null check
+      const lastKline = klineData[klineData.length - 1]
+      if (lastKline?.close !== undefined && lastKline?.close !== null) {
+        setCurrentPrice(lastKline.close)
+        if (klineData.length > 1) {
+          const prevKline = klineData[klineData.length - 2]
+          if (prevKline?.close !== undefined && prevKline?.close !== null && prevKline.close !== 0) {
+            setPriceChange(((lastKline.close - prevKline.close) / prevKline.close) * 100)
           }
         }
       }
