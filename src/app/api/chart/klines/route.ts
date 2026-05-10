@@ -25,14 +25,26 @@ export async function GET(request: NextRequest) {
 
     // Transform Binance data to OHLC format
     // Binance returns: [time, open, high, low, close, volume, ...]
-    const ohlcData = data.map((kline: any[]) => ({
-      time: Math.floor(kline[0] / 1000), // Convert to seconds
-      open: parseFloat(kline[1]),
-      high: parseFloat(kline[2]),
-      low: parseFloat(kline[3]),
-      close: parseFloat(kline[4]),
-      volume: parseFloat(kline[5])
-    }))
+    const ohlcData = data
+      .map((kline: any[]) => ({
+        time: Math.floor(kline[0] / 1000), // Convert to seconds
+        open: parseFloat(kline[1]),
+        high: parseFloat(kline[2]),
+        low: parseFloat(kline[3]),
+        close: parseFloat(kline[4]),
+        volume: parseFloat(kline[5])
+      }))
+      .filter((kline) => {
+        // Filter invalid data
+        const isValidTime = typeof kline.time === 'number' && kline.time > 0
+        const isValidOHLC = typeof kline.open === 'number' &&
+                          typeof kline.high === 'number' &&
+                          typeof kline.low === 'number' &&
+                          typeof kline.close === 'number' &&
+                          kline.high >= kline.low
+        return isValidTime && isValidOHLC
+      })
+      .sort((a, b) => a.time - b.time) // Ensure ascending order
 
     console.log(`✅ Fetched ${ohlcData.length} candles`)
 

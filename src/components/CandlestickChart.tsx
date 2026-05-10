@@ -47,6 +47,16 @@ export default function CandlestickChart({
         return
       }
 
+      console.log('[CandlestickChart] Creating chart with dimensions:', {
+        width: container.clientWidth,
+        height: 400
+      })
+
+      // Check if lightweight-charts is loaded
+      if (typeof createChart !== 'function') {
+        throw new Error('lightweight-charts library not properly loaded')
+      }
+
       // Create chart
       chart = createChart(container, {
         width: container.clientWidth,
@@ -95,6 +105,11 @@ export default function CandlestickChart({
       chartRef.current = chart
 
       // Add candlestick series
+      console.log('[CandlestickChart] Adding candlestick series...')
+      if (!chart || typeof chart.addCandlestickSeries !== 'function') {
+        throw new Error('lightweight-charts library not properly loaded or addCandlestickSeries is not available')
+      }
+
       series = chart.addCandlestickSeries({
         upColor: '#10b981',
         downColor: '#ef4444',
@@ -106,10 +121,28 @@ export default function CandlestickChart({
 
       seriesRef.current = series
 
-      // Set data
+      // Validate and set data
       if (data && data.length > 0) {
-        series.setData(data)
-        console.log(`✅ Chart loaded with ${data.length} candles`)
+        console.log('[CandlestickChart] Validating and setting data:', data.length, 'candles')
+
+        const validData = data.filter((kline: any) => {
+          return (
+            typeof kline.time === 'number' && kline.time > 0 &&
+            typeof kline.open === 'number' && kline.open > 0 &&
+            typeof kline.high === 'number' && kline.high > 0 &&
+            typeof kline.low === 'number' && kline.low > 0 &&
+            typeof kline.close === 'number' && kline.close > 0 &&
+            kline.high >= kline.low
+          )
+        }).sort((a, b) => a.time - b.time) // Ensure ascending order
+
+        if (validData.length === 0) {
+          console.error('[CandlestickChart] No valid data after filtering')
+          return
+        }
+
+        series.setData(validData)
+        console.log(`✅ Chart loaded with ${validData.length} candles`)
       }
 
       // Handle resize
