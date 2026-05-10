@@ -849,33 +849,9 @@ export default function LuxTradeDashboard() {
     }
   }, [trades.length])
 
-  // Show loading screen while checking auth
-  if (!demoMode && (authLoading || !authChecked)) {
-    return (
-      <div className="min-h-screen bg-[#0a0712] flex items-center justify-center">
-        <div className="text-center">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          >
-            <Loader2 className="w-10 h-10 text-purple-500 mx-auto mb-4" />
-          </motion.div>
-          <p className="text-white/60">Loading your dashboard...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Don't render if no user (will redirect) - skip in demo mode
-  if (!demoMode && !user) {
-    return (
-      <div className="min-h-screen bg-[#0a0712] flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 text-purple-500 animate-spin mx-auto mb-4" />
-          <p className="text-white/60">Redirecting to login...</p>
-        </div>
-      </div>
-    )
+  // Skip further rendering until mounted and auth is checked
+  if (!hasMounted) {
+    return null
   }
 
   // Seed demo data
@@ -1660,9 +1636,12 @@ export default function LuxTradeDashboard() {
     router.push('/')
   }
 
-  const userInitials = profile?.full_name
-    ? profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    : user?.email?.[0].toUpperCase() || 'D'
+  // User initials with hydration safety check
+  const userInitials = hasMounted
+    ? profile?.full_name
+      ? profile.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+      : user?.email?.[0]?.toUpperCase() || 'D'
+    : 'D'
 
   // Show loading screen while mounting - prevents hydration issues
   if (!hasMounted) {
@@ -1671,6 +1650,18 @@ export default function LuxTradeDashboard() {
         <div className="text-center">
           <Loader2 className="w-10 h-10 text-purple-500 animate-spin mx-auto mb-4" />
           <p className="text-white/60 text-sm">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show auth loading state
+  if (!demoMode && (authLoading || !authChecked)) {
+    return (
+      <div className="min-h-screen bg-[#0a0712] flex items-center justify-center" suppressHydrationWarning={true}>
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 text-purple-500 animate-spin mx-auto mb-4" />
+          <p className="text-white/60 text-sm">Loading...</p>
         </div>
       </div>
     )
