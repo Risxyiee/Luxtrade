@@ -4,6 +4,16 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://klxkdrfsfcoankbaoejn.supabase.co'
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
+// Get base URL dynamically (works for both custom domain and Vercel domain)
+export const getBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    // Client-side: use window.location.origin
+    return window.location.origin
+  }
+  // Server-side: use NEXT_PUBLIC_APP_URL or fallback
+  return process.env.NEXT_PUBLIC_APP_URL || 'https://luxtrade-jade.vercel.app'
+}
+
 // Validate configuration
 if (!supabaseUrl || supabaseUrl === 'undefined' || supabaseUrl.trim() === '') {
   console.warn('⚠️ NEXT_PUBLIC_SUPABASE_URL is not configured')
@@ -26,6 +36,12 @@ export const supabase = createClient(validSupabaseUrl, supabaseAnonKey || 'place
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true
+  },
+  // Global configuration for custom domain support
+  global: {
+    headers: {
+      'X-Client-Info': 'luxtrade-web'
+    }
   }
 })
 
