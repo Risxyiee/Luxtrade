@@ -591,11 +591,14 @@ function parseMT4HTML(html: string): MTReportPreview | null {
 // ==================== MAIN COMPONENT ====================
 
 export default function LuxTradeDashboard() {
+  // CSR Force - Prevent hydration issues by only rendering after mount
+  const [hasMounted, setHasMounted] = useState(false)
+
   const [activeTab, setActiveTab] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [language, setLanguage] = useState<'id' | 'en'>('id') // Default Bahasa Indonesia
-  
+
   // Demo mode state
   const [demoMode, setDemoMode] = useState(true) // Default TRUE untuk demo
   
@@ -698,7 +701,17 @@ export default function LuxTradeDashboard() {
     }
     return headers
   }, [session?.access_token])
-  
+
+  // Force CSR - Only render after component has mounted on client
+  useEffect(() => {
+    setHasMounted(true)
+  }, [])
+
+  // Early return if not mounted - prevents hydration mismatches
+  if (!hasMounted) {
+    return <div className="min-h-screen bg-black" suppressHydrationWarning={true} />
+  }
+
   // PRO status from auth context (includes subscription_until check)
   const isPro = authIsPro || demoMode
   
@@ -1647,7 +1660,7 @@ export default function LuxTradeDashboard() {
     : user?.email?.[0].toUpperCase() || 'D'
 
   return (
-    <div className="min-h-screen bg-[#0a0712] text-white flex">
+    <div className="min-h-screen bg-[#0a0712] text-white flex" suppressHydrationWarning={true}>
       {/* Mobile Sidebar Overlay */}
       {mobileSidebarOpen && (
         <div 
@@ -1877,7 +1890,8 @@ export default function LuxTradeDashboard() {
           
           <button
             onClick={() => {
-              if (window.innerWidth < 1024) {
+              // Safety check - window only available in browser
+              if (typeof window !== 'undefined' && window.innerWidth < 1024) {
                 setMobileSidebarOpen(false)
               }
               setSidebarOpen(!sidebarOpen)
@@ -4083,6 +4097,9 @@ function TradesTab({
 
   // Export CSV
   const handleExportCSV = () => {
+    // Safety check - document.createElement only available in browser
+    if (typeof document === 'undefined') return
+
     const headers = ['Symbol','Type','Entry','Exit','Lot Size','P/L','Session','Open Time','Close Time','Notes']
     const rows = filteredTrades.map(t => [
       t.symbol,
