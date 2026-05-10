@@ -1,24 +1,23 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { createChart, IChartApi, ISeriesApi, CandlestickData, Time } from 'lightweight-charts'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { RefreshCw, TrendingUp, Loader2, AlertTriangle } from 'lucide-react'
+import CandlestickChart from './CandlestickChart'
+import type { CandlestickData, Time } from 'lightweight-charts'
 
 interface ChartTabProps {
   isPro?: boolean
 }
 
 export default function ChartTab({ isPro = false }: ChartTabProps) {
-  const chartContainerRef = useRef<HTMLDivElement>(null)
-  const chartRef = useRef<IChartApi | null>(null)
-  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
   const [isLoadingData, setIsLoadingData] = useState(false)
   const [selectedSymbol, setSelectedSymbol] = useState('XAUUSD')
   const [selectedInterval, setSelectedInterval] = useState('15m')
   const [hasMounted, setHasMounted] = useState(false)
   const [chartError, setChartError] = useState<string | null>(null)
+  const [chartData, setChartData] = useState<CandlestickData[]>([])
 
   // Forex & Crypto symbols
   const symbols = [
@@ -81,18 +80,18 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
         throw new Error(`Failed to fetch data from ${symbolType} API`)
       }
 
-      const data = await response.json()
+      const result = await response.json()
 
-      if (data.success && seriesRef.current) {
-        seriesRef.current.setData(data.data)
-        console.log(`✅ Loaded ${data.data.length} candles for ${selectedSymbol} (${symbolType})`)
-      } else if (!data.success) {
-        throw new Error(data.error || 'No data returned')
+      if (result.success && result.data) {
+        setChartData(result.data)
+        console.log(`✅ Loaded ${result.data.length} candles for ${selectedSymbol} (${symbolType})`)
+      } else if (!result.success) {
+        throw new Error(result.error || 'No data returned')
       }
 
       // Show note if using mock data
-      if (data.note) {
-        console.log('ℹ️  Note:', data.note)
+      if (result.note) {
+        console.log('ℹ️  Note:', result.note)
       }
     } catch (error) {
       console.error('❌ Error fetching chart data:', error)
@@ -104,107 +103,18 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
 
   // Initialize chart only once - after mounting
   useEffect(() => {
-    if (!hasMounted || !chartContainerRef.current || chartRef.current) return
+    if (!hasMounted) return
 
-    const container = chartContainerRef.current
-
-    let chart: IChartApi | null = null
-
-    try {
-      // Create chart with fixed height to ensure proper sizing
-      chart = createChart(container, {
-        width: container.clientWidth || 800,
-        height: 400, // Fixed height
-        layout: {
-          background: { color: '#0a0712' },
-          textColor: '#ffffff',
-        },
-        grid: {
-          vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
-          horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
-        },
-        crosshair: {
-          mode: 1,
-          vertLine: {
-            color: 'rgba(224, 227, 235, 0.1)',
-            width: 1,
-            style: 2,
-          },
-          horzLine: {
-            color: 'rgba(224, 227, 235, 0.1)',
-            width: 1,
-            style: 2,
-          },
-        },
-        rightPriceScale: {
-          borderColor: 'rgba(255, 255, 255, 0.1)',
-        },
-        timeScale: {
-          borderColor: 'rgba(255, 255, 255, 0.1)',
-          timeVisible: true,
-          secondsVisible: false,
-        },
-        handleScroll: true,
-        handleScale: true,
-      })
-
-      const candlestickSeries = chart.addCandlestickSeries({
-        upColor: '#10b981',
-        downColor: '#ef4444',
-        borderDownColor: '#ef4444',
-        borderUpColor: '#10b981',
-        wickDownColor: '#ef4444',
-        wickUpColor: '#10b981',
-      })
-
-      chartRef.current = chart
-      seriesRef.current = candlestickSeries
-
-      console.log('✅ Chart initialized successfully')
-
-      // Handle resize
-      const handleResize = () => {
-        if (container && chart) {
-          const newWidth = container.clientWidth || 800
-          chart.applyOptions({ width: newWidth, height: 400 })
-        }
-      }
-
-      window.addEventListener('resize', handleResize)
-
-      // Fetch initial data immediately
-      fetchData()
-
-      return () => {
-        console.log('🧹 Cleaning up chart...')
-        window.removeEventListener('resize', handleResize)
-        if (chart) {
-          try {
-            chart.remove()
-            console.log('✅ Chart removed successfully')
-          } catch (e) {
-            console.error('❌ Error removing chart:', e)
-          }
-          chart = null
-        }
-        if (chartRef.current) {
-          chartRef.current = null
-        }
-        if (seriesRef.current) {
-          seriesRef.current = null
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error initializing chart:', error)
-      setChartError(error instanceof Error ? error.message : 'Failed to initialize chart')
-    }
+    // Fetch initial data immediately
+    fetchData()
   }, [hasMounted, fetchData])
 
   // Update chart when symbol or interval changes
   useEffect(() => {
-    if (hasMounted && chartRef.current && seriesRef.current) {
+    if (hasMounted) {
       console.log(`🔄 Updating chart for ${selectedSymbol} ${selectedInterval}`)
       setChartError(null)
+      setChartData([]) // Clear previous data
       fetchData()
     }
   }, [selectedSymbol, selectedInterval, fetchData, hasMounted])
@@ -213,14 +123,13 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
   useEffect(() => {
     console.log('📊 Chart status:', {
       hasMounted,
-      chartExists: !!chartRef.current,
-      seriesExists: !!seriesRef.current,
       isLoadingData,
       chartError,
       selectedSymbol,
       selectedInterval,
+      dataLength: chartData.length,
     })
-  }, [hasMounted, isLoadingData, chartError, selectedSymbol, selectedInterval])
+  }, [hasMounted, isLoadingData, chartError, selectedSymbol, selectedInterval, chartData])
 
   // Show loading state if not mounted yet
   if (!hasMounted) {
@@ -358,16 +267,15 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
           </div>
         )}
 
-        {!chartError && isLoadingData && !chartRef.current && (
+        {!chartError && isLoadingData && chartData.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#0a0712]/90 rounded-lg z-10">
             <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
           </div>
         )}
 
-        <div
-          ref={chartContainerRef}
-          className="w-full"
-          style={{ height: '400px', minHeight: '400px' }}
+        <CandlestickChart
+          data={chartData}
+          containerClassName="w-full"
         />
       </div>
 
