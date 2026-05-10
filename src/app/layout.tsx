@@ -5,6 +5,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
 import TelegramFloatingWidget from "@/components/TelegramFloatingWidget";
+import GlobalErrorBoundary from "@/components/GlobalErrorBoundary";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,89 +42,91 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>
-          {children}
-        </Providers>
-        <Toaster position="top-right" />
-        
-        {/* AI Chat Widget - Chatbase */}
-        <Script
-          id="chatbase-widget"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function(){
-                if(!window.chatbase||window.chatbase("getState")!=="initialized"){
-                  window.chatbase=(...arguments)=>{
-                    if(!window.chatbase.q){window.chatbase.q=[]}
-                    window.chatbase.q.push(arguments)
+        <GlobalErrorBoundary>
+          <Providers>
+            {children}
+          </Providers>
+          <Toaster position="top-right" />
+
+          {/* AI Chat Widget - Chatbase */}
+          <Script
+            id="chatbase-widget"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+                (function(){
+                  if(!window.chatbase||window.chatbase("getState")!=="initialized"){
+                    window.chatbase=(...arguments)=>{
+                      if(!window.chatbase.q){window.chatbase.q=[]}
+                      window.chatbase.q.push(arguments)
+                    };
+                    window.chatbase=new Proxy(window.chatbase,{
+                      get(target,prop){
+                        if(prop==="q"){return target.q}
+                        return(...args)=>target(prop,...args)
+                      }
+                    })
+                  }
+                  const onLoad=function(){
+                    const script=document.createElement("script");
+                    script.src="https://www.chatbase.co/embed.min.js";
+                    script.id="g6SMFqtY0p-Vv9YdiGWZT";
+                    script.domain="www.chatbase.co";
+                    document.body.appendChild(script)
                   };
-                  window.chatbase=new Proxy(window.chatbase,{
-                    get(target,prop){
-                      if(prop==="q"){return target.q}
-                      return(...args)=>target(prop,...args)
-                    }
-                  })
+                  if(document.readyState==="complete"){
+                    onLoad()
+                  }else{
+                    window.addEventListener("load",onLoad)
+                  }
+                })();
+              `,
+            }}
+          />
+
+          {/* Telegram Floating Widget */}
+          <TelegramFloatingWidget />
+
+          {/* Page View Tracker */}
+          <Script
+            id="page-view-tracker"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+                (function(){
+                  try {
+                    var data = {
+                      path: window.location.pathname,
+                      referrer: document.referrer,
+                      userAgent: navigator.userAgent,
+                      screenWidth: screen.width
+                    };
+                    fetch('/api/track', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(data)
+                    }).catch(function(){});
+                  } catch(e) {}
+                })();
+              `,
+            }}
+          />
+
+
+          {/* Chatbase Bubble Position Styles */}
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+                #chatbase-bubble-button {
+                  position: fixed !important;
+                  bottom: 20px !important;
+                  right: 20px !important;
+                  z-index: 999999 !important;
                 }
-                const onLoad=function(){
-                  const script=document.createElement("script");
-                  script.src="https://www.chatbase.co/embed.min.js";
-                  script.id="g6SMFqtY0p-Vv9YdiGWZT";
-                  script.domain="www.chatbase.co";
-                  document.body.appendChild(script)
-                };
-                if(document.readyState==="complete"){
-                  onLoad()
-                }else{
-                  window.addEventListener("load",onLoad)
-                }
-              })();
-            `,
-          }}
-        />
-        
-        {/* Telegram Floating Widget */}
-        <TelegramFloatingWidget />
-        
-        {/* Page View Tracker */}
-        <Script
-          id="page-view-tracker"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function(){
-                try {
-                  var data = {
-                    path: window.location.pathname,
-                    referrer: document.referrer,
-                    userAgent: navigator.userAgent,
-                    screenWidth: screen.width
-                  };
-                  fetch('/api/track', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                  }).catch(function(){});
-                } catch(e) {}
-              })();
-            `,
-          }}
-        />
-        
-        
-        {/* Chatbase Bubble Position Styles */}
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
-              #chatbase-bubble-button {
-                position: fixed !important;
-                bottom: 20px !important;
-                right: 20px !important;
-                z-index: 999999 !important;
-              }
-            `,
-          }}
-        />
+              `,
+            }}
+          />
+        </GlobalErrorBoundary>
       </body>
     </html>
   );
