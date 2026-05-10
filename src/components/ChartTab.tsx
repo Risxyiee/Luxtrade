@@ -90,18 +90,13 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
 
     const container = chartContainerRef.current
 
-    // Wait for container to have dimensions
-    if (!container.clientWidth || !container.clientHeight) {
-      console.warn('Chart container not ready - waiting for next frame')
-      return
-    }
-
     let chart: IChartApi | null = null
 
     try {
+      // Create chart with fixed height to ensure proper sizing
       chart = createChart(container, {
-        width: container.clientWidth,
-        height: container.clientHeight,
+        width: container.clientWidth || 800,
+        height: 400, // Fixed height
         layout: {
           background: { color: '#0a0712' },
           textColor: '#ffffff',
@@ -147,26 +142,30 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
       chartRef.current = chart
       seriesRef.current = candlestickSeries
 
+      console.log('✅ Chart initialized successfully')
+
+      // Handle resize
       const handleResize = () => {
         if (container && chart) {
-          chart.applyOptions({ width: container.clientWidth, height: container.clientHeight })
+          const newWidth = container.clientWidth || 800
+          chart.applyOptions({ width: newWidth, height: 400 })
         }
       }
 
       window.addEventListener('resize', handleResize)
 
-      // Fetch initial data after a small delay
-      setTimeout(() => {
-        fetchData()
-      }, 100)
+      // Fetch initial data immediately
+      fetchData()
 
       return () => {
+        console.log('🧹 Cleaning up chart...')
         window.removeEventListener('resize', handleResize)
         if (chart) {
           try {
             chart.remove()
+            console.log('✅ Chart removed successfully')
           } catch (e) {
-            console.error('Error removing chart:', e)
+            console.error('❌ Error removing chart:', e)
           }
           chart = null
         }
@@ -178,7 +177,7 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
         }
       }
     } catch (error) {
-      console.error('Error initializing chart:', error)
+      console.error('❌ Error initializing chart:', error)
       setChartError(error instanceof Error ? error.message : 'Failed to initialize chart')
     }
   }, [hasMounted, fetchData])
@@ -186,10 +185,24 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
   // Update chart when symbol or interval changes
   useEffect(() => {
     if (hasMounted && chartRef.current && seriesRef.current) {
+      console.log(`🔄 Updating chart for ${selectedSymbol} ${selectedInterval}`)
       setChartError(null)
       fetchData()
     }
   }, [selectedSymbol, selectedInterval, fetchData, hasMounted])
+
+  // Debug: Show chart status
+  useEffect(() => {
+    console.log('📊 Chart status:', {
+      hasMounted,
+      chartExists: !!chartRef.current,
+      seriesExists: !!seriesRef.current,
+      isLoadingData,
+      chartError,
+      selectedSymbol,
+      selectedInterval,
+    })
+  }, [hasMounted, isLoadingData, chartError, selectedSymbol, selectedInterval])
 
   // Show loading state if not mounted yet
   if (!hasMounted) {
@@ -305,7 +318,7 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
       </div>
 
       {/* Chart */}
-      <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg p-4 relative">
+      <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg p-4 relative overflow-hidden">
         {chartError && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0712]/90 rounded-lg z-10">
             <AlertTriangle className="w-12 h-12 text-red-400 mb-3" />
@@ -333,8 +346,7 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
         <div
           ref={chartContainerRef}
           className="w-full"
-          style={{ height: '400px' }}
-          suppressHydrationWarning={true}
+          style={{ height: '400px', minHeight: '400px' }}
         />
       </div>
 
