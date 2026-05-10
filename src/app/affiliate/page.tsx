@@ -156,13 +156,14 @@ export default function AffiliatePage() {
     if (!user) return
     setPageLoading(true)
     try {
-      const res = await fetch('/api/affiliate', {
+      // Add timestamp to prevent caching
+      const timestamp = Date.now()
+      const res = await fetch(`/api/affiliate?_t=${timestamp}`, {
         headers: {
           'x-user-id': user.id,
-          'Cache-Control': 'no-cache',
-        },
-        cache: 'no-store',
-        next: { revalidate: 0 }
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
       })
       const data = await res.json()
       if (data.success) {
@@ -179,6 +180,18 @@ export default function AffiliatePage() {
 
   useEffect(() => {
     if (user) fetchAffiliateData()
+  }, [user, fetchAffiliateData])
+
+  // Real-time polling for affiliate updates
+  useEffect(() => {
+    if (!user) return
+
+    // Poll every 5 seconds for real-time updates
+    const interval = setInterval(() => {
+      fetchAffiliateData()
+    }, 5000)
+
+    return () => clearInterval(interval)
   }, [user, fetchAffiliateData])
 
   // Auto-create affiliate profile on first visit

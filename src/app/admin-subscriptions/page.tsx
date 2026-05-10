@@ -312,10 +312,16 @@ export default function AdminSubscriptionsPanel() {
         setSelectedPlanForActivation('')
 
         // Show success notification
-        alert('✅ User Berhasil Diaktifkan!')
+        alert(`✅ User Berhasil Diaktifkan!\n\n${data.message || ''}${data.supabaseProfileUpdated ? '\n✅ Supabase profile updated' : ''}`)
       } else {
         console.error('❌ Activation failed:', data)
-        alert(data.error || 'Failed to activate Pro subscription')
+
+        // Show detailed error
+        let errorMsg = `❌ Failed to activate Pro subscription\n\n`
+        if (data.error) errorMsg += `Error: ${data.error}\n`
+        if (data.message) errorMsg += `Message: ${data.message}\n`
+        if (data.stack) errorMsg += `\nStack:\n${data.stack}`
+        alert(errorMsg)
       }
     } catch (error) {
       console.error('❌ Error activating Pro:', error)
