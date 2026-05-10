@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, ColorType } from 'lightweight-charts'
+import { createChart, ColorType, CrosshairMode, LineStyle, IChartApi, ISeriesApi } from 'lightweight-charts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -9,12 +9,20 @@ import { Lock, RefreshCw, TrendingUp, Crown } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 interface IndicatorSignal {
-  time: Time
+  time: number | string
   type: 'BUY' | 'SELL'
   price: number
   bodyPercent: string
   lookbackHigh: string
   lookbackLow: string
+}
+
+interface CandlestickData {
+  time: number | string
+  open: number
+  high: number
+  low: number
+  close: number
 }
 
 interface IndicatorResponse {
@@ -27,8 +35,9 @@ interface IndicatorResponse {
 
 export default function LuxtradeChart() {
   const chartContainerRef = useRef<HTMLDivElement>(null)
-  const chartRef = useRef<IChartApi | null>(null)
+  const chartRef = useRef<IChartApi<'UTCTimestamp'> | null>(null)
   const seriesRef = useRef<ISeriesApi<'UTCTimestamp', CandlestickData> | null>(null)
+  const [mounted, setMounted] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingData, setIsLoadingData] = useState(false)
   const [subscription, setSubscription] = useState<string>('FREE')
@@ -36,8 +45,15 @@ export default function LuxtradeChart() {
   const [selectedSymbol, setSelectedSymbol] = useState('BTCUSDT')
   const [selectedInterval, setSelectedInterval] = useState('15m')
 
+  // Mount guard
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   // Fetch user subscription status
   useEffect(() => {
+    if (!mounted) return
+
     const fetchSubscription = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser()
@@ -60,86 +76,114 @@ export default function LuxtradeChart() {
 
     fetchSubscription()
     setIsLoading(false)
-  }, [])
+  }, [mounted])
 
   // Initialize chart only for PRO/LIFETIME users
   useEffect(() => {
-    if (subscription === 'FREE' || !chartContainerRef.current) {
+    if (subscription === 'FREE' || !mounted || !chartContainerRef.current) {
       return
     }
 
-    const container = chartContainerRef.current
+    let chart: IChartApi<'UTCTimestamp'> | null = null
+    let series: ISeriesApi<'UTCTimestamp', CandlestickData> | null = null
 
-    // Create chart with mobile optimization
-    const chart = createChart(container, {
-      width: container.clientWidth,
-      height: container.clientHeight,
-      layout: {
-        background: { type: ColorType.Solid, color: '#0a0612' },
-        textColor: '#ffffff',
-      },
-      grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
-        horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
-      },
-      crosshair: {
-        mode: 1,
-        vertLine: {
-          color: 'rgba(224, 227, 235, 0.1)',
-          width: 1,
-          style: 2,
-        },
-        horzLine: {
-          color: 'rgba(224, 227, 235, 0.1)',
-          width: 1,
-          style: 2,
-        },
-      },
-      rightPriceScale: {
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-      },
-      timeScale: {
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        timeVisible: true,
-        secondsVisible: false,
-      },
-      handleScroll: true,  // Enable scroll on mobile
-      handleScale: true,  // Enable pinch-zoom on mobile
-    })
-
-    const candlestickSeries = chart.addCandlestickSeries({
-      upColor: '#10b981',
-      downColor: '#ef4444',
-      borderDownColor: '#ef4444',
-      borderUpColor: '#10b981',
-      wickDownColor: '#ef4444',
-      wickUpColor: '#10b981',
-    })
-
-    chartRef.current = chart
-    seriesRef.current = candlestickSeries
-
-    // Handle resize
-    const handleResize = () => {
-      if (container && chart) {
-        chart.applyOptions({ width: container.clientWidth, height: container.clientHeight })
+    try {
+      const container = chartContainerRef.current
+      if (!container || !container.clientWidth) {
+        console.warn('Chart container not ready')
+        return
       }
+
+      // Create chart with mobile optimization
+      chart = createChart(container, {
+        width: container.clientWidth,
+        height: 500,
+        layout: {
+          background: { type: ColorType.Solid, color: '#0a0612' },
+          textColor: '#ffffff',
+        },
+        grid: {
+          vertLines: {
+            color: 'rgba(255, 255, 255, 0.05)',
+            style: LineStyle.Dotted,
+          },
+          horzLines: {
+            color: 'rgba(255, 255, 255, 0.05)',
+            style: LineStyle.Dotted,
+          },
+        },
+        crosshair: {
+          mode: CrosshairMode.Normal,
+          vertLine: {
+            color: 'rgba(224, 227, 235, 0.1)',
+            width: 1,
+            style: LineStyle.Dashed,
+            labelBackgroundColor: '#1f2937',
+          },
+          horzLine: {
+            color: 'rgba(224, 227, 235, 0.1)',
+            width: 1,
+            style: LineStyle.Dashed,
+            labelBackgroundColor: '#1f2937',
+          },
+        },
+        rightPriceScale: {
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+        },
+        timeScale: {
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          timeVisible: true,
+          secondsVisible: false,
+        },
+        handleScroll: true,  // Enable scroll on mobile
+        handleScale: true,  // Enable pinch-zoom on mobile
+      })
+
+      const candlestickSeries = chart.addCandlestickSeries({
+        upColor: '#10b981',
+        downColor: '#ef4444',
+        borderDownColor: '#ef4444',
+        borderUpColor: '#10b981',
+        wickDownColor: '#ef4444',
+        wickUpColor: '#10b981',
+      })
+
+      chartRef.current = chart
+      seriesRef.current = candlestickSeries
+
+      // Handle resize
+      const handleResize = () => {
+        if (chartRef.current && container) {
+          chartRef.current.applyOptions({ width: container.clientWidth, height: 500 })
+        }
+      }
+
+      window.addEventListener('resize', handleResize)
+
+      // Fetch initial data
+      fetchData()
+    } catch (error) {
+      console.error('Error initializing chart:', error)
     }
-
-    window.addEventListener('resize', handleResize)
-
-    // Fetch initial data
-    fetchData()
 
     return () => {
-      window.removeEventListener('resize', handleResize)
-      chart.remove()
+      window.removeEventListener('resize', () => {})
+      if (chart) {
+        chart.remove()
+        chart = null
+      }
+      if (chartRef.current) {
+        chartRef.current = null
+      }
+      if (seriesRef.current) {
+        seriesRef.current = null
+      }
     }
-  }, [subscription])
+  }, [subscription, mounted])
 
   // Fetch chart data with indicators
   const fetchData = async () => {
-    if (subscription === 'FREE') return
+    if (subscription === 'FREE' || !mounted) return
 
     setIsLoadingData(true)
     try {
@@ -182,13 +226,13 @@ export default function LuxtradeChart() {
 
   // Update chart when symbol or interval changes
   useEffect(() => {
-    if (subscription !== 'FREE' && chartRef.current) {
+    if (subscription !== 'FREE' && mounted && chartRef.current) {
       fetchData()
     }
-  }, [selectedSymbol, selectedInterval])
+  }, [selectedSymbol, selectedInterval, subscription, mounted])
 
   // Loading state
-  if (isLoading) {
+  if (!mounted || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0a0612]">
         <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
