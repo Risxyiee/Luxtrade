@@ -273,6 +273,8 @@ export default function AdminSubscriptionsPanel() {
     console.log('   selectedPlanForActivation:', selectedPlanForActivation)
     console.log('   selectedPlanForActivation type:', typeof selectedPlanForActivation)
 
+    window.alert('Tombol diklik!')
+
     if (!selectedUser || !selectedPlanForActivation) {
       console.log('❌ Cannot activate - missing user or plan')
       alert('Please select a plan')
@@ -1068,7 +1070,7 @@ export default function AdminSubscriptionsPanel() {
                       <SelectValue placeholder="Select a plan" />
                     </SelectTrigger>
                     <SelectContent>
-                      {plans.filter(p => p.isActive).map((plan) => (
+                      {plans.map((plan) => (
                         <SelectItem key={plan.id} value={plan.id}>
                           <div className="flex items-center gap-2">
                             {plan.isLifetime && <Crown className="w-3 h-3 text-amber-400" />}
@@ -1123,7 +1125,7 @@ export default function AdminSubscriptionsPanel() {
                       handleActivatePro()
                     }}
                     className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-                    disabled={!selectedPlanForActivation}
+                    disabled={false}
                   >
                     <Crown className="w-4 h-4 mr-2" />
                     Activate Now
