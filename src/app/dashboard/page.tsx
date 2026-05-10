@@ -726,11 +726,16 @@ export default function LuxTradeDashboard() {
   // Force CSR - Only render after component has mounted on client
   useEffect(() => {
     try {
+      console.log('🔵 [DIAGNOSTIC] useEffect mounting - START')
       setHasMounted(true)
+      console.log('🟢 [DIAGNOSTIC] CLIENT_MOUNTED - setHasMounted(true) called')
     } catch (error) {
-      console.error('Error setting hasMounted:', error)
+      console.error('🔴 [DIAGNOSTIC] Error setting hasMounted:', error)
       // Force set to true even if there's an error to prevent black screen
-      setTimeout(() => setHasMounted(true), 100)
+      setTimeout(() => {
+        setHasMounted(true)
+        console.log('🟡 [DIAGNOSTIC] CLIENT_MOUNTED - fallback timeout triggered')
+      }, 100)
     }
   }, [])
 
@@ -831,29 +836,36 @@ export default function LuxTradeDashboard() {
 
   // Auth state management with timeout
   const [authChecked, setAuthChecked] = useState(false)
-  
+
   useEffect(() => {
+    console.log('🔵 [DIAGNOSTIC] Auth useEffect - START')
+    console.log('🟠 [DIAGNOSTIC] AUTH_STATE:', { user, authLoading, demoMode })
+
     if (demoMode) {
+      console.log('✅ [DIAGNOSTIC] Demo mode detected, skipping auth')
       fetchData()
       setAuthChecked(true)
       return
     }
-    
+
     // Give auth some time to load
     const timeoutId = setTimeout(() => {
+      console.log('⚠️ [DIAGNOSTIC] Auth timeout - No user after loading')
       if (!user && !authLoading) {
         // No user after loading complete, redirect to login
         window.location.href = '/auth/login'
       }
     }, 1000)
-    
+
     if (!authLoading) {
       setAuthChecked(true)
+      console.log('✅ [DIAGNOSTIC] Auth loading complete')
       if (user) {
+        console.log('✅ [DIAGNOSTIC] User found, fetching data')
         fetchData()
       }
     }
-    
+
     return () => clearTimeout(timeoutId)
   }, [authLoading, user, fetchData, demoMode])
 
@@ -1657,18 +1669,23 @@ export default function LuxTradeDashboard() {
 
   // Show loading screen while mounting - prevents hydration issues
   if (!hasMounted) {
+    console.log('🟠 [DIAGNOSTIC] hasMounted is FALSE, showing boot screen')
     return (
-      <div className="min-h-screen bg-[#0a0712] flex items-center justify-center" suppressHydrationWarning={true}>
+      <div className="min-h-screen bg-red-900 p-10 text-white flex items-center justify-center" suppressHydrationWarning={true}>
         <div className="text-center">
           <Loader2 className="w-10 h-10 text-purple-500 animate-spin mx-auto mb-4" />
-          <p className="text-white/60 text-sm">Loading dashboard...</p>
+          <p className="text-xl font-bold mb-2">System Booting...</p>
+          <p className="text-sm text-white/70">(If stuck, check console)</p>
         </div>
       </div>
     )
   }
 
+  console.log('✅ [DIAGNOSTIC] hasMounted is TRUE, proceeding to render')
+
   // Show auth loading state
   if (!demoMode && (authLoading || !authChecked)) {
+    console.log('🟠 [DIAGNOSTIC] Auth loading/waiting, showing loading screen', { demoMode, authLoading, authChecked })
     return (
       <div className="min-h-screen bg-[#0a0712] flex items-center justify-center" suppressHydrationWarning={true}>
         <div className="text-center">
@@ -1678,6 +1695,8 @@ export default function LuxTradeDashboard() {
       </div>
     )
   }
+
+  console.log('✅ [DIAGNOSTIC] Auth checks passed, rendering main content')
 
   return (
     <div className="min-h-screen bg-[#0a0712] text-white flex" suppressHydrationWarning={true}>
