@@ -43,9 +43,9 @@ export async function POST(request: NextRequest) {
     console.log('✅ User found:', user.email)
 
     // ========================================
-    // STEP 2: Delete or deactivate subscriptions in Prisma
+    // STEP 2: DELETE subscriptions from Prisma
     // ========================================
-    console.log('📋 Step 2: Canceling subscriptions...')
+    console.log('📋 Step 2: Deleting subscriptions from Prisma...')
     const activeSubscriptions = await db.userSubscription.findMany({
       where: {
         userId,
@@ -57,14 +57,10 @@ export async function POST(request: NextRequest) {
 
     if (activeSubscriptions.length > 0) {
       for (const sub of activeSubscriptions) {
-        await db.userSubscription.update({
-          where: { id: sub.id },
-          data: {
-            isActive: false,
-            adminNote: `${sub.adminNote || ''} (Cancelled by admin)`
-          }
+        await db.userSubscription.delete({
+          where: { id: sub.id }
         })
-        console.log(`   Deactivated subscription: ${sub.id}`)
+        console.log(`   Deleted subscription: ${sub.id}`)
       }
     }
 
