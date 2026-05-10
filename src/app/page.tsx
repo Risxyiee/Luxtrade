@@ -444,7 +444,7 @@ function LifetimeUltraCard({ onButtonClick }: { onButtonClick: () => void }) {
         <CardContent className="p-6 pt-8">
           <div className="text-sm text-amber-400 mb-1">Lifetime Ultra</div>
           <div className="text-4xl font-bold text-white mb-1">
-            Rp 100.000
+            Rp 52.000
             <span className="text-base font-normal text-white/40"> /lifetime</span>
           </div>
           {slotsInfo && (
@@ -971,7 +971,7 @@ export default function LuxTradeLanding() {
         </div>
       </section>
 
-      {/* Pricing - 3 Paket: Free, Elite Pro Rp 49.000, dan Lifetime Ultra Rp 100.000 */}
+      {/* Pricing - 3 Paket: Free, Elite Pro Rp 49.000, dan Lifetime Ultra Rp 52.000 */}
       <section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/5 to-transparent">
         <div className="max-w-6xl mx-auto">
           <motion.div
