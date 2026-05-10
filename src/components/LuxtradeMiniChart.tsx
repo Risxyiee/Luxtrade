@@ -181,13 +181,20 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
       setChartError(false)
 
       // Use forex API for all forex symbols
-      const res = await fetch(`/api/forex?symbol=${symbol}&interval=${interval}&limit=50`)
+      const apiUrl = `/api/forex?symbol=${symbol}&interval=${interval}&limit=50`
+      console.log('[LUXCHART] Fetching from:', apiUrl)
+
+      const res = await fetch(apiUrl)
+
+      console.log('[LUXCHART] Response status:', res.status)
 
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`)
       }
 
       const response = await res.json()
+      console.log('[LUXCHART] API response:', response)
+
       const klines = response?.data || response || []
 
       if (!Array.isArray(klines) || klines.length === 0) {

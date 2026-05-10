@@ -78,8 +78,10 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
 
       const response = await fetch(apiUrl)
 
+      console.log(`📡 API Response status: ${response.status}`)
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch data from Forex API`)
+        throw new Error(`Failed to fetch data from Forex API (HTTP ${response.status})`)
       }
 
       const result = await response.json()
