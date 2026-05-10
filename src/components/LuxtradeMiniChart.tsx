@@ -37,7 +37,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false }: LuxtradeM
   const [priceChange, setPriceChange] = useState(0)
   const [chartError, setChartError] = useState(false)
 
-  const symbol = 'XAUUSD'
+  const symbol = 'BTCUSDT' // Changed from XAUUSD (not supported by Binance)
   const interval = '1h'
 
   // Component mount guard
@@ -359,7 +359,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false }: LuxtradeM
       <div className="flex items-center justify-between px-4 py-3 bg-black/20 border-b border-purple-500/10">
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 text-purple-400" />
-          <span className="text-sm font-semibold text-white">XAU/USD</span>
+          <span className="text-sm font-semibold text-white">BTC/USD</span>
         </div>
         {loading ? (
           <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
