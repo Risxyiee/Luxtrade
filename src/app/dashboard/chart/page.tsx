@@ -240,7 +240,7 @@ export default function LuxtradeChart() {
             Luxtrade Indicator
           </h1>
           <p className="text-white/60">
-            80% Momentum Trading Signals - {selectedSymbol} ({selectedInterval})
+            Real-time Trading Chart - {selectedSymbol} ({selectedInterval})
           </p>
         </div>
 
@@ -288,68 +288,13 @@ export default function LuxtradeChart() {
         </div>
 
         {/* Chart */}
-        <Card className="bg-white/[0.02] border-white/[0.05] mb-6">
+        <Card className="bg-white/[0.02] border-white/[0.05]">
           <CardContent className="p-0">
             <div
               ref={chartContainerRef}
               className="w-full"
               style={{ height: '500px' }}
             />
-          </CardContent>
-        </Card>
-
-        {/* Signals */}
-        <Card className="bg-white/[0.02] border-white/[0.05]">
-          <CardHeader>
-            <CardTitle>Trading Signals</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-4 mb-4">
-              <Badge className="bg-emerald-500/20 text-emerald-400">
-                BUY: {signals.filter(s => s.type === 'BUY').length}
-              </Badge>
-              <Badge className="bg-red-500/20 text-red-400">
-                SELL: {signals.filter(s => s.type === 'SELL').length}
-              </Badge>
-              <Badge className="bg-purple-500/20 text-purple-400">
-                Total: {signals.length}
-              </Badge>
-            </div>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {signals.length === 0 ? (
-                <p className="text-center text-white/40 py-8">No signals found</p>
-              ) : (
-                signals.slice().reverse().map((signal, index) => (
-                  <div
-                    key={`${signal.time}-${index}`}
-                    className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.05]"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Badge
-                        className={
-                          signal.type === 'BUY'
-                            ? 'bg-emerald-500/20 text-emerald-400'
-                            : 'bg-red-500/20 text-red-400'
-                        }
-                      >
-                        {signal.type}
-                      </Badge>
-                      <div>
-                        <div className="text-sm font-medium">
-                          {signal.type === 'BUY' ? 'Long' : 'Short'} @ {signal.price}
-                        </div>
-                        <div className="text-xs text-white/40">
-                          Body: {signal.bodyPercent}% | Lookback H: {signal.lookbackHigh} | L: {signal.lookbackLow}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-xs text-white/40">
-                      {new Date(Number(signal.time) * 1000).toLocaleString()}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
           </CardContent>
         </Card>
       </div>
