@@ -106,7 +106,7 @@ export default function AdminSubscriptionsPanel() {
   // Activate Pro dialog state
   const [activateProDialogOpen, setActivateProDialogOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [selectedPlanForActivation, setSelectedPlanForActivation] = useState('')
+  const [selectedPlanForActivation, setSelectedPlanForActivation] = useState<string | null>(null)
   const [isSyncing, setIsSyncing] = useState(false)
 
   const handleSyncAuthUsers = async () => {
@@ -268,7 +268,13 @@ export default function AdminSubscriptionsPanel() {
   }
 
   const handleActivatePro = async () => {
+    console.log('🎯 handleActivatePro called')
+    console.log('   selectedUser:', selectedUser?.email)
+    console.log('   selectedPlanForActivation:', selectedPlanForActivation)
+    console.log('   selectedPlanForActivation type:', typeof selectedPlanForActivation)
+
     if (!selectedUser || !selectedPlanForActivation) {
+      console.log('❌ Cannot activate - missing user or plan')
       alert('Please select a plan')
       return
     }
@@ -278,6 +284,8 @@ export default function AdminSubscriptionsPanel() {
 
       // Determine plan type based on plan
       const plan = plans.find(p => p.id === selectedPlanForActivation)
+      console.log('📋 Found plan:', plan)
+
       let planType: 'MONTHLY' | 'YEARLY' | 'LIFETIME' = 'MONTHLY'
 
       if (plan?.isLifetime) {
@@ -309,7 +317,7 @@ export default function AdminSubscriptionsPanel() {
         fetchData()
         setActivateProDialogOpen(false)
         setSelectedUser(null)
-        setSelectedPlanForActivation('')
+        setSelectedPlanForActivation(null)
 
         // Show success notification
         alert(`✅ User Berhasil Diaktifkan!\n\n${data.message || ''}${data.supabaseProfileUpdated ? '\n✅ Supabase profile updated' : ''}`)
@@ -331,8 +339,9 @@ export default function AdminSubscriptionsPanel() {
 
   const openActivateProDialog = (user: User) => {
     setSelectedUser(user)
-    setSelectedPlanForActivation('')
+    setSelectedPlanForActivation(null)
     setActivateProDialogOpen(true)
+    console.log('🔄 Activate Pro dialog opened for user:', user.email)
   }
 
   const handleActivate = async (id: string) => {
@@ -1032,7 +1041,7 @@ export default function AdminSubscriptionsPanel() {
 
         {/* Activate Pro Dialog */}
         <Dialog open={activateProDialogOpen} onOpenChange={setActivateProDialogOpen}>
-          <DialogContent className="bg-[#1a0f2e] border-white/10 text-white">
+          <DialogContent className="bg-[#1a0f2e] border-white/10 text-white relative z-50 pointer-events-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Crown className="w-5 h-5 text-amber-400" />
@@ -1048,7 +1057,13 @@ export default function AdminSubscriptionsPanel() {
 
                 <div>
                   <Label htmlFor="plan">Select Plan *</Label>
-                  <Select value={selectedPlanForActivation} onValueChange={setSelectedPlanForActivation}>
+                  <Select
+                    value={selectedPlanForActivation || undefined}
+                    onValueChange={(value) => {
+                      console.log('✅ Plan selected:', value)
+                      setSelectedPlanForActivation(value)
+                    }}
+                  >
                     <SelectTrigger className="bg-white/5 border-white/10">
                       <SelectValue placeholder="Select a plan" />
                     </SelectTrigger>
@@ -1102,7 +1117,11 @@ export default function AdminSubscriptionsPanel() {
 
                 <div className="flex gap-2">
                   <Button
-                    onClick={handleActivatePro}
+                    onClick={(e) => {
+                      console.log('🎯 Activate Now button clicked!')
+                      console.log('   Current selectedPlan:', selectedPlanForActivation)
+                      handleActivatePro()
+                    }}
                     className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                     disabled={!selectedPlanForActivation}
                   >
