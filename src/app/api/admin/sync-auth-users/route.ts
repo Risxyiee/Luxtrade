@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { db } from '@/lib/db'
+import { PrismaClient } from '@prisma/client'
 
 // Sync logic - shared by GET and POST
 async function performSync() {
@@ -10,6 +11,8 @@ async function performSync() {
       NODE_ENV: process.env.NODE_ENV,
       SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'NOT SET',
       SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET',
+      DATABASE_URL: process.env.DATABASE_URL ? 'SET (Length: ' + process.env.DATABASE_URL.length + ')' : 'NOT SET',
+      DATABASE_URL_STARTS_WITH: process.env.DATABASE_URL?.startsWith('postgres') ? 'postgres://...' : 'OTHER',
     })
 
     // Check if supabaseAdmin is available
@@ -160,6 +163,36 @@ async function performSync() {
 
 // GET to sync all Supabase Auth users to Prisma (PUBLIC ACCESS - no auth required)
 export async function GET(request: NextRequest) {
+  console.log('📥 GET /api/admin/sync-auth-users')
+
+  // Force fresh Prisma client
+  const freshDb = new PrismaClient({
+    log: ['query', 'error', 'warn'],
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL
+      }
+    }
+  })
+
+  // Test database connection
+  try {
+    console.log('🔍 Testing database connection...')
+    const testResult = await freshDb.$queryRaw`SELECT 1 as test`
+    console.log('✅ Database connection successful:', testResult)
+  } catch (dbError) {
+    console.error('❌ Database connection FAILED:', dbError)
+    return NextResponse.json({
+      error: 'Database connection failed',
+      details: String(dbError),
+      databaseUrl: process.env.DATABASE_URL ? `SET (starts with: ${process.env.DATABASE_URL.substring(0, 30)}...)` : 'NOT SET'
+    }, { status: 500 })
+  }
+
+  // Replace db with fresh instance
+  const originalDb = db
+  Object.assign(db, freshDb)
+
   const result = await performSync()
 
   if (result.error) {
@@ -171,6 +204,32 @@ export async function GET(request: NextRequest) {
 
 // POST to sync all Supabase Auth users to Prisma (for Admin Panel)
 export async function POST(request: NextRequest) {
+  console.log('📥 POST /api/admin/sync-auth-users')
+
+  // Force fresh Prisma client
+  const freshDb = new PrismaClient({
+    log: ['query', 'error', 'warn'],
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL
+      }
+    }
+  })
+
+  // Test database connection
+  try {
+    console.log('🔍 Testing database connection...')
+    const testResult = await freshDb.$queryRaw`SELECT 1 as test`
+    console.log('✅ Database connection successful:', testResult)
+  } catch (dbError) {
+    console.error('❌ Database connection FAILED:', dbError)
+    return NextResponse.json({
+      error: 'Database connection failed',
+      details: String(dbError),
+      databaseUrl: process.env.DATABASE_URL ? `SET (starts with: ${process.env.DATABASE_URL.substring(0, 30)}...)` : 'NOT SET'
+    }, { status: 500 })
+  }
+
   const result = await performSync()
 
   if (result.error) {
