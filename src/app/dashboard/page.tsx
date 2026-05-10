@@ -39,6 +39,7 @@ import QuickStats from '@/components/QuickStats'
 import WelcomeOnboarding from '@/components/WelcomeOnboarding'
 import { formatCurrency } from '@/lib/supabase'
 import ChartTab from '@/components/ChartTab'
+import LuxtradeMiniChart from '@/components/LuxtradeMiniChart'
 
 // ==================== DEMO DATA ====================
 const demoTrades: Trade[] = [
@@ -1993,9 +1994,9 @@ export default function LuxTradeDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <DashboardTab 
-                  analytics={analytics} 
-                  trades={trades} 
+                <DashboardTab
+                  analytics={analytics}
+                  trades={trades}
                   journalEntries={journalEntries}
                   loading={loading}
                   setAddTradeOpen={setAddTradeOpen}
@@ -2007,6 +2008,7 @@ export default function LuxTradeDashboard() {
                   chartAnimated={chartAnimated}
                   demoMode={demoMode}
                   language={language}
+                  isPro={isPro}
                 />
               </motion.div>
             )}
@@ -3646,11 +3648,11 @@ function calculateConsecutiveStreaks(trades: Trade[], type: 'win' | 'lose'): num
 }
 
 // ==================== DASHBOARD TAB ====================
-function DashboardTab({ 
-  analytics, 
-  trades, 
+function DashboardTab({
+  analytics,
+  trades,
   journalEntries,
-  loading, 
+  loading,
   setAddTradeOpen,
   onSeedData,
   seeding,
@@ -3659,8 +3661,9 @@ function DashboardTab({
   onDelete,
   chartAnimated,
   demoMode,
-  language
-}: { 
+  language,
+  isPro
+}: {
   analytics: Analytics | null
   trades: Trade[]
   journalEntries: JournalEntry[]
@@ -3674,6 +3677,7 @@ function DashboardTab({
   chartAnimated: boolean
   demoMode: boolean
   language: 'id' | 'en'
+  isPro: boolean
 }) {
   if (loading) {
     return (
@@ -3829,6 +3833,15 @@ function DashboardTab({
           <QuickStats trades={trades} analytics={analytics} language={language} />
         </motion.div>
       )}
+
+      {/* Luxtrade Mini Chart - 80% Momentum Signals */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.14 }}
+      >
+        <LuxtradeMiniChart isPro={isPro} demoMode={demoMode} />
+      </motion.div>
 
       {/* Session Performance Chart */}
       {hasData && analytics?.sessionPerformance && (
