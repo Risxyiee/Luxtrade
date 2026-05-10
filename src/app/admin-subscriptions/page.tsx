@@ -103,6 +103,7 @@ export default function AdminSubscriptionsPanel() {
   const [newSubscriptionDialogOpen, setNewSubscriptionDialogOpen] = useState(false)
   const [newUserDialogOpen, setNewUserDialogOpen] = useState(false)
   const [isRealTimeConnected, setIsRealTimeConnected] = useState(false)
+  const [cancellingUserId, setCancellingUserId] = useState<string | null>(null)
 
   // Edit form state
   const [editEndDate, setEditEndDate] = useState('')
@@ -227,7 +228,7 @@ export default function AdminSubscriptionsPanel() {
     const interval = setInterval(() => {
       fetchData().catch(err => console.error('Polling error:', err))
       setIsRealTimeConnected(true)
-    }, 10000)
+    }, 3000)
 
     return () => clearInterval(interval)
   }, [fetchData])
@@ -469,6 +470,7 @@ export default function AdminSubscriptionsPanel() {
   const handleCancelSubscription = async (userId: string) => {
     if (!confirm('Are you sure you want to cancel this subscription?')) return
 
+    setCancellingUserId(userId)
     try {
       const res = await fetch('/api/admin/cancel-subscription', {
         method: 'POST',
@@ -478,7 +480,7 @@ export default function AdminSubscriptionsPanel() {
 
       if (res.ok) {
         window.alert('✅ Paket Berhasil Dibatalkan!')
-        fetchData()
+        await fetchData()
       } else {
         const errorData = await res.json()
         alert(`Failed: ${errorData.error}`)
@@ -486,6 +488,8 @@ export default function AdminSubscriptionsPanel() {
     } catch (error) {
       console.error('Error cancelling subscription:', error)
       alert('Failed to cancel subscription')
+    } finally {
+      setCancellingUserId(null)
     }
   }
 
@@ -755,9 +759,14 @@ export default function AdminSubscriptionsPanel() {
                                     variant="outline"
                                     onClick={() => handleCancelSubscription(user.id)}
                                     className="h-10 sm:h-10 hover:bg-red-500/20 hover:text-red-400 text-xs sm:text-sm"
+                                    disabled={cancellingUserId === user.id}
                                   >
-                                    <XCircle className="w-3 h-3 mr-1" />
-                                    Cancel
+                                    {cancellingUserId === user.id ? (
+                                      <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                                    ) : (
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                    )}
+                                    {cancellingUserId === user.id ? 'Cancelling...' : 'Cancel'}
                                   </Button>
                                   <Button
                                     size="sm"
