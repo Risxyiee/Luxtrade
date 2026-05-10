@@ -22,9 +22,10 @@ interface LuxtradeMiniChartProps {
   isPro: boolean
   demoMode?: boolean
   interval?: string
+  symbol?: string  // Added symbol prop
 }
 
-export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = '15m' }: LuxtradeMiniChartProps) {
+export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = '15m', symbol = 'XAUUSD' }: LuxtradeMiniChartProps) {
   // Refs for chart and data - NO re-renders from these
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi<'UTCTimestamp'> | null>(null)
@@ -45,8 +46,6 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
   const [uiPrice, setUiPrice] = useState<number | null>(null)  // UI-specific price state
   const [uiPriceChange, setUiPriceChange] = useState(0)  // UI-specific price change state
   const [uiSignals, setUiSignals] = useState<Signal[]>([])  // UI-specific signals state
-
-  const symbol = 'BTCUSDT'
 
   // Component mount guard - runs ONCE
   useEffect(() => {
@@ -181,7 +180,8 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
       setLoading(true)
       setChartError(false)
 
-      const res = await fetch(`/api/chart/klines?symbol=${symbol}&interval=${interval}&limit=50`)
+      // Use forex API for all forex symbols
+      const res = await fetch(`/api/forex?symbol=${symbol}&interval=${interval}&limit=50`)
 
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`)
@@ -352,7 +352,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
       <div className="flex items-center justify-between px-4 py-3 bg-black/20 border-b border-purple-500/10">
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 text-purple-400" />
-          <span className="text-sm font-semibold text-white">BTC/USD ({interval})</span>
+          <span className="text-sm font-semibold text-white">{symbol} ({interval})</span>
         </div>
         {loading ? (
           <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />

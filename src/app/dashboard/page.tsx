@@ -4039,6 +4039,7 @@ function DashboardTab({
               isPro={isPro}
               demoMode={demoMode}
               interval={currentActiveTF}
+              symbol="XAUUSD"
             />
           </ChartErrorBoundary>
         )}
