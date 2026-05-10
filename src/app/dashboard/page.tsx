@@ -38,6 +38,7 @@ import ActivityFeed from '@/components/ActivityFeed'
 import QuickStats from '@/components/QuickStats'
 import WelcomeOnboarding from '@/components/WelcomeOnboarding'
 import { formatCurrency } from '@/lib/supabase'
+import ChartTab from '@/components/ChartTab'
 
 // ==================== DEMO DATA ====================
 const demoTrades: Trade[] = [
@@ -157,13 +158,14 @@ const menuItems = [
   { id: 'calendar', label: 'Calendar', labelId: 'Kalender', icon: Calendar, category: 'utama', proOnly: false },
   { id: 'journal', label: 'Journal', labelId: 'Jurnal', icon: BookOpen, category: 'utama', proOnly: false },
   { id: 'watchlist', label: 'Watchlist', labelId: 'Daftar Pantauan', icon: Eye, category: 'utama', proOnly: false },
+  { id: 'chart', label: 'Trading Chart', labelId: 'Chart Trading', icon: TrendingUp, category: 'utama', proOnly: false },
   { id: 'news', label: 'Market News', labelId: 'Berita Pasar', icon: Newspaper, category: 'utama', proOnly: false },
   { id: 'economic-calendar', label: 'Economic Calendar', labelId: 'Kalender Ekonomi', icon: CalendarDays, category: 'utama', proOnly: false },
-  
+
   // ALAT - PRO Emas
   { id: 'risk', label: 'Risk Calculator', labelId: 'Kalkulator Risiko', icon: Target, category: 'alat', proOnly: true, proType: 'gold' },
   { id: 'heatmap', label: 'Market Heatmap', labelId: 'Pasar Heatmap', icon: Grid3X3, category: 'alat', proOnly: true, proType: 'gold' },
-  
+
   // LANJUTAN - PRO Ungu
   { id: 'analytics', label: 'Analytics', labelId: 'Analitik', icon: PieChart, category: 'lanjutan', proOnly: true, proType: 'purple' },
   { id: 'targets', label: 'Targets', labelId: 'Target', icon: Target, category: 'lanjutan', proOnly: true, proType: 'purple' },
@@ -2055,12 +2057,23 @@ export default function LuxTradeDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <WatchlistTab 
+                <WatchlistTab
                   items={watchlistItems}
                   loading={loading}
                   onAdd={() => setAddWatchlistOpen(true)}
                   onDelete={handleDeleteWatchlist}
                 />
+              </motion.div>
+            )}
+            {activeTab === 'chart' && (
+              <motion.div
+                key="chart"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <ChartTab isPro={isPro} />
               </motion.div>
             )}
             {activeTab === 'analytics' && (
