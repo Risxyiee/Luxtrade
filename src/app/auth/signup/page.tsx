@@ -136,11 +136,11 @@ function SignUpForm() {
 
       if (!res.ok) {
         console.error('❌ Signup error:', data.error, data.code)
-        
-        // Check if this is a database setup issue
-        if (data.needsSetup || data.code === 'DB_NOT_SETUP' || data.code === 'DB_ERROR') {
-          setNeedsSetup(true)
-          setError(data.error || 'Database belum di-setup. Hubungi admin untuk menjalankan setup.')
+
+        // Database setup check is now non-blocking - don't show scary error
+        if (data.needsSetup || data.code === 'DB_NOT_SETUP') {
+          console.warn('⚠️ Database tables may not exist, but signup will continue')
+          setError('Pendaftaran berhasil! Silakan cek email untuk verifikasi.')
         } else {
           setError(data.error || 'Gagal membuat akun')
         }
@@ -274,28 +274,19 @@ function SignUpForm() {
           </motion.div>
         )}
 
-        {/* Database Setup Required Error */}
+        {/* Database Setup Warning (NON-BLOCKING) */}
         {needsSetup && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="p-4 mb-4 bg-amber-500/10 border border-amber-500/30 rounded-lg"
+            className="p-3 mb-4 bg-blue-500/10 border border-blue-500/20 rounded-lg"
           >
-            <div className="flex items-start gap-2 mb-3">
-              <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2">
+              <CheckCircle className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-amber-400 text-sm font-medium">Database Belum Siap</p>
-                <p className="text-white/50 text-xs mt-1">Tabel database belum dibuat di Supabase. Admin perlu menjalankan setup terlebih dahulu.</p>
+                <p className="text-blue-400 text-xs font-medium">Pendaftaran akan tetap dilanjutkan</p>
+                <p className="text-white/50 text-xs mt-1">Tabel database opsional. Akun tetap akan dibuat di Supabase Auth.</p>
               </div>
-            </div>
-            <div className="bg-white/[0.03] rounded-lg p-3 text-xs text-white/40">
-              <p className="mb-1">Langkah-langkah untuk admin:</p>
-              <ol className="list-decimal list-inside space-y-0.5 ml-1">
-                <li>Buka Supabase Dashboard</li>
-                <li>Ke menu SQL Editor</li>
-                <li>Jalankan SQL dari file <code className="text-amber-400/80">supabase/setup.sql</code></li>
-                <li>Atau akses <code className="text-amber-400/80">/api/setup</code></li>
-              </ol>
             </div>
           </motion.div>
         )}

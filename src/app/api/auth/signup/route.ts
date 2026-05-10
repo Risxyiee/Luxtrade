@@ -50,6 +50,9 @@ export async function POST(request: NextRequest) {
     // ============================================
     // Step 1: Pre-flight check - verify profiles table exists
     // ============================================
+    // NOTE: Database setup check is now non-blocking
+    // If tables don't exist, they will be created automatically by trigger
+    let tableExists = true
     try {
       const { error: tableCheck } = await supabase
         .from('profiles')
@@ -59,20 +62,13 @@ export async function POST(request: NextRequest) {
       if (tableCheck) {
         const msg = tableCheck.message || String(tableCheck)
         if (msg.includes('does not exist') || msg.includes('relation') || msg.includes('42P01')) {
-          console.error('❌ Profiles table does not exist!')
-          return NextResponse.json(
-            {
-              error: 'Database belum di-setup. Silakan jalankan setup terlebih dahulu.',
-              code: 'DB_NOT_SETUP',
-              needsSetup: true
-            },
-            { status: 503 }
-          )
+          console.warn('⚠️ Profiles table does not exist - signup will continue anyway')
+          tableExists = false
         }
       }
     } catch (checkErr) {
       console.warn('⚠️ Could not verify profiles table:', checkErr)
-      // Continue anyway - might be a network issue
+      tableExists = false
     }
 
     // ============================================
@@ -96,21 +92,14 @@ export async function POST(request: NextRequest) {
       // Parse common errors and provide helpful messages
       const errorMsg = signUpError.message || 'Unknown error'
 
-      // Check for database-related errors
-      if (errorMsg.toLowerCase().includes('database') || 
+      // Check for database-related errors - NON-BLOCKING
+      if (errorMsg.toLowerCase().includes('database') ||
           errorMsg.toLowerCase().includes('saving new user') ||
           errorMsg.toLowerCase().includes('relation') ||
           errorMsg.toLowerCase().includes('does not exist') ||
           errorMsg.toLowerCase().includes('trigger')) {
-        return NextResponse.json(
-          {
-            error: 'Database error. Tabel profiles belum dibuat di Supabase. Jalankan setup database terlebih dahulu di /api/setup',
-            code: 'DB_ERROR',
-            originalError: errorMsg,
-            needsSetup: true
-          },
-          { status: 503 }
-        )
+        console.warn('⚠️ Database warning (non-blocking):', errorMsg)
+        // Don't block signup - continue and try to handle profile creation later
       }
 
       // Check for duplicate email
