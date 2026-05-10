@@ -622,7 +622,9 @@ export default function AdminSubscriptionsPanel() {
                     <Users className="w-5 h-5 text-purple-400" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold">{subscriptions.length}</div>
+                    <div className="text-2xl font-bold">
+                      {subscriptions.filter(s => s.isActive).length}
+                    </div>
                     <div className="text-xs text-white/40">Total Subscriptions</div>
                   </div>
                 </div>
@@ -651,7 +653,9 @@ export default function AdminSubscriptionsPanel() {
                   </div>
                   <div>
                     <div className="text-2xl font-bold">
-                      {subscriptions.reduce((sum, s) => sum + (s.amountPaid || 0), 0)}
+                      {subscriptions
+                        .filter(s => s.isActive && s.paymentStatus === 'completed')
+                        .reduce((sum, s) => sum + (s.amountPaid || 0), 0)}
                     </div>
                     <div className="text-xs text-white/40">Total Revenue</div>
                   </div>
