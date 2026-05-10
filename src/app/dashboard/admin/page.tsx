@@ -41,15 +41,8 @@ interface UserProfile {
   subscription_until: string | null
   created_at: string
   device_id: string | null
-  my_referral_code: string | null
-  referred_by_code: string | null
-  referred_by: { email: string; name: string | null } | null
-  affiliate_balance: number
-  referral_status: string | null
   has_ever_been_pro: boolean
-  commission_paid: boolean
-  has_duplicate_device: boolean
-  referral_code_changes: number
+  created_at: string
 }
 
 // Traffic analytics types
@@ -1013,23 +1006,6 @@ export default function AdminPanel() {
                           <li>• <span className="text-emerald-400">Active PRO</span>: Full access to all features</li>
                           <li>• <span className="text-red-400">Expired</span>: Auto-locks to FREE limits</li>
                           <li>• <span className="text-white/40">FREE</span>: Limited to 5 trades max</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="bg-[#1a0f2e]/50 border-purple-500/20 backdrop-blur-sm">
-                  <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      <div className="p-2 rounded-lg bg-yellow-500/20"><Wallet className="w-5 h-5 text-yellow-400" /></div>
-                      <div>
-                        <h3 className="text-white font-semibold mb-2">Affiliate System</h3>
-                        <ul className="text-white/60 text-sm space-y-1">
-                          <li>• Pro Price: <span className="text-yellow-400">Rp 49.000</span></li>
-                          <li>• Commission: <span className="text-yellow-400">30% (Rp 14.700)</span></li>
-                          <li>• Only for <span className="text-emerald-400">first-time PRO</span> activation</li>
-                          <li>• <span className="text-red-400">DUPLICATE</span> = Same device detected</li>
-                          <li>• <span className="text-red-400">FRAUD</span> = Self-referral detected</li>
                         </ul>
                       </div>
                     </div>

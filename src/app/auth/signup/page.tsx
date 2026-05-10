@@ -5,10 +5,9 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useSearchParams } from 'next/navigation'
-import { 
-  Crown, Mail, Lock, Eye, EyeOff, ArrowRight, 
-  AlertCircle, Loader2, User, CheckCircle, Gift
+import {
+  Crown, Mail, Lock, Eye, EyeOff, ArrowRight,
+  AlertCircle, Loader2, User, CheckCircle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -66,32 +65,23 @@ function generateDeviceId(): string {
 // ============================================
 function SignUpForm() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [referralCode, setReferralCode] = useState('')
   const [deviceId, setDeviceId] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const [userReferralCode, setUserReferralCode] = useState('')
   const [needsSetup, setNeedsSetup] = useState(false)
 
   // ============================================
-  // Get referral code from URL and generate device ID
+  // Generate device ID
   // ============================================
   useEffect(() => {
-    // Get referral code from URL (e.g., ?ref=LUXABC)
-    const ref = searchParams.get('ref') || searchParams.get('referral')
-    if (ref) {
-      setReferralCode(ref.toUpperCase())
-    }
-    
     // Generate device fingerprint
     setDeviceId(generateDeviceId())
-  }, [searchParams])
+  }, [])
 
   // Password strength check
   const hasMinLength = password.length >= 8
@@ -113,13 +103,12 @@ function SignUpForm() {
     console.log('🚀 SIGNUP ATTEMPT ===============')
     console.log('👤 Full Name:', fullName)
     console.log('📧 Email:', email)
-    console.log('🔑 Referral Code:', referralCode || 'None')
     console.log('📱 Device ID:', deviceId)
     console.log('================================')
 
     try {
       // Call our API instead of directly using Supabase
-      // This handles referral code and device tracking
+      // This handles device tracking
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -127,7 +116,6 @@ function SignUpForm() {
           email,
           password,
           fullName,
-          referralCode: referralCode || null,
           deviceId: deviceId || null
         })
       })
@@ -150,9 +138,6 @@ function SignUpForm() {
 
       // Success!
       console.log('✅ User created:', data.user?.id)
-      if (data.user?.referralCode) {
-        setUserReferralCode(data.user.referralCode)
-      }
       setSuccess(true)
       
       // Redirect to dashboard after delay
@@ -187,16 +172,7 @@ function SignUpForm() {
           <p className="text-amber-400 font-semibold text-lg mb-4">
             {email}
           </p>
-          
-          {/* Show user's referral code */}
-          {userReferralCode && (
-            <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4 mb-4">
-              <p className="text-purple-400 text-sm font-medium mb-2">🎁 Kode Referral Kamu:</p>
-              <p className="text-2xl font-bold text-white font-mono">{userReferralCode}</p>
-              <p className="text-white/40 text-xs mt-1">Bagikan kode ini dan dapatkan komisi 30%!</p>
-            </div>
-          )}
-          
+
           <div className="bg-white/[0.03] rounded-lg p-4 mb-6">
             <p className="text-white/30 text-xs">
               💡 <strong className="text-white/50">Tips:</strong> Tidak menerima email? Cek folder spam atau promosi.
@@ -246,21 +222,6 @@ function SignUpForm() {
           <h1 className="text-2xl font-bold text-white mb-2">Buat Akun Gratis</h1>
           <p className="text-white/40 text-sm">Mulai tracking trading Anda hari ini</p>
         </div>
-
-        {/* Referral Bonus Banner */}
-        {referralCode && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-3 p-3 mb-4 bg-purple-500/10 border border-purple-500/30 rounded-lg"
-          >
-            <Gift className="w-5 h-5 text-purple-400 flex-shrink-0" />
-            <div>
-              <p className="text-purple-400 text-sm font-medium">🎁 Referral Bonus!</p>
-              <p className="text-white/60 text-xs">Kode <span className="text-white font-mono">{referralCode}</span> akan memberikan bonus</p>
-            </div>
-          </motion.div>
-        )}
 
         {/* Error Message */}
         {error && !needsSetup && (
@@ -372,26 +333,6 @@ function SignUpForm() {
             )}
           </div>
 
-          {/* Referral Code (Optional) */}
-          <div className="space-y-2">
-            <Label htmlFor="referralCode" className="text-white/70 text-sm">
-              Kode Referral <span className="text-white/40">(opsional)</span>
-            </Label>
-            <div className="relative">
-              <Gift className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
-              <Input
-                id="referralCode"
-                type="text"
-                placeholder="LUXXXX"
-                value={referralCode}
-                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-                maxLength={15}
-                className="pl-10 h-12 bg-white/[0.03] border-white/10 text-white placeholder:text-white/30 focus:border-purple-500/50 focus:ring-purple-500/20 font-mono uppercase"
-              />
-            </div>
-            <p className="text-white/30 text-xs">Punya kode referral? Dapatkan bonus saat upgrade PRO!</p>
-          </div>
-
           {/* Terms */}
           <p className="text-xs text-white/40">
             Dengan mendaftar, Anda menyetujui{' '}
@@ -437,17 +378,6 @@ function SignUpForm() {
             Sign in
           </Link>
         </p>
-      </div>
-
-      {/* Affiliate Info */}
-      <div className="mt-4 p-4 bg-purple-500/5 border border-purple-500/10 rounded-xl">
-        <div className="flex items-center gap-3">
-          <Gift className="w-5 h-5 text-purple-400" />
-          <div>
-            <p className="text-white/80 text-sm font-medium">🎁 Program Afiliasi</p>
-            <p className="text-white/40 text-xs">Ajak teman dan dapatkan komisi 30% (Rp14.700) untuk setiap upgrade PRO!</p>
-          </div>
-        </div>
       </div>
 
       {/* Back to Home */}
