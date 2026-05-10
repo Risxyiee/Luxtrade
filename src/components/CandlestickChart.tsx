@@ -29,24 +29,35 @@ export default function CandlestickChart({
   const seriesRef = useRef<ISeriesApi<'UTCTimestamp', CandlestickData> | null>(null)
   const handleResizeRef = useRef<(() => void) | null>(null)
   const [mounted, setMounted] = useState(false)
+  const isCreatedRef = useRef(false)  // Prevent recreation
 
+  // Mount only once
   useEffect(() => {
     setMounted(true)
   }, [])
 
+  // Create chart ONCE - empty dependency array
   useEffect(() => {
-    if (!mounted || !chartContainerRef.current) return
+    if (!mounted || isCreatedRef.current) return
+
+    const container = chartContainerRef.current
+    if (!container) {
+      console.warn('[CandlestickChart] Container ref is null')
+      return
+    }
+
+    if (!container.clientWidth) {
+      console.warn('[CandlestickChart] Container has no width, waiting...')
+      const timeout = setTimeout(() => {
+        console.log('[CandlestickChart] Retrying chart creation...')
+      }, 100)
+      return () => clearTimeout(timeout)
+    }
 
     let chart: IChartApi<'UTCTimestamp'> | null = null
     let series: ISeriesApi<'UTCTimestamp', CandlestickData> | null = null
 
     try {
-      const container = chartContainerRef.current
-      if (!container || !container.clientWidth) {
-        console.warn('Chart container not ready')
-        return
-      }
-
       console.log('[CandlestickChart] Creating chart with dimensions:', {
         width: container.clientWidth,
         height: 400
@@ -62,7 +73,7 @@ export default function CandlestickChart({
         width: container.clientWidth,
         height: 400,
         layout: {
-          background: { type: ColorType.Solid, color: '#0a0712' },
+          background: { type: ColorType.Solid, color: 'transparent' },
           textColor: '#ffffff',
         },
         grid: {
@@ -100,6 +111,7 @@ export default function CandlestickChart({
         },
         handleScroll: true,
         handleScale: true,
+        ...chartOptions
       })
 
       chartRef.current = chart
@@ -117,33 +129,13 @@ export default function CandlestickChart({
         borderUpColor: '#10b981',
         wickDownColor: '#ef4444',
         wickUpColor: '#10b981',
+        ...seriesOptions
       })
 
       seriesRef.current = series
+      isCreatedRef.current = true
 
-      // Validate and set data
-      if (data && data.length > 0) {
-        console.log('[CandlestickChart] Validating and setting data:', data.length, 'candles')
-
-        const validData = data.filter((kline: any) => {
-          return (
-            typeof kline.time === 'number' && kline.time > 0 &&
-            typeof kline.open === 'number' && kline.open > 0 &&
-            typeof kline.high === 'number' && kline.high > 0 &&
-            typeof kline.low === 'number' && kline.low > 0 &&
-            typeof kline.close === 'number' && kline.close > 0 &&
-            kline.high >= kline.low
-          )
-        }).sort((a, b) => a.time - b.time) // Ensure ascending order
-
-        if (validData.length === 0) {
-          console.error('[CandlestickChart] No valid data after filtering')
-          return
-        }
-
-        series.setData(validData)
-        console.log(`✅ Chart loaded with ${validData.length} candles`)
-      }
+      console.log('[CandlestickChart] ✅ Chart created successfully')
 
       // Handle resize
       const handleResize = () => {
@@ -156,7 +148,7 @@ export default function CandlestickChart({
       handleResizeRef.current = handleResize
       window.addEventListener('resize', handleResize)
     } catch (error) {
-      console.error('❌ Error creating chart:', error)
+      console.error('[CandlestickChart] ❌ Error creating chart:', error)
     }
 
     return () => {
@@ -165,7 +157,11 @@ export default function CandlestickChart({
         handleResizeRef.current = null
       }
       if (chart) {
-        chart.remove()
+        try {
+          chart.remove()
+        } catch (e) {
+          console.error('[CandlestickChart] Error removing chart:', e)
+        }
         chart = null
       }
       if (chartRef.current) {
@@ -174,12 +170,54 @@ export default function CandlestickChart({
       if (seriesRef.current) {
         seriesRef.current = null
       }
+      isCreatedRef.current = false
     }
-  }, [mounted, data, chartOptions, seriesOptions])
+  }, [mounted, chartOptions, seriesOptions]) // Only recreate on mount or options change, NOT on data change
+
+  // Update data when it changes - separate effect
+  useEffect(() => {
+    if (!mounted || !isCreatedRef.current || !seriesRef.current) {
+      console.log('[CandlestickChart] Skipping data update - chart not ready')
+      return
+    }
+
+    console.log('[CandlestickChart] Updating chart data...')
+
+    if (!data || data.length === 0) {
+      console.warn('[CandlestickChart] No data to update')
+      return
+    }
+
+    try {
+      // Validate and set data
+      console.log('[CandlestickChart] Validating and setting data:', data.length, 'candles')
+
+      const validData = data.filter((kline: any) => {
+        return (
+          typeof kline.time === 'number' && kline.time > 0 &&
+          typeof kline.open === 'number' && kline.open > 0 &&
+          typeof kline.high === 'number' && kline.high > 0 &&
+          typeof kline.low === 'number' && kline.low > 0 &&
+          typeof kline.close === 'number' && kline.close > 0 &&
+          kline.high >= kline.low
+        )
+      }).sort((a, b) => a.time - b.time) // Ensure ascending order
+
+      if (validData.length === 0) {
+        console.error('[CandlestickChart] No valid data after filtering')
+        return
+      }
+
+      seriesRef.current.setData(validData)
+      console.log(`✅ [CandlestickChart] Chart updated with ${validData.length} candles`)
+    } catch (error) {
+      console.error('[CandlestickChart] ❌ Error updating chart data:', error)
+    }
+  }, [mounted, data]) // Only update when data changes
 
   if (!mounted) {
     return (
-      <div className={containerClassName} style={{ height: '400px' }} suppressHydrationWarning={true}>
+      <div className={containerClassName} style={{ height: '400px', minHeight: '400px' }} suppressHydrationWarning={true}>
         <div className="flex items-center justify-center h-full">
           <div className="w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
         </div>
@@ -187,5 +225,12 @@ export default function CandlestickChart({
     )
   }
 
-  return <div ref={chartContainerRef} className={containerClassName} style={{ height: '400px' }} suppressHydrationWarning={true} />
+  return (
+    <div
+      ref={chartContainerRef}
+      className={containerClassName}
+      style={{ height: '400px', minHeight: '400px' }}
+      suppressHydrationWarning={true}
+    />
+  )
 }
