@@ -229,8 +229,29 @@ export default function CandlestickChart({
     <div
       ref={chartContainerRef}
       className={containerClassName}
-      style={{ height: '400px', minHeight: '400px' }}
+      style={{
+        height: '400px',
+        minHeight: '400px',
+        backgroundColor: '#0a0712',
+        position: 'relative'
+      }}
       suppressHydrationWarning={true}
-    />
+    >
+      {/* Debug info */}
+      {!seriesRef.current && mounted && (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          textAlign: 'center',
+          color: '#9ca3af',
+          padding: '20px'
+        }}>
+          <div className="w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+          <p>Initializing chart...</p>
+        </div>
+      )}
+    </div>
   )
 }
