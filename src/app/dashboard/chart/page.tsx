@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { createChart, IChartApi, ISeriesApi, CandlestickData, Time } from 'lightweight-charts'
+import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, ColorType } from 'lightweight-charts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -28,7 +28,7 @@ interface IndicatorResponse {
 export default function LuxtradeChart() {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
-  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
+  const seriesRef = useRef<ISeriesApi<'UTCTimestamp', CandlestickData> | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingData, setIsLoadingData] = useState(false)
   const [subscription, setSubscription] = useState<string>('FREE')
@@ -75,7 +75,7 @@ export default function LuxtradeChart() {
       width: container.clientWidth,
       height: container.clientHeight,
       layout: {
-        background: { color: '#0a0612' },
+        background: { type: ColorType.Solid, color: '#0a0612' },
         textColor: '#ffffff',
       },
       grid: {
