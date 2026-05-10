@@ -72,7 +72,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
     }, 15000)
 
     try {
-      const res = await fetch(`/api/chart/klines?symbol=${symbol}&interval=${interval}&limit=100`)
+      const res = await fetch(`/api/chart/klines?symbol=${symbol}&interval=${interval}&limit=50`)
       clearTimeout(timeoutId)  // Clear timeout on success
       console.log('[LuxtradeMiniChart] 📡 API status:', res.status, res.ok)
 
@@ -425,7 +425,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
         intervalRef.current = null
       }
     }
-  }, [mounted])  // Only depend on mounted, NOT on fetchKlines!
+  }, [mounted, interval, fetchKlines])  // Include interval and fetchKlines to handle interval changes
 
   // Return early if not mounted
   if (!mounted) {
