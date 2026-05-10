@@ -1,11 +1,29 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { RefreshCw, TrendingUp, Loader2, AlertTriangle } from 'lucide-react'
-import CandlestickChart from './CandlestickChart'
-import type { CandlestickData, Time } from 'lightweight-charts'
+
+// Import type for data
+interface CandlestickData {
+  time: number | string
+  open: number
+  high: number
+  low: number
+  close: number
+}
+
+// Dynamically import CandlestickChart with SSR disabled
+const CandlestickChart = dynamic(() => import('@/components/CandlestickChart'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center" style={{ height: '400px' }}>
+      <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+    </div>
+  )
+})
 
 interface ChartTabProps {
   isPro?: boolean
