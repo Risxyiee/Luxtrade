@@ -3,11 +3,12 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { 
-  TrendingUp, Activity, Calendar, BookOpen, Target, Grid3X3, 
-  PieChart, Brain, Heart, Lock, Play, Zap, X, Menu
+import {
+  TrendingUp, Activity, Calendar, BookOpen, Target, Grid3X3,
+  PieChart, Brain, Heart, Lock, Play, Zap, X, Menu, ShieldCheck
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuth } from '@/lib/auth-context'
 
 // ==================== MENU CONFIG ====================
 
@@ -16,7 +17,8 @@ interface MenuItem {
   labelId: string // Indonesian label (UTAMA)
   icon: React.ComponentType<{ className?: string }>
   proOnly: boolean
-  category: 'main' | 'tools' | 'advanced'
+  category: 'main' | 'tools' | 'advanced' | 'admin'
+  adminOnly?: boolean
 }
 
 const menuItems: MenuItem[] = [
@@ -33,6 +35,8 @@ const menuItems: MenuItem[] = [
   { id: 'goals', labelId: 'Target', icon: Target, proOnly: true, category: 'advanced' },
   { id: 'ai', labelId: 'Insight AI', icon: Brain, proOnly: true, category: 'advanced' },
   { id: 'psychology', labelId: 'Psikologi', icon: Heart, proOnly: true, category: 'advanced' },
+  // Admin - Admin Only
+  { id: 'verify-rewards', labelId: 'Verify Rewards', icon: ShieldCheck, proOnly: false, category: 'admin', adminOnly: true },
 ]
 
 // ==================== SIDEBAR COMPONENT ====================
@@ -66,8 +70,14 @@ export default function SidebarMewah({
   mobileSidebarOpen,
   setMobileSidebarOpen,
 }: SidebarMewahProps) {
-  
+  const { isAdmin } = useAuth()
+
   const handleMenuClick = (item: MenuItem) => {
+    // Check if user is admin for admin-only items
+    if (item.adminOnly && !isAdmin) {
+      return // Don't show or do anything for non-admin
+    }
+
     if (item.proOnly && !isPro) {
       setPaymentModalOpen(true)
     } else {
@@ -75,6 +85,13 @@ export default function SidebarMewah({
       setMobileSidebarOpen(false)
     }
   }
+
+  // Filter menu items based on user role
+  const visibleMenuItems = menuItems.filter(item => {
+    // Hide admin items for non-admin users
+    if (item.adminOnly && !isAdmin) return false
+    return true
+  })
 
   return (
     <aside className={`bg-[#0a0712]/98 backdrop-blur-xl border-r border-white/5 flex flex-col fixed h-full z-40 transition-all duration-300 
@@ -108,7 +125,7 @@ export default function SidebarMewah({
               <span className="text-[10px] font-bold text-white uppercase tracking-widest">UTAMA</span>
             </div>
           )}
-          {menuItems.filter(item => item.category === 'main').map((item) => (
+          {visibleMenuItems.filter(item => item.category === 'main').map((item) => (
             <motion.button
               key={item.id}
               onClick={() => {
@@ -141,7 +158,7 @@ export default function SidebarMewah({
               <span className="text-[8px] font-black bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded-full shadow-lg shadow-amber-500/30">PRO</span>
             </div>
           )}
-          {menuItems.filter(item => item.category === 'tools').map((item) => (
+          {visibleMenuItems.filter(item => item.category === 'tools').map((item) => (
             <motion.button
               key={item.id}
               onClick={() => handleMenuClick(item)}
@@ -180,7 +197,7 @@ export default function SidebarMewah({
               <span className="text-[8px] font-black bg-gradient-to-r from-purple-500 to-violet-500 text-white px-2 py-0.5 rounded-full shadow-lg shadow-purple-500/30">PRO</span>
             </div>
           )}
-          {menuItems.filter(item => item.category === 'advanced').map((item) => (
+          {visibleMenuItems.filter(item => item.category === 'advanced').map((item) => (
             <motion.button
               key={item.id}
               onClick={() => handleMenuClick(item)}
@@ -210,6 +227,41 @@ export default function SidebarMewah({
             </motion.button>
           ))}
         </div>
+
+        {/* ==================== ADMIN Section (ADMIN ONLY) ==================== */}
+        {isAdmin && visibleMenuItems.filter(item => item.category === 'admin').length > 0 && (
+          <div className="mb-3">
+            {sidebarOpen && (
+              <div className="px-3 py-2 flex items-center gap-2">
+                <span className="text-[10px] font-bold text-white uppercase tracking-widest">ADMIN</span>
+                <span className="text-[8px] font-black bg-gradient-to-r from-red-500 to-rose-500 text-white px-2 py-0.5 rounded-full shadow-lg shadow-red-500/30">ADMIN</span>
+              </div>
+            )}
+            {visibleMenuItems.filter(item => item.category === 'admin').map((item) => (
+              <motion.button
+                key={item.id}
+                onClick={() => handleMenuClick(item)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative ${
+                  activeTab === item.id
+                    ? 'bg-red-500/20 text-red-400 border-l-2 border-red-500'
+                    : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                }`}
+                whileHover={{ x: 2 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                {sidebarOpen && (
+                  <>
+                    <span className="text-sm font-medium flex-1 text-left">
+                      {item.labelId}
+                    </span>
+                    <ShieldCheck className="w-3.5 h-3.5 text-red-400" />
+                  </>
+                )}
+              </motion.button>
+            ))}
+          </div>
+        )}
       </nav>
 
       {/* Footer Section */}
