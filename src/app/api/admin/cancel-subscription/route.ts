@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     console.log('✅ User found:', user.email)
 
     // ========================================
-    // STEP 2: DELETE subscriptions from Prisma
+    // STEP 2: DELETE subscriptions from Prisma and return slots
     // ========================================
     console.log('📋 Step 2: Deleting subscriptions from Prisma...')
     const activeSubscriptions = await db.userSubscription.findMany({
@@ -57,6 +57,32 @@ export async function POST(request: NextRequest) {
 
     if (activeSubscriptions.length > 0) {
       for (const sub of activeSubscriptions) {
+        console.log(`   Deleting subscription: ${sub.id}, Plan: ${sub.planId}`)
+
+        // Get plan info to check if it has slots
+        const plan = await db.subscriptionPlan.findUnique({
+          where: { id: sub.planId }
+        })
+
+        // If plan has maxSlots, return the slot
+        if (plan && plan.maxSlots) {
+          console.log(`   Plan has maxSlots (${plan.maxSlots}), returning slot...`)
+          const slotTracking = await db.slotTracking.findUnique({
+            where: { planId: sub.planId }
+          })
+
+          if (slotTracking && slotTracking.usedSlots > 0) {
+            await db.slotTracking.update({
+              where: { id: slotTracking.id },
+              data: { usedSlots: slotTracking.usedSlots - 1 }
+            })
+            console.log(`   Slot returned: ${slotTracking.usedSlots} -> ${slotTracking.usedSlots - 1}`)
+          } else {
+            console.log(`   No slot tracking found or usedSlots is 0, skipping slot return`)
+          }
+        }
+
+        // Delete the subscription
         await db.userSubscription.delete({
           where: { id: sub.id }
         })
