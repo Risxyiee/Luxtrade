@@ -53,25 +53,43 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
 
   // Fetch klines and calculate indicators
   const fetchKlines = useCallback(async () => {
-    if (!mounted) return
+    if (!mounted) {
+      console.log('[LuxtradeMiniChart] Not mounted, skipping fetch')
+      return
+    }
 
+    console.log('[LuxtradeMiniChart] 🔄 Fetching klines...', { symbol, interval })
     setLoading(true)
     setChartError(false)
 
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.warn('[LuxtradeMiniChart] ⏱️ Fetch timeout after 15s')
+      setChartError(true)
+      setLoading(false)
+    }, 15000)
+
     try {
       const res = await fetch(`/api/chart/klines?symbol=${symbol}&interval=${interval}&limit=100`)
-      if (!res.ok) throw new Error('Failed to fetch klines')
+      clearTimeout(timeoutId)  // Clear timeout on success
+      console.log('[LuxtradeMiniChart] 📡 API status:', res.status, res.ok)
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+      }
 
       const response = await res.json()
-      console.log('[LuxtradeMiniChart] API response:', response)
+      console.log('[LuxtradeMiniChart] 📊 API response:', response)
 
       // Check if data exists in response
       const klines = response?.data || response || []
+      console.log('[LuxtradeMiniChart] 📈 Klines count:', klines.length)
 
       // Null/undefined check before processing
       if (!klines || !Array.isArray(klines) || klines.length === 0) {
-        console.error('[LuxtradeMiniChart] Invalid or empty klines data')
+        console.error('[LuxtradeMiniChart] ❌ Invalid or empty klines data:', klines)
         setChartError(true)
+        setLoading(false)
         return
       }
 
@@ -98,8 +116,9 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
 
       // Check if data is valid after filtering
       if (!klineData || klineData.length === 0) {
-        console.error('No valid kline data after filtering')
+        console.error('[LuxtradeMiniChart] ❌ No valid kline data after filtering')
         setChartError(true)
+        setLoading(false)
         return
       }
 
@@ -173,7 +192,8 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
         console.error('Error setting price:', priceError)
       }
     } catch (error) {
-      console.error('Failed to fetch klines:', error)
+      clearTimeout(timeoutId)  // Clear timeout on error
+      console.error('[LuxtradeMiniChart] ❌ Failed to fetch klines:', error)
       setChartError(true)
     } finally {
       setLoading(false)
@@ -273,6 +293,9 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
         wickUpColor: '#22c55e',
         wickDownColor: '#ef4444',
       })
+
+      console.log('[LuxtradeMiniChart] ✅ Chart created successfully')
+      console.log('[LuxtradeMiniChart] ✅ Series added successfully')
 
       chartRef.current = chart
       seriesRef.current = series
@@ -392,16 +415,18 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
 
   // Error state fallback
   if (chartError) {
+    console.log('[LuxtradeMiniChart] ⚠️ Showing error UI')
     return (
       <div className="w-full bg-gradient-to-br from-[#0f0b18] to-[#1a0f2e] border border-red-500/20 rounded-xl overflow-hidden h-[272px]">
         <div className="flex flex-col items-center justify-center h-full p-6 text-center">
           <Lock className="w-8 h-8 text-red-400 mb-2" />
           <p className="text-sm font-semibold text-white mb-1">Chart Error</p>
-          <p className="text-xs text-gray-300">
-            Unable to load trading chart
+          <p className="text-xs text-gray-300 mb-3">
+            Unable to load trading chart data. Check console for details.
           </p>
           <button
             onClick={() => {
+              console.log('[LuxtradeMiniChart] 🔄 Retrying...')
               setChartError(false)
               fetchKlines()
             }}
@@ -413,6 +438,8 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
       </div>
     )
   }
+
+  console.log('[LuxtradeMiniChart] 🎨 Rendering chart UI', { loading, chartError, dataLength: data.length, hasPrice: currentPrice !== null })
 
   return (
     <div className="w-full bg-gradient-to-br from-[#0f0b18] to-[#1a0f2e] border border-purple-500/20 rounded-xl overflow-hidden" suppressHydrationWarning={true}>
