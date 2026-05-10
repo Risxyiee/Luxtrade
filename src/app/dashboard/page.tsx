@@ -3788,9 +3788,9 @@ function DashboardTab({
   demoMode,
   language,
   isPro,
-  activeTF: defaultActiveTF = '15m',
-  setActiveTF: defaultSetActiveTF,
-  shouldDisableCharts: defaultShouldDisableCharts = false
+  activeTF: activeTFProp,
+  setActiveTF: setActiveTFProp,
+  shouldDisableCharts: shouldDisableChartsProp = false
 }: {
   analytics: Analytics | null
   trades: Trade[]
@@ -3810,20 +3810,24 @@ function DashboardTab({
   setActiveTF?: (tf: string) => void
   shouldDisableCharts?: boolean
 }) {
-  // Defensive: Use activeTF with default value
-  const currentActiveTF = activeTF ?? defaultActiveTF
+  // Use prop with safe default - avoid any reference to outer activeTF
+  const currentActiveTF = activeTFProp || '15m'
 
-  // Defensive: Use setActiveTF with safe wrapper
-  const handleSetActiveTF = defaultSetActiveTF
+  // Use setActiveTF with safe wrapper
+  const handleSetActiveTF = setActiveTFProp
     ? (tf: string) => {
-        if (defaultSetActiveTF) defaultSetActiveTF(tf)
+        try {
+          if (setActiveTFProp) setActiveTFProp(tf)
+        } catch (e) {
+          console.error('[DashboardTab] Error in setActiveTF:', e)
+        }
       }
     : () => {
         console.warn('[DashboardTab] setActiveTF not provided')
       }
 
-  // Defensive: Use shouldDisableCharts with default value
-  const currentShouldDisableCharts = shouldDisableCharts ?? defaultShouldDisableCharts
+  // Use shouldDisableCharts with default value
+  const currentShouldDisableCharts = shouldDisableChartsProp || false
 
   if (loading) {
     return (
