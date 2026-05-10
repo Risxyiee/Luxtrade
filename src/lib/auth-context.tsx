@@ -66,13 +66,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string): Promise<Profile | null> => {
+    if (!supabase) return null;
+
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
-      
+
       if (error) {
         console.log('Profile fetch error:', error.message);
         return null;
@@ -92,10 +94,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Auto-lock expired subscriptions
   const checkAndLockExpired = async (profileData: Profile | null) => {
-    if (!profileData || !profileData.subscription_until) return profileData;
-    
+    if (!supabase || !profileData || !profileData.subscription_until) return profileData;
+
     const isValid = isSubscriptionValid(profileData.subscription_until);
-    
+
     // If marked as PRO but subscription expired, update to FREE
     if (profileData.is_pro && !isValid) {
       console.log('Subscription expired, auto-locking...');
@@ -107,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           updated_at: new Date().toISOString()
         })
         .eq('id', profileData.id);
-      
+
       if (!error) {
         return {
           ...profileData,
@@ -116,18 +118,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
       }
     }
-    
+
     return profileData;
   };
 
   useEffect(() => {
+    // If Supabase is not configured, just set loading to false
+    if (!supabase) {
+      console.log('Supabase not configured, running in no-auth mode');
+      setLoading(false);
+      return;
+    }
+
     // Get initial session quickly - don't wait for profile
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       // Set loading to false immediately so auth doesn't block
       setLoading(false);
-      
+
       // Fetch profile in background (non-blocking)
       if (session?.user) {
         fetchProfile(session.user.id).then(async (profileData) => {
@@ -141,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('Auth state changed:', event);
-        
+
         // Handle sign out - clear everything immediately
         if (event === 'SIGNED_OUT') {
           setSession(null);
@@ -150,11 +159,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLoading(false);
           return;
         }
-        
+
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-        
+
         // Fetch profile in background for sign in
         if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
           fetchProfile(session.user.id).then(async (profileData) => {
@@ -171,6 +180,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    if (!supabase) {
+      return { error: new Error('Supabase not configured') };
+    }
+
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -183,6 +196,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, fullName?: string) => {
+    if (!supabase) {
+      return { error: new Error('Supabase not configured') };
+    }
+
     try {
       const { error } = await supabase.auth.signUp({
         email,
@@ -200,7 +217,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
     setUser(null);
     setProfile(null);
     setSession(null);

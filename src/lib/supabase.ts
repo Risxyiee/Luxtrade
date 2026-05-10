@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 // Supabase configuration
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://klxkdrfsfcoankbaoejn.supabase.co'
@@ -30,20 +30,25 @@ const validSupabaseUrl = supabaseUrl.startsWith('http://') || supabaseUrl.starts
   ? supabaseUrl
   : 'https://klxkdrfsfcoankbaoejn.supabase.co'
 
+// Check if we have valid credentials
+const hasValidCredentials = supabaseAnonKey && supabaseAnonKey !== 'undefined' && supabaseAnonKey.trim() !== ''
+
 // Create Supabase client (for client-side & regular operations)
-export const supabase = createClient(validSupabaseUrl, supabaseAnonKey || 'placeholder-for-build', {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
-  },
-  // Global configuration for custom domain support
-  global: {
-    headers: {
-      'X-Client-Info': 'luxtrade-web'
-    }
-  }
-})
+export const supabase: SupabaseClient | null = hasValidCredentials
+  ? createClient(validSupabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true
+      },
+      // Global configuration for custom domain support
+      global: {
+        headers: {
+          'X-Client-Info': 'luxtrade-web'
+        }
+      }
+    })
+  : null
 
 // Create Supabase ADMIN client (for server-side admin operations like listUsers)
 // Uses SERVICE_ROLE_KEY which has full admin privileges
