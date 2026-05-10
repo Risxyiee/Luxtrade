@@ -219,19 +219,57 @@ export default function AdminSubscriptionsPanel() {
     }
   }, [])
 
+  // Background fetch - does NOT show loading state
+  const fetchDataBackground = useCallback(async () => {
+    console.log('🔄 Background fetch (no loading state)...')
+    try {
+      // Fetch users
+      const userRes = await fetch('/api/admin/users')
+      const userData = await userRes.json()
+      setUsers(userData.users || [])
+
+      // Fetch subscriptions
+      const subRes = await fetch('/api/admin/subscriptions')
+      const subData = await subRes.json()
+      setSubscriptions(subData.subscriptions || [])
+
+      // Fetch plans
+      const planRes = await fetch('/api/admin/plans')
+      const planData = await planRes.json()
+      setPlans(planData.plans || [])
+
+      // Fetch slot info for Lifetime Ultra
+      const lifetimeUltraPlan = planData.plans?.find((p: Plan) => p.name === 'Lifetime Ultra')
+      if (lifetimeUltraPlan) {
+        const slotRes = await fetch(`/api/lifetime/subscriptions?planId=${lifetimeUltraPlan.id}`)
+        const slotData = await slotRes.json()
+        if (slotData.slotInfo) {
+          setSlotInfo(slotData.slotInfo)
+        }
+      }
+
+      // Fetch affiliate stats
+      const affiliateRes = await fetch('/api/admin/affiliate-stats')
+      const affiliateData = await affiliateRes.json()
+      setAffiliateStats(affiliateData.data || [])
+    } catch (error) {
+      console.error('❌ Background fetch error:', error)
+    }
+  }, [])
+
   useEffect(() => {
     fetchData()
   }, [fetchData])
 
-  // Real-time updates with polling
+  // Real-time updates with polling (60 seconds, no loading state)
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchData().catch(err => console.error('Polling error:', err))
+      fetchDataBackground().catch(err => console.error('Polling error:', err))
       setIsRealTimeConnected(true)
-    }, 3000)
+    }, 60000) // 60 seconds
 
     return () => clearInterval(interval)
-  }, [fetchData])
+  }, [fetchDataBackground])
 
   const handleCreateUser = async () => {
     if (!createUserEmail) {
@@ -318,7 +356,7 @@ export default function AdminSubscriptionsPanel() {
         return
       }
 
-      fetchData()
+      fetchDataBackground() // No loading state
       alert(`✅ User Berhasil Diaktifkan ${planType === 'MONTHLY' ? 'Monthly' : 'Lifetime'}!\n\nEmail: ${data.data.userEmail}`)
     } catch (error) {
       console.error('❌ Error Detail:', error)
@@ -480,7 +518,7 @@ export default function AdminSubscriptionsPanel() {
 
       if (res.ok) {
         window.alert('✅ Paket Berhasil Dibatalkan!')
-        await fetchData()
+        await fetchDataBackground() // No loading state, data updates in background
       } else {
         const errorData = await res.json()
         alert(`Failed: ${errorData.error}`)
@@ -503,7 +541,7 @@ export default function AdminSubscriptionsPanel() {
     if (res.ok) {
       const data = await res.json()
       alert(`✅ Komisi berhasil dibayarkan ke ${data.data.email}`)
-      fetchData() // Refresh data
+      fetchDataBackground() // Refresh data without loading state
     } else {
       const errorData = await res.json()
       alert(`Gagal: ${errorData.error}`)
