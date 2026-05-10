@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { createChart, IChartApi, ISeriesApi, CandlestickData, Time } from 'lightweight-charts'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { RefreshCw, TrendingUp } from 'lucide-react'
+import { RefreshCw, TrendingUp, Loader2, AlertTriangle } from 'lucide-react'
 
 interface ChartTabProps {
   isPro?: boolean
@@ -17,6 +17,8 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
   const [isLoadingData, setIsLoadingData] = useState(false)
   const [selectedSymbol, setSelectedSymbol] = useState('XAUUSD')
   const [selectedInterval, setSelectedInterval] = useState('15m')
+  const [hasMounted, setHasMounted] = useState(false)
+  const [chartError, setChartError] = useState<string | null>(null)
 
   // Extended forex symbols
   const symbols = [
@@ -45,9 +47,18 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
 
   const intervals = ['1m', '5m', '15m', '30m', '1h', '4h', '1d']
 
+  // Component mount guard - prevent SSR issues
+  useEffect(() => {
+    setHasMounted(true)
+  }, [])
+
   // Fetch chart data
   const fetchData = useCallback(async () => {
+    if (!hasMounted) return
+
     setIsLoadingData(true)
+    setChartError(null)
+
     try {
       const response = await fetch(
         `/api/chart/klines?symbol=${selectedSymbol}&interval=${selectedInterval}&limit=150`
@@ -62,22 +73,33 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
       if (data.success && seriesRef.current) {
         seriesRef.current.setData(data.data)
         console.log(`Loaded ${data.data.length} candles for ${selectedSymbol}`)
+      } else if (!data.success) {
+        throw new Error(data.error || 'No data returned')
       }
     } catch (error) {
       console.error('Error fetching chart data:', error)
+      setChartError(error instanceof Error ? error.message : 'Failed to load chart data')
     } finally {
       setIsLoadingData(false)
     }
-  }, [selectedSymbol, selectedInterval])
+  }, [selectedSymbol, selectedInterval, hasMounted])
 
-  // Initialize chart only once
+  // Initialize chart only once - after mounting
   useEffect(() => {
-    if (!chartContainerRef.current || chartRef.current) return
+    if (!hasMounted || !chartContainerRef.current || chartRef.current) return
 
     const container = chartContainerRef.current
 
+    // Wait for container to have dimensions
+    if (!container.clientWidth || !container.clientHeight) {
+      console.warn('Chart container not ready - waiting for next frame')
+      return
+    }
+
+    let chart: IChartApi | null = null
+
     try {
-      const chart = createChart(container, {
+      chart = createChart(container, {
         width: container.clientWidth,
         height: container.clientHeight,
         layout: {
@@ -133,24 +155,50 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
 
       window.addEventListener('resize', handleResize)
 
-      // Fetch initial data
-      fetchData()
+      // Fetch initial data after a small delay
+      setTimeout(() => {
+        fetchData()
+      }, 100)
 
       return () => {
         window.removeEventListener('resize', handleResize)
-        chart.remove()
+        if (chart) {
+          try {
+            chart.remove()
+          } catch (e) {
+            console.error('Error removing chart:', e)
+          }
+          chart = null
+        }
+        if (chartRef.current) {
+          chartRef.current = null
+        }
+        if (seriesRef.current) {
+          seriesRef.current = null
+        }
       }
     } catch (error) {
       console.error('Error initializing chart:', error)
+      setChartError(error instanceof Error ? error.message : 'Failed to initialize chart')
     }
-  }, [fetchData])
+  }, [hasMounted, fetchData])
 
   // Update chart when symbol or interval changes
   useEffect(() => {
-    if (chartRef.current && seriesRef.current) {
+    if (hasMounted && chartRef.current && seriesRef.current) {
+      setChartError(null)
       fetchData()
     }
-  }, [selectedSymbol, selectedInterval, fetchData])
+  }, [selectedSymbol, selectedInterval, fetchData, hasMounted])
+
+  // Show loading state if not mounted yet
+  if (!hasMounted) {
+    return (
+      <div className="flex items-center justify-center" style={{ height: '500px' }}>
+        <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -257,11 +305,36 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
       </div>
 
       {/* Chart */}
-      <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg p-4">
+      <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg p-4 relative">
+        {chartError && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0712]/90 rounded-lg z-10">
+            <AlertTriangle className="w-12 h-12 text-red-400 mb-3" />
+            <p className="text-white font-semibold mb-2">Chart Error</p>
+            <p className="text-white/60 text-sm mb-4">{chartError}</p>
+            <Button
+              size="sm"
+              onClick={() => {
+                setChartError(null)
+                fetchData()
+              }}
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        )}
+
+        {!chartError && isLoadingData && !chartRef.current && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0a0712]/90 rounded-lg z-10">
+            <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+          </div>
+        )}
+
         <div
           ref={chartContainerRef}
           className="w-full"
           style={{ height: '400px' }}
+          suppressHydrationWarning={true}
         />
       </div>
 
