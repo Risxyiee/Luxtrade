@@ -40,6 +40,7 @@ import QuickStats from '@/components/QuickStats'
 import WelcomeOnboarding from '@/components/WelcomeOnboarding'
 import { formatCurrency } from '@/lib/supabase'
 import ChartTab from '@/components/ChartTab'
+import { ChartErrorBoundary } from '@/components/ChartErrorBoundary'
 const LuxtradeMiniChart = dynamic(() => import('@/components/LuxtradeMiniChart'), { ssr: false })
 
 // ==================== DEMO DATA ====================
@@ -3841,7 +3842,9 @@ function DashboardTab({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.14 }}
       >
-        <LuxtradeMiniChart isPro={isPro} demoMode={demoMode} />
+        <ChartErrorBoundary>
+          <LuxtradeMiniChart isPro={isPro} demoMode={demoMode} />
+        </ChartErrorBoundary>
       </motion.div>
 
       {/* Session Performance Chart */}
