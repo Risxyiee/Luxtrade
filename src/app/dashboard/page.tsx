@@ -756,7 +756,7 @@ function LuxTradeDashboard() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  const shouldDisableCharts = isMobile
+  const shouldDisableCharts = false  // Enable charts on all devices including mobile
   
   // Helper: Get auth header for API calls
   const getAuthHeaders = useCallback(() => {
@@ -1715,11 +1715,10 @@ function LuxTradeDashboard() {
   if (!hasMounted) {
     console.log('🟠 [DIAGNOSTIC] hasMounted is FALSE, showing boot screen')
     return (
-      <div className="min-h-screen bg-red-900 p-10 text-white flex items-center justify-center" suppressHydrationWarning={true}>
+      <div className="min-h-screen bg-[#0a0712] flex items-center justify-center" suppressHydrationWarning={true}>
         <div className="text-center">
           <Loader2 className="w-10 h-10 text-purple-500 animate-spin mx-auto mb-4" />
-          <p className="text-xl font-bold mb-2">System Booting...</p>
-          <p className="text-sm text-white/70">(If stuck, check console)</p>
+          <p className="text-white/60 text-sm">Loading dashboard...</p>
         </div>
       </div>
     )
