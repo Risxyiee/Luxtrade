@@ -755,6 +755,11 @@ export default function AdminPanel() {
                         <Clock className="w-5 h-5 text-red-400" />
                       </div>
                       <div>
+                        <p className="text-white/60 text-xs">Expired</p>
+                        <p className="text-xl font-bold text-red-400">{expiredUsers}</p>
+                      </div>
+                    </div>
+                  </CardContent>
                 </Card>
               </div>
 
