@@ -626,19 +626,14 @@ export default function AdminPanel() {
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
   }
 
-  const filteredUsers = users.filter(u => 
+  const filteredUsers = users.filter(u =>
     u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (u.full_name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (u.my_referral_code?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (u.referred_by_code?.toLowerCase().includes(searchQuery.toLowerCase()))
+    (u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
   const totalUsers = users.length
   const proUsers = users.filter(u => u.is_pro && !isExpired(u.subscription_until)).length
   const expiredUsers = users.filter(u => u.subscription_until && isExpired(u.subscription_until)).length
-  const totalReferrals = users.filter(u => u.referred_by_code).length
-  const totalAffiliateBalance = users.reduce((sum, u) => sum + (u.affiliate_balance || 0), 0)
-  const fraudDetected = users.filter(u => u.referral_status === 'fraud').length
 
   // Show loading while checking auth
   if (checkingAuth) {
@@ -760,50 +755,6 @@ export default function AdminPanel() {
                         <Clock className="w-5 h-5 text-red-400" />
                       </div>
                       <div>
-                        <p className="text-white/60 text-xs">Expired</p>
-                        <p className="text-xl font-bold text-red-400">{expiredUsers}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="bg-[#1a0f2e]/50 border-purple-500/20 backdrop-blur-sm">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-blue-500/20">
-                        <Share2 className="w-5 h-5 text-blue-400" />
-                      </div>
-                      <div>
-                        <p className="text-white/60 text-xs">Referrals</p>
-                        <p className="text-xl font-bold text-blue-400">{totalReferrals}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="bg-[#1a0f2e]/50 border-purple-500/20 backdrop-blur-sm">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-yellow-500/20">
-                        <Wallet className="w-5 h-5 text-yellow-400" />
-                      </div>
-                      <div>
-                        <p className="text-white/60 text-xs">Commission</p>
-                        <p className="text-lg font-bold text-yellow-400">Rp {(totalAffiliateBalance / 1000).toFixed(0)}K</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="bg-[#1a0f2e]/50 border-purple-500/20 backdrop-blur-sm">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-orange-500/20">
-                        <AlertTriangle className="w-5 h-5 text-orange-400" />
-                      </div>
-                      <div>
-                        <p className="text-white/60 text-xs">Fraud</p>
-                        <p className="text-xl font-bold text-orange-400">{fraudDetected}</p>
-                      </div>
-                    </div>
-                  </CardContent>
                 </Card>
               </div>
 
