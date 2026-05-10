@@ -1,6 +1,3 @@
-'use client'
-
-import React, { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -25,6 +22,12 @@ import {
   Mail,
   UserCircle
 } from 'lucide-react'
+import { db } from '@/lib/db'
+import { supabase } from '@/lib/supabase'
+import { sendTelegramNotification } from '@/lib/telegram'
+
+// Commission rate: 30% of Rp 49,000 = Rp 14,700
+const COMMISSION_PER_PRO = 14700
 
 interface Subscription {
   id: string
@@ -102,11 +105,6 @@ export default function AdminSubscriptionsPanel() {
   // New user form state
   const [createUserEmail, setCreateUserEmail] = useState('')
   const [createUserName, setCreateUserName] = useState('')
-
-  // Activate Pro dialog state
-  const [activateProDialogOpen, setActivateProDialogOpen] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [selectedPlanForActivation, setSelectedPlanForActivation] = useState<string | null>(null)
   const [isSyncing, setIsSyncing] = useState(false)
 
   const handleSyncAuthUsers = async () => {
@@ -267,83 +265,298 @@ export default function AdminSubscriptionsPanel() {
     }
   }
 
-  const handleActivatePro = async () => {
+  const handleActivatePro = async (userId: string, planType: 'MONTHLY' | 'LIFETIME') => {
     console.log('🎯 handleActivatePro called')
-    console.log('   selectedUser:', selectedUser?.email)
-    console.log('   selectedPlanForActivation:', selectedPlanForActivation)
-    console.log('   selectedPlanForActivation type:', typeof selectedPlanForActivation)
+    console.log('   userId:', userId)
+    console.log('   planType:', planType)
 
-    window.alert('Tombol diklik!')
+    alert(`Sistem sedang mencoba mengaktifkan ${planType === 'MONTHLY' ? 'Monthly' : 'Lifetime'} untuk user: ${userId}`)
 
-    if (!selectedUser || !selectedPlanForActivation) {
-      console.log('❌ Cannot activate - missing user or plan')
-      alert('Please select a plan')
+    if (!userId || !planType) {
+      console.log('❌ Cannot activate - missing userId or planType')
+      alert('Missing userId or planType')
       return
     }
 
     try {
-      console.log('🚀 Activating Pro for user:', selectedUser.email, 'with plan:', selectedPlanForActivation)
+      console.log('🚀 Activating Pro for user:', userId, 'with planType:', planType)
 
-      // Determine plan type based on plan
-      const plan = plans.find(p => p.id === selectedPlanForActivation)
-      console.log('📋 Found plan:', plan)
-
-      let planType: 'MONTHLY' | 'YEARLY' | 'LIFETIME' = 'MONTHLY'
-
-      if (plan?.isLifetime) {
-        planType = 'LIFETIME'
-      } else if (plan?.durationMonths === 12) {
-        planType = 'YEARLY'
-      } else {
-        planType = 'MONTHLY'
-      }
-
-      console.log('📋 Plan type:', planType)
-
-      const res = await fetch('/api/admin/activate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: selectedUser.id,
-          planType,
-          planId: selectedPlanForActivation
-        })
+      // Find user
+      const user = await db.user.findUnique({
+        where: { id: userId }
       })
 
-      console.log('📥 Activation response status:', res.status)
-
-      const data = await res.json()
-      console.log('📥 Activation response data:', data)
-
-      if (res.ok) {
-        fetchData()
-        setActivateProDialogOpen(false)
-        setSelectedUser(null)
-        setSelectedPlanForActivation(null)
-
-        // Show success notification
-        alert(`✅ User Berhasil Diaktifkan!\n\n${data.message || ''}${data.supabaseProfileUpdated ? '\n✅ Supabase profile updated' : ''}`)
-      } else {
-        console.error('❌ Activation failed:', data)
-
-        // Show detailed error
-        let errorMsg = `❌ Failed to activate Pro subscription\n\n`
-        if (data.error) errorMsg += `Error: ${data.error}\n`
-        if (data.message) errorMsg += `Message: ${data.message}\n`
-        if (data.stack) errorMsg += `\nStack:\n${data.stack}`
-        alert(errorMsg)
+      if (!user) {
+        alert('User tidak ditemukan!')
+        return
       }
+
+      // Get or create plan based on planType
+      let planName = ''
+      let durationMonths = null
+      let isLifetime = false
+      let price = 0
+
+      switch (planType) {
+        case 'MONTHLY':
+          planName = 'Elite Pro'
+          durationMonths = 1
+          price = 49000
+          break
+        case 'LIFETIME':
+          planName = 'Lifetime Ultra'
+          isLifetime = true
+          price = 100000
+          break
+      }
+
+      // Find or create plan
+      const existingPlan = await db.subscriptionPlan.findFirst({
+        where: {
+          name: planName,
+          isLifetime,
+          durationMonths: isLifetime ? null : durationMonths
+        }
+      })
+
+      let finalPlanId: string
+      if (existingPlan) {
+        finalPlanId = existingPlan.id
+        console.log(`✅ Found existing plan: ${planName}`)
+      } else {
+        const newPlan = await db.subscriptionPlan.create({
+          data: {
+            name: planName,
+            durationMonths,
+            isLifetime,
+            price,
+            currency: 'IDR',
+            isActive: true,
+            maxSlots: isLifetime ? 30 : null
+          }
+        })
+        finalPlanId = newPlan.id
+        console.log(`✅ Created new plan: ${planName}`)
+      }
+
+      // Calculate end date
+      let endDate = null
+      if (planType !== 'LIFETIME') {
+        const startDate = new Date()
+        if (planType === 'MONTHLY') {
+          endDate = new Date(startDate.setMonth(startDate.getMonth() + 1))
+        }
+      }
+
+      // Create subscription
+      const subscription = await db.userSubscription.create({
+        data: {
+          userId,
+          userEmail: user.email,
+          userName: user.name,
+          planId: finalPlanId,
+          startDate: new Date(),
+          endDate,
+          isActive: true,
+          paymentStatus: 'completed',
+          amountPaid: planType === 'MONTHLY' ? 49000 : 100000,
+          paymentMethod: 'manual',
+          adminNote: `Activated by admin via Quick Activate (${planType})`
+        }
+      })
+
+      console.log(`✅ Subscription created successfully: ${subscription.id}`)
+
+      // ============================================
+      // UPDATE SUPABASE PROFILES TABLE
+      // ============================================
+      const subscriptionDuration = planType === 'MONTHLY' ? 1 : null
+      const isLifetimePlan = planType === 'LIFETIME'
+
+      // Calculate subscription end date
+      let subscriptionUntil: string | null = null
+      if (isLifetimePlan) {
+        // Lifetime - set far future date (10 years)
+        subscriptionUntil = new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString()
+      } else if (subscriptionDuration && subscriptionDuration > 0) {
+        // Monthly plan - calculate end date
+        const endDateObj = new Date()
+        endDateObj.setMonth(endDateObj.getMonth() + subscriptionDuration)
+        subscriptionUntil = endDateObj.toISOString()
+      }
+
+      // Update Supabase profiles table
+      console.log(`🔄 Updating Supabase profile for email: ${user.email}`)
+
+      const { data: currentProfile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', user.email)
+        .single()
+
+      if (fetchError) {
+        console.error('❌ Error fetching profile:', fetchError)
+      } else {
+        console.log('✅ Current profile found:', currentProfile?.email, 'is_pro:', currentProfile?.is_pro)
+      }
+
+      const { error: profileUpdateError, data: updatedData } = await supabase
+        .from('profiles')
+        .update({
+          subscription_status: 'PRO',
+          is_pro: true,
+          subscription_until: subscriptionUntil,
+          pro_status: 'active',
+          pro_expiry_date: subscriptionUntil,
+          has_ever_been_pro: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('email', user.email)
+        .select()
+
+      if (profileUpdateError) {
+        console.error('❌ Failed to update Supabase profile:', profileUpdateError)
+        console.error('Error code:', profileUpdateError.code)
+        console.error('Error message:', profileUpdateError.message)
+        console.error('Error details:', profileUpdateError.details)
+        // Non-blocking error - continue execution
+      } else {
+        console.log('✅ Supabase profile updated to PRO for:', user.email)
+        console.log('✅ Updated data:', updatedData)
+      }
+
+      // If LIFETIME, update slot tracking
+      if (planType === 'LIFETIME') {
+        console.log('🔄 Updating slot tracking for LIFETIME plan...')
+
+        const slotTracking = await db.slotTracking.findUnique({
+          where: { planId: finalPlanId }
+        })
+
+        if (slotTracking) {
+          const newUsedSlots = slotTracking.usedSlots + 1
+          await db.slotTracking.update({
+            where: { planId: finalPlanId },
+            data: {
+              usedSlots: newUsedSlots
+            }
+          })
+          console.log(`✅ Slot tracking updated: ${newUsedSlots}/${slotTracking.totalSlots}`)
+        } else {
+          // Create slot tracking if not exists
+          await db.slotTracking.create({
+            data: {
+              planId: finalPlanId,
+              totalSlots: 30,
+              usedSlots: 1
+            }
+          })
+          console.log('✅ Slot tracking created')
+        }
+      }
+
+      // ============================================
+      // COMMISSION: Update referrer's balance
+      // ============================================
+      try {
+        // Get user's profile to find referrer
+        const { data: userProfile } = await supabase
+          .from('profiles')
+          .select('referred_by_code, my_referral_code, full_name, email')
+          .eq('email', user.email)
+          .single()
+
+        if (userProfile?.referred_by_code) {
+          // Find referrer in Prisma
+          const referrer = await db.affiliateProfile.findUnique({
+            where: { myReferralCode: userProfile.referred_by_code }
+          })
+
+          if (referrer) {
+            // Update referrer's balance and commission
+            await db.affiliateProfile.update({
+              where: { userId: referrer.userId },
+              data: {
+                affiliateBalance: { increment: COMMISSION_PER_PRO },
+                totalCommission: { increment: COMMISSION_PER_PRO },
+                totalReferrals: { increment: 1 }
+              }
+            })
+
+            console.log('✅ Commission added to referrer:', referrer.email, 'Amount: Rp', COMMISSION_PER_PRO)
+
+            // Update referrer's Supabase profile
+            console.log(`🔄 Updating referrer profile: ${referrer.email}`)
+
+            // Get current referrer profile first
+            const { data: referrerProfileData } = await supabase
+              .from('profiles')
+              .select('affiliate_balance, referral_count')
+              .eq('email', referrer.email)
+              .single()
+
+            if (referrerProfileData) {
+              const newBalance = (referrerProfileData.affiliate_balance || 0) + COMMISSION_PER_PRO
+              const newRefCount = (referrerProfileData.referral_count || 0) + 1
+
+              const { error: referrerUpdateError } = await supabase
+                .from('profiles')
+                .update({
+                  affiliate_balance: newBalance,
+                  referral_count: newRefCount,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('email', referrer.email)
+
+              if (referrerUpdateError) {
+                console.error('❌ Error updating referrer profile:', referrerUpdateError)
+              } else {
+                console.log('✅ Referrer profile updated. New balance:', newBalance)
+              }
+            } else {
+              console.error('⚠️ Referrer profile not found in Supabase')
+            }
+
+            // Update referral_tracking status to 'paid'
+            const { data: trackingRecord } = await supabase
+              .from('referral_tracking')
+              .select('id')
+              .eq('referee_id', userId || user.email)
+              .eq('referral_code_used', userProfile.referred_by_code)
+              .single()
+
+            if (trackingRecord) {
+              await supabase
+                .from('referral_tracking')
+                .update({
+                  status: 'paid',
+                  commission_amount: COMMISSION_PER_PRO,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', trackingRecord.id)
+            }
+
+            // Send Telegram notification to referrer
+            try {
+              const planName2 = planType === 'LIFETIME' ? 'Lifetime Ultra' : 'Elite Pro'
+              const msg = `💰 <b>KOMISI DITERIMA!</b>\n\n🎯 Referal: ${userProfile.full_name || userProfile.email}\n💎 Upgrade ke: ${planName2}\n💰 Komisi: Rp${COMMISSION_PER_PRO.toLocaleString('id-ID')}\n\nSaldo total: Rp${(referrer.affiliateBalance + COMMISSION_PER_PRO).toLocaleString('id-ID')}`
+              await sendTelegramNotification(msg)
+            } catch (e) {
+              console.error('Failed to send Telegram notification:', e)
+            }
+          }
+        }
+      } catch (commissionError) {
+        console.error('❌ Commission update error (non-blocking):', commissionError)
+        // Don't fail activation if commission fails
+      }
+
+      fetchData()
+      alert(`✅ User Berhasil Diaktifkan ${planType === 'MONTHLY' ? 'Monthly' : 'Lifetime'}!\n\nEmail: ${user.email}`)
     } catch (error) {
       console.error('❌ Error activating Pro:', error)
-      alert('Failed to activate Pro subscription')
+      alert('Failed to activate Pro subscription. Check console for details.')
     }
-  }
-
-  const openActivateProDialog = (user: User) => {
-    setSelectedUser(user)
-    setSelectedPlanForActivation(null)
-    setActivateProDialogOpen(true)
-    console.log('🔄 Activate Pro dialog opened for user:', user.email)
   }
 
   const handleActivate = async (id: string) => {
@@ -681,8 +894,8 @@ export default function AdminSubscriptionsPanel() {
                           </tr>
                         ) : (
                           users.map((user) => (
-                            <tr key={user.id} className="border-b border-white/5 hover:bg-white/[0.02]">
-                              <td className="p-4">
+                            <tr key={user.id} className="border-b border-white/5 hover:bg-white/[0.02] py-4">
+                              <td className="p-4 sm:py-6">
                                 <div className="flex items-center gap-3">
                                   <div className="p-2 rounded-full bg-blue-500/20">
                                     <UserCircle className="w-5 h-5 text-blue-400" />
@@ -706,21 +919,29 @@ export default function AdminSubscriptionsPanel() {
                                   {new Date(user.createdAt).toLocaleDateString()}
                                 </div>
                               </td>
-                              <td className="p-4">
-                                <div className="flex gap-2">
+                              <td className="p-4 sm:py-6">
+                                <div className="flex flex-col sm:flex-row gap-2">
                                   <Button
                                     size="sm"
-                                    onClick={() => openActivateProDialog(user)}
-                                    className="h-8 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                                    onClick={() => handleActivatePro(user.id, 'MONTHLY')}
+                                    className="h-10 sm:h-10 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-xs sm:text-sm"
                                   >
                                     <Crown className="w-3 h-3 mr-1" />
-                                    Activate Pro
+                                    Monthly
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleActivatePro(user.id, 'LIFETIME')}
+                                    className="h-10 sm:h-10 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-xs sm:text-sm"
+                                  >
+                                    <Crown className="w-3 h-3 mr-1" />
+                                    Lifetime
                                   </Button>
                                   <Button
                                     size="sm"
                                     variant="outline"
                                     onClick={() => handleDeleteUser(user.id, user.email)}
-                                    className="h-8 hover:bg-red-500/20 hover:text-red-400"
+                                    className="h-10 sm:h-10 hover:bg-red-500/20 hover:text-red-400 text-xs sm:text-sm"
                                     disabled={user.subscriptionCount > 0}
                                   >
                                     <XCircle className="w-3 h-3" />
@@ -1040,124 +1261,8 @@ export default function AdminSubscriptionsPanel() {
             )}
           </DialogContent>
         </Dialog>
-
-        {/* Activate Pro Dialog */}
-        <Dialog open={activateProDialogOpen} onOpenChange={setActivateProDialogOpen}>
-          <DialogContent
-            className="
-              bg-[#1a0f2e]
-              border-white/10
-              text-white
-              z-[9999]
-              pointer-events-auto
-              max-w-[90vw]
-              sm:max-w-lg
-              w-full
-              !translate-x-[-50%]
-              !translate-y-[-50%]
-            "
-            showCloseButton={false}
-          >
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                <Crown className="w-5 h-5 text-amber-400" />
-                Activate Pro Subscription
-              </DialogTitle>
-            </DialogHeader>
-            {selectedUser && (
-              <div className="space-y-4 py-2 sm:py-4 overflow-y-auto max-h-[70vh]">
-                <div className="bg-white/5 p-3 sm:p-4 rounded-lg">
-                  <div className="font-semibold mb-1 sm:mb-2 text-sm sm:text-base">{selectedUser.name || 'No name'}</div>
-                  <div className="text-xs sm:text-sm text-white/60 break-all">{selectedUser.email}</div>
-                </div>
-
-                <div>
-                  <Label htmlFor="plan" className="text-sm sm:text-base">Select Plan *</Label>
-                  <Select
-                    value={selectedPlanForActivation || undefined}
-                    onValueChange={(value) => {
-                      console.log('✅ Plan selected:', value)
-                      setSelectedPlanForActivation(value)
-                    }}
-                  >
-                    <SelectTrigger className="bg-white/5 border-white/10 min-h-[44px] sm:min-h-[40px]">
-                      <SelectValue placeholder="Select a plan" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[10000] bg-[#1a0f2e] border-white/10">
-                      {plans.map((plan) => (
-                        <SelectItem key={plan.id} value={plan.id} className="min-h-[44px] flex items-center">
-                          <div className="flex items-center gap-2 py-2">
-                            {plan.isLifetime && <Crown className="w-3 h-3 text-amber-400" />}
-                            <span className="text-sm sm:text-base">{plan.name}</span>
-                            <span className="text-white/60 text-xs sm:text-sm">- {plan.currency} {plan.price.toLocaleString()}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {selectedPlanForActivation && (
-                  <div className="bg-purple-500/10 border border-purple-500/20 p-3 sm:p-4 rounded-lg">
-                    <div className="text-xs sm:text-sm text-white/60 mb-2">Plan Details:</div>
-                    {(() => {
-                      const plan = plans.find(p => p.id === selectedPlanForActivation)
-                      if (!plan) return null
-                      return (
-                        <div className="space-y-1">
-                          <div className="flex justify-between">
-                            <span className="text-white/60 text-xs sm:text-sm">Price:</span>
-                            <span className="font-semibold text-xs sm:text-base">{plan.currency} {plan.price.toLocaleString()}</span>
-                          </div>
-                          {plan.isLifetime ? (
-                            <div className="flex justify-between">
-                              <span className="text-white/60 text-xs sm:text-sm">Duration:</span>
-                              <span className="font-semibold text-amber-400 text-xs sm:text-base">Lifetime</span>
-                            </div>
-                          ) : plan.durationMonths ? (
-                            <div className="flex justify-between">
-                              <span className="text-white/60 text-xs sm:text-sm">Duration:</span>
-                              <span className="font-semibold text-xs sm:text-base">{plan.durationMonths} months</span>
-                            </div>
-                          ) : (
-                            <div className="flex justify-between">
-                              <span className="text-white/60 text-xs sm:text-sm">Duration:</span>
-                              <span className="font-semibold text-xs sm:text-base">Custom</span>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })()}
-                  </div>
-                )}
-
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
-                  <Button
-                    onClick={(e) => {
-                      console.log('🎯 Activate Now button clicked!')
-                      console.log('   Current selectedPlan:', selectedPlanForActivation)
-                      window.alert('Tombol ditekan!')
-                      handleActivatePro()
-                    }}
-                    className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 pointer-events-auto min-h-[48px] sm:min-h-[40px]"
-                    disabled={false}
-                  >
-                    <Crown className="w-4 h-4 mr-1 sm:mr-2" />
-                    <span className="text-sm sm:text-base">Activate Now</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setActivateProDialogOpen(false)}
-                    className="flex-1 pointer-events-auto min-h-[48px] sm:min-h-[40px]"
-                  >
-                    <span className="text-sm sm:text-base">Cancel</span>
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-      </div>
+          </div>
+        </motion.div>
+        </TabsContent>
+      </Tabs>
     </div>
-  )
-}
