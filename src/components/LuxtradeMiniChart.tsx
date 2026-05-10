@@ -166,9 +166,16 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false }: LuxtradeM
     let series: ISeriesApi<'UTCTimestamp', KlineData> | null = null
 
     try {
+      // Additional check before creating chart
+      const container = chartContainerRef.current
+      if (!container || !container.clientWidth) {
+        console.warn('Chart container not ready')
+        return
+      }
+
       // Create chart with auto-scaling
-      chart = createChart(chartContainerRef.current, {
-        width: chartContainerRef.current.clientWidth,
+      chart = createChart(container, {
+        width: container.clientWidth,
         height: 200,
         layout: {
           background: { type: ColorType.Solid, color: 'transparent' },
@@ -230,19 +237,29 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false }: LuxtradeM
       chartRef.current = chart
       seriesRef.current = series
 
-      // Setup resize observer
+      // Setup resize observer with additional checks
       resizeObserverRef.current = new ResizeObserver((entries) => {
-        if (entries.length === 0 || entries[0].target !== chartContainerRef.current) {
-          return
+        try {
+          if (entries.length === 0 || entries[0].target !== chartContainerRef.current) {
+            return
+          }
+          if (!chartRef.current) {
+            console.warn('Chart ref not available in resize observer')
+            return
+          }
+          const newRect = entries[0].contentRect
+          chartRef.current.applyOptions({
+            width: newRect.width,
+            height: 200,
+          })
+        } catch (resizeError) {
+          console.error('Error in resize observer:', resizeError)
         }
-        const newRect = entries[0].contentRect
-        chart.applyOptions({
-          width: newRect.width,
-          height: 200,
-        })
       })
 
-      resizeObserverRef.current.observe(chartContainerRef.current)
+      if (container) {
+        resizeObserverRef.current.observe(container)
+      }
     } catch (chartInitError) {
       console.error('Error initializing chart:', chartInitError)
       setChartError(true)
@@ -253,6 +270,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false }: LuxtradeM
       if (resizeObserverRef.current) {
         try {
           resizeObserverRef.current.disconnect()
+          resizeObserverRef.current = null
         } catch (e) {
           console.error('Error disconnecting resize observer:', e)
         }
@@ -265,6 +283,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false }: LuxtradeM
         } catch (e) {
           console.error('Error removing chart:', e)
         }
+        chart = null
       }
 
       if (chartRef.current) {
@@ -320,13 +339,22 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false }: LuxtradeM
           <p className="text-xs text-gray-300">
             Unable to load trading chart
           </p>
+          <button
+            onClick={() => {
+              setChartError(false)
+              fetchKlines()
+            }}
+            className="mt-3 px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded text-xs font-medium transition-colors"
+          >
+            Retry
+          </button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="w-full bg-gradient-to-br from-[#0f0b18] to-[#1a0f2e] border border-purple-500/20 rounded-xl overflow-hidden">
+    <div className="w-full bg-gradient-to-br from-[#0f0b18] to-[#1a0f2e] border border-purple-500/20 rounded-xl overflow-hidden" suppressHydrationWarning={true}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-black/20 border-b border-purple-500/10">
         <div className="flex items-center gap-2">
