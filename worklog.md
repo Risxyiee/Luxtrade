@@ -203,3 +203,34 @@ Stage Summary:
 - Memory leaks fixed
 - Error boundaries comprehensive
 - Client-side exceptions should no longer occur
+---
+Task ID: 3
+Agent: Z.ai Code
+Task: Fix all Lightweight Charts common issues
+
+Work Log:
+- Fixed API klines: Added data validation and sorting by time (ascending)
+- Fixed API forex: Added data validation, NaN checks, and sorting by time
+- Added comprehensive data filtering in both APIs (time > 0, high >= low, all numbers)
+- Enhanced LuxtradeMiniChart:
+  - Added container dimension checks (width AND height)
+  - Added library function checks (createChart, addCandlestickSeries)
+  - Added data validation before setData
+  - Added detailed console logging for debugging
+- Enhanced CandlestickChart:
+  - Added library function checks
+  - Added data validation before setData
+  - Fixed window.removeEventListener memory leak with proper ref
+  - Added sorting to ensure ascending order
+- Ran build test: Successful (73 routes generated)
+- Committed and pushed to GitHub
+
+Stage Summary:
+- All Lightweight Charts common issues addressed:
+  1. Library not detected → Fixed with function checks
+  2. Container not found → Fixed with enhanced ref checks
+  3. Data not ascending → Fixed with sorting
+  4. Invalid data → Fixed with validation filtering
+  5. Memory leaks → Fixed with proper cleanup
+- Chart widgets now production-ready
+- No build errors
