@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
@@ -39,7 +40,7 @@ import QuickStats from '@/components/QuickStats'
 import WelcomeOnboarding from '@/components/WelcomeOnboarding'
 import { formatCurrency } from '@/lib/supabase'
 import ChartTab from '@/components/ChartTab'
-import LuxtradeMiniChart from '@/components/LuxtradeMiniChart'
+const LuxtradeMiniChart = dynamic(() => import('@/components/LuxtradeMiniChart'), { ssr: false })
 
 // ==================== DEMO DATA ====================
 const demoTrades: Trade[] = [
