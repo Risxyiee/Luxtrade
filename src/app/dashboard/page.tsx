@@ -696,6 +696,23 @@ export default function LuxTradeDashboard() {
   
   const { user, profile, session, signOut, loading: authLoading, isPro: authIsPro, isAdmin } = useAuth()
   const router = useRouter()
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent || ''
+      const screenWidth = window.innerWidth
+      const isMobileCheck = /android|iphone|ipad|mobile/i.test(userAgent) || screenWidth < 768
+      setIsMobile(isMobileCheck)
+    }
+
+    checkMobile()
+    const handleResize = () => checkMobile()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  const shouldDisableCharts = isMobile
   
   // Helper: Get auth header for API calls
   const getAuthHeaders = useCallback(() => {
@@ -2094,9 +2111,30 @@ export default function LuxTradeDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <ChartErrorBoundary>
-                  <ChartTab isPro={isPro} />
-                </ChartErrorBoundary>
+                {shouldDisableCharts ? (
+                  <Card className="bg-gradient-to-br from-[#0f0b18] to-[#1a0f2e] border border-purple-900/30">
+                    <CardContent className="py-8 text-center">
+                      <TrendingUp className="w-12 h-12 text-purple-400 mx-auto mb-3" />
+                      <h3 className="text-lg font-semibold text-white mb-2">Trading Chart Not Available</h3>
+                      <p className="text-sm text-gray-400 mb-4">
+                        Charts are disabled on mobile devices to ensure optimal performance.
+                      </p>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-center"
+                        onClick={() => {
+                          window.location.href = window.location.href
+                        }}
+                      >
+                        Refresh Page
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <ChartErrorBoundary>
+                    <ChartTab isPro={isPro} />
+                  </ChartErrorBoundary>
+                )}
               </motion.div>
             )}
             {activeTab === 'analytics' && (
@@ -3876,14 +3914,45 @@ function DashboardTab({
             </Button>
           ))}
         </div>
-        <ChartErrorBoundary>
-          <LuxtradeMiniChart 
-            key={`chart-${activeTF}`} 
-            isPro={isPro} 
-            demoMode={demoMode} 
-            interval={activeTF} 
-          />
-        </ChartErrorBoundary>
+        {/* Mobile optimization: Disable charts on low-end devices */}
+        {shouldDisableCharts ? (
+          <motion.div
+            key="mobile-chart-fallback"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.14 }}
+          >
+            <Card className="bg-gradient-to-br from-[#0f0b18] to-[#1a0f2e] border border-purple-900/30">
+              <CardContent className="py-8 text-center">
+                <Activity className="w-12 h-12 text-purple-400 mx-auto mb-3" />
+                <h3 className="text-lg font-semibold text-white mb-2">Charts Not Available on Mobile</h3>
+                <p className="text-sm text-gray-400 mb-4">
+                  Charts are disabled on mobile devices to ensure optimal performance.
+                </p>
+                <div className="space-y-2">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-center"
+                    onClick={() => {
+                      window.location.href = window.location.href
+                    }}
+                  >
+                    Refresh Page
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ) : (
+          <ChartErrorBoundary>
+            <LuxtradeMiniChart
+              key={`chart-${activeTF}`}
+              isPro={isPro}
+              demoMode={demoMode}
+              interval={activeTF}
+            />
+          </ChartErrorBoundary>
+        )}
       </motion.div>
 
       {/* Session Performance Chart */}
