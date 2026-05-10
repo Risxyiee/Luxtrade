@@ -49,5 +49,17 @@ dev.out.log
 prompt
 
 server.log
+
+# Upload folder (user uploads)
+upload/*.png
+upload/*.jpg
+upload/*.jpeg
+upload/*.gif
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
 # Skills directory
 /skills/
