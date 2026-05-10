@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { createChart, ColorType, CrosshairMode, LineStyle, IChartApi, ISeriesApi, MouseEventParams, Time } from 'lightweight-charts'
+import { createChart, ColorType, CrosshairMode, LineStyle, IChartApi, ISeriesApi } from 'lightweight-charts'
 import { Activity, Loader2, Lock } from 'lucide-react'
 
 interface KlineData {
@@ -25,223 +25,56 @@ interface LuxtradeMiniChartProps {
 }
 
 export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = '15m' }: LuxtradeMiniChartProps) {
+  // Refs for chart and data - NO re-renders from these
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi<'UTCTimestamp'> | null>(null)
   const seriesRef = useRef<ISeriesApi<'UTCTimestamp', KlineData> | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)  // Store interval ID to prevent recreation
-  const lastDataRef = useRef<string | null>(null)  // Track last data to prevent unnecessary updates
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const dataRef = useRef<KlineData[]>([])  // Store data in ref, not state
+  const signalsRef = useRef<Signal[]>([])  // Store signals in ref, not state
+  const lastDataHashRef = useRef<string | null>(null)  // Track data hash for comparison
+  const isCreatedRef = useRef(false)  // Prevent chart recreation
+  const currentPriceRef = useRef<number | null>(null)
+  const priceChangeRef = useRef(0)
 
+  // Minimal state for UI only - these are the only things that should trigger re-renders
   const [mounted, setMounted] = useState(false)
-  const [data, setData] = useState<KlineData[]>([])
-  const [signals, setSignals] = useState<Signal[]>([])
   const [loading, setLoading] = useState(true)
-  const [currentPrice, setCurrentPrice] = useState<number | null>(null)
-  const [priceChange, setPriceChange] = useState(0)
   const [chartError, setChartError] = useState(false)
+  const [uiPrice, setUiPrice] = useState<number | null>(null)  // UI-specific price state
+  const [uiPriceChange, setUiPriceChange] = useState(0)  // UI-specific price change state
+  const [uiSignals, setUiSignals] = useState<Signal[]>([])  // UI-specific signals state
 
-  const symbol = 'BTCUSDT' // Changed from XAUUSD (not supported by Binance)
+  const symbol = 'BTCUSDT'
 
-  // Component mount guard
+  // Component mount guard - runs ONCE
   useEffect(() => {
-    console.log('🔵 [DIAGNOSTIC-LUXCHART] Component mounting - START')
+    console.log('🔵 [LUXCHART] Component mounting')
     setMounted(true)
-    console.log('🟢 [DIAGNOSTIC-LUXCHART] Component mounted')
     return () => {
+      console.log('🟡 [LUXCHART] Component unmounting')
       setMounted(false)
-      console.log('🟡 [DIAGNOSTIC-LUXCHART] Component unmounted')
     }
   }, [])
 
-  // Fetch klines and calculate indicators
-  const fetchKlines = useCallback(async () => {
-    if (!mounted) {
-      console.log('[LuxtradeMiniChart] Not mounted, skipping fetch')
+  // ONE-TIME chart creation - empty dependency array
+  useEffect(() => {
+    if (!mounted || isCreatedRef.current) return
+
+    const container = chartContainerRef.current
+    if (!container) {
+      console.warn('[LUXCHART] Container ref is null')
       return
     }
 
-    console.log('[LuxtradeMiniChart] 🔄 Fetching klines...', { symbol, interval })
-    setLoading(true)
-    setChartError(false)
-
-    // Add timeout to prevent infinite loading
-    const timeoutId = setTimeout(() => {
-      console.warn('[LuxtradeMiniChart] ⏱️ Fetch timeout after 15s')
-      setChartError(true)
-      setLoading(false)
-    }, 15000)
-
     try {
-      const res = await fetch(`/api/chart/klines?symbol=${symbol}&interval=${interval}&limit=50`)
-      clearTimeout(timeoutId)  // Clear timeout on success
-      console.log('[LuxtradeMiniChart] 📡 API status:', res.status, res.ok)
+      console.log('[LUXCHART] Creating chart (ONE-TIME)')
 
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`)
-      }
-
-      const response = await res.json()
-      console.log('[LuxtradeMiniChart] 📊 API response:', response)
-
-      // Check if data exists in response
-      const klines = response?.data || response || []
-      console.log('[LuxtradeMiniChart] 📈 Klines count:', klines.length)
-
-      // Null/undefined check before processing
-      if (!klines || !Array.isArray(klines) || klines.length === 0) {
-        console.error('[LuxtradeMiniChart] ❌ Invalid or empty klines data:', klines)
-        setChartError(true)
-        setLoading(false)
-        return
-      }
-
-      const klineData: KlineData[] = klines
-        .map((k: any) => ({
-          time: k?.time ?? 0,
-          open: k?.open ?? 0,
-          high: k?.high ?? 0,
-          low: k?.low ?? 0,
-          close: k?.close ?? 0,
-        }))
-        .filter((kline) => {
-          // Filter invalid data: time must be positive, high >= low, all values must be numbers
-          return (
-            typeof kline.time === 'number' && kline.time > 0 &&
-            typeof kline.open === 'number' && kline.open > 0 &&
-            typeof kline.high === 'number' && kline.high > 0 &&
-            typeof kline.low === 'number' && kline.low > 0 &&
-            typeof kline.close === 'number' && kline.close > 0 &&
-            kline.high >= kline.low
-          )
-        })
-        .sort((a, b) => a.time - b.time) // Ensure ascending order
-
-      // Check if data is valid after filtering
-      if (!klineData || klineData.length === 0) {
-        console.error('[LuxtradeMiniChart] ❌ No valid kline data after filtering')
-        setChartError(true)
-        setLoading(false)
-        return
-      }
-
-      // Calculate 80% momentum indicators - wrapped in separate try-catch
-      let calculatedSignals: Signal[] = []
-      try {
-        for (let i = 2; i < klineData.length; i++) {
-          const current = klineData[i]
-          const prev1 = klineData[i - 1]
-          const prev2 = klineData[i - 2]
-
-          // Null check for kline data
-          if (!current || !prev1 || !prev2) continue
-
-          const lookbackHigh = Math.max(prev1.high ?? 0, prev2.high ?? 0)
-          const lookbackLow = Math.min(prev1.low ?? Infinity, prev2.low ?? Infinity)
-          const range = (current.high ?? 0) - (current.low ?? 0)
-
-          if (range > 0) {
-            const bodyPercent = Math.abs((current.close ?? 0) - (current.open ?? 0)) / range * 100
-
-            // BUY Signal: Close > lookbackHigh, body >= 80%, and bullish
-            if (
-              (current.close ?? 0) > lookbackHigh &&
-              bodyPercent >= 80 &&
-              (current.close ?? 0) > (current.open ?? 0)
-            ) {
-              calculatedSignals.push({
-                time: current.time ?? 0,
-                type: 'BUY',
-                price: current.close ?? 0,
-              })
-            }
-
-            // SELL Signal: Close < lookbackLow, body >= 80%, and bearish
-            if (
-              (current.close ?? 0) < lookbackLow &&
-              bodyPercent >= 80 &&
-              (current.close ?? 0) < (current.open ?? 0)
-            ) {
-              calculatedSignals.push({
-                time: current.time ?? 0,
-                type: 'SELL',
-                price: current.close ?? 0,
-              })
-            }
-          }
-        }
-      } catch (indicatorError) {
-        console.error('Error calculating indicators:', indicatorError)
-        // Set empty signals on indicator calculation error
-        calculatedSignals = []
-      }
-
-      // DATA COMPARISON GUARD: Only update if data actually changed
-      const dataString = JSON.stringify(klineData)
-      if (dataString !== lastDataRef.current) {
-        console.log('[LuxtradeMiniChart] 🆕 Data changed, updating state')
-        lastDataRef.current = dataString
-        setData(klineData)
-        setSignals(calculatedSignals)
-      } else {
-        console.log('[LuxtradeMiniChart] ♻️ Data same, skipping update')
-      }
-
-      // Set current price with null check - wrapped in separate try-catch
-      try {
-        const lastKline = klineData[klineData.length - 1]
-        if (lastKline?.close !== undefined && lastKline?.close !== null) {
-          setCurrentPrice(lastKline.close)
-          if (klineData.length > 1) {
-            const prevKline = klineData[klineData.length - 2]
-            if (prevKline?.close !== undefined && prevKline?.close !== null && prevKline.close !== 0) {
-              setPriceChange(((lastKline.close - prevKline.close) / prevKline.close) * 100)
-            }
-          }
-        }
-      } catch (priceError) {
-        console.error('Error setting price:', priceError)
-      }
-    } catch (error) {
-      clearTimeout(timeoutId)  // Clear timeout on error
-      console.error('[LuxtradeMiniChart] ❌ Failed to fetch klines:', error)
-      setChartError(true)
-    } finally {
-      setLoading(false)
-    }
-  }, [symbol, interval, mounted])
-
-  // Initialize chart - only after mounted
-  useEffect(() => {
-    if (!mounted) return
-
-    let chart: IChartApi<'UTCTimestamp'> | null = null
-    let series: ISeriesApi<'UTCTimestamp', KlineData> | null = null
-
-    try {
-      // Additional check before creating chart
-      const container = chartContainerRef.current
-      if (!container) {
-        console.warn('[LuxtradeMiniChart] Chart container ref is null')
-        return
-      }
-
-      if (!container.clientWidth || !container.clientHeight) {
-        console.warn('[LuxtradeMiniChart] Chart container has no dimensions', {
-          width: container.clientWidth,
-          height: container.clientHeight
-        })
-        return
-      }
-
-      // Create chart with auto-scaling
-      console.log('[LuxtradeMiniChart] Creating chart with dimensions:', {
+      // Create chart with explicit height/width
+      const chart = createChart(container, {
         width: container.clientWidth,
-        height: 200
-      })
-
-      chart = createChart(container, {
-        width: container.clientWidth,
-        height: 200,
+        height: 300,
         layout: {
           background: { type: ColorType.Solid, color: 'transparent' },
           textColor: '#9ca3af',
@@ -290,13 +123,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
         handleScroll: false,
       })
 
-      // Add candlestick series
-      console.log('[LuxtradeMiniChart] Adding candlestick series...')
-      if (!chart || typeof chart.addCandlestickSeries !== 'function') {
-        throw new Error('lightweight-charts library not properly loaded or addCandlestickSeries is not available')
-      }
-
-      series = chart.addCandlestickSeries({
+      const series = chart.addCandlestickSeries({
         upColor: '#22c55e',
         downColor: '#ef4444',
         borderVisible: false,
@@ -304,171 +131,224 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
         wickDownColor: '#ef4444',
       })
 
-      console.log('[LuxtradeMiniChart] ✅ Chart created successfully')
-      console.log('[LuxtradeMiniChart] ✅ Series added successfully')
-
       chartRef.current = chart
       seriesRef.current = series
+      isCreatedRef.current = true
 
-      // Setup resize observer with additional checks
+      console.log('[LUXCHART] ✅ Chart created successfully')
+
+      // Resize observer - only updates dimensions, not recreation
       resizeObserverRef.current = new ResizeObserver((entries) => {
-        try {
-          if (entries.length === 0 || entries[0].target !== chartContainerRef.current) {
-            return
-          }
-          if (!chartRef.current) {
-            console.warn('Chart ref not available in resize observer')
-            return
-          }
-          const newRect = entries[0].contentRect
-          chartRef.current.applyOptions({
-            width: newRect.width,
-            height: 200,
-          })
-        } catch (resizeError) {
-          console.error('Error in resize observer:', resizeError)
-        }
+        if (!chartRef.current || entries.length === 0) return
+        const rect = entries[0].contentRect
+        chartRef.current.applyOptions({
+          width: rect.width,
+          height: 300,
+        })
       })
 
-      if (container) {
-        resizeObserverRef.current.observe(container)
-      }
-    } catch (chartInitError) {
-      console.error('Error initializing chart:', chartInitError)
+      resizeObserverRef.current.observe(container)
+    } catch (error) {
+      console.error('[LUXCHART] ❌ Error creating chart:', error)
       setChartError(true)
     }
 
     return () => {
-      // Cleanup: disconnect resize observer
       if (resizeObserverRef.current) {
-        try {
-          resizeObserverRef.current.disconnect()
-          resizeObserverRef.current = null
-        } catch (e) {
-          console.error('Error disconnecting resize observer:', e)
-        }
+        resizeObserverRef.current.disconnect()
+        resizeObserverRef.current = null
       }
-
-      // Cleanup: remove chart
-      if (chart) {
+      if (chartRef.current) {
         try {
-          chart.remove()
+          chartRef.current.remove()
         } catch (e) {
           console.error('Error removing chart:', e)
         }
-        chart = null
-      }
-
-      if (chartRef.current) {
         chartRef.current = null
       }
       if (seriesRef.current) {
         seriesRef.current = null
       }
+      isCreatedRef.current = false
     }
-  }, [mounted])
+  }, []) // EMPTY dependency array - runs ONLY once
 
-  // Update data when fetched - only after mounted and when data actually changes
-  useEffect(() => {
-    if (!mounted || !seriesRef.current || data?.length === 0) return
+  // Fetch klines - deep memoization with empty dependency array
+  const fetchKlines = useCallback(async () => {
+    console.log('[LUXCHART] 🔄 Fetching data...')
 
     try {
-      console.log('[LuxtradeMiniChart] 📊 Updating chart with:', data.length, 'candles')
+      setLoading(true)
+      setChartError(false)
 
-      // Validate data before setting
-      const validData = data.filter(kline => {
-        return (
-          typeof kline.time === 'number' && kline.time > 0 &&
-          typeof kline.open === 'number' && kline.open > 0 &&
-          typeof kline.high === 'number' && kline.high > 0 &&
-          typeof kline.low === 'number' && kline.low > 0 &&
-          typeof kline.close === 'number' && kline.close > 0 &&
-          kline.high >= kline.low
-        )
-      })
+      const res = await fetch(`/api/chart/klines?symbol=${symbol}&interval=${interval}&limit=50`)
 
-      if (validData.length === 0) {
-        console.error('[LuxtradeMiniChart] No valid data after filtering')
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+      }
+
+      const response = await res.json()
+      const klines = response?.data || response || []
+
+      if (!Array.isArray(klines) || klines.length === 0) {
+        console.warn('[LUXCHART] No data available')
+        setLoading(false)
         return
       }
 
-      seriesRef.current.setData(validData)
-      console.log('[LuxtradeMiniChart] ✅ Chart data updated successfully')
+      // Process data
+      const klineData: KlineData[] = klines
+        .map((k: any) => ({
+          time: k?.time ?? 0,
+          open: k?.open ?? 0,
+          high: k?.high ?? 0,
+          low: k?.low ?? 0,
+          close: k?.close ?? 0,
+        }))
+        .filter((kline) => {
+          return (
+            typeof kline.time === 'number' && kline.time > 0 &&
+            typeof kline.open === 'number' && kline.open > 0 &&
+            typeof kline.high === 'number' && kline.high > 0 &&
+            typeof kline.low === 'number' && kline.low > 0 &&
+            typeof kline.close === 'number' && kline.close > 0 &&
+            kline.high >= kline.low
+          )
+        })
+        .sort((a, b) => a.time - b.time)
+
+      if (klineData.length === 0) {
+        setLoading(false)
+        return
+      }
+
+      // Calculate hash for comparison
+      const dataHash = JSON.stringify(klineData.slice(-5)) // Compare last 5 candles only
+
+      // Only update if data changed
+      if (dataHash !== lastDataHashRef.current) {
+        console.log('[LUXCHART] 🆕 Data changed, updating chart')
+
+        lastDataHashRef.current = dataHash
+        dataRef.current = klineData
+
+        // Update chart directly via ref - no state update
+        if (seriesRef.current) {
+          seriesRef.current.setData(klineData)
+        }
+
+        // Calculate signals
+        const calculatedSignals: Signal[] = []
+        for (let i = 2; i < klineData.length; i++) {
+          const current = klineData[i]
+          const prev1 = klineData[i - 1]
+          const prev2 = klineData[i - 2]
+
+          if (!current || !prev1 || !prev2) continue
+
+          const lookbackHigh = Math.max(prev1.high, prev2.high)
+          const lookbackLow = Math.min(prev1.low, prev2.low)
+          const range = current.high - current.low
+
+          if (range > 0) {
+            const bodyPercent = Math.abs(current.close - current.open) / range * 100
+
+            if (
+              current.close > lookbackHigh &&
+              bodyPercent >= 80 &&
+              current.close > current.open
+            ) {
+              calculatedSignals.push({
+                time: current.time,
+                type: 'BUY',
+                price: current.close,
+              })
+            }
+
+            if (
+              current.close < lookbackLow &&
+              bodyPercent >= 80 &&
+              current.close < current.open
+            ) {
+              calculatedSignals.push({
+                time: current.time,
+                type: 'SELL',
+                price: current.close,
+              })
+            }
+          }
+        }
+
+        signalsRef.current = calculatedSignals
+
+        // Update UI state only
+        const lastKline = klineData[klineData.length - 1]
+        if (lastKline) {
+          currentPriceRef.current = lastKline.close
+          setUiPrice(lastKline.close)
+
+          if (klineData.length > 1) {
+            const prevKline = klineData[klineData.length - 2]
+            if (prevKline && prevKline.close !== 0) {
+              const change = ((lastKline.close - prevKline.close) / prevKline.close) * 100
+              priceChangeRef.current = change
+              setUiPriceChange(change)
+            }
+          }
+        }
+
+        // Update signals UI state
+        setUiSignals(calculatedSignals.slice(-5)) // Only keep last 5 for UI
+      } else {
+        console.log('[LUXCHART] ♻️ Data same, skipping update')
+      }
     } catch (error) {
-      console.error('[LuxtradeMiniChart] ❌ Failed to update chart data:', error)
+      console.error('[LUXCHART] ❌ Fetch error:', error)
       setChartError(true)
+    } finally {
+      setLoading(false)
     }
-  }, [data, mounted])  // Keep dependency but rely on data comparison guard in fetchKlines
+  }, []) // EMPTY dependency array - stable reference
 
-  // Fetch data on mount and refresh - only after mounted
+  // Fetch data on mount and refresh interval
   useEffect(() => {
-    if (!mounted) return
+    if (!mounted || !isCreatedRef.current) return
 
-    console.log('[LuxtradeMiniChart] 🚀 Initial fetch on mount')
+    console.log('[LUXCHART] 🚀 Starting data fetch')
     fetchKlines()
 
-    // Clear previous interval if exists
+    // Clear previous interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
     }
 
-    // Refresh every 30 seconds - store interval in ref
+    // Refresh every 30 seconds
     intervalRef.current = setInterval(() => {
-      console.log('[LuxtradeMiniChart] 🔄 Scheduled refresh')
+      console.log('[LUXCHART] 🔄 Scheduled refresh')
       fetchKlines()
     }, 30000)
 
     return () => {
       if (intervalRef.current) {
-        console.log('[LuxtradeMiniChart] 🛑 Clearing interval')
         clearInterval(intervalRef.current)
         intervalRef.current = null
       }
     }
-  }, [mounted, interval, fetchKlines])  // Include interval and fetchKlines to handle interval changes
+  }, [mounted, fetchKlines]) // Only depend on mounted and fetchKlines
 
-  // Return early if not mounted
-  if (!mounted) {
-    return (
-      <div className="w-full bg-gradient-to-br from-[#0f0b18] to-[#1a0f2e] border border-purple-500/20 rounded-xl overflow-hidden h-[272px]">
-        <div className="flex items-center justify-center h-full">
-          <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
-        </div>
-      </div>
-    )
-  }
+  // Handle interval change - only refetch, don't recreate chart
+  useEffect(() => {
+    if (!mounted || !isCreatedRef.current) return
 
-  // Error state fallback
-  if (chartError) {
-    console.log('[LuxtradeMiniChart] ⚠️ Showing error UI')
-    return (
-      <div className="w-full bg-gradient-to-br from-[#0f0b18] to-[#1a0f2e] border border-red-500/20 rounded-xl overflow-hidden h-[272px]">
-        <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-          <Lock className="w-8 h-8 text-red-400 mb-2" />
-          <p className="text-sm font-semibold text-white mb-1">Chart Error</p>
-          <p className="text-xs text-gray-300 mb-3">
-            Unable to load trading chart data. Check console for details.
-          </p>
-          <button
-            onClick={() => {
-              console.log('[LuxtradeMiniChart] 🔄 Retrying...')
-              setChartError(false)
-              fetchKlines()
-            }}
-            className="mt-3 px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded text-xs font-medium transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    )
-  }
+    console.log('[LUXCHART] 📊 Interval changed to:', interval)
+    lastDataHashRef.current = null // Force data refresh
+    fetchKlines()
+  }, [interval]) // Watch interval changes only
 
-  console.log('[LuxtradeMiniChart] 🎨 Rendering chart UI', { loading, chartError, dataLength: data.length, hasPrice: currentPrice !== null })
-
+  // STATIC RENDER - always render the same DOM structure
   return (
-    <div className="w-full bg-gradient-to-br from-[#0f0b18] to-[#1a0f2e] border border-purple-500/20 rounded-xl overflow-hidden" suppressHydrationWarning={true}>
-      {/* Header */}
+    <div className="w-full bg-gradient-to-br from-[#0f0b18] to-[#1a0f2e] border border-purple-500/20 rounded-xl overflow-hidden">
+      {/* Header - ALWAYS rendered */}
       <div className="flex items-center justify-between px-4 py-3 bg-black/20 border-b border-purple-500/10">
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 text-purple-400" />
@@ -476,27 +356,49 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
         </div>
         {loading ? (
           <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
-        ) : currentPrice !== null && (
+        ) : uiPrice !== null ? (
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold text-white">
-              {currentPrice ? currentPrice.toFixed(2) : '---'}
+              {uiPrice.toFixed(2)}
             </span>
-            <span className={`text-xs font-medium ${priceChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
+            <span className={`text-xs font-medium ${uiPriceChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {uiPriceChange >= 0 ? '+' : ''}{uiPriceChange.toFixed(2)}%
             </span>
           </div>
-        )}
+        ) : null}
       </div>
 
-      {/* Chart Container */}
-      <div ref={chartContainerRef} className="w-full h-[200px] relative">
+      {/* Chart Container - ALWAYS rendered with fixed height */}
+      <div
+        ref={chartContainerRef}
+        className="w-full relative"
+        style={{ height: '300px', width: '100%' }}
+      >
+        {/* Loading overlay - only shown during loading */}
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30 z-20">
             <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
           </div>
         )}
 
-        {/* Paywall overlay for FREE users */}
+        {/* Error overlay - only shown on error */}
+        {chartError && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-30">
+            <Lock className="w-8 h-8 text-red-400 mb-2" />
+            <p className="text-sm font-semibold text-white mb-1">Chart Error</p>
+            <button
+              onClick={() => {
+                setChartError(false)
+                fetchKlines()
+              }}
+              className="mt-3 px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded text-xs font-medium transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Paywall overlay for FREE users - ALWAYS rendered */}
         {!demoMode && !isPro && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-10">
             <Lock className="w-8 h-8 text-purple-400 mb-2" />
@@ -507,25 +409,25 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
           </div>
         )}
 
-        {/* Signal markers for PRO users */}
-        {isPro && signals?.length > 0 && !loading && data?.length > 0 && (
-          <div className="absolute inset-0 pointer-events-none">
-            {signals.slice(-5).map((signal, idx) => {
+        {/* Signal markers for PRO users - rendered based on signalsRef */}
+        {isPro && !loading && uiSignals.length > 0 && dataRef.current.length > 0 && (
+          <div className="absolute inset-0 pointer-events-none z-5">
+            {uiSignals.map((signal, idx) => {
               if (!signal?.time) return null
 
-              const dataIndex = data.findIndex(d => d?.time === signal.time)
-              if (dataIndex === -1 || dataIndex >= data.length) return null
+              const dataIndex = dataRef.current.findIndex(d => d?.time === signal.time)
+              if (dataIndex === -1 || dataIndex >= dataRef.current.length) return null
 
-              const kline = data[dataIndex]
+              const kline = dataRef.current[dataIndex]
               if (!kline) return null
 
-              const prices = data.map(d => d?.low ?? 0).concat(data.map(d => d?.high ?? 0))
+              const prices = dataRef.current.map(d => d.low).concat(dataRef.current.map(d => d.high))
               const minPrice = Math.min(...prices)
               const maxPrice = Math.max(...prices)
               const priceRange = maxPrice - minPrice || 1
-              const pricePercent = ((signal.price ?? 0) - minPrice) / priceRange * 100
+              const pricePercent = (signal.price - minPrice) / priceRange * 100
 
-              const timeIndex = data.length > 0 ? dataIndex / data.length : 0
+              const timeIndex = dataRef.current.length > 0 ? dataIndex / dataRef.current.length : 0
               const leftPercent = timeIndex * 100
 
               return (
@@ -557,17 +459,17 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
         )}
       </div>
 
-      {/* Latest signal indicator */}
-      {isPro && signals?.length > 0 && !loading && (
+      {/* Latest signal indicator - ALWAYS rendered */}
+      {isPro && uiSignals.length > 0 && !loading && (
         <div className="px-4 py-2 bg-black/20 border-t border-purple-500/10">
           <div className="flex items-center justify-center gap-2">
             <span className="text-xs text-gray-400">Latest Signal:</span>
             <div className={`px-2 py-0.5 rounded text-xs font-bold flex items-center gap-1 ${
-              signals[signals.length - 1]?.type === 'BUY'
+              uiSignals[uiSignals.length - 1]?.type === 'BUY'
                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                 : 'bg-red-500/20 text-red-400 border border-red-500/30'
             }`}>
-              {signals[signals.length - 1]?.type}
+              {uiSignals[uiSignals.length - 1]?.type}
             </div>
           </div>
         </div>
