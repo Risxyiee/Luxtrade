@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
 import { sendTelegramNotification } from '@/lib/telegram'
+import { getBaseUrl } from '@/lib/supabase'
 
 // Commission rate: 30% of Rp 49,000 = Rp 14,700
 const COMMISSION_PER_PRO = 14700
@@ -79,7 +80,8 @@ export async function GET(request: NextRequest) {
       take: 50,
     })
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || ''
+    // Use dynamic base URL
+    const baseUrl = getBaseUrl()
 
     return NextResponse.json({
       success: true,
