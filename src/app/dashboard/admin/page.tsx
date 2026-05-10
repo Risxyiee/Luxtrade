@@ -10,8 +10,9 @@ import {
   AlertTriangle, Copy,
   BarChart3, Eye, Monitor, Smartphone, Tablet,
   Globe, TrendingUp, TrendingDown, Activity,
-  FileText, ExternalLink
+  FileText, ExternalLink, UserPen
 } from 'lucide-react'
+import { ManualUpdateUser } from '@/components/ManualUpdateUser'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -449,7 +450,7 @@ export default function AdminPanel() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [isAdminUser, setIsAdminUser] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
-  const [activeTab, setActiveTab] = useState<'users' | 'traffic'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'traffic' | 'manual-update'>('users')
   const router = useRouter()
 
   // Check auth and admin status
@@ -715,6 +716,17 @@ export default function AdminPanel() {
             Traffic Analytics
             <span className="ml-2 w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           </Button>
+          <Button
+            onClick={() => setActiveTab('manual-update')}
+            variant={activeTab === 'manual-update' ? 'default' : 'outline'}
+            className={activeTab === 'manual-update'
+              ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
+              : 'border-amber-500/30 text-white/50 hover:text-white hover:bg-amber-500/10'
+            }
+          >
+            <UserPen className="w-4 h-4 mr-2" />
+            Manual Update
+          </Button>
         </div>
 
         <AnimatePresence mode="wait">
@@ -974,6 +986,11 @@ export default function AdminPanel() {
               <TrafficTab />
             </motion.div>
           )}
+          {activeTab === 'manual-update' ? (
+            <motion.div key="manual-update" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+              <ManualUpdateUser />
+            </motion.div>
+          ) : null}
         </AnimatePresence>
       </main>
     </div>
