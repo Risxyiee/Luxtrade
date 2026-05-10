@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import '@/lib/error-handler' // Global error handler
 import { 
   TrendingUp, TrendingDown, Plus, BarChart3, BookOpen, 
   Eye, Brain, Menu, X, DollarSign, Target,
@@ -704,13 +705,14 @@ export default function LuxTradeDashboard() {
 
   // Force CSR - Only render after component has mounted on client
   useEffect(() => {
-    setHasMounted(true)
+    try {
+      setHasMounted(true)
+    } catch (error) {
+      console.error('Error setting hasMounted:', error)
+      // Force set to true even if there's an error to prevent black screen
+      setTimeout(() => setHasMounted(true), 100)
+    }
   }, [])
-
-  // Early return if not mounted - prevents hydration mismatches
-  if (!hasMounted) {
-    return <div className="min-h-screen bg-black" suppressHydrationWarning={true} />
-  }
 
   // PRO status from auth context (includes subscription_until check)
   const isPro = authIsPro || demoMode
@@ -1655,9 +1657,21 @@ export default function LuxTradeDashboard() {
     router.push('/')
   }
 
-  const userInitials = profile?.full_name 
+  const userInitials = profile?.full_name
     ? profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : user?.email?.[0].toUpperCase() || 'D'
+
+  // Show loading screen while mounting - prevents hydration issues
+  if (!hasMounted) {
+    return (
+      <div className="min-h-screen bg-[#0a0712] flex items-center justify-center" suppressHydrationWarning={true}>
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-purple-500 animate-spin mx-auto mb-4" />
+          <p className="text-white/60 text-sm">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0712] text-white flex" suppressHydrationWarning={true}>
