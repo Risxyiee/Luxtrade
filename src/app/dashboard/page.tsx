@@ -1897,18 +1897,6 @@ function LuxTradeDashboard() {
             </div>
           )}
           
-          {/* Affiliate Program Link */}
-          <Link href="/affiliate" className="block">
-            <motion.button
-              className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-emerald-600/30 to-amber-600/30 text-emerald-300 border border-emerald-500/30 hover:from-emerald-600/40 hover:to-amber-600/40 transition-all flex items-center justify-center gap-2 text-sm font-bold"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Gift className="w-4 h-4" />
-              {sidebarOpen && <span>Affiliate & Tarik Saldo</span>}
-            </motion.button>
-          </Link>
-
           {/* Settings Link */}
           <Link href="/settings" className="block">
             <motion.button
