@@ -7,12 +7,14 @@ import { PrismaClient } from '@prisma/client'
 async function performSync() {
   try {
     console.log('🔄 Starting sync of Supabase Auth users to Prisma...')
+    console.log('🔗 DATABASE_URL:', process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 50) + '...' : 'NOT SET')
     console.log('Environment check:', {
       NODE_ENV: process.env.NODE_ENV,
       SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'NOT SET',
       SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET',
       DATABASE_URL: process.env.DATABASE_URL ? 'SET (Length: ' + process.env.DATABASE_URL.length + ')' : 'NOT SET',
       DATABASE_URL_STARTS_WITH: process.env.DATABASE_URL?.startsWith('postgres') ? 'postgres://...' : 'OTHER',
+      DATABASE_URL_IS_FILE: process.env.DATABASE_URL?.includes('file:') || false,
     })
 
     // Check if supabaseAdmin is available
@@ -45,7 +47,8 @@ async function performSync() {
     if (authError) {
       console.error('❌ Error fetching Supabase Auth users:', authError)
       return {
-        error: 'Failed to fetch Supabase Auth users', details: String(authError)
+        error: 'Failed to fetch Supabase Auth users',
+        details: JSON.stringify(authError, null, 2)
       }
     }
 
@@ -128,7 +131,7 @@ async function performSync() {
           return {
             email: authUser.email,
             action: 'error',
-            error: String(error)
+            error: JSON.stringify(error, null, 2)
           }
         }
       })
@@ -156,7 +159,11 @@ async function performSync() {
     console.error('❌ Unexpected error in sync:', error)
     console.error('Full error details:', JSON.stringify(error, null, 2))
     return {
-      error: 'Sync failed', details: String(error)
+      error: 'Sync failed',
+      details: JSON.stringify(error, null, 2),
+      errorType: (error as any)?.constructor?.name || 'Unknown',
+      errorCode: (error as any)?.code || 'NO_CODE',
+      errorMessage: (error as any)?.message || String(error)
     }
   }
 }
@@ -164,6 +171,14 @@ async function performSync() {
 // GET to sync all Supabase Auth users to Prisma (PUBLIC ACCESS - no auth required)
 export async function GET(request: NextRequest) {
   console.log('📥 GET /api/admin/sync-auth-users')
+
+  // Log DATABASE_URL for debugging
+  console.log('🔗 DATABASE_URL (Full Check):')
+  console.log('   - Exists:', !!process.env.DATABASE_URL)
+  console.log('   - Length:', process.env.DATABASE_URL?.length || 0)
+  console.log('   - Starts with postgres:', process.env.DATABASE_URL?.startsWith('postgres') || false)
+  console.log('   - Contains file:', process.env.DATABASE_URL?.includes('file:') || false)
+  console.log('   - First 50 chars:', process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 50) + '...' : 'NOT SET')
 
   // Force fresh Prisma client
   const freshDb = new PrismaClient({
@@ -182,15 +197,21 @@ export async function GET(request: NextRequest) {
     console.log('✅ Database connection successful:', testResult)
   } catch (dbError) {
     console.error('❌ Database connection FAILED:', dbError)
+    console.error('Error details:', JSON.stringify(dbError, null, 2))
     return NextResponse.json({
       error: 'Database connection failed',
-      details: String(dbError),
-      databaseUrl: process.env.DATABASE_URL ? `SET (starts with: ${process.env.DATABASE_URL.substring(0, 30)}...)` : 'NOT SET'
+      details: JSON.stringify(dbError, null, 2),
+      errorType: (dbError as any)?.constructor?.name || 'Unknown',
+      errorCode: (dbError as any)?.code || 'NO_CODE',
+      errorMessage: (dbError as any)?.message || String(dbError),
+      databaseUrl: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 50) + '...' : 'NOT SET',
+      databaseUrlExists: !!process.env.DATABASE_URL,
+      databaseUrlIsPostgres: process.env.DATABASE_URL?.startsWith('postgres') || false,
+      databaseUrlIsFile: process.env.DATABASE_URL?.includes('file:') || false
     }, { status: 500 })
   }
 
   // Replace db with fresh instance
-  const originalDb = db
   Object.assign(db, freshDb)
 
   const result = await performSync()
@@ -206,6 +227,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   console.log('📥 POST /api/admin/sync-auth-users')
 
+  // Log DATABASE_URL for debugging
+  console.log('🔗 DATABASE_URL (Full Check):')
+  console.log('   - Exists:', !!process.env.DATABASE_URL)
+  console.log('   - Length:', process.env.DATABASE_URL?.length || 0)
+  console.log('   - Starts with postgres:', process.env.DATABASE_URL?.startsWith('postgres') || false)
+  console.log('   - Contains file:', process.env.DATABASE_URL?.includes('file:') || false)
+  console.log('   - First 50 chars:', process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 50) + '...' : 'NOT SET')
+
   // Force fresh Prisma client
   const freshDb = new PrismaClient({
     log: ['query', 'error', 'warn'],
@@ -223,10 +252,17 @@ export async function POST(request: NextRequest) {
     console.log('✅ Database connection successful:', testResult)
   } catch (dbError) {
     console.error('❌ Database connection FAILED:', dbError)
+    console.error('Error details:', JSON.stringify(dbError, null, 2))
     return NextResponse.json({
       error: 'Database connection failed',
-      details: String(dbError),
-      databaseUrl: process.env.DATABASE_URL ? `SET (starts with: ${process.env.DATABASE_URL.substring(0, 30)}...)` : 'NOT SET'
+      details: JSON.stringify(dbError, null, 2),
+      errorType: (dbError as any)?.constructor?.name || 'Unknown',
+      errorCode: (dbError as any)?.code || 'NO_CODE',
+      errorMessage: (dbError as any)?.message || String(dbError),
+      databaseUrl: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 50) + '...' : 'NOT SET',
+      databaseUrlExists: !!process.env.DATABASE_URL,
+      databaseUrlIsPostgres: process.env.DATABASE_URL?.startsWith('postgres') || false,
+      databaseUrlIsFile: process.env.DATABASE_URL?.includes('file:') || false
     }, { status: 500 })
   }
 
