@@ -29,8 +29,10 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
   const chartRef = useRef<IChartApi<'UTCTimestamp'> | null>(null)
   const seriesRef = useRef<ISeriesApi<'UTCTimestamp', KlineData> | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
-  const [mounted, setMounted] = useState(false)
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)  // Store interval ID to prevent recreation
+  const lastDataRef = useRef<string | null>(null)  // Track last data to prevent unnecessary updates
 
+  const [mounted, setMounted] = useState(false)
   const [data, setData] = useState<KlineData[]>([])
   const [signals, setSignals] = useState<Signal[]>([])
   const [loading, setLoading] = useState(true)
@@ -173,8 +175,16 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
         calculatedSignals = []
       }
 
-      setData(klineData)
-      setSignals(calculatedSignals)
+      // DATA COMPARISON GUARD: Only update if data actually changed
+      const dataString = JSON.stringify(klineData)
+      if (dataString !== lastDataRef.current) {
+        console.log('[LuxtradeMiniChart] 🆕 Data changed, updating state')
+        lastDataRef.current = dataString
+        setData(klineData)
+        setSignals(calculatedSignals)
+      } else {
+        console.log('[LuxtradeMiniChart] ♻️ Data same, skipping update')
+      }
 
       // Set current price with null check - wrapped in separate try-catch
       try {
@@ -358,12 +368,12 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
     }
   }, [mounted])
 
-  // Update data when fetched - only after mounted
+  // Update data when fetched - only after mounted and when data actually changes
   useEffect(() => {
     if (!mounted || !seriesRef.current || data?.length === 0) return
 
     try {
-      console.log('[LuxtradeMiniChart] Setting data:', data.length, 'candles')
+      console.log('[LuxtradeMiniChart] 📊 Updating chart with:', data.length, 'candles')
 
       // Validate data before setting
       const validData = data.filter(kline => {
@@ -383,24 +393,39 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
       }
 
       seriesRef.current.setData(validData)
-      console.log('[LuxtradeMiniChart] Data set successfully')
+      console.log('[LuxtradeMiniChart] ✅ Chart data updated successfully')
     } catch (error) {
-      console.error('[LuxtradeMiniChart] Failed to update chart data:', error)
+      console.error('[LuxtradeMiniChart] ❌ Failed to update chart data:', error)
       setChartError(true)
     }
-  }, [data, mounted])
+  }, [data, mounted])  // Keep dependency but rely on data comparison guard in fetchKlines
 
   // Fetch data on mount and refresh - only after mounted
   useEffect(() => {
     if (!mounted) return
 
+    console.log('[LuxtradeMiniChart] 🚀 Initial fetch on mount')
     fetchKlines()
 
-    // Refresh every 30 seconds
-    const intervalId = setInterval(fetchKlines, 30000)
+    // Clear previous interval if exists
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+    }
 
-    return () => clearInterval(intervalId)
-  }, [fetchKlines, mounted])
+    // Refresh every 30 seconds - store interval in ref
+    intervalRef.current = setInterval(() => {
+      console.log('[LuxtradeMiniChart] 🔄 Scheduled refresh')
+      fetchKlines()
+    }, 30000)
+
+    return () => {
+      if (intervalRef.current) {
+        console.log('[LuxtradeMiniChart] 🛑 Clearing interval')
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+  }, [mounted])  // Only depend on mounted, NOT on fetchKlines!
 
   // Return early if not mounted
   if (!mounted) {
