@@ -37,29 +37,23 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
   const [chartError, setChartError] = useState<string | null>(null)
   const [chartData, setChartData] = useState<CandlestickData[]>([])
 
-  // Forex & Crypto symbols
+  // Forex symbols only
   const symbols = [
     // Gold & Metals
-    { symbol: 'XAUUSD', name: 'Gold', icon: '🥇', type: 'forex' },
-    { symbol: 'XAGUSD', name: 'Silver', icon: '🥈', type: 'forex' },
+    { symbol: 'XAUUSD', name: 'Gold', icon: '🥇' },
+    { symbol: 'XAGUSD', name: 'Silver', icon: '🥈' },
 
     // Major Forex Pairs
-    { symbol: 'EURUSD', name: 'EUR/USD', icon: '🇪🇺🇸', type: 'forex' },
-    { symbol: 'GBPUSD', name: 'GBP/USD', icon: '🇬🇧', type: 'forex' },
-    { symbol: 'USDJPY', name: 'USD/JPY', icon: '🇺🇸🇯🇵', type: 'forex' },
-    { symbol: 'EURGBP', name: 'EUR/GBP', icon: '🇪🇬🇧', type: 'forex' },
-    { symbol: 'EURJPY', name: 'EUR/JPY', icon: '🇪🇯🇵', type: 'forex' },
-    { symbol: 'GBPJPY', name: 'GBP/JPY', icon: '🇬🇧🇯🇵', type: 'forex' },
-    { symbol: 'AUDUSD', name: 'AUD/USD', icon: '🇦🇺🇸', type: 'forex' },
-    { symbol: 'NZDUSD', name: 'NZD/USD', icon: '🇳🇿🇺🇸', type: 'forex' },
-    { symbol: 'USDCAD', name: 'USD/CAD', icon: '🇺🇸🇨🇦', type: 'forex' },
-    { symbol: 'USDCHF', name: 'USD/CHF', icon: '🇺🇸🇨🇭', type: 'forex' },
-
-    // Crypto Pairs
-    { symbol: 'BTCUSDT', name: 'Bitcoin', icon: '₿', type: 'crypto' },
-    { symbol: 'ETHUSDT', name: 'Ethereum', icon: 'Ξ', type: 'crypto' },
-    { symbol: 'BNBUSDT', name: 'BNB', icon: '◆', type: 'crypto' },
-    { symbol: 'SOLUSDT', name: 'Solana', icon: '◎', type: 'crypto' },
+    { symbol: 'EURUSD', name: 'EUR/USD', icon: '🇪🇺🇸' },
+    { symbol: 'GBPUSD', name: 'GBP/USD', icon: '🇬🇧' },
+    { symbol: 'USDJPY', name: 'USD/JPY', icon: '🇺🇸🇯🇵' },
+    { symbol: 'EURGBP', name: 'EUR/GBP', icon: '🇪🇬🇧' },
+    { symbol: 'EURJPY', name: 'EUR/JPY', icon: '🇪🇯🇵' },
+    { symbol: 'GBPJPY', name: 'GBP/JPY', icon: '🇬🇧🇯🇵' },
+    { symbol: 'AUDUSD', name: 'AUD/USD', icon: '🇦🇺🇸' },
+    { symbol: 'NZDUSD', name: 'NZD/USD', icon: '🇳🇿🇺🇸' },
+    { symbol: 'USDCAD', name: 'USD/CAD', icon: '🇺🇸🇨🇦' },
+    { symbol: 'USDCHF', name: 'USD/CHF', icon: '🇺🇸🇨🇭' },
   ]
 
   const intervals = ['1m', '5m', '15m', '30m', '1h', '4h', '1d']
@@ -77,25 +71,15 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
     setChartError(null)
 
     try {
-      // Determine API endpoint based on symbol type
-      const selectedSymbolData = symbols.find(s => s.symbol === selectedSymbol)
-      const symbolType = selectedSymbolData?.type || 'forex'
+      // Use Forex API for all symbols
+      const apiUrl = `/api/forex?symbol=${selectedSymbol}&interval=${selectedInterval}&limit=50`
 
-      let apiUrl = ''
-      if (symbolType === 'crypto') {
-        // Use Binance API for crypto
-        apiUrl = `/api/chart/klines?symbol=${selectedSymbol}&interval=${selectedInterval}&limit=150`
-      } else {
-        // Use Forex API for forex & metals
-        apiUrl = `/api/forex?symbol=${selectedSymbol}&interval=${selectedInterval}&limit=150`
-      }
-
-      console.log(`🔄 Fetching from ${symbolType} API: ${apiUrl}`)
+      console.log(`🔄 Fetching from Forex API: ${apiUrl}`)
 
       const response = await fetch(apiUrl)
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch data from ${symbolType} API`)
+        throw new Error(`Failed to fetch data from Forex API`)
       }
 
       const result = await response.json()
@@ -107,7 +91,7 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
 
       if (apiSuccess && apiData.length > 0) {
         setChartData(apiData)
-        console.log(`✅ Loaded ${apiData.length} candles for ${selectedSymbol} (${symbolType})`)
+        console.log(`✅ Loaded ${apiData.length} candles for ${selectedSymbol}`)
       } else if (result.error) {
         throw new Error(result.error)
       } else {
@@ -124,7 +108,7 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
     } finally {
       setIsLoadingData(false)
     }
-  }, [selectedSymbol, selectedInterval, hasMounted, symbols])
+  }, [selectedSymbol, selectedInterval, hasMounted])
 
   // Initialize chart only once - after mounting
   useEffect(() => {
@@ -199,7 +183,7 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
         <div className="mb-3">
           <h3 className="text-sm font-semibold text-white/60 mb-2">GOLD & METALS</h3>
           <div className="flex flex-wrap gap-2">
-            {symbols.filter(s => s.type === 'forex' && ['XAUUSD', 'XAGUSD'].includes(s.symbol)).map((s) => (
+            {symbols.filter(s => ['XAUUSD', 'XAGUSD'].includes(s.symbol)).map((s) => (
               <Button
                 key={s.symbol}
                 size="sm"
@@ -219,7 +203,7 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
         <div className="mb-3">
           <h3 className="text-sm font-semibold text-white/60 mb-2">MAJOR FOREX PAIRS</h3>
           <div className="flex flex-wrap gap-2">
-            {symbols.filter(s => s.type === 'forex' && !['XAUUSD', 'XAGUSD'].includes(s.symbol)).slice(0, 6).map((s) => (
+            {symbols.filter(s => !['XAUUSD', 'XAGUSD'].includes(s.symbol)).slice(0, 6).map((s) => (
               <Button
                 key={s.symbol}
                 size="sm"
@@ -235,25 +219,6 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
           </div>
         </div>
 
-        {/* Crypto Pairs */}
-        <div>
-          <h3 className="text-sm font-semibold text-white/60 mb-2">CRYPTO PAIRS</h3>
-          <div className="flex flex-wrap gap-2">
-            {symbols.filter(s => s.type === 'crypto').map((s) => (
-              <Button
-                key={s.symbol}
-                size="sm"
-                variant={selectedSymbol === s.symbol ? 'default' : 'outline'}
-                onClick={() => setSelectedSymbol(s.symbol)}
-                disabled={isLoadingData}
-                className="text-xs"
-              >
-                <span className="mr-1">{s.icon}</span>
-                {s.name}
-              </Button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Interval Selector */}
@@ -313,7 +278,7 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
           {selectedInterval} timeframe
         </Badge>
         <Badge className="bg-cyan-500/20 text-cyan-400">
-          150 candles
+          50 candles
         </Badge>
       </div>
     </div>
