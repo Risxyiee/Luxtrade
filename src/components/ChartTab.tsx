@@ -15,34 +15,26 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
   const chartRef = useRef<IChartApi | null>(null)
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
   const [isLoadingData, setIsLoadingData] = useState(false)
-  const [selectedSymbol, setSelectedSymbol] = useState('XAUUSD')
+  const [selectedSymbol, setSelectedSymbol] = useState('BTCUSDT')
   const [selectedInterval, setSelectedInterval] = useState('15m')
   const [hasMounted, setHasMounted] = useState(false)
   const [chartError, setChartError] = useState<string | null>(null)
 
-  // Extended forex symbols
+  // Crypto symbols only (Binance API only supports crypto)
   const symbols = [
-    // Gold & Silver
-    { symbol: 'XAUUSD', name: 'Gold', icon: '🥇' },
-    { symbol: 'XAGUSD', name: 'Silver', icon: '🥈' },
-
-    // Major Forex Pairs
-    { symbol: 'EURUSD', name: 'EUR/USD', icon: '🇪🇺🇸' },
-    { symbol: 'GBPUSD', name: 'GBP/USD', icon: '🇬🇧' },
-    { symbol: 'USDJPY', name: 'USD/JPY', icon: '🇺🇸🇯🇵' },
-    { symbol: 'EURGBP', name: 'EUR/GBP', icon: '🇪🇬🇧' },
-    { symbol: 'EURJPY', name: 'EUR/JPY', icon: '🇪🇯🇵' },
-    { symbol: 'GBPJPY', name: 'GBP/JPY', icon: '🇬🇧🇯🇵' },
-    { symbol: 'AUDUSD', name: 'AUD/USD', icon: '🇦🇺🇺🇸' },
-    { symbol: 'NZDUSD', name: 'NZD/USD', icon: '🇳🇿🇺🇸' },
-    { symbol: 'USDCAD', name: 'USD/CAD', icon: '🇺🇸🇨🇦' },
-    { symbol: 'USDCHF', name: 'USD/CHF', icon: '🇺🇸🇨🇭' },
-
-    // Crypto Pairs
+    // Major Crypto Pairs
     { symbol: 'BTCUSDT', name: 'Bitcoin', icon: '₿' },
     { symbol: 'ETHUSDT', name: 'Ethereum', icon: 'Ξ' },
     { symbol: 'BNBUSDT', name: 'BNB', icon: '◆' },
     { symbol: 'SOLUSDT', name: 'Solana', icon: '◎' },
+    { symbol: 'XRPUSDT', name: 'Ripple', icon: '✕' },
+    { symbol: 'ADAUSDT', name: 'Cardano', icon: '₳' },
+    { symbol: 'DOGEUSDT', name: 'Dogecoin', icon: 'Ð' },
+    { symbol: 'MATICUSDT', name: 'Polygon', icon: '⬡' },
+    { symbol: 'DOTUSDT', name: 'Polkadot', icon: '●' },
+    { symbol: 'AVAXUSDT', name: 'Avalanche', icon: '▲' },
+    { symbol: 'LINKUSDT', name: 'Chainlink', icon: '⬡' },
+    { symbol: 'UNIUSDT', name: 'Uniswap', icon: '🦄' },
   ]
 
   const intervals = ['1m', '5m', '15m', '30m', '1h', '4h', '1d']
@@ -243,48 +235,10 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
 
       {/* Symbol Selector */}
       <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg p-4">
-        <div className="mb-3">
-          <h3 className="text-sm font-semibold text-white/60 mb-2">GOLD & SILVER</h3>
-          <div className="flex flex-wrap gap-2">
-            {symbols.slice(0, 2).map((s) => (
-              <Button
-                key={s.symbol}
-                size="sm"
-                variant={selectedSymbol === s.symbol ? 'default' : 'outline'}
-                onClick={() => setSelectedSymbol(s.symbol)}
-                disabled={isLoadingData}
-                className="text-xs"
-              >
-                <span className="mr-1">{s.icon}</span>
-                {s.name}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mb-3">
-          <h3 className="text-sm font-semibold text-white/60 mb-2">MAJOR FOREX PAIRS</h3>
-          <div className="flex flex-wrap gap-2">
-            {symbols.slice(2, 12).map((s) => (
-              <Button
-                key={s.symbol}
-                size="sm"
-                variant={selectedSymbol === s.symbol ? 'default' : 'outline'}
-                onClick={() => setSelectedSymbol(s.symbol)}
-                disabled={isLoadingData}
-                className="text-xs"
-              >
-                <span className="mr-1">{s.icon}</span>
-                {s.name}
-              </Button>
-            ))}
-          </div>
-        </div>
-
         <div>
           <h3 className="text-sm font-semibold text-white/60 mb-2">CRYPTO PAIRS</h3>
           <div className="flex flex-wrap gap-2">
-            {symbols.slice(12).map((s) => (
+            {symbols.map((s) => (
               <Button
                 key={s.symbol}
                 size="sm"
