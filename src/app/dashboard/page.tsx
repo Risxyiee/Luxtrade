@@ -2064,6 +2064,9 @@ export default function LuxTradeDashboard() {
                   demoMode={demoMode}
                   language={language}
                   isPro={isPro}
+                  activeTF={activeTF}
+                  setActiveTF={setActiveTF}
+                  shouldDisableCharts={shouldDisableCharts}
                 />
               </motion.div>
             )}
@@ -3740,7 +3743,10 @@ function DashboardTab({
   chartAnimated,
   demoMode,
   language,
-  isPro
+  isPro,
+  activeTF: defaultActiveTF = '15m',
+  setActiveTF: defaultSetActiveTF,
+  shouldDisableCharts: defaultShouldDisableCharts = false
 }: {
   analytics: Analytics | null
   trades: Trade[]
@@ -3756,7 +3762,25 @@ function DashboardTab({
   demoMode: boolean
   language: 'id' | 'en'
   isPro: boolean
+  activeTF?: string
+  setActiveTF?: (tf: string) => void
+  shouldDisableCharts?: boolean
 }) {
+  // Defensive: Use activeTF with default value
+  const currentActiveTF = activeTF ?? defaultActiveTF
+
+  // Defensive: Use setActiveTF with safe wrapper
+  const handleSetActiveTF = defaultSetActiveTF
+    ? (tf: string) => {
+        if (defaultSetActiveTF) defaultSetActiveTF(tf)
+      }
+    : () => {
+        console.warn('[DashboardTab] setActiveTF not provided')
+      }
+
+  // Defensive: Use shouldDisableCharts with default value
+  const currentShouldDisableCharts = shouldDisableCharts ?? defaultShouldDisableCharts
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -3925,8 +3949,8 @@ function DashboardTab({
             <Button
               key={tf}
               size="sm"
-              variant={activeTF === tf ? 'default' : 'outline'}
-              onClick={() => setActiveTF(tf)}
+              variant={currentActiveTF === tf ? 'default' : 'outline'}
+              onClick={() => handleSetActiveTF(tf)}
               className="text-xs"
             >
               {tf}
@@ -3934,7 +3958,7 @@ function DashboardTab({
           ))}
         </div>
         {/* Mobile optimization: Disable charts on low-end devices */}
-        {shouldDisableCharts ? (
+        {currentShouldDisableCharts ? (
           <motion.div
             key="mobile-chart-fallback"
             initial={{ opacity: 0, y: 20 }}
@@ -3965,10 +3989,10 @@ function DashboardTab({
         ) : (
           <ChartErrorBoundary>
             <LuxtradeMiniChart
-              key={`chart-${activeTF}`}
+              key={`chart-${currentActiveTF}`}
               isPro={isPro}
               demoMode={demoMode}
-              interval={activeTF}
+              interval={currentActiveTF}
             />
           </ChartErrorBoundary>
         )}
