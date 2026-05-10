@@ -93,6 +93,13 @@ export async function GET(request: NextRequest) {
       },
       referrals,
       withdrawals,
+    }, {
+      // NO CACHE - Force real-time data
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     })
   } catch (error) {
     console.error('Affiliate GET error:', error)
