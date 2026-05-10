@@ -69,6 +69,19 @@ interface User {
   subscriptionCount: number
 }
 
+interface AffiliateStats {
+  affiliateId: string
+  myReferralCode: string
+  email: string
+  name: string
+  affiliateBalance: number
+  totalReferred: number
+  activePro: number
+  totalCommission: number
+  totalCommissionPending: number
+  createdAt: string
+}
+
 export default function AdminSubscriptionsPanel() {
   const [activeTab, setActiveTab] = useState('users')
 
@@ -79,6 +92,9 @@ export default function AdminSubscriptionsPanel() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [plans, setPlans] = useState<Plan[]>([])
   const [slotInfo, setSlotInfo] = useState<SlotInfo | null>(null)
+
+  // Affiliate state
+  const [affiliateStats, setAffiliateStats] = useState<AffiliateStats[]>([])
 
   // Common state
   const [loading, setLoading] = useState(true)
@@ -188,6 +204,11 @@ export default function AdminSubscriptionsPanel() {
           setSlotInfo(slotData.slotInfo)
         }
       }
+
+      // Fetch affiliate stats
+      const affiliateRes = await fetch('/api/admin/affiliate-stats')
+      const affiliateData = await affiliateRes.json()
+      setAffiliateStats(affiliateData.data || [])
     } catch (error) {
       console.error('❌ Error fetching data in admin panel:', error)
       console.error('Full error details:', JSON.stringify(error, null, 2))
@@ -445,6 +466,46 @@ export default function AdminSubscriptionsPanel() {
     return <Badge className="bg-purple-500/20 text-purple-400">{plan.durationMonths} months</Badge>
   }
 
+  const handleCancelSubscription = async (userId: string) => {
+    if (!confirm('Are you sure you want to cancel this subscription?')) return
+
+    try {
+      const res = await fetch('/api/admin/cancel-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      })
+
+      if (res.ok) {
+        window.alert('✅ Paket Berhasil Dibatalkan!')
+        fetchData()
+      } else {
+        const errorData = await res.json()
+        alert(`Failed: ${errorData.error}`)
+      }
+    } catch (error) {
+      console.error('Error cancelling subscription:', error)
+      alert('Failed to cancel subscription')
+    }
+  }
+
+  const handleMarkAsPaid = async (affiliateId: string) => {
+    const res = await fetch('/api/admin/mark-as-paid', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ affiliateId })
+    })
+
+    if (res.ok) {
+      const data = await res.json()
+      alert(`✅ Komisi berhasil dibayarkan ke ${data.data.email}`)
+      fetchData() // Refresh data
+    } else {
+      const errorData = await res.json()
+      alert(`Gagal: ${errorData.error}`)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0a0612]">
@@ -569,6 +630,10 @@ export default function AdminSubscriptionsPanel() {
               <Users className="w-4 h-4 mr-2" />
               Subscriptions ({subscriptions.length})
             </TabsTrigger>
+            <TabsTrigger value="affiliates">
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Affiliate Tracking ({affiliateStats.length})
+            </TabsTrigger>
           </TabsList>
 
           {/* Users Tab */}
@@ -684,6 +749,15 @@ export default function AdminSubscriptionsPanel() {
                                   >
                                     <Crown className="w-3 h-3 mr-1" />
                                     Lifetime
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleCancelSubscription(user.id)}
+                                    className="h-10 sm:h-10 hover:bg-red-500/20 hover:text-red-400 text-xs sm:text-sm"
+                                  >
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                    Cancel
                                   </Button>
                                   <Button
                                     size="sm"
@@ -915,6 +989,99 @@ export default function AdminSubscriptionsPanel() {
                             </td>
                           </tr>
                         ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </TabsContent>
+
+          {/* Affiliate Tracking Tab */}
+          <TabsContent value="affiliates" className="mt-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Affiliate Tracking</h2>
+              </div>
+
+              <Card className="bg-white/[0.02] border-white/[0.05]">
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-white/5">
+                          <th className="text-left p-4 text-white/40 font-medium text-sm">Affiliate</th>
+                          <th className="text-left p-4 text-white/40 font-medium text-sm">Referral Code</th>
+                          <th className="text-left p-4 text-white/40 font-medium text-sm">Total Referred</th>
+                          <th className="text-left p-4 text-white/40 font-medium text-sm">Active PRO</th>
+                          <th className="text-left p-4 text-white/40 font-medium text-sm">Total Commission</th>
+                          <th className="text-left p-4 text-white/40 font-medium text-sm">Pending Commission</th>
+                          <th className="text-left p-4 text-white/40 font-medium text-sm">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {affiliateStats.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="p-8 text-center text-white/40">
+                              No affiliate data found.
+                            </td>
+                          </tr>
+                        ) : (
+                          affiliateStats.map((affiliate) => (
+                            <tr key={affiliate.affiliateId} className="border-b border-white/5 hover:bg-white/[0.02]">
+                              <td className="p-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 rounded-full bg-emerald-500/20">
+                                    <UserCircle className="w-5 h-5 text-emerald-400" />
+                                  </div>
+                                  <div>
+                                    <div className="font-medium">{affiliate.name}</div>
+                                    <div className="text-xs text-white/40">{affiliate.email}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <Badge className="bg-cyan-500/20 text-cyan-400">
+                                  {affiliate.myReferralCode}
+                                </Badge>
+                              </td>
+                              <td className="p-4">
+                                <Badge className="bg-blue-500/20 text-blue-400">
+                                  {affiliate.totalReferred}
+                                </Badge>
+                              </td>
+                              <td className="p-4">
+                                <Badge className="bg-purple-500/20 text-purple-400">
+                                  {affiliate.activePro}
+                                </Badge>
+                              </td>
+                              <td className="p-4">
+                                <div className="text-sm text-emerald-400 font-semibold">
+                                  Rp {affiliate.totalCommission.toLocaleString('id-ID')}
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <div className="text-sm text-yellow-400 font-semibold">
+                                  Rp {affiliate.totalCommissionPending.toLocaleString('id-ID')}
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                {affiliate.totalCommissionPending > 0 && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleMarkAsPaid(affiliate.affiliateId)}
+                                    className="h-8 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
+                                  >
+                                    Mark as Paid
+                                  </Button>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
