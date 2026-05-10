@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { createChart, IChartApi, ISeriesApi, CandlestickData, Time } from 'lightweight-charts'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -45,79 +45,8 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
 
   const intervals = ['1m', '5m', '15m', '30m', '1h', '4h', '1d']
 
-  // Initialize chart
-  useEffect(() => {
-    if (!chartContainerRef.current) return
-
-    const container = chartContainerRef.current
-
-    const chart = createChart(container, {
-      width: container.clientWidth,
-      height: container.clientHeight,
-      layout: {
-        background: { color: '#0a0712' },
-        textColor: '#ffffff',
-      },
-      grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
-        horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
-      },
-      crosshair: {
-        mode: 1,
-        vertLine: {
-          color: 'rgba(224, 227, 235, 0.1)',
-          width: 1,
-          style: 2,
-        },
-        horzLine: {
-          color: 'rgba(224, 227, 235, 0.1)',
-          width: 1,
-          style: 2,
-        },
-      },
-      rightPriceScale: {
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-      },
-      timeScale: {
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        timeVisible: true,
-        secondsVisible: false,
-      },
-      handleScroll: true,
-      handleScale: true,
-    })
-
-    const candlestickSeries = chart.addCandlestickSeries({
-      upColor: '#10b981',
-      downColor: '#ef4444',
-      borderDownColor: '#ef4444',
-      borderUpColor: '#10b981',
-      wickDownColor: '#ef4444',
-      wickUpColor: '#10b981',
-    })
-
-    chartRef.current = chart
-    seriesRef.current = candlestickSeries
-
-    const handleResize = () => {
-      if (container && chart) {
-        chart.applyOptions({ width: container.clientWidth, height: container.clientHeight })
-      }
-    }
-
-    window.addEventListener('resize', handleResize)
-
-    // Fetch initial data
-    fetchData()
-
-    return () => {
-      window.removeEventListener('resize', handleResize)
-      chart.remove()
-    }
-  }, [])
-
   // Fetch chart data
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoadingData(true)
     try {
       const response = await fetch(
@@ -139,14 +68,89 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
     } finally {
       setIsLoadingData(false)
     }
-  }
+  }, [selectedSymbol, selectedInterval])
+
+  // Initialize chart only once
+  useEffect(() => {
+    if (!chartContainerRef.current || chartRef.current) return
+
+    const container = chartContainerRef.current
+
+    try {
+      const chart = createChart(container, {
+        width: container.clientWidth,
+        height: container.clientHeight,
+        layout: {
+          background: { color: '#0a0712' },
+          textColor: '#ffffff',
+        },
+        grid: {
+          vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
+          horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
+        },
+        crosshair: {
+          mode: 1,
+          vertLine: {
+            color: 'rgba(224, 227, 235, 0.1)',
+            width: 1,
+            style: 2,
+          },
+          horzLine: {
+            color: 'rgba(224, 227, 235, 0.1)',
+            width: 1,
+            style: 2,
+          },
+        },
+        rightPriceScale: {
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+        },
+        timeScale: {
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          timeVisible: true,
+          secondsVisible: false,
+        },
+        handleScroll: true,
+        handleScale: true,
+      })
+
+      const candlestickSeries = chart.addCandlestickSeries({
+        upColor: '#10b981',
+        downColor: '#ef4444',
+        borderDownColor: '#ef4444',
+        borderUpColor: '#10b981',
+        wickDownColor: '#ef4444',
+        wickUpColor: '#10b981',
+      })
+
+      chartRef.current = chart
+      seriesRef.current = candlestickSeries
+
+      const handleResize = () => {
+        if (container && chart) {
+          chart.applyOptions({ width: container.clientWidth, height: container.clientHeight })
+        }
+      }
+
+      window.addEventListener('resize', handleResize)
+
+      // Fetch initial data
+      fetchData()
+
+      return () => {
+        window.removeEventListener('resize', handleResize)
+        chart.remove()
+      }
+    } catch (error) {
+      console.error('Error initializing chart:', error)
+    }
+  }, [fetchData])
 
   // Update chart when symbol or interval changes
   useEffect(() => {
-    if (chartRef.current) {
+    if (chartRef.current && seriesRef.current) {
       fetchData()
     }
-  }, [selectedSymbol, selectedInterval])
+  }, [selectedSymbol, selectedInterval, fetchData])
 
   return (
     <div className="space-y-4">
