@@ -157,7 +157,12 @@ export default function AffiliatePage() {
     setPageLoading(true)
     try {
       const res = await fetch('/api/affiliate', {
-        headers: { 'x-user-id': user.id },
+        headers: {
+          'x-user-id': user.id,
+          'Cache-Control': 'no-cache',
+        },
+        cache: 'no-store',
+        next: { revalidate: 0 }
       })
       const data = await res.json()
       if (data.success) {
