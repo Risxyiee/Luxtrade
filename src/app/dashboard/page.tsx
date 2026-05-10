@@ -603,6 +603,9 @@ export default function LuxTradeDashboard() {
   // Demo mode state
   const [demoMode, setDemoMode] = useState(true) // Default TRUE untuk demo
   
+  // Chart timeframe state for Single-Active-Chart system
+  const [activeTF, setActiveTF] = useState('15m')
+  
   // Trade modals
   const [addTradeOpen, setAddTradeOpen] = useState(false)
   const [editTradeOpen, setEditTradeOpen] = useState(false)
@@ -3870,8 +3873,28 @@ function DashboardTab({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.14 }}
       >
+        {/* Timeframe Selector Buttons */}
+        <div className="mb-3 flex gap-2 items-center">
+          <span className="text-white/60 text-sm mr-2">Timeframe:</span>
+          {['1m', '5m', '15m', '30m', '1h', '4h'].map((tf) => (
+            <Button
+              key={tf}
+              size="sm"
+              variant={activeTF === tf ? 'default' : 'outline'}
+              onClick={() => setActiveTF(tf)}
+              className="text-xs"
+            >
+              {tf}
+            </Button>
+          ))}
+        </div>
         <ChartErrorBoundary>
-          <LuxtradeMiniChart isPro={isPro} demoMode={demoMode} />
+          <LuxtradeMiniChart 
+            key={`chart-${activeTF}`} 
+            isPro={isPro} 
+            demoMode={demoMode} 
+            interval={activeTF} 
+          />
         </ChartErrorBoundary>
       </motion.div>
 
