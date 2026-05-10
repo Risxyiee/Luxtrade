@@ -1,0 +1,358 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { createChart, IChartApi, ISeriesApi, CandlestickData, Time } from 'lightweight-charts'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Lock, RefreshCw, TrendingUp, Crown } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+
+interface IndicatorSignal {
+  time: Time
+  type: 'BUY' | 'SELL'
+  price: number
+  bodyPercent: string
+  lookbackHigh: string
+  lookbackLow: string
+}
+
+interface IndicatorResponse {
+  success: boolean
+  symbol: string
+  interval: string
+  klines: CandlestickData[]
+  signals: IndicatorSignal[]
+}
+
+export default function LuxtradeChart() {
+  const chartContainerRef = useRef<HTMLDivElement>(null)
+  const chartRef = useRef<IChartApi | null>(null)
+  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingData, setIsLoadingData] = useState(false)
+  const [subscription, setSubscription] = useState<string>('FREE')
+  const [signals, setSignals] = useState<IndicatorSignal[]>([])
+  const [selectedSymbol, setSelectedSymbol] = useState('BTCUSDT')
+  const [selectedInterval, setSelectedInterval] = useState('15m')
+
+  // Fetch user subscription status
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('subscription_status')
+            .eq('id', user.id)
+            .single()
+
+          if (profile) {
+            setSubscription(profile.subscription_status || 'FREE')
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching subscription:', error)
+      }
+    }
+
+    fetchSubscription()
+    setIsLoading(false)
+  }, [])
+
+  // Initialize chart only for PRO/LIFETIME users
+  useEffect(() => {
+    if (subscription === 'FREE' || !chartContainerRef.current) {
+      return
+    }
+
+    const container = chartContainerRef.current
+
+    // Create chart with mobile optimization
+    const chart = createChart(container, {
+      width: container.clientWidth,
+      height: container.clientHeight,
+      layout: {
+        background: { color: '#0a0612' },
+        textColor: '#ffffff',
+      },
+      grid: {
+        vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
+        horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
+      },
+      crosshair: {
+        mode: 1,
+        vertLine: {
+          color: 'rgba(224, 227, 235, 0.1)',
+          width: 1,
+          style: 2,
+        },
+        horzLine: {
+          color: 'rgba(224, 227, 235, 0.1)',
+          width: 1,
+          style: 2,
+        },
+      },
+      rightPriceScale: {
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+      },
+      timeScale: {
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        timeVisible: true,
+        secondsVisible: false,
+      },
+      handleScroll: true,  // Enable scroll on mobile
+      handleScale: true,  // Enable pinch-zoom on mobile
+    })
+
+    const candlestickSeries = chart.addCandlestickSeries({
+      upColor: '#10b981',
+      downColor: '#ef4444',
+      borderDownColor: '#ef4444',
+      borderUpColor: '#10b981',
+      wickDownColor: '#ef4444',
+      wickUpColor: '#10b981',
+    })
+
+    chartRef.current = chart
+    seriesRef.current = candlestickSeries
+
+    // Handle resize
+    const handleResize = () => {
+      if (container && chart) {
+        chart.applyOptions({ width: container.clientWidth, height: container.clientHeight })
+      }
+    }
+
+    window.addEventListener('resize', handleResize)
+
+    // Fetch initial data
+    fetchData()
+
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      chart.remove()
+    }
+  }, [subscription])
+
+  // Fetch chart data with indicators
+  const fetchData = async () => {
+    if (subscription === 'FREE') return
+
+    setIsLoadingData(true)
+    try {
+      const response = await fetch(
+        `/api/chart/indicators?symbol=${selectedSymbol}&interval=${selectedInterval}&limit=150`
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch data')
+      }
+
+      const data: IndicatorResponse = await response.json()
+
+      if (data.success && seriesRef.current) {
+        // Set candlestick data
+        seriesRef.current.setData(data.klines)
+
+        // Set signals for markers
+        setSignals(data.signals)
+
+        console.log(`Loaded ${data.klines.length} candles and ${data.signals.length} signals`)
+      }
+    } catch (error) {
+      console.error('Error fetching chart data:', error)
+      alert('Failed to fetch chart data. Please try again.')
+    } finally {
+      setIsLoadingData(false)
+    }
+  }
+
+  // Handle symbol change
+  const handleSymbolChange = (symbol: string) => {
+    setSelectedSymbol(symbol)
+  }
+
+  // Handle interval change
+  const handleIntervalChange = (interval: string) => {
+    setSelectedInterval(interval)
+  }
+
+  // Update chart when symbol or interval changes
+  useEffect(() => {
+    if (subscription !== 'FREE' && chartRef.current) {
+      fetchData()
+    }
+  }, [selectedSymbol, selectedInterval])
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0612]">
+        <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
+      </div>
+    )
+  }
+
+  // Paywall for FREE users
+  if (subscription === 'FREE') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0612] p-4">
+        <Card className="bg-white/[0.02] border-white/[0.05] max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <div className="flex justify-center mb-6">
+              <div className="p-4 rounded-full bg-amber-500/20">
+                <Lock className="w-12 h-12 text-amber-400" />
+              </div>
+            </div>
+            <h2 className="text-2xl font-bold mb-4">Indikator Terkunci</h2>
+            <p className="text-white/60 mb-6">
+              Indikator Luxtrade 80% Momentum hanya untuk Member <span className="text-amber-400 font-semibold">PRO</span> atau <span className="text-purple-400 font-semibold">LIFETIME</span>!
+            </p>
+            <div className="space-y-3">
+              <Button className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
+                <Crown className="w-4 h-4 mr-2" />
+                Upgrade ke PRO
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => window.location.href = '/'}
+              >
+                Kembali ke Beranda
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0a0612] text-white p-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold mb-2 flex items-center gap-2">
+            <TrendingUp className="w-6 h-6 text-purple-400" />
+            Luxtrade Indicator
+          </h1>
+          <p className="text-white/60">
+            80% Momentum Trading Signals - {selectedSymbol} ({selectedInterval})
+          </p>
+        </div>
+
+        {/* Controls */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          <div className="flex gap-2">
+            {['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT'].map((symbol) => (
+              <Button
+                key={symbol}
+                size="sm"
+                variant={selectedSymbol === symbol ? 'default' : 'outline'}
+                onClick={() => handleSymbolChange(symbol)}
+                disabled={isLoadingData}
+              >
+                {symbol}
+              </Button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            {['5m', '15m', '1h', '4h'].map((interval) => (
+              <Button
+                key={interval}
+                size="sm"
+                variant={selectedInterval === interval ? 'default' : 'outline'}
+                onClick={() => handleIntervalChange(interval)}
+                disabled={isLoadingData}
+              >
+                {interval}
+              </Button>
+            ))}
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={fetchData}
+            disabled={isLoadingData}
+          >
+            {isLoadingData ? (
+              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4 mr-2" />
+            )}
+            Refresh
+          </Button>
+        </div>
+
+        {/* Chart */}
+        <Card className="bg-white/[0.02] border-white/[0.05] mb-6">
+          <CardContent className="p-0">
+            <div
+              ref={chartContainerRef}
+              className="w-full"
+              style={{ height: '500px' }}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Signals */}
+        <Card className="bg-white/[0.02] border-white/[0.05]">
+          <CardHeader>
+            <CardTitle>Trading Signals</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4 mb-4">
+              <Badge className="bg-emerald-500/20 text-emerald-400">
+                BUY: {signals.filter(s => s.type === 'BUY').length}
+              </Badge>
+              <Badge className="bg-red-500/20 text-red-400">
+                SELL: {signals.filter(s => s.type === 'SELL').length}
+              </Badge>
+              <Badge className="bg-purple-500/20 text-purple-400">
+                Total: {signals.length}
+              </Badge>
+            </div>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {signals.length === 0 ? (
+                <p className="text-center text-white/40 py-8">No signals found</p>
+              ) : (
+                signals.slice().reverse().map((signal, index) => (
+                  <div
+                    key={`${signal.time}-${index}`}
+                    className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.05]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Badge
+                        className={
+                          signal.type === 'BUY'
+                            ? 'bg-emerald-500/20 text-emerald-400'
+                            : 'bg-red-500/20 text-red-400'
+                        }
+                      >
+                        {signal.type}
+                      </Badge>
+                      <div>
+                        <div className="text-sm font-medium">
+                          {signal.type === 'BUY' ? 'Long' : 'Short'} @ {signal.price}
+                        </div>
+                        <div className="text-xs text-white/40">
+                          Body: {signal.bodyPercent}% | Lookback H: {signal.lookbackHigh} | L: {signal.lookbackLow}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-white/40">
+                      {new Date(Number(signal.time) * 1000).toLocaleString()}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
