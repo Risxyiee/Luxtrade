@@ -6,8 +6,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import '@/lib/error-handler' // Global error handler
-import { 
-  TrendingUp, TrendingDown, Plus, BarChart3, BookOpen, 
+import {
+  TrendingUp, TrendingDown, Plus, BarChart3, BookOpen,
   Eye, Brain, Menu, X, DollarSign, Target,
   Activity, PieChart, Sparkles, AlertTriangle,
   Zap, RefreshCw, Database, LogOut, CalendarDays, Upload, Edit, Trash2, Eye as ViewIcon, Calendar, Clock,
@@ -43,6 +43,11 @@ import { formatCurrency } from '@/lib/supabase'
 import ChartTab from '@/components/ChartTab'
 import { ChartErrorBoundary } from '@/components/ChartErrorBoundary'
 const LuxtradeMiniChart = dynamic(() => import('@/components/LuxtradeMiniChart'), { ssr: false })
+
+// Global safety check to prevent ReferenceError for activeTF
+if (typeof window !== 'undefined') {
+  (window as any).__activeTF_SAFE_DEFAULT = '15m'
+}
 
 // ==================== DEMO DATA ====================
 const demoTrades: Trade[] = [
@@ -591,7 +596,34 @@ function parseMT4HTML(html: string): MTReportPreview | null {
 
 // ==================== MAIN COMPONENT ====================
 
-export default function LuxTradeDashboard() {
+// Wrapper to prevent ReferenceError
+export default function LuxTradeDashboardWrapper() {
+  try {
+    return <LuxTradeDashboard />
+  } catch (error) {
+    console.error('🔴 [CRITICAL] Error in LuxTradeDashboard:', error)
+    // Fallback rendering
+    return (
+      <div className="min-h-screen bg-red-900 flex items-center justify-center p-6">
+        <div className="text-center max-w-md">
+          <AlertTriangle className="w-16 h-16 text-white mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-white mb-2">Dashboard Error</h1>
+          <p className="text-white/80 mb-4">
+            {error instanceof Error ? error.message : 'An unexpected error occurred'}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-white text-red-900 rounded-lg font-semibold"
+          >
+            Reload Page
+          </button>
+        </div>
+      </div>
+    )
+  }
+}
+
+function LuxTradeDashboard() {
   // CSR Force - Prevent hydration issues by only rendering after mount
   const [hasMounted, setHasMounted] = useState(false)
 
@@ -602,9 +634,21 @@ export default function LuxTradeDashboard() {
 
   // Demo mode state
   const [demoMode, setDemoMode] = useState(true) // Default TRUE untuk demo
-  
+
   // Chart timeframe state for Single-Active-Chart system
   const [activeTF, setActiveTF] = useState('15m')
+  const [activeTFSafe, setActiveTFSafe] = useState('15m')
+
+  // Sync activeTF with safe version - prevent reference errors
+  useEffect(() => {
+    try {
+      if (activeTF && typeof activeTF === 'string') {
+        setActiveTFSafe(activeTF)
+      }
+    } catch (error) {
+      console.error('Error syncing activeTF:', error)
+    }
+  }, [activeTF])
   
   // Trade modals
   const [addTradeOpen, setAddTradeOpen] = useState(false)
@@ -2064,7 +2108,7 @@ export default function LuxTradeDashboard() {
                   demoMode={demoMode}
                   language={language}
                   isPro={isPro}
-                  activeTF={activeTF}
+                  activeTF={activeTFSafe}
                   setActiveTF={setActiveTF}
                   shouldDisableCharts={shouldDisableCharts}
                 />
