@@ -59,11 +59,16 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
       const res = await fetch(`/api/chart/klines?symbol=${symbol}&interval=${interval}&limit=100`)
       if (!res.ok) throw new Error('Failed to fetch klines')
 
-      const klines = await res.json()
+      const response = await res.json()
+      console.log('[LuxtradeMiniChart] API response:', response)
+
+      // Check if data exists in response
+      const klines = response?.data || response || []
 
       // Null/undefined check before processing
       if (!klines || !Array.isArray(klines) || klines.length === 0) {
-        console.error('Invalid or empty klines data')
+        console.error('[LuxtradeMiniChart] Invalid or empty klines data')
+        setChartError(true)
         return
       }
 

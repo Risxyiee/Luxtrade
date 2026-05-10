@@ -23,9 +23,11 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json()
 
+    console.log('[API klines] Raw data from Binance:', data ? `${data.length} items` : 'null')
+
     // Transform Binance data to OHLC format
     // Binance returns: [time, open, high, low, close, volume, ...]
-    const ohlcData = data
+    const ohlcData = (Array.isArray(data) ? data : [])
       .map((kline: any[]) => ({
         time: Math.floor(kline[0] / 1000), // Convert to seconds
         open: parseFloat(kline[1]),

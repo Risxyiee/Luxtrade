@@ -99,12 +99,19 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
       }
 
       const result = await response.json()
+      console.log('[ChartTab] API response:', result)
 
-      if (result.success && result.data) {
-        setChartData(result.data)
-        console.log(`✅ Loaded ${result.data.length} candles for ${selectedSymbol} (${symbolType})`)
-      } else if (!result.success) {
-        throw new Error(result.error || 'No data returned')
+      // Extract data safely from response
+      const apiData = result?.data || []
+      const apiSuccess = result?.success !== undefined ? result.success : true
+
+      if (apiSuccess && apiData.length > 0) {
+        setChartData(apiData)
+        console.log(`✅ Loaded ${apiData.length} candles for ${selectedSymbol} (${symbolType})`)
+      } else if (result.error) {
+        throw new Error(result.error)
+      } else {
+        throw new Error('No data returned from API')
       }
 
       // Show note if using mock data
