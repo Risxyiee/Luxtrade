@@ -47,14 +47,25 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false }: LuxtradeM
 
       const klines = await res.json()
 
-      if (klines && klines.length > 0) {
-        const klineData: KlineData[] = klines.map((k: any) => ({
-          time: k.time,
-          open: k.open,
-          high: k.high,
-          low: k.low,
-          close: k.close,
-        }))
+      // Null/undefined check before processing
+      if (!klines || !Array.isArray(klines) || klines.length === 0) {
+        console.error('Invalid or empty klines data')
+        return
+      }
+
+      const klineData: KlineData[] = klines.map((k: any) => ({
+        time: k?.time ?? 0,
+        open: k?.open ?? 0,
+        high: k?.high ?? 0,
+        low: k?.low ?? 0,
+        close: k?.close ?? 0,
+      }))
+
+        // Validate klineData before processing
+        if (!klineData || klineData.length === 0) {
+          console.error('Invalid klineData after mapping')
+          return
+        }
 
         // Calculate 80% momentum indicators
         const calculatedSignals: Signal[] = []
@@ -63,36 +74,39 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false }: LuxtradeM
           const prev1 = klineData[i - 1]
           const prev2 = klineData[i - 2]
 
-          const lookbackHigh = Math.max(prev1.high, prev2.high)
-          const lookbackLow = Math.min(prev1.low, prev2.low)
-          const range = current.high - current.low
+          // Null check for kline data
+          if (!current || !prev1 || !prev2) continue
+
+          const lookbackHigh = Math.max(prev1.high ?? 0, prev2.high ?? 0)
+          const lookbackLow = Math.min(prev1.low ?? Infinity, prev2.low ?? Infinity)
+          const range = (current.high ?? 0) - (current.low ?? 0)
 
           if (range > 0) {
-            const bodyPercent = Math.abs(current.close - current.open) / range * 100
+            const bodyPercent = Math.abs((current.close ?? 0) - (current.open ?? 0)) / range * 100
 
             // BUY Signal: Close > lookbackHigh, body >= 80%, and bullish
             if (
-              current.close > lookbackHigh &&
+              (current.close ?? 0) > lookbackHigh &&
               bodyPercent >= 80 &&
-              current.close > current.open
+              (current.close ?? 0) > (current.open ?? 0)
             ) {
               calculatedSignals.push({
-                time: current.time,
+                time: current.time ?? 0,
                 type: 'BUY',
-                price: current.close,
+                price: current.close ?? 0,
               })
             }
 
             // SELL Signal: Close < lookbackLow, body >= 80%, and bearish
             if (
-              current.close < lookbackLow &&
+              (current.close ?? 0) < lookbackLow &&
               bodyPercent >= 80 &&
-              current.close < current.open
+              (current.close ?? 0) < (current.open ?? 0)
             ) {
               calculatedSignals.push({
-                time: current.time,
+                time: current.time ?? 0,
                 type: 'SELL',
-                price: current.close,
+                price: current.close ?? 0,
               })
             }
           }
@@ -101,12 +115,16 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false }: LuxtradeM
         setData(klineData)
         setSignals(calculatedSignals)
 
-        // Set current price
+        // Set current price with null check
         const lastKline = klineData[klineData.length - 1]
-        setCurrentPrice(lastKline.close)
-        if (klineData.length > 1) {
-          const prevPrice = klineData[klineData.length - 2].close
-          setPriceChange(((lastKline.close - prevPrice) / prevPrice) * 100)
+        if (lastKline?.close !== undefined && lastKline?.close !== null) {
+          setCurrentPrice(lastKline.close)
+          if (klineData.length > 1) {
+            const prevKline = klineData[klineData.length - 2]
+            if (prevKline?.close !== undefined && prevKline?.close !== null && prevKline.close !== 0) {
+              setPriceChange(((lastKline.close - prevKline.close) / prevKline.close) * 100)
+            }
+          }
         }
       }
     } catch (error) {
@@ -210,8 +228,12 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false }: LuxtradeM
 
   // Update data when fetched
   useEffect(() => {
-    if (seriesRef.current && data.length > 0) {
-      seriesRef.current.setData(data)
+    if (seriesRef.current && data?.length > 0) {
+      try {
+        seriesRef.current.setData(data)
+      } catch (error) {
+        console.error('Failed to update chart data:', error)
+      }
     }
   }, [data])
 
@@ -267,20 +289,24 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false }: LuxtradeM
         )}
 
         {/* Signal markers for PRO users */}
-        {isPro && signals.length > 0 && !loading && (
+        {isPro && signals?.length > 0 && !loading && data?.length > 0 && (
           <div className="absolute inset-0 pointer-events-none">
             {signals.slice(-5).map((signal, idx) => {
-              const dataIndex = data.findIndex(d => d.time === signal.time)
-              if (dataIndex === -1) return null
+              if (!signal?.time) return null
+
+              const dataIndex = data.findIndex(d => d?.time === signal.time)
+              if (dataIndex === -1 || dataIndex >= data.length) return null
 
               const kline = data[dataIndex]
-              const prices = data.map(d => d.low).concat(data.map(d => d.high))
+              if (!kline) return null
+
+              const prices = data.map(d => d?.low ?? 0).concat(data.map(d => d?.high ?? 0))
               const minPrice = Math.min(...prices)
               const maxPrice = Math.max(...prices)
               const priceRange = maxPrice - minPrice || 1
-              const pricePercent = ((signal.price - minPrice) / priceRange) * 100
+              const pricePercent = ((signal.price ?? 0) - minPrice) / priceRange * 100
 
-              const timeIndex = dataIndex / data.length
+              const timeIndex = data.length > 0 ? dataIndex / data.length : 0
               const leftPercent = timeIndex * 100
 
               return (
@@ -313,7 +339,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false }: LuxtradeM
       </div>
 
       {/* Latest signal indicator */}
-      {isPro && signals.length > 0 && !loading && (
+      {isPro && signals?.length > 0 && !loading && (
         <div className="px-4 py-2 bg-black/20 border-t border-purple-500/10">
           <div className="flex items-center justify-center gap-2">
             <span className="text-xs text-gray-400">Latest Signal:</span>
