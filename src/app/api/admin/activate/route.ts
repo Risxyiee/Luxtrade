@@ -155,7 +155,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Update Supabase profiles table
-    const { error: profileUpdateError } = await supabase
+    console.log(`🔄 Updating Supabase profile for email: ${user.email}`)
+
+    // First, get the current profile to read current values
+    const { data: currentProfile, error: fetchError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', user.email)
+      .single()
+
+    if (fetchError) {
+      console.error('❌ Error fetching profile:', fetchError)
+    } else {
+      console.log('✅ Current profile found:', currentProfile?.email, 'is_pro:', currentProfile?.is_pro)
+    }
+
+    const { error: profileUpdateError, data: updatedData } = await supabase
       .from('profiles')
       .update({
         subscription_status: 'PRO',
@@ -163,15 +178,21 @@ export async function POST(request: NextRequest) {
         subscription_until: subscriptionUntil,
         pro_status: 'active',
         pro_expiry_date: subscriptionUntil,
+        has_ever_been_pro: true,
         updated_at: new Date().toISOString()
       })
       .eq('email', user.email)
+      .select()
 
     if (profileUpdateError) {
       console.error('❌ Failed to update Supabase profile:', profileUpdateError)
+      console.error('Error code:', profileUpdateError.code)
+      console.error('Error message:', profileUpdateError.message)
+      console.error('Error details:', profileUpdateError.details)
       // Non-blocking error - continue execution
     } else {
       console.log('✅ Supabase profile updated to PRO for:', user.email)
+      console.log('✅ Updated data:', updatedData)
     }
 
     // If LIFETIME, update slot tracking
@@ -235,14 +256,36 @@ export async function POST(request: NextRequest) {
           console.log('✅ Commission added to referrer:', referrer.email, 'Amount: Rp', COMMISSION_PER_PRO)
 
           // Update referrer's Supabase profile
-          await supabase
+          console.log(`🔄 Updating referrer profile: ${referrer.email}`)
+
+          // Get current referrer profile first
+          const { data: referrerProfileData } = await supabase
             .from('profiles')
-            .update({
-              affiliate_balance: (referrer.affiliateBalance || 0) + COMMISSION_PER_PRO,
-              referral_count: { increment: 1 },
-              updated_at: new Date().toISOString()
-            })
+            .select('affiliate_balance, referral_count')
             .eq('email', referrer.email)
+            .single()
+
+          if (referrerProfileData) {
+            const newBalance = (referrerProfileData.affiliate_balance || 0) + COMMISSION_PER_PRO
+            const newRefCount = (referrerProfileData.referral_count || 0) + 1
+
+            const { error: referrerUpdateError } = await supabase
+              .from('profiles')
+              .update({
+                affiliate_balance: newBalance,
+                referral_count: newRefCount,
+                updated_at: new Date().toISOString()
+              })
+              .eq('email', referrer.email)
+
+            if (referrerUpdateError) {
+              console.error('❌ Error updating referrer profile:', referrerUpdateError)
+            } else {
+              console.log('✅ Referrer profile updated. New balance:', newBalance)
+            }
+          } else {
+            console.error('⚠️ Referrer profile not found in Supabase')
+          }
 
           // Update referral_tracking status to 'paid'
           const { data: trackingRecord } = await supabase
