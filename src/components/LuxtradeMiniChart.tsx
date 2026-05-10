@@ -67,17 +67,31 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
         return
       }
 
-      const klineData: KlineData[] = klines.map((k: any) => ({
-        time: k?.time ?? 0,
-        open: k?.open ?? 0,
-        high: k?.high ?? 0,
-        low: k?.low ?? 0,
-        close: k?.close ?? 0,
-      }))
+      const klineData: KlineData[] = klines
+        .map((k: any) => ({
+          time: k?.time ?? 0,
+          open: k?.open ?? 0,
+          high: k?.high ?? 0,
+          low: k?.low ?? 0,
+          close: k?.close ?? 0,
+        }))
+        .filter((kline) => {
+          // Filter invalid data: time must be positive, high >= low, all values must be numbers
+          return (
+            typeof kline.time === 'number' && kline.time > 0 &&
+            typeof kline.open === 'number' && kline.open > 0 &&
+            typeof kline.high === 'number' && kline.high > 0 &&
+            typeof kline.low === 'number' && kline.low > 0 &&
+            typeof kline.close === 'number' && kline.close > 0 &&
+            kline.high >= kline.low
+          )
+        })
+        .sort((a, b) => a.time - b.time) // Ensure ascending order
 
-      // Validate klineData before processing
+      // Check if data is valid after filtering
       if (!klineData || klineData.length === 0) {
-        console.error('Invalid klineData after mapping')
+        console.error('No valid kline data after filtering')
+        setChartError(true)
         return
       }
 
@@ -160,7 +174,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
 
   // Initialize chart - only after mounted
   useEffect(() => {
-    if (!mounted || !chartContainerRef.current) return
+    if (!mounted) return
 
     let chart: IChartApi<'UTCTimestamp'> | null = null
     let series: ISeriesApi<'UTCTimestamp', KlineData> | null = null
@@ -168,12 +182,25 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
     try {
       // Additional check before creating chart
       const container = chartContainerRef.current
-      if (!container || !container.clientWidth) {
-        console.warn('Chart container not ready')
+      if (!container) {
+        console.warn('[LuxtradeMiniChart] Chart container ref is null')
+        return
+      }
+
+      if (!container.clientWidth || !container.clientHeight) {
+        console.warn('[LuxtradeMiniChart] Chart container has no dimensions', {
+          width: container.clientWidth,
+          height: container.clientHeight
+        })
         return
       }
 
       // Create chart with auto-scaling
+      console.log('[LuxtradeMiniChart] Creating chart with dimensions:', {
+        width: container.clientWidth,
+        height: 200
+      })
+
       chart = createChart(container, {
         width: container.clientWidth,
         height: 200,
@@ -226,6 +253,11 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
       })
 
       // Add candlestick series
+      console.log('[LuxtradeMiniChart] Adding candlestick series...')
+      if (!chart || typeof chart.addCandlestickSeries !== 'function') {
+        throw new Error('lightweight-charts library not properly loaded or addCandlestickSeries is not available')
+      }
+
       series = chart.addCandlestickSeries({
         upColor: '#22c55e',
         downColor: '#ef4444',
@@ -300,9 +332,30 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
     if (!mounted || !seriesRef.current || data?.length === 0) return
 
     try {
-      seriesRef.current.setData(data)
+      console.log('[LuxtradeMiniChart] Setting data:', data.length, 'candles')
+
+      // Validate data before setting
+      const validData = data.filter(kline => {
+        return (
+          typeof kline.time === 'number' && kline.time > 0 &&
+          typeof kline.open === 'number' && kline.open > 0 &&
+          typeof kline.high === 'number' && kline.high > 0 &&
+          typeof kline.low === 'number' && kline.low > 0 &&
+          typeof kline.close === 'number' && kline.close > 0 &&
+          kline.high >= kline.low
+        )
+      })
+
+      if (validData.length === 0) {
+        console.error('[LuxtradeMiniChart] No valid data after filtering')
+        return
+      }
+
+      seriesRef.current.setData(validData)
+      console.log('[LuxtradeMiniChart] Data set successfully')
     } catch (error) {
-      console.error('Failed to update chart data:', error)
+      console.error('[LuxtradeMiniChart] Failed to update chart data:', error)
+      setChartError(true)
     }
   }, [data, mounted])
 

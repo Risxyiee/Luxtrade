@@ -79,7 +79,8 @@ function generateMockData(baseCurrency: string, count: number = 150) {
     timestamp += 15 * 60 * 1000 // Add 15 minutes
   }
 
-  return data
+  // Sort by time to ensure ascending order
+  return data.sort((a, b) => a.time - b.time)
 }
 
 export async function GET(request: NextRequest) {
@@ -162,14 +163,29 @@ export async function GET(request: NextRequest) {
           .reverse() // Alpha Vantage returns newest first
           .map(([date, values]: [string, any]) => {
             const timestamp = new Date(date).getTime() / 1000
+            const open = parseFloat(values['1. open'])
+            const high = parseFloat(values['2. high'])
+            const low = parseFloat(values['3. low'])
+            const close = parseFloat(values['4. close'])
+
             return {
               time: Math.floor(timestamp),
-              open: parseFloat(values['1. open']),
-              high: parseFloat(values['2. high']),
-              low: parseFloat(values['3. low']),
-              close: parseFloat(values['4. close']),
+              open: isNaN(open) ? 0 : open,
+              high: isNaN(high) ? 0 : high,
+              low: isNaN(low) ? 0 : low,
+              close: isNaN(close) ? 0 : close,
             }
           })
+          .filter((kline) => {
+            // Filter invalid data
+            return kline.time > 0 &&
+                   kline.high >= kline.low &&
+                   !isNaN(kline.open) &&
+                   !isNaN(kline.high) &&
+                   !isNaN(kline.low) &&
+                   !isNaN(kline.close)
+          })
+          .sort((a, b) => a.time - b.time) // Ensure ascending order
 
         console.log(`✅ Fetched ${ohlcData.length} candles from Alpha Vantage`)
 
