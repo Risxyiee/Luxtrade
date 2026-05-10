@@ -42,9 +42,12 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
 
   // Component mount guard
   useEffect(() => {
+    console.log('🔵 [DIAGNOSTIC-LUXCHART] Component mounting - START')
     setMounted(true)
+    console.log('🟢 [DIAGNOSTIC-LUXCHART] Component mounted')
     return () => {
       setMounted(false)
+      console.log('🟡 [DIAGNOSTIC-LUXCHART] Component unmounted')
     }
   }, [])
 
