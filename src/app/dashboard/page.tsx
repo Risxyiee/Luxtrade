@@ -4036,7 +4036,6 @@ function DashboardTab({
         ) : (
           <ChartErrorBoundary>
             <LuxtradeMiniChart
-              key={`chart-${currentActiveTF}`}
               isPro={isPro}
               demoMode={demoMode}
               interval={currentActiveTF}
