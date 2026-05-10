@@ -21,9 +21,10 @@ interface Signal {
 interface LuxtradeMiniChartProps {
   isPro: boolean
   demoMode?: boolean
+  interval?: string
 }
 
-export default function LuxtradeMiniChart({ isPro, demoMode = false }: LuxtradeMiniChartProps) {
+export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = '15m' }: LuxtradeMiniChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi<'UTCTimestamp'> | null>(null)
   const seriesRef = useRef<ISeriesApi<'UTCTimestamp', KlineData> | null>(null)
@@ -38,7 +39,6 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false }: LuxtradeM
   const [chartError, setChartError] = useState(false)
 
   const symbol = 'BTCUSDT' // Changed from XAUUSD (not supported by Binance)
-  const interval = '1h'
 
   // Component mount guard
   useEffect(() => {
@@ -359,7 +359,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false }: LuxtradeM
       <div className="flex items-center justify-between px-4 py-3 bg-black/20 border-b border-purple-500/10">
         <div className="flex items-center gap-2">
           <Activity className="w-4 h-4 text-purple-400" />
-          <span className="text-sm font-semibold text-white">BTC/USD</span>
+          <span className="text-sm font-semibold text-white">BTC/USD ({interval})</span>
         </div>
         {loading ? (
           <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
