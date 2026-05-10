@@ -849,11 +849,6 @@ export default function LuxTradeDashboard() {
     }
   }, [trades.length])
 
-  // Skip further rendering until mounted and auth is checked
-  if (!hasMounted) {
-    return null
-  }
-
   // Seed demo data
   const handleSeedData = async () => {
     setSeeding(true)
