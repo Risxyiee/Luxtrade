@@ -366,7 +366,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
         ) : currentPrice !== null && (
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold text-white">
-              {currentPrice.toFixed(2)}
+              {currentPrice ? currentPrice.toFixed(2) : '---'}
             </span>
             <span className={`text-xs font-medium ${priceChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%

@@ -34,7 +34,7 @@ export class ChartErrorBoundary extends Component<ChartErrorBoundaryProps, Chart
       }
 
       return (
-        <div className="w-full bg-gradient-to-br from-[#0f0b18] to-[#1a0f2e] border border-red-500/20 rounded-xl overflow-hidden p-6">
+        <div className="w-full bg-gradient-to-br from-[#0f0b18] to-[#1a0f2e] border border-red-500/20 rounded-xl overflow-hidden p-6" suppressHydrationWarning={true}>
           <div className="flex flex-col items-center justify-center gap-4 text-center">
             <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
               <AlertTriangle className="w-6 h-6 text-red-400" />
@@ -46,7 +46,13 @@ export class ChartErrorBoundary extends Component<ChartErrorBoundaryProps, Chart
               </p>
             </div>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => {
+                try {
+                  window.location.reload()
+                } catch (e) {
+                  console.error('Error reloading page:', e)
+                }
+              }}
               className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-medium transition-colors"
             >
               <RefreshCw className="w-4 h-4" />

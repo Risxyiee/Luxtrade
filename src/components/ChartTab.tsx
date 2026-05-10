@@ -152,14 +152,14 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
   // Show loading state if not mounted yet
   if (!hasMounted) {
     return (
-      <div className="flex items-center justify-center" style={{ height: '500px' }}>
+      <div className="flex items-center justify-center" style={{ height: '500px' }} suppressHydrationWarning={true}>
         <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" suppressHydrationWarning={true}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

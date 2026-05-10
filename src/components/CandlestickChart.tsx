@@ -27,6 +27,7 @@ export default function CandlestickChart({
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi<'UTCTimestamp'> | null>(null)
   const seriesRef = useRef<ISeriesApi<'UTCTimestamp', CandlestickData> | null>(null)
+  const handleResizeRef = useRef<(() => void) | null>(null)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -119,13 +120,17 @@ export default function CandlestickChart({
         }
       }
 
+      handleResizeRef.current = handleResize
       window.addEventListener('resize', handleResize)
     } catch (error) {
       console.error('❌ Error creating chart:', error)
     }
 
     return () => {
-      window.removeEventListener('resize', () => {})
+      if (handleResizeRef.current) {
+        window.removeEventListener('resize', handleResizeRef.current)
+        handleResizeRef.current = null
+      }
       if (chart) {
         chart.remove()
         chart = null
@@ -141,7 +146,7 @@ export default function CandlestickChart({
 
   if (!mounted) {
     return (
-      <div className={containerClassName} style={{ height: '400px' }}>
+      <div className={containerClassName} style={{ height: '400px' }} suppressHydrationWarning={true}>
         <div className="flex items-center justify-center h-full">
           <div className="w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
         </div>
@@ -149,5 +154,5 @@ export default function CandlestickChart({
     )
   }
 
-  return <div ref={chartContainerRef} className={containerClassName} style={{ height: '400px' }} />
+  return <div ref={chartContainerRef} className={containerClassName} style={{ height: '400px' }} suppressHydrationWarning={true} />
 }

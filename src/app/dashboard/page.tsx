@@ -2094,7 +2094,9 @@ export default function LuxTradeDashboard() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <ChartTab isPro={isPro} />
+                <ChartErrorBoundary>
+                  <ChartTab isPro={isPro} />
+                </ChartErrorBoundary>
               </motion.div>
             )}
             {activeTab === 'analytics' && (
