@@ -1,7 +1,34 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { createChart, ColorType, CrosshairMode, LineStyle, IChartApi, ISeriesApi } from 'lightweight-charts'
+
+// Dynamic import for lightweight-charts to avoid SSR issues
+let lightweightChartsModule: any = null
+let isModuleLoading = false
+
+async function loadLightweightCharts() {
+  if (lightweightChartsModule) {
+    return lightweightChartsModule
+  }
+
+  if (isModuleLoading) {
+    return null
+  }
+
+  isModuleLoading = true
+
+  try {
+    const module = await import('lightweight-charts')
+    lightweightChartsModule = module
+    isModuleLoading = false
+    console.log('[CandlestickChart] ✅ lightweight-charts loaded')
+    return module
+  } catch (error) {
+    console.error('[CandlestickChart] ❌ Failed to load lightweight-charts:', error)
+    isModuleLoading = false
+    return null
+  }
+}
 
 interface CandlestickData {
   time: number | string
@@ -25,183 +52,189 @@ export default function CandlestickChart({
   seriesOptions = {},
 }: CandlestickChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
-  const chartRef = useRef<IChartApi<'UTCTimestamp'> | null>(null)
-  const seriesRef = useRef<ISeriesApi<'UTCTimestamp', CandlestickData> | null>(null)
+  const chartRef = useRef<any>(null)
+  const seriesRef = useRef<any>(null)
   const handleResizeRef = useRef<(() => void) | null>(null)
   const [mounted, setMounted] = useState(false)
+  const [libraryLoaded, setLibraryLoaded] = useState(false)
   const [chartCreated, setChartCreated] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const isCreatedRef = useRef(false)  // Prevent recreation
 
   // Mount only once
   useEffect(() => {
     console.log('[CandlestickChart] Component mounting...')
     setMounted(true)
-  }, [])
-
-  // Create chart ONCE - with retry logic
-  useEffect(() => {
-    if (!mounted || isCreatedRef.current) return
-
-    let retryCount = 0
-    const maxRetries = 3
-
-    const createChartWithRetry = () => {
-      const container = chartContainerRef.current
-      if (!container) {
-        console.warn('[CandlestickChart] Container ref is null')
-        return
-      }
-
-      console.log('[CandlestickChart] Attempting to create chart...', {
-        retryCount,
-        clientWidth: container.clientWidth,
-        clientHeight: container.clientHeight,
-        offsetWidth: container.offsetWidth,
-        offsetHeight: container.offsetHeight,
-      })
-
-      if (!container.clientWidth || container.clientWidth < 100) {
-        console.warn('[CandlestickChart] Container width too small, retrying...')
-        if (retryCount < maxRetries) {
-          retryCount++
-          setTimeout(createChartWithRetry, 500)
-        } else {
-          setError('Container width not available after multiple retries')
-        }
-        return
-      }
-
-      let chart: IChartApi<'UTCTimestamp'> | null = null
-      let series: ISeriesApi<'UTCTimestamp', CandlestickData> | null = null
-
-      try {
-        // Check if lightweight-charts is loaded
-        if (typeof createChart !== 'function') {
-          throw new Error('lightweight-charts library not properly loaded')
-        }
-
-        console.log('[CandlestickChart] Creating chart with dimensions:', {
-          width: container.clientWidth,
-          height: 400
-        })
-
-        // Create chart
-        chart = createChart(container, {
-          width: container.clientWidth,
-          height: 400,
-          layout: {
-            background: { type: ColorType.Solid, color: 'transparent' },
-            textColor: '#ffffff',
-          },
-          grid: {
-            vertLines: {
-              color: 'rgba(255,255,255, 0.05)',
-              style: LineStyle.Dotted,
-            },
-            horzLines: {
-              color: 'rgba(255,255,255, 0.05)',
-              style: LineStyle.Dotted,
-            },
-          },
-          crosshair: {
-            mode: CrosshairMode.Normal,
-            vertLine: {
-              color: 'rgba(224, 227, 235, 0.1)',
-              width: 1,
-              style: LineStyle.Dashed,
-              labelBackgroundColor: '#1f2937',
-            },
-            horzLine: {
-              color: 'rgba(224, 227, 235, 0.1)',
-              width: 1,
-              style: LineStyle.Dashed,
-              labelBackgroundColor: '#1f2937',
-            },
-          },
-          rightPriceScale: {
-            borderColor: 'rgba(255, 255, 255, 0.1)',
-          },
-          timeScale: {
-            borderColor: 'rgba(255, 255, 255, 0.1)',
-            timeVisible: true,
-            secondsVisible: false,
-          },
-          handleScroll: true,
-          handleScale: true,
-          ...chartOptions
-        })
-
-        chartRef.current = chart
-        console.log('[CandlestickChart] Chart instance created')
-
-        // Add candlestick series
-        console.log('[CandlestickChart] Adding candlestick series...')
-        if (!chart || typeof chart.addCandlestickSeries !== 'function') {
-          throw new Error('lightweight-charts library not properly loaded or addCandlestickSeries is not available')
-        }
-
-        series = chart.addCandlestickSeries({
-          upColor: '#10b981',
-          downColor: '#ef4444',
-          borderDownColor: '#ef4444',
-          borderUpColor: '#10b981',
-          wickDownColor: '#ef4444',
-          wickUpColor: '#10b981',
-          ...seriesOptions
-        })
-
-        seriesRef.current = series
-        isCreatedRef.current = true
-        setChartCreated(true)
-        console.log('[CandlestickChart] ✅ Chart created successfully')
-
-        // Handle resize
-        const handleResize = () => {
-          if (chartRef.current && container) {
-            const newWidth = container.clientWidth || 800
-            console.log('[CandlestickChart] Resizing chart to:', newWidth)
-            chartRef.current.applyOptions({ width: newWidth, height: 400 })
-          }
-        }
-
-        handleResizeRef.current = handleResize
-        window.addEventListener('resize', handleResize)
-
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err)
-        console.error('[CandlestickChart] ❌ Error creating chart:', err)
-        setError(errorMessage)
-      }
-    }
-
-    // Start creation with a small delay
-    const timeoutId = setTimeout(createChartWithRetry, 100)
 
     return () => {
-      clearTimeout(timeoutId)
+      console.log('[CandlestickChart] Component unmounting')
+    }
+  }, [])
+
+  // Load library on mount
+  useEffect(() => {
+    if (!mounted) return
+
+    console.log('[CandlestickChart] Loading lightweight-charts...')
+    loadLightweightCharts().then((module) => {
+      if (module) {
+        setLibraryLoaded(true)
+      } else {
+        setError('Failed to load lightweight-charts library')
+      }
+    })
+  }, [mounted])
+
+  // Create chart after library is loaded
+  useEffect(() => {
+    if (!mounted || !libraryLoaded) {
+      console.log('[CandlestickChart] Skipping chart creation - waiting for library')
+      return
+    }
+
+    const container = chartContainerRef.current
+    if (!container) {
+      console.warn('[CandlestickChart] Container ref is null')
+      return
+    }
+
+    if (!container.clientWidth || container.clientWidth < 100) {
+      console.warn('[CandlestickChart] Container width not available:', {
+        clientWidth: container.clientWidth,
+        offsetWidth: container.offsetWidth,
+      })
+      setError('Container width not available')
+      return
+    }
+
+    let chart: any = null
+    let series: any = null
+
+    try {
+      const { createChart, ColorType, CrosshairMode, LineStyle } = lightweightChartsModule
+
+      console.log('[CandlestickChart] Creating chart with dimensions:', {
+        width: container.clientWidth,
+        height: 400
+      })
+
+      // Check if createChart is available
+      if (typeof createChart !== 'function') {
+        throw new Error('createChart is not a function')
+      }
+
+      // Create chart
+      chart = createChart(container, {
+        width: container.clientWidth,
+        height: 400,
+        layout: {
+          background: { type: ColorType.Solid, color: 'transparent' },
+          textColor: '#ffffff',
+        },
+        grid: {
+          vertLines: {
+            color: 'rgba(255,255,255, 0.05)',
+            style: LineStyle.Dotted,
+          },
+          horzLines: {
+            color: 'rgba(255,255,255, 0.05)',
+            style: LineStyle.Dotted,
+          },
+        },
+        crosshair: {
+          mode: CrosshairMode.Normal,
+          vertLine: {
+            color: 'rgba(224, 227, 235, 0.1)',
+            width: 1,
+            style: LineStyle.Dashed,
+            labelBackgroundColor: '#1f2937',
+          },
+          horzLine: {
+            color: 'rgba(224, 227, 235, 0.1)',
+            width: 1,
+            style: LineStyle.Dashed,
+            labelBackgroundColor: '#1f2937',
+          },
+        },
+        rightPriceScale: {
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+        },
+        timeScale: {
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          timeVisible: true,
+          secondsVisible: false,
+        },
+        handleScroll: true,
+        handleScale: true,
+        ...chartOptions
+      })
+
+      chartRef.current = chart
+      console.log('[CandlestickChart] Chart instance created')
+
+      // Add candlestick series
+      console.log('[CandlestickChart] Adding candlestick series...')
+
+      if (typeof chart.addCandlestickSeries !== 'function') {
+        throw new Error('addCandlestickSeries is not available')
+      }
+
+      series = chart.addCandlestickSeries({
+        upColor: '#10b981',
+        downColor: '#ef4444',
+        borderDownColor: '#ef4444',
+        borderUpColor: '#10b981',
+        wickDownColor: '#ef4444',
+        wickUpColor: '#10b981',
+        ...seriesOptions
+      })
+
+      seriesRef.current = series
+      setChartCreated(true)
+      console.log('[CandlestickChart] ✅ Chart created successfully')
+
+      // Handle resize
+      const handleResize = () => {
+        if (chartRef.current && container) {
+          const newWidth = container.clientWidth || 800
+          chartRef.current.applyOptions({ width: newWidth, height: 400 })
+        }
+      }
+
+      handleResizeRef.current = handleResize
+      window.addEventListener('resize', handleResize)
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      console.error('[CandlestickChart] ❌ Error creating chart:', err)
+      setError(errorMessage)
+    }
+
+    return () => {
+      console.log('[CandlestickChart] Cleanup...')
       if (handleResizeRef.current) {
         window.removeEventListener('resize', handleResizeRef.current)
         handleResizeRef.current = null
       }
-      if (chartRef.current) {
+      if (chart) {
         try {
-          chartRef.current.remove()
+          chart.remove()
           console.log('[CandlestickChart] Chart removed')
         } catch (e) {
           console.error('[CandlestickChart] Error removing chart:', e)
         }
+        chart = null
+      }
+      if (chartRef.current) {
         chartRef.current = null
       }
       if (seriesRef.current) {
         seriesRef.current = null
       }
-      isCreatedRef.current = false
       setChartCreated(false)
     }
-  }, [mounted, chartOptions, seriesOptions]) // Only recreate on mount or options change, NOT on data change
+  }, [mounted, libraryLoaded, chartOptions, seriesOptions])
 
-  // Update data when it changes - separate effect
+  // Update data when it changes
   useEffect(() => {
     if (!mounted || !chartCreated || !seriesRef.current) {
       console.log('[CandlestickChart] Skipping data update - chart not ready', {
@@ -232,7 +265,7 @@ export default function CandlestickChart({
           typeof kline.close === 'number' && kline.close > 0 &&
           kline.high >= kline.low
         )
-      }).sort((a, b) => a.time - b.time) // Ensure ascending order
+      }).sort((a, b) => a.time - b.time)
 
       if (validData.length === 0) {
         console.error('[CandlestickChart] No valid data after filtering')
@@ -247,8 +280,9 @@ export default function CandlestickChart({
       console.error('[CandlestickChart] ❌ Error updating chart data:', err)
       setError(errorMessage)
     }
-  }, [mounted, chartCreated, data]) // Only update when data changes
+  }, [mounted, chartCreated, data])
 
+  // Loading state
   if (!mounted) {
     return (
       <div className={containerClassName} style={{ height: '400px', minHeight: '400px' }} suppressHydrationWarning={true}>
@@ -271,8 +305,8 @@ export default function CandlestickChart({
       }}
       suppressHydrationWarning={true}
     >
-      {/* Loading state */}
-      {!chartCreated && !error && (
+      {/* Loading library state */}
+      {!libraryLoaded && !error && (
         <div style={{
           position: 'absolute',
           top: '50%',
@@ -283,7 +317,7 @@ export default function CandlestickChart({
           padding: '20px'
         }}>
           <div className="w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-          <p>Initializing chart...</p>
+          <p>Loading chart library...</p>
         </div>
       )}
 
@@ -299,7 +333,7 @@ export default function CandlestickChart({
           padding: '20px',
           maxWidth: '80%'
         }}>
-          <p className="mb-2">Error initializing chart</p>
+          <p className="mb-2 font-semibold">Chart Error</p>
           <p className="text-sm text-white/60">{error}</p>
         </div>
       )}
