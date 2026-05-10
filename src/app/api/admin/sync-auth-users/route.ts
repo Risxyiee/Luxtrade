@@ -62,10 +62,11 @@ async function performSync() {
       }
     }
 
-    // Sync each user to Prisma
+    // Sync each user to Prisma AND Supabase profiles
     let syncedCount = 0
     let skippedCount = 0
     let errorCount = 0
+    let profileSyncedCount = 0
 
     const syncResults = await Promise.all(
       authUsers.users.map(async (authUser) => {
@@ -80,38 +81,92 @@ async function performSync() {
           })
 
           if (existingUser) {
-            console.log(`   ⏭️ User already exists, skipping`)
-            skippedCount++
-            return {
-              email: authUser.email,
-              action: 'skipped',
-              reason: 'already_exists'
+            console.log(`   ⏭️ User already exists in Prisma, skipping Prisma sync`)
+          } else {
+            // Extract display name from metadata
+            const displayName = authUser.user_metadata?.display_name ||
+                              authUser.user_metadata?.name ||
+                              authUser.user_metadata?.full_name ||
+                              null
+
+            // Create new user in Prisma with SAME UUID
+            console.log(`   ➕ Creating user in Prisma...`)
+            const newUser = await db.user.create({
+              data: {
+                id: authUser.id, // Use same UUID as Supabase Auth UID
+                email: authUser.email!,
+                name: displayName
+              }
+            })
+
+            console.log(`   ✅ User synced to Prisma successfully`)
+            syncedCount++
+          }
+
+          // ============================================
+          // SYNC TO SUPABASE PROFILES TABLE
+          // ============================================
+          console.log(`   🔍 Checking Supabase profiles table...`)
+
+          // Check if profile exists in Supabase
+          const { data: existingProfile, error: profileCheckError } = await supabaseAdmin
+            .from('profiles')
+            .select('id')
+            .eq('id', authUser.id)
+            .single()
+
+          if (profileCheckError && profileCheckError.code !== 'PGRST116') {
+            console.error(`   ⚠️ Error checking profile:`, profileCheckError)
+          }
+
+          if (existingProfile) {
+            console.log(`   ✅ Profile already exists in Supabase`)
+          } else {
+            // Create profile in Supabase
+            console.log(`   ➕ Creating profile in Supabase...`)
+            const fullName = authUser.user_metadata?.display_name ||
+                           authUser.user_metadata?.name ||
+                           authUser.user_metadata?.full_name ||
+                           null
+
+            const { error: profileCreateError } = await supabaseAdmin
+              .from('profiles')
+              .insert({
+                id: authUser.id,
+                email: authUser.email!,
+                full_name: fullName,
+                subscription_status: 'FREE',
+                is_pro: false,
+                subscription_until: null,
+                pro_status: 'inactive',
+                pro_expiry_date: null,
+                affiliate_balance: 0,
+                referral_count: 0,
+                commission_paid: false,
+                has_ever_been_pro: false,
+                device_id: null,
+                my_referral_code: null,
+                referred_by_code: null,
+                referral_code_changes: 2,
+                referral_status: null,
+                created_at: authUser.created_at || new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+
+            if (profileCreateError) {
+              console.error(`   ❌ Error creating profile:`, profileCreateError)
+              // Non-blocking error - continue
+            } else {
+              console.log(`   ✅ Profile created in Supabase successfully`)
+              profileSyncedCount++
             }
           }
 
-          // Extract display name from metadata
-          const displayName = authUser.user_metadata?.display_name ||
-                            authUser.user_metadata?.name ||
-                            authUser.user_metadata?.full_name ||
-                            null
-
-          // Create new user in Prisma with SAME UUID
-          console.log(`   ➕ Creating user in database...`)
-          const newUser = await db.user.create({
-            data: {
-              id: authUser.id, // Use same UUID as Supabase Auth UID
-              email: authUser.email!,
-              name: displayName
-            }
-          })
-
-          console.log(`   ✅ User synced successfully`)
-          syncedCount++
-
           return {
             email: authUser.email,
-            action: 'created',
-            userId: newUser.id
+            action: existingUser ? 'skipped' : 'created',
+            userId: authUser.id,
+            profileCreated: !existingProfile
           }
         } catch (error) {
           console.error(`   ❌ Error syncing user ${authUser.email}:`, error)
@@ -140,19 +195,28 @@ async function performSync() {
     // Get final user count from Prisma
     const allPrismaUsers = await db.user.findMany()
 
+    // Get final profile count from Supabase
+    const { count: profileCount } = await supabaseAdmin
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+
     console.log('\n📊 Sync Summary:')
-    console.log(`   ✅ Synced: ${syncedCount} users`)
+    console.log(`   ✅ Prisma Users synced: ${syncedCount}`)
+    console.log(`   ✅ Supabase Profiles synced: ${profileSyncedCount}`)
     console.log(`   ⏭️ Skipped: ${skippedCount} users`)
     console.log(`   ❌ Errors: ${errorCount} users`)
     console.log(`   📋 Total users in Prisma: ${allPrismaUsers.length}`)
+    console.log(`   📋 Total profiles in Supabase: ${profileCount || 0}`)
 
     return {
       success: true,
       message: 'Sync completed',
       syncedCount,
+      profileSyncedCount,
       skippedCount,
       errorCount,
       totalPrismaUsers: allPrismaUsers.length,
+      totalSupabaseProfiles: profileCount || 0,
       results: syncResults
     }
   } catch (error) {
