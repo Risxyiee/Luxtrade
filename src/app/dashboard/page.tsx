@@ -42,6 +42,7 @@ import WelcomeOnboarding from '@/components/WelcomeOnboarding'
 import { formatCurrency } from '@/lib/supabase'
 import ChartTab from '@/components/ChartTab'
 import { ChartErrorBoundary } from '@/components/ChartErrorBoundary'
+import AchievementCenter from '@/components/AchievementCenter'
 const LuxtradeMiniChart = dynamic(() => import('@/components/LuxtradeMiniChart'), { ssr: false })
 
 // Global safety check to prevent ReferenceError for activeTF
@@ -170,6 +171,7 @@ const menuItems = [
   { id: 'chart', label: 'Trading Chart', labelId: 'Chart Trading', icon: TrendingUp, category: 'utama', proOnly: false },
   { id: 'news', label: 'Market News', labelId: 'Berita Pasar', icon: Newspaper, category: 'utama', proOnly: false },
   { id: 'economic-calendar', label: 'Economic Calendar', labelId: 'Kalender Ekonomi', icon: CalendarDays, category: 'utama', proOnly: false },
+  { id: 'achievements', label: 'Achievements', labelId: 'Pencapaian', icon: Trophy, category: 'utama', proOnly: false },
 
   // ALAT - PRO Emas
   { id: 'risk', label: 'Risk Calculator', labelId: 'Kalkulator Risiko', icon: Target, category: 'alat', proOnly: true, proType: 'gold' },
@@ -2333,6 +2335,19 @@ function LuxTradeDashboard() {
                 transition={{ duration: 0.3 }}
               >
                 <TargetsTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} language={language} analytics={analytics} trades={trades} />
+              </motion.div>
+            )}
+            {activeTab === 'achievements' && (
+              <motion.div
+                key="achievements"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                {hasMounted && (
+                  <AchievementCenter userId={user?.id || profile?.id || ''} />
+                )}
               </motion.div>
             )}
           </AnimatePresence>
