@@ -8,18 +8,21 @@ datasource db {
 }
 
 model Profile {
-  id            String    @id @default(uuid())
-  email         String?
-  streakCount   Int       @default(0)
-  lastLoginAt   DateTime?
-  plan          String    @default("FREE")
-  proExpiry     DateTime?
-  role          String    @default("USER")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                String    @id @default(uuid())
+  email             String?
+  streakCount       Int       @default(0)
+  lastLoginAt       DateTime?
+  bestStreak        Int       @default(0)
+  achievements      Json      @default("[]")
+  plan              String    @default("FREE")
+  proExpiry         DateTime?
+  role              String    @default("USER")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
   
   // Relations
-  submissions   UserSubmission[]
+  submissions       UserSubmission[]
+  missionProgresses  MissionProgress[]
   
   @@map("profiles")
 }
@@ -39,4 +42,22 @@ model UserSubmission {
   user            Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@map("user_submissions")
+}
+
+model MissionProgress {
+  id              String    @id @default(uuid())
+  userId          String
+  missionKey      String
+  progress        Int       @default(0)
+  target          Int       @default(1)
+  completed       Boolean   @default(false)
+  claimed         Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relations
+  user            Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, missionKey])
+  @@map("mission_progress")
 }

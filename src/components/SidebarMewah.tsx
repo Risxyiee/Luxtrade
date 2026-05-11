@@ -27,7 +27,8 @@ const menuItems: MenuItem[] = [
   { id: 'trades', labelId: 'Transaksi', icon: Activity, proOnly: false, category: 'main' },
   { id: 'calendar', labelId: 'Kalender', icon: Calendar, proOnly: false, category: 'main' },
   { id: 'journal', labelId: 'Jurnal', icon: BookOpen, proOnly: false, category: 'main' },
-  // Tools - PRO Features
+  { id: 'achievements', labelId: 'Pencapaian', icon: Trophy, proOnly: false, category: 'main' },
+  { id: 'watchlist', labelId: 'Daftar Pantauan', icon: Eye, proOnly: false, category: 'main' },
   { id: 'risk', labelId: 'Kalkulator Risiko', icon: Target, proOnly: true, category: 'tools' },
   { id: 'heatmap', labelId: 'Pasar Heatmap', icon: Grid3X3, proOnly: true, category: 'tools' },
   // Advanced - PRO Features
