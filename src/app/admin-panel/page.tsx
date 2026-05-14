@@ -568,25 +568,18 @@ export default function AdminPanel() {
                                         1 Bulan
                                       </button>
                                       <button
-                                        onClick={() => activatePro(user.id, 3)}
-                                        className="w-full px-4 py-2 text-left text-sm hover:bg-purple-500/10 transition-colors flex items-center gap-2"
-                                      >
-                                        <Clock className="w-4 h-4 text-emerald-400" />
-                                        3 Bulan
-                                      </button>
-                                      <button
                                         onClick={() => activatePro(user.id, 6)}
                                         className="w-full px-4 py-2 text-left text-sm hover:bg-purple-500/10 transition-colors flex items-center gap-2"
                                       >
-                                        <Clock className="w-4 h-4 text-blue-400" />
+                                        <Clock className="w-4 h-4 text-emerald-400" />
                                         6 Bulan
                                       </button>
                                       <button
-                                        onClick={() => activatePro(user.id, 12)}
-                                        className="w-full px-4 py-2 text-left text-sm hover:bg-purple-500/10 transition-colors flex items-center gap-2"
+                                        onClick={() => activatePro(user.id, 0)}
+                                        className="w-full px-4 py-2 text-left text-sm hover:bg-purple-500/10 transition-colors flex items-center gap-2 font-semibold text-purple-300"
                                       >
-                                        <Clock className="w-4 h-4 text-purple-400" />
-                                        12 Bulan
+                                        <Sparkles className="w-4 h-4 text-purple-400" />
+                                        Lifetime
                                       </button>
                                     </motion.div>
                                   )}
