@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { createChart, ColorType, CrosshairMode, LineStyle, IChartApi, ISeriesApi, CandlestickData } from 'lightweight-charts'
+import { createChart, ColorType, CrosshairMode, LineStyle, IChartApi, ISeriesApi, CandlestickSeries } from 'lightweight-charts'
 
 interface CandlestickChartProps {
   data: CandlestickData[]
@@ -105,7 +105,7 @@ function CandlestickChartInner({
 
         // Add candlestick series
         console.log('[CandlestickChart] Adding candlestick series...')
-        const series = chart.addCandlestickSeries({
+        const series = chart.addSeries(CandlestickSeries, {
           upColor: '#10b981',
           downColor: '#ef4444',
           borderDownColor: '#ef4444',
