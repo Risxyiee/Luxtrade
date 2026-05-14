@@ -61,3 +61,54 @@ model MissionProgress {
   @@unique([userId, missionKey])
   @@map("mission_progress")
 }
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  name              String?
+  emailVerified     DateTime?
+  image             String?
+  role              String    @default("USER")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  subscriptions     UserSubscription[]
+  withdrawals       Withdrawal[]
+  
+  @@map("users")
+}
+
+model UserSubscription {
+  id                String    @id @default(uuid())
+  userId            String
+  plan              String
+  status            String    @default("active")
+  startDate         DateTime  @default(now())
+  endDate           DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_subscriptions")
+}
+
+model Withdrawal {
+  id                String    @id @default(uuid())
+  userId            String
+  amount            Float
+  bankName          String
+  bankAccount       String
+  bankHolder        String
+  status            String    @default("pending")
+  adminNote         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("withdrawals")
+}
