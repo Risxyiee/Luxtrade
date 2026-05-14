@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
 
 const ADMIN_EMAIL = 'luxtradee@gmail.com'
 
 export async function POST(request: NextRequest) {
   try {
     console.log('🔐 Ensuring admin user exists:', ADMIN_EMAIL)
+
+    // Import db dynamically to avoid build issues
+    const { db } = await import('@/lib/db')
+
+    if (!db) {
+      throw new Error('Database client not initialized')
+    }
 
     // Check if admin user exists
     let adminUser = await db.user.findUnique({
@@ -43,7 +49,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'Failed to ensure admin user',
-        details: error instanceof Error ? error.message : String(error)
+        details: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
       },
       { status: 500 }
     )
