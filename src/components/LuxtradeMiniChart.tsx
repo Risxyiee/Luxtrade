@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { createChart, ColorType, CrosshairMode, LineStyle, IChartApi, ISeriesApi } from 'lightweight-charts'
+import { createChart, ColorType, CrosshairMode, LineStyle, IChartApi, ISeriesApi, CandlestickSeries } from 'lightweight-charts'
 import { Activity, Loader2, Lock } from 'lucide-react'
 
 interface KlineData {
@@ -122,7 +122,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
         handleScroll: false,
       })
 
-      const series = chart.addCandlestickSeries({
+      const series = chart.addSeries(CandlestickSeries, {
         upColor: '#22c55e',
         downColor: '#ef4444',
         borderVisible: false,
