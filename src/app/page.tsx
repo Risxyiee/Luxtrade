@@ -42,7 +42,7 @@ function generateEquityData(points: number): EquityPoint[] {
   return data
 }
 
-// Animated Equity Widget Component
+// Animated Equity Widget Component - Premium with Glassmorphism
 function EquityWidget() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const dataRef = useRef<EquityPoint[]>(generateEquityData(50))
@@ -68,12 +68,13 @@ function EquityWidget() {
       const maxVal = Math.max(...values)
       const range = maxVal - minVal || 1
       
-      // Draw gradient background
+      // Draw gradient background with premium purple gradient
       const gradient = ctx.createLinearGradient(0, 0, 0, height)
       const isPositive = chartData[chartData.length - 1].value >= chartData[0].value
       if (isPositive) {
-        gradient.addColorStop(0, 'rgba(34, 197, 94, 0.3)')
-        gradient.addColorStop(1, 'rgba(34, 197, 94, 0)')
+        gradient.addColorStop(0, 'rgba(147, 51, 234, 0.4)') // Purple
+        gradient.addColorStop(0.5, 'rgba(59, 130, 246, 0.3)') // Blue
+        gradient.addColorStop(1, 'rgba(59, 130, 246, 0)')
       } else {
         gradient.addColorStop(0, 'rgba(239, 68, 68, 0.3)')
         gradient.addColorStop(1, 'rgba(239, 68, 68, 0)')
@@ -94,7 +95,7 @@ function EquityWidget() {
       ctx.fillStyle = gradient
       ctx.fill()
       
-      // Draw line
+      // Draw line with electric blue glow
       ctx.beginPath()
       chartData.forEach((point, i) => {
         const x = (i / (chartData.length - 1)) * width
@@ -106,13 +107,19 @@ function EquityWidget() {
         }
       })
       
-      ctx.strokeStyle = isPositive ? '#22c55e' : '#ef4444'
-      ctx.lineWidth = 2
+      // Electric Blue Gradient for line
+      const lineGradient = ctx.createLinearGradient(0, 0, width, 0)
+      lineGradient.addColorStop(0, '#9333ea') // Purple
+      lineGradient.addColorStop(0.5, '#3b82f6') // Blue
+      lineGradient.addColorStop(1, '#06b6d4') // Cyan
+      
+      ctx.strokeStyle = isPositive ? lineGradient : '#ef4444'
+      ctx.lineWidth = 2.5
       ctx.stroke()
       
-      // Draw glow
-      ctx.shadowColor = isPositive ? '#22c55e' : '#ef4444'
-      ctx.shadowBlur = 10
+      // Draw glow effect
+      ctx.shadowColor = isPositive ? '#8b5cf6' : '#ef4444'
+      ctx.shadowBlur = 15
       ctx.stroke()
       ctx.shadowBlur = 0
     }
@@ -148,12 +155,12 @@ function EquityWidget() {
   const changePercent = ((changeAmount / 10500) * 100).toFixed(2)
   
   return (
-    <div className="rounded-2xl bg-gradient-to-br from-[#1a0f2e] to-[#0d0715] border border-purple-500/20 p-6 backdrop-blur-sm">
+    <div className="rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] p-6 hover:shadow-[0_0_40px_rgba(139,92,246,0.3)] transition-shadow duration-500">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-sm text-purple-300/70 font-medium">Portfolio Equity</p>
+          <p className="text-sm text-purple-300/80 font-semibold tracking-wide uppercase text-xs">Portfolio Equity</p>
           <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-bold text-white tracking-tight">
+            <span className="text-3xl font-extrabold text-white tracking-tight">
               ${currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
             <AnimatePresence mode="wait">
@@ -162,7 +169,7 @@ function EquityWidget() {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
-                className={`flex items-center gap-1 text-sm font-semibold ${isUp ? 'text-emerald-400' : 'text-red-400'}`}
+                className={`flex items-center gap-1 text-sm font-bold ${isUp ? 'text-emerald-400' : 'text-red-400'}`}
               >
                 {isUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                 {isUp ? '+' : ''}{changePercent}%
@@ -171,10 +178,16 @@ function EquityWidget() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className={`px-3 py-1.5 rounded-full text-xs font-medium ${isUp ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+          <div className={`px-3 py-1.5 rounded-full text-xs font-bold ${isUp ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'} backdrop-blur-sm`}>
             LIVE
           </div>
-          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <motion.div 
+            className="w-2 h-2 rounded-full bg-emerald-400"
+            animate={{ 
+              boxShadow: ['0 0 0 0 rgba(16, 185, 129, 0.7)', '0 0 0 10px rgba(16, 185, 129, 0)', '0 0 0 0 rgba(16, 185, 129, 0.7)']
+            }}
+            transition={{ duration: 2, repeat: Infinity }}
+          />
         </div>
       </div>
       
@@ -185,7 +198,7 @@ function EquityWidget() {
         className="w-full h-32"
       />
       
-      <div className="flex items-center justify-between mt-4 text-xs text-purple-300/50">
+      <div className="flex items-center justify-between mt-4 text-xs text-purple-300/60 font-medium">
         <span>Start: $10,500.00</span>
         <span>Updated just now</span>
       </div>
@@ -205,7 +218,7 @@ const FOREX_TRADES = [
   { pair: 'EUR/GBP', type: 'BUY' as const, price: 0.8530, pnl: 289.00, session: 'London' },
 ]
 
-// Animated Forex Trades Component
+// Animated Forex Trades Component - Premium
 function AnimatedForexTrades() {
   const [visibleTrades, setVisibleTrades] = useState([0, 1, 2])
   const [animatingIn, setAnimatingIn] = useState<number | null>(null)
@@ -256,7 +269,7 @@ function AnimatedForexTrades() {
         return (
           <motion.div 
             key={`${tradeIdx}-${i}`}
-            className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-all"
+            className="flex items-center justify-between p-3 rounded-xl backdrop-blur-md bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-purple-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.2)] transition-all duration-300"
             initial={false}
             animate={{
               opacity: isExiting ? 0 : 1,
@@ -268,12 +281,12 @@ function AnimatedForexTrades() {
           >
             <div className="flex items-center gap-3">
               <motion.div 
-                className={`w-9 h-9 rounded-lg flex items-center justify-center ${isProfit ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}
+                className={`w-10 h-10 rounded-lg flex items-center justify-center backdrop-blur-sm ${isProfit ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30' : 'bg-gradient-to-br from-red-500/20 to-red-600/10 border border-red-500/30'}`}
                 animate={{ 
                   scale: [1, 1.1, 1],
                   boxShadow: isProfit 
-                    ? ['0 0 0 0 rgba(16, 185, 129, 0.4)', '0 0 20px 5px rgba(16, 185, 129, 0.1)', '0 0 0 0 rgba(16, 185, 129, 0)']
-                    : ['0 0 0 0 rgba(239, 68, 68, 0.4)', '0 0 20px 5px rgba(239, 68, 68, 0.1)', '0 0 0 0 rgba(239, 68, 68, 0)']
+                    ? ['0 0 0 0 rgba(16, 185, 129, 0.4)', '0 0 25px 8px rgba(16, 185, 129, 0.15)', '0 0 0 0 rgba(16, 185, 129, 0)']
+                    : ['0 0 0 0 rgba(239, 68, 68, 0.4)', '0 0 25px 8px rgba(239, 68, 68, 0.15)', '0 0 0 0 rgba(239, 68, 68, 0)']
                 }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
@@ -287,14 +300,14 @@ function AnimatedForexTrades() {
               <div>
                 <div className="flex items-center gap-2">
                   <motion.span 
-                    className="text-sm font-bold text-white tracking-wide"
+                    className="text-sm font-extrabold text-white tracking-wide"
                     animate={{ opacity: [1, 0.8, 1] }}
                     transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2 }}
                   >
                     {trade.pair}
                   </motion.span>
                   <motion.span 
-                    className="text-[9px] px-2 py-0.5 rounded-full bg-white/10 text-white/60 font-medium"
+                    className="text-[9px] px-2.5 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 font-bold backdrop-blur-sm"
                     animate={{ opacity: [0.6, 1, 0.6] }}
                     transition={{ duration: 2, repeat: Infinity }}
                   >
@@ -303,23 +316,23 @@ function AnimatedForexTrades() {
                 </div>
                 <div className="text-[10px] text-white/50 flex items-center gap-2">
                   <motion.span 
-                    className={`font-semibold ${trade.type === 'BUY' ? 'text-emerald-400' : 'text-red-400'}`}
+                    className={`font-bold ${trade.type === 'BUY' ? 'text-emerald-400' : 'text-red-400'}`}
                     animate={{ opacity: [1, 0.7, 1] }}
                     transition={{ duration: 1, repeat: Infinity }}
                   >
                     {trade.type}
                   </motion.span>
-                  <span>@ {trade.price.toFixed(trade.price > 100 ? 2 : 4)}</span>
+                  <span className="font-mono">@ {trade.price.toFixed(trade.price > 100 ? 2 : 4)}</span>
                 </div>
               </div>
             </div>
             
             <div className="text-right">
               <motion.div 
-                className={`text-sm font-bold font-mono ${isLiveProfit ? 'text-emerald-400' : 'text-red-400'}`}
+                className={`text-sm font-extrabold font-mono ${isLiveProfit ? 'text-emerald-400' : 'text-red-400'}`}
                 animate={{ 
                   opacity: [1, 0.8, 1],
-                  scale: livePnl !== trade.pnl ? [1, 1.05, 1] : 1,
+                  scale: livePnl !== trade.pnl ? [1, 1.08, 1] : 1,
                 }}
                 transition={{ duration: 0.8, repeat: Infinity }}
                 key={livePnl}
@@ -332,12 +345,12 @@ function AnimatedForexTrades() {
                   className={`w-2 h-2 rounded-full ${isLiveProfit ? 'bg-emerald-400' : 'bg-red-400'}`}
                   animate={{ 
                     opacity: [1, 0.3, 1],
-                    scale: [1, 1.2, 1],
+                    scale: [1, 1.3, 1],
                   }}
                   transition={{ duration: 0.8, repeat: Infinity }}
                 />
                 <motion.span 
-                  className="text-[10px] text-white/50"
+                  className="text-[10px] text-white/50 font-semibold"
                   animate={{ opacity: [0.5, 1, 0.5] }}
                   transition={{ duration: 1.5, repeat: Infinity }}
                 >
@@ -350,20 +363,20 @@ function AnimatedForexTrades() {
       })}
       
       <motion.div 
-        className="flex justify-center pt-2"
+        className="flex justify-center pt-3"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1 }}
       >
         <motion.div 
-          className="flex gap-1"
-          animate={{ y: [0, 3, 0] }}
+          className="flex gap-1.5"
+          animate={{ y: [0, 4, 0] }}
           transition={{ duration: 1.5, repeat: Infinity }}
         >
           {[0, 1, 2].map((i) => (
             <motion.div 
               key={i}
-              className="w-1.5 h-1.5 rounded-full bg-purple-400/40"
+              className="w-2 h-2 rounded-full bg-gradient-to-r from-purple-500 to-blue-500"
               animate={{ opacity: [0.3, 1, 0.3] }}
               transition={{ duration: 1, delay: i * 0.2, repeat: Infinity }}
             />
@@ -374,15 +387,13 @@ function AnimatedForexTrades() {
   )
 }
 
-// Lifetime Ultra Card Component
+// Lifetime Ultra Card Component - Premium
 function LifetimeUltraCard({ onButtonClick }: { onButtonClick: () => void }) {
   const [slotsInfo, setSlotsInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isSoldOut, setIsSoldOut] = useState(false)
 
   useEffect(() => {
-    // Fetch slot info for Lifetime Ultra
-    // For now, using hardcoded values. In production, fetch from API
     setSlotsInfo({
       totalSlots: 30,
       usedSlots: 0,
@@ -400,7 +411,7 @@ function LifetimeUltraCard({ onButtonClick }: { onButtonClick: () => void }) {
         viewport={{ once: true }}
         transition={{ delay: 0.3 }}
       >
-        <Card className="h-full bg-white/[0.02] border-white/[0.05]">
+        <Card className="h-full backdrop-blur-xl bg-white/[0.03] border border-white/[0.08]">
           <CardContent className="p-6 pt-8">
             <div className="animate-pulse">
               <div className="h-6 bg-white/10 rounded mb-4 w-1/2" />
@@ -425,30 +436,36 @@ function LifetimeUltraCard({ onButtonClick }: { onButtonClick: () => void }) {
       viewport={{ once: true }}
       transition={{ delay: 0.3 }}
     >
-      <Card className={`h-full relative ${
+      <Card className={`h-full relative backdrop-blur-xl ${
         isSoldOut
           ? 'bg-gradient-to-b from-red-500/10 to-transparent border-red-500/30'
           : 'bg-gradient-to-b from-amber-500/10 to-transparent border-amber-500/30'
-      }`}>
+      } border border-white/[0.08] hover:shadow-[0_0_40px_rgba(251,191,36,0.2)] transition-shadow duration-500`}>
         {slotsInfo?.isSoldOut && (
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-red-500 text-xs font-bold text-white animate-pulse">
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-red-500 text-xs font-bold text-white backdrop-blur-sm animate-pulse">
             SOLD OUT
           </div>
         )}
         {!slotsInfo?.isSoldOut && (
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-xs font-semibold text-white flex items-center gap-1">
-            <Sparkles className="w-3 h-3" />
+          <motion.div 
+            className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-xs font-bold text-white flex items-center gap-1.5 backdrop-blur-sm border border-amber-400/30"
+            animate={{ 
+              boxShadow: ['0 0 0 0 rgba(251, 191, 36, 0.4)', '0 0 20px 5px rgba(251, 191, 36, 0.2)', '0 0 0 0 rgba(251, 191, 36, 0)']
+            }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
             LIMITED
-          </div>
+          </motion.div>
         )}
         <CardContent className="p-6 pt-8">
-          <div className="text-sm text-amber-400 mb-1">Lifetime Ultra</div>
-          <div className="text-4xl font-bold text-white mb-1">
+          <div className="text-sm text-amber-400 font-bold mb-1 tracking-wide uppercase text-xs">Lifetime Ultra</div>
+          <div className="text-4xl font-extrabold text-white mb-1">
             Rp 52.000
             <span className="text-base font-normal text-white/40"> /lifetime</span>
           </div>
           {slotsInfo && (
-            <div className={`mb-4 text-xs font-semibold ${
+            <div className={`mb-4 text-xs font-bold ${
               slotsInfo.isSoldOut ? 'text-red-400' : 'text-amber-300'
             }`}>
               {slotsInfo.isSoldOut ? (
@@ -459,46 +476,29 @@ function LifetimeUltraCard({ onButtonClick }: { onButtonClick: () => void }) {
             </div>
           )}
           <ul className="space-y-3 my-6">
-            <li className="flex items-center gap-2 text-sm text-white/60">
-              <Check className="w-4 h-4 text-amber-400" />
-              All Elite Pro features
-            </li>
-            <li className="flex items-center gap-2 text-sm text-white/60">
-              <Check className="w-4 h-4 text-amber-400" />
-              LIFETIME access (no renewal)
-            </li>
-            <li className="flex items-center gap-2 text-sm text-white/60">
-              <Check className="w-4 h-4 text-amber-400" />
-              Exclusive trading signals
-            </li>
-            <li className="flex items-center gap-2 text-sm text-white/60">
-              <Check className="w-4 h-4 text-amber-400" />
-              1-on-1 coaching session
-            </li>
-            <li className="flex items-center gap-2 text-sm text-white/60">
-              <Check className="w-4 h-4 text-amber-400" />
-              Private community access
-            </li>
-            <li className="flex items-center gap-2 text-sm text-white/60">
-              <Check className="w-4 h-4 text-amber-400" />
-              Priority feature requests
-            </li>
-            <li className="flex items-center gap-2 text-sm text-white/60">
-              <Check className="w-4 h-4 text-amber-400" />
-              VIP WhatsApp support
-            </li>
-            <li className="flex items-center gap-2 text-sm text-white/60">
-              <Check className="w-4 h-4 text-amber-400" />
-              Custom dashboard setup
-            </li>
+            {[
+              { text: 'All Elite Pro features' },
+              { text: 'LIFETIME access (no renewal)' },
+              { text: 'Exclusive trading signals' },
+              { text: '1-on-1 coaching session' },
+              { text: 'Private community access' },
+              { text: 'Priority feature requests' },
+              { text: 'VIP WhatsApp support' },
+              { text: 'Custom dashboard setup' },
+            ].map((item, index) => (
+              <li key={index} className="flex items-center gap-2.5 text-sm text-white/70">
+                <Check className="w-4.5 h-4.5 text-amber-400 flex-shrink-0" />
+                <span className="font-medium">{item.text}</span>
+              </li>
+            ))}
           </ul>
           <Button
             disabled={isSoldOut}
             onClick={onButtonClick}
-            className={`w-full font-semibold ${
+            className={`w-full font-extrabold h-12 text-base ${
               isSoldOut
                 ? 'bg-white/10 text-white/50 cursor-not-allowed'
-                : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white'
+                : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-lg shadow-amber-500/30 hover:shadow-[0_0_30px_rgba(251,191,36,0.4)] transition-all duration-300'
             }`}
           >
             {isSoldOut ? 'Sold Out' : 'Get Lifetime Access'}
@@ -598,16 +598,16 @@ export default function LuxTradeLanding() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0612] text-white overflow-hidden">
-      {/* Luxury Background Effects */}
+    <div className="min-h-screen bg-[#0f051d] text-white overflow-x-hidden">
+      {/* Luxury Background Effects - Premium with Deep Purple */}
       <div className="fixed inset-0 -z-10">
         {/* Deep purple gradient base */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0612] via-[#110a1f] to-[#0a0612]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0f051d] via-[#1a0a2e] to-[#0f051d]" />
         
-        {/* Purple accent glows */}
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[150px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-violet-500/10 rounded-full blur-[100px]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-purple-500/5 rounded-full blur-[120px]" />
+        {/* Purple accent glows - Enhanced with opacity 0.2 */}
+        <div className="absolute top-0 left-1/4 w-[700px] h-[700px] bg-purple-500/20 rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-violet-500/20 rounded-full blur-[120px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[500px] bg-purple-500/10 rounded-full blur-[120px]" />
         
         {/* Subtle grid pattern */}
         <div className="absolute inset-0 opacity-[0.02]" style={{
@@ -616,9 +616,9 @@ export default function LuxTradeLanding() {
         }} />
       </div>
 
-      {/* Navigation */}
+      {/* Navigation - Premium Glassmorphism */}
       <nav className="fixed top-0 left-0 right-0 z-50">
-        <div className="bg-gradient-to-b from-[#0a0612] to-transparent backdrop-blur-xl bg-opacity-80 border-b border-white/5">
+        <div className="backdrop-blur-xl bg-[#0f051d]/80 border-b border-white/[0.08]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center gap-3">
@@ -630,34 +630,51 @@ export default function LuxTradeLanding() {
                     height={40}
                     className="rounded-xl shadow-lg"
                   />
-                  <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[#0a0612]" />
+                  <motion.div 
+                    className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[#0f051d]"
+                    animate={{ 
+                      boxShadow: ['0 0 0 0 rgba(16, 185, 129, 0.7)', '0 0 0 8px rgba(16, 185, 129, 0)', '0 0 0 0 rgba(16, 185, 129, 0.7)']
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
                 </div>
                 <div>
-                  <span className="text-xl font-bold bg-gradient-to-r from-purple-200 via-purple-400 to-violet-400 bg-clip-text text-transparent">
+                  <span className="text-xl font-extrabold bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
                     LuxTrade
                   </span>
-                  <span className="hidden sm:inline text-[10px] text-purple-400/60 ml-2 tracking-widest">PREMIUM</span>
+                  <span className="hidden sm:inline text-[10px] text-purple-400/70 ml-2 tracking-[0.2em] font-bold">PREMIUM</span>
                 </div>
               </div>
               
               <div className="hidden md:flex items-center gap-8">
-                <a href="#features" className="text-sm text-white/60 hover:text-white transition-colors">Features</a>
-                <a href="#demo" className="text-sm text-white/60 hover:text-white transition-colors">Live Demo</a>
-                <a href="#pricing" className="text-sm text-white/60 hover:text-white transition-colors">Pricing</a>
-                <a href="#faq" className="text-sm text-white/60 hover:text-white transition-colors">FAQ</a>
+                {['Features', 'Live Demo', 'Pricing', 'FAQ'].map((item) => (
+                  <a 
+                    key={item}
+                    href={`#${item.toLowerCase().replace(' ', '-')}`}
+                    className="text-sm text-white/60 hover:text-white hover:text-purple-300 transition-all duration-300 font-medium relative group"
+                  >
+                    {item}
+                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 group-hover:w-full transition-all duration-300" />
+                  </a>
+                ))}
               </div>
               
               <div className="flex items-center gap-3">
                 <Link href="/auth/login">
-                  <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 hidden sm:inline-flex">
+                  <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 hidden sm:inline-flex font-semibold backdrop-blur-sm">
                     Login
                   </Button>
                 </Link>
                 <Link href="/auth/signup">
-                  <Button className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-semibold shadow-lg shadow-purple-500/25">
-                    Sign Up
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Button className="h-10 px-6 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all duration-300 backdrop-blur-sm">
+                      Sign Up
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </motion.div>
                 </Link>
               </div>
             </div>
@@ -665,8 +682,8 @@ export default function LuxTradeLanding() {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="pt-28 pb-16 px-4 sm:px-6 lg:px-8">
+      {/* Hero Section - Premium */}
+      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <motion.div 
             className="text-center"
@@ -675,66 +692,88 @@ export default function LuxTradeLanding() {
             variants={staggerContainer}
           >
             {/* Badge */}
-            <motion.div variants={fadeInUp} className="flex justify-center mb-6">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-500/10 to-violet-500/10 border border-purple-500/20">
-                <Sparkles className="w-4 h-4 text-purple-400" />
-                <span className="text-sm text-purple-300">AI-Powered Trading Intelligence</span>
-              </div>
+            <motion.div variants={fadeInUp} className="flex justify-center mb-8">
+              <motion.div 
+                className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-purple-500/10 border border-purple-500/30 hover:border-purple-500/50 transition-all duration-300 cursor-default"
+                whileHover={{ scale: 1.02 }}
+              >
+                <motion.div
+                  animate={{ 
+                    boxShadow: ['0 0 0 0 rgba(139, 92, 246, 0.7)', '0 0 0 10px rgba(139, 92, 246, 0)', '0 0 0 0 rgba(139, 92, 246, 0.7)']
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <Sparkles className="w-4.5 h-4.5 text-purple-400" />
+                </motion.div>
+                <span className="text-sm text-purple-300 font-semibold">AI-Powered Trading Intelligence</span>
+              </motion.div>
             </motion.div>
             
-            {/* Main Headline */}
+            {/* Main Headline - Extra Bold with gradient */}
             <motion.h1 
               variants={fadeInUp}
-              className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 leading-tight tracking-tight"
+              className="text-5xl sm:text-6xl lg:text-7xl font-extrabold mb-8 leading-tight tracking-tight"
+              style={{ letterSpacing: '-0.02em' }}
             >
-              <span className="text-white">Elevate Your Trading with</span>
+              <span className="text-white">Trade Smarter, Not Harder</span>
               <br />
-              <span className="bg-gradient-to-r from-purple-200 via-purple-400 to-violet-400 bg-clip-text text-transparent">
-                Intelligent Journaling
+              <span className="bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
+                with AI-Powered Precision
               </span>
             </motion.h1>
             
             <motion.p 
               variants={fadeInUp}
-              className="text-lg sm:text-xl text-white/50 max-w-2xl mx-auto mb-10 leading-relaxed"
+              className="text-xl sm:text-2xl text-white/60 max-w-3xl mx-auto mb-12 leading-relaxed font-light"
             >
               The premium trading journal for serious traders. Track every trade, 
               analyze performance, and unlock AI-powered insights to gain your edge.
             </motion.p>
             
-            {/* CTA Buttons */}
+            {/* CTA Buttons - Neon Glow Effect */}
             <motion.div 
               variants={fadeInUp}
-              className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
+              className="flex flex-col sm:flex-row items-center justify-center gap-5 mb-20"
             >
               <Link href="/auth/signup">
-                <Button size="lg" className="h-14 px-8 text-lg bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-semibold shadow-xl shadow-purple-500/25">
-                  Start Free Trial
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Button size="lg" className="h-16 px-10 text-xl bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-2xl shadow-purple-500/40 hover:shadow-[0_0_50px_rgba(139,92,246,0.6)] transition-all duration-300 backdrop-blur-xl border border-purple-400/20">
+                    Mulai Sekarang
+                    <ArrowRight className="w-6 h-6 ml-3" />
+                  </Button>
+                </motion.div>
               </Link>
               <a href="#demo">
-                <Button variant="outline" size="lg" className="h-14 px-8 text-lg border-white/10 text-white hover:bg-white/5">
-                  <Play className="w-5 h-5 mr-2" />
-                  Watch Demo
-                </Button>
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Button variant="outline" size="lg" className="h-16 px-10 text-xl border-2 border-white/10 hover:border-white/20 text-white hover:bg-white/5 backdrop-blur-xl font-semibold">
+                    <Play className="w-6 h-6 mr-3" />
+                    Watch Demo
+                  </Button>
+                </motion.div>
               </a>
             </motion.div>
 
-            {/* Stats */}
+            {/* Stats - Premium Glassmorphism Cards */}
             <motion.div 
               variants={fadeInUp}
-              className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl mx-auto mb-20"
+              className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mb-24"
             >
               {stats.map((stat, index) => (
-                <div
+                <motion.div
                   key={index}
-                  className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.05] backdrop-blur-sm hover:bg-white/[0.05] transition-all"
+                  className="p-5 rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-purple-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] transition-all duration-300 group"
+                  whileHover={{ scale: 1.02, y: -2 }}
                 >
-                  <stat.icon className="w-4 h-4 text-purple-400/60 mb-2 mx-auto" />
-                  <div className="text-2xl font-bold text-white">{stat.value}</div>
-                  <div className="text-xs text-white/40">{stat.label}</div>
-                </div>
+                  <stat.icon className="w-5 h-5 text-purple-400/70 mb-3 mx-auto group-hover:text-purple-400 transition-colors" />
+                  <div className="text-3xl font-extrabold text-white mb-1">{stat.value}</div>
+                  <div className="text-xs text-white/50 font-medium uppercase tracking-wide">{stat.label}</div>
+                </motion.div>
               ))}
             </motion.div>
           </motion.div>
@@ -751,29 +790,29 @@ export default function LuxTradeLanding() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8">
+      {/* Features Section - Premium Glassmorphism */}
+      <section id="features" className="py-24 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <motion.div 
-            className="text-center mb-16"
+            className="text-center mb-20"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 mb-4">
-              <Zap className="w-4 h-4 text-purple-400" />
-              <span className="text-sm text-purple-300">Powerful Features</span>
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-purple-500/10 border border-purple-500/30 mb-6">
+              <Zap className="w-4.5 h-4.5 text-purple-400" />
+              <span className="text-sm text-purple-300 font-semibold">Powerful Features</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+            <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
               <span className="text-white">Everything You Need to</span>
-              <span className="bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent"> Trade Smarter</span>
+              <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent"> Trade Smarter</span>
             </h2>
-            <p className="text-lg text-white/40 max-w-xl mx-auto">
+            <p className="text-xl text-white/50 max-w-2xl mx-auto font-light">
               Professional tools designed by traders, for traders. Every feature built to give you an edge.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature, index) => (
               <motion.div
                 key={index}
@@ -783,116 +822,101 @@ export default function LuxTradeLanding() {
                 transition={{ delay: index * 0.1 }}
                 className="group"
               >
-                <Card className="h-full bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.04] hover:border-white/10 transition-all duration-300">
-                  <CardContent className="p-6">
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg`}>
-                      <feature.icon className="w-6 h-6 text-white" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-white mb-2">{feature.title}</h3>
-                    <p className="text-white/40 text-sm leading-relaxed">{feature.description}</p>
-                  </CardContent>
-                </Card>
+                <motion.div
+                  className="h-full p-6 rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-purple-500/30 hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-all duration-300"
+                  whileHover={{ scale: 1.02, y: -4 }}
+                >
+                  <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-lg`}>
+                    <feature.icon className="w-7 h-7 text-white" />
+                  </div>
+                  <h3 className="text-xl font-extrabold text-white mb-3">{feature.title}</h3>
+                  <p className="text-white/50 text-base leading-relaxed">{feature.description}</p>
+                </motion.div>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Live Demo Section */}
-      <section id="demo" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/5 to-transparent">
+      {/* Live Demo Section - Premium */}
+      <section id="demo" className="py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/10 to-transparent">
         <div className="max-w-7xl mx-auto">
           <motion.div 
-            className="text-center mb-12"
+            className="text-center mb-16"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-4">
-              <Activity className="w-4 h-4 text-emerald-400" />
-              <span className="text-sm text-emerald-300">Live Preview</span>
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-emerald-500/10 border border-emerald-500/30 mb-6">
+              <Activity className="w-4.5 h-4.5 text-emerald-400" />
+              <span className="text-sm text-emerald-300 font-semibold">Live Preview</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+            <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
               <span className="text-white">See It</span>
               <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent"> In Action</span>
             </h2>
           </motion.div>
 
-          {/* Dashboard Preview */}
+          {/* Dashboard Preview - Premium */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#1a0f2e] to-[#0d0715] p-1 shadow-2xl shadow-purple-500/10"
+            className="rounded-3xl backdrop-blur-xl border border-white/[0.08] bg-gradient-to-br from-[#1a0f2e]/50 to-[#0d0715]/50 p-1.5 shadow-2xl shadow-purple-500/20 hover:shadow-[0_0_60px_rgba(139,92,246,0.3)] transition-shadow duration-500"
           >
-            <div className="rounded-xl overflow-hidden">
+            <div className="rounded-2xl overflow-hidden">
               {/* Mock Dashboard Header */}
-              <div className="flex items-center gap-2 px-4 py-3 bg-white/[0.02] border-b border-white/5">
-                <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-red-500/60" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
-                  <div className="w-3 h-3 rounded-full bg-green-500/60" />
+              <div className="flex items-center gap-2.5 px-5 py-4 bg-white/[0.03] border-b border-white/[0.08]">
+                <div className="flex gap-2">
+                  <div className="w-3 h-3 rounded-full bg-red-500/60 hover:bg-red-500 transition-colors" />
+                  <div className="w-3 h-3 rounded-full bg-yellow-500/60 hover:bg-yellow-500 transition-colors" />
+                  <div className="w-3 h-3 rounded-full bg-green-500/60 hover:bg-green-500 transition-colors" />
                 </div>
                 <div className="flex-1 text-center">
-                  <span className="text-xs text-white/30">LuxTrade Dashboard</span>
+                  <span className="text-xs text-white/30 font-medium tracking-wide">LuxTrade Dashboard</span>
                 </div>
               </div>
               
               {/* Mock Content */}
-              <div className="p-4 space-y-4">
+              <div className="p-6 space-y-5">
                 {/* Stats Row */}
-                <div className="grid grid-cols-4 gap-3">
-                  <motion.div 
-                    className="p-3 rounded-lg bg-gradient-to-br from-emerald-500/20 to-transparent border border-white/5"
-                    animate={{ scale: [1, 1.02, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    <div className="text-[10px] text-white/40 mb-1">Total P/L</div>
-                    <div className="text-lg font-bold text-emerald-400">+$1,247</div>
-                  </motion.div>
-                  <motion.div 
-                    className="p-3 rounded-lg bg-gradient-to-br from-purple-500/20 to-transparent border border-white/5"
-                    animate={{ scale: [1, 1.02, 1] }}
-                    transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-                  >
-                    <div className="text-[10px] text-white/40 mb-1">Win Rate</div>
-                    <div className="text-lg font-bold text-purple-400">68%</div>
-                  </motion.div>
-                  <motion.div 
-                    className="p-3 rounded-lg bg-gradient-to-br from-cyan-500/20 to-transparent border border-white/5"
-                    animate={{ scale: [1, 1.02, 1] }}
-                    transition={{ duration: 2, repeat: Infinity, delay: 1 }}
-                  >
-                    <div className="text-[10px] text-white/40 mb-1">Open</div>
-                    <div className="text-lg font-bold text-cyan-400">3</div>
-                  </motion.div>
-                  <motion.div 
-                    className="p-3 rounded-lg bg-gradient-to-br from-purple-500/20 to-transparent border border-white/5"
-                    animate={{ scale: [1, 1.02, 1] }}
-                    transition={{ duration: 2, repeat: Infinity, delay: 1.5 }}
-                  >
-                    <div className="text-[10px] text-white/40 mb-1">Profit Factor</div>
-                    <div className="text-lg font-bold text-purple-400">2.14</div>
-                  </motion.div>
+                <div className="grid grid-cols-4 gap-4">
+                  {[
+                    { label: 'Total P/L', value: '+$1,247', color: 'emerald', delay: 0 },
+                    { label: 'Win Rate', value: '68%', color: 'purple', delay: 0.5 },
+                    { label: 'Open', value: '3', color: 'cyan', delay: 1 },
+                    { label: 'Profit Factor', value: '2.14', color: 'purple', delay: 1.5 },
+                  ].map((stat, i) => (
+                    <motion.div 
+                      key={i}
+                      className={`p-4 rounded-xl backdrop-blur-sm bg-gradient-to-br from-${stat.color}-500/20 to-transparent border border-white/[0.08]`}
+                      animate={{ scale: [1, 1.03, 1] }}
+                      transition={{ duration: 2, repeat: Infinity, delay: stat.delay }}
+                    >
+                      <div className="text-[11px] text-white/40 mb-1.5 font-semibold uppercase tracking-wide">{stat.label}</div>
+                      <div className={`text-xl font-extrabold text-${stat.color}-400`}>{stat.value}</div>
+                    </motion.div>
+                  ))}
                 </div>
                 
                 {/* Mini Chart */}
-                <div className="h-28 rounded-lg bg-gradient-to-br from-purple-500/10 to-transparent border border-white/5 p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-white/40">Equity Curve</span>
+                <div className="h-32 rounded-xl backdrop-blur-sm bg-gradient-to-br from-purple-500/10 to-transparent border border-white/[0.08] p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-white/40 font-semibold">Equity Curve</span>
                     <motion.div 
-                      className="flex items-center gap-1"
+                      className="flex items-center gap-1.5"
                       animate={{ opacity: [0.5, 1, 0.5] }}
                       transition={{ duration: 2, repeat: Infinity }}
                     >
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span className="text-[10px] text-emerald-400">+12.4%</span>
+                      <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                      <span className="text-xs text-emerald-400 font-bold">+12.4%</span>
                     </motion.div>
                   </div>
-                  <div className="flex items-end gap-0.5 h-16">
+                  <div className="flex items-end gap-1 h-20">
                     {[40, 55, 45, 60, 50, 70, 65, 80, 75, 90, 85, 95, 88, 92, 100, 95, 98, 105, 100, 110].map((h, i) => (
                       <motion.div 
                         key={i}
-                        className="flex-1 bg-gradient-to-t from-purple-500 to-violet-500 rounded-t"
+                        className="flex-1 bg-gradient-to-t from-purple-500 to-blue-500 rounded-t"
                         style={{ height: `${h}%` }}
                         animate={{ opacity: [0.5, 1, 0.5] }}
                         transition={{ duration: 1, delay: i * 0.05, repeat: Infinity }}
@@ -907,37 +931,42 @@ export default function LuxTradeLanding() {
             </div>
           </motion.div>
           
-          <div className="text-center mt-8">
+          <div className="text-center mt-10">
             <Link href="/dashboard">
-              <Button className="bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700 text-white font-semibold">
-                Try Dashboard Now
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Button className="h-14 px-8 text-lg bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700 text-white font-extrabold shadow-lg shadow-emerald-500/30 hover:shadow-[0_0_40px_rgba(16,185,129,0.5)] transition-all duration-300 backdrop-blur-xl">
+                  Try Dashboard Now
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </motion.div>
             </Link>
           </div>
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section id="testimonials" className="py-20 px-4 sm:px-6 lg:px-8">
+      {/* Testimonials - Premium Glassmorphism */}
+      <section id="testimonials" className="py-24 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <motion.div 
-            className="text-center mb-16"
+            className="text-center mb-20"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-pink-500/10 border border-pink-500/20 mb-4">
-              <Trophy className="w-4 h-4 text-pink-400" />
-              <span className="text-sm text-pink-300">Trusted by Traders</span>
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-pink-500/10 border border-pink-500/30 mb-6">
+              <Trophy className="w-4.5 h-4.5 text-pink-400" />
+              <span className="text-sm text-pink-300 font-semibold">Trusted by Traders</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+            <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
               <span className="text-white">What Traders</span>
               <span className="bg-gradient-to-r from-pink-400 to-rose-400 bg-clip-text text-transparent"> Are Saying</span>
             </h2>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {testimonials.map((testimonial, index) => (
               <motion.div
                 key={index}
@@ -946,25 +975,26 @@ export default function LuxTradeLanding() {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.15 }}
               >
-                <Card className="h-full bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.04] transition-all">
-                  <CardContent className="p-6">
-                    <div className="flex gap-1 mb-3">
-                      {[...Array(testimonial.rating)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-purple-400 text-purple-400" />
-                      ))}
+                <motion.div
+                  className="h-full p-6 rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-pink-500/30 hover:shadow-[0_0_40px_rgba(236,72,153,0.2)] transition-all duration-300"
+                  whileHover={{ scale: 1.02, y: -4 }}
+                >
+                  <div className="flex gap-1.5 mb-4">
+                    {[...Array(testimonial.rating)].map((_, i) => (
+                      <Star key={i} className="w-4.5 h-4.5 fill-purple-400 text-purple-400" />
+                    ))}
+                  </div>
+                  <p className="text-white/60 mb-5 text-base leading-relaxed font-light">&ldquo;{testimonial.content}&rdquo;</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-violet-500 flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                      {testimonial.avatar}
                     </div>
-                    <p className="text-white/60 mb-4 text-sm leading-relaxed">&ldquo;{testimonial.content}&rdquo;</p>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-violet-500 flex items-center justify-center text-white font-semibold text-sm">
-                        {testimonial.avatar}
-                      </div>
-                      <div>
-                        <div className="font-medium text-white text-sm">{testimonial.name}</div>
-                        <div className="text-xs text-white/40">{testimonial.role}</div>
-                      </div>
+                    <div>
+                      <div className="font-bold text-white">{testimonial.name}</div>
+                      <div className="text-xs text-white/40 font-medium">{testimonial.role}</div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </motion.div>
               </motion.div>
             ))}
           </div>
@@ -972,34 +1002,34 @@ export default function LuxTradeLanding() {
       </section>
 
       {/* Pricing - 3 Paket: Free, Elite Pro Rp 49.000, dan Lifetime Ultra Rp 52.000 */}
-      <section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/5 to-transparent">
+      <section id="pricing" className="py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/10 to-transparent">
         <div className="max-w-6xl mx-auto">
           <motion.div
-            className="text-center mb-16"
+            className="text-center mb-20"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 mb-4">
-              <Crown className="w-4 h-4 text-purple-400" />
-              <span className="text-sm text-purple-300">Simple Pricing</span>
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-purple-500/10 border border-purple-500/30 mb-6">
+              <Crown className="w-4.5 h-4.5 text-purple-400" />
+              <span className="text-sm text-purple-300 font-semibold">Simple Pricing</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+            <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
               <span className="text-white">Start Free,</span>
               <span className="bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent"> Upgrade When Ready</span>
             </h2>
 
             {/* Money-Back Guarantee Badge */}
             <motion.div
-              className="flex justify-center mt-6"
+              className="flex justify-center mt-8"
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
             >
-              <div className="inline-flex items-center gap-3 px-5 py-3 bg-emerald-500/10 border border-emerald-500/30 rounded-full">
+              <div className="inline-flex items-center gap-3 px-6 py-3.5 backdrop-blur-xl bg-emerald-500/10 border border-emerald-500/30 rounded-full">
                 <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                <span className="text-emerald-300 font-semibold">7-Day Money-Back Guarantee</span>
-                <span className="text-emerald-400/60 text-sm">• No Questions Asked</span>
+                <span className="text-emerald-300 font-extrabold">7-Day Money-Back Guarantee</span>
+                <span className="text-emerald-400/60 text-sm font-medium">• No Questions Asked</span>
               </div>
             </motion.div>
 
@@ -1011,18 +1041,16 @@ export default function LuxTradeLanding() {
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
             >
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg border border-white/10">
-                <Lock className="w-4 h-4 text-cyan-400" />
-                <span className="text-xs text-white/60">SSL Secured</span>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg border border-white/10">
-                <Shield className="w-4 h-4 text-purple-400" />
-                <span className="text-xs text-white/60">End-to-End Encrypted</span>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg border border-white/10">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs text-white/60">SOC 2 Compliant</span>
-              </div>
+              {[
+                { icon: Lock, text: 'SSL Secured', color: 'cyan' },
+                { icon: Shield, text: 'End-to-End Encrypted', color: 'purple' },
+                { icon: ShieldCheck, text: 'SOC 2 Compliant', color: 'emerald' },
+              ].map((badge, i) => (
+                <div key={i} className="flex items-center gap-2 px-4 py-2 backdrop-blur-sm bg-white/5 rounded-xl border border-white/[0.08]">
+                  <badge.icon className={`w-4 h-4 text-${badge.color}-400`} />
+                  <span className="text-xs text-white/60 font-semibold">{badge.text}</span>
+                </div>
+              ))}
             </motion.div>
           </motion.div>
 
@@ -1034,34 +1062,33 @@ export default function LuxTradeLanding() {
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="h-full bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.04] transition-all">
+              <Card className="h-full backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-white/15 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-all duration-300">
                 <CardContent className="p-6 pt-8">
-                  <div className="text-sm text-white/50 mb-1">Free</div>
-                  <div className="text-4xl font-bold text-white mb-1">
+                  <div className="text-sm text-white/50 mb-1 font-bold tracking-wide uppercase text-xs">Free</div>
+                  <div className="text-4xl font-extrabold text-white mb-1">
                     Rp 0
                     <span className="text-base font-normal text-white/40"> forever</span>
                   </div>
-                  <ul className="space-y-3 my-6">
-                    <li className="flex items-center gap-2 text-sm text-white/60">
-                      <Check className="w-4 h-4 text-emerald-400" />
-                      Up to 5 trades/month
-                    </li>
-                    <li className="flex items-center gap-2 text-sm text-white/60">
-                      <Check className="w-4 h-4 text-emerald-400" />
-                      Basic analytics
-                    </li>
-                    <li className="flex items-center gap-2 text-sm text-white/60">
-                      <Check className="w-4 h-4 text-emerald-400" />
-                      Journal entries
-                    </li>
-                    <li className="flex items-center gap-2 text-sm text-white/40">
-                      <span className="w-4 h-4 flex items-center justify-center">🔒</span>
-                      Pro features locked
-                    </li>
+                  <ul className="space-y-4 my-8">
+                    {[
+                      { text: 'Up to 5 trades/month' },
+                      { text: 'Basic analytics' },
+                      { text: 'Journal entries' },
+                      { text: 'Pro features locked', locked: true },
+                    ].map((item, index) => (
+                      <li key={index} className="flex items-center gap-2.5 text-sm text-white/60">
+                        {item.locked ? (
+                          <span className="w-4.5 h-4.5 flex items-center justify-center text-base">🔒</span>
+                        ) : (
+                          <Check className="w-4.5 h-4.5 text-emerald-400" />
+                        )}
+                        <span className="font-medium">{item.text}</span>
+                      </li>
+                    ))}
                   </ul>
                   <Link href="/auth/signup" className="block">
                     <Button 
-                      className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold"
+                      className="w-full h-12 bg-white/10 hover:bg-white/20 text-white font-extrabold backdrop-blur-sm transition-all"
                     >
                       Start Free
                     </Button>
@@ -1077,82 +1104,77 @@ export default function LuxTradeLanding() {
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
             >
-              <Card className="h-full relative bg-gradient-to-b from-purple-500/10 to-transparent border-purple-500/30">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-violet-500 text-xs font-semibold text-white">
+              <motion.div
+                className="h-full relative backdrop-blur-xl bg-gradient-to-b from-purple-500/10 to-transparent border-purple-500/30 border border-white/[0.08] rounded-2xl p-6 pt-8 hover:shadow-[0_0_50px_rgba(139,92,246,0.3)] transition-shadow duration-500"
+                whileHover={{ scale: 1.02, y: -4 }}
+              >
+                <motion.div 
+                  className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-xs font-extrabold text-white backdrop-blur-xl border border-purple-400/30"
+                  animate={{ 
+                    boxShadow: ['0 0 0 0 rgba(139, 92, 246, 0.7)', '0 0 0 10px rgba(139, 92, 246, 0)', '0 0 0 0 rgba(139, 92, 246, 0.7)']
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
                   Best Value
+                </motion.div>
+                <div className="text-sm text-purple-400 mb-1 font-bold tracking-wide uppercase text-xs">Elite Pro</div>
+                <div className="text-4xl font-extrabold text-white mb-1">
+                  Rp 49.000
+                  <span className="text-base font-normal text-white/40"> /bulan</span>
                 </div>
-                <CardContent className="p-6 pt-8">
-                  <div className="text-sm text-purple-400 mb-1">Elite Pro</div>
-                  <div className="text-4xl font-bold text-white mb-1">
-                    Rp 49.000
-                    <span className="text-base font-normal text-white/40"> /bulan</span>
-                  </div>
-                  <ul className="space-y-3 my-6">
-                    <li className="flex items-center gap-2 text-sm text-white/60">
-                      <Check className="w-4 h-4 text-emerald-400" />
-                      Unlimited trades
+                <ul className="space-y-3.5 my-8">
+                  {[
+                    'Unlimited trades',
+                    'Trading Performance Score (0-100)',
+                    'AI Weekly Report & Insights',
+                    'Streaks & Achievement Badges',
+                    'Advanced analytics & heatmap',
+                    'Psychology tracking & mood journal',
+                    'Export P/L cards for social media',
+                    'Priority Telegram support',
+                  ].map((item, index) => (
+                    <li key={index} className="flex items-center gap-2.5 text-sm text-white/60">
+                      <Check className="w-4.5 h-4.5 text-emerald-400" />
+                      <span className="font-medium">{item}</span>
                     </li>
-                    <li className="flex items-center gap-2 text-sm text-white/60">
-                      <Check className="w-4 h-4 text-emerald-400" />
-                      Trading Performance Score (0-100)
-                    </li>
-                    <li className="flex items-center gap-2 text-sm text-white/60">
-                      <Check className="w-4 h-4 text-emerald-400" />
-                      AI Weekly Report & Insights
-                    </li>
-                    <li className="flex items-center gap-2 text-sm text-white/60">
-                      <Check className="w-4 h-4 text-emerald-400" />
-                      Streaks & Achievement Badges
-                    </li>
-                    <li className="flex items-center gap-2 text-sm text-white/60">
-                      <Check className="w-4 h-4 text-emerald-400" />
-                      Advanced analytics & heatmap
-                    </li>
-                    <li className="flex items-center gap-2 text-sm text-white/60">
-                      <Check className="w-4 h-4 text-emerald-400" />
-                      Psychology tracking & mood journal
-                    </li>
-                    <li className="flex items-center gap-2 text-sm text-white/60">
-                      <Check className="w-4 h-4 text-emerald-400" />
-                      Export P/L cards for social media
-                    </li>
-                    <li className="flex items-center gap-2 text-sm text-white/60">
-                      <Check className="w-4 h-4 text-emerald-400" />
-                      Priority Telegram support
-                    </li>
-                  </ul>
+                  ))}
+                </ul>
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
                   <Button 
                     onClick={() => setShowPayment(true)}
-                    className="w-full bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-semibold"
+                    className="w-full h-12 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_40px_rgba(139,92,246,0.5)] transition-all duration-300 backdrop-blur-xl"
                   >
                     Go Elite Pro
                   </Button>
-                </CardContent>
-              </Card>
+                </motion.div>
+              </motion.div>
             </motion.div>
 
-            {/* Lifetime Ultra - Rp 100.000 */}
+            {/* Lifetime Ultra - Rp 52.000 */}
             <LifetimeUltraCard onButtonClick={() => setShowLifetimePaymentModal(true)} />
           </div>
           
           {/* Comparison Table */}
           <motion.div 
-            className="mt-12 overflow-x-auto"
+            className="mt-16 overflow-x-auto"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="min-w-[500px] bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden">
+            <div className="min-w-[500px] backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] rounded-2xl overflow-hidden">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-white/5">
-                    <th className="p-4 text-left text-white/40 font-medium">Features</th>
-                    <th className="p-4 text-center text-white/40 font-medium">Free</th>
-                    <th className="p-4 text-center text-purple-400 font-semibold">Elite Pro</th>
-                    <th className="p-4 text-center text-amber-400 font-semibold">Lifetime Ultra</th>
+                  <tr className="border-b border-white/[0.08]">
+                    <th className="p-5 text-left text-white/40 font-bold text-sm uppercase tracking-wide">Features</th>
+                    <th className="p-5 text-center text-white/40 font-bold text-sm uppercase tracking-wide">Free</th>
+                    <th className="p-5 text-center text-purple-400 font-extrabold text-sm uppercase tracking-wide">Elite Pro</th>
+                    <th className="p-5 text-center text-amber-400 font-extrabold text-sm uppercase tracking-wide">Lifetime Ultra</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-white/[0.05]">
                   {[
                     { feature: 'Trades per month', free: '5', pro: 'Unlimited', ultra: 'Unlimited' },
                     { feature: 'CSV Import', free: '✓', pro: '✓', ultra: '✓' },
@@ -1165,11 +1187,11 @@ export default function LuxTradeLanding() {
                     { feature: 'Support', free: 'Email', pro: 'Priority WA', ultra: 'VIP Support' },
                     { feature: 'Exclusive Features', free: '—', pro: '—', ultra: '✓' },
                   ].map((row, index) => (
-                    <tr key={index} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="p-4 text-white/70">{row.feature}</td>
-                      <td className="p-4 text-center text-white/40">{row.free}</td>
-                      <td className="p-4 text-center text-emerald-400 font-medium">{row.pro}</td>
-                      <td className="p-4 text-center text-amber-400 font-medium">{row.ultra}</td>
+                    <tr key={index} className="hover:bg-white/[0.03] transition-colors">
+                      <td className="p-5 text-white/70 font-medium">{row.feature}</td>
+                      <td className="p-5 text-center text-white/40">{row.free}</td>
+                      <td className="p-5 text-center text-emerald-400 font-bold">{row.pro}</td>
+                      <td className="p-5 text-center text-amber-400 font-bold">{row.ultra}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1179,13 +1201,13 @@ export default function LuxTradeLanding() {
           
           {/* Onboarding Flow */}
           <motion.div 
-            className="mt-16 text-center"
+            className="mt-20 text-center"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <p className="text-white/40 mb-8">Get started in less than 2 minutes</p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8">
+            <p className="text-white/40 mb-10 font-light text-lg">Get started in less than 2 minutes</p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12">
               {[
                 { step: '1', title: 'Sign up', time: '30 sec', icon: Users },
                 { step: '2', title: 'Import trades', time: '1 min', icon: BarChart3 },
@@ -1193,16 +1215,16 @@ export default function LuxTradeLanding() {
               ].map((item, index) => (
                 <React.Fragment key={index}>
                   <motion.div 
-                    className="flex flex-col items-center p-4"
-                    whileHover={{ scale: 1.05 }}
+                    className="flex flex-col items-center p-6 backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] rounded-2xl hover:bg-white/[0.06] hover:border-purple-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] transition-all duration-300"
+                    whileHover={{ scale: 1.05, y: -4 }}
                   >
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-violet-500/20 border border-purple-500/30 flex items-center justify-center mb-3">
-                      <item.icon className="w-5 h-5 text-purple-400" />
+                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 flex items-center justify-center mb-4">
+                      <item.icon className="w-6 h-6 text-purple-400" />
                     </div>
-                    <span className="text-white font-semibold">{item.title}</span>
-                    <span className="text-white/40 text-sm">{item.time}</span>
+                    <span className="text-white font-extrabold">{item.title}</span>
+                    <span className="text-white/40 text-sm font-medium">{item.time}</span>
                   </motion.div>
-                  {index < 2 && <ArrowRight className="w-5 h-5 text-white/20 hidden sm:block" />}
+                  {index < 2 && <ArrowRight className="w-6 h-6 text-white/20 hidden sm:block" />}
                 </React.Fragment>
               ))}
             </div>
@@ -1210,65 +1232,70 @@ export default function LuxTradeLanding() {
         </div>
       </section>
 
-      {/* Newsletter Section */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-cyan-900/5 to-transparent">
+      {/* Newsletter Section - Premium */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-cyan-900/10 to-transparent">
         <div className="max-w-2xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 mb-4">
-              <Mail className="w-4 h-4 text-cyan-400" />
-              <span className="text-sm text-cyan-300">Weekly Insights</span>
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-cyan-500/10 border border-cyan-500/30 mb-6">
+              <Mail className="w-4.5 h-4.5 text-cyan-400" />
+              <span className="text-sm text-cyan-300 font-semibold">Weekly Insights</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-white">
+            <h2 className="text-3xl sm:text-4xl font-extrabold mb-6 text-white">
               Get Trading Tips Every Week
             </h2>
-            <p className="text-white/40 mb-6 max-w-md mx-auto">
+            <p className="text-white/50 mb-8 max-w-md mx-auto font-light text-lg">
               Join 500+ traders receiving weekly trading tips, psychology insights, and market analysis.
             </p>
-            <form className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto" onSubmit={(e) => e.preventDefault()}>
+            <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto" onSubmit={(e) => e.preventDefault()}>
               <input 
                 type="email" 
                 placeholder="Enter your email"
-                className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                className="flex-1 px-5 py-4 rounded-xl backdrop-blur-xl bg-white/5 border border-white/[0.08] text-white placeholder:text-white/30 focus:outline-none focus:border-cyan-500/50 focus:shadow-[0_0_20px_rgba(6,182,212,0.2)] transition-all font-medium"
               />
-              <Button 
-                type="submit"
-                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold rounded-xl"
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                Subscribe
-              </Button>
+                <Button 
+                  type="submit"
+                  className="h-14 px-8 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-extrabold rounded-xl shadow-lg shadow-cyan-500/30 hover:shadow-[0_0_40px_rgba(6,182,212,0.5)] transition-all duration-300 backdrop-blur-xl"
+                >
+                  Subscribe
+                </Button>
+              </motion.div>
             </form>
-            <p className="text-white/30 text-xs mt-3">No spam. Unsubscribe anytime.</p>
+            <p className="text-white/30 text-xs mt-4 font-medium">No spam. Unsubscribe anytime.</p>
           </motion.div>
         </div>
       </section>
 
-      {/* Roadmap Section - Coming Soon Features */}
-      <section id="roadmap" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/10 to-transparent">
+      {/* Roadmap Section - Premium */}
+      <section id="roadmap" className="py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/10 to-transparent">
         <div className="max-w-5xl mx-auto">
           <motion.div 
-            className="text-center mb-12"
+            className="text-center mb-16"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 mb-4">
-              <Clock className="w-4 h-4 text-purple-400" />
-              <span className="text-sm text-purple-300">Product Roadmap</span>
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-purple-500/10 border border-purple-500/30 mb-6">
+              <Clock className="w-4.5 h-4.5 text-purple-400" />
+              <span className="text-sm text-purple-300 font-semibold">Product Roadmap</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+            <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
               <span className="text-white">What&apos;s</span>
               <span className="bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent"> Coming Next</span>
             </h2>
-            <p className="text-white/40 max-w-xl mx-auto">
+            <p className="text-white/40 max-w-xl mx-auto font-light text-lg">
               We&apos;re constantly improving LuxTrade. Here&apos;s what we&apos;re working on.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Minggu Depan */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
@@ -1276,18 +1303,18 @@ export default function LuxTradeLanding() {
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="h-full bg-gradient-to-br from-[#1a0f2e] to-[#0d0715] border-purple-500/20">
+              <Card className="h-full backdrop-blur-xl bg-gradient-to-br from-[#1a0f2e]/50 to-[#0d0715]/50 border-purple-500/20 border border-white/[0.08] hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-shadow duration-500">
                 <CardContent className="p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center">
-                      <Clock className="w-5 h-5 text-cyan-400" />
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center">
+                      <Clock className="w-6 h-6 text-cyan-400" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-white">Minggu Depan</h3>
-                      <p className="text-xs text-cyan-400">Coming Soon</p>
+                      <h3 className="font-extrabold text-white text-lg">Minggu Depan</h3>
+                      <p className="text-xs text-cyan-400 font-bold tracking-wide">COMING SOON</p>
                     </div>
                   </div>
-                  <ul className="space-y-3">
+                  <ul className="space-y-4">
                     {[
                       { icon: '💱', title: 'Real-time Forex Prices API', desc: 'Live market prices directly in your dashboard' },
                       { icon: '📄', title: 'Export to PDF', desc: 'Download your trading reports instantly' },
@@ -1295,16 +1322,16 @@ export default function LuxTradeLanding() {
                     ].map((item, index) => (
                       <motion.li 
                         key={index}
-                        className="flex items-start gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/5 hover:border-cyan-500/20 transition-colors"
+                        className="flex items-start gap-4 p-4 rounded-xl backdrop-blur-sm bg-white/[0.02] border border-white/[0.05] hover:border-cyan-500/20 hover:bg-white/[0.04] transition-all duration-300"
                         initial={{ opacity: 0, y: 10 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.1 + index * 0.05 }}
                       >
-                        <span className="text-xl">{item.icon}</span>
+                        <span className="text-2xl">{item.icon}</span>
                         <div>
-                          <p className="font-medium text-white text-sm">{item.title}</p>
-                          <p className="text-xs text-white/40">{item.desc}</p>
+                          <p className="font-extrabold text-white text-sm">{item.title}</p>
+                          <p className="text-xs text-white/40 mt-1 font-medium">{item.desc}</p>
                         </div>
                       </motion.li>
                     ))}
@@ -1320,18 +1347,18 @@ export default function LuxTradeLanding() {
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
             >
-              <Card className="h-full bg-gradient-to-br from-[#1a0f2e] to-[#0d0715] border-violet-500/20">
+              <Card className="h-full backdrop-blur-xl bg-gradient-to-br from-[#1a0f2e]/50 to-[#0d0715]/50 border-violet-500/20 border border-white/[0.08] hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-shadow duration-500">
                 <CardContent className="p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/30 flex items-center justify-center">
-                      <Lightning className="w-5 h-5 text-violet-400" />
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/30 flex items-center justify-center">
+                      <Lightning className="w-6 h-6 text-violet-400" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-white">Bulan Ini</h3>
-                      <p className="text-xs text-violet-400">In Development</p>
+                      <h3 className="font-extrabold text-white text-lg">Bulan Ini</h3>
+                      <p className="text-xs text-violet-400 font-bold tracking-wide">IN DEVELOPMENT</p>
                     </div>
                   </div>
-                  <ul className="space-y-3">
+                  <ul className="space-y-4">
                     {[
                       { icon: '📊', title: 'TradingView Chart Integration', desc: 'Advanced charting with TradingView widgets' },
                       { icon: '📥', title: 'MT4/MT5 Import Improvement', desc: 'Better parsing and more formats supported' },
@@ -1339,16 +1366,16 @@ export default function LuxTradeLanding() {
                     ].map((item, index) => (
                       <motion.li 
                         key={index}
-                        className="flex items-start gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/5 hover:border-violet-500/20 transition-colors"
+                        className="flex items-start gap-4 p-4 rounded-xl backdrop-blur-sm bg-white/[0.02] border border-white/[0.05] hover:border-violet-500/20 hover:bg-white/[0.04] transition-all duration-300"
                         initial={{ opacity: 0, y: 10 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.2 + index * 0.05 }}
                       >
-                        <span className="text-xl">{item.icon}</span>
+                        <span className="text-2xl">{item.icon}</span>
                         <div>
-                          <p className="font-medium text-white text-sm">{item.title}</p>
-                          <p className="text-xs text-white/40">{item.desc}</p>
+                          <p className="font-extrabold text-white text-sm">{item.title}</p>
+                          <p className="text-xs text-white/40 mt-1 font-medium">{item.desc}</p>
                         </div>
                       </motion.li>
                     ))}
@@ -1360,125 +1387,78 @@ export default function LuxTradeLanding() {
 
           {/* Already Available Features */}
           <motion.div
-            className="mt-8"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3 }}
-          >
-            <Card className="bg-gradient-to-br from-emerald-500/5 to-teal-500/5 border-emerald-500/20">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center">
-                    <Check className="w-5 h-5 text-emerald-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-white">Sudah Tersedia Sekarang</h3>
-                    <p className="text-xs text-emerald-400">Live Features</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {[
-                    'Equity Curve Chart',
-                    'Session Analytics',
-                    'Filter & Search',
-                    'CSV Import',
-                    'Smart MT Import',
-                    'AI Insights',
-                    'Risk Calculator',
-                    'Trading Journal',
-                  ].map((feature, index) => (
-                    <div 
-                      key={index}
-                      className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02] border border-emerald-500/10"
-                    >
-                      <Check className="w-3 h-3 text-emerald-400 flex-shrink-0" />
-                      <span className="text-xs text-white/70">{feature}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Final CTA */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl mx-auto">
-          <motion.div 
-            className="text-center p-10 rounded-3xl bg-gradient-to-br from-purple-500/10 via-violet-500/5 to-purple-500/10 border border-purple-500/20"
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-          >
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-400 to-violet-500 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-purple-500/25">
-              <Crown className="w-8 h-8 text-white" />
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-white">
-              Ready to Trade Smarter?
-            </h2>
-            <p className="text-white/50 mb-8 max-w-md mx-auto">
-              Join traders who are using LuxTrade to track, analyze, and improve their trading performance.
-            </p>
-            <Link href="/auth/signup">
-              <Button size="lg" className="h-14 px-8 text-lg bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-semibold shadow-xl shadow-purple-500/25">
-                Start Your Free Trial
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-            </Link>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section id="faq" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/5 to-transparent">
-        <div className="max-w-3xl mx-auto">
-          <motion.div 
-            className="text-center mb-12"
+            className="mt-12"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 mb-4">
-              <HelpCircle className="w-4 h-4 text-cyan-400" />
-              <span className="text-sm text-cyan-300">FAQ</span>
+            <div className="p-6 rounded-2xl backdrop-blur-xl bg-emerald-500/10 border border-emerald-500/20">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+                  <Check className="w-5 h-5 text-emerald-400" />
+                </div>
+                <h3 className="font-extrabold text-white text-lg">Already Available</h3>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  '✓ Trading Journal', '✓ Performance Analytics', '✓ AI Insights', '✓ P/L Tracking',
+                  '✓ Equity Charts', '✓ Achievement System', '✓ Streak Tracking', '✓ CSV Export',
+                  '✓ Multi-Platform Support', '✓ Mobile Responsive'
+                ].map((feature, i) => (
+                  <span 
+                    key={i} 
+                    className="px-3 py-1.5 rounded-lg backdrop-blur-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-bold"
+                  >
+                    {feature}
+                  </span>
+                ))}
+              </div>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+          </motion.div>
+        </div>
+      </section>
+
+      {/* FAQ Section - Premium Glassmorphism */}
+      <section id="faq" className="py-24 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto">
+          <motion.div 
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-cyan-500/10 border border-cyan-500/30 mb-6">
+              <HelpCircle className="w-4.5 h-4.5 text-cyan-400" />
+              <span className="text-sm text-cyan-300 font-semibold">FAQ</span>
+            </div>
+            <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
               <span className="text-white">Frequently Asked</span>
               <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent"> Questions</span>
             </h2>
-            <p className="text-white/40 max-w-xl mx-auto">
-              Everything you need to know about LuxTrade
-            </p>
           </motion.div>
 
           <div className="space-y-4">
             {[
               {
-                q: "Bagaimana cara import trades ke LuxTrade?",
-                a: "Cukup upload file CSV dari MetaTrader 4/5 atau cTrader. Sistem kami akan otomatis mem-parsing data dan menampilkannya dalam dashboard. Proses import hanya membutuhkan beberapa detik."
+                q: 'Is LuxTrade free to use?',
+                a: 'Yes! LuxTrade offers a generous free plan that allows up to 5 trades per month with basic analytics. You can upgrade to Elite Pro for unlimited trades and advanced features.'
               },
               {
-                q: "Apakah data trading saya aman?",
-                a: "Ya, kami menggunakan enkripsi end-to-end untuk semua data. Server kami tersimpan di data center dengan sertifikasi SOC 2. Data Anda tidak akan pernah dibagikan ke pihak ketiga."
+                q: 'How does the AI analysis work?',
+                a: 'Our AI analyzes your trading patterns, identifies strengths and weaknesses, and provides personalized insights to help improve your trading performance over time.'
               },
               {
-                q: "Bagaimana cara pembayaran Elite Pro?",
-                a: "Pembayaran dilakukan via transfer bank ke Bank Jago. Setelah transfer, konfirmasi via Telegram dan akun Anda akan di-upgrade dalam 1-5 menit."
+                q: 'Can I import my existing trades?',
+                a: 'Absolutely! You can import trades from CSV files exported from most trading platforms. We support MT4, MT5, cTrader, and many more.'
               },
               {
-                q: "Bisa cancel subscription kapan saja?",
-                a: "Ya, Anda bisa cancel kapan saja tanpa penalty. Setelah cancel, akses Elite Pro tetap aktif hingga akhir periode billing."
+                q: 'Is my trading data secure?',
+                a: 'Your data is encrypted end-to-end and stored securely. We never share your trading information with third parties. Read our privacy policy for more details.'
               },
               {
-                q: "Format CSV apa saja yang didukung?",
-                a: "Kami mendukung format CSV dari MetaTrader 4, MetaTrader 5, cTrader, dan format custom. Jika format Anda berbeda, tim support kami siap membantu."
+                q: 'Can I cancel my subscription anytime?',
+                a: 'Yes, you can cancel your Elite Pro subscription at any time. Your access will continue until the end of your billing period.'
               },
-              {
-                q: "Berapa lama data disimpan?",
-                a: "Untuk akun Free, data disimpan selama 30 hari. Untuk Elite Pro, data disimpan tanpa batas waktu dan bisa di-export kapan saja."
-              }
             ].map((faq, index) => (
               <motion.div
                 key={index}
@@ -1487,172 +1467,97 @@ export default function LuxTradeLanding() {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
               >
-                <details className="group bg-white/[0.02] border border-white/5 rounded-xl hover:border-white/10 transition-all">
-                  <summary className="flex items-center justify-between cursor-pointer p-5 text-white font-medium list-none">
-                    {faq.q}
-                    <ChevronDown className="w-5 h-5 text-white/40 group-open:rotate-180 transition-transform" />
-                  </summary>
-                  <div className="px-5 pb-5 text-white/60 text-sm leading-relaxed border-t border-white/5 pt-4">
-                    {faq.a}
-                  </div>
-                </details>
+                <Card className="backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-purple-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] transition-all duration-300">
+                  <CardContent className="p-6">
+                    <h3 className="text-lg font-extrabold text-white mb-2">{faq.q}</h3>
+                    <p className="text-white/50 font-light leading-relaxed">{faq.a}</p>
+                  </CardContent>
+                </Card>
               </motion.div>
             ))}
           </div>
-
-          <motion.div 
-            className="text-center mt-10"
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-          >
-            <p className="text-white/40 mb-4">Masih ada pertanyaan? Tanyakan ke AI Assistant kami</p>
-            <button 
-              onClick={() => {
-                const chatButton = document.getElementById('chatbase-bubble-button');
-                if (chatButton) {
-                  (chatButton as HTMLElement).click();
-                }
-              }}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full text-white font-semibold hover:from-cyan-600 hover:to-blue-700 transition-all shadow-lg shadow-cyan-500/25"
-            >
-              <Bot className="w-5 h-5" />
-              Chat dengan AI Assistant
-            </button>
-            <p className="text-white/30 text-xs mt-3">Powered by AI • Online 24/7</p>
-          </motion.div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-white/5 py-12 px-4 sm:px-6 lg:px-8">
+      {/* Footer - Premium Glassmorphism with Sticky */}
+      <footer className="border-t border-white/[0.08] py-16 px-4 sm:px-6 lg:px-8 mt-auto">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
-            <div className="col-span-2 md:col-span-1">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+            <div className="md:col-span-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-400 to-violet-600 flex items-center justify-center">
-                  <Crown className="w-5 h-5 text-white" />
+                <Image 
+                  src="/logo.png" 
+                  alt="LuxTrade Logo" 
+                  width={40} 
+                  height={40}
+                  className="rounded-xl shadow-lg"
+                />
+                <div>
+                  <span className="text-xl font-extrabold bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
+                    LuxTrade
+                  </span>
+                  <span className="text-[10px] text-purple-400/70 ml-2 tracking-[0.2em] font-bold">PREMIUM</span>
                 </div>
-                <span className="text-lg font-bold bg-gradient-to-r from-purple-200 to-violet-400 bg-clip-text text-transparent">
-                  LuxTrade
-                </span>
               </div>
-              <p className="text-white/40 text-sm">
-                Premium trading journal for serious traders.
+              <p className="text-white/50 mb-6 max-w-sm font-light text-lg">
+                The premium trading journal for serious traders. Track, analyze, and improve with AI-powered insights.
               </p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-4">Product</h4>
-              <ul className="space-y-2 text-sm text-white/40">
-                <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
-                <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
-                <li><a href="#demo" className="hover:text-white transition-colors">Live Demo</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-white mb-4">Company</h4>
-              <ul className="space-y-2 text-sm text-white/40">
-                <li><a href="#faq" className="hover:text-white transition-colors">About</a></li>
-                <li><a href="#testimonials" className="hover:text-white transition-colors">Reviews</a></li>
-                <li>
-                  <a 
-                    href="https://t.me/Risxyiee" 
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-white transition-colors"
+              <div className="flex gap-4">
+                {['Twitter', 'Discord', 'Telegram'].map((social) => (
+                  <motion.a
+                    key={social}
+                    href="#"
+                    className="w-10 h-10 rounded-xl backdrop-blur-sm bg-white/5 border border-white/[0.08] flex items-center justify-center hover:bg-white/10 hover:border-purple-500/30 transition-all duration-300"
+                    whileHover={{ scale: 1.1, y: -2 }}
                   >
-                    Contact
-                  </a>
-                </li>
+                    <span className="text-xs font-bold text-white/60">{social[0]}</span>
+                  </motion.a>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h4 className="font-extrabold text-white mb-4">Product</h4>
+              <ul className="space-y-3">
+                {['Features', 'Pricing', 'Roadmap', 'Changelog'].map((item) => (
+                  <li key={item}>
+                    <a href="#" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">
+                      {item}
+                    </a>
+                  </li>
+                ))}
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-white mb-4">Legal</h4>
-              <ul className="space-y-2 text-sm text-white/40">
-                <li><a href="#faq" className="hover:text-white transition-colors">Privacy Policy</a></li>
-                <li><a href="#faq" className="hover:text-white transition-colors">Terms of Service</a></li>
-                <li><a href="#faq" className="hover:text-white transition-colors">Refund Policy</a></li>
+              <h4 className="font-extrabold text-white mb-4">Company</h4>
+              <ul className="space-y-3">
+                {['About', 'Blog', 'Careers', 'Contact'].map((item) => (
+                  <li key={item}>
+                    <a href="#" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">
+                      {item}
+                    </a>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>
-          <div className="border-t border-white/5 pt-8 text-center text-white/40 text-sm">
-            <p>&copy; {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
+          <div className="pt-8 border-t border-white/[0.08] flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-white/40 text-sm font-medium">
+              © 2024 LuxTrade. All rights reserved.
+            </p>
+            <div className="flex gap-6">
+              {['Privacy Policy', 'Terms of Service', 'Cookie Policy'].map((item) => (
+                <a key={item} href="#" className="text-white/40 hover:text-white transition-colors text-sm font-medium">
+                  {item}
+                </a>
+              ))}
+            </div>
           </div>
         </div>
       </footer>
 
-      {/* Payment Modal - Bank Jago */}
-      <AnimatePresence>
-        {showPayment && (
-          <motion.div 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            exit={{ opacity: 0 }} 
-            className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6"
-          >
-            <motion.div 
-              initial={{ scale: 0.9 }} 
-              animate={{ scale: 1 }} 
-              className="bg-[#0A0A0A] border-2 border-purple-500/50 p-8 rounded-3xl max-w-md w-full shadow-[0_0_80px_rgba(139,92,246,0.3)] text-center relative"
-            >
-              <button 
-                onClick={() => setShowPayment(false)} 
-                className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
-              >
-                ✕
-              </button>
-              
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-400 to-violet-600 flex items-center justify-center mx-auto mb-4">
-                <Crown className="w-6 h-6 text-white" />
-              </div>
-              
-              <h2 className="text-2xl font-bold text-white mb-6">Upgrade to Elite Pro</h2>
-              
-              <div className="bg-white/5 p-6 rounded-2xl border border-white/10 mb-6 text-left space-y-4">
-                <div>
-                  <p className="text-purple-400 text-xs font-bold uppercase mb-1">Bank Tujuan</p>
-                  <p className="text-white font-bold text-xl">Bank Jago</p>
-                </div>
-                <div>
-                  <p className="text-purple-400 text-xs font-bold uppercase mb-1">Nomor Rekening</p>
-                  <p className="text-white font-bold text-2xl font-mono">104051474194</p>
-                </div>
-                <div>
-                  <p className="text-purple-400 text-xs font-bold uppercase mb-1">Atas Nama</p>
-                  <p className="text-white/70 font-semibold">RIZQI AKBAR PRATAMA</p>
-                </div>
-                <div className="pt-4 border-t border-white/10 text-center">
-                  <p className="text-white/40 text-xs mb-1">Total Pembayaran</p>
-                  <p className="text-purple-400 font-bold text-3xl">Rp 49.000</p>
-                  <p className="text-white/40 text-xs">per bulan</p>
-                </div>
-              </div>
-              
-              <a
-                href="https://t.me/Risxyiee?text=Halo%20Admin%20LuxTrade,%20saya%20sudah%20transfer%20Rp49.000%20untuk%20Elite%20Pro.%20Mohon%20dikonfirmasi."
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full bg-[#0088cc] py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 hover:bg-[#0077b3] transition-all"
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0h-.056zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.492-1.302.48-.428-.012-1.252-.242-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.015 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-                Konfirmasi via Telegram
-              </a>
-              
-              <p className="text-white/30 text-xs mt-4">
-                Setelah transfer, klik tombol di atas untuk konfirmasi
-              </p>
-            </motion.div>
-          </motion.div>
-        )}
-
-        {/* Payment Confirmation Modal for Lifetime Ultra */}
-        <PaymentConfirmationModal
-          isOpen={showLifetimePaymentModal}
-          onClose={() => setShowLifetimePaymentModal(false)}
-          planName="Lifetime Ultra"
-          planPrice={100000}
-        />
-      </AnimatePresence>
+      {/* Payment Modals */}
+      <PaymentConfirmationModal isOpen={showPayment} onClose={() => setShowPayment(false)} />
+      <PaymentConfirmationModal isOpen={showLifetimePaymentModal} onClose={() => setShowLifetimePaymentModal(false)} />
     </div>
   )
 }
