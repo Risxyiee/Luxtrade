@@ -4,8 +4,8 @@ import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
-import { 
-  TrendingUp, TrendingDown, BarChart3, BookOpen, 
+import {
+  TrendingUp, TrendingDown, BarChart3, BookOpen,
   Eye, Brain, Sparkles, ArrowRight, Play,
   LineChart, PieChart, Target, Shield,
   ChevronRight, Star, Zap, Check, Crown,
@@ -603,11 +603,10 @@ export default function LuxTradeLanding() {
       <div className="fixed inset-0 -z-10">
         {/* Deep purple gradient base */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0f051d] via-[#1a0a2e] to-[#0f051d]" />
-        
-        {/* Purple accent glows - Enhanced with opacity 0.2 */}
-        <div className="absolute top-0 left-1/4 w-[700px] h-[700px] bg-purple-500/20 rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-violet-500/20 rounded-full blur-[120px]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[500px] bg-purple-500/10 rounded-full blur-[120px]" />
+
+        {/* Two large purple blurred circles with 150px blur and 20% opacity */}
+        <div className="absolute top-0 left-1/4 w-[800px] h-[800px] bg-purple-600/20 rounded-full blur-[150px]" />
+        <div className="absolute bottom-0 right-1/4 w-[800px] h-[800px] bg-purple-500/20 rounded-full blur-[150px]" />
         
         {/* Subtle grid pattern */}
         <div className="absolute inset-0 opacity-[0.02]" style={{
@@ -661,7 +660,7 @@ export default function LuxTradeLanding() {
               
               <div className="flex items-center gap-3">
                 <Link href="/auth/login">
-                  <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 hidden sm:inline-flex font-semibold backdrop-blur-sm">
+                  <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-all duration-300 font-semibold backdrop-blur-sm">
                     Login
                   </Button>
                 </Link>
@@ -670,7 +669,7 @@ export default function LuxTradeLanding() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <Button className="h-10 px-6 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all duration-300 backdrop-blur-sm">
+                    <Button className="h-10 px-6 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-sm">
                       Sign Up
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
@@ -709,13 +708,15 @@ export default function LuxTradeLanding() {
               </motion.div>
             </motion.div>
             
-            {/* Main Headline - Extra Bold with gradient */}
-            <motion.h1 
+            {/* Main Headline - Lexend Extra Bold with gradient from white to purple-400 */}
+            <motion.h1
               variants={fadeInUp}
-              className="text-5xl sm:text-6xl lg:text-7xl font-extrabold mb-8 leading-tight tracking-tight"
+              className="text-5xl sm:text-6xl lg:text-7xl font-extrabold mb-8 leading-tight tracking-tight font-lexend"
               style={{ letterSpacing: '-0.02em' }}
             >
-              <span className="text-white">Trade Smarter, Not Harder</span>
+              <span className="bg-gradient-to-r from-white to-purple-400 bg-clip-text text-transparent">
+                Trade Smarter, Not Harder
+              </span>
               <br />
               <span className="bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
                 with AI-Powered Precision
@@ -730,8 +731,8 @@ export default function LuxTradeLanding() {
               analyze performance, and unlock AI-powered insights to gain your edge.
             </motion.p>
             
-            {/* CTA Buttons - Neon Glow Effect */}
-            <motion.div 
+            {/* CTA Buttons - Neon Glow Effect with hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] */}
+            <motion.div
               variants={fadeInUp}
               className="flex flex-col sm:flex-row items-center justify-center gap-5 mb-20"
             >
@@ -740,7 +741,7 @@ export default function LuxTradeLanding() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <Button size="lg" className="h-16 px-10 text-xl bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-2xl shadow-purple-500/40 hover:shadow-[0_0_50px_rgba(139,92,246,0.6)] transition-all duration-300 backdrop-blur-xl border border-purple-400/20">
+                  <Button size="lg" className="h-16 px-10 text-xl bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-2xl shadow-purple-500/40 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-xl border border-purple-400/20">
                     Mulai Sekarang
                     <ArrowRight className="w-6 h-6 ml-3" />
                   </Button>
@@ -751,7 +752,7 @@ export default function LuxTradeLanding() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <Button variant="outline" size="lg" className="h-16 px-10 text-xl border-2 border-white/10 hover:border-white/20 text-white hover:bg-white/5 backdrop-blur-xl font-semibold">
+                  <Button variant="outline" size="lg" className="h-16 px-10 text-xl border-2 border-white/10 hover:border-white/20 text-white hover:bg-white/5 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] backdrop-blur-xl font-semibold transition-all duration-300">
                     <Play className="w-6 h-6 mr-3" />
                     Watch Demo
                   </Button>
@@ -1097,7 +1098,7 @@ export default function LuxTradeLanding() {
               </Card>
             </motion.div>
 
-            {/* Elite Pro - Rp 49.000 */}
+            {/* Elite Pro - Rp 49.000 - With enhanced border and glow effect */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -1105,7 +1106,7 @@ export default function LuxTradeLanding() {
               transition={{ delay: 0.2 }}
             >
               <motion.div
-                className="h-full relative backdrop-blur-xl bg-gradient-to-b from-purple-500/10 to-transparent border-purple-500/30 border border-white/[0.08] rounded-2xl p-6 pt-8 hover:shadow-[0_0_50px_rgba(139,92,246,0.3)] transition-shadow duration-500"
+                className="h-full relative backdrop-blur-xl bg-gradient-to-b from-purple-500/10 to-transparent border border-purple-500/50 rounded-2xl p-6 pt-8 hover:shadow-[0_0_50px_rgba(139,92,246,0.3)] transition-all duration-300"
                 whileHover={{ scale: 1.02, y: -4 }}
               >
                 <motion.div 
@@ -1143,9 +1144,9 @@ export default function LuxTradeLanding() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <Button 
+                  <Button
                     onClick={() => setShowPayment(true)}
-                    className="w-full h-12 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_40px_rgba(139,92,246,0.5)] transition-all duration-300 backdrop-blur-xl"
+                    className="w-full h-12 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-xl"
                   >
                     Go Elite Pro
                   </Button>
