@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { createChart, ColorType, CrosshairMode, LineStyle, IChartApi, ISeriesApi } from 'lightweight-charts'
+import { createChart, ColorType, CrosshairMode, LineStyle, IChartApi, ISeriesApi, CandlestickSeries } from 'lightweight-charts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -139,7 +139,7 @@ export default function LuxtradeChart() {
         handleScale: true,  // Enable pinch-zoom on mobile
       })
 
-      const candlestickSeries = chart.addCandlestickSeries({
+      const candlestickSeries = chart.addSeries(CandlestickSeries, {
         upColor: '#10b981',
         downColor: '#ef4444',
         borderDownColor: '#ef4444',
