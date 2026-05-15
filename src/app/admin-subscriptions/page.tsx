@@ -104,6 +104,7 @@ export default function AdminSubscriptionsPanel() {
   const [createUserEmail, setCreateUserEmail] = useState('')
   const [createUserName, setCreateUserName] = useState('')
   const [isSyncing, setIsSyncing] = useState(false)
+  const [affiliateStats, setAffiliateStats] = useState<any[]>([])
 
   const handleSyncAuthUsers = async () => {
     if (!confirm('Sinkronisasi user dari Supabase Auth ke database Prisma. Lanjutkan?')) {
