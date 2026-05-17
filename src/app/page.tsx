@@ -455,7 +455,7 @@ function LifetimeUltraCard({ onButtonClick }: { onButtonClick: () => void }) {
             transition={{ duration: 2, repeat: Infinity }}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            LIMITED
+            SLOT TERBATAS
           </motion.div>
         )}
         <CardContent className="p-6 pt-8">
@@ -662,7 +662,7 @@ export default function LuxTradeLanding() {
               </div>
               
               <div className="hidden md:flex items-center gap-8">
-                {['Features', 'Live Demo', 'Pricing', 'FAQ'].map((item) => (
+                {['Fitur', 'Demo Langsung', 'Harga', 'FAQ'].map((item) => (
                   <a 
                     key={item}
                     href={`#${item.toLowerCase().replace(' ', '-')}`}
@@ -677,7 +677,7 @@ export default function LuxTradeLanding() {
               <div className="flex items-center gap-3">
                 <Link href="/auth/login">
                   <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-all duration-300 font-semibold backdrop-blur-sm">
-                    Login
+                    Masuk
                   </Button>
                 </Link>
                 <Link href="/auth/signup">
@@ -686,7 +686,7 @@ export default function LuxTradeLanding() {
                     whileTap={{ scale: 0.98 }}
                   >
                     <Button className="h-10 px-6 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-sm">
-                      Sign Up
+                      Daftar Sekarang
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   </motion.div>
@@ -720,7 +720,7 @@ export default function LuxTradeLanding() {
                 >
                   <Sparkles className="w-4.5 h-4.5 text-purple-400" />
                 </motion.div>
-                <span className="text-sm text-purple-300 font-semibold">AI-Powered Trading Intelligence</span>
+                <span className="text-sm text-purple-300 font-semibold">Kecerdasan Trading Berbasis AI</span>
               </motion.div>
             </motion.div>
             
@@ -731,11 +731,11 @@ export default function LuxTradeLanding() {
               style={{ letterSpacing: '-0.02em' }}
             >
               <span className="bg-gradient-to-r from-white to-purple-400 bg-clip-text text-transparent">
-                Trade Smarter, Not Harder
+                Trading Lebih Cerdas, Bukan Lebih Keras
               </span>
               <br />
               <span className="bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
-                with AI-Powered Precision
+                dengan Presisi Berbasis AI
               </span>
             </motion.h1>
             
@@ -743,8 +743,8 @@ export default function LuxTradeLanding() {
               variants={fadeInUp}
               className="text-xl sm:text-2xl text-white/60 max-w-3xl mx-auto mb-12 leading-relaxed font-light"
             >
-              The premium trading journal for serious traders. Track every trade, 
-              analyze performance, and unlock AI-powered insights to gain your edge.
+              Jurnal trading premium untuk trader serius. Catat setiap trade,
+              analisis performa, dan buka wawasan berbasis AI untuk keunggulan Anda.
             </motion.p>
             
             {/* CTA Buttons - Neon Glow Effect with hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] */}
@@ -770,7 +770,7 @@ export default function LuxTradeLanding() {
                 >
                   <Button variant="outline" size="lg" className="h-16 px-10 text-xl border-2 border-white/10 hover:border-white/20 text-white hover:bg-white/5 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] backdrop-blur-xl font-semibold transition-all duration-300">
                     <Play className="w-6 h-6 mr-3" />
-                    Watch Demo
+                    Lihat Demo
                   </Button>
                 </motion.div>
               </a>
@@ -818,14 +818,14 @@ export default function LuxTradeLanding() {
           >
             <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-purple-500/10 border border-purple-500/30 mb-6">
               <Zap className="w-4.5 h-4.5 text-purple-400" />
-              <span className="text-sm text-purple-300 font-semibold">Powerful Features</span>
+              <span className="text-sm text-purple-300 font-semibold">Fitur Unggulan</span>
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
-              <span className="text-white">Everything You Need to</span>
-              <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent"> Trade Smarter</span>
+              <span className="text-white">Semua yang Anda Butuhkan untuk</span>
+              <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent"> Trading Lebih Cerdas</span>
             </h2>
             <p className="text-xl text-white/50 max-w-2xl mx-auto font-light">
-              Professional tools designed by traders, for traders. Every feature built to give you an edge.
+              Alat profesional yang didesain oleh trader, untuk trader. Setiap fitur dibangun untuk memberikan keunggulan.
             </p>
           </motion.div>
 
@@ -1029,11 +1029,11 @@ export default function LuxTradeLanding() {
           >
             <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-purple-500/10 border border-purple-500/30 mb-6">
               <Crown className="w-4.5 h-4.5 text-purple-400" />
-              <span className="text-sm text-purple-300 font-semibold">Simple Pricing</span>
+              <span className="text-sm text-purple-300 font-semibold">Harga Sederhana</span>
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
-              <span className="text-white">Start Free,</span>
-              <span className="bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent"> Upgrade When Ready</span>
+              <span className="text-white">Mulai Gratis,</span>
+              <span className="bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent"> Upgrade Saat Siap</span>
             </h2>
 
             {/* Money-Back Guarantee Badge */}
@@ -1045,8 +1045,8 @@ export default function LuxTradeLanding() {
             >
               <div className="inline-flex items-center gap-3 px-6 py-3.5 backdrop-blur-xl bg-emerald-500/10 border border-emerald-500/30 rounded-full">
                 <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                <span className="text-emerald-300 font-extrabold">7-Day Money-Back Guarantee</span>
-                <span className="text-emerald-400/60 text-sm font-medium">• No Questions Asked</span>
+                <span className="text-emerald-300 font-extrabold">Garansi Uang Kembali 7 Hari</span>
+                <span className="text-emerald-400/60 text-sm font-medium">• Tanpa Pertanyaan</span>
               </div>
             </motion.div>
 
@@ -1059,9 +1059,9 @@ export default function LuxTradeLanding() {
               transition={{ delay: 0.2 }}
             >
               {[
-                { icon: Lock, text: 'SSL Secured', color: 'cyan' },
-                { icon: Shield, text: 'End-to-End Encrypted', color: 'purple' },
-                { icon: ShieldCheck, text: 'SOC 2 Compliant', color: 'emerald' },
+                { icon: Lock, text: 'Diamankan SSL', color: 'cyan' },
+                { icon: Shield, text: 'Enkripsi Ujung ke Ujung', color: 'purple' },
+                { icon: ShieldCheck, text: 'Mematuhi SOC 2', color: 'emerald' },
               ].map((badge, i) => (
                 <div key={i} className="flex items-center gap-2 px-4 py-2 backdrop-blur-sm bg-white/5 rounded-xl border border-white/[0.08]">
                   <badge.icon className={`w-4 h-4 text-${badge.color}-400`} />
@@ -1084,7 +1084,7 @@ export default function LuxTradeLanding() {
                   <div className="text-sm text-white/50 mb-1 font-bold tracking-wide uppercase text-xs">Free</div>
                   <div className="text-4xl font-extrabold text-white mb-1">
                     Rp 0
-                    <span className="text-base font-normal text-white/40"> forever</span>
+                    <span className="text-base font-normal text-white/40"> / Selamanya</span>
                   </div>
                   <ul className="space-y-4 my-8">
                     {[
@@ -1128,7 +1128,7 @@ export default function LuxTradeLanding() {
                   }}
                   transition={{ duration: 2, repeat: Infinity }}
                 >
-                  Best Value
+                  Paling Populer
                 </motion.div>
                 <div className="text-sm text-purple-400 mb-1 font-bold tracking-wide uppercase text-xs">Elite Pro</div>
                 <div className="text-4xl font-extrabold text-white mb-1">
@@ -1179,7 +1179,7 @@ export default function LuxTradeLanding() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/[0.08]">
-                    <th className="p-5 text-left text-white/40 font-bold text-sm uppercase tracking-wide">Features</th>
+                    <th className="p-5 text-left text-white/40 font-bold text-sm uppercase tracking-wide">Fitur</th>
                     <th className="p-5 text-center text-white/40 font-bold text-sm uppercase tracking-wide">Free</th>
                     <th className="p-5 text-center text-purple-400 font-extrabold text-sm uppercase tracking-wide">Elite Pro</th>
                     <th className="p-5 text-center text-amber-400 font-extrabold text-sm uppercase tracking-wide">Lifetime Ultra</th>
@@ -1213,12 +1213,12 @@ export default function LuxTradeLanding() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <p className="text-white/40 mb-10 font-light text-lg">Get started in less than 2 minutes</p>
+            <p className="text-white/40 mb-10 font-light text-lg">Mulai dalam kurang dari 2 menit</p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12">
               {[
-                { step: '1', title: 'Sign up', time: '30 sec', icon: Users },
-                { step: '2', title: 'Import trades', time: '1 min', icon: BarChart3 },
-                { step: '3', title: 'See analytics', time: 'Instant', icon: LineChart },
+                { step: '1', title: 'Daftar', time: '30 detik', icon: Users },
+                { step: '2', title: 'Import trade', time: '1 menit', icon: BarChart3 },
+                { step: '3', title: 'Lihat analisis', time: 'Langsung', icon: LineChart },
               ].map((item, index) => (
                 <React.Fragment key={index}>
                   <motion.div 
@@ -1291,7 +1291,7 @@ export default function LuxTradeLanding() {
           >
             <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-purple-500/10 border border-purple-500/30 mb-6">
               <Clock className="w-4.5 h-4.5 text-purple-400" />
-              <span className="text-sm text-purple-300 font-semibold">Product Roadmap</span>
+              <span className="text-sm text-purple-300 font-semibold">Peta Jalan Produk</span>
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
               <span className="text-white">What&apos;s</span>
@@ -1523,9 +1523,9 @@ export default function LuxTradeLanding() {
               </div>
             </div>
             <div>
-              <h4 className="font-extrabold text-white mb-4">Product</h4>
+              <h4 className="font-extrabold text-white mb-4">Produk</h4>
               <ul className="space-y-3">
-                {['Features', 'Pricing', 'Roadmap', 'Changelog'].map((item) => (
+                {['Fitur', 'Harga', 'Peta Jalan', 'Catatan Perubahan'].map((item) => (
                   <li key={item}>
                     <a href="#" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">
                       {item}
