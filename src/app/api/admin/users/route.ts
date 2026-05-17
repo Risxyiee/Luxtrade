@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
-// GET all users - WITHOUT ANY FILTER
+// GET all users - Tanpa filter untuk debugging
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 Fetching ALL users from Prisma (no filters)...')
-    console.log('Database URL check:', process.env.DATABASE_URL ? '✓ SET' : '✗ NOT SET')
+    console.log('🔍 [ADMIN API] Fetching ALL users from Prisma...')
+    console.log('🔍 [ADMIN API] Database URL check:', process.env.DATABASE_URL ? '✓ SET' : '✗ NOT SET')
 
     // Test connection first
-    console.log('📊 Testing database connection...')
+    console.log('📊 [ADMIN API] Testing database connection...')
     const userCount = await db.user.count()
-    console.log(`✅ Database connection OK: ${userCount} users`)
+    console.log(`✅ [ADMIN API] Database connection OK: ${userCount} users found`)
+
+    if (userCount === 0) {
+      console.warn('⚠️ [ADMIN API] No users found in database!')
+      return NextResponse.json({ users: [], count: 0, message: 'No users in database' })
+    }
 
     // Get ALL users with their subscriptions
+    console.log('📊 [ADMIN API] Fetching users with subscriptions...')
     const users = await db.user.findMany({
       include: {
         subscriptions: {
@@ -26,14 +32,15 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' }
     })
 
-    console.log(`✅ Found ${users.length} users in database`)
+    console.log(`✅ [ADMIN API] Found ${users.length} users in database`)
+    console.log('📊 [ADMIN API] Raw users data:', JSON.stringify(users.map(u => ({ id: u.id, email: u.email, role: u.role })), null, 2))
 
     // Format users to match admin panel expectations
     const formattedUsers = users.map(user => {
-      const activeSubscription = user.subscriptions[0]
+      const activeSubscription = user.subscriptions?.[0]
       const isPro = activeSubscription?.plan === 'PRO' || user.role === 'ADMIN'
 
-      return {
+      const formatted = {
         id: user.id,
         email: user.email,
         full_name: user.name || '',
@@ -52,12 +59,19 @@ export async function GET(request: NextRequest) {
         has_duplicate_device: false,
         device_id: null
       }
+
+      console.log(`📊 [ADMIN API] Formatted user: ${user.email} - is_pro: ${formatted.is_pro}, subscription_status: ${formatted.subscription_status}`)
+
+      return formatted
     })
 
-    console.log(`✅ Returning ${formattedUsers.length} formatted users`)
+    console.log(`✅ [ADMIN API] Returning ${formattedUsers.length} formatted users`)
+    console.log('📊 [ADMIN API] Formatted users:', JSON.stringify(formattedUsers, null, 2))
+
     return NextResponse.json({ users: formattedUsers, count: formattedUsers.length })
   } catch (error) {
-    console.error('❌ Error fetching users:', error)
+    console.error('❌ [ADMIN API] ERROR fetching users:', error)
+    console.error('❌ [ADMIN API] Error stack:', error instanceof Error ? error.stack : 'No stack trace')
 
     const errorDetails = {
       message: error instanceof Error ? error.message : String(error),
@@ -66,7 +80,7 @@ export async function GET(request: NextRequest) {
       meta: (error as any)?.meta,
     }
 
-    console.error('Error details:', JSON.stringify(errorDetails, null, 2))
+    console.error('❌ [ADMIN API] Error details:', JSON.stringify(errorDetails, null, 2))
 
     return NextResponse.json(
       {
