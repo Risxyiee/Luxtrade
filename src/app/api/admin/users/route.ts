@@ -12,38 +12,50 @@ export async function GET(request: NextRequest) {
     const userCount = await db.user.count()
     console.log(`✅ Database connection OK: ${userCount} users`)
 
-    // Get ALL users without any filters
+    // Get ALL users with their subscriptions
     const users = await db.user.findMany({
+      include: {
+        subscriptions: {
+          where: {
+            status: 'active'
+          },
+          orderBy: { endDate: 'desc' },
+          take: 1
+        }
+      },
       orderBy: { createdAt: 'desc' }
     })
 
     console.log(`✅ Found ${users.length} users in database`)
 
-    // Get subscription count for each user
-    console.log('📊 Fetching subscription counts...')
-    const usersWithSubCount = await Promise.all(
-      users.map(async (user) => {
-        try {
-          const subscriptionCount = await db.userSubscription.count({
-            where: { userId: user.id }
-          })
+    // Format users to match admin panel expectations
+    const formattedUsers = users.map(user => {
+      const activeSubscription = user.subscriptions[0]
+      const isPro = activeSubscription?.plan === 'PRO' || user.role === 'ADMIN'
 
-          return {
-            ...user,
-            subscriptionCount
-          }
-        } catch (subError) {
-          console.error(`⚠️ Error fetching subscription for user ${user.id}:`, subError)
-          return {
-            ...user,
-            subscriptionCount: 0
-          }
-        }
-      })
-    )
+      return {
+        id: user.id,
+        email: user.email,
+        full_name: user.name || '',
+        subscription_status: activeSubscription?.status || 'inactive',
+        is_pro: isPro,
+        subscription_until: activeSubscription?.endDate?.toISOString() || null,
+        my_referral_code: null, // Not in current schema
+        referred_by_code: null, // Not in current schema
+        affiliate_balance: 0, // Not in current schema
+        referral_status: null,
+        has_ever_been_pro: isPro,
+        commission_paid: false,
+        created_at: user.createdAt.toISOString(),
+        referred_by: null,
+        referral_code_changes: 0,
+        has_duplicate_device: false,
+        device_id: null
+      }
+    })
 
-    console.log(`✅ Returning ${usersWithSubCount.length} users with subscription counts`)
-    return NextResponse.json({ users: usersWithSubCount })
+    console.log(`✅ Returning ${formattedUsers.length} formatted users`)
+    return NextResponse.json({ users: formattedUsers, count: formattedUsers.length })
   } catch (error) {
     console.error('❌ Error fetching users:', error)
 
