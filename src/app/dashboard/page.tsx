@@ -12,9 +12,9 @@ import {
   TrendingUp, TrendingDown, Plus, BarChart3, BookOpen,
   Eye, Brain, Menu, X, DollarSign, Target,
   Activity, PieChart, Sparkles, AlertTriangle,
-  Zap, RefreshCw, Database, LogOut, CalendarDays, Upload, Edit, Trash2, Eye as ViewIcon, Calendar, Clock,
+  Zap, RefreshCw, LogOut, CalendarDays, Upload, Edit, Trash2, Eye as ViewIcon, Calendar, Clock,
   Smile, Meh, Frown, Sun, Moon, Cloud, AlertCircle, Search, Send, MessageSquare, MessageCircle, Bot, User,
-  TrendingUp as TrendingUpIcon, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, FileText, Play, Share2, Download, Shield, Crown, AlertCircle as AlertCircleIcon, Camera, Gift, Trophy, Flame, ExternalLink, Newspaper
+  TrendingUp as TrendingUpIcon, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, FileText, Share2, Download, Shield, Crown, AlertCircle as AlertCircleIcon, Camera, Gift, Trophy, Flame, ExternalLink, Newspaper
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -137,47 +137,6 @@ const emptyFormData: TradeFormData = {
   image_url: '',
 }
 
-// ==================== DEMO DATA ====================
-const demoTrades: Trade[] = [
-  { id: '1', symbol: 'EURUSD', type: 'BUY', open_price: 1.0850, close_price: 1.0890, lot_size: 0.5, profit_loss: 400, open_time: '2024-01-15T08:30:00Z', close_time: '2024-01-15T12:45:00Z', session: 'London', notes: 'Breakout trade on H1' },
-  { id: '2', symbol: 'GBPUSD', type: 'SELL', open_price: 1.2650, close_price: 1.2620, lot_size: 0.3, profit_loss: 150, open_time: '2024-01-15T14:00:00Z', close_time: '2024-01-15T16:30:00Z', session: 'New York', notes: 'Reversal at resistance' },
-  { id: '3', symbol: 'XAUUSD', type: 'BUY', open_price: 2025.50, close_price: 2030.00, lot_size: 0.1, profit_loss: 450, open_time: '2024-01-16T03:00:00Z', close_time: '2024-01-16T08:00:00Z', session: 'Asia', notes: 'Gold long from support' },
-  { id: '4', symbol: 'USDJPY', type: 'SELL', open_price: 148.50, close_price: 148.80, lot_size: 0.2, profit_loss: -60, open_time: '2024-01-16T10:00:00Z', close_time: '2024-01-16T11:30:00Z', session: 'London', notes: 'Stopped out early' },
-  { id: '5', symbol: 'EURJPY', type: 'BUY', open_price: 161.20, close_price: 161.80, lot_size: 0.4, profit_loss: 240, open_time: '2024-01-17T07:00:00Z', close_time: '2024-01-17T15:00:00Z', session: 'London', notes: 'Trend continuation' },
-  { id: '6', symbol: 'GBPJPY', type: 'BUY', open_price: 188.50, close_price: 189.20, lot_size: 0.3, profit_loss: 210, open_time: '2024-01-17T09:00:00Z', close_time: '2024-01-17T14:00:00Z', session: 'London', notes: 'Strong momentum' },
-  { id: '7', symbol: 'AUDUSD', type: 'SELL', open_price: 0.6550, close_price: 0.6520, lot_size: 0.5, profit_loss: 300, open_time: '2024-01-18T22:00:00Z', close_time: '2024-01-19T04:00:00Z', session: 'Asia', notes: 'Risk-off sentiment' },
-  { id: '8', symbol: 'NZDUSD', type: 'SELL', open_price: 0.6120, close_price: 0.6150, lot_size: 0.3, profit_loss: -90, open_time: '2024-01-18T10:00:00Z', close_time: '2024-01-18T16:00:00Z', session: 'New York', notes: 'False breakout' },
-]
-
-const demoAnalytics: Analytics = {
-  totalTrades: 8,
-  winningTrades: 6,
-  losingTrades: 2,
-  winRate: 75,
-  totalPL: 1600,
-  avgProfit: 291.67,
-  avgLoss: 75,
-  profitFactor: 3.89,
-  maxDrawdown: 150,
-  sharpeRatio: 2.1,
-  equityCurve: [
-    { date: 'Jan 1', equity: 10000 },
-    { date: 'Jan 5', equity: 10200 },
-    { date: 'Jan 10', equity: 10150 },
-    { date: 'Jan 15', equity: 10500 },
-    { date: 'Jan 20', equity: 10800 },
-    { date: 'Jan 25', equity: 11200 },
-    { date: 'Jan 30', equity: 11600 },
-  ],
-  sessionPerformance: [
-    { session: 'London', trades: 4, pl: 790, winRate: 75 },
-    { session: 'New York', trades: 2, pl: 60, winRate: 50 },
-    { session: 'Asia', trades: 2, pl: 750, winRate: 100 },
-  ],
-  monthlyPerformance: [
-    { month: 'Jan', pl: 1600, trades: 8 },
-  ]
-}
 
 // ==================== CUSTOM HOOKS ====================
 
@@ -605,8 +564,6 @@ export default function LuxTradeDashboard() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [language, setLanguage] = useState<'id' | 'en'>('id') // Default Bahasa Indonesia
 
-  // Demo mode state
-  const [demoMode, setDemoMode] = useState(true) // Default TRUE untuk demo
 
   
   // Trade modals
@@ -626,7 +583,7 @@ export default function LuxTradeDashboard() {
   // Helper: Check if user can access PRO features
   const checkProAccess = useCallback((featureName: string = 'Fitur Premium'): boolean => {
     // PRO users have unlimited access
-    if (isPro || demoMode) return true
+    if (isPro || false) return true
 
     // Free users with remaining trials
     if (proTrialCount > 0) {
@@ -636,11 +593,11 @@ export default function LuxTradeDashboard() {
     // No trials left - show paywall
     setPaywallModalOpen(true)
     return false
-  }, [isPro, demoMode, proTrialCount])
+  }, [isPro, proTrialCount])
 
   // Helper: Decrement trial counter after using PRO feature
   const useProTrial = useCallback(() => {
-    if (!isPro && !demoMode && proTrialCount > 0) {
+    if (!isPro && proTrialCount > 0) {
       const newCount = proTrialCount - 1
       setProTrialCount(newCount)
 
@@ -655,7 +612,7 @@ export default function LuxTradeDashboard() {
         setTimeout(() => setPaywallModalOpen(true), 1000)
       }
     }
-  }, [isPro, demoMode, proTrialCount])
+  }, [isPro, proTrialCount])
 
   // Load trial count from localStorage on mount
   useEffect(() => {
@@ -712,7 +669,6 @@ export default function LuxTradeDashboard() {
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([])
   const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [seeding, setSeeding] = useState(false)
   const [saving, setSaving] = useState(false)
   
   // Form states - separate state to prevent re-renders
@@ -793,13 +749,13 @@ export default function LuxTradeDashboard() {
   }, [])
 
   // PRO status from auth context (includes subscription_until check)
-  const isPro = authIsPro || demoMode
+  const isPro = authIsPro || false
   
   // Free user trade limit
   const FREE_TRADE_LIMIT = 5
-  const isFreeUser = !isPro && !demoMode
+  const isFreeUser = !isPro
   const tradeCount = trades.length
-  const canAddTrade = isPro || demoMode || tradeCount < FREE_TRADE_LIMIT
+  const canAddTrade = isPro || false || tradeCount < FREE_TRADE_LIMIT
 
   // ==================== STABLE FORM HANDLERS ====================
   
@@ -842,15 +798,6 @@ export default function LuxTradeDashboard() {
 
   // Fetch all data
   const fetchData = useCallback(async () => {
-    if (demoMode) {
-      // Use demo data
-      setTrades(demoTrades)
-      setAnalytics(demoAnalytics)
-      setLoading(false)
-      setChartAnimated(true)
-      return
-    }
-    
     setLoading(true)
     try {
       const [tradesRes, analyticsRes, journalRes, watchlistRes] = await Promise.all([
@@ -885,21 +832,14 @@ export default function LuxTradeDashboard() {
       setLoading(false)
       setChartAnimated(true)
     }
-  }, [demoMode])
+  }, [])
 
   // Auth state management with timeout
   const [authChecked, setAuthChecked] = useState(false)
 
   useEffect(() => {
     console.log('🔵 [DIAGNOSTIC] Auth useEffect - START')
-    console.log('🟠 [DIAGNOSTIC] AUTH_STATE:', { user, authLoading, demoMode })
-
-    if (demoMode) {
-      console.log('✅ [DIAGNOSTIC] Demo mode detected, skipping auth')
-      fetchData()
-      setAuthChecked(true)
-      return
-    }
+    console.log('🟠 [DIAGNOSTIC] AUTH_STATE:', { user, authLoading })
 
     // Give auth some time to load
     const timeoutId = setTimeout(() => {
@@ -920,7 +860,7 @@ export default function LuxTradeDashboard() {
     }
 
     return () => clearTimeout(timeoutId)
-  }, [authLoading, user, fetchData, demoMode])
+  }, [authLoading, user, fetchData])
 
   // Check onboarding for first-time users
   useEffect(() => {
@@ -930,26 +870,6 @@ export default function LuxTradeDashboard() {
       return () => clearTimeout(timer)
     }
   }, [trades.length])
-
-  // Seed demo data
-  const handleSeedData = async () => {
-    setSeeding(true)
-    try {
-      const res = await fetch('/api/seed', { method: 'POST' })
-      const data = await res.json()
-      if (data.success) {
-        toast.success(data.message || 'Demo data loaded!')
-        fetchData()
-      } else if (data.needsSetup) {
-        toast.error('Database not set up. Check console for SQL.')
-        console.log('SQL Schema:', data.sql)
-      }
-    } catch (error) {
-      toast.error('Failed to load demo data')
-    } finally {
-      setSeeding(false)
-    }
-  }
 
   // ==================== TRADE CRUD ====================
   
@@ -963,28 +883,6 @@ export default function LuxTradeDashboard() {
     if (isFreeUser && tradeCount >= FREE_TRADE_LIMIT) {
       toast.error(`Free users are limited to ${FREE_TRADE_LIMIT} trades. Upgrade to PRO for unlimited trades!`)
       setPlanSelectionModalOpen(true)
-      return
-    }
-
-    if (demoMode) {
-      const newTrade: Trade = {
-        id: `demo-${Date.now()}`,
-        symbol: formData.symbol.toUpperCase(),
-        type: formData.type,
-        open_price: parseFloat(formData.open_price),
-        close_price: parseFloat(formData.close_price),
-        lot_size: parseFloat(formData.lot_size) || 0.1,
-        profit_loss: parseFloat(formData.profit_loss),
-        open_time: formData.open_time || formatLocalDateTime(new Date()),
-        close_time: formData.close_time || formatLocalDateTime(new Date()),
-        session: formData.session || null,
-        notes: formData.notes || null,
-        image_url: formData.image_url || null,
-      }
-      setTrades(prev => [newTrade, ...prev])
-      toast.success('Trade added! (Demo mode)')
-      setAddTradeOpen(false)
-      setFormData(emptyFormData)
       return
     }
 
@@ -1030,26 +928,6 @@ export default function LuxTradeDashboard() {
       return
     }
 
-    if (demoMode) {
-      setTrades(prev => prev.map(t => t.id === selectedTrade.id ? {
-        ...t,
-        symbol: formData.symbol.toUpperCase(),
-        type: formData.type,
-        open_price: parseFloat(formData.open_price),
-        close_price: parseFloat(formData.close_price),
-        lot_size: parseFloat(formData.lot_size) || 0.1,
-        profit_loss: parseFloat(formData.profit_loss),
-        session: formData.session || null,
-        notes: formData.notes || null,
-        image_url: formData.image_url || null,
-      } : t))
-      toast.success('Trade updated! (Demo mode)')
-      setEditTradeOpen(false)
-      setSelectedTrade(null)
-      setFormData(emptyFormData)
-      return
-    }
-
     setSaving(true)
     try {
       const res = await fetch('/api/trades', {
@@ -1088,14 +966,6 @@ export default function LuxTradeDashboard() {
 
   const handleDeleteTrade = async () => {
     if (!selectedTrade) return
-
-    if (demoMode) {
-      setTrades(prev => prev.filter(t => t.id !== selectedTrade.id))
-      toast.success('Trade deleted! (Demo mode)')
-      setDeleteTradeOpen(false)
-      setSelectedTrade(null)
-      return
-    }
 
     setSaving(true)
     try {
@@ -1154,23 +1024,7 @@ export default function LuxTradeDashboard() {
       toast.error('Please fill title and content')
       return
     }
-    
-    if (demoMode) {
-      const newEntry: JournalEntry = {
-        id: `demo-${Date.now()}`,
-        title: journalForm.title,
-        content: journalForm.content,
-        mood: journalForm.mood || null,
-        market_condition: journalForm.market_condition || null,
-        created_at: new Date().toISOString()
-      }
-      setJournalEntries(prev => [newEntry, ...prev])
-      toast.success('Journal entry added! (Demo mode)')
-      setAddJournalOpen(false)
-      setJournalForm({ title: '', content: '', mood: '', market_condition: '' })
-      return
-    }
-    
+
     setSaving(true)
     try {
       const res = await fetch('/api/journal', {
@@ -1197,13 +1051,7 @@ export default function LuxTradeDashboard() {
   
   const handleDeleteJournal = async (id: string) => {
     if (!confirm('Delete this journal entry?')) return
-    
-    if (demoMode) {
-      setJournalEntries(prev => prev.filter(e => e.id !== id))
-      toast.success('Entry deleted! (Demo mode)')
-      return
-    }
-    
+
     try {
       const res = await fetch(`/api/journal?id=${id}`, { method: 'DELETE' })
       if (res.ok) {
@@ -1222,23 +1070,7 @@ export default function LuxTradeDashboard() {
       toast.error('Please enter a symbol')
       return
     }
-    
-    if (demoMode) {
-      const newItem: WatchlistItem = {
-        id: `demo-${Date.now()}`,
-        symbol: watchlistForm.symbol.toUpperCase(),
-        name: watchlistForm.name || '',
-        target_price: watchlistForm.target_price ? parseFloat(watchlistForm.target_price) : null,
-        notes: watchlistForm.notes || null,
-        created_at: new Date().toISOString()
-      }
-      setWatchlistItems(prev => [newItem, ...prev])
-      toast.success('Added to watchlist! (Demo mode)')
-      setAddWatchlistOpen(false)
-      setWatchlistForm({ symbol: '', name: '', target_price: '', notes: '' })
-      return
-    }
-    
+
     setSaving(true)
     try {
       const res = await fetch('/api/watchlist', {
@@ -1264,12 +1096,6 @@ export default function LuxTradeDashboard() {
   }
   
   const handleDeleteWatchlist = async (id: string) => {
-    if (demoMode) {
-      setWatchlistItems(prev => prev.filter(i => i.id !== id))
-      toast.success('Removed from watchlist! (Demo mode)')
-      return
-    }
-    
     try {
       const res = await fetch(`/api/watchlist?id=${id}`, { method: 'DELETE' })
       if (res.ok) {
@@ -1428,16 +1254,7 @@ export default function LuxTradeDashboard() {
       toast.error('No trades to import')
       return
     }
-    
-    if (demoMode) {
-      setTrades(prev => [...csvPreview, ...prev])
-      toast.success(`Imported ${csvPreview.length} trades! (Demo mode)`)
-      setCsvImportOpen(false)
-      setCsvFile(null)
-      setCsvPreview([])
-      return
-    }
-    
+
     setCsvImporting(true)
     try {
       const res = await fetch('/api/import', {
@@ -1488,16 +1305,7 @@ export default function LuxTradeDashboard() {
       toast.error('No trades to import')
       return
     }
-    
-    if (demoMode) {
-      setTrades(prev => [...smartImportPreview.trades, ...prev])
-      toast.success(`Imported ${smartImportPreview.trades.length} trades from report! (Demo mode)`)
-      setSmartImportOpen(false)
-      setSmartImportPreview(null)
-      setSmartImportFile(null)
-      return
-    }
-    
+
     if (!isPro) {
       setPlanSelectionModalOpen(true)
       return
@@ -1651,17 +1459,7 @@ export default function LuxTradeDashboard() {
       toast.error('No trades to import')
       return
     }
-    
-    if (demoMode) {
-      setTrades(prev => [...importedTrades, ...prev])
-      toast.success(`Imported ${importedTrades.length} trades! (Demo mode)`)
-      setSmartImportOpen(false)
-      setImportedTrades([])
-      setScreenshotPreview(null)
-      setImportTab('screenshot')
-      return
-    }
-    
+
     if (!isPro) {
       setPlanSelectionModalOpen(true)
       return
@@ -1736,8 +1534,8 @@ export default function LuxTradeDashboard() {
   console.log('✅ [DIAGNOSTIC] hasMounted is TRUE, proceeding to render')
 
   // Show auth loading state
-  if (!demoMode && (authLoading || !authChecked)) {
-    console.log('🟠 [DIAGNOSTIC] Auth loading/waiting, showing loading screen', { demoMode, authLoading, authChecked })
+  if ((authLoading || !authChecked)) {
+    console.log('🟠 [DIAGNOSTIC] Auth loading/waiting, showing loading screen', { authLoading, authChecked })
     return (
       <div className="min-h-screen bg-[#0a0712] flex items-center justify-center" suppressHydrationWarning={true}>
         <div className="text-center">
@@ -1867,29 +1665,8 @@ export default function LuxTradeDashboard() {
         </nav>
 
         <div className="p-3 border-t border-purple-900/30 space-y-2">
-          {/* Demo Mode Toggle */}
-          {sidebarOpen && (
-            <motion.button
-              onClick={() => {
-                setDemoMode(!demoMode)
-                if (!demoMode) {
-                  toast.success('Demo mode enabled! Try the dashboard with fake data.')
-                }
-              }}
-              className={`w-full py-2 px-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${
-                demoMode 
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
-                  : 'bg-purple-500/20 text-purple-400 border border-purple-500/30 hover:bg-purple-500/30'
-              }`}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Play className="w-4 h-4" />
-              {demoMode ? 'Demo Mode ON' : 'Try Demo Mode'}
-            </motion.button>
-          )}
-          
-          {!isPro && sidebarOpen && !demoMode && (
+
+          {!isPro && sidebarOpen && (
             <motion.button
               onClick={() => setPlanSelectionModalOpen(true)}
               className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-purple-500 to-violet-600 text-sm font-bold text-white hover:scale-[1.02] transition-all shadow-lg shadow-purple-500/20"
@@ -1899,10 +1676,10 @@ export default function LuxTradeDashboard() {
               Upgrade to Pro
             </motion.button>
           )}
-          {(isPro || demoMode) && sidebarOpen && (
+          {(isPro || false) && sidebarOpen && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-500/20 border border-purple-500/30">
               <Zap className="w-4 h-4 text-purple-400" />
-              <span className="text-sm font-bold text-purple-400">{demoMode ? 'DEMO' : 'ELITE PRO'}</span>
+              <span className="text-sm font-bold text-purple-400">{false ? 'DEMO' : 'ELITE PRO'}</span>
             </div>
           )}
           
@@ -1923,12 +1700,12 @@ export default function LuxTradeDashboard() {
             <div className="bg-white/[0.02] rounded-xl p-3 border border-white/5">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                  {demoMode ? 'DU' : userInitials}
+                  {false ? 'DU' : userInitials}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold truncate">{demoMode ? 'Demo User' : profile?.full_name || user?.email || 'User'}</span>
-                    {(isPro || demoMode) ? (
+                    <span className="text-sm font-semibold truncate">{false ? 'Demo User' : profile?.full_name || user?.email || 'User'}</span>
+                    {(isPro || false) ? (
                       <Badge className="bg-gradient-to-r from-purple-500/30 to-violet-500/30 text-purple-300 border-purple-500/30 text-[10px] px-1.5 py-0">PRO</Badge>
                     ) : (
                       <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30 text-[10px] px-1.5 py-0">Free Plan</Badge>
@@ -2006,7 +1783,7 @@ export default function LuxTradeDashboard() {
           
           <div className="flex items-center gap-2 lg:gap-3">
             {/* Notification Center */}
-            <NotificationCenter trades={trades} isPro={isPro} demoMode={demoMode} />
+            <NotificationCenter trades={trades} isPro={isPro}  />
             
             {/* Server Status Indicator */}
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
@@ -2015,7 +1792,7 @@ export default function LuxTradeDashboard() {
                 animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
               />
-              <span className="text-xs text-emerald-400">{demoMode ? 'Demo' : 'Connected'}</span>
+              <span className="text-xs text-emerald-400">{false ? 'Demo' : 'Connected'}</span>
             </div>
             
             {/* Smart Import Button */}
@@ -2026,18 +1803,7 @@ export default function LuxTradeDashboard() {
               <Upload className="w-4 h-4" />
               <span className="hidden lg:inline">Smart Import</span>
             </button>
-            
-            {!demoMode && (
-              <button
-                onClick={handleSeedData}
-                disabled={seeding}
-                className="hidden sm:flex px-3 lg:px-4 py-2 rounded-lg bg-purple-500/20 text-purple-400 border border-purple-500/30 hover:bg-purple-500/30 transition-all text-sm font-medium items-center gap-2"
-              >
-                <Database className="w-4 h-4" />
-                {seeding ? 'Loading...' : 'Demo Data'}
-              </button>
-            )}
-            
+
             <Dialog open={addTradeOpen} onOpenChange={(open) => {
               setAddTradeOpen(open)
               if (!open) setFormData(emptyFormData)
@@ -2063,7 +1829,7 @@ export default function LuxTradeDashboard() {
               </DialogContent>
             </Dialog>
             
-            {!demoMode && user && (
+            {user && (
               <button
                 onClick={handleSignOut}
                 className="p-2 text-gray-400 hover:text-white transition-colors"
@@ -2073,8 +1839,8 @@ export default function LuxTradeDashboard() {
               </button>
             )}
             
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold" title={demoMode ? 'Demo User' : user?.email || 'Demo User'}>
-              {demoMode ? 'DU' : userInitials}
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold" title={false ? 'Demo User' : user?.email || 'Demo User'}>
+              {false ? 'DU' : userInitials}
             </div>
           </div>
         </header>
@@ -2095,13 +1861,11 @@ export default function LuxTradeDashboard() {
                   journalEntries={journalEntries}
                   loading={loading}
                   setAddTradeOpen={setAddTradeOpen}
-                  onSeedData={handleSeedData}
-                  seeding={seeding}
                   onView={openViewModal}
                   onEdit={openEditModal}
                   onDelete={openDeleteModal}
                   chartAnimated={chartAnimated}
-                  demoMode={demoMode}
+
                   language={language}
                   isPro={isPro}
                 />
@@ -3762,13 +3526,10 @@ function DashboardTab({
   journalEntries,
   loading,
   setAddTradeOpen,
-  onSeedData,
-  seeding,
   onView,
   onEdit,
   onDelete,
   chartAnimated,
-  demoMode,
   language,
   isPro
 }: {
@@ -3777,13 +3538,10 @@ function DashboardTab({
   journalEntries: JournalEntry[]
   loading: boolean
   setAddTradeOpen: (open: boolean) => void
-  onSeedData: () => void
-  seeding: boolean
   onView: (trade: Trade) => void
   onEdit: (trade: Trade) => void
   onDelete: (trade: Trade) => void
   chartAnimated: boolean
-  demoMode: boolean
   language: 'id' | 'en'
   isPro: boolean
 }) {
@@ -3800,23 +3558,7 @@ function DashboardTab({
 
   return (
     <div className="space-y-6">
-      {/* Demo Mode Banner */}
-      {demoMode && (
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/30 rounded-xl p-4 flex items-center justify-between"
-        >
-          <div className="flex items-center gap-3">
-            <Play className="w-5 h-5 text-emerald-400" />
-            <div>
-              <p className="font-bold text-emerald-400">Demo Mode Active</p>
-              <p className="text-sm text-gray-400">Explore the dashboard with sample data - changes won&apos;t be saved</p>
-            </div>
-          </div>
-        </motion.div>
-      )}
-      
+
       {/* Stats Cards with Animation */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <AnimatedStatCard
@@ -4057,16 +3799,6 @@ function DashboardTab({
                 <Button onClick={() => setAddTradeOpen(true)} className="bg-gradient-to-r from-purple-500 to-violet-600 shadow-lg shadow-purple-500/20">
                   <Plus className="w-4 h-4 mr-2" />Add Your First Trade
                 </Button>
-                {!demoMode && (
-                  <Button 
-                    onClick={onSeedData} 
-                    disabled={seeding}
-                    className="bg-purple-500/20 text-purple-400 border border-purple-500/30 hover:bg-purple-500/30"
-                  >
-                    <Database className="w-4 h-4 mr-2" />
-                    {seeding ? 'Loading...' : 'Load Demo Data'}
-                  </Button>
-                )}
               </div>
             </CardContent>
           </Card>
