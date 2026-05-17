@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth-context'
 import { 
   Shield, Users, Crown, Clock, Mail, Calendar, 
   RefreshCw, LogOut, CheckCircle, XCircle, AlertTriangle,
-  TrendingUp, UserCheck, UserX, ChevronDown, Wallet, Banknote
+  TrendingUp, UserCheck, UserX, ChevronDown, Wallet, Banknote, Sparkles
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -64,6 +64,7 @@ export default function AdminPanel() {
   const [isLoading, setIsLoading] = useState(true)
   const [activating, setActivating] = useState<string | null>(null)
   const [showDropdown, setShowDropdown] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Withdrawal modal
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false)
@@ -131,9 +132,9 @@ export default function AdminPanel() {
   const activatePro = async (userId: string, months: number) => {
     setActivating(userId)
     setShowDropdown(null)
-    
+
     try {
-      const response = await fetch('/api/admin/activate', {
+      const response = await fetch('/api/admin/activate-pro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -142,11 +143,11 @@ export default function AdminPanel() {
           months,
         }),
       })
-      
+
       const data = await response.json()
-      
+
       if (data.success) {
-        toast.success(`PRO activated for ${months} month(s)!`)
+        toast.success(`PRO activated for ${months === 0 ? 'lifetime' : months + ' month(s)'}!`)
         fetchUsers() // Refresh list
       } else {
         toast.error(data.error || 'Failed to activate PRO')
@@ -161,16 +162,16 @@ export default function AdminPanel() {
 
   const deactivatePro = async (userId: string) => {
     if (!confirm('Are you sure you want to deactivate PRO for this user?')) return
-    
+
     setActivating(userId)
-    
+
     try {
-      const response = await fetch(`/api/admin/activate?adminEmail=${encodeURIComponent(user?.email || '')}&userId=${userId}`, {
+      const response = await fetch(`/api/admin/activate-pro?adminEmail=${encodeURIComponent(user?.email || '')}&userId=${userId}`, {
         method: 'DELETE',
       })
-      
+
       const data = await response.json()
-      
+
       if (data.success) {
         toast.success('PRO status deactivated')
         fetchUsers() // Refresh list
@@ -266,6 +267,13 @@ export default function AdminPanel() {
   const totalReferrals = users.filter(u => u.referred_by_code).length
   const totalAffiliateBalance = users.reduce((sum, u) => sum + (u.affiliate_balance || 0), 0)
   const pendingWithdrawals = withdrawals.filter(w => w.status === 'pending').length
+  const totalWithdrawals = withdrawals.filter(w => w.status === 'approved').length
+
+  // Filter users based on search
+  const filteredUsers = users.filter(user =>
+    user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (user.full_name && user.full_name.toLowerCase().includes(searchQuery.toLowerCase()))
+  )
 
   if (loading || !user || user.email !== ADMIN_EMAIL) {
     return (
@@ -320,62 +328,94 @@ export default function AdminPanel() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-blue-400" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <Card className="relative overflow-hidden bg-gradient-to-br from-blue-500/10 via-blue-600/5 to-transparent border-blue-500/20 hover:border-blue-500/40 transition-all group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all" />
+              <CardContent className="p-6 relative">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-blue-300/80">Total Users</p>
+                    <p className="text-3xl font-bold text-white">{totalUsers}</p>
+                    <p className="text-xs text-blue-400/60">{proUsers} Active PRO</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Users className="w-6 h-6 text-blue-400" />
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500">Total Users</p>
-                  <p className="text-2xl font-bold">{totalUsers}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card className="relative overflow-hidden bg-gradient-to-br from-amber-500/10 via-amber-600/5 to-transparent border-amber-500/20 hover:border-amber-500/40 transition-all group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-all" />
+              <CardContent className="p-6 relative">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-amber-300/80">Premium Users</p>
+                    <p className="text-3xl font-bold text-amber-400">{proUsers}</p>
+                    <p className="text-xs text-amber-400/60">{totalUsers > 0 ? Math.round((proUsers / totalUsers) * 100) : 0}% of total</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Crown className="w-6 h-6 text-amber-400" />
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                  <Crown className="w-5 h-5 text-amber-400" />
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Card className="relative overflow-hidden bg-gradient-to-br from-emerald-500/10 via-emerald-600/5 to-transparent border-emerald-500/20 hover:border-emerald-500/40 transition-all group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all" />
+              <CardContent className="p-6 relative">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-emerald-300/80">Total Transaksi</p>
+                    <p className="text-3xl font-bold text-emerald-400">{totalWithdrawals}</p>
+                    <p className="text-xs text-emerald-400/60">Penarikan disetujui</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <TrendingUp className="w-6 h-6 text-emerald-400" />
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500">PRO Users</p>
-                  <p className="text-2xl font-bold text-amber-400">{proUsers}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <Card className="relative overflow-hidden bg-gradient-to-br from-purple-500/10 via-purple-600/5 to-transparent border-purple-500/20 hover:border-purple-500/40 transition-all group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-all" />
+              <CardContent className="p-6 relative">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-purple-300/80">Total Referrals</p>
+                    <p className="text-3xl font-bold text-purple-400">{totalReferrals}</p>
+                    <p className="text-xs text-purple-400/60">{pendingWithdrawals} pending</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Wallet className="w-6 h-6 text-purple-400" />
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gray-500/20 flex items-center justify-center">
-                  <UserX className="w-5 h-5 text-gray-400" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Free Users</p>
-                  <p className="text-2xl font-bold">{freeUsers}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-emerald-400" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Total Referrals</p>
-                  <p className="text-2xl font-bold text-emerald-400">{totalReferrals}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
 
         {/* Tab Switcher */}
@@ -401,201 +441,220 @@ export default function AdminPanel() {
 
         {/* Users Table */}
         {activeTab === 'users' && (
-        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-purple-900/30">
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-purple-400" />
-              User Management
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchUsers}
-                disabled={isLoading}
-                className="border-purple-500/30 text-purple-400"
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-              <Badge className="bg-emerald-500/20 text-emerald-400 text-xs flex items-center gap-1">
-                Live <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-purple-900/30 text-left text-xs text-gray-500 uppercase tracking-wider">
-                    <th className="p-4">Email</th>
-                    <th className="p-4">Name</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4">Expiry</th>
-                    <th className="p-4">Referrals</th>
-                    <th className="p-4">Registered</th>
-                    <th className="p-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-purple-900/20">
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan={7} className="p-8 text-center">
-                        <div className="flex items-center justify-center">
-                          <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mr-2" />
-                          Loading users...
-                        </div>
-                      </td>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <Card className="bg-gradient-to-br from-[#0f0b18]/80 via-[#12091a]/80 to-transparent border-purple-900/30 backdrop-blur-sm">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-purple-900/30">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Users className="w-5 h-5 text-purple-400" />
+                  User Management
+                </CardTitle>
+                <p className="text-xs text-gray-500 mt-1">Manage user access and PRO subscriptions</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <div className="relative flex-1 sm:flex-none">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Input
+                    type="text"
+                    placeholder="Cari email atau nama..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 bg-[#0a0712] border-purple-900/30 text-white placeholder:text-gray-600 w-full sm:w-64"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchUsers}
+                  disabled={isLoading}
+                  className="border-purple-500/30 text-purple-400"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+                <Badge className="bg-emerald-500/20 text-emerald-400 text-xs flex items-center gap-1">
+                  Live <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-purple-900/30 text-left text-xs text-gray-500 uppercase tracking-wider">
+                      <th className="p-4">Email</th>
+                      <th className="p-4">Name</th>
+                      <th className="p-4">Status</th>
+                      <th className="p-4">Expiry</th>
+                      <th className="p-4">Referrals</th>
+                      <th className="p-4">Registered</th>
+                      <th className="p-4 text-right">Actions</th>
                     </tr>
-                  ) : users.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="p-8 text-center text-gray-500">
-                        No users found
-                      </td>
-                    </tr>
-                  ) : (
-                    users.map((user) => (
-                      <tr 
-                        key={user.id} 
-                        className="hover:bg-white/5 transition-colors"
-                      >
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            <Mail className="w-4 h-4 text-gray-500" />
-                            <span className="font-mono text-sm">{user.email}</span>
-                          </div>
-                        </td>
-                        <td className="p-4 text-gray-300">
-                          {user.full_name}
-                        </td>
-                        <td className="p-4">
-                          {user.is_pro ? (
-                            <div className="flex items-center gap-2">
-                              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
-                                <Crown className="w-3 h-3 mr-1" /> PRO
-                              </Badge>
-                              {isExpiringSoon(user.subscription_until) && (
-                                <AlertTriangle className="w-4 h-4 text-yellow-500" title="Expiring soon" />
-                              )}
-                              {isExpired(user.subscription_until) && (
-                                <XCircle className="w-4 h-4 text-red-500" title="Expired" />
-                              )}
-                            </div>
-                          ) : (
-                            <Badge variant="outline" className="border-gray-500/30 text-gray-400">
-                              FREE
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="p-4">
-                          {user.subscription_until ? (
-                            <div className="text-sm">
-                              <p>{formatDate(user.subscription_until)}</p>
-                              {getDaysRemaining(user.subscription_until) !== null && (
-                                <p className={`text-xs ${
-                                  isExpired(user.subscription_until) ? 'text-red-400' :
-                                  isExpiringSoon(user.subscription_until) ? 'text-yellow-400' :
-                                  'text-gray-500'
-                                }`}>
-                                  {isExpired(user.subscription_until) 
-                                    ? 'Expired' 
-                                    : `${getDaysRemaining(user.subscription_until)} days left`}
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-gray-500">-</span>
-                          )}
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-1">
-                            <span className="font-semibold">{user.my_referral_code || '-'}</span>
-                          </div>
-                        </td>
-                        <td className="p-4 text-sm text-gray-400">
-                          {formatDateTime(user.created_at)}
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center justify-end gap-2">
-                            {user.is_pro ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => deactivatePro(user.id)}
-                                disabled={activating === user.id}
-                                className="border-red-500/30 text-red-400 hover:bg-red-500/10"
-                              >
-                                {activating === user.id ? (
-                                  <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
-                                ) : (
-                                  <>
-                                    <UserX className="w-4 h-4 mr-1" /> Deactivate
-                                  </>
-                                )}
-                              </Button>
-                            ) : (
-                              <div className="relative">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setShowDropdown(showDropdown === user.id ? null : user.id)}
-                                  disabled={activating === user.id}
-                                  className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
-                                >
-                                  {activating === user.id ? (
-                                    <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-                                  ) : (
-                                    <>
-                                      <Crown className="w-4 h-4 mr-1" /> Activate PRO
-                                      <ChevronDown className="w-4 h-4 ml-1" />
-                                    </>
-                                  )}
-                                </Button>
-                                
-                                <AnimatePresence>
-                                  {showDropdown === user.id && (
-                                    <motion.div
-                                      initial={{ opacity: 0, y: -10 }}
-                                      animate={{ opacity: 1, y: 0 }}
-                                      exit={{ opacity: 0, y: -10 }}
-                                      className="absolute right-0 top-full mt-2 bg-[#1a1225] border border-purple-500/30 rounded-lg shadow-xl overflow-hidden z-10 min-w-[160px]"
-                                    >
-                                      <button
-                                        onClick={() => activatePro(user.id, 1)}
-                                        className="w-full px-4 py-2 text-left text-sm hover:bg-purple-500/10 transition-colors flex items-center gap-2"
-                                      >
-                                        <Clock className="w-4 h-4 text-amber-400" />
-                                        1 Bulan
-                                      </button>
-                                      <button
-                                        onClick={() => activatePro(user.id, 6)}
-                                        className="w-full px-4 py-2 text-left text-sm hover:bg-purple-500/10 transition-colors flex items-center gap-2"
-                                      >
-                                        <Clock className="w-4 h-4 text-emerald-400" />
-                                        6 Bulan
-                                      </button>
-                                      <button
-                                        onClick={() => activatePro(user.id, 0)}
-                                        className="w-full px-4 py-2 text-left text-sm hover:bg-purple-500/10 transition-colors flex items-center gap-2 font-semibold text-purple-300"
-                                      >
-                                        <Sparkles className="w-4 h-4 text-purple-400" />
-                                        Lifetime
-                                      </button>
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
-                              </div>
-                            )}
+                  </thead>
+                  <tbody className="divide-y divide-purple-900/20">
+                    {isLoading ? (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center">
+                          <div className="flex items-center justify-center">
+                            <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mr-2" />
+                            Loading users...
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                    ) : filteredUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-gray-500">
+                          {searchQuery ? 'No users found matching your search' : 'No users found'}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredUsers.map((user) => (
+                        <tr
+                          key={user.id}
+                          className="hover:bg-white/5 transition-colors"
+                        >
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              <Mail className="w-4 h-4 text-gray-500" />
+                              <span className="font-mono text-sm">{user.email}</span>
+                            </div>
+                          </td>
+                          <td className="p-4 text-gray-300">
+                            {user.full_name || '-'}
+                          </td>
+                          <td className="p-4">
+                            {user.is_pro ? (
+                              <div className="flex items-center gap-2">
+                                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                                  <Crown className="w-3 h-3 mr-1" /> PRO
+                                </Badge>
+                                {isExpiringSoon(user.subscription_until) && (
+                                  <AlertTriangle className="w-4 h-4 text-yellow-500" title="Expiring soon" />
+                                )}
+                                {isExpired(user.subscription_until) && (
+                                  <XCircle className="w-4 h-4 text-red-500" title="Expired" />
+                                )}
+                              </div>
+                            ) : (
+                              <Badge variant="outline" className="border-gray-500/30 text-gray-400">
+                                FREE
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="p-4">
+                            {user.subscription_until ? (
+                              <div className="text-sm">
+                                <p>{formatDate(user.subscription_until)}</p>
+                                {getDaysRemaining(user.subscription_until) !== null && (
+                                  <p className={`text-xs ${
+                                    isExpired(user.subscription_until) ? 'text-red-400' :
+                                    isExpiringSoon(user.subscription_until) ? 'text-yellow-400' :
+                                    'text-gray-500'
+                                  }`}>
+                                    {isExpired(user.subscription_until)
+                                      ? 'Expired'
+                                      : `${getDaysRemaining(user.subscription_until)} days left`}
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-gray-500">-</span>
+                            )}
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-1">
+                              <span className="font-semibold">{user.my_referral_code || '-'}</span>
+                            </div>
+                          </td>
+                          <td className="p-4 text-sm text-gray-400">
+                            {formatDateTime(user.created_at)}
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center justify-end gap-2">
+                              {user.is_pro ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => deactivatePro(user.id)}
+                                  disabled={activating === user.id}
+                                  className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+                                >
+                                  {activating === user.id ? (
+                                    <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <>
+                                      <UserX className="w-4 h-4 mr-1" /> Deactivate
+                                    </>
+                                  )}
+                                </Button>
+                              ) : (
+                                <div className="relative">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowDropdown(showDropdown === user.id ? null : user.id)}
+                                    disabled={activating === user.id}
+                                    className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                                  >
+                                    {activating === user.id ? (
+                                      <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <>
+                                        <Crown className="w-4 h-4 mr-1" /> Activate PRO
+                                        <ChevronDown className="w-4 h-4 ml-1" />
+                                      </>
+                                    )}
+                                  </Button>
+
+                                  <AnimatePresence>
+                                    {showDropdown === user.id && (
+                                      <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        className="absolute right-0 top-full mt-2 bg-[#1a1225] border border-purple-500/30 rounded-lg shadow-xl overflow-hidden z-10 min-w-[160px]"
+                                      >
+                                        <button
+                                          onClick={() => activatePro(user.id, 1)}
+                                          className="w-full px-4 py-2 text-left text-sm hover:bg-purple-500/10 transition-colors flex items-center gap-2"
+                                        >
+                                          <Clock className="w-4 h-4 text-amber-400" />
+                                          1 Bulan
+                                        </button>
+                                        <button
+                                          onClick={() => activatePro(user.id, 6)}
+                                          className="w-full px-4 py-2 text-left text-sm hover:bg-purple-500/10 transition-colors flex items-center gap-2"
+                                        >
+                                          <Clock className="w-4 h-4 text-emerald-400" />
+                                          6 Bulan
+                                        </button>
+                                        <button
+                                          onClick={() => activatePro(user.id, 0)}
+                                          className="w-full px-4 py-2 text-left text-sm hover:bg-purple-500/10 transition-colors flex items-center gap-2 font-semibold text-purple-300"
+                                        >
+                                          <Sparkles className="w-4 h-4 text-purple-400" />
+                                          Lifetime
+                                        </button>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
         )}
 
         {/* Withdrawals Table */}
