@@ -40,9 +40,9 @@ import ActivityFeed from '@/components/ActivityFeed'
 import QuickStats from '@/components/QuickStats'
 import WelcomeOnboarding from '@/components/WelcomeOnboarding'
 import { formatCurrency } from '@/lib/supabase'
-import ChartTab from '@/components/ChartTab'
 import { ChartErrorBoundary } from '@/components/ChartErrorBoundary'
 import AchievementCenter from '@/components/AchievementCenter'
+import PaywallModal from '@/components/PaywallModal'
 const LuxtradeMiniChart = dynamic(() => import('@/components/LuxtradeMiniChart'), { ssr: false })
 
 // Global safety check to prevent ReferenceError for activeTF
@@ -168,7 +168,6 @@ const menuItems = [
   { id: 'calendar', label: 'Calendar', labelId: 'Kalender', icon: Calendar, category: 'utama', proOnly: false },
   { id: 'journal', label: 'Journal', labelId: 'Jurnal', icon: BookOpen, category: 'utama', proOnly: false },
   { id: 'watchlist', label: 'Watchlist', labelId: 'Daftar Pantauan', icon: Eye, category: 'utama', proOnly: false },
-  { id: 'chart', label: 'Trading Chart', labelId: 'Chart Trading', icon: TrendingUp, category: 'utama', proOnly: false },
   { id: 'news', label: 'Market News', labelId: 'Berita Pasar', icon: Newspaper, category: 'utama', proOnly: false },
   { id: 'economic-calendar', label: 'Economic Calendar', labelId: 'Kalender Ekonomi', icon: CalendarDays, category: 'utama', proOnly: false },
   { id: 'achievements', label: 'Achievements', labelId: 'Pencapaian', icon: Trophy, category: 'utama', proOnly: false },
@@ -660,6 +659,57 @@ function LuxTradeDashboard() {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   const [planSelectionModalOpen, setPlanSelectionModalOpen] = useState(false)
   const [shareCardOpen, setShareCardOpen] = useState(false)
+  const [paywallModalOpen, setPaywallModalOpen] = useState(false)
+
+  // PRO trial counter - 3x for Free users
+  const [proTrialCount, setProTrialCount] = useState(3)
+  const MAX_PRO_TRIALS = 3
+
+  // Helper: Check if user can access PRO features
+  const checkProAccess = useCallback((featureName: string = 'Fitur Premium'): boolean => {
+    // PRO users have unlimited access
+    if (isPro || demoMode) return true
+
+    // Free users with remaining trials
+    if (proTrialCount > 0) {
+      return true // Allow access, will decrement counter
+    }
+
+    // No trials left - show paywall
+    setPaywallModalOpen(true)
+    return false
+  }, [isPro, demoMode, proTrialCount])
+
+  // Helper: Decrement trial counter after using PRO feature
+  const useProTrial = useCallback(() => {
+    if (!isPro && !demoMode && proTrialCount > 0) {
+      const newCount = proTrialCount - 1
+      setProTrialCount(newCount)
+
+      // Save to localStorage for persistence
+      localStorage.setItem('luxtrade_pro_trial_count', newCount.toString())
+
+      // Show warning if running low
+      if (newCount === 1) {
+        toast.warning(`⚠️ Sisa 1 kali uji coba fitur PRO! Upgrade untuk akses unlimited.`)
+      } else if (newCount === 0) {
+        toast.error(`🔒 Kuota uji coba habis! Upgrade ke PRO untuk akses penuh.`)
+        setTimeout(() => setPaywallModalOpen(true), 1000)
+      }
+    }
+  }, [isPro, demoMode, proTrialCount])
+
+  // Load trial count from localStorage on mount
+  useEffect(() => {
+    const savedTrialCount = localStorage.getItem('luxtrade_pro_trial_count')
+    if (savedTrialCount) {
+      const count = parseInt(savedTrialCount, 10)
+      if (!isNaN(count) && count >= 0) {
+        setProTrialCount(Math.min(count, MAX_PRO_TRIALS))
+      }
+    }
+  }, [])
+
   
   const handleSelectPlan = (plan: any) => {
     setPlanSelectionModalOpen(false)
@@ -2158,40 +2208,6 @@ function LuxTradeDashboard() {
                 />
               </motion.div>
             )}
-            {activeTab === 'chart' && (
-              <motion.div
-                key="chart"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                {shouldDisableCharts ? (
-                  <Card className="bg-gradient-to-br from-[#0f0b18] to-[#1a0f2e] border border-purple-900/30">
-                    <CardContent className="py-8 text-center">
-                      <TrendingUp className="w-12 h-12 text-purple-400 mx-auto mb-3" />
-                      <h3 className="text-lg font-semibold text-white mb-2">Trading Chart Not Available</h3>
-                      <p className="text-sm text-gray-400 mb-4">
-                        Charts are disabled on mobile devices to ensure optimal performance.
-                      </p>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-center"
-                        onClick={() => {
-                          window.location.href = window.location.href
-                        }}
-                      >
-                        Refresh Page
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <ChartErrorBoundary>
-                    <ChartTab isPro={isPro} />
-                  </ChartErrorBoundary>
-                )}
-              </motion.div>
-            )}
             {activeTab === 'analytics' && (
               <motion.div
                 key="analytics"
@@ -3113,6 +3129,17 @@ function LuxTradeDashboard() {
         onClose={() => setPaymentModalOpen(false)}
         userId={user?.id}
         email={user?.email}
+      />
+
+      {/* Paywall Modal for PRO Features */}
+      <PaywallModal
+        isOpen={paywallModalOpen}
+        onClose={() => setPaywallModalOpen(false)}
+        onUpgrade={() => {
+          setPaywallModalOpen(false)
+          setPlanSelectionModalOpen(true)
+        }}
+        remainingTrials={proTrialCount}
       />
 
       {/* Welcome Onboarding */}
