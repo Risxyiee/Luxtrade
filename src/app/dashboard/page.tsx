@@ -43,12 +43,6 @@ import { formatCurrency } from '@/lib/supabase'
 import { ChartErrorBoundary } from '@/components/ChartErrorBoundary'
 import AchievementCenter from '@/components/AchievementCenter'
 import PaywallModal from '@/components/PaywallModal'
-const LuxtradeMiniChart = dynamic(() => import('@/components/LuxtradeMiniChart'), { ssr: false })
-
-// Global safety check to prevent ReferenceError for activeTF
-if (typeof window !== 'undefined') {
-  (window as any).__activeTF_SAFE_DEFAULT = '15m'
-}
 
 // ==================== DEMO DATA ====================
 const demoTrades: Trade[] = [
@@ -636,20 +630,6 @@ function LuxTradeDashboard() {
   // Demo mode state
   const [demoMode, setDemoMode] = useState(true) // Default TRUE untuk demo
 
-  // Chart timeframe state for Single-Active-Chart system
-  const [activeTF, setActiveTF] = useState('15m')
-  const [activeTFSafe, setActiveTFSafe] = useState('15m')
-
-  // Sync activeTF with safe version - prevent reference errors
-  useEffect(() => {
-    try {
-      if (activeTF && typeof activeTF === 'string') {
-        setActiveTFSafe(activeTF)
-      }
-    } catch (error) {
-      console.error('Error syncing activeTF:', error)
-    }
-  }, [activeTF])
   
   // Trade modals
   const [addTradeOpen, setAddTradeOpen] = useState(false)
@@ -808,7 +788,6 @@ function LuxTradeDashboard() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  const shouldDisableCharts = false  // Enable charts on all devices including mobile
   
   // Helper: Get auth header for API calls
   const getAuthHeaders = useCallback(() => {
@@ -2147,9 +2126,6 @@ function LuxTradeDashboard() {
                   demoMode={demoMode}
                   language={language}
                   isPro={isPro}
-                  activeTF={activeTFSafe}
-                  setActiveTF={setActiveTF}
-                  shouldDisableCharts={shouldDisableCharts}
                 />
               </motion.div>
             )}
@@ -3816,10 +3792,7 @@ function DashboardTab({
   chartAnimated,
   demoMode,
   language,
-  isPro,
-  activeTF: activeTFProp,
-  setActiveTF: setActiveTFProp,
-  shouldDisableCharts: shouldDisableChartsProp = false
+  isPro
 }: {
   analytics: Analytics | null
   trades: Trade[]
@@ -3835,28 +3808,7 @@ function DashboardTab({
   demoMode: boolean
   language: 'id' | 'en'
   isPro: boolean
-  activeTF?: string
-  setActiveTF?: (tf: string) => void
-  shouldDisableCharts?: boolean
 }) {
-  // Use prop with safe default - avoid any reference to outer activeTF
-  const currentActiveTF = activeTFProp || '15m'
-
-  // Use setActiveTF with safe wrapper
-  const handleSetActiveTF = setActiveTFProp
-    ? (tf: string) => {
-        try {
-          if (setActiveTFProp) setActiveTFProp(tf)
-        } catch (e) {
-          console.error('[DashboardTab] Error in setActiveTF:', e)
-        }
-      }
-    : () => {
-        console.warn('[DashboardTab] setActiveTF not provided')
-      }
-
-  // Use shouldDisableCharts with default value
-  const currentShouldDisableCharts = shouldDisableChartsProp || false
 
   if (loading) {
     return (
@@ -4012,68 +3964,6 @@ function DashboardTab({
           <QuickStats trades={trades} analytics={analytics} language={language} />
         </motion.div>
       )}
-
-      {/* Luxtrade Mini Chart - 80% Momentum Signals */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.14 }}
-      >
-        {/* Timeframe Selector Buttons */}
-        <div className="mb-3 flex gap-2 items-center">
-          <span className="text-white/60 text-sm mr-2">Timeframe:</span>
-          {['1m', '5m', '15m', '30m', '1h', '4h'].map((tf) => (
-            <Button
-              key={tf}
-              size="sm"
-              variant={currentActiveTF === tf ? 'default' : 'outline'}
-              onClick={() => handleSetActiveTF(tf)}
-              className="text-xs"
-            >
-              {tf}
-            </Button>
-          ))}
-        </div>
-        {/* Mobile optimization: Disable charts on low-end devices */}
-        {currentShouldDisableCharts ? (
-          <motion.div
-            key="mobile-chart-fallback"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.14 }}
-          >
-            <Card className="bg-gradient-to-br from-[#0f0b18] to-[#1a0f2e] border border-purple-900/30">
-              <CardContent className="py-8 text-center">
-                <Activity className="w-12 h-12 text-purple-400 mx-auto mb-3" />
-                <h3 className="text-lg font-semibold text-white mb-2">Charts Not Available on Mobile</h3>
-                <p className="text-sm text-gray-400 mb-4">
-                  Charts are disabled on mobile devices to ensure optimal performance.
-                </p>
-                <div className="space-y-2">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-center"
-                    onClick={() => {
-                      window.location.href = window.location.href
-                    }}
-                  >
-                    Refresh Page
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ) : (
-          <ChartErrorBoundary>
-            <LuxtradeMiniChart
-              isPro={isPro}
-              demoMode={demoMode}
-              interval={currentActiveTF}
-              symbol="XAUUSD"
-            />
-          </ChartErrorBoundary>
-        )}
-      </motion.div>
 
       {/* Session Performance Chart */}
       {hasData && analytics?.sessionPerformance && (
