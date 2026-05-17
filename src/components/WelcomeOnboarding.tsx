@@ -34,8 +34,8 @@ const steps = {
     },
     {
       icon: <Crown className="w-8 h-8" />,
-      title: 'Upgrade ke PRO',
-      description: 'Buka kunci fitur lengkap: AI Insights, Analytics, Trading Score, dan masih banyak lagi!',
+      title: 'Pilih Paket Terbaik',
+      description: 'GRATIS: 15 jurnal/bulan + 3x trial AI | ELITE PRO Rp 49.000/bulan: UNLIMITED + AI penuh | LIFETIME Rp 52.000: Akses selamanya!',
       color: 'from-amber-500 to-orange-600',
       cta: true,
     },
@@ -61,8 +61,8 @@ const steps = {
     },
     {
       icon: <Crown className="w-8 h-8" />,
-      title: 'Upgrade to PRO',
-      description: 'Unlock all features: AI Insights, Analytics, Trading Score, and much more!',
+      title: 'Choose Your Plan',
+      description: 'FREE: 15 journals/month + 3x AI trial | ELITE PRO Rp 49.000/mo: UNLIMITED + full AI | LIFETIME Rp 52.000: Forever access!',
       color: 'from-amber-500 to-orange-600',
       cta: true,
     },

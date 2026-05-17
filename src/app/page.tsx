@@ -459,32 +459,24 @@ function LifetimeUltraCard({ onButtonClick }: { onButtonClick: () => void }) {
           </motion.div>
         )}
         <CardContent className="p-6 pt-8">
-          <div className="text-sm text-amber-400 font-bold mb-1 tracking-wide uppercase text-xs">Lifetime Ultra</div>
+          <div className="text-sm text-amber-400 font-bold mb-1 tracking-wide uppercase text-xs">Lifetime Ultra (PROMO)</div>
           <div className="text-4xl font-extrabold text-white mb-1">
             Rp 52.000
-            <span className="text-base font-normal text-white/40"> /lifetime</span>
+            <span className="text-base font-normal text-white/40"> / Sekali Bayar</span>
           </div>
-          {slotsInfo && (
-            <div className={`mb-4 text-xs font-bold ${
-              slotsInfo.isSoldOut ? 'text-red-400' : 'text-amber-300'
-            }`}>
-              {slotsInfo.isSoldOut ? (
-                <span>All 30 slots taken</span>
-              ) : (
-                <span>{slotsInfo.availableSlots} of {slotsInfo.totalSlots} slots left</span>
-              )}
+          {slotsInfo && !slotsInfo.isSoldOut && (
+            <div className="mb-4">
+              <div className="text-xs font-bold text-amber-300">
+                PROMO MERDEKA TRADER - SISA {slotsInfo.availableSlots} SLOT!
+              </div>
             </div>
           )}
           <ul className="space-y-3 my-6">
             {[
-              { text: 'All Elite Pro features' },
-              { text: 'LIFETIME access (no renewal)' },
-              { text: 'Exclusive trading signals' },
-              { text: '1-on-1 coaching session' },
-              { text: 'Private community access' },
-              { text: 'Priority feature requests' },
-              { text: 'VIP WhatsApp support' },
-              { text: 'Custom dashboard setup' },
+              { text: '👑 AKSES SEUMUR HIDUP' },
+              { text: 'Semua Fitur Elite PRO Terbuka Selamanya' },
+              { text: 'VIP WhatsApp Support & Akses Grup Privat' },
+              { text: 'Tanpa Biaya Bulanan Lagi' },
             ].map((item, index) => (
               <li key={index} className="flex items-center gap-2.5 text-sm text-white/70">
                 <Check className="w-4.5 h-4.5 text-amber-400 flex-shrink-0" />
@@ -501,7 +493,7 @@ function LifetimeUltraCard({ onButtonClick }: { onButtonClick: () => void }) {
                 : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-lg shadow-amber-500/30 hover:shadow-[0_0_30px_rgba(251,191,36,0.4)] transition-all duration-300'
             }`}
           >
-            {isSoldOut ? 'Sold Out' : 'Get Lifetime Access'}
+            {isSoldOut ? 'SOLD OUT' : 'Ambil Promo Lifetime'}
           </Button>
         </CardContent>
       </Card>
@@ -1096,26 +1088,22 @@ export default function LuxTradeLanding() {
                   </div>
                   <ul className="space-y-4 my-8">
                     {[
-                      { text: 'Up to 5 trades/month' },
-                      { text: 'Basic analytics' },
-                      { text: 'Journal entries' },
-                      { text: 'Pro features locked', locked: true },
+                      { text: '15 Jurnal Transaksi / Bulan' },
+                      { text: 'Grafik Performa & Statistik Standar' },
+                      { text: 'Kalkulator Risiko Trading Pemula' },
+                      { text: '🎁 BONUS: 3x Uji Coba Fitur Analisis AI & Statistik PRO' },
                     ].map((item, index) => (
                       <li key={index} className="flex items-center gap-2.5 text-sm text-white/60">
-                        {item.locked ? (
-                          <span className="w-4.5 h-4.5 flex items-center justify-center text-base">🔒</span>
-                        ) : (
-                          <Check className="w-4.5 h-4.5 text-emerald-400" />
-                        )}
+                        <Check className="w-4.5 h-4.5 text-emerald-400" />
                         <span className="font-medium">{item.text}</span>
                       </li>
                     ))}
                   </ul>
                   <Link href="/auth/signup" className="block">
                     <Button 
-                      className="w-full h-12 bg-white/10 hover:bg-white/20 text-white font-extrabold backdrop-blur-sm transition-all"
+                      className="w-full h-12 bg-white hover:bg-white/90 text-[#0f051d] font-extrabold backdrop-blur-sm transition-all"
                     >
-                      Start Free
+                      Mulai Gratis
                     </Button>
                   </Link>
                 </CardContent>
@@ -1149,14 +1137,12 @@ export default function LuxTradeLanding() {
                 </div>
                 <ul className="space-y-3.5 my-8">
                   {[
-                    'Unlimited trades',
-                    'Trading Performance Score (0-100)',
-                    'AI Weekly Report & Insights',
-                    'Streaks & Achievement Badges',
-                    'Advanced analytics & heatmap',
-                    'Psychology tracking & mood journal',
-                    'Export P/L cards for social media',
-                    'Priority Telegram support',
+                    '🔥 UNLIMITED Jurnal Transaksi (Tanpa Batas Bulanan)',
+                    '🧠 Akses Penuh Analisis AI Pintar (Deteksi Kesalahan & Solusi)',
+                    '📊 Grafik Win-Rate Mendalam & Mistake Tracker',
+                    '🧮 Kalkulator Risiko & Posisi Advance',
+                    '📥 Bebas Ekspor Data ke Excel / PDF',
+                    '👑 Akses VIP Grup & Dukungan Prioritas',
                   ].map((item, index) => (
                     <li key={index} className="flex items-center gap-2.5 text-sm text-white/60">
                       <Check className="w-4.5 h-4.5 text-emerald-400" />
@@ -1172,7 +1158,7 @@ export default function LuxTradeLanding() {
                     onClick={() => setShowPayment(true)}
                     className="w-full h-12 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-xl"
                   >
-                    Go Elite Pro
+                    Upgrade ke Elite Pro
                   </Button>
                 </motion.div>
               </motion.div>
@@ -1201,16 +1187,12 @@ export default function LuxTradeLanding() {
                 </thead>
                 <tbody className="divide-y divide-white/[0.05]">
                   {[
-                    { feature: 'Trades per month', free: '5', pro: 'Unlimited', ultra: 'Unlimited' },
-                    { feature: 'CSV Import', free: '✓', pro: '✓', ultra: '✓' },
-                    { feature: 'Basic Analytics', free: '✓', pro: '✓', ultra: '✓' },
-                    { feature: 'AI Insights', free: '—', pro: '✓', ultra: '✓' },
-                    { feature: 'Psychology Tracking', free: '—', pro: '✓', ultra: '✓' },
-                    { feature: 'Heatmap Analytics', free: '—', pro: '✓', ultra: '✓' },
-                    { feature: 'Data Export', free: '—', pro: '✓', ultra: '✓' },
-                    { feature: 'Data Retention', free: '30 days', pro: 'Forever', ultra: 'Forever' },
-                    { feature: 'Support', free: 'Email', pro: 'Priority WA', ultra: 'VIP Support' },
-                    { feature: 'Exclusive Features', free: '—', pro: '—', ultra: '✓' },
+                    { feature: 'Jurnal Transaksi / Bulan', free: '15', pro: 'UNLIMITED', ultra: 'UNLIMITED' },
+                    { feature: 'Grafik Performa & Statistik', free: 'Standar', pro: 'Mendalam', ultra: 'Mendalam' },
+                    { feature: 'Analisis AI Pintar', free: '3x Trial', pro: '✓ Penuh', ultra: '✓ Penuh' },
+                    { feature: 'Kalkulator Risiko Trading', free: 'Pemula', pro: 'Advance', ultra: 'Advance' },
+                    { feature: 'Ekspor Data (Excel/PDF)', free: '—', pro: '✓', ultra: '✓' },
+                    { feature: 'VIP WhatsApp Support', free: '—', pro: '✓', ultra: '✓ Grup Privat' },
                   ].map((row, index) => (
                     <tr key={index} className="hover:bg-white/[0.03] transition-colors">
                       <td className="p-5 text-white/70 font-medium">{row.feature}</td>
