@@ -1935,7 +1935,7 @@ function LuxTradeDashboard() {
 
           {/* Admin Panel Link - Only for admins */}
           {isAdmin && sidebarOpen && (
-            <Link href="/dashboard/admin" className="block">
+            <Link href="/admin-secure" className="block">
               <motion.button
                 className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-purple-600/30 to-violet-600/30 text-violet-300 border border-violet-500/30 hover:from-purple-600/40 hover:to-violet-600/40 transition-all flex items-center justify-center gap-2 text-sm font-bold"
                 whileHover={{ scale: 1.02 }}
