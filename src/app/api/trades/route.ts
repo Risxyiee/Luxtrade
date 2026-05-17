@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
-// Free user trade limit
-const FREE_TRADE_LIMIT = 5
+// Free user trade limit - 15 trades per month
+const FREE_TRADE_LIMIT = 15
 
 // Helper: Get authenticated user from request
 async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
@@ -44,14 +44,19 @@ async function isUserPro(userId: string): Promise<boolean> {
   }
 }
 
-// Helper: Count user trades
+// Helper: Count user trades for current month only
 async function countUserTrades(userId: string): Promise<number> {
   try {
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const startOfMonthISO = startOfMonth.toISOString()
+
     const { count, error } = await supabase
       .from('trades')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
-    
+      .gte('close_time', startOfMonthISO)
+
     if (error) return 0
     return count || 0
   } catch {
@@ -106,16 +111,17 @@ export async function POST(request: NextRequest) {
     const userId = authUser.id
     const body = await request.json()
     
-    // SERVER-SIDE LIMIT CHECK: Free users can only have 5 trades
+    // SERVER-SIDE LIMIT CHECK: Free users can only have 15 trades per month
     const isPro = await isUserPro(userId)
     if (!isPro) {
       const tradeCount = await countUserTrades(userId)
       if (tradeCount >= FREE_TRADE_LIMIT) {
-        return NextResponse.json({ 
-          error: `Free users are limited to ${FREE_TRADE_LIMIT} trades. Upgrade to PRO for unlimited trades!`,
+        return NextResponse.json({
+          error: `Pengguna Free dibatasi maksimal ${FREE_TRADE_LIMIT} jurnal transaksi per bulan. Upgrade ke PRO untuk akses UNLIMITED!`,
           code: 'TRADE_LIMIT_EXCEEDED',
           limit: FREE_TRADE_LIMIT,
-          current: tradeCount
+          current: tradeCount,
+          requiresUpgrade: true
         }, { status: 403 })
       }
     }
