@@ -600,60 +600,43 @@ export default function LuxTradeLanding() {
   return (
     <div className="min-h-screen bg-[#0f051d] text-white overflow-x-hidden">
       {/* Partikel Background - Tailwind Murni */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-20">
-        {/* Partikel di seluruh halaman dengan animasi Tailwind */}
-        <div className="absolute w-3 h-3 bg-purple-500/40 rounded-full animate-ping" style={{ top: '5%', left: '8%', animationDuration: '3s' }} />
-        <div className="absolute w-2 h-2 bg-purple-400/50 rounded-full animate-pulse" style={{ top: '12%', left: '15%', animationDuration: '4s' }} />
-        <div className="absolute w-4 h-4 bg-blue-500/30 rounded-full animate-ping" style={{ top: '8%', left: '25%', animationDuration: '3.5s' }} />
-        <div className="absolute w-2 h-2 bg-purple-300/60 rounded-full animate-pulse" style={{ top: '18%', left: '35%', animationDuration: '2.5s' }} />
-        <div className="absolute w-3 h-3 bg-purple-500/35 rounded-full animate-ping" style={{ top: '6%', left: '45%', animationDuration: '4.5s' }} />
-        <div className="absolute w-2 h-2 bg-blue-400/40 rounded-full animate-pulse" style={{ top: '15%', left: '55%', animationDuration: '3s' }} />
-        <div className="absolute w-3 h-3 bg-purple-400/45 rounded-full animate-ping" style={{ top: '10%', left: '65%', animationDuration: '3.8s' }} />
-        <div className="absolute w-2 h-2 bg-purple-500/50 rounded-full animate-pulse" style={{ top: '20%', left: '75%', animationDuration: '4.2s' }} />
-        <div className="absolute w-4 h-4 bg-blue-500/35 rounded-full animate-ping" style={{ top: '7%', left: '85%', animationDuration: '3.2s' }} />
-        <div className="absolute w-2 h-2 bg-purple-300/55 rounded-full animate-pulse" style={{ top: '14%', left: '92%', animationDuration: '2.8s' }} />
-
-        <div className="absolute w-3 h-3 bg-purple-400/40 rounded-full animate-ping" style={{ top: '25%', left: '5%', animationDuration: '4s' }} />
-        <div className="absolute w-2 h-2 bg-blue-500/45 rounded-full animate-pulse" style={{ top: '35%', left: '12%', animationDuration: '3.5s' }} />
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-10">
+        {/* Partikel KIRI (left: 2% - 25%) */}
+        <div className="absolute w-3 h-3 bg-purple-500/40 rounded-full animate-ping" style={{ top: '5%', left: '3%', animationDuration: '3s' }} />
+        <div className="absolute w-2 h-2 bg-purple-400/50 rounded-full animate-pulse" style={{ top: '12%', left: '8%', animationDuration: '4s' }} />
+        <div className="absolute w-4 h-4 bg-blue-500/30 rounded-full animate-ping" style={{ top: '8%', left: '15%', animationDuration: '3.5s' }} />
+        <div className="absolute w-2 h-2 bg-purple-300/60 rounded-full animate-pulse" style={{ top: '18%', left: '20%', animationDuration: '2.5s' }} />
+        <div className="absolute w-3 h-3 bg-purple-500/35 rounded-full animate-ping" style={{ top: '25%', left: '5%', animationDuration: '4.5s' }} />
+        <div className="absolute w-2 h-2 bg-blue-400/40 rounded-full animate-pulse" style={{ top: '35%', left: '12%', animationDuration: '3s' }} />
         <div className="absolute w-4 h-4 bg-purple-500/35 rounded-full animate-ping" style={{ top: '30%', left: '22%', animationDuration: '4.5s' }} />
-        <div className="absolute w-2 h-2 bg-purple-300/50 rounded-full animate-pulse" style={{ top: '40%', left: '38%', animationDuration: '3s' }} />
-        <div className="absolute w-3 h-3 bg-blue-400/40 rounded-full animate-ping" style={{ top: '28%', left: '50%', animationDuration: '4.2s' }} />
-        <div className="absolute w-2 h-2 bg-purple-500/45 rounded-full animate-pulse" style={{ top: '38%', left: '60%', animationDuration: '3.8s' }} />
-        <div className="absolute w-3 h-3 bg-purple-400/35 rounded-full animate-ping" style={{ top: '32%', left: '72%', animationDuration: '4.5s' }} />
+        <div className="absolute w-2 h-2 bg-purple-300/50 rounded-full animate-pulse" style={{ top: '40%', left: '18%', animationDuration: '3s' }} />
+        <div className="absolute w-3 h-3 bg-blue-400/40 rounded-full animate-ping" style={{ top: '50%', left: '8%', animationDuration: '3.5s' }} />
+        <div className="absolute w-2 h-2 bg-purple-500/45 rounded-full animate-pulse" style={{ top: '58%', left: '15%', animationDuration: '4s' }} />
+        <div className="absolute w-3 h-3 bg-purple-500/40 rounded-full animate-ping" style={{ top: '70%', left: '10%', animationDuration: '4.2s' }} />
+        <div className="absolute w-2 h-2 bg-blue-400/45 rounded-full animate-pulse" style={{ top: '78%', left: '20%', animationDuration: '3.5s' }} />
+        <div className="absolute w-4 h-4 bg-purple-400/35 rounded-full animate-ping" style={{ top: '72%', left: '6%', animationDuration: '4.5s' }} />
+        <div className="absolute w-2 h-2 bg-purple-500/45 rounded-full animate-pulse" style={{ top: '88%', left: '3%', animationDuration: '4s' }} />
+        <div className="absolute w-2 h-2 bg-blue-400/40 rounded-full animate-ping" style={{ top: '92%', left: '12%', animationDuration: '3.5s' }} />
+
+        {/* Partikel KANAN (left: 75% - 95%) */}
+        <div className="absolute w-2 h-2 bg-purple-500/50 rounded-full animate-pulse" style={{ top: '20%', left: '78%', animationDuration: '4.2s' }} />
+        <div className="absolute w-4 h-4 bg-blue-500/35 rounded-full animate-ping" style={{ top: '7%', left: '88%', animationDuration: '3.2s' }} />
+        <div className="absolute w-2 h-2 bg-purple-300/55 rounded-full animate-pulse" style={{ top: '14%', left: '92%', animationDuration: '2.8s' }} />
         <div className="absolute w-2 h-2 bg-blue-500/40 rounded-full animate-pulse" style={{ top: '42%', left: '82%', animationDuration: '3.2s' }} />
         <div className="absolute w-4 h-4 bg-purple-300/50 rounded-full animate-ping" style={{ top: '26%', left: '90%', animationDuration: '2.8s' }} />
         <div className="absolute w-2 h-2 bg-purple-400/45 rounded-full animate-pulse" style={{ top: '36%', left: '95%', animationDuration: '4s' }} />
-
-        <div className="absolute w-2 h-2 bg-blue-500/40 rounded-full animate-ping" style={{ top: '50%', left: '8%', animationDuration: '3.5s' }} />
-        <div className="absolute w-3 h-3 bg-purple-400/45 rounded-full animate-pulse" style={{ top: '58%', left: '18%', animationDuration: '4s' }} />
-        <div className="absolute w-2 h-2 bg-purple-500/35 rounded-full animate-ping" style={{ top: '48%', left: '28%', animationDuration: '4.5s' }} />
-        <div className="absolute w-4 h-4 bg-blue-400/40 rounded-full animate-pulse" style={{ top: '55%', left: '40%', animationDuration: '3.2s' }} />
-        <div className="absolute w-2 h-2 bg-purple-300/50 rounded-full animate-ping" style={{ top: '52%', left: '52%', animationDuration: '3.8s' }} />
-        <div className="absolute w-3 h-3 bg-purple-500/45 rounded-full animate-ping" style={{ top: '62%', left: '62%', animationDuration: '4.2s' }} />
-        <div className="absolute w-2 h-2 bg-blue-400/35 rounded-full animate-pulse" style={{ top: '50%', left: '75%', animationDuration: '4.5s' }} />
-        <div className="absolute w-4 h-4 bg-purple-400/40 rounded-full animate-ping" style={{ top: '58%', left: '85%', animationDuration: '3s' }} />
+        <div className="absolute w-3 h-3 bg-purple-500/45 rounded-full animate-ping" style={{ top: '62%', left: '78%', animationDuration: '4.2s' }} />
+        <div className="absolute w-2 h-2 bg-blue-400/35 rounded-full animate-pulse" style={{ top: '50%', left: '85%', animationDuration: '4.5s' }} />
+        <div className="absolute w-4 h-4 bg-purple-400/40 rounded-full animate-ping" style={{ top: '58%', left: '90%', animationDuration: '3s' }} />
         <div className="absolute w-2 h-2 bg-purple-300/50 rounded-full animate-pulse" style={{ top: '48%', left: '92%', animationDuration: '2.8s' }} />
         <div className="absolute w-3 h-3 bg-blue-500/45 rounded-full animate-pulse" style={{ top: '56%', left: '97%', animationDuration: '4s' }} />
-
-        <div className="absolute w-3 h-3 bg-purple-500/40 rounded-full animate-ping" style={{ top: '70%', left: '10%', animationDuration: '4.2s' }} />
-        <div className="absolute w-2 h-2 bg-blue-400/45 rounded-full animate-pulse" style={{ top: '78%', left: '20%', animationDuration: '3.5s' }} />
-        <div className="absolute w-4 h-4 bg-purple-400/35 rounded-full animate-ping" style={{ top: '72%', left: '30%', animationDuration: '4.5s' }} />
-        <div className="absolute w-2 h-2 bg-purple-500/50 rounded-full animate-pulse" style={{ top: '80%', left: '42%', animationDuration: '3.2s' }} />
-        <div className="absolute w-3 h-3 bg-blue-500/40 rounded-full animate-ping" style={{ top: '75%', left: '55%', animationDuration: '4s' }} />
-        <div className="absolute w-2 h-2 bg-purple-300/45 rounded-full animate-pulse" style={{ top: '85%', left: '65%', animationDuration: '3.8s' }} />
-        <div className="absolute w-4 h-4 bg-purple-400/40 rounded-full animate-ping" style={{ top: '72%', left: '78%', animationDuration: '4.5s' }} />
-        <div className="absolute w-2 h-2 bg-blue-500/35 rounded-full animate-pulse" style={{ top: '82%', left: '88%', animationDuration: '3s' }} />
+        <div className="absolute w-2 h-2 bg-purple-300/45 rounded-full animate-pulse" style={{ top: '85%', left: '80%', animationDuration: '3.8s' }} />
+        <div className="absolute w-4 h-4 bg-purple-400/40 rounded-full animate-ping" style={{ top: '72%', left: '88%', animationDuration: '4.5s' }} />
+        <div className="absolute w-2 h-2 bg-blue-500/35 rounded-full animate-pulse" style={{ top: '82%', left: '93%', animationDuration: '3s' }} />
         <div className="absolute w-3 h-3 bg-purple-300/50 rounded-full animate-ping" style={{ top: '75%', left: '95%', animationDuration: '2.8s' }} />
-        <div className="absolute w-2 h-2 bg-purple-500/45 rounded-full animate-pulse" style={{ top: '88%', left: '3%', animationDuration: '4s' }} />
-
-        <div className="absolute w-2 h-2 bg-blue-400/40 rounded-full animate-ping" style={{ top: '92%', left: '15%', animationDuration: '3.5s' }} />
-        <div className="absolute w-3 h-3 bg-purple-500/45 rounded-full animate-pulse" style={{ top: '95%', left: '25%', animationDuration: '4.2s' }} />
-        <div className="absolute w-2 h-2 bg-purple-400/35 rounded-full animate-ping" style={{ top: '90%', left: '38%', animationDuration: '4.5s' }} />
-        <div className="absolute w-4 h-4 bg-blue-500/50 rounded-full animate-pulse" style={{ top: '98%', left: '50%', animationDuration: '3.2s' }} />
-        <div className="absolute w-2 h-2 bg-purple-300/40 rounded-full animate-ping" style={{ top: '93%', left: '62%', animationDuration: '4s' }} />
-        <div className="absolute w-3 h-3 bg-purple-500/45 rounded-full animate-pulse" style={{ top: '96%', left: '75%', animationDuration: '3.8s' }} />
-        <div className="absolute w-2 h-2 bg-blue-400/35 rounded-full animate-ping" style={{ top: '91%', left: '85%', animationDuration: '4.5s' }} />
-        <div className="absolute w-4 h-4 bg-purple-400/40 rounded-full animate-pulse" style={{ top: '95%', left: '92%', animationDuration: '3s' }} />
+        <div className="absolute w-3 h-3 bg-purple-500/45 rounded-full animate-pulse" style={{ top: '96%', left: '85%', animationDuration: '3.8s' }} />
+        <div className="absolute w-2 h-2 bg-blue-400/35 rounded-full animate-pulse" style={{ top: '91%', left: '90%', animationDuration: '4.5s' }} />
+        <div className="absolute w-4 h-4 bg-purple-400/40 rounded-full animate-pulse" style={{ top: '95%', left: '80%', animationDuration: '3s' }} />
       </div>
 
       {/* Navigation - Premium Glassmorphism */}
