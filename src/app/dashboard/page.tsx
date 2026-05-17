@@ -1,7 +1,9 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react'
-import dynamic from 'next/dynamic'
+import dynamicImport from 'next/dynamic'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
@@ -43,6 +45,97 @@ import { formatCurrency } from '@/lib/supabase'
 import { ChartErrorBoundary } from '@/components/ChartErrorBoundary'
 import AchievementCenter from '@/components/AchievementCenter'
 import PaywallModal from '@/components/PaywallModal'
+
+
+// ==================== INTERFACES ====================
+
+interface Trade {
+  id: string
+  symbol: string
+  type: 'BUY' | 'SELL'
+  open_price: number
+  close_price: number
+  lot_size: number
+  profit_loss: number
+  open_time: string
+  close_time: string
+  session: string | null
+  notes?: string
+  image_url?: string | null
+}
+
+interface JournalEntry {
+  id: string
+  title: string
+  content: string
+  mood: string | null
+  market_condition: string | null
+  created_at: string
+}
+
+interface WatchlistItem {
+  id: string
+  symbol: string
+  name: string
+  target_price: number | null
+  notes: string | null
+  created_at: string
+}
+
+interface Analytics {
+  totalTrades: number
+  winningTrades: number
+  losingTrades: number
+  winRate: number
+  totalPL: number
+  avgProfit: number
+  avgLoss: number
+  profitFactor: number
+  maxDrawdown: number
+  sharpeRatio: number
+  equityCurve: { date: string; equity: number }[]
+  sessionPerformance: { session: string; trades: number; pl: number; winRate: number }[]
+  monthlyPerformance: { month: string; pl: number; trades: number }[]
+}
+
+interface TradeFormData {
+  symbol: string
+  type: 'BUY' | 'SELL'
+  open_price: string
+  close_price: string
+  lot_size: string
+  profit_loss: string
+  open_time: string
+  close_time: string
+  session: string
+  notes: string
+  image_url: string
+}
+
+interface MTReportPreview {
+  gain: number
+  profit: number
+  totalTrades: number
+  winRate: number
+  bestTrade: number
+  worstTrade: number
+  avgTrade: number
+  trades: Trade[]
+}
+
+const emptyFormData: TradeFormData = {
+  symbol: '',
+  type: 'BUY',
+  open_price: '',
+  close_price: '',
+  lot_size: '0.1',
+  profit_loss: '',
+  open_time: '',
+  close_time: '',
+  session: '',
+  notes: '',
+  image_url: '',
+}
 
 // ==================== DEMO DATA ====================
 const demoTrades: Trade[] = [
@@ -180,95 +273,7 @@ const menuItems = [
   { id: 'psychology', label: 'Psychology Tracking', labelId: 'Psikologi', icon: Heart, category: 'lanjutan', proOnly: true, proType: 'purple' },
 ]
 
-// ==================== INTERFACES ====================
 
-interface Trade {
-  id: string
-  symbol: string
-  type: 'BUY' | 'SELL'
-  open_price: number
-  close_price: number
-  lot_size: number
-  profit_loss: number
-  open_time: string
-  close_time: string
-  session: string | null
-  notes?: string
-  image_url?: string | null
-}
-
-interface JournalEntry {
-  id: string
-  title: string
-  content: string
-  mood: string | null
-  market_condition: string | null
-  created_at: string
-}
-
-interface WatchlistItem {
-  id: string
-  symbol: string
-  name: string
-  target_price: number | null
-  notes: string | null
-  created_at: string
-}
-
-interface Analytics {
-  totalTrades: number
-  winningTrades: number
-  losingTrades: number
-  winRate: number
-  totalPL: number
-  avgProfit: number
-  avgLoss: number
-  profitFactor: number
-  maxDrawdown: number
-  sharpeRatio: number
-  equityCurve: { date: string; equity: number }[]
-  sessionPerformance: { session: string; trades: number; pl: number; winRate: number }[]
-  monthlyPerformance: { month: string; pl: number; trades: number }[]
-}
-
-interface TradeFormData {
-  symbol: string
-  type: 'BUY' | 'SELL'
-  open_price: string
-  close_price: string
-  lot_size: string
-  profit_loss: string
-  open_time: string
-  close_time: string
-  session: string
-  notes: string
-  image_url: string
-}
-
-interface MTReportPreview {
-  gain: number
-  profit: number
-  totalTrades: number
-  winRate: number
-  bestTrade: number
-  worstTrade: number
-  avgTrade: number
-  trades: Trade[]
-}
-
-const emptyFormData: TradeFormData = {
-  symbol: '',
-  type: 'BUY',
-  open_price: '',
-  close_price: '',
-  lot_size: '0.1',
-  profit_loss: '',
-  open_time: '',
-  close_time: '',
-  session: '',
-  notes: '',
-  image_url: '',
-}
 
 // Helper: Format date to local timezone (YYYY-MM-DD HH:mm:ss)
 function formatLocalDateTime(date: Date): string {
@@ -315,7 +320,7 @@ interface TradeFormProps {
   saving?: boolean
 }
 
-const TradeForm = memo(function TradeForm({ 
+function TradeForm({ 
   formData, 
   onFormChange, 
   onTypeChange, 
@@ -490,7 +495,7 @@ const TradeForm = memo(function TradeForm({
       </div>
     </div>
   )
-})
+}
 
 // ==================== SMART PDF/HTML PARSER ====================
 
@@ -591,34 +596,7 @@ function parseMT4HTML(html: string): MTReportPreview | null {
 
 // ==================== MAIN COMPONENT ====================
 
-// Wrapper to prevent ReferenceError
-export default function LuxTradeDashboardWrapper() {
-  try {
-    return <LuxTradeDashboard />
-  } catch (error) {
-    console.error('🔴 [CRITICAL] Error in LuxTradeDashboard:', error)
-    // Fallback rendering
-    return (
-      <div className="min-h-screen bg-red-900 flex items-center justify-center p-6">
-        <div className="text-center max-w-md">
-          <AlertTriangle className="w-16 h-16 text-white mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-white mb-2">Dashboard Error</h1>
-          <p className="text-white/80 mb-4">
-            {error instanceof Error ? error.message : 'An unexpected error occurred'}
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-white text-red-900 rounded-lg font-semibold"
-          >
-            Reload Page
-          </button>
-        </div>
-      </div>
-    )
-  }
-}
-
-function LuxTradeDashboard() {
+export default function LuxTradeDashboard() {
   // CSR Force - Prevent hydration issues by only rendering after mount
   const [hasMounted, setHasMounted] = useState(false)
 
