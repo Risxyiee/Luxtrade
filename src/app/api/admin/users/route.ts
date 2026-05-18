@@ -132,9 +132,10 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json()
-    const { userId, days = 30 } = body
+    const { userId, action = 'activate', days = 30 } = body
 
-    console.log('🔧 [ADMIN API] PATCH request - Activate PRO')
+    console.log('🔧 [ADMIN API] PATCH request')
+    console.log('🔧 [ADMIN API] action:', action)
     console.log('🔧 [ADMIN API] userId:', userId)
     console.log('🔧 [ADMIN API] days:', days)
     console.log('🔧 [ADMIN API] supabaseAdmin available:', !!supabaseAdmin)
@@ -142,7 +143,11 @@ export async function PATCH(request: NextRequest) {
     if (!supabaseAdmin) {
       console.error('❌ [ADMIN API] supabaseAdmin is not configured')
       return NextResponse.json(
-        { error: 'Admin configuration error. SUPABASE_SERVICE_ROLE_KEY is missing.' },
+        {
+          error: 'Admin configuration error',
+          details: 'SUPABASE_SERVICE_ROLE_KEY is missing in environment variables. Please add it in Vercel dashboard.',
+          solution: 'Go to Vercel Project Settings > Environment Variables > Add SUPABASE_SERVICE_ROLE_KEY'
+        },
         { status: 500 }
       )
     }
@@ -178,57 +183,96 @@ export async function PATCH(request: NextRequest) {
     console.log('✅ [ADMIN API] User found:', user.email)
     console.log('📊 [ADMIN API] Current metadata:', JSON.stringify(user.user_metadata, null, 2))
 
-    // Calculate new subscription date (add days to current date or extend if already PRO)
-    const now = new Date()
-    const currentSubscriptionUntil = user.user_metadata?.subscription_until
-      ? new Date(user.user_metadata.subscription_until)
-      : now
+    // Handle different actions
+    if (action === 'revoke') {
+      // Revoke PRO
+      const newMetadata = {
+        ...user.user_metadata,
+        is_pro: false,
+        subscription_status: 'inactive',
+        subscription_until: null,
+        updated_at: new Date().toISOString()
+      }
 
-    // If subscription is still valid, extend from current expiry. If expired, start from now.
-    const baseDate = currentSubscriptionUntil > now ? currentSubscriptionUntil : now
-    const subscriptionUntil = new Date(baseDate.getTime() + (days * 24 * 60 * 60 * 1000)).toISOString()
+      console.log('📝 [ADMIN API] New metadata (revoke):', JSON.stringify(newMetadata, null, 2))
 
-    console.log('📅 [ADMIN API] Subscription until:', subscriptionUntil)
+      const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        user_metadata: newMetadata
+      })
 
-    // Merge existing metadata with new PRO status
-    const newMetadata = {
-      ...user.user_metadata,
-      is_pro: true,
-      subscription_status: 'active',
-      subscription_until: subscriptionUntil,
-      has_ever_been_pro: true,
-      updated_at: new Date().toISOString()
-    }
+      if (updateError) {
+        console.error('❌ [ADMIN API] Error updating user:', updateError)
+        return NextResponse.json(
+          { error: updateError.message, details: updateError },
+          { status: 500 }
+        )
+      }
 
-    console.log('📝 [ADMIN API] New metadata:', JSON.stringify(newMetadata, null, 2))
+      console.log('✅ [ADMIN API] PRO revoked for user:', updatedUser.user?.email)
 
-    // Update user metadata
-    const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-      user_metadata: newMetadata
-    })
+      return NextResponse.json({
+        message: 'PRO status revoked successfully',
+        user: updatedUser.user
+      })
+    } else if (action === 'activate') {
+      // Activate PRO
+      // Calculate new subscription date (add days to current date or extend if already PRO)
+      const now = new Date()
+      const currentSubscriptionUntil = user.user_metadata?.subscription_until
+        ? new Date(user.user_metadata.subscription_until)
+        : now
 
-    if (updateError) {
-      console.error('❌ [ADMIN API] Error updating user:', updateError)
+      // If subscription is still valid, extend from current expiry. If expired, start from now.
+      const baseDate = currentSubscriptionUntil > now ? currentSubscriptionUntil : now
+      const subscriptionUntil = new Date(baseDate.getTime() + (days * 24 * 60 * 60 * 1000)).toISOString()
+
+      console.log('📅 [ADMIN API] Subscription until:', subscriptionUntil)
+
+      // Merge existing metadata with new PRO status
+      const newMetadata = {
+        ...user.user_metadata,
+        is_pro: true,
+        subscription_status: 'active',
+        subscription_until: subscriptionUntil,
+        has_ever_been_pro: true,
+        updated_at: new Date().toISOString()
+      }
+
+      console.log('📝 [ADMIN API] New metadata:', JSON.stringify(newMetadata, null, 2))
+
+      // Update user metadata
+      const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        user_metadata: newMetadata
+      })
+
+      if (updateError) {
+        console.error('❌ [ADMIN API] Error updating user:', updateError)
+        return NextResponse.json(
+          { error: updateError.message, details: updateError },
+          { status: 500 }
+        )
+      }
+
+      console.log('✅ [ADMIN API] PRO activated for user:', updatedUser.user?.email)
+      console.log('✅ [ADMIN API] Updated user metadata:', JSON.stringify(updatedUser.user?.user_metadata, null, 2))
+
+      return NextResponse.json({
+        message: 'PRO activated successfully',
+        user: updatedUser.user,
+        subscription_until: subscriptionUntil
+      })
+    } else {
       return NextResponse.json(
-        { error: updateError.message, details: updateError },
-        { status: 500 }
+        { error: 'Invalid action. Use "activate" or "revoke"' },
+        { status: 400 }
       )
     }
-
-    console.log('✅ [ADMIN API] PRO activated for user:', updatedUser.user?.email)
-    console.log('✅ [ADMIN API] Updated user metadata:', JSON.stringify(updatedUser.user?.user_metadata, null, 2))
-
-    return NextResponse.json({
-      message: 'PRO activated successfully',
-      user: updatedUser.user,
-      subscription_until: subscriptionUntil
-    })
   } catch (error) {
-    console.error('❌ [ADMIN API] Error activating PRO:', error)
+    console.error('❌ [ADMIN API] Error in PATCH:', error)
     console.error('❌ [ADMIN API] Error stack:', error instanceof Error ? error.stack : 'No stack')
     return NextResponse.json(
       {
-        error: 'Failed to activate PRO',
+        error: 'Failed to process request',
         details: error instanceof Error ? error.message : String(error)
       },
       { status: 500 }
