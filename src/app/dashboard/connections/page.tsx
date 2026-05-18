@@ -81,6 +81,15 @@ export default function ConnectionsPage() {
   const [syncProgress, setSyncProgress] = useState(0)
   const [totalTrades, setTotalTrades] = useState(0)
 
+  // Helper: Get auth headers for API calls
+  const getAuthHeaders = useCallback(() => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`
+    }
+    return headers
+  }, [session?.access_token])
+
   // Text content in both languages
   const content = {
     title: language === 'id' ? 'Koneksi Akun Trading' : 'Trading Account Connections',
@@ -246,7 +255,10 @@ export default function ConnectionsPage() {
   // Check quota before connecting
   const checkQuotaAndProceed = async (): Promise<boolean> => {
     try {
-      const response = await fetch('/api/trading-accounts/quota')
+      console.log('🔵 [DEBUG] Checking quota with session:', !!session)
+      const response = await fetch('/api/trading-accounts/quota', {
+        headers: getAuthHeaders()
+      })
 
       if (response.status === 401) {
         // User not authenticated - don't redirect immediately, just show error
@@ -308,9 +320,7 @@ export default function ConnectionsPage() {
       // Step 1: Create trading account record
       const createResponse = await fetch('/api/trading-accounts', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           account_number: formData.accountNumber,
           broker_server: formData.brokerServer,
