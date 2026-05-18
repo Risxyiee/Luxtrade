@@ -184,7 +184,11 @@ export default function ConnectionsPage() {
       const response = await fetch('/api/trading-accounts')
 
       if (!response.ok) {
-        throw new Error('Failed to fetch accounts')
+        // Just log the error, don't show toast - user might not be authenticated yet
+        console.error('Failed to fetch accounts:', response.status)
+        setConnectedAccounts([])
+        setUserPlan('free')
+        return
       }
 
       const data = await response.json()
@@ -203,7 +207,9 @@ export default function ConnectionsPage() {
       }
     } catch (error) {
       console.error('Error fetching accounts:', error)
-      toast.error(content.errorMessage)
+      // Silently fail - just show empty state
+      setConnectedAccounts([])
+      setUserPlan('free')
     } finally {
       setLoadingAccounts(false)
     }
