@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
 
 const ADMIN_EMAIL = 'luxtradee@gmail.com'
 
@@ -16,81 +15,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'User ID is required' },
-        { status: 400 }
-      )
-    }
-
-    // Find user
-    const user = await db.user.findUnique({
-      where: { id: userId }
-    })
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'User not found' },
-        { status: 404 }
-      )
-    }
-
-    // Calculate end date
-    let endDate: Date | null = null
-    const planType = months === 0 ? 'LIFETIME' : 'MONTHLY'
-
-    if (planType === 'LIFETIME') {
-      // Lifetime - 10 years
-      endDate = new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000)
-    } else if (months) {
-      // Monthly - calculate end date
-      endDate = new Date()
-      endDate.setMonth(endDate.getMonth() + months)
-    }
-
-    // Create or update subscription
-    const existingSubscription = await db.userSubscription.findFirst({
-      where: {
-        userId,
-        status: 'active'
-      }
-    })
-
-    if (existingSubscription) {
-      // Update existing subscription
-      await db.userSubscription.update({
-        where: { id: existingSubscription.id },
-        data: {
-          plan: 'PRO',
-          status: 'active',
-          endDate,
-          updatedAt: new Date()
-        }
-      })
-    } else {
-      // Create new subscription
-      await db.userSubscription.create({
-        data: {
-          userId,
-          plan: 'PRO',
-          status: 'active',
-          startDate: new Date(),
-          endDate,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-      })
-    }
-
+    // This endpoint is deprecated - use /api/admin/users instead
     return NextResponse.json({
-      success: true,
-      message: `PRO activated for ${months === 0 ? 'lifetime' : months + ' month(s)'}`
+      success: false,
+      error: 'This endpoint is deprecated. Please use /api/admin/users instead.',
     })
   } catch (error) {
-    console.error('Error activating PRO:', error)
+    console.error('Error in deprecated activate-pro:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to activate PRO' },
-      { status: 500 }
+      { success: false, error: 'This endpoint is deprecated' },
+      { status: 400 }
     )
   }
 }
@@ -109,41 +43,16 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'User ID is required' },
-        { status: 400 }
-      )
-    }
-
-    // Find and update active subscription
-    const activeSubscription = await db.userSubscription.findFirst({
-      where: {
-        userId,
-        status: 'active'
-      }
-    })
-
-    if (activeSubscription) {
-      await db.userSubscription.update({
-        where: { id: activeSubscription.id },
-        data: {
-          status: 'cancelled',
-          endDate: new Date(),
-          updatedAt: new Date()
-        }
-      })
-    }
-
+    // This endpoint is deprecated - use /api/admin/users instead
     return NextResponse.json({
-      success: true,
-      message: 'PRO status deactivated'
+      success: false,
+      error: 'This endpoint is deprecated. Please use /api/admin/users instead.',
     })
   } catch (error) {
-    console.error('Error deactivating PRO:', error)
+    console.error('Error in deprecated activate-pro:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to deactivate PRO' },
-      { status: 500 }
+      { success: false, error: 'This endpoint is deprecated' },
+      { status: 400 }
     )
   }
 }

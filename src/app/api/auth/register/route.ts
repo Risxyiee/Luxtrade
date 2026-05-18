@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { db } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   try {
@@ -54,38 +53,8 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ User created in Supabase Auth, UID:', data.user.id)
 
-    // Upsert user to Prisma with SAME UUID
-    try {
-      const existingPrismaUser = await db.user.findUnique({
-        where: { id: data.user.id }
-      })
-
-      if (existingPrismaUser) {
-        console.log('⏭️ User already exists in Prisma, updating...')
-        await db.user.update({
-          where: { id: data.user.id },
-          data: {
-            name: fullName || email.split('@')[0],
-            updatedAt: new Date()
-          }
-        })
-      } else {
-        console.log('📋 Creating new user in Prisma...')
-        await db.user.create({
-          data: {
-            id: data.user.id, // Use same UUID from Supabase Auth
-            email: data.user.email!,
-            name: fullName || email.split('@')[0]
-          }
-        })
-      }
-
-      console.log('✅ User synced to Prisma successfully')
-    } catch (prismaError) {
-      console.error('⚠️ Error syncing to Prisma:', prismaError)
-      // Don't fail the registration if Prisma sync fails
-      // User is still created in Supabase Auth
-    }
+    // User is now fully managed in Supabase Auth with metadata
+    console.log('✅ Registration complete - using Supabase Auth only')
 
     return NextResponse.json({
       success: true,
