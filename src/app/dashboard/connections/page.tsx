@@ -275,6 +275,12 @@ export default function ConnectionsPage() {
     e.preventDefault()
     console.log('🔵 [DEBUG] handleConnect called', { formData, isConnecting, event: e })
 
+    // Prevent double submission
+    if (isConnecting) {
+      console.log('🔴 [DEBUG] Already connecting, ignoring click')
+      return
+    }
+
     // Validate form
     if (!formData.accountNumber || !formData.password || !formData.brokerServer) {
       console.log('🔴 [DEBUG] Validation failed - missing fields', { formData })
@@ -283,17 +289,18 @@ export default function ConnectionsPage() {
     }
 
     console.log('🟢 [DEBUG] Validation passed, checking quota...')
-    // Check quota before proceeding
-    const canProceed = await checkQuotaAndProceed()
-    console.log('🟡 [DEBUG] Quota check result:', canProceed)
-    if (!canProceed) {
-      return
-    }
-
-    console.log('🟣 [DEBUG] Starting connection process...')
     setIsConnecting(true)
 
     try {
+      // Check quota before proceeding
+      const canProceed = await checkQuotaAndProceed()
+      console.log('🟡 [DEBUG] Quota check result:', canProceed)
+      if (!canProceed) {
+        return
+      }
+
+      console.log('🟣 [DEBUG] Starting connection process...')
+
       // Step 1: Create trading account record
       const createResponse = await fetch('/api/trading-accounts', {
         method: 'POST',
@@ -312,6 +319,7 @@ export default function ConnectionsPage() {
       if (!createResponse.ok) {
         if (createResponse.status === 403) {
           // Quota exceeded
+          setIsConnecting(false)
           setShowPaywall(true)
           return
         }
