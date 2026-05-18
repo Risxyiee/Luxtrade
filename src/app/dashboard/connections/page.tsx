@@ -341,6 +341,16 @@ export default function ConnectionsPage() {
           setShowPaywall(true)
           return
         }
+        if (createResponse.status === 409) {
+          // Duplicate account
+          setIsConnecting(false)
+          toast.error(
+            language === 'id'
+              ? 'Akun ini sudah terhubung!'
+              : 'This account is already connected!'
+          )
+          return
+        }
         throw new Error(createData.error || 'Failed to create trading account')
       }
 

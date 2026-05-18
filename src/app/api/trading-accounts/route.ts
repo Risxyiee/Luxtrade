@@ -192,8 +192,22 @@ export async function POST(req: NextRequest) {
         remainingQuota: quota.remainingQuota - 1
       }
     }, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating trading account:', error)
+
+    // Handle duplicate key error specifically
+    if (error?.code === '23505') {
+      console.log('🟡 [TRADING ACCOUNTS API POST] Duplicate account detected:', error.details)
+      return NextResponse.json(
+        {
+          error: 'Account number already exists',
+          message: 'This trading account is already connected to your account',
+          details: error.details
+        },
+        { status: 409 }
+      )
+    }
+
     return NextResponse.json(
       {
         error: 'Failed to create trading account',
