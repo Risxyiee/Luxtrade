@@ -318,6 +318,7 @@ export default function ConnectionsPage() {
       console.log('🟣 [DEBUG] Starting connection process...')
 
       // Step 1: Create trading account record
+      console.log('🔵 [DEBUG] Creating trading account record...')
       const createResponse = await fetch('/api/trading-accounts', {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -328,9 +329,12 @@ export default function ConnectionsPage() {
         }),
       })
 
+      console.log('🔵 [DEBUG] Create response status:', createResponse.status)
       const createData = await createResponse.json()
+      console.log('🔵 [DEBUG] Create response data:', createData)
 
       if (!createResponse.ok) {
+        console.log('🔴 [DEBUG] Create failed:', createResponse.status, createData)
         if (createResponse.status === 403) {
           // Quota exceeded
           setIsConnecting(false)
@@ -341,8 +345,10 @@ export default function ConnectionsPage() {
       }
 
       const tradingAccountId = createData.data.id
+      console.log('🟢 [DEBUG] Trading account created, ID:', tradingAccountId)
 
       // Step 2: Connect to MetaApi
+      console.log('🔵 [DEBUG] Connecting to MetaApi...')
       const metaApiResponse = await fetch('/api/metaapi/connect', {
         method: 'POST',
         headers: {
@@ -357,9 +363,12 @@ export default function ConnectionsPage() {
         }),
       })
 
+      console.log('🔵 [DEBUG] MetaApi response status:', metaApiResponse.status)
       const metaApiData = await metaApiResponse.json()
+      console.log('🔵 [DEBUG] MetaApi response data:', metaApiData)
 
       if (!metaApiResponse.ok) {
+        console.log('🔴 [DEBUG] MetaApi connect failed:', metaApiResponse.status, metaApiData)
         // Update status to ERROR in our database
         await fetch(`/api/trading-accounts/${tradingAccountId}`, {
           method: 'PATCH',
@@ -371,6 +380,7 @@ export default function ConnectionsPage() {
       }
 
       // Success!
+      console.log('✅ [DEBUG] Connection successful!')
       toast.success(content.successMessage)
 
       // Reset form
@@ -384,9 +394,10 @@ export default function ConnectionsPage() {
       // Refresh accounts list
       await fetchConnectedAccounts()
     } catch (error) {
-      console.error('Error connecting account:', error)
+      console.error('🔴 [DEBUG] Error connecting account:', error)
       toast.error(content.errorMessage)
     } finally {
+      console.log('🔄 [DEBUG] Resetting isConnecting to false')
       setIsConnecting(false)
     }
   }
