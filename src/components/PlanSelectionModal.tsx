@@ -107,7 +107,7 @@ const plans: Plan[] = [
       '1-on-1 coaching session',
       'Private community access',
       'Priority feature requests',
-      'VIP WhatsApp support'
+      'VIP Telegram support'
     ],
     highlight: true
   }
