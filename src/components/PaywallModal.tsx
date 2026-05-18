@@ -35,28 +35,28 @@ export default function PaywallModal({
   const isEnglish = language === 'en'
   const [showFeatures, setShowFeatures] = useState(false)
 
-  // Pricing data based on language
+  // Pricing data based on language - Matching landing page prices
   const pricing = {
     pro: {
-      title: 'ELITE PRO',
+      title: isEnglish ? 'ELITE PRO' : 'ELITE PRO',
       price: isEnglish ? '$3' : 'Rp 49.000',
       period: isEnglish ? '/ Month' : '/ Bulan',
-      description: isEnglish ? '🔥 UNLIMITED Journals + Full AI' : '🔥 UNLIMITED Jurnal + AI Penuh',
+      description: isEnglish ? 'For serious traders who want consistent profits' : 'Untuk trader serius yang ingin profit konsisten',
       popular: isEnglish ? 'Most Popular' : 'Paling Populer'
     },
     lifetime: {
-      title: 'LIFETIME ULTRA',
+      title: isEnglish ? 'LIFETIME ULTRA' : 'LIFETIME ULTRA',
       price: isEnglish ? '$5' : 'Rp 52.000',
-      period: isEnglish ? '/ One-Time' : '/ Sekali Bayar',
-      description: isEnglish ? '👑 Lifetime Access - Limited Slots!' : '👑 Akses Selamanya - Slot Terbatas!',
+      period: isEnglish ? '/ One-Time Payment' : '/ Sekali Bayar',
+      description: isEnglish ? 'Lifetime access at promotional price' : 'Akses seumur hidup dengan harga promo',
       promo: isEnglish ? 'PROMO: ONLY 30 SLOTS LEFT!' : 'PROMO MERDEKA TRADER - SISA 30 SLOT!'
     }
   }
 
-  // Features list based on language
+  // Features list based on language - Matching landing page features
   const proFeatures = isEnglish ? [
     '🔥 UNLIMITED Trade Journals (No Monthly Limits)',
-    '🧠 Full Smart AI Analysis (Mistake Detection & Solutions)',
+    '🧠 Full Smart AI Analysis Access (Mistake Detection & Solutions)',
     '📊 In-Depth Win-Rate Charts & Mistake Tracker',
     '🧮 Advanced Risk & Position Calculator',
     '📥 Free Data Export to Excel / PDF',
@@ -191,8 +191,8 @@ export default function PaywallModal({
                   )}
                 </div>
 
-                {/* Pricing Cards */}
-                {isTrialExhausted && (
+                {/* Pricing Cards - Show when trial is exhausted OR user wants to upgrade */}
+                {(isTrialExhausted || hasTrialsLeft) && (
                   <div className="space-y-3 mb-6">
                     {/* Elite Pro */}
                     <Card
@@ -351,8 +351,8 @@ export default function PaywallModal({
                   )}
                 </div>
 
-                {/* Footer - Payment Guide */}
-                {isTrialExhausted && (
+                {/* Footer - Payment Guide - Show when trial is exhausted OR user wants to upgrade */}
+                {(isTrialExhausted || hasTrialsLeft) && (
                   <div className="mt-6 pt-4 border-t border-white/10">
                     <div className="text-center space-y-2">
                       <p className="text-xs text-white/40 font-semibold mb-3">
