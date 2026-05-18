@@ -7,7 +7,7 @@ import {
   Menu, X, BarChart3, Activity, Calendar, BookOpen, Eye, 
   Newspaper, CalendarDays, Trophy, Target, Grid3X3, PieChart, 
   Brain, FileText, Flame, Heart, Settings, Shield, Crown, 
-  Zap, AlertCircle, Lock, LogOut 
+  Zap, AlertCircle, Lock, LogOut, Link2 
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
@@ -45,6 +45,7 @@ const menuItems = [
   { id: 'calendar', label: 'Calendar', labelId: 'Kalender', icon: Calendar, category: 'utama', proOnly: false },
   { id: 'journal', label: 'Journal', labelId: 'Jurnal', icon: BookOpen, category: 'utama', proOnly: false },
   { id: 'watchlist', label: 'Watchlist', labelId: 'Daftar Pantauan', icon: Eye, category: 'utama', proOnly: false },
+  { id: 'auto-journal', label: 'Auto-Journal', labelId: 'Auto-Jurnal', icon: Link2, category: 'utama', proOnly: false, isExternalLink: true, href: '/dashboard/connections' },
   { id: 'news', label: 'Market News', labelId: 'Berita Pasar', icon: Newspaper, category: 'utama', proOnly: false },
   { id: 'economic-calendar', label: 'Economic Calendar', labelId: 'Kalender Ekonomi', icon: CalendarDays, category: 'utama', proOnly: false },
   { id: 'achievements', label: 'Achievements', labelId: 'Pencapaian', icon: Trophy, category: 'utama', proOnly: false },
@@ -138,45 +139,51 @@ export default function Sidebar({
               {categoryItems.map((item: any) => {
                 const isLocked = item.proOnly && !isPro
                 const proType = item.proType || 'purple'
+                const isExternalLink = item.isExternalLink && item.href
 
                 return (
-                  <motion.button
-                    key={item.id}
-                    onClick={() => {
-                      if (item.proOnly && !isPro) {
-                        setPlanSelectionModalOpen(true)
-                      } else {
-                        setActiveTab(item.id)
-                        setMobileSidebarOpen(false)
-                      }
-                    }}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative ${
-                      activeTab === item.id
-                        ? 'bg-gradient-to-r from-purple-500/20 to-violet-500/10 text-purple-400 border border-purple-500/30'
-                        : 'text-gray-400 hover:bg-purple-500/10 hover:text-white'
-                    } ${isLocked ? 'opacity-60' : ''}`}
-                    whileHover={isLocked ? {} : { x: 4 }}
-                    whileTap={isLocked ? {} : { scale: 0.98 }}
-                  >
-                    <item.icon className="w-5 h-5 flex-shrink-0" />
-                    {sidebarOpen && (
-                      <span className="text-sm font-medium flex-1 text-left truncate">
-                        {language === 'id' ? item.labelId : item.label}
-                      </span>
-                    )}
-                    {sidebarOpen && item.proOnly && (
-                      <span className="flex items-center gap-1">
-                        <Lock className={`w-3 h-3 ${proType === 'gold' ? 'text-purple-400' : 'text-purple-400'}`} />
-                        <span className={`text-[7px] font-black px-1 py-0.5 rounded ${
-                          proType === 'gold'
-                            ? 'bg-gradient-to-r from-purple-500 to-violet-500 text-white'
-                            : 'bg-gradient-to-r from-purple-500 to-violet-500 text-white'
-                        }`}>
-                          PRO
+                  <Link key={item.id} href={isExternalLink ? item.href : '#'} className="block">
+                    <motion.button
+                      onClick={(e) => {
+                        if (item.proOnly && !isPro) {
+                          e.preventDefault()
+                          setPlanSelectionModalOpen(true)
+                        } else if (!isExternalLink) {
+                          e.preventDefault()
+                          setActiveTab(item.id)
+                          setMobileSidebarOpen(false)
+                        } else {
+                          setMobileSidebarOpen(false)
+                        }
+                      }}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative ${
+                        activeTab === item.id
+                          ? 'bg-gradient-to-r from-purple-500/20 to-violet-500/10 text-purple-400 border border-purple-500/30'
+                          : 'text-gray-400 hover:bg-purple-500/10 hover:text-white'
+                      } ${isLocked ? 'opacity-60' : ''}`}
+                      whileHover={isLocked ? {} : { x: 4 }}
+                      whileTap={isLocked ? {} : { scale: 0.98 }}
+                    >
+                      <item.icon className="w-5 h-5 flex-shrink-0" />
+                      {sidebarOpen && (
+                        <span className="text-sm font-medium flex-1 text-left truncate">
+                          {language === 'id' ? item.labelId : item.label}
                         </span>
-                      </span>
-                    )}
-                  </motion.button>
+                      )}
+                      {sidebarOpen && item.proOnly && (
+                        <span className="flex items-center gap-1">
+                          <Lock className={`w-3 h-3 ${proType === 'gold' ? 'text-purple-400' : 'text-purple-400'}`} />
+                          <span className={`text-[7px] font-black px-1 py-0.5 rounded ${
+                            proType === 'gold'
+                              ? 'bg-gradient-to-r from-purple-500 to-violet-500 text-white'
+                              : 'bg-gradient-to-r from-purple-500 to-violet-500 text-white'
+                          }`}>
+                            PRO
+                          </span>
+                        </span>
+                      )}
+                    </motion.button>
+                  </Link>
                 )
               })}
             </div>
