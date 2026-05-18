@@ -379,19 +379,43 @@ export default function ConnectionsPage() {
 
       if (!metaApiResponse.ok) {
         console.log('🔴 [DEBUG] MetaApi connect failed:', metaApiResponse.status, metaApiData)
-        // Update status to ERROR in our database
-        await fetch(`/api/trading-accounts/${tradingAccountId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'ERROR' }),
+
+        // Extract detailed error message
+        let errorMessage = language === 'id'
+          ? 'Gagal menghubungkan ke MetaApi'
+          : 'Failed to connect to MetaApi'
+
+        if (metaApiData.details?.message) {
+          errorMessage = metaApiData.details.message
+        } else if (metaApiData.message) {
+          errorMessage = metaApiData.message
+        } else if (metaApiData.error) {
+          errorMessage = metaApiData.error
+        }
+
+        // Show specific error toast
+        toast.error(errorMessage, {
+          description: language === 'id'
+            ? 'Silakan periksa kredensial Anda dan coba lagi.'
+            : 'Please check your credentials and try again.',
+          duration: 5000
         })
 
-        throw new Error(metaApiData.error || 'Failed to connect to MetaApi')
+        setIsConnecting(false)
+        return
       }
 
       // Success!
       console.log('✅ [DEBUG] Connection successful!')
-      toast.success(content.successMessage)
+      console.log('✅ [DEBUG] MetaApi response data:', metaApiData)
+
+      // Show success toast with details
+      toast.success(content.successMessage, {
+        description: language === 'id'
+          ? `Akun ${accountNumber} berhasil terhubung!`
+          : `Account ${accountNumber} successfully connected!`,
+        duration: 5000
+      })
 
       // Reset form
       setFormData({
@@ -401,11 +425,26 @@ export default function ConnectionsPage() {
         brokerServer: ''
       })
 
-      // Refresh accounts list
+      // Refresh accounts list explicitly
+      console.log('🔄 [DEBUG] Refreshing accounts list...')
       await fetchConnectedAccounts()
-    } catch (error) {
+      console.log('✅ [DEBUG] Accounts list refreshed, current count:', connectedAccounts.length)
+    } catch (error: any) {
       console.error('🔴 [DEBUG] Error connecting account:', error)
-      toast.error(content.errorMessage)
+
+      // Extract error message
+      let errorMessage = content.errorMessage
+      if (error?.message) {
+        errorMessage = error.message
+      }
+
+      // Show error toast with details
+      toast.error(errorMessage, {
+        description: language === 'id'
+          ? 'Terjadi kesalahan saat menghubungkan akun. Silakan coba lagi.'
+          : 'An error occurred while connecting the account. Please try again.',
+        duration: 5000
+      })
     } finally {
       console.log('🔄 [DEBUG] Resetting isConnecting to false')
       setIsConnecting(false)

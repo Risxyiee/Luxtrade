@@ -9,23 +9,37 @@ import { createMetaApiAccount } from '@/lib/metaapi'
 
 // POST: Connect trading account to MetaApi
 export async function POST(req: NextRequest) {
+  console.log('🟢 [METAAPI CONNECT] POST request received')
+
   try {
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
+      console.log('🔴 [METAAPI CONNECT] Auth failed:', authError)
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
+    console.log('✅ [METAAPI CONNECT] User authenticated:', user.id)
+
     // Parse request body
     const body = await req.json()
     const { tradingAccountId, accountNumber, password, brokerServer, platform } = body
 
+    console.log('📋 [METAAPI CONNECT] Request body:', {
+      tradingAccountId,
+      accountNumber: accountNumber ? '***' : 'MISSING',
+      password: password ? '***' : 'MISSING',
+      brokerServer,
+      platform
+    })
+
     // Validate required fields
     if (!tradingAccountId || !accountNumber || !password || !brokerServer || !platform) {
+      console.log('🔴 [METAAPI CONNECT] Missing required fields')
       return NextResponse.json(
         {
           error: 'Missing required fields',
@@ -132,14 +146,23 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (updateError) {
-      console.error('Error updating trading account:', updateError)
+      console.error('🔴 [METAAPI CONNECT] Error updating trading account:', updateError)
+      // ROLLBACK: Delete the trading account since update failed
+      await supabase
+        .from('trading_accounts')
+        .delete()
+        .eq('id', tradingAccountId)
+        .catch(err => console.error('Failed to delete during rollback:', err))
       return NextResponse.json(
         { error: 'Failed to update trading account' },
         { status: 500 }
       )
     }
 
-    return NextResponse.json({
+    console.log('✅ [METAAPI CONNECT] Trading account updated successfully:', updatedAccount)
+    console.log('✅ [METAAPI CONNECT] Sending success response to client...')
+
+    const response = NextResponse.json({
       success: true,
       message: 'Account successfully connected to MetaApi',
       data: {
@@ -152,6 +175,9 @@ export async function POST(req: NextRequest) {
         }
       }
     })
+
+    console.log('✅ [METAAPI CONNECT] Response created, returning to client')
+    return response
   } catch (error) {
     console.error('🔴 METAAPI ERROR DETAIL:', error)
 
