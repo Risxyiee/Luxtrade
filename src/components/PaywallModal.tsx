@@ -273,15 +273,93 @@ export default function PaywallModal({
                   )}
                 </div>
 
-                {/* Footer */}
+                {/* Footer - Payment Guide */}
                 {isTrialExhausted && (
-                  <div className="mt-6 pt-4 border-t border-white/10 text-center">
-                    <p className="text-xs text-white/40">
-                      {isEnglish
-                        ? 'Questions? Contact us on Telegram for assistance'
-                        : 'Pertanyaan? Hubungi kami di Telegram untuk bantuan'
-                      }
-                    </p>
+                  <div className="mt-6 pt-4 border-t border-white/10">
+                    <div className="text-center space-y-2">
+                      <p className="text-xs text-white/40 font-semibold mb-3">
+                        {isEnglish ? '💳 Payment Guide' : '💳 Panduan Pembayaran'}
+                      </p>
+
+                      {isEnglish ? (
+                        <div className="text-left space-y-2 bg-white/5 rounded-lg p-3">
+                          <div className="flex items-start gap-2">
+                            <span className="text-purple-400 text-xs font-bold mt-0.5">1.</span>
+                            <p className="text-xs text-white/60 leading-relaxed">
+                              Click <span className="text-amber-400 font-semibold">"Upgrade to Elite PRO"</span> or <span className="text-amber-400 font-semibold">"Get Lifetime Ultra"</span> button
+                            </p>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-purple-400 text-xs font-bold mt-0.5">2.</span>
+                            <p className="text-xs text-white/60 leading-relaxed">
+                              Complete payment via <span className="text-amber-400 font-semibold">Skrill</span> (secure & instant)
+                            </p>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-purple-400 text-xs font-bold mt-0.5">3.</span>
+                            <p className="text-xs text-white/60 leading-relaxed">
+                              After payment, send screenshot to <span className="text-amber-400 font-semibold">@luxtrade_admin</span> on Telegram for activation
+                            </p>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-purple-400 text-xs font-bold mt-0.5">4.</span>
+                            <p className="text-xs text-white/60 leading-relaxed">
+                              Your PRO access will be activated within <span className="text-amber-400 font-semibold">5-10 minutes</span>
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-left space-y-2 bg-white/5 rounded-lg p-3">
+                          <div className="flex items-start gap-2">
+                            <span className="text-purple-400 text-xs font-bold mt-0.5">1.</span>
+                            <p className="text-xs text-white/60 leading-relaxed">
+                              Klik tombol <span className="text-emerald-400 font-semibold">"Upgrade ke Elite PRO"</span> atau pilih paket Lifetime
+                            </p>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-purple-400 text-xs font-bold mt-0.5">2.</span>
+                            <p className="text-xs text-white/60 leading-relaxed">
+                              Anda akan diarahkan ke <span className="text-emerald-400 font-semibold">Telegram Admin</span>
+                            </p>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-purple-400 text-xs font-bold mt-0.5">3.</span>
+                            <p className="text-xs text-white/60 leading-relaxed">
+                              Kirim pesan: <span className="text-emerald-400 font-semibold">"Halo saya ingin upgrade ke Elite PRO"</span>
+                            </p>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-purple-400 text-xs font-bold mt-0.5">4.</span>
+                            <p className="text-xs text-white/60 leading-relaxed">
+                              Ikuti instruksi pembayaran dari admin (Transfer Bank / E-Wallet)
+                            </p>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <span className="text-purple-400 text-xs font-bold mt-0.5">5.</span>
+                            <p className="text-xs text-white/60 leading-relaxed">
+                              Kirim bukti transfer dan akun Anda akan diaktifkan dalam <span className="text-emerald-400 font-semibold">5-10 menit</span>
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="pt-3">
+                        <Button
+                          onClick={() => window.open(
+                            isEnglish
+                              ? 'https://t.me/luxtrade_admin?text=Hi%2C%20I%20need%20help%20with%20payment'
+                              : 'https://t.me/luxtrade_admin?text=Halo%20saya%20butuh%20bantuan%20pembayaran',
+                            '_blank'
+                          )}
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-white/40 hover:text-white/60 hover:bg-white/5"
+                        >
+                          <ExternalLink className="w-3 h-3 mr-1" />
+                          {isEnglish ? 'Need Help? Contact Support' : 'Butuh Bantuan? Hubungi Support'}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </CardContent>
