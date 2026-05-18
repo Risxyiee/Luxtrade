@@ -2,10 +2,8 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import dynamicImport from 'next/dynamic'
-import Link from 'next/link'
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import '@/lib/error-handler' // Global error handler
 import {
@@ -31,6 +29,7 @@ import {
 } from 'recharts'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/lib/auth-context'
+import { useLanguage } from '@/contexts/LanguageContext'
 import PaymentModal from '@/components/PaymentModal'
 import PlanSelectionModal from '@/components/PlanSelectionModal'
 import PNLShareCard from '@/components/PNLShareCard'
@@ -123,12 +122,52 @@ export default function LuxTradeDashboard() {
   // CSR Force - Prevent hydration issues by only rendering after mount
   const [hasMounted, setHasMounted] = useState(false)
 
+  // Force CSR - Only render after component has mounted on client
+  useEffect(() => {
+    try {
+      console.log('🔵 [DIAGNOSTIC] useEffect mounting - START')
+      setHasMounted(true)
+      console.log('🟢 [DIAGNOSTIC] CLIENT_MOUNTED - setHasMounted(true) called')
+    } catch (error) {
+      console.error('🔴 [DIAGNOSTIC] Error setting hasMounted:', error)
+      // Force set to true even if there's an error to prevent black screen
+      setTimeout(() => {
+        setHasMounted(true)
+        console.log('🟡 [DIAGNOSTIC] CLIENT_MOUNTED - fallback timeout triggered')
+      }, 100)
+    }
+  }, [])
+
+  // Show loading screen while mounting - prevents hydration issues
+  if (!hasMounted) {
+    console.log('🟠 [DIAGNOSTIC] hasMounted is FALSE, showing boot screen')
+    return (
+      <div className="min-h-screen bg-[#0a0712] flex items-center justify-center" suppressHydrationWarning={true}>
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-purple-500 animate-spin mx-auto mb-4" />
+          <p className="text-white/60 text-sm">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  console.log('✅ [DIAGNOSTIC] hasMounted is TRUE, rendering LuxTradeDashboardContent')
+
+  // Render content component only after mounting
+  return <LuxTradeDashboardContent />
+}
+
+// ==================== INNER COMPONENT - SAFE TO USE HOOKS ====================
+// This component is only rendered after hasMounted === true, so it's safe to use hooks
+
+function LuxTradeDashboardContent() {
+  // NOW we can safely use useLanguage hook!
+  const { language } = useLanguage()
+  
+  // All other states and logic
   const [activeTab, setActiveTab] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
-  const [language, setLanguage] = useState<'id' | 'en'>('id') // Default Bahasa Indonesia
-
-
   
   // Trade modals
   const [addTradeOpen, setAddTradeOpen] = useState(false)
@@ -144,62 +183,15 @@ export default function LuxTradeDashboard() {
   const [proTrialCount, setProTrialCount] = useState(3)
   const MAX_PRO_TRIALS = 3
 
-  // Helper: Check if user can access PRO features
-  const checkProAccess = useCallback((featureName: string = 'Fitur Premium'): boolean => {
-    // PRO users have unlimited access
-    if (isPro || false) return true
+  const { user, profile, session, signOut, loading: authLoading, isPro: authIsPro, isAdmin } = useAuth()
+  const router = useRouter()
+  const [isMobile, setIsMobile] = useState(false)
 
-    // Free users with remaining trials
-    if (proTrialCount > 0) {
-      return true // Allow access, will decrement counter
-    }
-
-    // No trials left - show paywall
-    setPaywallModalOpen(true)
-    return false
-  }, [isPro, proTrialCount])
-
-  // Helper: Decrement trial counter after using PRO feature
-  const useProTrial = useCallback(() => {
-    if (!isPro && proTrialCount > 0) {
-      const newCount = proTrialCount - 1
-      setProTrialCount(newCount)
-
-      // Save to localStorage for persistence
-      localStorage.setItem('luxtrade_pro_trial_count', newCount.toString())
-
-      // Show warning if running low
-      if (newCount === 1) {
-        toast.warning(`⚠️ Sisa 1 kali uji coba fitur PRO! Upgrade untuk akses unlimited.`)
-      } else if (newCount === 0) {
-        toast.error(`🔒 Kuota uji coba habis! Upgrade ke PRO untuk akses penuh.`)
-        setTimeout(() => setPaywallModalOpen(true), 1000)
-      }
-    }
-  }, [isPro, proTrialCount])
-
-  // Load trial count from localStorage on mount
-  useEffect(() => {
-    const savedTrialCount = localStorage.getItem('luxtrade_pro_trial_count')
-    if (savedTrialCount) {
-      const count = parseInt(savedTrialCount, 10)
-      if (!isNaN(count) && count >= 0) {
-        setProTrialCount(Math.min(count, MAX_PRO_TRIALS))
-      }
-    }
-  }, [])
-
+  // PRO status from auth context (includes subscription_until check)
+  const isPro = authIsPro || false
   
-  const handleSelectPlan = (plan: any) => {
-    setPlanSelectionModalOpen(false)
-    // For free plan, just close modal
-    if (plan.price === 0) {
-      toast.success('You are using Free plan!')
-      return
-    }
-    // For paid plans, open payment modal
-    setPlanSelectionModalOpen(true)
-  }
+  // Auth state management with timeout
+  const [authChecked, setAuthChecked] = useState(false)
   
   // Journal modals
   const [addJournalOpen, setAddJournalOpen] = useState(false)
@@ -268,9 +260,62 @@ export default function LuxTradeDashboard() {
   // Animation states
   const [chartAnimated, setChartAnimated] = useState(false)
   
-  const { user, profile, session, signOut, loading: authLoading, isPro: authIsPro, isAdmin } = useAuth()
-  const router = useRouter()
-  const [isMobile, setIsMobile] = useState(false)
+  // Helper: Check if user can access PRO features
+  const checkProAccess = useCallback((featureName: string = 'Fitur Premium'): boolean => {
+    // PRO users have unlimited access
+    if (isPro || false) return true
+
+    // Free users with remaining trials
+    if (proTrialCount > 0) {
+      return true // Allow access, will decrement counter
+    }
+
+    // No trials left - show paywall
+    setPaywallModalOpen(true)
+    return false
+  }, [isPro, proTrialCount, setPaywallModalOpen])
+
+  // Helper: Decrement trial counter after using PRO feature
+  const useProTrial = useCallback(() => {
+    if (!isPro && proTrialCount > 0) {
+      const newCount = proTrialCount - 1
+      setProTrialCount(newCount)
+
+      // Save to localStorage for persistence
+      localStorage.setItem('luxtrade_pro_trial_count', newCount.toString())
+
+      // Show warning if running low
+      if (newCount === 1) {
+        toast.warning(`⚠️ Sisa 1 kali uji coba fitur PRO! Upgrade untuk akses unlimited.`)
+      } else if (newCount === 0) {
+        toast.error(`🔒 Kuota uji coba habis! Upgrade ke PRO untuk akses penuh.`)
+        setTimeout(() => setPaywallModalOpen(true), 1000)
+      }
+    }
+  }, [isPro, proTrialCount, setPaywallModalOpen])
+
+  // Load trial count from localStorage on mount
+  useEffect(() => {
+    const savedTrialCount = localStorage.getItem('luxtrade_pro_trial_count')
+    if (savedTrialCount) {
+      const count = parseInt(savedTrialCount, 10)
+      if (!isNaN(count) && count >= 0) {
+        setProTrialCount(Math.min(count, MAX_PRO_TRIALS))
+      }
+    }
+  }, [])
+
+  
+  const handleSelectPlan = (plan: any) => {
+    setPlanSelectionModalOpen(false)
+    // For free plan, just close modal
+    if (plan.price === 0) {
+      toast.success('You are using Free plan!')
+      return
+    }
+    // For paid plans, open payment modal
+    setPlanSelectionModalOpen(true)
+  }
 
   useEffect(() => {
     const checkMobile = () => {
@@ -296,25 +341,6 @@ export default function LuxTradeDashboard() {
     return headers
   }, [session?.access_token])
 
-  // Force CSR - Only render after component has mounted on client
-  useEffect(() => {
-    try {
-      console.log('🔵 [DIAGNOSTIC] useEffect mounting - START')
-      setHasMounted(true)
-      console.log('🟢 [DIAGNOSTIC] CLIENT_MOUNTED - setHasMounted(true) called')
-    } catch (error) {
-      console.error('🔴 [DIAGNOSTIC] Error setting hasMounted:', error)
-      // Force set to true even if there's an error to prevent black screen
-      setTimeout(() => {
-        setHasMounted(true)
-        console.log('🟡 [DIAGNOSTIC] CLIENT_MOUNTED - fallback timeout triggered')
-      }, 100)
-    }
-  }, [])
-
-  // PRO status from auth context (includes subscription_until check)
-  const isPro = authIsPro || false
-  
   // Free user trade limit
   const FREE_TRADE_LIMIT = 5
   const isFreeUser = !isPro
@@ -397,9 +423,6 @@ export default function LuxTradeDashboard() {
       setChartAnimated(true)
     }
   }, [])
-
-  // Auth state management with timeout
-  const [authChecked, setAuthChecked] = useState(false)
 
   useEffect(() => {
     console.log('🔵 [DIAGNOSTIC] Auth useEffect - START')
@@ -628,26 +651,9 @@ export default function LuxTradeDashboard() {
   }
 
   // User initials with hydration safety check
-  const userInitials = hasMounted
-    ? profile?.full_name
-      ? profile.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
-      : user?.email?.[0]?.toUpperCase() || 'D'
-    : 'D'
-
-  // Show loading screen while mounting - prevents hydration issues
-  if (!hasMounted) {
-    console.log('🟠 [DIAGNOSTIC] hasMounted is FALSE, showing boot screen')
-    return (
-      <div className="min-h-screen bg-[#0a0712] flex items-center justify-center" suppressHydrationWarning={true}>
-        <div className="text-center">
-          <Loader2 className="w-10 h-10 text-purple-500 animate-spin mx-auto mb-4" />
-          <p className="text-white/60 text-sm">Loading dashboard...</p>
-        </div>
-      </div>
-    )
-  }
-
-  console.log('✅ [DIAGNOSTIC] hasMounted is TRUE, proceeding to render')
+  const userInitials = profile?.full_name
+    ? profile.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+    : user?.email?.[0]?.toUpperCase() || 'D'
 
   // Show auth loading state
   if ((authLoading || !authChecked)) {
@@ -757,7 +763,7 @@ export default function LuxTradeDashboard() {
           user={user}
           profile={profile}
           chartAnimated={chartAnimated}
-          hasMounted={hasMounted}
+          hasMounted={true}
         />
       </main>
 
@@ -847,4 +853,3 @@ export default function LuxTradeDashboard() {
     </div>
   )
 }
-
