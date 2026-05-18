@@ -219,7 +219,9 @@ export default function ConnectionsPage() {
     try {
       console.log('🔍 [fetchConnectedAccounts] Starting fetch...')
       setLoadingAccounts(true)
-      const response = await fetch('/api/trading-accounts')
+      const response = await fetch('/api/trading-accounts', {
+        headers: getAuthHeaders()
+      })
 
       console.log('📡 [fetchConnectedAccounts] Response status:', response.status)
 
