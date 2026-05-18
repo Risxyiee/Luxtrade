@@ -39,19 +39,23 @@ interface Achievement {
 
 export default function ConnectionsPage() {
   const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading, session } = useAuth()
   const { language, t } = useLanguage()
 
-  // Redirect to login if not authenticated
+  // Redirect to login if not authenticated (with delay to prevent flicker)
   useEffect(() => {
-    if (!authLoading && !user) {
-      console.log('🔴 [DEBUG] Not authenticated, redirecting to login')
-      router.push('/auth/login')
-    }
-  }, [user, authLoading, router])
+    const timer = setTimeout(() => {
+      if (!authLoading && !user && !session) {
+        console.log('🔴 [DEBUG] Not authenticated, redirecting to login')
+        router.push('/auth/login')
+      }
+    }, 1000) // Wait 1 second before redirecting
+
+    return () => clearTimeout(timer)
+  }, [user, authLoading, session, router])
 
   // Show loading while checking auth
-  if (authLoading || !user) {
+  if (authLoading || (!user && !session)) {
     return (
       <div className="min-h-screen bg-[#0f051d] text-white flex items-center justify-center">
         <div className="text-center">
@@ -245,9 +249,9 @@ export default function ConnectionsPage() {
       const response = await fetch('/api/trading-accounts/quota')
 
       if (response.status === 401) {
-        // User not authenticated
+        // User not authenticated - don't redirect immediately, just show error
         console.error('🔴 [DEBUG] Not authenticated during quota check')
-        router.push('/auth/login')
+        toast.error(language === 'id' ? 'Sesi Anda telah berakhir. Silakan login kembali.' : 'Your session has expired. Please login again.')
         return false
       }
 
@@ -577,15 +581,6 @@ export default function ConnectionsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 relative">
-              {/* Test button outside form - for debugging */}
-              <button
-                type="button"
-                onClick={() => console.log('✅ [DEBUG] Test button clicked! Page is interactive!')}
-                className="mb-4 px-4 py-2 bg-green-500 text-white text-xs rounded"
-              >
-                TEST CLICK ME
-              </button>
-
               <form onSubmit={handleConnect} className="space-y-5 relative">
                 {/* Platform Selection */}
                 <div className="space-y-2">
