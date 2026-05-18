@@ -543,13 +543,12 @@ export default function AdminPanel() {
     try {
       console.log('🔧 [ADMIN PANEL] Activating PRO for user:', userId)
 
-      // Note: Backend uses supabaseAdmin (service role key), so we don't need auth header
       const res = await fetch('/api/admin/users', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ userId, days: 30 })
+        body: JSON.stringify({ userId, action: 'activate', days: 30 })
       })
 
       const data = await res.json()
@@ -558,15 +557,15 @@ export default function AdminPanel() {
 
       if (res.ok) {
         toast.success(data.message || 'PRO activated for 30 days!')
-
-        if (data.commission?.paid) {
-          toast.success(`Commission Rp ${data.commission.amount.toLocaleString('id-ID')} paid to referrer!`)
-        }
-
         fetchUsers()
       } else {
         console.error('🔧 [ADMIN PANEL] Activation failed:', data)
-        toast.error(data.error || data.details || 'Failed to activate PRO')
+        const errorMessage = data.details || data.error || 'Failed to activate PRO'
+        if (data.solution) {
+          toast.error(`${errorMessage}. ${data.solution}`, { duration: 8000 })
+        } else {
+          toast.error(errorMessage)
+        }
       }
     } catch (error) {
       console.error('Error activating PRO:', error)
@@ -584,9 +583,13 @@ export default function AdminPanel() {
     try {
       console.log('🔧 [ADMIN PANEL] Revoking PRO for user:', userId)
 
-      // Note: Backend uses supabaseAdmin (service role key), so we don't need auth header
-      const res = await fetch(`/api/admin/users?userId=${userId}`, {
-        method: 'DELETE'
+      // Use PATCH with action: revoke instead of DELETE
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId, action: 'revoke' })
       })
 
       const data = await res.json()
@@ -598,7 +601,12 @@ export default function AdminPanel() {
         fetchUsers()
       } else {
         console.error('🔧 [ADMIN PANEL] Revoke failed:', data)
-        toast.error(data.error || data.details || 'Failed to revoke PRO')
+        const errorMessage = data.details || data.error || 'Failed to revoke PRO'
+        if (data.solution) {
+          toast.error(`${errorMessage}. ${data.solution}`, { duration: 8000 })
+        } else {
+          toast.error(errorMessage)
+        }
       }
     } catch (error) {
       console.error('Error revoking PRO:', error)
