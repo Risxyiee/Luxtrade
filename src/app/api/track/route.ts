@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { analyticsData, cleanupOldVisits } from '@/lib/analytics-memory'
 
 function detectDevice(ua: string): string {
   if (!ua) return 'Unknown'
@@ -29,7 +29,7 @@ function detectOS(ua: string): string {
 }
 
 // Rate limit: only record once per IP per page per 5 minutes
-const recentVisits = new Map<string, number>()
+const recentVisitsCache = new Map<string, number>()
 const RATE_LIMIT_MS = 5 * 60 * 1000
 
 export async function POST(request: NextRequest) {
@@ -46,33 +46,49 @@ export async function POST(request: NextRequest) {
 
     // Rate limit check
     const cacheKey = `${ip}:${path}`
-    const lastVisit = recentVisits.get(cacheKey)
+    const lastVisit = recentVisitsCache.get(cacheKey)
     if (lastVisit && Date.now() - lastVisit < RATE_LIMIT_MS) {
       return NextResponse.json({ ok: true, rateLimited: true })
     }
-    recentVisits.set(cacheKey, Date.now())
+    recentVisitsCache.set(cacheKey, Date.now())
 
     // Clean up old entries
-    if (recentVisits.size > 1000) {
+    if (recentVisitsCache.size > 1000) {
       const now = Date.now()
-      for (const [key, time] of recentVisits.entries()) {
-        if (now - time > RATE_LIMIT_MS) recentVisits.delete(key)
+      for (const [key, time] of recentVisitsCache.entries()) {
+        if (now - time > RATE_LIMIT_MS) recentVisitsCache.delete(key)
       }
     }
 
     const ua = userAgent || ''
+    const device = detectDevice(ua)
+    const browser = detectBrowser(ua)
+    const os = detectOS(ua)
 
-    await db.pageVisit.create({
-      data: {
-        path: path.substring(0, 500),
-        referrer: referrer ? referrer.substring(0, 500) : null,
-        device: detectDevice(ua),
-        browser: detectBrowser(ua),
-        os: detectOS(ua),
-        ip: ip.substring(0, 45),
-        country: '', // Will be detected later if needed
-      },
+    // Update in-memory analytics (no database required)
+    analyticsData.pageViews++
+    analyticsData.uniqueVisitors.add(ip)
+    analyticsData.deviceStats[device as keyof typeof analyticsData.deviceStats]++
+    analyticsData.browserStats[browser as keyof typeof analyticsData.browserStats]++
+    analyticsData.osStats[os as keyof typeof analyticsData.osStats]++
+
+    // Track top pages
+    const currentCount = analyticsData.topPages.get(path) || 0
+    analyticsData.topPages.set(path, currentCount + 1)
+
+    // Store visit in recent visits for analytics traffic endpoint
+    analyticsData.recentVisits.push({
+      path,
+      referrer: referrer || null,
+      device,
+      browser,
+      os,
+      ip,
+      createdAt: new Date(),
     })
+
+    // Cleanup old visits periodically
+    cleanupOldVisits()
 
     return NextResponse.json({ ok: true })
   } catch (error) {

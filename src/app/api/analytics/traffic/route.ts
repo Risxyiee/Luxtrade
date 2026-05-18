@@ -1,37 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { Prisma } from '@prisma/client'
-
-// Auto-create table if not exists (for production deploy)
-async function ensureTable() {
-  try {
-    await db.pageVisit.count()
-  } catch {
-    // Table doesn't exist, run migration
-    try {
-      await db.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "PageVisit" (
-          "id" TEXT NOT NULL PRIMARY KEY,
-          "path" TEXT NOT NULL DEFAULT '',
-          "referrer" TEXT NOT NULL DEFAULT '',
-          "device" TEXT NOT NULL DEFAULT '',
-          "browser" TEXT NOT NULL DEFAULT '',
-          "os" TEXT NOT NULL DEFAULT '',
-          "country" TEXT NOT NULL DEFAULT '',
-          "ip" TEXT NOT NULL DEFAULT '',
-          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-      `)
-      console.log('PageVisit table auto-created')
-    } catch (e) {
-      console.error('Failed to create PageVisit table:', e)
-    }
-  }
-}
+import { analyticsData, cleanupOldVisits } from '@/lib/analytics-memory'
 
 export async function GET(request: NextRequest) {
   try {
-    await ensureTable()
+    cleanupOldVisits()
 
     const { searchParams } = new URL(request.url)
     const range = searchParams.get('range') || '7d'
@@ -40,31 +12,10 @@ export async function GET(request: NextRequest) {
     const since = new Date()
     since.setDate(since.getDate() - days)
 
-    let visits: Array<{
-      id: string
-      path: string
-      referrer: string
-      device: string
-      browser: string
-      os: string
-      country: string
-      ip: string
-      createdAt: Date
-    }>
-
-    try {
-      visits = await db.pageVisit.findMany({
-        where: { createdAt: { gte: since } },
-        orderBy: { createdAt: 'desc' },
-      })
-    } catch {
-      visits = []
-    }
+    const visits = analyticsData.recentVisits.filter(v => v.createdAt >= since)
 
     const totalPageViews = visits.length
-
-    const uniqueIPs = new Set(visits.map(v => v.ip))
-    const uniqueVisitors = uniqueIPs.size
+    const uniqueVisitors = analyticsData.uniqueVisitors.size
 
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
@@ -78,7 +29,9 @@ export async function GET(request: NextRequest) {
     const yesterdayEnd = new Date()
     yesterdayEnd.setDate(yesterdayEnd.getDate() - 1)
     yesterdayEnd.setHours(23, 59, 59, 999)
-    const yesterdayVisits = visits.filter(v => v.createdAt >= yesterdayStart && v.createdAt <= yesterdayEnd)
+    const yesterdayVisits = visits.filter(
+      v => v.createdAt >= yesterdayStart && v.createdAt <= yesterdayEnd
+    )
     const yesterdayPageViews = yesterdayVisits.length
 
     // Daily chart
@@ -115,27 +68,15 @@ export async function GET(request: NextRequest) {
       .map(([path, count]) => ({ path, count }))
 
     // Device breakdown
-    const deviceMap: Record<string, number> = {}
-    visits.forEach(v => {
-      const d = v.device || 'Unknown'
-      deviceMap[d] = (deviceMap[d] || 0) + 1
-    })
+    const deviceMap: Record<string, number> = { ...analyticsData.deviceStats }
     const devices = Object.entries(deviceMap).sort((a, b) => b[1] - a[1])
 
     // Browser breakdown
-    const browserMap: Record<string, number> = {}
-    visits.forEach(v => {
-      const b = v.browser || 'Unknown'
-      browserMap[b] = (browserMap[b] || 0) + 1
-    })
+    const browserMap: Record<string, number> = { ...analyticsData.browserStats }
     const browsers = Object.entries(browserMap).sort((a, b) => b[1] - a[1])
 
     // OS breakdown
-    const osMap: Record<string, number> = {}
-    visits.forEach(v => {
-      const o = v.os || 'Unknown'
-      osMap[o] = (osMap[o] || 0) + 1
-    })
+    const osMap: Record<string, number> = { ...analyticsData.osStats }
     const os = Object.entries(osMap).sort((a, b) => b[1] - a[1])
 
     // Referrer breakdown
@@ -151,7 +92,9 @@ export async function GET(request: NextRequest) {
       }
       referrerMap[ref] = (referrerMap[ref] || 0) + 1
     })
-    const referrers = Object.entries(referrerMap).sort((a, b) => b[1] - a[1]).slice(0, 10)
+    const referrers = Object.entries(referrerMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
 
     // Growth vs yesterday
     const growthPercent = yesterdayPageViews > 0
