@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -36,7 +38,30 @@ interface Achievement {
 }
 
 export default function ConnectionsPage() {
+  const router = useRouter()
+  const { user, loading: authLoading } = useAuth()
   const { language, t } = useLanguage()
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      console.log('🔴 [DEBUG] Not authenticated, redirecting to login')
+      router.push('/auth/login')
+    }
+  }, [user, authLoading, router])
+
+  // Show loading while checking auth
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen bg-[#0f051d] text-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-purple-500 animate-spin mx-auto mb-4" />
+          <p className="text-white/60">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
   const [formData, setFormData] = useState<FormData>({
     platform: 'MT5',
     accountNumber: '',
@@ -219,7 +244,15 @@ export default function ConnectionsPage() {
     try {
       const response = await fetch('/api/trading-accounts/quota')
 
+      if (response.status === 401) {
+        // User not authenticated
+        console.error('🔴 [DEBUG] Not authenticated during quota check')
+        router.push('/auth/login')
+        return false
+      }
+
       if (!response.ok) {
+        console.error('🔴 [DEBUG] Quota check failed:', response.status)
         throw new Error('Failed to check quota')
       }
 
@@ -638,7 +671,11 @@ export default function ConnectionsPage() {
                     onClick={(e) => {
                       console.log('🔴 [DEBUG] Button clicked!', { e, isConnecting, formData })
                     }}
-                    className="w-full h-14 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-300 text-base pointer-events-auto cursor-pointer"
+                    className={`w-full h-14 font-extrabold shadow-lg transition-all duration-300 text-base pointer-events-auto ${
+                      isConnecting
+                        ? 'bg-purple-900/50 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] cursor-pointer'
+                    } text-white`}
                   >
                     {isConnecting ? (
                       <>
