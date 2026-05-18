@@ -1,94 +1,108 @@
-/**
- * API Route: Individual Trading Account Operations
- * PATCH - Update a trading account (status, metaapi_account_id)
- * DELETE - Delete a trading account
- */
-
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
-import { deleteTradingAccount, updateTradingAccount } from '@/lib/trading-account'
+
+const VALID_STATUSES = ['CONNECTED', 'DISCONNECTED', 'PENDING', 'ERROR'] as const
 
 // PATCH: Update trading account
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const cookieStore = cookies()
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+
   try {
-    // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: 'Unauthorized', message: 'Sesi login tidak ditemukan atau sudah kedaluwarsa.' },
         { status: 401 }
       )
     }
 
     const accountId = params.id
 
-    // Parse request body
-    const body = await req.json()
+    let body: { metaapi_account_id?: string; status?: string }
+    try {
+      body = await req.json()
+    } catch {
+      return NextResponse.json(
+        { success: false, error: 'Bad Request', message: 'Body request tidak valid.' },
+        { status: 400 }
+      )
+    }
+
     const { metaapi_account_id, status } = body
 
-    // Validate that at least one field is being updated
     if (!metaapi_account_id && !status) {
       return NextResponse.json(
         {
+          success: false,
           error: 'No fields to update',
-          valid_fields: ['metaapi_account_id', 'status']
+          message: 'Sertakan minimal satu field: metaapi_account_id atau status.',
+          valid_fields: ['metaapi_account_id', 'status'],
         },
         { status: 400 }
       )
     }
 
-    // Validate status if provided
-    if (status && !['CONNECTED', 'DISCONNECTED', 'PENDING', 'ERROR'].includes(status)) {
+    if (status && !VALID_STATUSES.includes(status as any)) {
       return NextResponse.json(
         {
+          success: false,
           error: 'Invalid status',
-          valid_statuses: ['CONNECTED', 'DISCONNECTED', 'PENDING', 'ERROR']
+          message: `Status tidak valid. Gunakan salah satu dari: ${VALID_STATUSES.join(', ')}.`,
         },
         { status: 400 }
       )
     }
 
-    // Verify ownership
-    const { data: account } = await supabase
+    // Verifikasi kepemilikan akun
+    const { data: account, error: findError } = await supabase
       .from('trading_accounts')
       .select('user_id')
       .eq('id', accountId)
-      .single()
+      .maybeSingle()
+
+    if (findError) throw findError
 
     if (!account) {
       return NextResponse.json(
-        { error: 'Trading account not found' },
+        { success: false, error: 'Not Found', message: 'Akun trading tidak ditemukan.' },
         { status: 404 }
       )
     }
 
     if (account.user_id !== user.id) {
       return NextResponse.json(
-        { error: 'Forbidden - You can only update your own accounts' },
+        { success: false, error: 'Forbidden', message: 'Kamu hanya bisa mengubah akun milikmu sendiri.' },
         { status: 403 }
       )
     }
 
-    // Update the account
-    const updatedAccount = await updateTradingAccount(accountId, {
-      metaapi_account_id,
-      status
-    })
+    const updates: Record<string, string> = {}
+    if (metaapi_account_id) updates.metaapi_account_id = metaapi_account_id
+    if (status) updates.status = status
 
-    return NextResponse.json({
-      success: true,
-      data: updatedAccount
-    })
+    const { data: updatedAccount, error: updateError } = await supabase
+      .from('trading_accounts')
+      .update(updates)
+      .eq('id', accountId)
+      .select()
+      .single()
+
+    if (updateError) throw updateError
+
+    return NextResponse.json({ success: true, data: updatedAccount })
   } catch (error) {
-    console.error('Error updating trading account:', error)
+    console.error('[trading-accounts/[id]] PATCH error:', error)
     return NextResponse.json(
       {
-        error: 'Failed to update trading account',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        success: false,
+        error: 'Internal Server Error',
+        message: error instanceof Error ? error.message : 'Terjadi kesalahan pada server.',
       },
       { status: 500 }
     )
@@ -100,53 +114,62 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const cookieStore = cookies()
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+
   try {
-    // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: 'Unauthorized', message: 'Sesi login tidak ditemukan atau sudah kedaluwarsa.' },
         { status: 401 }
       )
     }
 
     const accountId = params.id
 
-    // Verify ownership
-    const { data: account } = await supabase
+    const { data: account, error: findError } = await supabase
       .from('trading_accounts')
       .select('user_id')
       .eq('id', accountId)
-      .single()
+      .maybeSingle()
+
+    if (findError) throw findError
 
     if (!account) {
       return NextResponse.json(
-        { error: 'Trading account not found' },
+        { success: false, error: 'Not Found', message: 'Akun trading tidak ditemukan.' },
         { status: 404 }
       )
     }
 
     if (account.user_id !== user.id) {
       return NextResponse.json(
-        { error: 'Forbidden - You can only delete your own accounts' },
+        { success: false, error: 'Forbidden', message: 'Kamu hanya bisa menghapus akun milikmu sendiri.' },
         { status: 403 }
       )
     }
 
-    // Delete the account
-    await deleteTradingAccount(accountId, user.id)
+    const { error: deleteError } = await supabase
+      .from('trading_accounts')
+      .delete()
+      .eq('id', accountId)
+      .eq('user_id', user.id)
+
+    if (deleteError) throw deleteError
 
     return NextResponse.json({
       success: true,
-      message: 'Trading account deleted successfully'
+      message: 'Akun trading berhasil dihapus.',
     })
   } catch (error) {
-    console.error('Error deleting trading account:', error)
+    console.error('[trading-accounts/[id]] DELETE error:', error)
     return NextResponse.json(
       {
-        error: 'Failed to delete trading account',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        success: false,
+        error: 'Internal Server Error',
+        message: error instanceof Error ? error.message : 'Terjadi kesalahan pada server.',
       },
       { status: 500 }
     )
