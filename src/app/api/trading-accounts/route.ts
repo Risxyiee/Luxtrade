@@ -48,21 +48,40 @@ export async function GET(req: NextRequest) {
   try {
     console.log('🔵 [TRADING ACCOUNTS API GET] Fetching trading accounts...')
 
-    // Get session from cookie
-    const { data: { session }, error: authError } = await supabase.auth.getSession()
+    // Try to get token from Authorization header first, then fall back to session cookie
+    const authHeader = req.headers.get('authorization')
+    let user = null
 
-    if (authError || !session?.user) {
-      console.log('🔴 [TRADING ACCOUNTS API GET] No session found')
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      console.log('🔑 [TRADING ACCOUNTS API GET] Using Bearer token authentication')
+
+      const { data, error } = await supabase.auth.getUser(token)
+      if (!error && data.user) {
+        user = data.user
+      }
     }
 
-    console.log('✅ [TRADING ACCOUNTS API GET] User authenticated:', session.user.id)
+    // Fall back to session cookie if Bearer token failed
+    if (!user) {
+      console.log('🍪 [TRADING ACCOUNTS API GET] Using session cookie authentication')
+      const { data: { session }, error: authError } = await supabase.auth.getSession()
+
+      if (authError || !session?.user) {
+        console.log('🔴 [TRADING ACCOUNTS API GET] No session found')
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        )
+      }
+
+      user = session.user
+    }
+
+    console.log('✅ [TRADING ACCOUNTS API GET] User authenticated:', user.id)
 
     // Get user's trading accounts
-    const accounts = await getUserTradingAccounts(session.user.id)
+    const accounts = await getUserTradingAccounts(user.id)
     console.log('📊 [TRADING ACCOUNTS API GET] Found accounts:', accounts.length)
     console.log('📋 [TRADING ACCOUNTS API GET] Accounts data:', accounts)
 
@@ -70,10 +89,10 @@ export async function GET(req: NextRequest) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('subscription_plan')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single()
 
-    const quota = await checkAccountQuota(session.user.id, profile?.subscription_plan || 'free')
+    const quota = await checkAccountQuota(user.id, profile?.subscription_plan || 'free')
     console.log('📊 [TRADING ACCOUNTS API GET] Quota:', quota)
 
     const response = {
