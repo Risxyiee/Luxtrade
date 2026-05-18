@@ -112,17 +112,3 @@ model Withdrawal {
 
   @@map("withdrawals")
 }
-
-model PageVisit {
-  id                String    @id @default(uuid())
-  path              String
-  referrer          String?
-  device            String?
-  browser           String?
-  os                String?
-  country           String?
-  ip                String?
-  createdAt         DateTime  @default(now())
-
-  @@map("page_visits")
-}
