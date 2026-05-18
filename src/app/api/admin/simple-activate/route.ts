@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch user: ' + fetchError.message }, { status: 500 })
     }
 
-    if (!user)) {
+    if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
