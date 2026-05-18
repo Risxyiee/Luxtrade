@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin, getAdminStatus } from '@/lib/supabase-admin-alt'
 
 export async function GET(request: NextRequest) {
   try {
+    const adminStatus = getAdminStatus()
+
     const debugInfo = {
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV,
@@ -10,7 +12,9 @@ export async function GET(request: NextRequest) {
         url: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'NOT SET',
         anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'SET' : 'NOT SET',
         serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET',
+        altServiceRoleKey: process.env.SERVICE_ROLE_KEY ? 'SET' : 'NOT SET',
         supabaseAdminAvailable: !!supabaseAdmin,
+        ...adminStatus
       },
       test: {
         message: 'Debug endpoint working'

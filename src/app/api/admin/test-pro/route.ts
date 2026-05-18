@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin, getAdminStatus } from '@/lib/supabase-admin-alt'
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,14 +9,17 @@ export async function POST(request: NextRequest) {
     console.log('🧪 [TEST PRO] Starting test...')
     console.log('🧪 [TEST PRO] userId:', userId)
     console.log('🧪 [TEST PRO] supabaseAdmin available:', !!supabaseAdmin)
-    console.log('🧪 [TEST PRO] SERVICE_ROLE_KEY set:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
+    console.log('📊 [TEST PRO] Admin status:', JSON.stringify(getAdminStatus()))
 
     if (!supabaseAdmin) {
+      const status = getAdminStatus()
       console.error('❌ [TEST PRO] supabaseAdmin is null')
+      console.error('❌ [TEST PRO] Status:', JSON.stringify(status))
       return NextResponse.json({
         success: false,
         error: 'supabaseAdmin is null',
-        reason: 'SUPABASE_SERVICE_ROLE_KEY is not set in environment variables'
+        reason: 'SUPABASE_SERVICE_ROLE_KEY is not set in environment variables',
+        debug: status
       })
     }
 
