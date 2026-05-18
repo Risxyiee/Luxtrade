@@ -477,7 +477,7 @@ function LifetimeUltraCard({ onButtonClick, language, t }: { onButtonClick: () =
             {[
               { text: language === 'id' ? '👑 AKSES SEUMUR HIDUP' : '👑 LIFETIME ACCESS' },
               { text: language === 'id' ? 'Semua Fitur Elite PRO Terbuka Selamanya' : 'All Elite PRO Features Forever' },
-              { text: language === 'id' ? 'VIP WhatsApp Support & Akses Grup Privat' : 'VIP WhatsApp Support & Private Group Access' },
+              { text: language === 'id' ? 'VIP Telegram Support & Akses Grup Privat' : 'VIP Telegram Support & Private Group Access' },
               { text: language === 'id' ? 'Tanpa Biaya Bulanan Lagi' : 'No More Monthly Fees' },
             ].map((item, index) => (
               <li key={index} className="flex items-center gap-2.5 text-sm text-white/70">
@@ -1237,11 +1237,11 @@ export default function LuxTradeLanding() {
                       pro: '✓', 
                       ultra: '✓' 
                     },
-                    { 
-                      feature: 'VIP WhatsApp Support', 
-                      free: '—', 
-                      pro: '✓', 
-                      ultra: language === 'id' ? '✓ Grup Privat' : '✓ Private Group' 
+                    {
+                      feature: 'VIP Telegram Support',
+                      free: '—',
+                      pro: '✓',
+                      ultra: language === 'id' ? '✓ Grup Privat' : '✓ Private Group'
                     },
                   ].map((row, index) => (
                     <tr key={index} className="hover:bg-white/[0.03] transition-colors">

@@ -240,12 +240,12 @@ export default function PaywallModal({
                         </Button>
                       ) : (
                         <Button
-                          onClick={() => window.open('https://wa.me/6281234567890?text=Halo%20saya%20ingin%20upgrade%20ke%20Elite%20PRO', '_blank')}
+                          onClick={() => window.open('https://t.me/luxtrade_admin?text=Halo%20saya%20ingin%20upgrade%20ke%20Elite%20PRO', '_blank')}
                           variant="outline"
                           className="w-full h-12 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50 font-semibold transition-all"
                         >
                           <ExternalLink className="w-5 h-5 mr-2" />
-                          Hubungi WhatsApp Admin
+                          Hubungi Telegram Admin
                         </Button>
                       )}
                     </>
@@ -278,8 +278,8 @@ export default function PaywallModal({
                   <div className="mt-6 pt-4 border-t border-white/10 text-center">
                     <p className="text-xs text-white/40">
                       {isEnglish
-                        ? 'Questions? Contact us on WhatsApp for assistance'
-                        : 'Pertanyaan? Hubungi kami di WhatsApp untuk bantuan'
+                        ? 'Questions? Contact us on Telegram for assistance'
+                        : 'Pertanyaan? Hubungi kami di Telegram untuk bantuan'
                       }
                     </p>
                   </div>
