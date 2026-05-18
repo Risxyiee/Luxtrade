@@ -53,6 +53,10 @@ export async function createMetaApiAccount(accountData: {
   platform: 'MT4' | 'MT5'
   name?: string
 }) {
+  console.log('DEBUG: Menggunakan Token MetaApi:', process.env.METAAPI_TOKEN ? 'Tersedia' : 'KOSONG')
+  console.log('DEBUG: Token length:', process.env.METAAPI_TOKEN?.length || 0)
+  console.log('DEBUG: API URL:', METAAPI_CONFIG.api_url)
+
   if (!isMetaApiConfigured()) {
     throw new Error('MetaApi token is not configured. Please set METAAPI_TOKEN environment variable.')
   }
@@ -72,12 +76,23 @@ export async function createMetaApiAccount(accountData: {
     })
   })
 
+  console.log('DEBUG: MetaApi API response status:', response.status)
+
   if (!response.ok) {
-    const error = await response.json()
+    const errorText = await response.text()
+    console.log('DEBUG: MetaApi API error response:', errorText)
+    let error
+    try {
+      error = JSON.parse(errorText)
+    } catch {
+      error = { message: errorText || 'Failed to create MetaApi account' }
+    }
     throw new Error(error.message || 'Failed to create MetaApi account')
   }
 
-  return response.json()
+  const result = await response.json()
+  console.log('DEBUG: MetaApi API success response:', result)
+  return result
 }
 
 /**
