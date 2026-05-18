@@ -563,13 +563,11 @@ export default function ConnectionsPage() {
       >
         <div className="flex items-start gap-3">
           <div
-            className={`p-2.5 rounded-lg ${
+            className={`p-2.5 rounded-lg transition-all ${
               achievement.unlocked
                 ? 'bg-gradient-to-br from-purple-500 to-violet-600 shadow-lg shadow-purple-500/30'
                 : 'bg-white/5'
             }`}
-            animate={achievement.unlocked ? { scale: [1, 1.1, 1] } : {}}
-            
           >
             <Icon className={`w-5 h-5 ${achievement.unlocked ? 'text-white' : 'text-white/30'}`} />
           </div>
