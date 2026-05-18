@@ -210,6 +210,7 @@ function AutoJournalCard({ tradingAccounts, isPro, language }: {
       onHoverEnd={() => setIsHovered(false)}
       whileHover={{ scale: 1.02, y: -4 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      className="relative"
     >
       <Card className={`bg-gradient-to-br from-purple-500/10 to-violet-500/10 border-purple-500/30 relative overflow-hidden transition-all duration-300 ${isHovered ? 'shadow-lg shadow-purple-500/20 border-purple-400/40' : ''}`}>
         {/* Animated Background Glow */}
@@ -281,19 +282,27 @@ function AutoJournalCard({ tradingAccounts, isPro, language }: {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 relative z-10">
             {totalCount === 0 ? (
               <Button
-                onClick={() => router.push('/dashboard/connections')}
-                className="flex-1 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-400 hover:to-violet-500 text-white text-xs font-bold shadow-lg shadow-purple-500/20 h-9"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  console.log('🔵 [AutoJournal Card] Connect button clicked')
+                  router.push('/dashboard/connections')
+                }}
+                className="flex-1 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-400 hover:to-violet-500 text-white text-xs font-bold shadow-lg shadow-purple-500/20 h-9 pointer-events-auto"
               >
                 <Link2 className="w-3.5 h-3.5 mr-1.5" />
                 {language === 'id' ? 'Hubungkan Akun' : 'Connect Account'}
               </Button>
             ) : (
               <Button
-                onClick={() => router.push('/dashboard/connections')}
-                className="flex-1 bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/10 h-9"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  console.log('🟢 [AutoJournal Card] Manage button clicked')
+                  router.push('/dashboard/connections')
+                }}
+                className="flex-1 bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/10 h-9 pointer-events-auto"
               >
                 <Settings className="w-3.5 h-3.5 mr-1.5" />
                 {language === 'id' ? 'Kelola Akun' : 'Manage Accounts'}
