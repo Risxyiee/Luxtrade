@@ -32,32 +32,6 @@ function detectOS(ua: string): string {
 const recentVisits = new Map<string, number>()
 const RATE_LIMIT_MS = 5 * 60 * 1000
 
-// Auto-create table if not exists (for production deploy)
-async function ensureTable() {
-  try {
-    await db.pageVisit.count()
-  } catch {
-    try {
-      await db.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "PageVisit" (
-          "id" TEXT NOT NULL PRIMARY KEY,
-          "path" TEXT NOT NULL DEFAULT '',
-          "referrer" TEXT NOT NULL DEFAULT '',
-          "device" TEXT NOT NULL DEFAULT '',
-          "browser" TEXT NOT NULL DEFAULT '',
-          "os" TEXT NOT NULL DEFAULT '',
-          "country" TEXT NOT NULL DEFAULT '',
-          "ip" TEXT NOT NULL DEFAULT '',
-          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-      `)
-      console.log('PageVisit table auto-created (track)')
-    } catch (e) {
-      console.error('Failed to create PageVisit table:', e)
-    }
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -86,18 +60,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    await ensureTable()
-
     const ua = userAgent || ''
 
     await db.pageVisit.create({
       data: {
         path: path.substring(0, 500),
-        referrer: referrer ? referrer.substring(0, 500) : '',
+        referrer: referrer ? referrer.substring(0, 500) : null,
         device: detectDevice(ua),
         browser: detectBrowser(ua),
         os: detectOS(ua),
         ip: ip.substring(0, 45),
+        country: '', // Will be detected later if needed
       },
     })
 
