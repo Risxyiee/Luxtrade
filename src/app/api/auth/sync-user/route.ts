@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { supabaseAdmin, isAdminAvailable } from '@/lib/supabase-admin-alt'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,9 +16,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Use Supabase admin to update user metadata
-    const supabaseAdmin = getSupabaseAdmin()
+    // Check if admin is available
+    if (!isAdminAvailable() || !supabaseAdmin) {
+      console.error('❌ Supabase admin not available')
+      return NextResponse.json(
+        { error: 'Admin access not configured' },
+        { status: 500 }
+      )
+    }
 
+    // Use Supabase admin to update user metadata
     const { data: user, error } = await supabaseAdmin.auth.admin.updateUserById(
       userId,
       {
