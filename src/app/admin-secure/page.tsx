@@ -100,23 +100,24 @@ export default function AdminSecurePage() {
     setShowDropdown(null)
 
     try {
-      const response = await fetch('/api/admin/activate-pro', {
-        method: 'POST',
+      // Use new API that uses Supabase Auth
+      const response = await fetch('/api/admin/users', {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          adminEmail: ADMIN_EMAIL,
           userId,
-          months,
+          action: 'activate',
+          days: months === 0 ? 3650 : months * 30, // Lifetime = 10 years
         }),
       })
 
       const data = await response.json()
 
-      if (data.success) {
+      if (response.ok) {
         toast.success(`✅ PRO berhasil diaktifkan untuk ${months === 0 ? 'lifetime' : months + ' bulan'}!`)
         fetchUsers()
       } else {
-        toast.error(data.error || 'Gagal mengaktifkan PRO')
+        toast.error(data.details || data.error || 'Gagal mengaktifkan PRO')
       }
     } catch (error) {
       console.error('Error activating PRO:', error)
@@ -132,17 +133,23 @@ export default function AdminSecurePage() {
     setActivating(userId)
 
     try {
-      const response = await fetch(`/api/admin/activate-pro?adminEmail=${encodeURIComponent(ADMIN_EMAIL)}&userId=${userId}`, {
-        method: 'DELETE',
+      // Use new API that uses Supabase Auth
+      const response = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          action: 'revoke',
+        }),
       })
 
       const data = await response.json()
 
-      if (data.success) {
+      if (response.ok) {
         toast.success('✅ Status PRO berhasil dinonaktifkan')
         fetchUsers()
       } else {
-        toast.error(data.error || 'Gagal menonaktifkan PRO')
+        toast.error(data.details || data.error || 'Gagal menonaktifkan PRO')
       }
     } catch (error) {
       console.error('Error deactivating PRO:', error)
