@@ -46,6 +46,8 @@ async function createTradingAccountAdmin(
 // GET: Fetch all trading accounts for the authenticated user
 export async function GET(req: NextRequest) {
   try {
+    console.log('🔵 [TRADING ACCOUNTS API GET] Fetching trading accounts...')
+
     // Get session from cookie
     const { data: { session }, error: authError } = await supabase.auth.getSession()
 
@@ -57,8 +59,12 @@ export async function GET(req: NextRequest) {
       )
     }
 
+    console.log('✅ [TRADING ACCOUNTS API GET] User authenticated:', session.user.id)
+
     // Get user's trading accounts
     const accounts = await getUserTradingAccounts(session.user.id)
+    console.log('📊 [TRADING ACCOUNTS API GET] Found accounts:', accounts.length)
+    console.log('📋 [TRADING ACCOUNTS API GET] Accounts data:', accounts)
 
     // Get user's quota information
     const { data: profile } = await supabase
@@ -68,14 +74,19 @@ export async function GET(req: NextRequest) {
       .single()
 
     const quota = await checkAccountQuota(session.user.id, profile?.subscription_plan || 'free')
+    console.log('📊 [TRADING ACCOUNTS API GET] Quota:', quota)
 
-    return NextResponse.json({
+    const response = {
       success: true,
       data: accounts,
       quota
-    })
+    }
+
+    console.log('✅ [TRADING ACCOUNTS API GET] Sending response:', response)
+
+    return NextResponse.json(response)
   } catch (error) {
-    console.error('Error fetching trading accounts:', error)
+    console.error('🔴 [TRADING ACCOUNTS API GET] Error fetching trading accounts:', error)
     return NextResponse.json(
       {
         error: 'Failed to fetch trading accounts',

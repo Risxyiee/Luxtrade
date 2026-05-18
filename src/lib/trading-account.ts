@@ -61,6 +61,8 @@ export async function checkAccountQuota(userId: string, userPlan: string | null)
  */
 export async function getUserTradingAccounts(userId: string): Promise<TradingAccount[]> {
   try {
+    console.log('🔍 [getUserTradingAccounts] Fetching accounts for userId:', userId)
+
     const { data, error } = await supabase
       .from('trading_accounts')
       .select('*')
@@ -68,13 +70,19 @@ export async function getUserTradingAccounts(userId: string): Promise<TradingAcc
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching trading accounts:', error)
+      console.error('🔴 [getUserTradingAccounts] Error fetching trading accounts:', error)
+      console.error('🔴 [getUserTradingAccounts] Error code:', error.code)
+      console.error('🔴 [getUserTradingAccounts] Error message:', error.message)
+      console.error('🔴 [getUserTradingAccounts] Error details:', error.details)
       throw error
     }
 
+    console.log('✅ [getUserTradingAccounts] Successfully fetched accounts:', data?.length || 0)
+    console.log('📋 [getUserTradingAccounts] Accounts data:', data)
+
     return data || []
   } catch (error) {
-    console.error('Error in getUserTradingAccounts:', error)
+    console.error('🔴 [getUserTradingAccounts] Error in getUserTradingAccounts:', error)
     throw error
   }
 }
