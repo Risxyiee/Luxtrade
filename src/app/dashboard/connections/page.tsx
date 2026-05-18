@@ -156,6 +156,7 @@ export default function ConnectionsPage() {
 
   // Fetch user's connected accounts on mount
   useEffect(() => {
+    console.log('🚀 [DEBUG] ConnectionsPage mounted')
     fetchConnectedAccounts()
   }, [])
 
@@ -239,11 +240,11 @@ export default function ConnectionsPage() {
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('🔵 [DEBUG] handleConnect called', { formData, isConnecting })
+    console.log('🔵 [DEBUG] handleConnect called', { formData, isConnecting, event: e })
 
     // Validate form
     if (!formData.accountNumber || !formData.password || !formData.brokerServer) {
-      console.log('🔴 [DEBUG] Validation failed - missing fields')
+      console.log('🔴 [DEBUG] Validation failed - missing fields', { formData })
       toast.error(content.missingFields)
       return
     }
@@ -535,6 +536,15 @@ export default function ConnectionsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 relative">
+              {/* Test button outside form - for debugging */}
+              <button
+                type="button"
+                onClick={() => console.log('✅ [DEBUG] Test button clicked! Page is interactive!')}
+                className="mb-4 px-4 py-2 bg-green-500 text-white text-xs rounded"
+              >
+                TEST CLICK ME
+              </button>
+
               <form onSubmit={handleConnect} className="space-y-5 relative">
                 {/* Platform Selection */}
                 <div className="space-y-2">
