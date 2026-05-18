@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -428,10 +427,10 @@ export default function ConnectionsPage() {
   function AchievementCard({ achievement }: { achievement: Achievement }) {
     const Icon = achievement.icon
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.3 + achievements.indexOf(achievement) * 0.1 }}
+      <div
+        
+        
+        
         className={`p-4 rounded-xl border transition-all ${
           achievement.unlocked
             ? 'bg-gradient-to-br from-purple-500/20 to-violet-500/20 border-purple-500/30'
@@ -439,17 +438,17 @@ export default function ConnectionsPage() {
         }`}
       >
         <div className="flex items-start gap-3">
-          <motion.div
+          <div
             className={`p-2.5 rounded-lg ${
               achievement.unlocked
                 ? 'bg-gradient-to-br from-purple-500 to-violet-600 shadow-lg shadow-purple-500/30'
                 : 'bg-white/5'
             }`}
             animate={achievement.unlocked ? { scale: [1, 1.1, 1] } : {}}
-            transition={{ duration: 2, repeat: achievement.unlocked ? Infinity : 0, repeatDelay: 3 }}
+            
           >
             <Icon className={`w-5 h-5 ${achievement.unlocked ? 'text-white' : 'text-white/30'}`} />
-          </motion.div>
+          </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <h4 className={`font-semibold text-sm ${achievement.unlocked ? 'text-white' : 'text-white/50'}`}>
@@ -471,7 +470,7 @@ export default function ConnectionsPage() {
             </p>
           </div>
         </div>
-      </motion.div>
+      </div>
     )
   }
 
@@ -493,55 +492,50 @@ export default function ConnectionsPage() {
       )}
 
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
+      <div
+        
+        
         className="max-w-6xl mx-auto mb-8"
       >
         <div className="flex items-center gap-3 mb-2">
-          <motion.div
+          <div
             className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600"
-            animate={{ rotate: [0, 360] }}
-            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+            
+            
           >
             <Link2 className="w-6 h-6 text-white" />
-          </motion.div>
+          </div>
           <h1 className="text-3xl font-extrabold bg-gradient-to-r from-white to-purple-300 bg-clip-text text-transparent">
             {content.title}
           </h1>
           {connectedAccounts.length > 0 && (
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
+            <div
+              
+              
               className="ml-auto"
             >
               <Badge className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-400 border-emerald-500/30">
                 <CheckCircle className="w-3 h-3 mr-1" />
                 {connectedAccounts.length} {connectedAccounts.length === 1 ? 'Account' : 'Accounts'}
               </Badge>
-            </motion.div>
+            </div>
           )}
         </div>
         <p className="text-white/60 text-lg">{content.subtitle}</p>
-      </motion.div>
+      </div>
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Connection Form */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1 }}
-          className="relative z-10"
-        >
-          <Card className="backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] overflow-hidden relative z-10">
-            <CardHeader className="bg-gradient-to-r from-purple-500/10 to-violet-500/10 border-b border-white/[0.08]">
+        <div className="relative z-10">
+          <Card className="bg-[#1a1025] border border-purple-500/30">
+            <CardHeader className="bg-gradient-to-r from-purple-500/10 to-violet-500/10 border-b border-purple-500/30">
               <CardTitle className="flex items-center gap-2 text-xl">
                 <Sparkles className="w-5 h-5 text-purple-400" />
                 {language === 'id' ? 'Tambah Koneksi Baru' : 'Add New Connection'}
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6 relative z-10">
-              <form onSubmit={handleConnect} className="space-y-5 relative z-10">
+            <CardContent className="p-6 relative">
+              <form onSubmit={handleConnect} className="space-y-5 relative">
                 {/* Platform Selection */}
                 <div className="space-y-2">
                   <Label className="text-white/90 font-medium flex items-center gap-2">
@@ -654,8 +648,8 @@ export default function ConnectionsPage() {
           </Card>
 
           {/* Achievements Section */}
-          <Card className="backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] mt-6">
-            <CardHeader className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-b border-white/[0.08]">
+          <Card className="bg-[#1a1025] border border-purple-500/30 mt-6">
+            <CardHeader className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-b border-purple-500/30">
               <CardTitle className="flex items-center gap-2 text-xl">
                 <Trophy className="w-5 h-5 text-amber-400" />
                 {content.achievementsTitle}
@@ -669,16 +663,12 @@ export default function ConnectionsPage() {
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </div>
 
         {/* Connected Accounts List */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Card className="backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] h-full">
-            <CardHeader className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-b border-white/[0:08]">
+        <div>
+          <Card className="bg-[#1a1025] border border-purple-500/30 h-full">
+            <CardHeader className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-b border-purple-500/30">
               <CardTitle className="flex items-center gap-2 text-xl">
                 <CheckCircle className="w-5 h-5 text-emerald-400" />
                 {content.connectedAccounts}
@@ -692,33 +682,22 @@ export default function ConnectionsPage() {
               {loadingAccounts ? (
                 <LoadingSkeleton />
               ) : connectedAccounts.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="text-center py-12"
-                >
-                  <motion.div
-                    className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4"
-                    animate={{ scale: [1, 1.05, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
                     <Link2 className="w-8 h-8 text-white/30" />
-                  </motion.div>
+                  </div>
                   <p className="text-white/40 mb-4">{content.noAccounts}</p>
                   <div className="inline-flex items-center gap-2 text-xs text-white/30 bg-white/5 px-3 py-2 rounded-full">
                     <Zap className="w-3 h-3" />
                     {language === 'id' ? 'Hubungkan akun pertama Anda' : 'Connect your first account'}
                   </div>
-                </motion.div>
+                </div>
               ) : (
                 <div className="space-y-4">
                   {connectedAccounts.map((account, index) => (
-                    <motion.div
+                    <div
                       key={account.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className={`p-4 rounded-xl bg-white/[0.03] border border-white/[0.08] hover:border-purple-500/30 hover:bg-white/[0.06] transition-all ${
+                      className={`p-4 rounded-xl bg-white/[0.03] border border-purple-500/20 hover:border-purple-500/30 hover:bg-white/[0.06] transition-all ${
                         syncingAccountId === account.id ? 'ring-2 ring-purple-500/50' : ''
                       }`}
                     >
@@ -755,23 +734,16 @@ export default function ConnectionsPage() {
                       </div>
 
                       {/* Sync Progress */}
-                      <AnimatePresence>
-                        {syncingAccountId === account.id && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="mb-3 overflow-hidden"
-                          >
-                            <div className="flex items-center gap-2 text-xs text-purple-300 mb-1.5">
-                              <Database className="w-3 h-3 animate-pulse" />
-                              <span>{language === 'id' ? 'Menarik data trading...' : 'Fetching trading data...'}</span>
-                              <span className="ml-auto">{Math.round(syncProgress)}%</span>
-                            </div>
-                            <Progress value={syncProgress} className="h-1.5 bg-purple-900/30" />
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                      {syncingAccountId === account.id && (
+                        <div className="mb-3">
+                          <div className="flex items-center gap-2 text-xs text-purple-300 mb-1.5">
+                            <Database className="w-3 h-3 animate-pulse" />
+                            <span>{language === 'id' ? 'Menarik data trading...' : 'Fetching trading data...'}</span>
+                            <span className="ml-auto">{Math.round(syncProgress)}%</span>
+                          </div>
+                          <Progress value={syncProgress} className="h-1.5 bg-purple-900/30" />
+                        </div>
+                      )}
 
                       <div className="flex items-center justify-between">
                         <p className="text-xs text-white/40">
@@ -811,13 +783,13 @@ export default function ConnectionsPage() {
                           </Button>
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               )}
             </CardContent>
           </Card>
-        </motion.div>
+        </div>
       </div>
     </div>
   )
