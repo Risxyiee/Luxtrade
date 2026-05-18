@@ -73,6 +73,9 @@ export async function POST(req: NextRequest) {
     let metaApiAccount
     try {
       console.log('🔵 [METAAPI CONNECT] Creating MetaApi account for:', accountNumber, 'on', brokerServer)
+      console.log('DEBUG: Menggunakan Token MetaApi:', process.env.METAAPI_TOKEN ? 'Tersedia' : 'KOSONG')
+      console.log('DEBUG: Token length:', process.env.METAAPI_TOKEN?.length || 0)
+
       metaApiAccount = await createMetaApiAccount({
         accountNumber,
         password,
@@ -94,14 +97,18 @@ export async function POST(req: NextRequest) {
 
       console.error('🔴 [METAAPI CONNECT] Error details:', errorDetails)
 
-      // Update trading account status to ERROR
-      await supabase
+      // ROLLBACK: Delete the trading account record to avoid duplicate key error on retry
+      console.log('🔄 [METAAPI CONNECT] Rolling back - deleting trading account record:', tradingAccountId)
+      const { error: deleteError } = await supabase
         .from('trading_accounts')
-        .update({
-          status: 'ERROR',
-          metaapi_account_id: null
-        })
+        .delete()
         .eq('id', tradingAccountId)
+
+      if (deleteError) {
+        console.error('🔴 [METAAPI CONNECT] Failed to delete trading account during rollback:', deleteError)
+      } else {
+        console.log('✅ [METAAPI CONNECT] Successfully deleted trading account during rollback')
+      }
 
       return NextResponse.json(
         {
@@ -157,6 +164,17 @@ export async function POST(req: NextRequest) {
     }
 
     console.error('🔴 [METAAPI CONNECT] Main error details:', errorDetails)
+
+    // ROLLBACK: Try to clean up trading account if possible
+    const body = await req.json().catch(() => ({}))
+    if (body.tradingAccountId) {
+      console.log('🔄 [METAAPI CONNECT] Rolling back - deleting trading account record in main catch:', body.tradingAccountId)
+      await supabase
+        .from('trading_accounts')
+        .delete()
+        .eq('id', body.tradingAccountId)
+        .catch(err => console.error('Failed to delete during rollback in main catch:', err))
+    }
 
     return NextResponse.json(
       {
