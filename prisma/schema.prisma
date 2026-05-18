@@ -106,9 +106,23 @@ model Withdrawal {
   adminNote         String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
-  
+
   // Relations
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@map("withdrawals")
+}
+
+model PageVisit {
+  id                String    @id @default(uuid())
+  path              String
+  referrer          String?
+  device            String?
+  browser           String?
+  os                String?
+  country           String?
+  ip                String?
+  createdAt         DateTime  @default(now())
+
+  @@map("page_visits")
 }
