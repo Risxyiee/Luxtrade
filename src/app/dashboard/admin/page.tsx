@@ -43,7 +43,14 @@ interface UserProfile {
   created_at: string
   device_id: string | null
   has_ever_been_pro: boolean
-  created_at: string
+  my_referral_code?: string | null
+  referred_by?: {
+    email: string
+  } | null
+  referred_by_code?: string | null
+  has_duplicate_device?: boolean
+  referral_status?: string | null
+  commission_paid?: boolean
 }
 
 // Traffic analytics types
