@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
+// Helper function to generate referral code
+function generateReferralCode(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  let code = 'LUX'
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return code
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, fullName, deviceId } = await request.json()
+    const { email, password, fullName, deviceId, referralCode } = await request.json()
     console.log('📝 Signup request for:', email)
 
     // Validate input
@@ -59,12 +69,28 @@ export async function POST(request: NextRequest) {
     // ============================================
     console.log('🚀 Calling supabase.auth.signUp...')
 
+    // Generate unique referral code for this user
+    const myReferralCode = generateReferralCode()
+    const now = new Date().toISOString()
+
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           full_name: fullName,
+          // Auto-init user metadata for admin panel
+          is_pro: false,
+          subscription_status: 'inactive',
+          subscription_until: null,
+          my_referral_code: myReferralCode,
+          referred_by_code: referralCode || null,
+          has_ever_been_pro: false,
+          commission_paid: false,
+          device_id: deviceId || null,
+          created_at: now,
+          updated_at: now,
+          role: 'member'
         },
         emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://d18td1p2anb1-d.space.z.ai'}/auth/callback`,
       },

@@ -134,7 +134,21 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const { userId, days = 30 } = body
 
+    console.log('🔧 [ADMIN API] PATCH request - Activate PRO')
+    console.log('🔧 [ADMIN API] userId:', userId)
+    console.log('🔧 [ADMIN API] days:', days)
+    console.log('🔧 [ADMIN API] supabaseAdmin available:', !!supabaseAdmin)
+
+    if (!supabaseAdmin) {
+      console.error('❌ [ADMIN API] supabaseAdmin is not configured')
+      return NextResponse.json(
+        { error: 'Admin configuration error. SUPABASE_SERVICE_ROLE_KEY is missing.' },
+        { status: 500 }
+      )
+    }
+
     if (!userId) {
+      console.error('❌ [ADMIN API] User ID is required')
       return NextResponse.json(
         { error: 'User ID is required' },
         { status: 400 }
@@ -142,39 +156,67 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Get current user metadata
-    const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(userId)
+    console.log('🔍 [ADMIN API] Fetching user by ID:', userId)
+    const { data: { user }, error: fetchError } = await supabaseAdmin.auth.admin.getUserById(userId)
+
+    if (fetchError) {
+      console.error('❌ [ADMIN API] Error fetching user:', fetchError)
+      return NextResponse.json(
+        { error: 'Failed to fetch user', details: fetchError.message },
+        { status: 500 }
+      )
+    }
 
     if (!user) {
+      console.error('❌ [ADMIN API] User not found:', userId)
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       )
     }
 
-    // Calculate new subscription date
+    console.log('✅ [ADMIN API] User found:', user.email)
+    console.log('📊 [ADMIN API] Current metadata:', JSON.stringify(user.user_metadata, null, 2))
+
+    // Calculate new subscription date (add days to current date or extend if already PRO)
     const now = new Date()
-    const subscriptionUntil = new Date(now.getTime() + (days * 24 * 60 * 60 * 1000)).toISOString()
+    const currentSubscriptionUntil = user.user_metadata?.subscription_until
+      ? new Date(user.user_metadata.subscription_until)
+      : now
+
+    // If subscription is still valid, extend from current expiry. If expired, start from now.
+    const baseDate = currentSubscriptionUntil > now ? currentSubscriptionUntil : now
+    const subscriptionUntil = new Date(baseDate.getTime() + (days * 24 * 60 * 60 * 1000)).toISOString()
+
+    console.log('📅 [ADMIN API] Subscription until:', subscriptionUntil)
+
+    // Merge existing metadata with new PRO status
+    const newMetadata = {
+      ...user.user_metadata,
+      is_pro: true,
+      subscription_status: 'active',
+      subscription_until: subscriptionUntil,
+      has_ever_been_pro: true,
+      updated_at: new Date().toISOString()
+    }
+
+    console.log('📝 [ADMIN API] New metadata:', JSON.stringify(newMetadata, null, 2))
 
     // Update user metadata
-    const { data: updatedUser, error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-      user_metadata: {
-        ...user.user_metadata,
-        is_pro: true,
-        subscription_status: 'active',
-        subscription_until: subscriptionUntil,
-        has_ever_been_pro: true
-      }
+    const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      user_metadata: newMetadata
     })
 
-    if (error) {
-      console.error('❌ [ADMIN API] Error updating user:', error)
+    if (updateError) {
+      console.error('❌ [ADMIN API] Error updating user:', updateError)
       return NextResponse.json(
-        { error: error.message },
+        { error: updateError.message, details: updateError },
         { status: 500 }
       )
     }
 
     console.log('✅ [ADMIN API] PRO activated for user:', updatedUser.user?.email)
+    console.log('✅ [ADMIN API] Updated user metadata:', JSON.stringify(updatedUser.user?.user_metadata, null, 2))
 
     return NextResponse.json({
       message: 'PRO activated successfully',
@@ -183,8 +225,12 @@ export async function PATCH(request: NextRequest) {
     })
   } catch (error) {
     console.error('❌ [ADMIN API] Error activating PRO:', error)
+    console.error('❌ [ADMIN API] Error stack:', error instanceof Error ? error.stack : 'No stack')
     return NextResponse.json(
-      { error: 'Failed to activate PRO' },
+      {
+        error: 'Failed to activate PRO',
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     )
   }
@@ -196,7 +242,20 @@ export async function DELETE(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const userId = searchParams.get('userId')
 
+    console.log('🔧 [ADMIN API] DELETE request - Revoke PRO')
+    console.log('🔧 [ADMIN API] userId:', userId)
+    console.log('🔧 [ADMIN API] supabaseAdmin available:', !!supabaseAdmin)
+
+    if (!supabaseAdmin) {
+      console.error('❌ [ADMIN API] supabaseAdmin is not configured')
+      return NextResponse.json(
+        { error: 'Admin configuration error. SUPABASE_SERVICE_ROLE_KEY is missing.' },
+        { status: 500 }
+      )
+    }
+
     if (!userId) {
+      console.error('❌ [ADMIN API] User ID is required')
       return NextResponse.json(
         { error: 'User ID is required' },
         { status: 400 }
@@ -204,29 +263,47 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get current user metadata
-    const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(userId)
+    console.log('🔍 [ADMIN API] Fetching user by ID:', userId)
+    const { data: { user }, error: fetchError } = await supabaseAdmin.auth.admin.getUserById(userId)
+
+    if (fetchError) {
+      console.error('❌ [ADMIN API] Error fetching user:', fetchError)
+      return NextResponse.json(
+        { error: 'Failed to fetch user', details: fetchError.message },
+        { status: 500 }
+      )
+    }
 
     if (!user) {
+      console.error('❌ [ADMIN API] User not found:', userId)
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       )
     }
 
+    console.log('✅ [ADMIN API] User found:', user.email)
+    console.log('📊 [ADMIN API] Current metadata:', JSON.stringify(user.user_metadata, null, 2))
+
     // Update user metadata to revoke PRO
-    const { data: updatedUser, error } = await supabase.auth.admin.updateUserById(userId, {
-      user_metadata: {
-        ...user.user_metadata,
-        is_pro: false,
-        subscription_status: 'inactive',
-        subscription_until: null
-      }
+    const newMetadata = {
+      ...user.user_metadata,
+      is_pro: false,
+      subscription_status: 'inactive',
+      subscription_until: null,
+      updated_at: new Date().toISOString()
+    }
+
+    console.log('📝 [ADMIN API] New metadata (revoke):', JSON.stringify(newMetadata, null, 2))
+
+    const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      user_metadata: newMetadata
     })
 
-    if (error) {
-      console.error('❌ [ADMIN API] Error updating user:', error)
+    if (updateError) {
+      console.error('❌ [ADMIN API] Error updating user:', updateError)
       return NextResponse.json(
-        { error: error.message },
+        { error: updateError.message, details: updateError },
         { status: 500 }
       )
     }
@@ -239,8 +316,12 @@ export async function DELETE(request: NextRequest) {
     })
   } catch (error) {
     console.error('❌ [ADMIN API] Error revoking PRO:', error)
+    console.error('❌ [ADMIN API] Error stack:', error instanceof Error ? error.stack : 'No stack')
     return NextResponse.json(
-      { error: 'Failed to revoke PRO' },
+      {
+        error: 'Failed to revoke PRO',
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     )
   }
