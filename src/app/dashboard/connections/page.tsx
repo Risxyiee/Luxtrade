@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Sparkles, Link2, Lock, Server, Shield, CheckCircle, XCircle, Loader2, Zap, Trophy, Star, Award, TrendingUp, Database } from 'lucide-react'
@@ -615,33 +614,41 @@ export default function ConnectionsPage() {
                 </div>
 
                 {/* Security Notice */}
-                <Alert className="bg-purple-500/10 border-purple-500/30 relative z-0">
+                {/* <Alert className="bg-purple-500/10 border-purple-500/30 relative z-0">
                   <AlertDescription className="text-xs text-purple-200/80">
                     {content.securityNote}
                   </AlertDescription>
-                </Alert>
+                </Alert> */}
+
+                <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3 relative z-0">
+                  <p className="text-xs text-purple-200/80">
+                    {content.securityNote}
+                  </p>
+                </div>
 
                 {/* Connect Button */}
-                <Button
-                  type="submit"
-                  disabled={isConnecting}
-                  onClick={(e) => {
-                    console.log('🔴 [DEBUG] Button clicked!', { e, isConnecting, formData })
-                  }}
-                  className="w-full h-14 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-300 text-base relative z-50 pointer-events-auto"
-                >
-                  {isConnecting ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      {content.connectingButton}
-                    </>
-                  ) : (
-                    <>
-                      <Zap className="w-5 h-5 mr-2" />
-                      {content.connectButton}
-                    </>
-                  )}
-                </Button>
+                <div className="relative z-[9999]">
+                  <Button
+                    type="submit"
+                    disabled={isConnecting}
+                    onClick={(e) => {
+                      console.log('🔴 [DEBUG] Button clicked!', { e, isConnecting, formData })
+                    }}
+                    className="w-full h-14 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-300 text-base pointer-events-auto cursor-pointer"
+                  >
+                    {isConnecting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        {content.connectingButton}
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-5 h-5 mr-2" />
+                        {content.connectButton}
+                      </>
+                    )}
+                  </Button>
+                </div>
               </form>
             </CardContent>
           </Card>
