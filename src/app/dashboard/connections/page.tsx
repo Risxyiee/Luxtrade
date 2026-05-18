@@ -235,19 +235,24 @@ export default function ConnectionsPage() {
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('🔵 [DEBUG] handleConnect called', { formData, isConnecting })
 
     // Validate form
     if (!formData.accountNumber || !formData.password || !formData.brokerServer) {
+      console.log('🔴 [DEBUG] Validation failed - missing fields')
       toast.error(content.missingFields)
       return
     }
 
+    console.log('🟢 [DEBUG] Validation passed, checking quota...')
     // Check quota before proceeding
     const canProceed = await checkQuotaAndProceed()
+    console.log('🟡 [DEBUG] Quota check result:', canProceed)
     if (!canProceed) {
       return
     }
 
+    console.log('🟣 [DEBUG] Starting connection process...')
     setIsConnecting(true)
 
     try {
@@ -614,7 +619,10 @@ export default function ConnectionsPage() {
                 <Button
                   type="submit"
                   disabled={isConnecting}
-                  className="w-full h-14 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-300 text-base relative z-20 pointer-events-auto"
+                  onClick={(e) => {
+                    console.log('🔴 [DEBUG] Button clicked!', { e, isConnecting, formData })
+                  }}
+                  className="w-full h-14 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-300 text-base relative z-50 pointer-events-auto"
                 >
                   {isConnecting ? (
                     <>
