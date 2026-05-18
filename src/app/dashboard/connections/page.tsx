@@ -917,6 +917,18 @@ export default function ConnectionsPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Cleanup Button - Only show in development or if there are stuck accounts */}
+          <div className="mt-4">
+            <Button
+              variant="ghost"
+              onClick={() => router.push('/dashboard/connections/cleanup')}
+              className="w-full text-white/50 hover:text-white/80 hover:bg-white/5 text-xs py-2"
+            >
+              <Trash2 className="w-3 h-3 mr-1" />
+              {language === 'id' ? 'Cleanup Akun Terjebak' : 'Cleanup Stuck Accounts'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
