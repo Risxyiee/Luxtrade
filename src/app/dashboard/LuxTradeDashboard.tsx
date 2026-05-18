@@ -303,7 +303,16 @@ function LuxTradeDashboardContent() {
         setProTrialCount(Math.min(count, MAX_PRO_TRIALS))
       }
     }
-  }, [])
+
+    // Show PaywallModal with guide for new users on first dashboard visit
+    const hasSeenGuide = localStorage.getItem('luxtrade_seen_payment_guide')
+    if (!isPro && !hasSeenGuide) {
+      setTimeout(() => {
+        setPaywallModalOpen(true)
+        localStorage.setItem('luxtrade_seen_payment_guide', 'true')
+      }, 2000) // Show after 2 seconds to let user settle in
+    }
+  }, [isPro, setPaywallModalOpen])
 
   
   const handleSelectPlan = (plan: any) => {
