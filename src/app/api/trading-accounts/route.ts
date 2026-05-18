@@ -5,8 +5,43 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
-import { checkAccountQuota, checkAccountNumberExists, createTradingAccount, getUserTradingAccounts } from '@/lib/trading-account'
+import { supabase, supabaseAdmin } from '@/lib/supabase'
+import { checkAccountQuota, checkAccountNumberExists, getUserTradingAccounts } from '@/lib/trading-account'
+
+// Helper: Create trading account using admin client (bypasses RLS)
+async function createTradingAccountAdmin(
+  userId: string,
+  accountData: {
+    account_number: string
+    broker_server: string
+    platform: 'MT4' | 'MT5'
+    metaapi_account_id?: string
+  }
+) {
+  if (!supabaseAdmin) {
+    throw new Error('Supabase admin client not configured')
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('trading_accounts')
+    .insert({
+      user_id: userId,
+      account_number: accountData.account_number,
+      broker_server: accountData.broker_server,
+      platform: accountData.platform,
+      metaapi_account_id: accountData.metaapi_account_id || null,
+      status: 'PENDING'
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error creating trading account (admin):', error)
+    throw error
+  }
+
+  return data
+}
 
 // GET: Fetch all trading accounts for the authenticated user
 export async function GET(req: NextRequest) {
@@ -141,8 +176,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Create the trading account
-    const newAccount = await createTradingAccount(user.id, {
+    // Create the trading account using admin client (bypasses RLS)
+    const newAccount = await createTradingAccountAdmin(user.id, {
       account_number,
       broker_server,
       platform
