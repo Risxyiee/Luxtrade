@@ -521,16 +521,17 @@ export default function ConnectionsPage() {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.1 }}
+          className="relative z-10"
         >
-          <Card className="backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] overflow-hidden">
+          <Card className="backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] overflow-hidden relative z-10">
             <CardHeader className="bg-gradient-to-r from-purple-500/10 to-violet-500/10 border-b border-white/[0.08]">
               <CardTitle className="flex items-center gap-2 text-xl">
                 <Sparkles className="w-5 h-5 text-purple-400" />
                 {language === 'id' ? 'Tambah Koneksi Baru' : 'Add New Connection'}
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6">
-              <form onSubmit={handleConnect} className="space-y-5">
+            <CardContent className="p-6 relative z-10">
+              <form onSubmit={handleConnect} className="space-y-5 relative z-10">
                 {/* Platform Selection */}
                 <div className="space-y-2">
                   <Label className="text-white/90 font-medium flex items-center gap-2">
@@ -603,7 +604,7 @@ export default function ConnectionsPage() {
                 </div>
 
                 {/* Security Notice */}
-                <Alert className="bg-purple-500/10 border-purple-500/30">
+                <Alert className="bg-purple-500/10 border-purple-500/30 relative z-0">
                   <AlertDescription className="text-xs text-purple-200/80">
                     {content.securityNote}
                   </AlertDescription>
@@ -613,7 +614,7 @@ export default function ConnectionsPage() {
                 <Button
                   type="submit"
                   disabled={isConnecting}
-                  className="w-full h-14 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-300 text-base"
+                  className="w-full h-14 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-300 text-base relative z-20 pointer-events-auto"
                 >
                   {isConnecting ? (
                     <>
