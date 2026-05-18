@@ -1,6 +1,14 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+// Panggil client buatan internal proyek lo sendiri (biasanya di folder utils/lib)
+import { createClient } from '@supabase/supabase-js'
+
+// Di dalam fungsi POST/PATCH/DELETE, ganti cara bikin supabase-nya menjadi:
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+  auth: {
+    persistSession: false
+  }
+})
 
 export async function POST(request: Request) {
   // ─── 1. PARSE BODY DULU (sebelum try-catch auth agar error parsing juga tertangkap JSON) ───
