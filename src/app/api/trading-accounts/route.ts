@@ -1,25 +1,51 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
-export async function GET(request: Request) {
+// Fungsi pembantu mengambil token auth dari cookie Next.js secara dinamis
+function getAuthTokenFromCookies() {
+  const cookieStore = cookies()
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  if (!supabaseUrl) return null
+  
   try {
-    // KUNCI UTAMA: Bikin client server-side yang bisa ngebaca cookie otomatis
-    const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    const hostname = new URL(supabaseUrl).hostname.split('.')[0]
+    const supabaseCookieName = `sb-${hostname}-auth-token`
+    const cookieData = cookieStore.get(supabaseCookieName)?.value
+    if (!cookieData) return null
+    
+    const parsed = JSON.parse(cookieData)
+    return parsed?.access_token || parsed?.[0]?.access_token || cookieData
+  } catch {
+    return null
+  }
+}
 
-    // Ambil user dengan aman
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+// GET: Mengambil semua akun trading milik user yang sedang login
+export async function GET() {
+  const accessToken = getAuthTokenFromCookies()
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { persistSession: false } }
+  )
 
-    if (authError || !user) {
-      // Pastikan return JSON yang valid, BUKAN teks biasa biar gak memicu eror #310
+  try {
+    if (!accessToken) {
       return NextResponse.json(
-        { error: 'Unauthorized', message: 'Sesi login tidak ditemukan atau kedaluwarsa' },
+        { success: false, error: 'Unauthorized', message: 'Sesi login tidak ditemukan.' },
         { status: 401 }
       )
     }
 
-    // Jalankan query database lo di bawah sini menggunakan instance 'supabase' tadi
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
+    if (authError || !user) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized', message: 'Sesi kedaluwarsa.' },
+        { status: 401 }
+      )
+    }
+
     const { data: accounts, error: dbError } = await supabase
       .from('trading_accounts')
       .select('*')
@@ -28,10 +54,10 @@ export async function GET(request: Request) {
     if (dbError) throw dbError
 
     return NextResponse.json({ success: true, data: accounts })
-
   } catch (error: any) {
+    console.error('[trading-accounts] GET error:', error.message)
     return NextResponse.json(
-      { error: 'Internal Server Error', message: error.message },
+      { success: false, error: 'Internal Server Error', message: error.message },
       { status: 500 }
     )
   }
