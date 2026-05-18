@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
 import TelegramFloatingWidget from "@/components/TelegramFloatingWidget";
 import GlobalErrorBoundary from "@/components/GlobalErrorBoundary";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,9 +49,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${lexend.variable} antialiased`}
       >
         <GlobalErrorBoundary>
-          <Providers>
-            {children}
-          </Providers>
+          <LanguageProvider>
+            <Providers>
+              {children}
+            </Providers>
+          </LanguageProvider>
           <Toaster position="top-right" />
 
           {/* AI Chat Widget - Chatbase */}

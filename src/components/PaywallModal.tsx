@@ -5,6 +5,7 @@ import { X, Crown, Lock, Sparkles, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface PaywallModalProps {
   isOpen: boolean
@@ -14,6 +15,12 @@ interface PaywallModalProps {
   remainingTrials?: number
 }
 
+// Skrill payment links
+const SKRILL_LINKS = {
+  pro: 'https://skrill.me/rq/RIZQI%20AKBAR/3/USD?key=vXcr_5kNitZJFVBnkmK0sakLnjB',
+  lifetime: 'https://skrill.me/rq/RIZQI%20AKBAR/5/USD?key=EI71vCJNy64rGTOWNzhHPcWiTXS'
+}
+
 export default function PaywallModal({
   isOpen,
   onClose,
@@ -21,8 +28,44 @@ export default function PaywallModal({
   featureName = 'Fitur Premium',
   remainingTrials = 0
 }: PaywallModalProps) {
+  const { language, t } = useLanguage()
   const isTrialExhausted = remainingTrials === 0
   const hasTrialsLeft = remainingTrials > 0
+  const isEnglish = language === 'en'
+
+  // Pricing data based on language
+  const pricing = {
+    pro: {
+      title: 'ELITE PRO',
+      price: isEnglish ? '$3' : 'Rp 49.000',
+      period: isEnglish ? '/ Month' : '/ Bulan',
+      description: isEnglish ? '🔥 UNLIMITED Journal + Full AI' : '🔥 UNLIMITED Jurnal + AI Penuh',
+      popular: isEnglish ? 'Most Popular' : 'Paling Populer'
+    },
+    lifetime: {
+      title: 'LIFETIME ULTRA',
+      price: isEnglish ? '$5' : 'Rp 52.000',
+      period: isEnglish ? '/ One-Time' : '/ Sekali Bayar',
+      description: isEnglish ? '👑 Lifetime Access - Limited Slots!' : '👑 Akses Selamanya - Slot Terbatas!',
+      promo: isEnglish ? 'PROMO: ONLY 30 SLOTS LEFT!' : 'PROMO MERDEKA TRADER - SISA 30 SLOT!'
+    }
+  }
+
+  const handleProUpgrade = () => {
+    if (isEnglish) {
+      window.open(SKRILL_LINKS.pro, '_blank')
+    } else {
+      onUpgrade?.()
+    }
+  }
+
+  const handleLifetimeUpgrade = () => {
+    if (isEnglish) {
+      window.open(SKRILL_LINKS.lifetime, '_blank')
+    } else {
+      onUpgrade?.()
+    }
+  }
 
   return (
     <AnimatePresence>
@@ -95,10 +138,13 @@ export default function PaywallModal({
                     <>
                       <h2 className="text-2xl font-extrabold text-white mb-2 flex items-center justify-center gap-2">
                         <Crown className="w-6 h-6 text-amber-400" />
-                        Masa Uji Coba Fitur PRO Habis!
+                        {t('paywall.title')}
                       </h2>
                       <p className="text-white/60 text-sm leading-relaxed">
-                        Anda telah merasakan kekuatan Analisis AI kami. Upgrade ke Elite PRO sekarang untuk membuka akses <span className="text-purple-400 font-semibold">UNLIMITED</span> tanpa batas.
+                        {isEnglish
+                          ? 'You have experienced the power of our AI Analysis. Upgrade to Elite PRO now to unlock UNLIMITED access without limits.'
+                          : 'Anda telah merasakan kekuatan Analisis AI kami. Upgrade ke Elite PRO sekarang untuk membuka akses UNLIMITED tanpa batas.'
+                        }
                       </p>
                     </>
                   ) : (
@@ -108,7 +154,7 @@ export default function PaywallModal({
                         {featureName}
                       </h2>
                       <p className="text-white/60 text-sm leading-relaxed">
-                        Sisa uji coba fitur premium: <span className="text-amber-400 font-bold">{remainingTrials} / 3</span> kali
+                        {t('paywall.trials')}: <span className="text-amber-400 font-bold">{remainingTrials} / 3</span>
                       </p>
                     </>
                   )}
@@ -118,21 +164,24 @@ export default function PaywallModal({
                 {isTrialExhausted && (
                   <div className="space-y-3 mb-6">
                     {/* Elite Pro */}
-                    <Card className="bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/30 hover:border-purple-500/50 transition-all cursor-pointer group" onClick={onUpgrade}>
+                    <Card
+                      className={`bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/30 hover:border-purple-500/50 transition-all cursor-pointer group ${isEnglish ? '' : 'hover:scale-[1.02]'}`}
+                      onClick={handleProUpgrade}
+                    >
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
                               <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs">
-                                Paling Populer
+                                {pricing.pro.popular}
                               </Badge>
-                              <span className="text-white font-bold">ELITE PRO</span>
+                              <span className="text-white font-bold">{pricing.pro.title}</span>
                             </div>
                             <div className="text-2xl font-extrabold text-white">
-                              Rp 49.000
-                              <span className="text-sm font-normal text-white/40"> / Bulan</span>
+                              {pricing.pro.price}
+                              <span className="text-sm font-normal text-white/40"> {pricing.pro.period}</span>
                             </div>
-                            <p className="text-xs text-white/50 mt-1">🔥 UNLIMITED Jurnal + AI Penuh</p>
+                            <p className="text-xs text-white/50 mt-1">{pricing.pro.description}</p>
                           </div>
                           <Crown className="w-8 h-8 text-purple-400 group-hover:scale-110 transition-transform" />
                         </div>
@@ -140,21 +189,27 @@ export default function PaywallModal({
                     </Card>
 
                     {/* Lifetime Ultra */}
-                    <Card className="bg-gradient-to-br from-amber-500/10 to-transparent border-amber-500/30 hover:border-amber-500/50 transition-all cursor-pointer group" onClick={onUpgrade}>
+                    <Card
+                      className={`bg-gradient-to-br from-amber-500/10 to-transparent border-amber-500/30 hover:border-amber-500/50 transition-all cursor-pointer group ${isEnglish ? '' : 'hover:scale-[1.02]'}`}
+                      onClick={handleLifetimeUpgrade}
+                    >
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
                               <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-xs">
-                                PROMO
+                                {isEnglish ? 'PROMO' : 'PROMO'}
                               </Badge>
-                              <span className="text-white font-bold">LIFETIME ULTRA</span>
+                              <span className="text-white font-bold">{pricing.lifetime.title}</span>
                             </div>
                             <div className="text-2xl font-extrabold text-white">
-                              Rp 52.000
-                              <span className="text-sm font-normal text-white/40"> / Sekali Bayar</span>
+                              {pricing.lifetime.price}
+                              <span className="text-sm font-normal text-white/40"> {pricing.lifetime.period}</span>
                             </div>
-                            <p className="text-xs text-amber-300/60 mt-1">👑 Akses Selamanya - Slot Terbatas!</p>
+                            <p className="text-xs text-amber-300/60 mt-1">{pricing.lifetime.description}</p>
+                            {pricing.lifetime.promo && (
+                              <p className="text-xs text-red-400/80 mt-1 font-semibold">{pricing.lifetime.promo}</p>
+                            )}
                           </div>
                           <Sparkles className="w-8 h-8 text-amber-400 group-hover:scale-110 transition-transform" />
                         </div>
@@ -168,20 +223,31 @@ export default function PaywallModal({
                   {isTrialExhausted ? (
                     <>
                       <Button
-                        onClick={onUpgrade}
-                        className="w-full h-12 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all"
+                        onClick={handleProUpgrade}
+                        className={`w-full h-12 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all ${isEnglish ? 'hover:scale-[1.02]' : ''}`}
                       >
                         <Crown className="w-5 h-5 mr-2" />
-                        Upgrade ke Elite PRO Sekarang
+                        {isEnglish ? 'Upgrade to Elite PRO Now' : 'Upgrade ke Elite PRO Sekarang'}
                       </Button>
-                      <Button
-                        onClick={() => window.open('https://wa.me/6281234567890?text=Halo%20saya%20ingin%20upgrade%20ke%20Elite%20PRO', '_blank')}
-                        variant="outline"
-                        className="w-full h-12 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50 font-semibold transition-all"
-                      >
-                        <ExternalLink className="w-5 h-5 mr-2" />
-                        Hubungi WhatsApp Admin
-                      </Button>
+                      {isEnglish ? (
+                        <Button
+                          onClick={handleLifetimeUpgrade}
+                          variant="outline"
+                          className="w-full h-12 border-amber-500/30 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/50 font-semibold transition-all hover:scale-[1.02]"
+                        >
+                          <Sparkles className="w-5 h-5 mr-2" />
+                          Get Lifetime Ultra
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={() => window.open('https://wa.me/6281234567890?text=Halo%20saya%20ingin%20upgrade%20ke%20Elite%20PRO', '_blank')}
+                          variant="outline"
+                          className="w-full h-12 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50 font-semibold transition-all"
+                        >
+                          <ExternalLink className="w-5 h-5 mr-2" />
+                          Hubungi WhatsApp Admin
+                        </Button>
+                      )}
                     </>
                   ) : (
                     <>
@@ -193,7 +259,7 @@ export default function PaywallModal({
                         className="w-full h-12 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all"
                       >
                         <Sparkles className="w-5 h-5 mr-2" />
-                        Gunakan Trial ({remainingTrials} tersisa)
+                        {isEnglish ? `Use Trial (${remainingTrials} left)` : `Gunakan Trial (${remainingTrials} tersisa)`}
                       </Button>
                       <Button
                         onClick={onUpgrade}
@@ -201,7 +267,7 @@ export default function PaywallModal({
                         className="w-full h-12 border-amber-500/30 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/50 font-semibold transition-all"
                       >
                         <Crown className="w-5 h-5 mr-2" />
-                        Langsung Upgrade ke PRO
+                        {isEnglish ? 'Upgrade to PRO Now' : 'Langsung Upgrade ke PRO'}
                       </Button>
                     </>
                   )}
@@ -211,7 +277,10 @@ export default function PaywallModal({
                 {isTrialExhausted && (
                   <div className="mt-6 pt-4 border-t border-white/10 text-center">
                     <p className="text-xs text-white/40">
-                      Pertanyaan? Hubungi kami di WhatsApp untuk bantuan
+                      {isEnglish
+                        ? 'Questions? Contact us on WhatsApp for assistance'
+                        : 'Pertanyaan? Hubungi kami di WhatsApp untuk bantuan'
+                      }
                     </p>
                   </div>
                 )}
