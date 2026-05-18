@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin, getAdminStatus } from '@/lib/supabase-admin-alt'
 
 // GET all users from Supabase Auth
 export async function GET(request: NextRequest) {
   try {
     console.log('🔍 [ADMIN API] Fetching users from Supabase Auth...')
+    console.log('📊 [ADMIN API] Admin status:', JSON.stringify(getAdminStatus()))
 
     // Check if supabaseAdmin is available
     if (!supabaseAdmin) {
-      console.error('❌ [ADMIN API] supabaseAdmin is not configured. SUPABASE_SERVICE_ROLE_KEY is missing.')
+      const status = getAdminStatus()
+      console.error('❌ [ADMIN API] supabaseAdmin is not configured')
+      console.error('❌ [ADMIN API] Status:', JSON.stringify(status))
       return NextResponse.json(
         {
           error: 'Admin configuration error',
-          details: 'SUPABASE_SERVICE_ROLE_KEY is not configured. Please set it in environment variables.'
+          details: 'SUPABASE_SERVICE_ROLE_KEY is not configured. Please set it in environment variables.',
+          debug: status
         },
         { status: 500 }
       )
@@ -138,14 +142,17 @@ export async function PATCH(request: NextRequest) {
     console.log('🔧 [ADMIN API] action:', action)
     console.log('🔧 [ADMIN API] userId:', userId)
     console.log('🔧 [ADMIN API] days:', days)
-    console.log('🔧 [ADMIN API] supabaseAdmin available:', !!supabaseAdmin)
+    console.log('📊 [ADMIN API] Admin status:', JSON.stringify(getAdminStatus()))
 
     if (!supabaseAdmin) {
+      const status = getAdminStatus()
       console.error('❌ [ADMIN API] supabaseAdmin is not configured')
+      console.error('❌ [ADMIN API] Status:', JSON.stringify(status))
       return NextResponse.json(
         {
           error: 'Admin configuration error',
           details: 'SUPABASE_SERVICE_ROLE_KEY is missing in environment variables. Please add it in Vercel dashboard.',
+          debug: status,
           solution: 'Go to Vercel Project Settings > Environment Variables > Add SUPABASE_SERVICE_ROLE_KEY'
         },
         { status: 500 }
@@ -288,12 +295,18 @@ export async function DELETE(request: NextRequest) {
 
     console.log('🔧 [ADMIN API] DELETE request - Revoke PRO')
     console.log('🔧 [ADMIN API] userId:', userId)
-    console.log('🔧 [ADMIN API] supabaseAdmin available:', !!supabaseAdmin)
+    console.log('📊 [ADMIN API] Admin status:', JSON.stringify(getAdminStatus()))
 
     if (!supabaseAdmin) {
+      const status = getAdminStatus()
       console.error('❌ [ADMIN API] supabaseAdmin is not configured')
+      console.error('❌ [ADMIN API] Status:', JSON.stringify(status))
       return NextResponse.json(
-        { error: 'Admin configuration error. SUPABASE_SERVICE_ROLE_KEY is missing.' },
+        {
+          error: 'Admin configuration error',
+          details: 'SUPABASE_SERVICE_ROLE_KEY is missing',
+          debug: status
+        },
         { status: 500 }
       )
     }
