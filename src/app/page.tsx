@@ -1560,14 +1560,20 @@ export default function LuxTradeLanding() {
                 {language === 'id' ? 'Jurnal trading premium untuk trader serius. Lacak, analisis, dan tingkatkan dengan wawasan bertenaga AI.' : 'The premium trading journal for serious traders. Track, analyze, and improve with AI-powered insights.'}
               </p>
               <div className="flex gap-4">
-                {['Twitter', 'Discord', 'Telegram'].map((social) => (
+                {[
+                  { name: 'Instagram', url: 'https://www.instagram.com/luxtrade.web', icon: 'I' },
+                  { name: 'TikTok', url: 'https://www.tiktok.com/@luxtradeee', icon: 'T' },
+                  { name: 'Telegram', url: 'https://t.me/Risxyiee', icon: 'T' }
+                ].map((social) => (
                   <motion.a
-                    key={social}
-                    href="#"
+                    key={social.name}
+                    href={social.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="w-10 h-10 rounded-xl backdrop-blur-sm bg-white/5 border border-white/[0.08] flex items-center justify-center hover:bg-white/10 hover:border-purple-500/30 transition-all duration-300"
                     whileHover={{ scale: 1.1, y: -2 }}
                   >
-                    <span className="text-xs font-bold text-white/60">{social[0]}</span>
+                    <span className="text-xs font-bold text-white/60">{social.icon}</span>
                   </motion.a>
                 ))}
               </div>
@@ -1575,25 +1581,18 @@ export default function LuxTradeLanding() {
             <div>
               <h4 className="font-extrabold text-white mb-4">Produk</h4>
               <ul className="space-y-3">
-                {['Fitur', 'Harga', 'Peta Jalan', 'Catatan Perubahan'].map((item) => (
-                  <li key={item}>
-                    <a href="#" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">
-                      {item}
-                    </a>
-                  </li>
-                ))}
+                <li><a href="#features" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Fitur</a></li>
+                <li><a href="#pricing" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Harga</a></li>
+                <li><a href="/blog" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Blog</a></li>
               </ul>
             </div>
             <div>
               <h4 className="font-extrabold text-white mb-4">Company</h4>
               <ul className="space-y-3">
-                {['About', 'Blog', 'Careers', 'Contact'].map((item) => (
-                  <li key={item}>
-                    <a href="#" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">
-                      {item}
-                    </a>
-                  </li>
-                ))}
+                <li><a href="/about" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">About</a></li>
+                <li><a href="/contact" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Contact</a></li>
+                <li><a href="/terms" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Terms</a></li>
+                <li><a href="/privacy" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Privacy</a></li>
               </ul>
             </div>
           </div>
