@@ -1,11 +1,12 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Crown, Lock, Sparkles, ExternalLink } from 'lucide-react'
+import { X, Crown, Lock, Sparkles, ExternalLink, Check, HelpCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { useState } from 'react'
 
 interface PaywallModalProps {
   isOpen: boolean
@@ -32,6 +33,7 @@ export default function PaywallModal({
   const isTrialExhausted = remainingTrials === 0
   const hasTrialsLeft = remainingTrials > 0
   const isEnglish = language === 'en'
+  const [showFeatures, setShowFeatures] = useState(false)
 
   // Pricing data based on language
   const pricing = {
@@ -39,7 +41,7 @@ export default function PaywallModal({
       title: 'ELITE PRO',
       price: isEnglish ? '$3' : 'Rp 49.000',
       period: isEnglish ? '/ Month' : '/ Bulan',
-      description: isEnglish ? '🔥 UNLIMITED Journal + Full AI' : '🔥 UNLIMITED Jurnal + AI Penuh',
+      description: isEnglish ? '🔥 UNLIMITED Journals + Full AI' : '🔥 UNLIMITED Jurnal + AI Penuh',
       popular: isEnglish ? 'Most Popular' : 'Paling Populer'
     },
     lifetime: {
@@ -50,6 +52,35 @@ export default function PaywallModal({
       promo: isEnglish ? 'PROMO: ONLY 30 SLOTS LEFT!' : 'PROMO MERDEKA TRADER - SISA 30 SLOT!'
     }
   }
+
+  // Features list based on language
+  const proFeatures = isEnglish ? [
+    '🔥 UNLIMITED Trade Journals (No Monthly Limits)',
+    '🧠 Full Smart AI Analysis (Mistake Detection & Solutions)',
+    '📊 In-Depth Win-Rate Charts & Mistake Tracker',
+    '🧮 Advanced Risk & Position Calculator',
+    '📥 Free Data Export to Excel / PDF',
+    '👑 VIP Group Access & Priority Support',
+  ] : [
+    '🔥 UNLIMITED Jurnal Transaksi (Tanpa Batas Bulanan)',
+    '🧠 Akses Penuh Analisis AI Pintar (Deteksi Kesalahan & Solusi)',
+    '📊 Grafik Win-Rate Mendalam & Mistake Tracker',
+    '🧮 Kalkulator Risiko & Posisi Advance',
+    '📥 Bebas Ekspor Data ke Excel / PDF',
+    '👑 Akses VIP Grup & Dukungan Prioritas',
+  ]
+
+  const lifetimeFeatures = isEnglish ? [
+    '👑 LIFETIME ACCESS',
+    'All Elite PRO Features Forever',
+    'VIP Telegram Support & Private Group Access',
+    'No More Monthly Fees',
+  ] : [
+    '👑 AKSES SEUMUR HIDUP',
+    'Semua Fitur Elite PRO Terbuka Selamanya',
+    'VIP Telegram Support & Akses Grup Privat',
+    'Tanpa Biaya Bulanan Lagi',
+  ]
 
   const handleProUpgrade = () => {
     if (isEnglish) {
@@ -91,7 +122,7 @@ export default function PaywallModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-lg"
+            className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto"
           >
             <Card className="bg-gradient-to-br from-[#1a0f2e] via-[#150a25] to-[#0d0820] border-purple-500/30 shadow-2xl shadow-purple-500/20 overflow-hidden">
               {/* Decorative gradient header */}
@@ -169,7 +200,7 @@ export default function PaywallModal({
                       onClick={handleProUpgrade}
                     >
                       <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mb-3">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
                               <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs">
@@ -181,9 +212,46 @@ export default function PaywallModal({
                               {pricing.pro.price}
                               <span className="text-sm font-normal text-white/40"> {pricing.pro.period}</span>
                             </div>
-                            <p className="text-xs text-white/50 mt-1">{pricing.pro.description}</p>
                           </div>
                           <Crown className="w-8 h-8 text-purple-400 group-hover:scale-110 transition-transform" />
+                        </div>
+
+                        {/* Features list - collapsible */}
+                        <div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setShowFeatures(!showFeatures)
+                            }}
+                            className="flex items-center gap-2 text-xs text-purple-300 hover:text-purple-200 transition-colors mb-2"
+                          >
+                            <HelpCircle className="w-3.5 h-3.5" />
+                            {isEnglish ? 'View Features' : 'Lihat Fitur'}
+                            <motion.div
+                              animate={{ rotate: showFeatures ? 180 : 0 }}
+                              className="text-xs"
+                            >
+                              ▼
+                            </motion.div>
+                          </button>
+
+                          <AnimatePresence>
+                            {showFeatures && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="space-y-2 overflow-hidden"
+                              >
+                                {proFeatures.map((feature, index) => (
+                                  <div key={index} className="flex items-start gap-2 text-xs text-white/60">
+                                    <Check className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                                    <span className="leading-relaxed">{feature}</span>
+                                  </div>
+                                ))}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                       </CardContent>
                     </Card>
@@ -194,11 +262,11 @@ export default function PaywallModal({
                       onClick={handleLifetimeUpgrade}
                     >
                       <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mb-3">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
                               <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-xs">
-                                {isEnglish ? 'PROMO' : 'PROMO'}
+                                PROMO
                               </Badge>
                               <span className="text-white font-bold">{pricing.lifetime.title}</span>
                             </div>
@@ -206,13 +274,23 @@ export default function PaywallModal({
                               {pricing.lifetime.price}
                               <span className="text-sm font-normal text-white/40"> {pricing.lifetime.period}</span>
                             </div>
-                            <p className="text-xs text-amber-300/60 mt-1">{pricing.lifetime.description}</p>
-                            {pricing.lifetime.promo && (
-                              <p className="text-xs text-red-400/80 mt-1 font-semibold">{pricing.lifetime.promo}</p>
-                            )}
                           </div>
                           <Sparkles className="w-8 h-8 text-amber-400 group-hover:scale-110 transition-transform" />
                         </div>
+
+                        {/* Features list - always shown for lifetime */}
+                        <div className="space-y-2">
+                          {lifetimeFeatures.map((feature, index) => (
+                            <div key={index} className="flex items-start gap-2 text-xs text-white/60">
+                              <Check className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                              <span className="leading-relaxed">{feature}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {pricing.lifetime.promo && (
+                          <p className="text-xs text-red-400/80 mt-2 font-semibold">{pricing.lifetime.promo}</p>
+                        )}
                       </CardContent>
                     </Card>
                   </div>
