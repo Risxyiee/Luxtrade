@@ -3,11 +3,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { 
-  Shield, ArrowLeft, Users, Crown, Mail, Calendar, 
+import {
+  Shield, ArrowLeft, Users, Crown, Mail, Calendar,
   Loader2, Check, X, RefreshCw, Search, AlertCircle,
   Clock, Ban, CheckCircle, XCircle, Share2, Wallet,
-  AlertTriangle, Copy,
+  AlertTriangle, Copy, Bug,
   BarChart3, Eye, Monitor, Smartphone, Tablet,
   Globe, TrendingUp, TrendingDown, Activity,
   FileText, ExternalLink, UserPen
@@ -638,6 +638,39 @@ export default function AdminPanel() {
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
   }
 
+  // Test PRO toggle (for debugging)
+  const testPROToggle = async (userId: string) => {
+    setUpdatingId(userId)
+    try {
+      console.log('🧪 [ADMIN PANEL] Testing PRO toggle for user:', userId)
+
+      const res = await fetch('/api/admin/test-pro', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId })
+      })
+
+      const data = await res.json()
+
+      console.log('🧪 [ADMIN PANEL] Test response:', data)
+
+      if (data.success) {
+        toast.success(`Test successful! PRO toggled from ${data.before.is_pro} to ${data.after.is_pro}`)
+        fetchUsers()
+      } else {
+        console.error('🧪 [ADMIN PANEL] Test failed:', data)
+        toast.error(`Test failed: ${data.error}${data.reason ? ` (${data.reason})` : ''}`, { duration: 10000 })
+      }
+    } catch (error) {
+      console.error('Error in PRO toggle test:', error)
+      toast.error('Test failed: ' + (error instanceof Error ? error.message : 'Unknown error'))
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
   const filteredUsers = users.filter(u =>
     (u?.email?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
     (u?.full_name?.toLowerCase() || '').includes(searchQuery.toLowerCase())
@@ -683,15 +716,36 @@ export default function AdminPanel() {
                 <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">v2.0</Badge>
               </div>
             </div>
-            <Button 
-              onClick={activeTab === 'users' ? fetchUsers : () => {}}
-              variant="outline"
-              size="sm"
-              className="border-purple-500/30 text-white/60 hover:text-white hover:bg-purple-500/10"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={activeTab === 'users' ? fetchUsers : () => {}}
+                variant="outline"
+                size="sm"
+                className="border-purple-500/30 text-white/60 hover:text-white hover:bg-purple-500/10"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              <Button
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/admin/debug')
+                    const data = await res.json()
+                    console.log('🔍 Debug Info:', data)
+                    alert(JSON.stringify(data, null, 2))
+                  } catch (err) {
+                    alert('Error: ' + (err instanceof Error ? err.message : 'Unknown error'))
+                  }
+                }}
+                variant="outline"
+                size="sm"
+                className="border-amber-500/30 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+                title="Check environment and API status"
+              >
+                <Bug className="w-4 h-4 mr-2" />
+                Debug
+              </Button>
+            </div>
             <Badge className="bg-emerald-500/20 text-emerald-400 text-xs flex items-center gap-1">
               Live <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             </Badge>
@@ -932,6 +986,21 @@ export default function AdminPanel() {
                                   </td>
                                   <td className="py-3 px-2 text-right">
                                     <div className="flex items-center justify-end gap-1">
+                                      {/* Test Button (Debug) */}
+                                      <Button
+                                        onClick={() => testPROToggle(u?.id || '')}
+                                        disabled={updatingId === u?.id}
+                                        size="sm"
+                                        variant="outline"
+                                        className="border-amber-500/30 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 h-7 px-1.5 w-7"
+                                        title="Test PRO toggle (for debugging)"
+                                      >
+                                        {updatingId === u?.id ? (
+                                          <Loader2 className="w-3 h-3 animate-spin" />
+                                        ) : (
+                                          <Bug className="w-3 h-3" />
+                                        )}
+                                      </Button>
                                       {isActivePRO ? (
                                         <Button
                                           onClick={() => revokePRO(u?.id || '')}
