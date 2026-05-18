@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import NotificationCenter from '@/components/NotificationCenter'
 import TradeForm from './TradeForm'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 interface HeaderProps {
   sidebarOpen: boolean
@@ -80,6 +81,7 @@ export default function Header({
       </div>
       
       <div className="flex items-center gap-2 lg:gap-3">
+        <LanguageSwitcher />
         <NotificationCenter trades={trades} isPro={isPro} />
         
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">

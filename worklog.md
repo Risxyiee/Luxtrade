@@ -530,3 +530,111 @@ Note: This completes the comprehensive modularization of the dashboard. The main
 - 4 handler modules in /handlers/
 - 1 custom hook in /hooks/
 All exports are properly typed and the folder structure follows Next.js conventions. The main component is now clean, maintainable, and focused on state management and orchestration.
+
+---
+Task ID: 2-a
+Agent: general-purpose
+Task: Update Landing Page with bilingual support
+
+Work Log:
+- Added imports: useLanguage hook from LanguageContext, LanguageSwitcher component
+- Updated LuxTradeLanding component to use useLanguage hook for language, t, and formatPrice
+- Added Skrill payment links for English users:
+  - Elite Pro ($3): https://skrill.me/rq/RIZQI%20AKBAR/3/USD?key=vXcr_5kNitZJFVBnkmK0sakLnjB
+  - Lifetime Ultra ($5): https://skrill.me/rq/RIZQI%20AKBAR/5/USD?key=EI71vCJNy64rGTOWNzhHPcWiTXS
+- Created handleProUpgrade and handleLifetimeUpgrade functions:
+  - English users: Opens Skrill links in new tab via window.open()
+  - Indonesian users: Shows existing payment modals (WhatsApp/Admin)
+- Updated LifetimeUltraCard component to accept language and t props
+- Added LanguageSwitcher to navbar (positioned before login/signup buttons)
+- Updated Navigation menu items to use t() translations:
+  - Features, Demo, Pricing, FAQ
+  - Login, Sign Up buttons
+- Updated Hero Section:
+  - Badge text using t('hero.subtitle')
+  - Main headline using t('hero.title')
+  - Subtitle using t('hero.subtitle')
+  - CTA buttons using t('hero.cta.primary') and t('hero.cta.secondary')
+- Updated Features Section:
+  - Title using t('features.title')
+  - Subtitle using t('features.subtitle')
+  - Feature cards using language-based titles and descriptions
+- Updated Pricing Section:
+  - Title using t('pricing.title')
+  - Free Plan: Price shows Rp 0 / Selamanya (ID) or $0 / Forever (EN)
+  - Elite Pro: Price shows Rp 49.000 / bulan (ID) or $3 / Month (EN)
+  - Lifetime Ultra: Price shows Rp 52.000 / Sekali Bayar (ID) or $5 / One-Time Payment (EN)
+  - Features list bilingual
+  - Buttons use handleProUpgrade/handleLifetimeUpgrade for language-specific flows
+  - Comparison table headers and rows bilingual
+  - Money-back guarantee bilingual
+  - Trust badges bilingual
+- Updated Newsletter Section:
+  - Title, subtitle, placeholder text, button text all bilingual
+- Updated Roadmap Section:
+  - Title and description bilingual
+  - "Next Week" / "Minggu Depan" bilingual
+- Updated FAQ Section:
+  - Title bilingual
+  - All 5 FAQ questions and answers bilingual
+- Updated Footer:
+  - Description text bilingual
+- Ran bun run build successfully with no errors
+- All translation keys from LanguageContext.tsx properly integrated
+
+Stage Summary:
+- ✅ Successfully added LanguageSwitcher to navbar
+- ✅ All text sections updated with bilingual support (ID/EN)
+- ✅ Pricing section shows correct prices per language:
+  - ID: Rp 0, Rp 49.000, Rp 52.000
+  - EN: $0, $3, $5
+- ✅ Skrill payment integration for English users
+- ✅ Indonesian users keep existing WhatsApp/Admin payment flow
+- ✅ Navigation menu fully bilingual
+- ✅ Hero section fully bilingual
+- ✅ Features section fully bilingual
+- ✅ FAQ section fully bilingual (5 Q&A pairs)
+- ✅ Newsletter and Roadmap sections bilingual
+- ✅ Build completes successfully with no errors
+- ✅ All existing functionality and styling preserved
+
+Pricing Implementation Details:
+- Indonesian users (language === 'id'):
+  - Free: "Rp 0 / Selamanya"
+  - Elite Pro: "Rp 49.000 / bulan" → Opens PaymentConfirmationModal
+  - Lifetime Ultra: "Rp 52.000 / Sekali Bayar" → Opens LifetimePaymentModal
+- English users (language === 'en'):
+  - Free: "$0 / Forever"
+  - Elite Pro: "$3 / Month" → Opens Skrill payment link (window.open)
+  - Lifetime Ultra: "$5 / One-Time Payment" → Opens Skrill payment link (window.open)
+
+Changes Made to /home/z/my-project/src/app/page.tsx:
+- Line 20-21: Added imports for useLanguage and LanguageSwitcher
+- Line 393: Updated LifetimeUltraCard signature to accept language and t props
+- Line 460-461: Updated promo badge to use t('pricing.lifetime.promo')
+- Line 464-467: Updated title and price to use translation with language-based period text
+- Line 472: Updated promo text to use translation
+- Line 477-481: Updated features list to be language-aware
+- Line 498: Updated button text to be language-aware
+- Line 507-531: Added language hook, Skrill links, and handler functions
+- Line 690-699: Updated navigation menu to use t() and added LanguageSwitcher
+- Line 703-715: Updated login/signup buttons to use t()
+- Line 749, 760, 768, 782, 794: Updated hero section to use t()
+- Line 842-850: Updated features section to use t()
+- Line 870-871: Updated feature cards to use language-based content
+- Line 890, 893: Updated demo section to use t()
+- Line 1053, 1056: Updated pricing title to use t()
+- Line 1068-1069: Updated money-back guarantee bilingual
+- Line 1081-1084: Updated trust badges bilingual
+- Line 1104-1127: Updated Free plan card bilingual
+- Line 1151-1182: Updated Elite Pro card bilingual with handleProUpgrade
+- Line 1188: Updated LifetimeUltraCard call with language and t props
+- Line 1202-1205: Updated comparison table headers bilingual
+- Line 1209-1245: Updated comparison table rows bilingual
+- Line 1266-1272: Updated onboarding steps bilingual
+- Line 1302, 1305-1308, 1313, 1324, 1328: Updated newsletter section bilingual
+- Line 1344, 1347-1351, 1370: Updated roadmap section bilingual
+- Line 1489-1518: Updated FAQ section bilingual (all Q&A)
+- Line 1560: Updated footer description bilingual
+
+Note: The landing page now fully supports both Indonesian and English languages with proper pricing display and payment flow integration. English users are directed to Skrill payment links, while Indonesian users continue with the existing WhatsApp/Admin payment system.

@@ -17,6 +17,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import PaymentConfirmationModal from '@/components/PaymentConfirmationModal'
+import { useLanguage } from '@/contexts/LanguageContext'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 interface EquityPoint {
   time: number;
@@ -388,7 +390,7 @@ function AnimatedForexTrades() {
 }
 
 // Lifetime Ultra Card Component - Premium
-function LifetimeUltraCard({ onButtonClick }: { onButtonClick: () => void }) {
+function LifetimeUltraCard({ onButtonClick, language, t }: { onButtonClick: () => void, language: 'id' | 'en', t: (key: string) => string }) {
   const [slotsInfo, setSlotsInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isSoldOut, setIsSoldOut] = useState(false)
@@ -455,28 +457,28 @@ function LifetimeUltraCard({ onButtonClick }: { onButtonClick: () => void }) {
             transition={{ duration: 2, repeat: Infinity }}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            SLOT TERBATAS
+            {t('pricing.lifetime.promo').replace('30', slotsInfo.availableSlots.toString())}
           </motion.div>
         )}
         <CardContent className="p-6 pt-8">
-          <div className="text-sm text-amber-400 font-bold mb-1 tracking-wide uppercase text-xs">Lifetime Ultra (PROMO)</div>
+          <div className="text-sm text-amber-400 font-bold mb-1 tracking-wide uppercase text-xs">{t('pricing.lifetime.title')} (PROMO)</div>
           <div className="text-4xl font-extrabold text-white mb-1">
-            Rp 52.000
-            <span className="text-base font-normal text-white/40"> / Sekali Bayar</span>
+            {t('pricing.lifetime.price').split(' /')[0]}
+            <span className="text-base font-normal text-white/40"> / {language === 'id' ? 'Sekali Bayar' : 'One-Time Payment'}</span>
           </div>
           {slotsInfo && !slotsInfo.isSoldOut && (
             <div className="mb-4">
               <div className="text-xs font-bold text-amber-300">
-                PROMO MERDEKA TRADER - SISA {slotsInfo.availableSlots} SLOT!
+                {t('pricing.lifetime.promo').replace('30', slotsInfo.availableSlots.toString())}
               </div>
             </div>
           )}
           <ul className="space-y-3 my-6">
             {[
-              { text: '👑 AKSES SEUMUR HIDUP' },
-              { text: 'Semua Fitur Elite PRO Terbuka Selamanya' },
-              { text: 'VIP WhatsApp Support & Akses Grup Privat' },
-              { text: 'Tanpa Biaya Bulanan Lagi' },
+              { text: language === 'id' ? '👑 AKSES SEUMUR HIDUP' : '👑 LIFETIME ACCESS' },
+              { text: language === 'id' ? 'Semua Fitur Elite PRO Terbuka Selamanya' : 'All Elite PRO Features Forever' },
+              { text: language === 'id' ? 'VIP WhatsApp Support & Akses Grup Privat' : 'VIP WhatsApp Support & Private Group Access' },
+              { text: language === 'id' ? 'Tanpa Biaya Bulanan Lagi' : 'No More Monthly Fees' },
             ].map((item, index) => (
               <li key={index} className="flex items-center gap-2.5 text-sm text-white/70">
                 <Check className="w-4.5 h-4.5 text-amber-400 flex-shrink-0" />
@@ -493,7 +495,7 @@ function LifetimeUltraCard({ onButtonClick }: { onButtonClick: () => void }) {
                 : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-lg shadow-amber-500/30 hover:shadow-[0_0_30px_rgba(251,191,36,0.4)] transition-all duration-300'
             }`}
           >
-            {isSoldOut ? 'SOLD OUT' : 'Ambil Promo Lifetime'}
+            {isSoldOut ? 'SOLD OUT' : (language === 'id' ? 'Ambil Promo Lifetime' : 'Get Lifetime Promo')}
           </Button>
         </CardContent>
       </Card>
@@ -502,8 +504,31 @@ function LifetimeUltraCard({ onButtonClick }: { onButtonClick: () => void }) {
 }
 
 export default function LuxTradeLanding() {
+  const { language, t, formatPrice } = useLanguage()
   const [showPayment, setShowPayment] = useState(false)
   const [showLifetimePaymentModal, setShowLifetimePaymentModal] = useState(false)
+
+  // Skrill payment links for English users
+  const skrillLinks = {
+    pro: 'https://skrill.me/rq/RIZQI%20AKBAR/3/USD?key=vXcr_5kNitZJFVBnkmK0sakLnjB',
+    lifetime: 'https://skrill.me/rq/RIZQI%20AKBAR/5/USD?key=EI71vCJNy64rGTOWNzhHPcWiTXS'
+  }
+
+  const handleProUpgrade = () => {
+    if (language === 'en') {
+      window.open(skrillLinks.pro, '_blank')
+    } else {
+      setShowPayment(true)
+    }
+  }
+
+  const handleLifetimeUpgrade = () => {
+    if (language === 'en') {
+      window.open(skrillLinks.lifetime, '_blank')
+    } else {
+      setShowLifetimePaymentModal(true)
+    }
+  }
 
   // Realistic stats for a new trading platform
   const stats = [
@@ -662,22 +687,23 @@ export default function LuxTradeLanding() {
               </div>
               
               <div className="hidden md:flex items-center gap-8">
-                {['Fitur', 'Demo Langsung', 'Harga', 'FAQ'].map((item) => (
+                {[{ key: 'features', label: t('nav.features') }, { key: 'demo', label: t('hero.cta.secondary') }, { key: 'pricing', label: t('nav.pricing') }, { key: 'faq', label: 'FAQ' }].map((item) => (
                   <a 
-                    key={item}
-                    href={`#${item.toLowerCase().replace(' ', '-')}`}
+                    key={item.key}
+                    href={`#${item.key}`}
                     className="text-sm text-white/60 hover:text-white hover:text-purple-300 transition-all duration-300 font-medium relative group"
                   >
-                    {item}
+                    {item.label}
                     <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 group-hover:w-full transition-all duration-300" />
                   </a>
                 ))}
               </div>
               
               <div className="flex items-center gap-3">
+                <LanguageSwitcher />
                 <Link href="/auth/login">
                   <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-all duration-300 font-semibold backdrop-blur-sm">
-                    Masuk
+                    {t('nav.login')}
                   </Button>
                 </Link>
                 <Link href="/auth/signup">
@@ -686,7 +712,7 @@ export default function LuxTradeLanding() {
                     whileTap={{ scale: 0.98 }}
                   >
                     <Button className="h-10 px-6 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-sm">
-                      Daftar Sekarang
+                      {t('nav.signup')}
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   </motion.div>
@@ -720,7 +746,7 @@ export default function LuxTradeLanding() {
                 >
                   <Sparkles className="w-4.5 h-4.5 text-purple-400" />
                 </motion.div>
-                <span className="text-sm text-purple-300 font-semibold">Kecerdasan Trading Berbasis AI</span>
+                <span className="text-sm text-purple-300 font-semibold">{t('hero.subtitle').split('.')[0]}</span>
               </motion.div>
             </motion.div>
             
@@ -731,11 +757,7 @@ export default function LuxTradeLanding() {
               style={{ letterSpacing: '-0.02em' }}
             >
               <span className="bg-gradient-to-r from-white to-purple-400 bg-clip-text text-transparent">
-                Trading Lebih Cerdas, Bukan Lebih Keras
-              </span>
-              <br />
-              <span className="bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
-                dengan Presisi Berbasis AI
+                {t('hero.title')}
               </span>
             </motion.h1>
             
@@ -743,8 +765,7 @@ export default function LuxTradeLanding() {
               variants={fadeInUp}
               className="text-xl sm:text-2xl text-white/60 max-w-3xl mx-auto mb-12 leading-relaxed font-light"
             >
-              Jurnal trading premium untuk trader serius. Catat setiap trade,
-              analisis performa, dan buka wawasan berbasis AI untuk keunggulan Anda.
+              {t('hero.subtitle')}
             </motion.p>
             
             {/* CTA Buttons - Neon Glow Effect with hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] */}
@@ -758,7 +779,7 @@ export default function LuxTradeLanding() {
                   whileTap={{ scale: 0.98 }}
                 >
                   <Button size="lg" className="h-16 px-10 text-xl bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-2xl shadow-purple-500/40 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-xl border border-purple-400/20">
-                    Mulai Sekarang
+                    {t('hero.cta.primary')}
                     <ArrowRight className="w-6 h-6 ml-3" />
                   </Button>
                 </motion.div>
@@ -770,7 +791,7 @@ export default function LuxTradeLanding() {
                 >
                   <Button variant="outline" size="lg" className="h-16 px-10 text-xl border-2 border-white/10 hover:border-white/20 text-white hover:bg-white/5 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] backdrop-blur-xl font-semibold transition-all duration-300">
                     <Play className="w-6 h-6 mr-3" />
-                    Lihat Demo
+                    {t('hero.cta.secondary')}
                   </Button>
                 </motion.div>
               </a>
@@ -818,14 +839,14 @@ export default function LuxTradeLanding() {
           >
             <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-purple-500/10 border border-purple-500/30 mb-6">
               <Zap className="w-4.5 h-4.5 text-purple-400" />
-              <span className="text-sm text-purple-300 font-semibold">Fitur Unggulan</span>
+              <span className="text-sm text-purple-300 font-semibold">{t('features.title')}</span>
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
-              <span className="text-white">Semua yang Anda Butuhkan untuk</span>
-              <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent"> Trading Lebih Cerdas</span>
+              <span className="text-white">{t('features.subtitle').split('for')[0]}</span>
+              <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">{t('features.subtitle').includes('for') ? 'for' : ''} {t('features.subtitle').split('for')[1] || ''}</span>
             </h2>
             <p className="text-xl text-white/50 max-w-2xl mx-auto font-light">
-              Alat profesional yang didesain oleh trader, untuk trader. Setiap fitur dibangun untuk memberikan keunggulan.
+              {t('features.subtitle')}
             </p>
           </motion.div>
 
@@ -846,8 +867,8 @@ export default function LuxTradeLanding() {
                   <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-lg`}>
                     <feature.icon className="w-7 h-7 text-white" />
                   </div>
-                  <h3 className="text-xl font-extrabold text-white mb-3">{feature.title}</h3>
-                  <p className="text-white/50 text-base leading-relaxed">{feature.description}</p>
+                  <h3 className="text-xl font-extrabold text-white mb-3">{language === 'id' ? feature.title : t(`features.${feature.gradient.includes('purple') ? 'journal' : feature.gradient.includes('cyan') ? 'ai' : feature.gradient.includes('emerald') ? 'insights' : 'risk'}.title`)}</h3>
+                  <p className="text-white/50 text-base leading-relaxed">{language === 'id' ? feature.description : t(`features.${feature.gradient.includes('purple') ? 'journal' : feature.gradient.includes('cyan') ? 'ai' : feature.gradient.includes('emerald') ? 'insights' : 'risk'}.desc`)}</p>
                 </motion.div>
               </motion.div>
             ))}
@@ -866,10 +887,10 @@ export default function LuxTradeLanding() {
           >
             <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-emerald-500/10 border border-emerald-500/30 mb-6">
               <Activity className="w-4.5 h-4.5 text-emerald-400" />
-              <span className="text-sm text-emerald-300 font-semibold">Live Preview</span>
+              <span className="text-sm text-emerald-300 font-semibold">{t('hero.cta.secondary')}</span>
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
-              <span className="text-white">See It</span>
+              <span className="text-white">{t('hero.cta.secondary')}</span>
               <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent"> In Action</span>
             </h2>
           </motion.div>
@@ -1029,11 +1050,10 @@ export default function LuxTradeLanding() {
           >
             <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-purple-500/10 border border-purple-500/30 mb-6">
               <Crown className="w-4.5 h-4.5 text-purple-400" />
-              <span className="text-sm text-purple-300 font-semibold">Harga Sederhana</span>
+              <span className="text-sm text-purple-300 font-semibold">{t('pricing.title')}</span>
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
-              <span className="text-white">Mulai Gratis,</span>
-              <span className="bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent"> Upgrade Saat Siap</span>
+              <span className="text-white">{t('pricing.title')}</span>
             </h2>
 
             {/* Money-Back Guarantee Badge */}
@@ -1045,8 +1065,8 @@ export default function LuxTradeLanding() {
             >
               <div className="inline-flex items-center gap-3 px-6 py-3.5 backdrop-blur-xl bg-emerald-500/10 border border-emerald-500/30 rounded-full">
                 <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                <span className="text-emerald-300 font-extrabold">Garansi Uang Kembali 7 Hari</span>
-                <span className="text-emerald-400/60 text-sm font-medium">• Tanpa Pertanyaan</span>
+                <span className="text-emerald-300 font-extrabold">{language === 'id' ? 'Garansi Uang Kembali 7 Hari' : '7-Day Money-Back Guarantee'}</span>
+                <span className="text-emerald-400/60 text-sm font-medium">• {language === 'id' ? 'Tanpa Pertanyaan' : 'No Questions Asked'}</span>
               </div>
             </motion.div>
 
@@ -1059,9 +1079,9 @@ export default function LuxTradeLanding() {
               transition={{ delay: 0.2 }}
             >
               {[
-                { icon: Lock, text: 'Diamankan SSL', color: 'cyan' },
-                { icon: Shield, text: 'Enkripsi Ujung ke Ujung', color: 'purple' },
-                { icon: ShieldCheck, text: 'Mematuhi SOC 2', color: 'emerald' },
+                { icon: Lock, text: language === 'id' ? 'Diamankan SSL' : 'SSL Secured', color: 'cyan' },
+                { icon: Shield, text: language === 'id' ? 'Enkripsi Ujung ke Ujung' : 'End-to-End Encryption', color: 'purple' },
+                { icon: ShieldCheck, text: language === 'id' ? 'Mematuhi SOC 2' : 'SOC 2 Compliant', color: 'emerald' },
               ].map((badge, i) => (
                 <div key={i} className="flex items-center gap-2 px-4 py-2 backdrop-blur-sm bg-white/5 rounded-xl border border-white/[0.08]">
                   <badge.icon className={`w-4 h-4 text-${badge.color}-400`} />
@@ -1081,17 +1101,17 @@ export default function LuxTradeLanding() {
             >
               <Card className="h-full backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-white/15 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] transition-all duration-300">
                 <CardContent className="p-6 pt-8">
-                  <div className="text-sm text-white/50 mb-1 font-bold tracking-wide uppercase text-xs">Free</div>
+                  <div className="text-sm text-white/50 mb-1 font-bold tracking-wide uppercase text-xs">{t('pricing.free.title')}</div>
                   <div className="text-4xl font-extrabold text-white mb-1">
-                    Rp 0
-                    <span className="text-base font-normal text-white/40"> / Selamanya</span>
+                    {t('pricing.free.price').split(' /')[0]}
+                    <span className="text-base font-normal text-white/40"> / {language === 'id' ? 'Selamanya' : 'Forever'}</span>
                   </div>
                   <ul className="space-y-4 my-8">
                     {[
-                      { text: '15 Jurnal Transaksi / Bulan' },
-                      { text: 'Grafik Performa & Statistik Standar' },
-                      { text: 'Kalkulator Risiko Trading Pemula' },
-                      { text: '🎁 BONUS: 3x Uji Coba Fitur Analisis AI & Statistik PRO' },
+                      { text: language === 'id' ? '15 Jurnal Transaksi / Bulan' : '15 Trade Journals / Month' },
+                      { text: language === 'id' ? 'Grafik Performa & Statistik Standar' : 'Standard Performance Charts & Stats' },
+                      { text: language === 'id' ? 'Kalkulator Risiko Trading Pemula' : 'Basic Trading Risk Calculator' },
+                      { text: language === 'id' ? '🎁 BONUS: 3x Uji Coba Fitur Analisis AI & Statistik PRO' : '🎁 BONUS: 3x PRO AI Analysis & Stats Trials' },
                     ].map((item, index) => (
                       <li key={index} className="flex items-center gap-2.5 text-sm text-white/60">
                         <Check className="w-4.5 h-4.5 text-emerald-400" />
@@ -1103,7 +1123,7 @@ export default function LuxTradeLanding() {
                     <Button 
                       className="w-full h-12 bg-white hover:bg-white/90 text-[#0f051d] font-extrabold backdrop-blur-sm transition-all"
                     >
-                      Mulai Gratis
+                      {t('pricing.cta.free')}
                     </Button>
                   </Link>
                 </CardContent>
@@ -1128,21 +1148,21 @@ export default function LuxTradeLanding() {
                   }}
                   transition={{ duration: 2, repeat: Infinity }}
                 >
-                  Paling Populer
+                  {language === 'id' ? 'Paling Populer' : 'Most Popular'}
                 </motion.div>
-                <div className="text-sm text-purple-400 mb-1 font-bold tracking-wide uppercase text-xs">Elite Pro</div>
+                <div className="text-sm text-purple-400 mb-1 font-bold tracking-wide uppercase text-xs">{t('pricing.pro.title')}</div>
                 <div className="text-4xl font-extrabold text-white mb-1">
-                  Rp 49.000
-                  <span className="text-base font-normal text-white/40"> /bulan</span>
+                  {t('pricing.pro.price').split(' /')[0]}
+                  <span className="text-base font-normal text-white/40"> / {language === 'id' ? 'bulan' : 'Month'}</span>
                 </div>
                 <ul className="space-y-3.5 my-8">
                   {[
-                    '🔥 UNLIMITED Jurnal Transaksi (Tanpa Batas Bulanan)',
-                    '🧠 Akses Penuh Analisis AI Pintar (Deteksi Kesalahan & Solusi)',
-                    '📊 Grafik Win-Rate Mendalam & Mistake Tracker',
-                    '🧮 Kalkulator Risiko & Posisi Advance',
-                    '📥 Bebas Ekspor Data ke Excel / PDF',
-                    '👑 Akses VIP Grup & Dukungan Prioritas',
+                    language === 'id' ? '🔥 UNLIMITED Jurnal Transaksi (Tanpa Batas Bulanan)' : '🔥 UNLIMITED Trade Journals (No Monthly Limits)',
+                    language === 'id' ? '🧠 Akses Penuh Analisis AI Pintar (Deteksi Kesalahan & Solusi)' : '🧠 Full Smart AI Analysis Access (Mistake Detection & Solutions)',
+                    language === 'id' ? '📊 Grafik Win-Rate Mendalam & Mistake Tracker' : '📊 In-Depth Win-Rate Charts & Mistake Tracker',
+                    language === 'id' ? '🧮 Kalkulator Risiko & Posisi Advance' : '🧮 Advanced Risk & Position Calculator',
+                    language === 'id' ? '📥 Bebas Ekspor Data ke Excel / PDF' : '📥 Free Data Export to Excel / PDF',
+                    language === 'id' ? '👑 Akses VIP Grup & Dukungan Prioritas' : '👑 VIP Group Access & Priority Support',
                   ].map((item, index) => (
                     <li key={index} className="flex items-center gap-2.5 text-sm text-white/60">
                       <Check className="w-4.5 h-4.5 text-emerald-400" />
@@ -1155,17 +1175,17 @@ export default function LuxTradeLanding() {
                   whileTap={{ scale: 0.98 }}
                 >
                   <Button
-                    onClick={() => setShowPayment(true)}
+                    onClick={handleProUpgrade}
                     className="w-full h-12 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-xl"
                   >
-                    Upgrade ke Elite Pro
+                    {t('pricing.cta.upgrade')}
                   </Button>
                 </motion.div>
               </motion.div>
             </motion.div>
 
-            {/* Lifetime Ultra - Rp 52.000 */}
-            <LifetimeUltraCard onButtonClick={() => setShowLifetimePaymentModal(true)} />
+            {/* Lifetime Ultra - Rp 52.000 / $5 */}
+            <LifetimeUltraCard onButtonClick={handleLifetimeUpgrade} language={language} t={t} />
           </div>
           
           {/* Comparison Table */}
@@ -1179,20 +1199,50 @@ export default function LuxTradeLanding() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/[0.08]">
-                    <th className="p-5 text-left text-white/40 font-bold text-sm uppercase tracking-wide">Fitur</th>
-                    <th className="p-5 text-center text-white/40 font-bold text-sm uppercase tracking-wide">Free</th>
-                    <th className="p-5 text-center text-purple-400 font-extrabold text-sm uppercase tracking-wide">Elite Pro</th>
-                    <th className="p-5 text-center text-amber-400 font-extrabold text-sm uppercase tracking-wide">Lifetime Ultra</th>
+                    <th className="p-5 text-left text-white/40 font-bold text-sm uppercase tracking-wide">{language === 'id' ? 'Fitur' : 'Features'}</th>
+                    <th className="p-5 text-center text-white/40 font-bold text-sm uppercase tracking-wide">{t('pricing.free.title')}</th>
+                    <th className="p-5 text-center text-purple-400 font-extrabold text-sm uppercase tracking-wide">{t('pricing.pro.title')}</th>
+                    <th className="p-5 text-center text-amber-400 font-extrabold text-sm uppercase tracking-wide">{t('pricing.lifetime.title')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.05]">
                   {[
-                    { feature: 'Jurnal Transaksi / Bulan', free: '15', pro: 'UNLIMITED', ultra: 'UNLIMITED' },
-                    { feature: 'Grafik Performa & Statistik', free: 'Standar', pro: 'Mendalam', ultra: 'Mendalam' },
-                    { feature: 'Analisis AI Pintar', free: '3x Trial', pro: '✓ Penuh', ultra: '✓ Penuh' },
-                    { feature: 'Kalkulator Risiko Trading', free: 'Pemula', pro: 'Advance', ultra: 'Advance' },
-                    { feature: 'Ekspor Data (Excel/PDF)', free: '—', pro: '✓', ultra: '✓' },
-                    { feature: 'VIP WhatsApp Support', free: '—', pro: '✓', ultra: '✓ Grup Privat' },
+                    { 
+                      feature: language === 'id' ? 'Jurnal Transaksi / Bulan' : 'Trade Journals / Month', 
+                      free: '15', 
+                      pro: 'UNLIMITED', 
+                      ultra: 'UNLIMITED' 
+                    },
+                    { 
+                      feature: language === 'id' ? 'Grafik Performa & Statistik' : 'Performance Charts & Stats', 
+                      free: language === 'id' ? 'Standar' : 'Standard', 
+                      pro: language === 'id' ? 'Mendalam' : 'In-Depth', 
+                      ultra: language === 'id' ? 'Mendalam' : 'In-Depth' 
+                    },
+                    { 
+                      feature: language === 'id' ? 'Analisis AI Pintar' : 'Smart AI Analysis', 
+                      free: '3x Trial', 
+                      pro: '✓ Full', 
+                      ultra: '✓ Full' 
+                    },
+                    { 
+                      feature: language === 'id' ? 'Kalkulator Risiko Trading' : 'Trading Risk Calculator', 
+                      free: language === 'id' ? 'Pemula' : 'Basic', 
+                      pro: 'Advanced', 
+                      ultra: 'Advanced' 
+                    },
+                    { 
+                      feature: 'Ekspor Data (Excel/PDF)', 
+                      free: '—', 
+                      pro: '✓', 
+                      ultra: '✓' 
+                    },
+                    { 
+                      feature: 'VIP WhatsApp Support', 
+                      free: '—', 
+                      pro: '✓', 
+                      ultra: language === 'id' ? '✓ Grup Privat' : '✓ Private Group' 
+                    },
                   ].map((row, index) => (
                     <tr key={index} className="hover:bg-white/[0.03] transition-colors">
                       <td className="p-5 text-white/70 font-medium">{row.feature}</td>
@@ -1213,12 +1263,12 @@ export default function LuxTradeLanding() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <p className="text-white/40 mb-10 font-light text-lg">Mulai dalam kurang dari 2 menit</p>
+            <p className="text-white/40 mb-10 font-light text-lg">{language === 'id' ? 'Mulai dalam kurang dari 2 menit' : 'Get started in less than 2 minutes'}</p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12">
               {[
-                { step: '1', title: 'Daftar', time: '30 detik', icon: Users },
-                { step: '2', title: 'Import trade', time: '1 menit', icon: BarChart3 },
-                { step: '3', title: 'Lihat analisis', time: 'Langsung', icon: LineChart },
+                { step: '1', title: language === 'id' ? 'Daftar' : 'Sign Up', time: language === 'id' ? '30 detik' : '30 seconds', icon: Users },
+                { step: '2', title: 'Import trade', time: language === 'id' ? '1 menit' : '1 minute', icon: BarChart3 },
+                { step: '3', title: language === 'id' ? 'Lihat analisis' : 'View analysis', time: language === 'id' ? 'Langsung' : 'Instant', icon: LineChart },
               ].map((item, index) => (
                 <React.Fragment key={index}>
                   <motion.div 
@@ -1249,18 +1299,18 @@ export default function LuxTradeLanding() {
           >
             <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-cyan-500/10 border border-cyan-500/30 mb-6">
               <Mail className="w-4.5 h-4.5 text-cyan-400" />
-              <span className="text-sm text-cyan-300 font-semibold">Weekly Insights</span>
+              <span className="text-sm text-cyan-300 font-semibold">{language === 'id' ? 'Wawasan Mingguan' : 'Weekly Insights'}</span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-extrabold mb-6 text-white">
-              Get Trading Tips Every Week
+              {language === 'id' ? 'Dapatkan Tips Trading Setiap Minggu' : 'Get Trading Tips Every Week'}
             </h2>
             <p className="text-white/50 mb-8 max-w-md mx-auto font-light text-lg">
-              Join 500+ traders receiving weekly trading tips, psychology insights, and market analysis.
+              {language === 'id' ? 'Bergabung dengan 500+ trader yang menerima tips trading mingguan, wawasan psikologi, dan analisis pasar.' : 'Join 500+ traders receiving weekly trading tips, psychology insights, and market analysis.'}
             </p>
             <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto" onSubmit={(e) => e.preventDefault()}>
               <input 
                 type="email" 
-                placeholder="Enter your email"
+                placeholder={language === 'id' ? 'Masukkan email Anda' : 'Enter your email'}
                 className="flex-1 px-5 py-4 rounded-xl backdrop-blur-xl bg-white/5 border border-white/[0.08] text-white placeholder:text-white/30 focus:outline-none focus:border-cyan-500/50 focus:shadow-[0_0_20px_rgba(6,182,212,0.2)] transition-all font-medium"
               />
               <motion.div
@@ -1271,11 +1321,11 @@ export default function LuxTradeLanding() {
                   type="submit"
                   className="h-14 px-8 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-extrabold rounded-xl shadow-lg shadow-cyan-500/30 hover:shadow-[0_0_40px_rgba(6,182,212,0.5)] transition-all duration-300 backdrop-blur-xl"
                 >
-                  Subscribe
+                  {language === 'id' ? 'Langganan' : 'Subscribe'}
                 </Button>
               </motion.div>
             </form>
-            <p className="text-white/30 text-xs mt-4 font-medium">No spam. Unsubscribe anytime.</p>
+            <p className="text-white/30 text-xs mt-4 font-medium">{language === 'id' ? 'Tidak ada spam. Berhenti langganan kapan saja.' : 'No spam. Unsubscribe anytime.'}</p>
           </motion.div>
         </div>
       </section>
@@ -1291,14 +1341,14 @@ export default function LuxTradeLanding() {
           >
             <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-purple-500/10 border border-purple-500/30 mb-6">
               <Clock className="w-4.5 h-4.5 text-purple-400" />
-              <span className="text-sm text-purple-300 font-semibold">Peta Jalan Produk</span>
+              <span className="text-sm text-purple-300 font-semibold">{language === 'id' ? 'Peta Jalan Produk' : 'Product Roadmap'}</span>
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
-              <span className="text-white">What&apos;s</span>
-              <span className="bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent"> Coming Next</span>
+              <span className="text-white">{language === 'id' ? 'Yang' : 'What'}&apos;s</span>
+              <span className="bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent"> {language === 'id' ? 'Akan Datang' : 'Coming Next'}</span>
             </h2>
             <p className="text-white/40 max-w-xl mx-auto font-light text-lg">
-              We&apos;re constantly improving LuxTrade. Here&apos;s what we&apos;re working on.
+              {language === 'id' ? 'Kami terus meningkatkan LuxTrade. Inilah yang sedang kami kerjakan.' : 'We&apos;re constantly improving LuxTrade. Here&apos;s what we&apos;re working on.'}
             </p>
           </motion.div>
 
@@ -1317,7 +1367,7 @@ export default function LuxTradeLanding() {
                       <Clock className="w-6 h-6 text-cyan-400" />
                     </div>
                     <div>
-                      <h3 className="font-extrabold text-white text-lg">Minggu Depan</h3>
+                      <h3 className="font-extrabold text-white text-lg">{language === 'id' ? 'Minggu Depan' : 'Next Week'}</h3>
                       <p className="text-xs text-cyan-400 font-bold tracking-wide">COMING SOON</p>
                     </div>
                   </div>
@@ -1436,35 +1486,35 @@ export default function LuxTradeLanding() {
           >
             <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-cyan-500/10 border border-cyan-500/30 mb-6">
               <HelpCircle className="w-4.5 h-4.5 text-cyan-400" />
-              <span className="text-sm text-cyan-300 font-semibold">FAQ</span>
+              <span className="text-sm text-cyan-300 font-semibold">{language === 'id' ? 'Tanya Jawab' : 'FAQ'}</span>
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
-              <span className="text-white">Frequently Asked</span>
-              <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent"> Questions</span>
+              <span className="text-white">{language === 'id' ? 'Pertanyaan yang' : 'Frequently Asked'}</span>
+              <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent"> {language === 'id' ? 'Sering Diajukan' : 'Questions'}</span>
             </h2>
           </motion.div>
 
           <div className="space-y-4">
             {[
               {
-                q: 'Is LuxTrade free to use?',
-                a: 'Yes! LuxTrade offers a generous free plan that allows up to 5 trades per month with basic analytics. You can upgrade to Elite Pro for unlimited trades and advanced features.'
+                q: language === 'id' ? 'Apakah LuxTrade gratis digunakan?' : 'Is LuxTrade free to use?',
+                a: language === 'id' ? 'Ya! LuxTrade menawarkan paket gratis yang murah hati yang memungkinkan hingga 5 transaksi per bulan dengan analitik dasar. Anda dapat upgrade ke Elite Pro untuk transaksi tidak terbatas dan fitur lanjutan.' : 'Yes! LuxTrade offers a generous free plan that allows up to 5 trades per month with basic analytics. You can upgrade to Elite Pro for unlimited trades and advanced features.'
               },
               {
-                q: 'How does the AI analysis work?',
-                a: 'Our AI analyzes your trading patterns, identifies strengths and weaknesses, and provides personalized insights to help improve your trading performance over time.'
+                q: language === 'id' ? 'Bagaimana cara kerja analisis AI?' : 'How does the AI analysis work?',
+                a: language === 'id' ? 'AI kami menganalisis pola trading Anda, mengidentifikasi kekuatan dan kelemahan, dan memberikan wawasan personal untuk membantu meningkatkan performa trading Anda dari waktu ke waktu.' : 'Our AI analyzes your trading patterns, identifies strengths and weaknesses, and provides personalized insights to help improve your trading performance over time.'
               },
               {
-                q: 'Can I import my existing trades?',
-                a: 'Absolutely! You can import trades from CSV files exported from most trading platforms. We support MT4, MT5, cTrader, and many more.'
+                q: language === 'id' ? 'Dapatkah saya mengimpor transaksi yang ada?' : 'Can I import my existing trades?',
+                a: language === 'id' ? 'Tentu saja! Anda dapat mengimpor transaksi dari file CSV yang diekspor dari sebagian besar platform trading. Kami mendukung MT4, MT5, cTrader, dan banyak lagi.' : 'Absolutely! You can import trades from CSV files exported from most trading platforms. We support MT4, MT5, cTrader, and many more.'
               },
               {
-                q: 'Is my trading data secure?',
-                a: 'Your data is encrypted end-to-end and stored securely. We never share your trading information with third parties. Read our privacy policy for more details.'
+                q: language === 'id' ? 'Apakah data trading saya aman?' : 'Is my trading data secure?',
+                a: language === 'id' ? 'Data Anda dienkripsi end-to-end dan disimpan dengan aman. Kami tidak pernah membagikan informasi trading Anda dengan pihak ketiga. Baca kebijakan privasi kami untuk detail lebih lanjut.' : 'Your data is encrypted end-to-end and stored securely. We never share your trading information with third parties. Read our privacy policy for more details.'
               },
               {
-                q: 'Can I cancel my subscription anytime?',
-                a: 'Yes, you can cancel your Elite Pro subscription at any time. Your access will continue until the end of your billing period.'
+                q: language === 'id' ? 'Dapatkah saya membatalkan langganan kapan saja?' : 'Can I cancel my subscription anytime?',
+                a: language === 'id' ? 'Ya, Anda dapat membatalkan langganan Elite Pro kapan saja. Akses Anda akan berlanjut sampai akhir periode penagihan.' : 'Yes, you can cancel your Elite Pro subscription at any time. Your access will continue until the end of your billing period.'
               },
             ].map((faq, index) => (
               <motion.div
@@ -1507,7 +1557,7 @@ export default function LuxTradeLanding() {
                 </div>
               </div>
               <p className="text-white/50 mb-6 max-w-sm font-light text-lg">
-                The premium trading journal for serious traders. Track, analyze, and improve with AI-powered insights.
+                {language === 'id' ? 'Jurnal trading premium untuk trader serius. Lacak, analisis, dan tingkatkan dengan wawasan bertenaga AI.' : 'The premium trading journal for serious traders. Track, analyze, and improve with AI-powered insights.'}
               </p>
               <div className="flex gap-4">
                 {['Twitter', 'Discord', 'Telegram'].map((social) => (
