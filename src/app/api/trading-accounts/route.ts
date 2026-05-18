@@ -54,13 +54,26 @@ export async function GET(req: NextRequest) {
 // POST: Create a new trading account
 export async function POST(req: NextRequest) {
   try {
-    // Get session from cookie
-    const { data: { session }, error: authError } = await supabase.auth.getSession()
+    // Get Authorization header from request
+    const authHeader = req.headers.get('authorization')
 
-    if (authError || !session?.user) {
-      console.log('🔴 [TRADING ACCOUNTS API POST] No session found')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('🔴 [TRADING ACCOUNTS API POST] No Authorization header found')
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized - No token provided' },
+        { status: 401 }
+      )
+    }
+
+    const token = authHeader.substring(7) // Remove 'Bearer ' prefix
+
+    // Verify token with Supabase
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
+    if (authError || !user) {
+      console.log('🔴 [TRADING ACCOUNTS API POST] Invalid token:', authError?.message)
+      return NextResponse.json(
+        { error: 'Unauthorized - Invalid token' },
         { status: 401 }
       )
     }
@@ -95,11 +108,11 @@ export async function POST(req: NextRequest) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('subscription_plan')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single()
 
     // Check account quota
-    const quota = await checkAccountQuota(session.user.id, profile?.subscription_plan || 'free')
+    const quota = await checkAccountQuota(user.id, profile?.subscription_plan || 'free')
 
     if (!quota.canAddMore) {
       return NextResponse.json(
@@ -117,7 +130,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check for duplicate account number
-    const accountExists = await checkAccountNumberExists(session.user.id, account_number)
+    const accountExists = await checkAccountNumberExists(user.id, account_number)
     if (accountExists) {
       return NextResponse.json(
         {
@@ -129,7 +142,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create the trading account
-    const newAccount = await createTradingAccount(session.user.id, {
+    const newAccount = await createTradingAccount(user.id, {
       account_number,
       broker_server,
       platform

@@ -10,35 +10,49 @@ import { checkAccountQuota } from '@/lib/trading-account'
 // GET: Check account quota
 export async function GET(req: NextRequest) {
   try {
-    // Get session from cookie
-    const { data: { session }, error: authError } = await supabase.auth.getSession()
+    // Get Authorization header from request
+    const authHeader = req.headers.get('authorization')
 
-    if (authError || !session?.user) {
-      console.log('🔴 [QUOTA API] No session found:', { authError: authError?.message, hasSession: !!session })
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('🔴 [QUOTA API] No Authorization header found')
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized - No token provided' },
         { status: 401 }
       )
     }
 
-    console.log('🟢 [QUOTA API] User authenticated:', session.user.id)
+    const token = authHeader.substring(7) // Remove 'Bearer ' prefix
+
+    // Verify token with Supabase
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
+    if (authError || !user) {
+      console.log('🔴 [QUOTA API] Invalid token:', authError?.message)
+      return NextResponse.json(
+        { error: 'Unauthorized - Invalid token' },
+        { status: 401 }
+      )
+    }
+
+    console.log('🟢 [QUOTA API] User authenticated:', user.id)
 
     // Get user's subscription plan
     const { data: profile } = await supabase
       .from('profiles')
       .select('subscription_plan')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single()
 
     // Check quota
-    const quota = await checkAccountQuota(session.user.id, profile?.subscription_plan || 'free')
+    const quota = await checkAccountQuota(user.id, profile?.subscription_plan || 'free')
 
     console.log('🟢 [QUOTA API] Quota check result:', quota)
 
     return NextResponse.json({
       success: true,
       quota,
-      plan: profile?.subscription_plan || 'free'
+      plan: profile?.subscription_plan || 'free',
+      userId: user.id
     })
   } catch (error) {
     console.error('Error checking account quota:', error)
