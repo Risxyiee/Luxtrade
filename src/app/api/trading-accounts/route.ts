@@ -11,10 +11,11 @@ import { checkAccountQuota, checkAccountNumberExists, createTradingAccount, getU
 // GET: Fetch all trading accounts for the authenticated user
 export async function GET(req: NextRequest) {
   try {
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Get session from cookie
+    const { data: { session }, error: authError } = await supabase.auth.getSession()
 
-    if (authError || !user) {
+    if (authError || !session?.user) {
+      console.log('🔴 [TRADING ACCOUNTS API GET] No session found')
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -22,16 +23,16 @@ export async function GET(req: NextRequest) {
     }
 
     // Get user's trading accounts
-    const accounts = await getUserTradingAccounts(user.id)
+    const accounts = await getUserTradingAccounts(session.user.id)
 
     // Get user's quota information
     const { data: profile } = await supabase
       .from('profiles')
       .select('subscription_plan')
-      .eq('id', user.id)
+      .eq('id', session.user.id)
       .single()
 
-    const quota = await checkAccountQuota(user.id, profile?.subscription_plan || 'free')
+    const quota = await checkAccountQuota(session.user.id, profile?.subscription_plan || 'free')
 
     return NextResponse.json({
       success: true,
@@ -53,10 +54,11 @@ export async function GET(req: NextRequest) {
 // POST: Create a new trading account
 export async function POST(req: NextRequest) {
   try {
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Get session from cookie
+    const { data: { session }, error: authError } = await supabase.auth.getSession()
 
-    if (authError || !user) {
+    if (authError || !session?.user) {
+      console.log('🔴 [TRADING ACCOUNTS API POST] No session found')
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -93,11 +95,11 @@ export async function POST(req: NextRequest) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('subscription_plan')
-      .eq('id', user.id)
+      .eq('id', session.user.id)
       .single()
 
     // Check account quota
-    const quota = await checkAccountQuota(user.id, profile?.subscription_plan || 'free')
+    const quota = await checkAccountQuota(session.user.id, profile?.subscription_plan || 'free')
 
     if (!quota.canAddMore) {
       return NextResponse.json(
@@ -115,7 +117,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check for duplicate account number
-    const accountExists = await checkAccountNumberExists(user.id, account_number)
+    const accountExists = await checkAccountNumberExists(session.user.id, account_number)
     if (accountExists) {
       return NextResponse.json(
         {
@@ -127,7 +129,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create the trading account
-    const newAccount = await createTradingAccount(user.id, {
+    const newAccount = await createTradingAccount(session.user.id, {
       account_number,
       broker_server,
       platform

@@ -10,25 +10,30 @@ import { checkAccountQuota } from '@/lib/trading-account'
 // GET: Check account quota
 export async function GET(req: NextRequest) {
   try {
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Get session from cookie
+    const { data: { session }, error: authError } = await supabase.auth.getSession()
 
-    if (authError || !user) {
+    if (authError || !session?.user) {
+      console.log('🔴 [QUOTA API] No session found:', { authError: authError?.message, hasSession: !!session })
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
+    console.log('🟢 [QUOTA API] User authenticated:', session.user.id)
+
     // Get user's subscription plan
     const { data: profile } = await supabase
       .from('profiles')
       .select('subscription_plan')
-      .eq('id', user.id)
+      .eq('id', session.user.id)
       .single()
 
     // Check quota
-    const quota = await checkAccountQuota(user.id, profile?.subscription_plan || 'free')
+    const quota = await checkAccountQuota(session.user.id, profile?.subscription_plan || 'free')
+
+    console.log('🟢 [QUOTA API] Quota check result:', quota)
 
     return NextResponse.json({
       success: true,
