@@ -541,35 +541,32 @@ export default function AdminPanel() {
   const activatePRO = async (userId: string) => {
     setUpdatingId(userId)
     try {
-      const session = await supabase.auth.getSession()
-      const token = session.data.session?.access_token
-      
-      if (!token) {
-        toast.error('Session expired')
-        return
-      }
+      console.log('🔧 [ADMIN PANEL] Activating PRO for user:', userId)
 
+      // Note: Backend uses supabaseAdmin (service role key), so we don't need auth header
       const res = await fetch('/api/admin/users', {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ userId })
+        body: JSON.stringify({ userId, days: 30 })
       })
 
       const data = await res.json()
-      
+
+      console.log('🔧 [ADMIN PANEL] Activation response:', data)
+
       if (res.ok) {
         toast.success(data.message || 'PRO activated for 30 days!')
-        
+
         if (data.commission?.paid) {
           toast.success(`Commission Rp ${data.commission.amount.toLocaleString('id-ID')} paid to referrer!`)
         }
-        
+
         fetchUsers()
       } else {
-        toast.error(data.error || 'Failed to activate PRO')
+        console.error('🔧 [ADMIN PANEL] Activation failed:', data)
+        toast.error(data.error || data.details || 'Failed to activate PRO')
       }
     } catch (error) {
       console.error('Error activating PRO:', error)
@@ -582,29 +579,26 @@ export default function AdminPanel() {
   // Revoke PRO
   const revokePRO = async (userId: string) => {
     if (!confirm('Revoke PRO status for this user?')) return
-    
+
     setUpdatingId(userId)
     try {
-      const session = await supabase.auth.getSession()
-      const token = session.data.session?.access_token
-      
-      if (!token) {
-        toast.error('Session expired')
-        return
-      }
+      console.log('🔧 [ADMIN PANEL] Revoking PRO for user:', userId)
 
+      // Note: Backend uses supabaseAdmin (service role key), so we don't need auth header
       const res = await fetch(`/api/admin/users?userId=${userId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        method: 'DELETE'
       })
 
       const data = await res.json()
-      
+
+      console.log('🔧 [ADMIN PANEL] Revoke response:', data)
+
       if (res.ok) {
         toast.success('PRO status revoked')
         fetchUsers()
       } else {
-        toast.error(data.error || 'Failed to revoke PRO')
+        console.error('🔧 [ADMIN PANEL] Revoke failed:', data)
+        toast.error(data.error || data.details || 'Failed to revoke PRO')
       }
     } catch (error) {
       console.error('Error revoking PRO:', error)
