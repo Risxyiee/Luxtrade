@@ -217,20 +217,28 @@ export default function ConnectionsPage() {
 
   const fetchConnectedAccounts = async () => {
     try {
+      console.log('🔍 [fetchConnectedAccounts] Starting fetch...')
       setLoadingAccounts(true)
       const response = await fetch('/api/trading-accounts')
 
+      console.log('📡 [fetchConnectedAccounts] Response status:', response.status)
+
       if (!response.ok) {
         // Just log the error, don't show toast - user might not be authenticated yet
-        console.error('Failed to fetch accounts:', response.status)
+        console.error('🔴 [fetchConnectedAccounts] Failed to fetch accounts:', response.status)
         setConnectedAccounts([])
         setUserPlan('free')
         return
       }
 
       const data = await response.json()
+      console.log('📋 [fetchConnectedAccounts] Response data:', data)
+      console.log('📊 [fetchConnectedAccounts] Accounts count:', data.data?.length || 0)
+
       setConnectedAccounts(data.data || [])
       setUserPlan(data.quota?.maxAllowed === 1 ? 'free' : data.quota?.maxAllowed === 3 ? 'pro' : 'ultra')
+
+      console.log('✅ [fetchConnectedAccounts] State updated. Connected accounts:', data.data?.length || 0)
 
       // Fetch total trades count
       try {
@@ -243,7 +251,7 @@ export default function ConnectionsPage() {
         // Ignore trades fetch error
       }
     } catch (error) {
-      console.error('Error fetching accounts:', error)
+      console.error('🔴 [fetchConnectedAccounts] Error fetching accounts:', error)
       // Silently fail - just show empty state
       setConnectedAccounts([])
       setUserPlan('free')
