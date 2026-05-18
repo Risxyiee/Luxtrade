@@ -36,6 +36,7 @@ export default function ConnectionsPage() {
   const [connectedAccounts, setConnectedAccounts] = useState<TradingAccount[]>([])
   const [loadingAccounts, setLoadingAccounts] = useState(true)
   const [userPlan, setUserPlan] = useState<string>('free')
+  const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null)
 
   // Text content in both languages
   const content = {
@@ -59,6 +60,10 @@ export default function ConnectionsPage() {
     statusPending: language === 'id' ? 'Menunggu' : 'Pending',
     statusError: language === 'id' ? 'Error' : 'Error',
     disconnectButton: language === 'id' ? 'Putuskan' : 'Disconnect',
+    syncButton: language === 'id' ? 'Sync Sekarang' : 'Sync Now',
+    syncingButton: language === 'id' ? 'Sinkronisasi...' : 'Syncing...',
+    syncSuccess: language === 'id' ? 'Sinkronisasi berhasil!' : 'Sync completed successfully!',
+    syncError: language === 'id' ? 'Sinkronisasi gagal!' : 'Sync failed!',
     quotaReachedTitle: language === 'id' ? 'Kuota Akun Penuh!' : 'Account Limit Reached!',
     quotaReachedMessageFree: language === 'id'
       ? 'Akun Free maksimal 1 akun. Upgrade ke PRO untuk mengoneksikan hingga 3 akun!'
@@ -152,7 +157,8 @@ export default function ConnectionsPage() {
     setIsConnecting(true)
 
     try {
-      const response = await fetch('/api/trading-accounts', {
+      // Step 1: Create trading account record
+      const createResponse = await fetch('/api/trading-accounts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -164,17 +170,48 @@ export default function ConnectionsPage() {
         }),
       })
 
-      const data = await response.json()
+      const createData = await createResponse.json()
 
-      if (!response.ok) {
-        if (response.status === 403) {
+      if (!createResponse.ok) {
+        if (createResponse.status === 403) {
           // Quota exceeded
           setShowPaywall(true)
           return
         }
-        throw new Error(data.error || 'Failed to connect account')
+        throw new Error(createData.error || 'Failed to create trading account')
       }
 
+      const tradingAccountId = createData.data.id
+
+      // Step 2: Connect to MetaApi
+      const metaApiResponse = await fetch('/api/metaapi/connect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tradingAccountId,
+          accountNumber: formData.accountNumber,
+          password: formData.password,
+          brokerServer: formData.brokerServer,
+          platform: formData.platform,
+        }),
+      })
+
+      const metaApiData = await metaApiResponse.json()
+
+      if (!metaApiResponse.ok) {
+        // Update status to ERROR in our database
+        await fetch(`/api/trading-accounts/${tradingAccountId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'ERROR' }),
+        })
+
+        throw new Error(metaApiData.error || 'Failed to connect to MetaApi')
+      }
+
+      // Success!
       toast.success(content.successMessage)
 
       // Reset form
@@ -216,6 +253,40 @@ export default function ConnectionsPage() {
     } catch (error) {
       console.error('Error disconnecting account:', error)
       toast.error(language === 'id' ? 'Gagal memutus koneksi akun' : 'Failed to disconnect account')
+    }
+  }
+
+  const handleSync = async (accountId: string) => {
+    setSyncingAccountId(accountId)
+
+    try {
+      const response = await fetch(`/api/metaapi/deals?tradingAccountId=${accountId}`)
+
+      if (!response.ok) {
+        throw new Error('Failed to sync deals')
+      }
+
+      const data = await response.json()
+
+      if (data.success) {
+        const { synced, skipped, totalFetched, errors } = data.data.sync
+
+        if (errors && errors.length > 0) {
+          toast.warning(
+            `${content.syncSuccess} ${synced} synced, ${skipped} skipped. Some errors occurred.`,
+            { description: errors.slice(0, 3).join(', ') }
+          )
+        } else {
+          toast.success(
+            `${content.syncSuccess} ${synced}/${totalFetched} trades synced.`
+          )
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing deals:', error)
+      toast.error(content.syncError)
+    } finally {
+      setSyncingAccountId(null)
     }
   }
 
@@ -443,14 +514,37 @@ export default function ConnectionsPage() {
                         <p className="text-xs text-white/40">
                           {new Date(account.created_at).toLocaleDateString()}
                         </p>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDisconnect(account.id)}
-                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8"
-                        >
-                          {content.disconnectButton}
-                        </Button>
+                        <div className="flex gap-2">
+                          {account.status === 'CONNECTED' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleSync(account.id)}
+                              disabled={syncingAccountId === account.id}
+                              className="text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 h-8"
+                            >
+                              {syncingAccountId === account.id ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                  {content.syncingButton}
+                                </>
+                              ) : (
+                                <>
+                                  <Zap className="w-3 h-3 mr-1" />
+                                  {content.syncButton}
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDisconnect(account.id)}
+                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8"
+                          >
+                            {content.disconnectButton}
+                          </Button>
+                        </div>
                       </div>
                     </motion.div>
                   ))}
