@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,7 +9,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Sparkles, Link2, Lock, Server, Shield, CheckCircle, XCircle, Loader2, Zap } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { Sparkles, Link2, Lock, Server, Shield, CheckCircle, XCircle, Loader2, Zap, Trophy, Star, Award, TrendingUp, Database } from 'lucide-react'
 import { toast } from 'sonner'
 import PaywallModal from '@/components/PaywallModal'
 import { TradingAccount } from '@/types/trading-account'
@@ -21,6 +23,18 @@ interface FormData {
   accountNumber: string
   password: string
   brokerServer: string
+}
+
+interface Achievement {
+  id: string
+  icon: React.ElementType
+  title: string
+  titleId: string
+  description: string
+  descriptionId: string
+  unlocked: boolean
+  progress: number
+  max: number
 }
 
 export default function ConnectionsPage() {
@@ -37,6 +51,8 @@ export default function ConnectionsPage() {
   const [loadingAccounts, setLoadingAccounts] = useState(true)
   const [userPlan, setUserPlan] = useState<string>('free')
   const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null)
+  const [syncProgress, setSyncProgress] = useState(0)
+  const [totalTrades, setTotalTrades] = useState(0)
 
   // Text content in both languages
   const content = {
@@ -88,12 +104,79 @@ export default function ConnectionsPage() {
       : 'Failed to connect account. Please check your credentials and try again.',
     invalidPlatform: language === 'id' ? 'Platform harus MT4 atau MT5' : 'Platform must be MT4 or MT5',
     missingFields: language === 'id' ? 'Mohon lengkapi semua field yang diperlukan' : 'Please fill in all required fields',
+    achievementsTitle: language === 'id' ? 'Pencapaian' : 'Achievements',
+    achievementFirstConnection: {
+      title: language === 'id' ? 'Koneksi Pertama' : 'First Connection',
+      description: language === 'id' ? 'Hubungkan akun MT4/MT5 pertama Anda' : 'Connect your first MT4/MT5 account'
+    },
+    achievementMultipleAccounts: {
+      title: language === 'id' ? 'Trader Multi-Akun' : 'Multi-Account Trader',
+      description: language === 'id' ? 'Hubungkan 3 akun trading' : 'Connect 3 trading accounts'
+    },
+    achievementTradeMaster: {
+      title: language === 'id' ? 'Master Trading' : 'Trade Master',
+      description: language === 'id' ? 'Sinkronisasi 100+ trades' : 'Sync 100+ trades'
+    },
   }
+
+  // Calculate achievements based on current state
+  const achievements: Achievement[] = [
+    {
+      id: 'first-connection',
+      icon: Star,
+      title: content.achievementFirstConnection.title,
+      titleId: content.achievementFirstConnection.title,
+      description: content.achievementFirstConnection.description,
+      descriptionId: content.achievementFirstConnection.description,
+      unlocked: connectedAccounts.length > 0,
+      progress: connectedAccounts.length > 0 ? 1 : 0,
+      max: 1
+    },
+    {
+      id: 'multiple-accounts',
+      icon: Award,
+      title: content.achievementMultipleAccounts.title,
+      titleId: content.achievementMultipleAccounts.title,
+      description: content.achievementMultipleAccounts.description,
+      descriptionId: content.achievementMultipleAccounts.description,
+      unlocked: connectedAccounts.length >= 3,
+      progress: connectedAccounts.length,
+      max: 3
+    },
+    {
+      id: 'trade-master',
+      icon: Trophy,
+      title: content.achievementTradeMaster.title,
+      titleId: content.achievementTradeMaster.title,
+      description: content.achievementTradeMaster.description,
+      descriptionId: content.achievementTradeMaster.description,
+      unlocked: totalTrades >= 100,
+      progress: totalTrades,
+      max: 100
+    }
+  ]
 
   // Fetch user's connected accounts on mount
   useEffect(() => {
     fetchConnectedAccounts()
   }, [])
+
+  // Simulate sync progress when syncing
+  useEffect(() => {
+    if (syncingAccountId) {
+      setSyncProgress(0)
+      const interval = setInterval(() => {
+        setSyncProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(interval)
+            return 90
+          }
+          return prev + Math.random() * 15
+        })
+      }, 500)
+      return () => clearInterval(interval)
+    }
+  }, [syncingAccountId])
 
   const fetchConnectedAccounts = async () => {
     try {
@@ -107,6 +190,17 @@ export default function ConnectionsPage() {
       const data = await response.json()
       setConnectedAccounts(data.data || [])
       setUserPlan(data.quota?.maxAllowed === 1 ? 'free' : data.quota?.maxAllowed === 3 ? 'pro' : 'ultra')
+
+      // Fetch total trades count
+      try {
+        const tradesRes = await fetch('/api/trades')
+        if (tradesRes.ok) {
+          const tradesData = await tradesRes.json()
+          setTotalTrades(tradesData.trades?.length || 0)
+        }
+      } catch (e) {
+        // Ignore trades fetch error
+      }
     } catch (error) {
       console.error('Error fetching accounts:', error)
       toast.error(content.errorMessage)
@@ -271,6 +365,9 @@ export default function ConnectionsPage() {
       if (data.success) {
         const { synced, skipped, totalFetched, errors } = data.data.sync
 
+        setSyncProgress(100)
+        setTotalTrades(prev => prev + synced)
+
         if (errors && errors.length > 0) {
           toast.warning(
             `${content.syncSuccess} ${synced} synced, ${skipped} skipped. Some errors occurred.`,
@@ -287,7 +384,85 @@ export default function ConnectionsPage() {
       toast.error(content.syncError)
     } finally {
       setSyncingAccountId(null)
+      setSyncProgress(0)
     }
+  }
+
+  // Loading Skeleton Component
+  function LoadingSkeleton() {
+    return (
+      <div className="space-y-4">
+        {[1, 2].map((i) => (
+          <div key={i} className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.08]">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1">
+                <div className="h-6 bg-white/10 rounded w-32 mb-2 animate-pulse" />
+                <div className="h-4 bg-white/5 rounded w-48 animate-pulse" />
+              </div>
+              <div className="h-6 bg-white/10 rounded-full w-20 animate-pulse" />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="h-3 bg-white/5 rounded w-24 animate-pulse" />
+              <div className="flex gap-2">
+                <div className="h-8 bg-white/10 rounded w-20 animate-pulse" />
+                <div className="h-8 bg-white/10 rounded w-16 animate-pulse" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  // Achievement Card Component
+  function AchievementCard({ achievement }: { achievement: Achievement }) {
+    const Icon = achievement.icon
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.3 + achievements.indexOf(achievement) * 0.1 }}
+        className={`p-4 rounded-xl border transition-all ${
+          achievement.unlocked
+            ? 'bg-gradient-to-br from-purple-500/20 to-violet-500/20 border-purple-500/30'
+            : 'bg-white/[0.03] border-white/[0.08] opacity-60'
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          <motion.div
+            className={`p-2.5 rounded-lg ${
+              achievement.unlocked
+                ? 'bg-gradient-to-br from-purple-500 to-violet-600 shadow-lg shadow-purple-500/30'
+                : 'bg-white/5'
+            }`}
+            animate={achievement.unlocked ? { scale: [1, 1.1, 1] } : {}}
+            transition={{ duration: 2, repeat: achievement.unlocked ? Infinity : 0, repeatDelay: 3 }}
+          >
+            <Icon className={`w-5 h-5 ${achievement.unlocked ? 'text-white' : 'text-white/30'}`} />
+          </motion.div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h4 className={`font-semibold text-sm ${achievement.unlocked ? 'text-white' : 'text-white/50'}`}>
+                {achievement.title}
+              </h4>
+              {achievement.unlocked && (
+                <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] px-1.5 py-0">
+                  ✓
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-white/40 mb-2">{achievement.description}</p>
+            <Progress
+              value={(achievement.progress / achievement.max) * 100}
+              className={`h-1.5 ${achievement.unlocked ? 'bg-purple-900/30' : 'bg-white/10'}`}
+            />
+            <p className="text-[10px] text-white/30 mt-1">
+              {achievement.progress}/{achievement.max}
+            </p>
+          </div>
+        </div>
+      </motion.div>
+    )
   }
 
   return (
@@ -314,12 +489,28 @@ export default function ConnectionsPage() {
         className="max-w-6xl mx-auto mb-8"
       >
         <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600">
+          <motion.div
+            className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600"
+            animate={{ rotate: [0, 360] }}
+            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          >
             <Link2 className="w-6 h-6 text-white" />
-          </div>
+          </motion.div>
           <h1 className="text-3xl font-extrabold bg-gradient-to-r from-white to-purple-300 bg-clip-text text-transparent">
             {content.title}
           </h1>
+          {connectedAccounts.length > 0 && (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="ml-auto"
+            >
+              <Badge className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-400 border-emerald-500/30">
+                <CheckCircle className="w-3 h-3 mr-1" />
+                {connectedAccounts.length} {connectedAccounts.length === 1 ? 'Account' : 'Accounts'}
+              </Badge>
+            </motion.div>
+          )}
         </div>
         <p className="text-white/60 text-lg">{content.subtitle}</p>
       </motion.div>
@@ -439,6 +630,23 @@ export default function ConnectionsPage() {
               </form>
             </CardContent>
           </Card>
+
+          {/* Achievements Section */}
+          <Card className="backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] mt-6">
+            <CardHeader className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-b border-white/[0.08]">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Trophy className="w-5 h-5 text-amber-400" />
+                {content.achievementsTitle}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="space-y-3">
+                {achievements.map((achievement) => (
+                  <AchievementCard key={achievement.id} achievement={achievement} />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </motion.div>
 
         {/* Connected Accounts List */}
@@ -460,24 +668,37 @@ export default function ConnectionsPage() {
             </CardHeader>
             <CardContent className="p-6">
               {loadingAccounts ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
-                </div>
+                <LoadingSkeleton />
               ) : connectedAccounts.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-center py-12"
+                >
+                  <motion.div
+                    className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4"
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
                     <Link2 className="w-8 h-8 text-white/30" />
+                  </motion.div>
+                  <p className="text-white/40 mb-4">{content.noAccounts}</p>
+                  <div className="inline-flex items-center gap-2 text-xs text-white/30 bg-white/5 px-3 py-2 rounded-full">
+                    <Zap className="w-3 h-3" />
+                    {language === 'id' ? 'Hubungkan akun pertama Anda' : 'Connect your first account'}
                   </div>
-                  <p className="text-white/40">{content.noAccounts}</p>
-                </div>
+                </motion.div>
               ) : (
                 <div className="space-y-4">
-                  {connectedAccounts.map((account) => (
+                  {connectedAccounts.map((account, index) => (
                     <motion.div
                       key={account.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.08] hover:border-purple-500/30 hover:bg-white/[0.06] transition-all"
+                      transition={{ delay: index * 0.1 }}
+                      className={`p-4 rounded-xl bg-white/[0.03] border border-white/[0.08] hover:border-purple-500/30 hover:bg-white/[0.06] transition-all ${
+                        syncingAccountId === account.id ? 'ring-2 ring-purple-500/50' : ''
+                      }`}
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div>
@@ -510,6 +731,26 @@ export default function ConnectionsPage() {
                             : content.statusError}
                         </div>
                       </div>
+
+                      {/* Sync Progress */}
+                      <AnimatePresence>
+                        {syncingAccountId === account.id && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mb-3 overflow-hidden"
+                          >
+                            <div className="flex items-center gap-2 text-xs text-purple-300 mb-1.5">
+                              <Database className="w-3 h-3 animate-pulse" />
+                              <span>{language === 'id' ? 'Menarik data trading...' : 'Fetching trading data...'}</span>
+                              <span className="ml-auto">{Math.round(syncProgress)}%</span>
+                            </div>
+                            <Progress value={syncProgress} className="h-1.5 bg-purple-900/30" />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
                       <div className="flex items-center justify-between">
                         <p className="text-xs text-white/40">
                           {new Date(account.created_at).toLocaleDateString()}
@@ -521,7 +762,9 @@ export default function ConnectionsPage() {
                               size="sm"
                               onClick={() => handleSync(account.id)}
                               disabled={syncingAccountId === account.id}
-                              className="text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 h-8"
+                              className={`text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 h-8 ${
+                                syncingAccountId === account.id ? 'cursor-not-allowed' : ''
+                              }`}
                             >
                               {syncingAccountId === account.id ? (
                                 <>
