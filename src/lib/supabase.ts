@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 
 // Supabase configuration
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://klxkdrfsfcoankbaoejn.supabase.co'
@@ -34,21 +35,38 @@ const validSupabaseUrl = supabaseUrl.startsWith('http://') || supabaseUrl.starts
 const hasValidCredentials = supabaseAnonKey && supabaseAnonKey !== 'undefined' && supabaseAnonKey.trim() !== ''
 
 // Create Supabase client (for client-side & regular operations)
-export const supabase: SupabaseClient | null = hasValidCredentials
-  ? createClient(validSupabaseUrl, supabaseAnonKey, {
+// Using @supabase/ssr createBrowserClient to ensure session is stored in cookies
+// This makes the session accessible to API routes in production
+export const supabase: SupabaseClient | null = (() => {
+  if (!hasValidCredentials) {
+    return null
+  }
+
+  // Only use createBrowserClient on client-side
+  if (typeof window !== 'undefined') {
+    return createBrowserClient(validSupabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true
-      },
-      // Global configuration for custom domain support
-      global: {
-        headers: {
-          'X-Client-Info': 'luxtrade-web'
-        }
       }
-    })
-  : null
+    }) as any
+  }
+
+  // Server-side fallback (should not be used for auth operations)
+  return createClient(validSupabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true
+    },
+    global: {
+      headers: {
+        'X-Client-Info': 'luxtrade-web'
+      }
+    }
+  })
+})()
 
 // Create Supabase ADMIN client (for server-side admin operations like listUsers)
 // Uses SERVICE_ROLE_KEY which has full admin privileges
