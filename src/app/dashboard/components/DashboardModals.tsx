@@ -957,13 +957,13 @@ export default function DashboardModals({
         remainingTrials={proTrialCount}
       /> */}
 
-      {/* Welcome Onboarding */}
-      <WelcomeOnboarding
+      {/* Welcome Onboarding - DISABLED PER USER REQUEST */}
+      {/* <WelcomeOnboarding
         isOpen={showOnboarding}
         onClose={() => setShowOnboarding(false)}
         onUpgrade={() => setPlanSelectionModalOpen(true)}
         language={language}
-      />
+      /> */}
     </>
   )
 }
