@@ -82,6 +82,7 @@ export default function ConnectionsPage() {
   const [syncProgress, setSyncProgress] = useState(0)
   const [totalTrades, setTotalTrades] = useState(0)
   const [isAutoFixing, setIsAutoFixing] = useState(false)
+  const [isCleaningOrphan, setIsCleaningOrphan] = useState(false)
   const [debugInfo, setDebugInfo] = useState<any>(null)
   const [showDebug, setShowDebug] = useState(false)
 
@@ -530,6 +531,34 @@ export default function ConnectionsPage() {
     }
   }
 
+  const handleCleanupOrphan = async () => {
+    setIsCleaningOrphan(true)
+    try {
+      const response = await fetch('/api/trading-accounts/cleanup-orphan', {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to cleanup orphan accounts')
+      }
+
+      if (data.deleted > 0) {
+        toast.success(`✅ Berhasil menghapus ${data.deleted} akun gagal`)
+      } else {
+        toast.info('ℹ️ Tidak ada akun gagal yang ditemukan')
+      }
+
+      await fetchConnectedAccounts()
+    } catch (error: any) {
+      console.error('Error cleaning up orphan accounts:', error)
+      toast.error(error.message || 'Gagal menghapus akun gagal')
+    } finally {
+      setIsCleaningOrphan(false)
+    }
+  }
+
   const handleAutoFixAll = async () => {
     setIsAutoFixing(true)
     try {
@@ -932,6 +961,25 @@ export default function ConnectionsPage() {
                   >
                     <Bug className="w-4 h-4 mr-2" />
                     Debug Environment
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCleanupOrphan}
+                    disabled={isCleaningOrphan}
+                    className="w-full bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300"
+                  >
+                    {isCleaningOrphan ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        {language === 'id' ? 'Menghapus...' : 'Deleting...'}
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        {language === 'id' ? 'Hapus Akun Gagal' : 'Delete Failed Accounts'}
+                      </>
+                    )}
                   </Button>
                 </div>
               )}
