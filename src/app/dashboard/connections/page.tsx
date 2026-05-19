@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Sparkles, Link2, Lock, Server, Shield, CheckCircle, XCircle, Loader2, Zap, Trophy, Star, Award, TrendingUp, Database, Trash2 } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Sparkles, Link2, Lock, Server, Shield, CheckCircle, XCircle, Loader2, Zap, Trophy, Star, Award, TrendingUp, Database, Trash2, Bug } from 'lucide-react'
 import { toast } from 'sonner'
 import PaywallModal from '@/components/PaywallModal'
 import { TradingAccount } from '@/types/trading-account'
@@ -81,6 +82,8 @@ export default function ConnectionsPage() {
   const [syncProgress, setSyncProgress] = useState(0)
   const [totalTrades, setTotalTrades] = useState(0)
   const [isAutoFixing, setIsAutoFixing] = useState(false)
+  const [debugInfo, setDebugInfo] = useState<any>(null)
+  const [showDebug, setShowDebug] = useState(false)
 
   // Helper: Get auth headers for API calls
   const getAuthHeaders = useCallback(() => {
@@ -512,6 +515,21 @@ export default function ConnectionsPage() {
     }
   }
 
+  const handleCheckDebug = async () => {
+    try {
+      const response = await fetch('/api/debug/check-env', {
+        headers: getAuthHeaders()
+      })
+      const data = await response.json()
+      setDebugInfo(data)
+      setShowDebug(true)
+      console.log('🔍 Debug info:', data)
+    } catch (error) {
+      console.error('Error fetching debug info:', error)
+      toast.error('Gagal mengambil info debug')
+    }
+  }
+
   const handleAutoFixAll = async () => {
     setIsAutoFixing(true)
     try {
@@ -536,13 +554,29 @@ export default function ConnectionsPage() {
       console.log('📋 [DEBUG] Auto fix response:', data)
 
       if (!response.ok) {
+        console.error('🔴 [DEBUG] Auto fix failed:', data)
         throw new Error(data.error || 'Failed to auto fix')
       }
 
-      toast.success(`${data.message} (${data.fixed.length} fixed)`)
+      // Display detailed results
+      const { fixed, skipped, total } = data
+      console.log('✅ [DEBUG] Fix complete:', { fixed, skipped, total })
+
+      if (fixed && fixed.length > 0) {
+        const fixedList = fixed.map((f: any) => `${f.accountNumber} (${f.before} → ${f.after})`).join(', ')
+        toast.success(`✅ Fixed ${fixed.length} account(s): ${fixedList}`)
+      } else {
+        toast.warning(`⚠️ No accounts needed fixing. Total: ${total} account(s)`)
+      }
+
+      // Show details about skipped accounts if any
+      if (skipped && skipped.length > 0) {
+        console.log('ℹ️ Skipped accounts:', skipped)
+      }
+
       await fetchConnectedAccounts()
     } catch (error: any) {
-      console.error('Error auto fixing:', error)
+      console.error('🔴 [DEBUG] Error auto fixing:', error)
       toast.error(error.message || 'Gagal auto fix')
     } finally {
       setIsAutoFixing(false)
@@ -870,7 +904,7 @@ export default function ConnectionsPage() {
                 </span>
               </CardTitle>
               {connectedAccounts.some(acc => acc.status === 'PENDING') && (
-                <div className="mt-3">
+                <div className="mt-3 space-y-2">
                   <Button
                     variant="outline"
                     size="sm"
@@ -889,6 +923,15 @@ export default function ConnectionsPage() {
                         {language === 'id' ? 'Auto Fix Status Pending' : 'Auto Fix Pending Status'}
                       </>
                     )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCheckDebug}
+                    className="w-full bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300"
+                  >
+                    <Bug className="w-4 h-4 mr-2" />
+                    Debug Environment
                   </Button>
                 </div>
               )}
@@ -1030,6 +1073,63 @@ export default function ConnectionsPage() {
           </div>
         </div>
       </div>
+
+      {/* Debug Dialog */}
+      <Dialog open={showDebug} onOpenChange={setShowDebug}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto bg-zinc-950 border-zinc-800">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Bug className="w-5 h-5" />
+              Debug Environment Info
+            </DialogTitle>
+          </DialogHeader>
+          {debugInfo && (
+            <div className="space-y-4">
+              {/* User Info */}
+              {debugInfo.user && (
+                <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
+                  <h3 className="text-sm font-medium text-zinc-300 mb-2">User Info</h3>
+                  <pre className="text-xs text-green-400 overflow-x-auto">
+                    {JSON.stringify(debugInfo.user, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {/* Environment */}
+              <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
+                <h3 className="text-sm font-medium text-zinc-300 mb-2">Environment Variables</h3>
+                <pre className="text-xs text-blue-400 overflow-x-auto">
+                  {JSON.stringify(debugInfo.environment, null, 2)}
+                </pre>
+              </div>
+
+              {/* Clients */}
+              <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
+                <h3 className="text-sm font-medium text-zinc-300 mb-2">Database Clients</h3>
+                <pre className="text-xs text-yellow-400 overflow-x-auto">
+                  {JSON.stringify(debugInfo.clients, null, 2)}
+                </pre>
+              </div>
+
+              {/* Accounts */}
+              {debugInfo.accounts && (
+                <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
+                  <h3 className="text-sm font-medium text-zinc-300 mb-2">
+                    Trading Accounts ({debugInfo.accounts.count})
+                  </h3>
+                  {debugInfo.accounts.accounts.length > 0 ? (
+                    <pre className="text-xs text-purple-400 overflow-x-auto">
+                      {JSON.stringify(debugInfo.accounts, null, 2)}
+                    </pre>
+                  ) : (
+                    <p className="text-sm text-zinc-500">No accounts found</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
