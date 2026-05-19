@@ -80,6 +80,7 @@ export default function ConnectionsPage() {
   const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null)
   const [syncProgress, setSyncProgress] = useState(0)
   const [totalTrades, setTotalTrades] = useState(0)
+  const [isAutoFixing, setIsAutoFixing] = useState(false)
 
   // Helper: Get auth headers for API calls
   const getAuthHeaders = useCallback(() => {
@@ -511,6 +512,33 @@ export default function ConnectionsPage() {
     }
   }
 
+  const handleAutoFixAll = async () => {
+    setIsAutoFixing(true)
+    try {
+      const response = await fetch('/api/trading-accounts/auto-fix-all', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to auto fix')
+      }
+
+      toast.success(`${data.message} (${data.fixed.length} fixed)`)
+      await fetchConnectedAccounts()
+    } catch (error: any) {
+      console.error('Error auto fixing:', error)
+      toast.error(error.message || 'Gagal auto fix')
+    } finally {
+      setIsAutoFixing(false)
+    }
+  }
+
   const handleSync = async (accountId: string) => {
     setSyncingAccountId(accountId)
 
@@ -831,6 +859,29 @@ export default function ConnectionsPage() {
                   {userPlan === 'free' ? 1 : userPlan === 'pro' ? 3 : 5}
                 </span>
               </CardTitle>
+              {connectedAccounts.some(acc => acc.status === 'PENDING') && (
+                <div className="mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAutoFixAll}
+                    disabled={isAutoFixing}
+                    className="w-full bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300"
+                  >
+                    {isAutoFixing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        {language === 'id' ? 'Memperbaiki...' : 'Fixing...'}
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4 mr-2" />
+                        {language === 'id' ? 'Auto Fix Status Pending' : 'Auto Fix Pending Status'}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardContent className="p-6">
               {loadingAccounts ? (
