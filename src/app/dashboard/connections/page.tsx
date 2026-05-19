@@ -117,6 +117,24 @@ export default function ConnectionsPage() {
     return headers
   }, [session?.access_token])
 
+  // Silent cleanup of PENDING accounts - no user notification
+  const cleanupPendingAccountsSilently = async () => {
+    try {
+      const response = await fetch('/api/trading-accounts/cleanup-orphan', {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('🧹 [Auto-cleanup] Removed', data.deleted, 'PENDING accounts')
+      }
+    } catch (error) {
+      // Silent fail - don't show error to user
+      console.error('🔴 [Auto-cleanup] Failed:', error)
+    }
+  }
+
   // Text content in both languages
   const content = {
     title: language === 'id' ? 'Koneksi Akun Trading' : 'Trading Account Connections',
@@ -264,10 +282,23 @@ export default function ConnectionsPage() {
       console.log('📋 [fetchConnectedAccounts] Response data:', data)
       console.log('📊 [fetchConnectedAccounts] Accounts count:', data.data?.length || 0)
 
-      setConnectedAccounts(data.data || [])
+      // Filter out PENDING accounts - only show CONNECTED accounts in UI
+      const connectedOnly = (data.data || []).filter((acc: any) => acc.status === 'CONNECTED')
+      const pendingAccounts = (data.data || []).filter((acc: any) => acc.status === 'PENDING')
+
+      console.log('✅ [fetchConnectedAccounts] Connected accounts:', connectedOnly.length)
+      console.log('⚠️ [fetchConnectedAccounts] Pending accounts (hidden):', pendingAccounts.length)
+
+      setConnectedAccounts(connectedOnly)
       setUserPlan(data.quota?.maxAllowed === 1 ? 'free' : data.quota?.maxAllowed === 3 ? 'pro' : 'ultra')
 
-      console.log('✅ [fetchConnectedAccounts] State updated. Connected accounts:', data.data?.length || 0)
+      console.log('✅ [fetchConnectedAccounts] State updated. Connected accounts:', connectedOnly.length)
+
+      // Auto-cleanup PENDING accounts in background
+      if (pendingAccounts.length > 0) {
+        console.log('🧹 [fetchConnectedAccounts] Auto-cleaning', pendingAccounts.length, 'PENDING accounts...')
+        cleanupPendingAccountsSilently()
+      }
 
       // Fetch total trades count
       try {
@@ -419,6 +450,10 @@ export default function ConnectionsPage() {
 
       if (!metaApiResponse.ok) {
         console.log('🔴 [DEBUG] MetaApi connect failed:', metaApiResponse.status, metaApiData)
+
+        // Auto-cleanup the PENDING account that was just created
+        console.log('🧹 [DEBUG] Auto-cleaning failed connection account...')
+        cleanupPendingAccountsSilently()
 
         // Extract detailed error message
         let errorMessage = language === 'id'
