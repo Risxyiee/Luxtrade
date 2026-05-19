@@ -47,6 +47,11 @@ export async function POST(req: NextRequest) {
     const skippedAccounts = []
 
     for (const account of accounts || []) {
+      console.log(`🔍 [AUTO FIX] Checking account ${account.account_number}:`, {
+        status: account.status,
+        metaapi_account_id: account.metaapi_account_id
+      })
+
       let shouldFix = false
       let newStatus = account.status
       let reason = ''
@@ -62,6 +67,8 @@ export async function POST(req: NextRequest) {
         newStatus = 'PENDING'
         reason = 'Missing metaapi_account_id but status is CONNECTED'
       }
+
+      console.log(`📋 [AUTO FIX] Account ${account.account_number}: shouldFix=${shouldFix}, reason=${reason}`)
 
       if (shouldFix) {
         console.log(`🔄 [AUTO FIX] Fixing account ${account.account_number}: ${account.status} -> ${newStatus}`)
