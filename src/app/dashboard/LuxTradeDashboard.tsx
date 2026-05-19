@@ -262,21 +262,22 @@ function LuxTradeDashboardContent() {
   
   // Helper: Check if user can access PRO features
   const checkProAccess = useCallback((featureName: string = 'Fitur Premium'): boolean => {
-    // PRO users have unlimited access
-    if (isPro || false) return true
+    // PRO users have unlimited access - NO trial counting
+    if (isPro) return true
 
     // Free users with remaining trials
     if (proTrialCount > 0) {
       return true // Allow access, will decrement counter
     }
 
-    // No trials left - show paywall
-    setPaywallModalOpen(true)
+    // No trials left - show paywall (DISABLED for now)
+    // setPaywallModalOpen(true)
     return false
   }, [isPro, proTrialCount, setPaywallModalOpen])
 
   // Helper: Decrement trial counter after using PRO feature
   const useProTrial = useCallback(() => {
+    // Only decrement for free users
     if (!isPro && proTrialCount > 0) {
       const newCount = proTrialCount - 1
       setProTrialCount(newCount)
@@ -284,13 +285,13 @@ function LuxTradeDashboardContent() {
       // Save to localStorage for persistence
       localStorage.setItem('luxtrade_pro_trial_count', newCount.toString())
 
-      // Show warning if running low
-      if (newCount === 1) {
-        toast.warning(`⚠️ Sisa 1 kali uji coba fitur PRO! Upgrade untuk akses unlimited.`)
-      } else if (newCount === 0) {
-        toast.error(`🔒 Kuota uji coba habis! Upgrade ke PRO untuk akses penuh.`)
-        setTimeout(() => setPaywallModalOpen(true), 1000)
-      }
+      // Show warning if running low (DISABLED for now)
+      // if (newCount === 1) {
+      //   toast.warning(`⚠️ Sisa 1 kali uji coba fitur PRO! Upgrade untuk akses unlimited.`)
+      // } else if (newCount === 0) {
+      //   toast.error(`🔒 Kuota uji coba habis! Upgrade ke PRO untuk akses penuh.`)
+      //   setTimeout(() => setPaywallModalOpen(true), 1000)
+      // }
     }
   }, [isPro, proTrialCount, setPaywallModalOpen])
 
@@ -354,7 +355,7 @@ function LuxTradeDashboardContent() {
   const FREE_TRADE_LIMIT = 5
   const isFreeUser = !isPro
   const tradeCount = trades.length
-  const canAddTrade = isPro || false || tradeCount < FREE_TRADE_LIMIT
+  const canAddTrade = isPro || tradeCount < FREE_TRADE_LIMIT
 
   // ==================== STABLE FORM HANDLERS ====================
   
