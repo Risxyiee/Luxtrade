@@ -23,15 +23,24 @@ export async function POST(req: NextRequest) {
     }
 
     if (!user) {
+      console.log('🔴 [AUTO FIX] No authenticated user')
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    if (!supabaseAdmin) {
-      return NextResponse.json({ error: 'Admin client not configured' }, { status: 500 })
+    console.log('✅ [AUTO FIX] User authenticated:', user.id)
+
+    // Use admin client if available, otherwise use regular client
+    const dbClient = supabaseAdmin || supabase
+
+    if (!dbClient) {
+      console.log('🔴 [AUTO FIX] No database client available')
+      return NextResponse.json({ error: 'Database client not configured' }, { status: 500 })
     }
 
+    console.log('🔍 [AUTO FIX] Using database client:', supabaseAdmin ? 'Admin' : 'Regular')
+
     // Get all accounts for this user
-    const { data: accounts, error: fetchError } = await supabaseAdmin
+    const { data: accounts, error: fetchError } = await dbClient
       .from('trading_accounts')
       .select('*')
       .eq('user_id', user.id)
@@ -73,7 +82,7 @@ export async function POST(req: NextRequest) {
       if (shouldFix) {
         console.log(`🔄 [AUTO FIX] Fixing account ${account.account_number}: ${account.status} -> ${newStatus}`)
 
-        const { data: updatedAccount, error: updateError } = await supabaseAdmin
+        const { data: updatedAccount, error: updateError } = await dbClient
           .from('trading_accounts')
           .update({ status: newStatus })
           .eq('id', account.id)
