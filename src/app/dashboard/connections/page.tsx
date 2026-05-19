@@ -486,6 +486,31 @@ export default function ConnectionsPage() {
     }
   }
 
+  const handleFixStatus = async (accountId: string) => {
+    try {
+      const response = await fetch('/api/trading-accounts/fix-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ accountId }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fix status')
+      }
+
+      toast.success(data.message || 'Status berhasil diperbaiki')
+      await fetchConnectedAccounts()
+    } catch (error: any) {
+      console.error('Error fixing status:', error)
+      toast.error(error.message || 'Gagal memperbaiki status')
+    }
+  }
+
   const handleSync = async (accountId: string) => {
     setSyncingAccountId(accountId)
 
@@ -879,6 +904,18 @@ export default function ConnectionsPage() {
                           {new Date(account.created_at).toLocaleDateString()}
                         </p>
                         <div className="flex gap-2">
+                          {account.status === 'PENDING' && account.metaapi_account_id && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleFixStatus(account.id)}
+                              className="text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 h-8"
+                              title="Fix status to CONNECTED"
+                            >
+                              <Zap className="w-3 h-3 mr-1" />
+                              Fix
+                            </Button>
+                          )}
                           {account.status === 'CONNECTED' && (
                             <Button
                               variant="ghost"
