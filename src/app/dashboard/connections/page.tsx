@@ -515,6 +515,15 @@ export default function ConnectionsPage() {
   const handleAutoFixAll = async () => {
     setIsAutoFixing(true)
     try {
+      console.log('🔵 [DEBUG] Starting auto fix all...')
+
+      // First, debug what accounts we have
+      const debugResponse = await fetch('/api/debug/accounts-detail', {
+        headers: getAuthHeaders()
+      })
+      const debugData = await debugResponse.json()
+      console.log('📊 [DEBUG] Account details:', debugData)
+
       const response = await fetch('/api/trading-accounts/auto-fix-all', {
         method: 'POST',
         headers: {
@@ -524,6 +533,7 @@ export default function ConnectionsPage() {
       })
 
       const data = await response.json()
+      console.log('📋 [DEBUG] Auto fix response:', data)
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to auto fix')
