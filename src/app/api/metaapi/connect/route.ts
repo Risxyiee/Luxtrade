@@ -1,199 +1,241 @@
-import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
-// Panggil client buatan internal proyek lo sendiri (biasanya di folder utils/lib)
-import { createClient } from '@supabase/supabase-js'
+/**
+ * API Route: Connect Trading Account to MetaApi
+ * POST - Create MetaApi account and connect it to user's trading account
+ */
 
-// Di dalam fungsi POST/PATCH/DELETE, ganti cara bikin supabase-nya menjadi:
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-  auth: {
-    persistSession: false
-  }
-})
+import { NextRequest, NextResponse } from 'next/server'
+import { supabase, supabaseAdmin } from '@/lib/supabase'
+import { createMetaApiAccount } from '@/lib/metaapi'
 
-export async function POST(request: Request) {
-  // ─── 1. PARSE BODY DULU (sebelum try-catch auth agar error parsing juga tertangkap JSON) ───
-  let body: {
-    tradingAccountId?: string
-    accountNumber?: string
-    password?: string
-    brokerServer?: string
-    platform?: string
-  }
+// Helper: Validate UUID format
+function isValidUUID(uuid: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  return uuidRegex.test(uuid)
+}
+
+// POST: Connect trading account to MetaApi
+export async function POST(req: NextRequest) {
+  console.log('🟢 [METAAPI CONNECT] POST request received')
 
   try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json(
-      { success: false, error: 'Bad Request', message: 'Body request tidak valid atau bukan JSON.' },
-      { status: 400 }
-    )
-  }
-
-  const { tradingAccountId, accountNumber, password, brokerServer, platform } = body
-
-  // ─── 2. VALIDASI INPUT ───
-  if (!accountNumber || !password || !brokerServer || !platform) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Bad Request',
-        message: 'Field accountNumber, password, brokerServer, dan platform wajib diisi.',
-      },
-      { status: 400 }
-    )
-  }
-
-  // ─── 3. INISIALISASI SUPABASE ROUTE HANDLER CLIENT (baca cookies session Next.js) ───
-  const cookieStore = cookies()
-  const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-
-  let insertedAccountId: string | null = null
-
-  try {
-    // ─── 4. VERIFIKASI SESI USER ───
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
+      console.log('🔴 [METAAPI CONNECT] Auth failed:', authError)
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Unauthorized',
-          message: 'Sesi login tidak ditemukan atau sudah kedaluwarsa. Silakan login kembali.',
-        },
+        { error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
-    // ─── 5. CEK DUPLIKAT AKUN ───
-    const { data: existingAccount } = await supabase
-      .from('trading_accounts')
-      .select('id, status')
-      .eq('user_id', user.id)
-      .eq('account_number', accountNumber)
-      .maybeSingle()
+    console.log('✅ [METAAPI CONNECT] User authenticated:', user.id)
 
-    if (existingAccount) {
+    // Parse request body
+    const body = await req.json()
+    const { tradingAccountId, accountNumber, password, brokerServer, platform } = body
+
+    console.log('📋 [METAAPI CONNECT] Request body:', {
+      tradingAccountId,
+      accountNumber: accountNumber ? '***' : 'MISSING',
+      password: password ? '***' : 'MISSING',
+      brokerServer,
+      platform
+    })
+
+    // Validate required fields
+    if (!tradingAccountId || !accountNumber || !password || !brokerServer || !platform) {
+      console.log('🔴 [METAAPI CONNECT] Missing required fields')
       return NextResponse.json(
         {
-          success: false,
-          error: 'Duplicate Account',
-          message: `Akun trading dengan nomor ${accountNumber} sudah terdaftar (status: ${existingAccount.status}).`,
+          error: 'Missing required fields',
+          required: ['tradingAccountId', 'accountNumber', 'password', 'brokerServer', 'platform']
+        },
+        { status: 400 }
+      )
+    }
+
+    // Validate tradingAccountId is a valid UUID
+    if (!isValidUUID(tradingAccountId)) {
+      console.log('🔴 [METAAPI CONNECT] Invalid tradingAccountId format:', tradingAccountId)
+      return NextResponse.json(
+        {
+          error: 'Invalid tradingAccountId format',
+          message: 'tradingAccountId must be a valid UUID'
+        },
+        { status: 400 }
+      )
+    }
+
+    // Validate platform
+    if (!['MT4', 'MT5'].includes(platform)) {
+      return NextResponse.json(
+        { error: 'Invalid platform. Must be MT4 or MT5' },
+        { status: 400 }
+      )
+    }
+
+    // Verify ownership of trading account using ADMIN client (bypasses RLS)
+    // We use admin client because we've already authenticated the user above
+    if (!supabaseAdmin) {
+      console.error('🔴 [METAAPI CONNECT] supabaseAdmin not configured')
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      )
+    }
+
+    const { data: tradingAccount, error: accountError } = await supabaseAdmin
+      .from('trading_accounts')
+      .select('*')
+      .eq('id', tradingAccountId)
+      .eq('user_id', user.id)
+      .single()
+
+    if (accountError || !tradingAccount) {
+      return NextResponse.json(
+        { error: 'Trading account not found or access denied' },
+        { status: 404 }
+      )
+    }
+
+    // Check if already connected to MetaApi
+    if (tradingAccount.metaapi_account_id) {
+      return NextResponse.json(
+        {
+          error: 'Account already connected to MetaApi',
+          metaapiAccountId: tradingAccount.metaapi_account_id
         },
         { status: 409 }
       )
     }
 
-    // ─── 6. INSERT KE DATABASE DULU (dengan status PENDING) ───
-    const { data: newAccount, error: insertError } = await supabase
-      .from('trading_accounts')
-      .insert({
-        user_id: user.id,
-        account_number: accountNumber,
-        broker_server: brokerServer,
-        platform: platform.toUpperCase(),
-        metaapi_account_id: null, // Akan diisi setelah MetaApi berhasil
-        status: 'PENDING',
-      })
-      .select()
-      .single()
+    // Create MetaApi account
+    let metaApiAccount
+    try {
+      console.log('🔵 [METAAPI CONNECT] Creating MetaApi account for:', accountNumber, 'on', brokerServer)
+      console.log('DEBUG: Menggunakan Token MetaApi:', process.env.METAAPI_TOKEN ? 'Tersedia' : 'KOSONG')
+      console.log('DEBUG: Token length:', process.env.METAAPI_TOKEN?.length || 0)
 
-    if (insertError || !newAccount) {
-      throw new Error(
-        `Gagal menyimpan akun ke database: ${insertError?.message || 'Unknown DB error'}`
+      metaApiAccount = await createMetaApiAccount({
+        accountNumber,
+        password,
+        server: brokerServer,
+        platform: platform as 'MT4' | 'MT5',
+        name: `${platform} Account ${accountNumber}`
+      })
+      console.log('✅ [METAAPI CONNECT] MetaApi account created successfully:', metaApiAccount.id)
+    } catch (metaApiError) {
+      console.error('🔴 METAAPI ERROR DETAIL:', metaApiError)
+
+      // Get detailed error information
+      const errorDetails = {
+        name: metaApiError instanceof Error ? metaApiError.name : 'Unknown',
+        message: metaApiError instanceof Error ? metaApiError.message : String(metaApiError),
+        stack: metaApiError instanceof Error ? metaApiError.stack : undefined,
+        fullError: metaApiError
+      }
+
+      console.error('🔴 [METAAPI CONNECT] Error details:', errorDetails)
+
+      // ROLLBACK: Delete the trading account record to avoid duplicate key error on retry
+      console.log('🔄 [METAAPI CONNECT] Rolling back - deleting trading account record:', tradingAccountId)
+      const { error: deleteError } = await supabaseAdmin
+        .from('trading_accounts')
+        .delete()
+        .eq('id', tradingAccountId)
+
+      if (deleteError) {
+        console.error('🔴 [METAAPI CONNECT] Failed to delete trading account during rollback:', deleteError)
+      } else {
+        console.log('✅ [METAAPI CONNECT] Successfully deleted trading account during rollback')
+      }
+
+      return NextResponse.json(
+        {
+          error: 'Failed to connect to MetaApi',
+          message: metaApiError instanceof Error ? metaApiError.message : 'Unknown error',
+          details: errorDetails
+        },
+        { status: 500 }
       )
     }
 
-    // Simpan ID untuk rollback jika MetaApi gagal
-    insertedAccountId = newAccount.id
-
-    // ─── 7. HANDSHAKE KE METAAPI ───
-    const metaApiToken = process.env.METAAPI_TOKEN
-
-    if (!metaApiToken) {
-      throw new Error('METAAPI_TOKEN tidak dikonfigurasi di environment variables.')
-    }
-
-    const metaApiResponse = await fetch('https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'auth-token': metaApiToken,
-      },
-      body: JSON.stringify({
-        login: accountNumber,
-        password: password,
-        server: brokerServer,
-        platform: platform.toLowerCase(),
-        name: `Luxtrade-${accountNumber}`,
-        application: 'MetaApi',
-        magic: 0,
-        quoteStreamingIntervalInSeconds: 2.5,
-        reliability: 'high',
-      }),
-    })
-
-    if (!metaApiResponse.ok) {
-      const errText = await metaApiResponse.text()
-      throw new Error(`MetaApi menolak koneksi (${metaApiResponse.status}): ${errText}`)
-    }
-
-    const metaApiData = await metaApiResponse.json()
-    const metaApiAccountId: string = metaApiData.id
-
-    if (!metaApiAccountId) {
-      throw new Error('MetaApi tidak mengembalikan account ID yang valid.')
-    }
-
-    // ─── 8. UPDATE DATABASE DENGAN METAAPI ACCOUNT ID & STATUS CONNECTED ───
-    const { error: updateError } = await supabase
+    // Update trading account with MetaApi account ID using ADMIN client
+    const { data: updatedAccount, error: updateError } = await supabaseAdmin
       .from('trading_accounts')
       .update({
-        metaapi_account_id: metaApiAccountId,
-        status: 'CONNECTED',
+        metaapi_account_id: metaApiAccount.id,
+        status: 'CONNECTED'
       })
-      .eq('id', insertedAccountId)
+      .eq('id', tradingAccountId)
+      .select()
+      .single()
 
     if (updateError) {
-      // MetaApi berhasil tapi update DB gagal — log saja, jangan rollback
-      console.error('[metaapi/connect] Gagal update status ke CONNECTED:', updateError.message)
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Akun trading berhasil dihubungkan ke MetaApi!',
-      data: {
-        id: insertedAccountId,
-        metaapi_account_id: metaApiAccountId,
-        account_number: accountNumber,
-        status: 'CONNECTED',
-      },
-    })
-  } catch (error: any) {
-    console.error('[metaapi/connect] Error:', error.message)
-
-    // ─── ROLLBACK: Hapus baris yang sudah diinsert jika MetaApi atau proses sesudahnya gagal ───
-    if (insertedAccountId) {
-      const { error: rollbackError } = await supabase
+      console.error('🔴 [METAAPI CONNECT] Error updating trading account:', updateError)
+      // ROLLBACK: Delete the trading account since update failed
+      await supabaseAdmin
         .from('trading_accounts')
         .delete()
-        .eq('id', insertedAccountId)
+        .eq('id', tradingAccountId)
+        .catch(err => console.error('Failed to delete during rollback:', err))
+      return NextResponse.json(
+        { error: 'Failed to update trading account' },
+        { status: 500 }
+      )
+    }
 
-      if (rollbackError) {
-        console.error('[metaapi/connect] Rollback gagal:', rollbackError.message)
-      } else {
-        console.warn('[metaapi/connect] Rollback berhasil — baris DB dihapus:', insertedAccountId)
+    console.log('✅ [METAAPI CONNECT] Trading account updated successfully:', updatedAccount)
+    console.log('✅ [METAAPI CONNECT] Sending success response to client...')
+
+    const response = NextResponse.json({
+      success: true,
+      message: 'Account successfully connected to MetaApi',
+      data: {
+        tradingAccount: updatedAccount,
+        metaApiAccount: {
+          id: metaApiAccount.id,
+          login: metaApiAccount.login,
+          server: metaApiAccount.server,
+          platform: metaApiAccount.platform
+        }
+      }
+    })
+
+    console.log('✅ [METAAPI CONNECT] Response created, returning to client')
+    return response
+  } catch (error) {
+    console.error('🔴 METAAPI ERROR DETAIL:', error)
+
+    // Get detailed error information
+    const errorDetails = {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      fullError: error
+    }
+
+    console.error('🔴 [METAAPI CONNECT] Main error details:', errorDetails)
+
+    // ROLLBACK: Try to clean up trading account if possible
+    const body = await req.json().catch(() => ({}))
+    if (body.tradingAccountId) {
+      console.log('🔄 [METAAPI CONNECT] Rolling back - deleting trading account record in main catch:', body.tradingAccountId)
+      if (supabaseAdmin) {
+        await supabaseAdmin
+          .from('trading_accounts')
+          .delete()
+          .eq('id', body.tradingAccountId)
+          .catch(err => console.error('Failed to delete during rollback in main catch:', err))
       }
     }
 
-    // Selalu kembalikan JSON yang valid — TIDAK PERNAH teks mentah (mencegah error #310)
     return NextResponse.json(
       {
-        success: false,
-        error: 'MetaApi Connection Failed',
-        message: error.message || 'Terjadi kesalahan saat menghubungkan akun trading.',
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        details: errorDetails
       },
       { status: 500 }
     )
