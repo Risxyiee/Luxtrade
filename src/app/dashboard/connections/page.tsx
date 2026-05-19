@@ -97,8 +97,8 @@ export default function ConnectionsPage() {
     if (session?.access_token) {
       token = session.access_token
     }
-    // Priority 2: localStorage token (fallback)
-    else {
+    // Priority 2: localStorage token (fallback) - only on client side
+    else if (typeof window !== 'undefined') {
       try {
         const sessionStr = localStorage.getItem('sb-luxtradee-web-id-auth-token')
         if (sessionStr) {
