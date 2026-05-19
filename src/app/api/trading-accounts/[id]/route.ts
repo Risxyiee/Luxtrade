@@ -1,102 +1,208 @@
-import { cookies } from 'next/headers'
+/**
+ * API Route: Trading Account by ID
+ * GET - Get a specific trading account
+ * PATCH - Update a trading account
+ * DELETE - Delete a trading account
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
-const VALID_STATUSES = ['CONNECTED', 'DISCONNECTED', 'PENDING', 'ERROR'] as const
-
-function getAuthTokenFromCookies() {
-  const cookieStore = cookies()
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-  if (!supabaseUrl) return null
-  
+// GET: Fetch a specific trading account
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const hostname = new URL(supabaseUrl).hostname.split('.')[0]
-    const supabaseCookieName = `sb-${hostname}-auth-token`
-    const cookieData = cookieStore.get(supabaseCookieName)?.value
-    if (!cookieData) return null
-    
-    const parsed = JSON.parse(cookieData)
-    return parsed?.access_token || parsed?.[0]?.access_token || cookieData
-  } catch {
-    return null
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              )
+            } catch {
+              // Ignore in route handlers
+            }
+          },
+        },
+      }
+    )
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Create admin client
+    const { createClient: createAdminClient } = await import('@supabase/supabase-js')
+    const supabaseAdmin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    const { data, error } = await supabaseAdmin
+      .from('trading_accounts')
+      .select('*')
+      .eq('id', params.id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (error) {
+      return NextResponse.json({ error: 'Trading account not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ success: true, data })
+  } catch (error) {
+    console.error('Error fetching trading account:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch trading account' },
+      { status: 500 }
+    )
   }
 }
 
-// PATCH: Update status/metaapi_id akun trading tertentu
+// PATCH: Update a trading account
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const accessToken = getAuthTokenFromCookies()
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { persistSession: false } }
-  )
-
   try {
-    if (!accessToken) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
-    if (authError || !user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              )
+            } catch {
+              // Ignore in route handlers
+            }
+          },
+        },
+      }
+    )
 
-    const accountId = params.id
-    let body: { metaapi_account_id?: string; status?: string }
-    try {
-      body = await req.json()
-    } catch {
-      return NextResponse.json({ success: false, error: 'Bad Request', message: 'Body tidak valid' }, { status: 400 })
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { metaapi_account_id, status } = body
-    if (!metaapi_account_id && !status) return NextResponse.json({ success: false, error: 'No fields to update' }, { status: 400 })
-    if (status && !VALID_STATUSES.includes(status as any)) return NextResponse.json({ success: false, error: 'Invalid status' }, { status: 400 })
+    const body = await req.json()
+    const updates: Record<string, any> = {}
 
-    const { data: account, error: findError } = await supabase.from('trading_accounts').select('user_id').eq('id', accountId).maybeSingle()
-    if (findError) throw findError
-    if (!account) return NextResponse.json({ success: false, error: 'Not Found' }, { status: 404 })
-    if (account.user_id !== user.id) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    if (body.metaapi_account_id !== undefined) {
+      updates.metaapi_account_id = body.metaapi_account_id
+    }
+    if (body.status !== undefined) {
+      updates.status = body.status
+    }
 
-    const updates: Record<string, string> = {}
-    if (metaapi_account_id) updates.metaapi_account_id = metaapi_account_id
-    if (status) updates.status = status
+    // Create admin client
+    const { createClient: createAdminClient } = await import('@supabase/supabase-js')
+    const supabaseAdmin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
-    const { data: updatedAccount, error: updateError } = await supabase.from('trading_accounts').update(updates).eq('id', accountId).select().single()
-    if (updateError) throw updateError
+    const { data, error } = await supabaseAdmin
+      .from('trading_accounts')
+      .update(updates)
+      .eq('id', params.id)
+      .eq('user_id', user.id)
+      .select()
+      .single()
 
-    return NextResponse.json({ success: true, data: updatedAccount })
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: 'Server Error', message: error.message }, { status: 500 })
+    if (error) {
+      console.error('Error updating trading account:', error)
+      return NextResponse.json({ error: 'Failed to update trading account' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, data })
+  } catch (error) {
+    console.error('Error updating trading account:', error)
+    return NextResponse.json(
+      { error: 'Failed to update trading account' },
+      { status: 500 }
+    )
   }
 }
 
-// DELETE: Hapus akun trading tertentu
+// DELETE: Delete a trading account
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const accessToken = getAuthTokenFromCookies()
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { persistSession: false } }
-  )
-
   try {
-    if (!accessToken) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken)
-    if (authError || !user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              )
+            } catch {
+              // Ignore in route handlers
+            }
+          },
+        },
+      }
+    )
 
-    const accountId = params.id
-    const { data: account, error: findError } = await supabase.from('trading_accounts').select('user_id').eq('id', accountId).maybeSingle()
-    if (findError) throw findError
-    if (!account) return NextResponse.json({ success: false, error: 'Not Found' }, { status: 404 })
-    if (account.user_id !== user.id) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    const { error: deleteError } = await supabase.from('trading_accounts').delete().eq('id', accountId).eq('user_id', user.id)
-    if (deleteError) throw deleteError
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-    return NextResponse.json({ success: true, message: 'Akun trading berhasil dihapus.' })
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: 'Server Error', message: error.message }, { status: 500 })
+    // Create admin client
+    const { createClient: createAdminClient } = await import('@supabase/supabase-js')
+    const supabaseAdmin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    const { error } = await supabaseAdmin
+      .from('trading_accounts')
+      .delete()
+      .eq('id', params.id)
+      .eq('user_id', user.id)
+
+    if (error) {
+      console.error('Error deleting trading account:', error)
+      return NextResponse.json({ error: 'Failed to delete trading account' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, message: 'Trading account deleted' })
+  } catch (error) {
+    console.error('Error deleting trading account:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete trading account' },
+      { status: 500 }
+    )
   }
 }

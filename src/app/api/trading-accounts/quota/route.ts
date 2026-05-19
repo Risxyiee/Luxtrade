@@ -4,40 +4,58 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import { checkAccountQuota } from '@/lib/trading-account'
 
 // GET: Check account quota
 export async function GET(req: NextRequest) {
   try {
-    // Get Authorization header from request
-    const authHeader = req.headers.get('authorization')
+    // Create Supabase client with SSR
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              )
+            } catch {
+              // Ignore in route handlers
+            }
+          },
+        },
+      }
+    )
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('🔴 [QUOTA API] No Authorization header found')
-      return NextResponse.json(
-        { error: 'Unauthorized - No token provided' },
-        { status: 401 }
-      )
-    }
-
-    const token = authHeader.substring(7) // Remove 'Bearer ' prefix
-
-    // Verify token with Supabase
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    // Get user from session
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      console.log('🔴 [QUOTA API] Invalid token:', authError?.message)
+      console.log('🔴 [QUOTA API] No session found', authError?.message)
       return NextResponse.json(
-        { error: 'Unauthorized - Invalid token' },
+        { error: 'Unauthorized - No session' },
         { status: 401 }
       )
     }
 
     console.log('🟢 [QUOTA API] User authenticated:', user.id)
 
+    // Create admin client
+    const { createClient: createAdminClient } = await import('@supabase/supabase-js')
+    const supabaseAdmin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
     // Get user's subscription plan
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('subscription_plan')
       .eq('id', user.id)
