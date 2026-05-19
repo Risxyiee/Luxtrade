@@ -5,8 +5,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase, supabaseAdmin } from '@/lib/supabase'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import { checkAccountQuota, checkAccountNumberExists, getUserTradingAccounts } from '@/lib/trading-account'
+import { Database } from '@/types/supabase'
 
 // Helper: Create trading account using admin client (bypasses RLS)
 async function createTradingAccountAdmin(
@@ -16,7 +18,8 @@ async function createTradingAccountAdmin(
     broker_server: string
     platform: 'MT4' | 'MT5'
     metaapi_account_id?: string
-  }
+  },
+  supabaseAdmin: any
 ) {
   if (!supabaseAdmin) {
     throw new Error('Supabase admin client not configured')
@@ -48,37 +51,48 @@ export async function GET(req: NextRequest) {
   try {
     console.log('🔵 [TRADING ACCOUNTS API GET] Fetching trading accounts...')
 
-    // Try to get token from Authorization header first, then fall back to session cookie
-    const authHeader = req.headers.get('authorization')
-    let user = null
-
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7)
-      console.log('🔑 [TRADING ACCOUNTS API GET] Using Bearer token authentication')
-
-      const { data, error } = await supabase.auth.getUser(token)
-      if (!error && data.user) {
-        user = data.user
+    // Create Supabase client with SSR
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              )
+            } catch {
+              // Ignore in route handlers
+            }
+          },
+        },
       }
-    }
+    )
 
-    // Fall back to session cookie if Bearer token failed
-    if (!user) {
-      console.log('🍪 [TRADING ACCOUNTS API GET] Using session cookie authentication')
-      const { data: { session }, error: authError } = await supabase.auth.getSession()
+    // Get user from session
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-      if (authError || !session?.user) {
-        console.log('🔴 [TRADING ACCOUNTS API GET] No session found')
-        return NextResponse.json(
-          { error: 'Unauthorized' },
-          { status: 401 }
-        )
-      }
-
-      user = session.user
+    if (authError || !user) {
+      console.log('🔴 [TRADING ACCOUNTS API GET] No session found', authError?.message)
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
     }
 
     console.log('✅ [TRADING ACCOUNTS API GET] User authenticated:', user.id)
+
+    // Create admin client for data access
+    const { createClient: createAdminClient } = await import('@supabase/supabase-js')
+    const supabaseAdmin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
     // Get user's trading accounts
     const accounts = await getUserTradingAccounts(user.id)
@@ -86,7 +100,7 @@ export async function GET(req: NextRequest) {
     console.log('📋 [TRADING ACCOUNTS API GET] Accounts data:', accounts)
 
     // Get user's quota information
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('subscription_plan')
       .eq('id', user.id)
@@ -119,26 +133,36 @@ export async function GET(req: NextRequest) {
 // POST: Create a new trading account
 export async function POST(req: NextRequest) {
   try {
-    // Get Authorization header from request
-    const authHeader = req.headers.get('authorization')
+    // Create Supabase client with SSR
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              )
+            } catch {
+              // Ignore in route handlers
+            }
+          },
+        },
+      }
+    )
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('🔴 [TRADING ACCOUNTS API POST] No Authorization header found')
-      return NextResponse.json(
-        { error: 'Unauthorized - No token provided' },
-        { status: 401 }
-      )
-    }
-
-    const token = authHeader.substring(7) // Remove 'Bearer ' prefix
-
-    // Verify token with Supabase
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    // Get user from session
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      console.log('🔴 [TRADING ACCOUNTS API POST] Invalid token:', authError?.message)
+      console.log('🔴 [TRADING ACCOUNTS API POST] No session found', authError?.message)
       return NextResponse.json(
-        { error: 'Unauthorized - Invalid token' },
+        { error: 'Unauthorized - No session' },
         { status: 401 }
       )
     }
@@ -169,8 +193,15 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Create admin client
+    const { createClient: createAdminClient } = await import('@supabase/supabase-js')
+    const supabaseAdmin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
     // Get user's subscription plan
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('subscription_plan')
       .eq('id', user.id)
@@ -211,7 +242,7 @@ export async function POST(req: NextRequest) {
       account_number,
       broker_server,
       platform
-    })
+    }, supabaseAdmin)
 
     return NextResponse.json({
       success: true,

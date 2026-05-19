@@ -4,7 +4,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase, supabaseAdmin } from '@/lib/supabase'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import { createMetaApiAccount } from '@/lib/metaapi'
 
 // Helper: Validate UUID format
@@ -18,7 +19,30 @@ export async function POST(req: NextRequest) {
   console.log('🟢 [METAAPI CONNECT] POST request received')
 
   try {
-    // Get authenticated user
+    // Create Supabase client with SSR
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              )
+            } catch {
+              // Ignore in route handlers
+            }
+          },
+        },
+      }
+    )
+
+    // Get user from session
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -75,16 +99,14 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Verify ownership of trading account using ADMIN client (bypasses RLS)
-    // We use admin client because we've already authenticated the user above
-    if (!supabaseAdmin) {
-      console.error('🔴 [METAAPI CONNECT] supabaseAdmin not configured')
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      )
-    }
+    // Create admin client
+    const { createClient: createAdminClient } = await import('@supabase/supabase-js')
+    const supabaseAdmin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
+    // Verify ownership of trading account using ADMIN client
     const { data: tradingAccount, error: accountError } = await supabaseAdmin
       .from('trading_accounts')
       .select('*')
@@ -222,6 +244,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}))
     if (body.tradingAccountId) {
       console.log('🔄 [METAAPI CONNECT] Rolling back - deleting trading account record in main catch:', body.tradingAccountId)
+      const { createClient: createAdminClient } = await import('@supabase/supabase-js')
+      const supabaseAdmin = createAdminClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      )
       if (supabaseAdmin) {
         await supabaseAdmin
           .from('trading_accounts')
