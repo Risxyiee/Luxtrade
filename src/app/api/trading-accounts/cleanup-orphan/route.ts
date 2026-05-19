@@ -5,48 +5,62 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase, supabaseAdmin } from '@/lib/supabase'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
 // DELETE: Cleanup orphan accounts (no metaapi_account_id and PENDING status)
 export async function DELETE(req: NextRequest) {
   try {
     console.log('🧹 [CLEANUP ORPHAN] Starting cleanup of orphan trading accounts...')
 
-    // Get authenticated user
-    const authHeader = req.headers.get('authorization')
-    let user = null
-
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7)
-      const { data, error } = await supabase.auth.getUser(token)
-      if (!error && data.user) {
-        user = data.user
+    // Create Supabase client with SSR
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              )
+            } catch {
+              // Ignore in route handlers
+            }
+          },
+        },
       }
-    }
+    )
 
-    if (!user) {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        user = session.user
-      }
-    }
+    // Get user from session
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (!user) {
+    if (authError || !user) {
+      console.log('🔴 [CLEANUP ORPHAN] No session found', authError?.message)
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
     console.log('✅ [CLEANUP ORPHAN] User authenticated:', user.id)
 
-    const dbClient = supabaseAdmin || supabase
+    // Create admin client
+    const { createClient: createAdminClient } = await import('@supabase/supabase-js')
+    const supabaseAdmin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
-    if (!dbClient) {
+    if (!supabaseAdmin) {
       return NextResponse.json({ error: 'Database client not configured' }, { status: 500 })
     }
 
-    console.log('🔍 [CLEANUP ORPHAN] Using database client:', supabaseAdmin ? 'Admin' : 'Regular')
+    console.log('🔍 [CLEANUP ORPHAN] Using admin client')
 
     // Find PENDING accounts without metaapi_account_id for this user
-    const { data: orphanAccounts, error: fetchError } = await dbClient
+    const { data: orphanAccounts, error: fetchError } = await supabaseAdmin
       .from('trading_accounts')
       .select('*')
       .eq('user_id', user.id)
@@ -69,7 +83,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Delete orphan accounts
-    const { error: deleteError } = await dbClient
+    const { error: deleteError } = await supabaseAdmin
       .from('trading_accounts')
       .delete()
       .eq('user_id', user.id)
