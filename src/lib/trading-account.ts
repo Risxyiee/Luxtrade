@@ -3,7 +3,7 @@
  * Handles quota checking and trading account management logic
  */
 
-import { supabase } from './supabase'
+import { supabase, supabaseAdmin } from './supabase'
 import { AccountQuota, AccountQuotaCheck, TradingAccount, TradingAccountStatus } from '@/types/trading-account'
 
 /**
@@ -27,8 +27,11 @@ export function getMaxAccountsByPlan(plan: string | null): number {
  */
 export async function checkAccountQuota(userId: string, userPlan: string | null): Promise<AccountQuotaCheck> {
   try {
+    // Use admin client to bypass RLS
+    const client = supabaseAdmin || supabase
+
     // Get current count of active accounts
-    const { count, error } = await supabase
+    const { count, error } = await client
       .from('trading_accounts')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
@@ -63,7 +66,11 @@ export async function getUserTradingAccounts(userId: string): Promise<TradingAcc
   try {
     console.log('🔍 [getUserTradingAccounts] Fetching accounts for userId:', userId)
 
-    const { data, error } = await supabase
+    // Use admin client to bypass RLS and ensure we get all accounts
+    // This prevents issues where RLS policies might block legitimate data
+    const client = supabaseAdmin || supabase
+
+    const { data, error } = await client
       .from('trading_accounts')
       .select('*')
       .eq('user_id', userId)
@@ -181,12 +188,15 @@ export async function deleteTradingAccount(accountId: string, userId: string): P
  */
 export async function checkAccountNumberExists(userId: string, accountNumber: string): Promise<boolean> {
   try {
-    const { data, error } = await supabase
+    // Use admin client to bypass RLS
+    const client = supabaseAdmin || supabase
+
+    const { data, error } = await client
       .from('trading_accounts')
       .select('id')
       .eq('user_id', userId)
       .eq('account_number', accountNumber)
-      .single()
+      .maybeSingle()
 
     if (error && error.code !== 'PGRST116') {
       // PGRST116 is "not found", which is fine
