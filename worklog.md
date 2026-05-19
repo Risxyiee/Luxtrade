@@ -759,3 +759,50 @@ User Action Required:
 - Refresh the browser page (Ctrl+Shift+R or Cmd+Shift+R)
 - Clear browser cache if error persists
 - Error should be resolved after hard refresh
+
+---
+Task ID: 11
+Agent: Z.ai Code
+Task: Auto-cleanup PENDING accounts and hide from UI
+
+Work Log:
+- Created cleanupPendingAccountsSilently() function - removes PENDING accounts without user notification
+- Modified fetchConnectedAccounts() to filter out PENDING accounts from UI display
+- Added auto-cleanup trigger in fetchConnectedAccounts() when PENDING accounts detected
+- Added auto-cleanup in handleConnect() when MetaApi connection fails
+- PENDING accounts now automatically hidden and cleaned up
+
+Stage Summary:
+- ✅ PENDING accounts hidden from UI (only CONNECTED shown)
+- ✅ Auto-cleanup PENDING accounts on page load
+- ✅ Auto-cleanup PENDING accounts on connection failure
+- ✅ Silent cleanup - no user notification needed
+- ✅ Prevents "Quota exceeded" errors from old PENDING accounts
+- ✅ User experience improved - no more confusion about PENDING accounts
+
+Changes Made:
+1. /home/z/my-project/src/app/dashboard/connections/page.tsx:
+   - Added cleanupPendingAccountsSilently() function (lines 120-136)
+   - Modified fetchConnectedAccounts() to filter PENDING accounts (lines 267-283)
+   - Added auto-cleanup trigger on PENDING detection (lines 280-283)
+   - Added auto-cleanup on MetaApi connection failure (lines 454-456)
+
+Root Cause:
+- PENDING accounts (failed connections) were visible in UI
+- PENDING accounts accumulated over time
+- Users confused by PENDING status
+- Had to manually click "Hapus Akun Gagal" button
+
+Solution:
+- PENDING accounts filtered out from UI display
+- Auto-cleanup runs silently in background
+- PENDING accounts removed on page load and on connection failure
+- Users only see CONNECTED accounts
+- Clean, simple user experience
+
+User Impact:
+- No more "Quota exceeded" from old failed connections
+- No more confusing PENDING accounts in UI
+- Automatic cleanup - no manual intervention needed
+- Can retry connection immediately after failure
+- Focus only on successful connections
