@@ -30,12 +30,12 @@ export async function checkAccountQuota(userId: string, userPlan: string | null)
     // Use admin client to bypass RLS
     const client = supabaseAdmin || supabase
 
-    // Get current count of active accounts
+    // Get current count of CONNECTED accounts only (exclude PENDING - those are failed connections)
     const { count, error } = await client
       .from('trading_accounts')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
-      .in('status', ['CONNECTED', 'PENDING'])
+      .eq('status', 'CONNECTED')
 
     if (error) {
       console.error('Error checking account quota:', error)
@@ -46,6 +46,9 @@ export async function checkAccountQuota(userId: string, userPlan: string | null)
     const maxAllowed = getMaxAccountsByPlan(userPlan)
     const remainingQuota = Math.max(0, maxAllowed - currentAccounts)
     const canAddMore = remainingQuota > 0
+
+    console.log('📊 [checkAccountQuota] User ID:', userId, 'Plan:', userPlan)
+    console.log('📊 [checkAccountQuota] Connected accounts:', currentAccounts, 'Max allowed:', maxAllowed, 'Remaining:', remainingQuota)
 
     return {
       currentAccounts,
