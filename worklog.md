@@ -873,3 +873,53 @@ Production Impact:
 - Cookie chunking handled automatically by library
 - Trading account connection should work in production
 - All CRUD operations on trading accounts fixed
+---
+Task ID: 12
+Agent: Z.ai Code
+Task: Fix cookie authentication - Use createBrowserClient for session persistence
+
+Work Log:
+- Identified root cause: Client-side Supabase client was using createClient() which stores session in localStorage
+- API routes were using @supabase/ssr createServerClient() which expects cookies
+- This mismatch caused "No session found" error in production Vercel
+- Updated /src/lib/supabase.ts to use createBrowserClient() from @supabase/ssr on client-side
+- createBrowserClient stores session in cookies, making it accessible to API routes
+- All API routes already using correct createServerClient pattern:
+  - /api/trading-accounts/route.ts ✅
+  - /api/trading-accounts/[id]/route.ts ✅
+  - /api/metaapi/connect/route.ts ✅
+  - /api/trading-accounts/cleanup-orphan/route.ts ✅
+  - /api/trading-accounts/quota/route.ts ✅
+- No compilation errors after change
+
+Stage Summary:
+- ✅ Fixed cookie authentication by using createBrowserClient on client-side
+- ✅ Session now stored in cookies (accessible to API routes) instead of localStorage
+- ✅ All API routes already using correct @supabase/ssr pattern
+- ✅ This should fix "Unauthorized" and "No session found" errors in production Vercel
+- ✅ Dev server running without errors
+
+Root Cause:
+- Client-side: createClient() stores session in localStorage
+- Server-side (API routes): createServerClient() expects cookies
+- API routes couldn't find session because it was in localStorage, not cookies
+- This works locally but fails in production Vercel due to environment differences
+
+Solution:
+- Use createBrowserClient() from @supabase/ssr on client-side
+- createBrowserClient stores session in cookies
+- API routes can now read session from cookies using createServerClient()
+- Consistent cookie-based authentication across client and server
+
+Changes Made:
+1. /home/z/my-project/src/lib/supabase.ts:
+   - Added import for createBrowserClient from @supabase/ssr
+   - Changed supabase client creation to use createBrowserClient() on client-side (lines 40-53)
+   - Added client-side check (typeof window !== 'undefined')
+   - Server-side fallback for non-auth operations (lines 56-68)
+
+Next Steps:
+1. User needs to sign out and sign in again to refresh session storage
+2. Test trading account connection in production
+3. Verify no more "Unauthorized" or "No session found" errors
+
