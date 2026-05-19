@@ -11,7 +11,7 @@ https://klxkdrfsfcoankbaoejn.supabase.co
 
 ### 2. NEXT_PUBLIC_SUPABASE_ANON_KEY
 ```
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtseGtkcmZzZmNvYW5rYmFvZWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzY0MTAsImV4cCI6MjA4NTk1MjQxMH0.C7mVBuCrXjDxW1eQLP0eCqeFjJgKJ8pNQyL0wRqJ3Xk
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtseGtkcmZzZmNvYW5rYmFvZWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzY0MTAsImV4cCI6MjA4NTk1MjQxMH0.4Yv9JesMXWEy4phu2D-Yw9rkbq0l8z9kz-sRwFZerQ0
 ```
 
 ### 3. SUPABASE_SERVICE_ROLE_KEY
@@ -58,7 +58,7 @@ vercel env add NEXT_PUBLIC_SUPABASE_URL
 # Pilih "All" lalu paste: https://klxkdrfsfcoankbaoejn.supabase.co
 
 vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
-# Pilih "All" lalu paste the ANON_KEY
+# Pilih "All" lalu paste: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtseGtkcmZzZmNvYW5rYmFvZWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzY0MTAsImV4cCI6MjA4NTk1MjQxMH0.4Yv9JesMXWEy4phu2D-Yw9rkbq0l8z9kz-sRwFZerQ0
 
 vercel env add SUPABASE_SERVICE_ROLE_KEY
 # Pilih "All" lalu paste the SERVICE_ROLE_KEY
@@ -75,12 +75,13 @@ vercel --prod
 Setelah environment variables di-setup dan redeploy:
 
 1. Buka aplikasi di Production
-2. Login
-3. Pergi ke **Dashboard → Connections**
-4. Jika ada akun dengan status PENDING, klik tombol **"Debug Environment"**
-5. Pastikan semua environment variables menunjukkan status:
+2. Login dengan email dan password
+3. Pastikan tidak ada error "Invalid API key"
+4. Pergi ke **Dashboard → Connections**
+5. Jika ada akun dengan status PENDING, klik tombol **"Debug Environment"**
+6. Pastikan semua environment variables menunjukkan status:
    - ✅ Configured (bukan ❌ Missing)
-6. Coba tombol **"Auto Fix Status Pending"** - sekarang seharusnya bekerja dengan baik
+7. Coba tombol **"Auto Fix Status Pending"** - seharusnya bekerja dengan baik
 
 ## Penting: Service Role Key
 
@@ -97,8 +98,8 @@ Untuk local development, environment variables sudah di-setup di `.env.local` fi
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://klxkdrfsfcoankbaoejn.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtseGtkcmZzZmNvYW5rYmFvZWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzY0MTAsImV4cCI6MjA4NTk1MjQxMH0.4Yv9JesMXWEy4phu2D-Yw9rkbq0l8z9kz-sRwFZerQ0
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtseGtkcmZzZmNvYW5rYmFvZWpuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDM3NjQxMCwiZXhwIjoyMDg1OTUyNDEwfQ.arZi5KXS5Zu6mQNfETbbdkrBDjLgiVqZRc-Qu4ktofI
 ```
 
 File ini TIDAK di-track oleh git (ada di `.gitignore`), jadi aman untuk development.
@@ -111,6 +112,14 @@ File ini TIDAK di-track oleh git (ada di `.gitignore`), jadi aman untuk developm
 1. Pastikan nama variable persis sama (case-sensitive)
 2. Pastikan sudah redeploy setelah menambahkan variable
 3. Cek di Vercel Dashboard bahwa variable benar-benar tersimpan
+
+### Masalah: Masih ada error "Invalid API key" saat login
+
+**Solusi:**
+1. Pastikan ANON_KEY yang digunakan benar (dimulai dengan eyJhbGciOiJIUzI1NiIs...)
+2. Pastikan tidak ada spasi atau newline di environment variable value
+3. Redeploy aplikasi setelah update
+4. Clear browser cache dan cookies, lalu coba login lagi
 
 ### Masalah: Auto Fix masih tidak bekerja
 
@@ -125,3 +134,15 @@ File ini TIDAK di-track oleh git (ada di `.gitignore`), jadi aman untuk developm
 1. Pastikan `SUPABASE_SERVICE_ROLE_KEY` sudah di-setup di Vercel
 2. Restart/Redeploy aplikasi
 3. Cek Debug Environment untuk verifikasi
+
+## Ringkasan Environment Variables
+
+| Variable | Purpose | Required | Scope |
+|----------|---------|----------|-------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | ✅ Yes | Public |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key | ✅ Yes | Public |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase admin key | ✅ Yes | Private |
+| `METAAPI_TOKEN` | MetaApi JWT token | ✅ Yes | Private |
+| `NEXT_PUBLIC_APP_URL` | App base URL | ⚪ Optional | Public |
+
+**Catatan:** Variable dengan prefix `NEXT_PUBLIC_` akan tersedia di client-side (browser), sedangkan variable tanpa prefix hanya tersedia di server-side.
