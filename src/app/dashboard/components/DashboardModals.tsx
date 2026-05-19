@@ -946,8 +946,8 @@ export default function DashboardModals({
         email={user?.email}
       />
 
-      {/* Paywall Modal for PRO Features */}
-      <PaywallModal
+      {/* Paywall Modal for PRO Features - DISABLED */}
+      {/* <PaywallModal
         isOpen={paywallModalOpen}
         onClose={() => setPaywallModalOpen(false)}
         onUpgrade={() => {
@@ -955,7 +955,7 @@ export default function DashboardModals({
           setPlanSelectionModalOpen(true)
         }}
         remainingTrials={proTrialCount}
-      />
+      /> */}
 
       {/* Welcome Onboarding */}
       <WelcomeOnboarding

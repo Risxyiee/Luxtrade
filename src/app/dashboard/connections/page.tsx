@@ -290,8 +290,9 @@ export default function ConnectionsPage() {
       const data = await response.json()
 
       if (!data.quota.canAddMore) {
-        // Show paywall modal with appropriate message
-        setShowPaywall(true)
+        // DISABLED: Show paywall modal
+        // setShowPaywall(true)
+        toast.error(content.quotaReachedMessage || 'Quota exceeded')
         return false
       }
 
@@ -353,7 +354,8 @@ export default function ConnectionsPage() {
         if (createResponse.status === 403) {
           // Quota exceeded
           setIsConnecting(false)
-          setShowPaywall(true)
+          // DISABLED: setShowPaywall(true)
+          toast.error(content.quotaReachedMessage)
           return
         }
         if (createResponse.status === 409) {
@@ -727,8 +729,8 @@ export default function ConnectionsPage() {
 
   return (
     <div className="min-h-screen bg-[#0f051d] text-white p-6">
-      {/* Paywall Modal for quota exceeded */}
-      {showPaywall && (
+      {/* Paywall Modal for quota exceeded - DISABLED */}
+      {/* {showPaywall && (
         <PaywallModal
           isOpen={showPaywall}
           onClose={() => setShowPaywall(false)}
@@ -740,8 +742,7 @@ export default function ConnectionsPage() {
           remainingTrials={0}
           featureName={content.quotaReachedTitle}
         />
-      )}
-
+      )} */}
       {/* Header */}
       <div
         
