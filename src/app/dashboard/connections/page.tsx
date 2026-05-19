@@ -89,9 +89,31 @@ export default function ConnectionsPage() {
   // Helper: Get auth headers for API calls
   const getAuthHeaders = useCallback(() => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+
+    // Try multiple sources for the token
+    let token = null
+
+    // Priority 1: session access_token
     if (session?.access_token) {
-      headers['Authorization'] = `Bearer ${session.access_token}`
+      token = session.access_token
     }
+    // Priority 2: localStorage token (fallback)
+    else {
+      try {
+        const sessionStr = localStorage.getItem('sb-luxtradee-web-id-auth-token')
+        if (sessionStr) {
+          const sessionData = JSON.parse(sessionStr)
+          token = sessionData?.access_token
+        }
+      } catch (e) {
+        console.error('Failed to get token from localStorage:', e)
+      }
+    }
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+
     return headers
   }, [session?.access_token])
 
@@ -536,11 +558,14 @@ export default function ConnectionsPage() {
   const handleCleanupOrphan = async () => {
     setIsCleaningOrphan(true)
     try {
+      console.log('🧹 [CLEANUP] Starting cleanup...')
       const response = await fetch('/api/trading-accounts/cleanup-orphan', {
         method: 'DELETE',
         headers: getAuthHeaders()
       })
+
       const data = await response.json()
+      console.log('🧹 [CLEANUP] Response:', data)
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to cleanup orphan accounts')
@@ -552,9 +577,11 @@ export default function ConnectionsPage() {
         toast.info('ℹ️ Tidak ada akun gagal yang ditemukan')
       }
 
+      // Refresh accounts and quota
       await fetchConnectedAccounts()
+      console.log('🧹 [CLEANUP] Cleanup completed')
     } catch (error: any) {
-      console.error('Error cleaning up orphan accounts:', error)
+      console.error('🔴 [CLEANUP] Error:', error)
       toast.error(error.message || 'Gagal menghapus akun gagal')
     } finally {
       setIsCleaningOrphan(false)

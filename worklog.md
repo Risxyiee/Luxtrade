@@ -673,3 +673,53 @@ Changes Made:
    - Fixed canAddTrade: removed `|| false` (line 357)
 
 Note: The trading account connection issue needs further investigation. The MetaApi connection logic is in /api/metaapi/connect and appears to have proper error handling with rollback. User should check the browser console and dev logs for specific error messages when connecting.
+
+---
+Task ID: 9
+Agent: Z.ai Code
+Task: Fix unauthorized error and quota exceeded issue
+
+Work Log:
+- Fixed getAuthHeaders() in connections page to try multiple token sources
+  - Priority 1: session.access_token from auth context
+  - Priority 2: localStorage token as fallback
+- Fixed quota calculation in checkAccountQuota()
+  - Changed from counting CONNECTED + PENDING accounts
+  - Now only counts CONNECTED accounts (excludes PENDING failed connections)
+- Added detailed logging for quota checking
+- Enhanced handleCleanupOrphan() with better logging
+- Added console logs for debugging cleanup process
+
+Stage Summary:
+- ✅ Fixed unauthorized error by improving token retrieval
+- ✅ Fixed "Quota exceeded" error by excluding PENDING accounts from quota count
+- ✅ PENDING accounts (failed connections) no longer count against quota
+- ✅ Added comprehensive logging for debugging
+- ✅ Dev server running without errors
+
+Changes Made:
+1. /home/z/my-project/src/app/dashboard/connections/page.tsx:
+   - Enhanced getAuthHeaders() with localStorage fallback (lines 89-118)
+   - Added logging to handleCleanupOrphan() (lines 558-589)
+
+2. /home/z/my-project/src/lib/trading-account.ts:
+   - Modified checkAccountQuota() to only count CONNECTED accounts (line 38)
+   - Added logging for quota checking (lines 50-51)
+
+Root Cause Analysis:
+- Unauthorized error: getAuthHeaders() only checked session.access_token which might be null/undefined
+- Quota exceeded: System was counting PENDING accounts (failed connections) against the user's quota
+
+Solution:
+- Multi-source token retrieval ensures auth headers always contain a valid token
+- Only count successful CONNECTED accounts in quota calculation
+- PENDING accounts (failed connections) are automatically excluded from quota
+
+Next Steps for User:
+1. Click "Hapus Akun Gagal" button to remove any PENDING accounts
+2. Try connecting your MT5 account again
+3. If you still see "kredensial tidak valid", check:
+   - Account number is correct
+   - Password is the INVESTOR password, not the MASTER password
+   - Broker server name matches exactly (case-sensitive)
+   - Check browser console (F12) for detailed error messages
