@@ -14,6 +14,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { formatCurrency } from '@/lib/supabase'
 import QuickStats from '@/components/QuickStats'
 import ActivityFeed from '@/components/ActivityFeed'
+import ParticleBackground from '@/components/ParticleBackground'
+import { useConfetti } from '@/hooks/useConfetti'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell
 } from 'recharts'
@@ -355,26 +357,39 @@ function DashboardTab({
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        {/* Skeleton Hero */}
-        <Card className="relative overflow-hidden bg-gradient-to-br from-purple-600/20 via-violet-600/10 to-amber-500/10 border-purple-500/30 backdrop-blur-sm">
-          <CardContent className="p-6 lg:p-8">
+      <div className="space-y-6 relative">
+        {/* Particle Background */}
+        <ParticleBackground />
+
+        {/* Skeleton Hero with Shimmer */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-purple-600/20 via-violet-600/10 to-amber-500/10 border-purple-500/30 backdrop-blur-sm rounded-xl">
+          <div className="p-6 lg:p-8">
             <div className="flex flex-col lg:flex-row gap-6">
               <div className="flex-1">
-                <div className="h-4 w-32 bg-white/10 rounded animate-pulse mb-3" />
-                <div className="h-8 w-64 bg-white/10 rounded animate-pulse mb-2" />
-                <div className="h-4 w-96 bg-white/5 rounded animate-pulse" />
+                <div className="h-4 w-32 bg-gradient-to-r from-white/10 via-white/15 to-white/10 animate-shimmer rounded mb-3" />
+                <div className="h-8 w-64 bg-gradient-to-r from-white/10 via-white/15 to-white/10 animate-shimmer rounded mb-2" />
+                <div className="h-4 w-96 bg-gradient-to-r from-white/5 via-white/10 to-white/5 animate-shimmer rounded" />
+              </div>
+              <div className="flex gap-3">
+                <div className="h-16 w-24 bg-gradient-to-r from-white/10 via-white/15 to-white/10 animate-shimmer rounded-xl" />
+                <div className="h-16 w-24 bg-gradient-to-r from-white/10 via-white/15 to-white/10 animate-shimmer rounded-xl" />
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* Skeleton Stats */}
+        {/* Skeleton Stats with Shimmer */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-          <SkeletonCard />
-          <SkeletonCard />
-          <SkeletonCard />
-          <SkeletonCard />
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="relative overflow-hidden bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-sm border border-white/10 rounded-xl p-4">
+              <div className="flex flex-row items-center justify-between pb-2">
+                <div className="h-4 w-20 bg-gradient-to-r from-white/10 via-white/15 to-white/10 animate-shimmer rounded" />
+                <div className="w-10 h-10 bg-gradient-to-r from-white/10 via-white/15 to-white/10 animate-shimmer rounded-xl" />
+              </div>
+              <div className="h-8 w-24 bg-gradient-to-r from-white/10 via-white/15 to-white/10 animate-shimmer rounded mb-2" />
+              <div className="h-3 w-16 bg-gradient-to-r from-white/5 via-white/10 to-white/5 animate-shimmer rounded" />
+            </div>
+          ))}
         </div>
       </div>
     )
@@ -384,41 +399,85 @@ function DashboardTab({
   const todayPerf = getTodayPerformance(trades)
   const weeklyPerf = getWeeklyPerformance(trades)
   const activeStreak = calculateActiveStreak(trades)
+  const { triggerMilestoneConfetti } = useConfetti()
+
+  // Trigger confetti on milestones
+  useEffect(() => {
+    if (!hasData) {
+      // First trade celebration
+      triggerMilestoneConfetti('first-trade')
+    }
+  }, [hasData, triggerMilestoneConfetti])
+
+  useEffect(() => {
+    // Win streak celebration
+    if (activeStreak.type === 'win' && activeStreak.count >= 3) {
+      triggerMilestoneConfetti('win-streak')
+    }
+  }, [activeStreak, triggerMilestoneConfetti])
+
+  useEffect(() => {
+    // Weekly target celebration
+    if (weeklyPerf.trades >= 10) {
+      triggerMilestoneConfetti('weekly-target')
+    }
+  }, [weeklyPerf.trades, triggerMilestoneConfetti])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative min-h-screen">
+      {/* Particle Background - Subtle Floating Particles */}
+      <ParticleBackground />
+
       {/* Hero Section - Premium Welcome with Visual Impact */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
+        className="relative"
       >
-        <Card className="relative overflow-hidden bg-gradient-to-br from-purple-600/20 via-violet-600/10 to-amber-500/10 border-purple-500/30 backdrop-blur-sm">
-          {/* Animated Background Patterns */}
-          <div className="absolute inset-0 overflow-hidden">
+        <Card className="relative overflow-hidden bg-gradient-to-br from-purple-600/15 via-violet-600/10 to-amber-500/10 backdrop-blur-md border border-purple-500/20 transition-all duration-500 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10">
+          {/* Animated Background Patterns - Premium Glowing Orbs */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <motion.div
-              className="absolute -top-24 -right-24 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl"
+              className="absolute -top-24 -right-24 w-64 h-64 bg-purple-500/15 rounded-full blur-3xl"
               animate={{
-                scale: [1, 1.2, 1],
+                scale: [1, 1.3, 1],
                 opacity: [0.3, 0.5, 0.3],
+                x: [0, 20, 0],
+                y: [0, -20, 0],
               }}
               transition={{
-                duration: 4,
+                duration: 6,
                 repeat: Infinity,
                 ease: "easeInOut"
               }}
             />
             <motion.div
-              className="absolute -bottom-24 -left-24 w-48 h-48 bg-amber-500/20 rounded-full blur-3xl"
+              className="absolute -bottom-24 -left-24 w-64 h-64 bg-amber-500/15 rounded-full blur-3xl"
               animate={{
-                scale: [1, 1.3, 1],
+                scale: [1, 1.4, 1],
                 opacity: [0.2, 0.4, 0.2],
+                x: [0, -20, 0],
+                y: [0, 20, 0],
+              }}
+              transition={{
+                duration: 7,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 0.5
+              }}
+            />
+            <motion.div
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-violet-500/10 rounded-full blur-3xl"
+              animate={{
+                scale: [1, 1.2, 1],
+                opacity: [0.15, 0.3, 0.15],
               }}
               transition={{
                 duration: 5,
                 repeat: Infinity,
                 ease: "easeInOut",
-                delay: 0.5
+                delay: 1
               }}
             />
           </div>
@@ -470,7 +529,7 @@ function DashboardTab({
                   transition={{ duration: 0.5, delay: 0.3 }}
                   className="flex flex-col sm:flex-row gap-3"
                 >
-                  <div className="glass-card bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4 min-w-[140px]">
+                  <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 min-w-[140px] transition-all duration-300 hover:bg-white/15 hover:border-white/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/10">
                     <div className="flex items-center gap-2 mb-1">
                       <TrendingUp className="w-4 h-4 text-emerald-400" />
                       <span className="text-xs text-gray-400">{language === 'id' ? 'Total P/L' : 'Total P/L'}</span>
@@ -479,7 +538,7 @@ function DashboardTab({
                       {(analytics?.totalPL || 0) >= 0 ? '+' : ''}${(analytics?.totalPL || 0).toFixed(2)}
                     </div>
                   </div>
-                  <div className="glass-card bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4 min-w-[140px]">
+                  <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 min-w-[140px] transition-all duration-300 hover:bg-white/15 hover:border-white/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-amber-500/10">
                     <div className="flex items-center gap-2 mb-1">
                       <Target className="w-4 h-4 text-amber-400" />
                       <span className="text-xs text-gray-400">{language === 'id' ? 'Win Rate' : 'Win Rate'}</span>
@@ -488,7 +547,7 @@ function DashboardTab({
                       {(analytics?.winRate || 0).toFixed(1)}%
                     </div>
                   </div>
-                  <div className="glass-card bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4 min-w-[140px]">
+                  <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 min-w-[140px] transition-all duration-300 hover:bg-white/15 hover:border-white/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/10">
                     <div className="flex items-center gap-2 mb-1">
                       <Activity className="w-4 h-4 text-purple-400" />
                       <span className="text-xs text-gray-400">{language === 'id' ? 'Total Trade' : 'Total Trades'}</span>
@@ -541,8 +600,8 @@ function DashboardTab({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
         >
-          <Card className="relative overflow-hidden bg-gradient-to-br from-emerald-500/15 to-cyan-500/10 border-emerald-500/30">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl" />
+          <Card className="relative overflow-hidden bg-gradient-to-br from-emerald-500/15 to-cyan-500/10 backdrop-blur-md border border-emerald-500/20 transition-all duration-300 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-1">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl" />
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2 text-emerald-300">
                 <Clock className="w-4 h-4" />
@@ -584,8 +643,8 @@ function DashboardTab({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.15 }}
         >
-          <Card className="relative overflow-hidden bg-gradient-to-br from-amber-500/15 to-orange-500/10 border-amber-500/30">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl" />
+          <Card className="relative overflow-hidden bg-gradient-to-br from-amber-500/15 to-orange-500/10 backdrop-blur-md border border-amber-500/20 transition-all duration-300 hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/10 hover:-translate-y-1">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl" />
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2 text-amber-300">
                 <Trophy className="w-4 h-4" />
@@ -643,12 +702,12 @@ function DashboardTab({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          <Card className={`relative overflow-hidden bg-gradient-to-br ${
-            activeStreak.type === 'win' 
-              ? 'from-emerald-500/20 to-green-500/10 border-emerald-500/30' 
-              : 'from-red-500/20 to-rose-500/10 border-red-500/30'
+          <Card className={`relative overflow-hidden bg-gradient-to-br backdrop-blur-md transition-all duration-300 hover:-translate-y-1 ${
+            activeStreak.type === 'win'
+              ? 'from-emerald-500/20 to-green-500/10 border-emerald-500/20 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10'
+              : 'from-red-500/20 to-rose-500/10 border-red-500/20 hover:border-red-500/40 hover:shadow-lg hover:shadow-red-500/10'
           }`}>
-            <div className={`absolute top-0 right-0 w-32 h-32 ${
+            <div className={`absolute top-0 right-0 w-40 h-40 ${
               activeStreak.type === 'win' ? 'bg-emerald-500/10' : 'bg-red-500/10'
             } rounded-full blur-3xl`} />
             <CardHeader className="pb-3">
@@ -749,7 +808,7 @@ function DashboardTab({
             transition={{ duration: 0.3, delay: 0.15 }}
             whileHover={{ y: -3 }}
           >
-            <Card className="relative overflow-hidden bg-gradient-to-br from-emerald-500/15 to-emerald-600/5 backdrop-blur-sm border border-emerald-500/30">
+            <Card className="relative overflow-hidden bg-gradient-to-br from-emerald-500/15 to-emerald-600/5 backdrop-blur-md border border-emerald-500/20 transition-all duration-300 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10">
               <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/20 rounded-full blur-2xl" />
               <CardContent className="relative p-4">
                 <div className="flex items-center gap-2 mb-1">
@@ -770,7 +829,7 @@ function DashboardTab({
             transition={{ duration: 0.3, delay: 0.2 }}
             whileHover={{ y: -3 }}
           >
-            <Card className="relative overflow-hidden bg-gradient-to-br from-red-500/15 to-red-600/5 backdrop-blur-sm border border-red-500/30">
+            <Card className="relative overflow-hidden bg-gradient-to-br from-red-500/15 to-red-600/5 backdrop-blur-md border border-red-500/20 transition-all duration-300 hover:border-red-500/40 hover:shadow-lg hover:shadow-red-500/10">
               <div className="absolute top-0 right-0 w-20 h-20 bg-red-500/20 rounded-full blur-2xl" />
               <CardContent className="relative p-4">
                 <div className="flex items-center gap-2 mb-1">
@@ -791,7 +850,7 @@ function DashboardTab({
             transition={{ duration: 0.3, delay: 0.25 }}
             whileHover={{ y: -3 }}
           >
-            <Card className="relative overflow-hidden bg-gradient-to-br from-amber-500/15 to-orange-600/5 backdrop-blur-sm border border-amber-500/30">
+            <Card className="relative overflow-hidden bg-gradient-to-br from-amber-500/15 to-orange-600/5 backdrop-blur-md border border-amber-500/20 transition-all duration-300 hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/10">
               <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/20 rounded-full blur-2xl" />
               <CardContent className="relative p-4">
                 <div className="flex items-center gap-2 mb-1">
@@ -812,7 +871,7 @@ function DashboardTab({
             transition={{ duration: 0.3, delay: 0.3 }}
             whileHover={{ y: -3 }}
           >
-            <Card className="relative overflow-hidden bg-gradient-to-br from-purple-500/15 to-violet-600/5 backdrop-blur-sm border border-purple-500/30">
+            <Card className="relative overflow-hidden bg-gradient-to-br from-purple-500/15 to-violet-600/5 backdrop-blur-md border border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10">
               <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500/20 rounded-full blur-2xl" />
               <CardContent className="relative p-4">
                 <div className="flex items-center gap-2 mb-1">
@@ -848,7 +907,7 @@ function DashboardTab({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.15 }}
         >
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <Card className="bg-gradient-to-br from-[#0f0b18]/80 to-[#12091a]/80 backdrop-blur-md border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Clock className="w-5 h-5 text-purple-400" />
@@ -885,7 +944,7 @@ function DashboardTab({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <Card className="bg-gradient-to-br from-[#0f0b18]/80 to-[#12091a]/80 backdrop-blur-md border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Equity Curve</CardTitle>
               <div className="flex items-center gap-2">
@@ -933,14 +992,14 @@ function DashboardTab({
         </motion.div>
       )}
 
-      {/* Empty State - Enhanced with Auto-Journal Suggestion */}
+      {/* Empty State - Enhanced */}
       {!hasData && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
         >
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <Card className="bg-gradient-to-br from-[#0f0b18]/80 to-[#12091a]/80 backdrop-blur-md border-purple-500/20 transition-all duration-300 hover:border-purple-500/40">
             <CardContent className="py-16 lg:py-20 text-center">
               <motion.div
                 className="w-16 h-16 lg:w-20 lg:h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-violet-500/20 flex items-center justify-center mx-auto mb-6"
