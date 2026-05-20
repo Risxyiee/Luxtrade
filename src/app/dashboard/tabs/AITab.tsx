@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Brain, Sparkles, TrendingUp, MessageCircle, Bot, User, Send, Lock, AlertCircle, Loader2 } from 'lucide-react'
+import { Brain, Sparkles, TrendingUp, MessageCircle, Bot, User, Send, Lock, AlertCircle, Loader2, Mic, Upload, BarChart3, FileText, Image as ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -51,6 +51,9 @@ interface AITabProps {
   onSendChat: () => void
   isPro: boolean
   onUpgrade: () => void
+  onAnalyzeTrade?: (tradeId: string) => void
+  onVoiceJournal?: () => void
+  onAnalyzeChart?: (imageData: string) => void
 }
 
 export default function AITab({
@@ -65,10 +68,17 @@ export default function AITab({
   onChatChange,
   onSendChat,
   isPro,
-  onUpgrade
+  onUpgrade,
+  onAnalyzeTrade,
+  onVoiceJournal,
+  onAnalyzeChart
 }: AITabProps) {
   const hasEnoughTrades = analytics && analytics.totalTrades >= 5
   const chatContainerRef = useRef<HTMLDivElement>(null)
+  const [selectedTradeForAnalysis, setSelectedTradeForAnalysis] = useState<Trade | null>(null)
+  const [isRecording, setIsRecording] = useState(false)
+  const [chartImage, setChartImage] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -117,7 +127,7 @@ export default function AITab({
             Get personalized insights powered by AI to improve your trading performance.
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
             <Button
               onClick={onGetTips}
               disabled={loading || !hasEnoughTrades}
@@ -136,6 +146,69 @@ export default function AITab({
             </Button>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* AI Trade Analysis */}
+            <Button
+              onClick={() => {
+                if (trades.length > 0) {
+                  setSelectedTradeForAnalysis(trades[0])
+                  onAnalyzeTrade?.(trades[0].id)
+                }
+              }}
+              disabled={loading || trades.length === 0}
+              className="bg-gradient-to-r from-emerald-500/20 to-green-500/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30 justify-start"
+            >
+              {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <BarChart3 className="w-4 h-4 mr-2" />}
+              Analyze Trade
+            </Button>
+            {/* Voice Journal Entry */}
+            <Button
+              onClick={() => {
+                setIsRecording(!isRecording)
+                onVoiceJournal?.()
+              }}
+              disabled={loading || isRecording}
+              className={`bg-gradient-to-r ${
+                isRecording 
+                  ? 'from-red-500/20 to-rose-500/20 border-red-500/30 text-red-400 hover:bg-red-500/30' 
+                  : 'from-amber-500/20 to-orange-500/20 border-amber-500/30 text-amber-400 hover:bg-amber-500/30'
+              } justify-start`}
+            >
+              {isRecording ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Recording...</>
+              ) : (
+                <><Mic className="w-4 h-4 mr-2" /> Voice Journal
+              </>)}
+            </Button>
+            {/* Chart Image Analysis */}
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading}
+              className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 justify-start"
+            >
+              {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ImageIcon className="w-4 h-4 mr-2" />}
+              Analyze Chart
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) {
+                  const reader = new FileReader()
+                  reader.onloadend = () => {
+                    const imageData = reader.result as string
+                    setChartImage(imageData)
+                    onAnalyzeChart?.(imageData)
+                  }
+                  reader.readAsDataURL(file)
+                }
+              }}
+            />
+          </div>
+
           {!hasEnoughTrades && (
             <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20 mt-4">
               <p className="text-sm text-purple-400 flex items-center gap-2">
@@ -146,6 +219,46 @@ export default function AITab({
           )}
         </CardContent>
       </Card>
+
+      {/* Chart Analysis Result */}
+      {chartImage && (
+        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <ImageIcon className="w-5 h-5 text-cyan-400" />
+              Chart Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="relative">
+                <img src={chartImage} alt="Chart" className="w-full rounded-lg border border-white/10" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setChartImage(null)}
+                  className="absolute top-2 right-2 bg-black/50 border-white/20 text-white hover:bg-black/70"
+                >
+                  <Upload className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="bg-black/20 rounded-lg p-4 border border-purple-500/20">
+                <p className="text-sm text-gray-400 mb-2">AI Analysis:</p>
+                <p className="text-gray-200 text-sm leading-relaxed">
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Analyzing chart patterns...
+                    </div>
+                  ) : (
+                    "Chart analysis is powered by AI vision capabilities. Upload a chart screenshot to identify patterns, support/resistance levels, and potential trading opportunities."
+                  )}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* AI Response */}
       {insight && (

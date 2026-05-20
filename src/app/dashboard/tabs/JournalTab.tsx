@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   BookOpen, Plus, Edit, Trash2, Smile, Meh, Frown, Sparkles,
-  BarChart3, Brain, Zap, Crown, RefreshCw
+  BarChart3, Brain, Zap, Crown, RefreshCw, Calendar, Tag, Image as ImageIcon, Link2, ChevronLeft, ChevronRight
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,9 @@ interface JournalEntry {
   mood: string | null
   market_condition: string | null
   created_at: string
+  tags?: string | null
+  image_url?: string | null
+  linked_trades_count?: number
 }
 
 // ==================== DAILY PROMPTS ====================
@@ -93,6 +96,8 @@ function JournalTab({
   const [showAnalytics, setShowAnalytics] = useState(false)
   const [journalAnalytics, setJournalAnalytics] = useState<Record<string, any> | null>(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
+  const [currentMonth, setCurrentMonth] = useState(new Date())
 
   // Toggle analytics and fetch data
   const toggleAnalytics = useCallback(async () => {
@@ -145,6 +150,131 @@ function JournalTab({
     }
   }
 
+  // Calendar helpers
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear()
+    const month = date.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const startDayOfWeek = firstDay.getDay()
+    const totalDays = lastDay.getDate()
+    return { startDayOfWeek, totalDays }
+  }
+
+  const getEntriesForDate = (date: Date) => {
+    const dateStr = date.toDateString()
+    return entries.filter(e => new Date(e.created_at).toDateString() === dateStr)
+  }
+
+  const CalendarView = () => {
+    const { startDayOfWeek, totalDays } = getDaysInMonth(currentMonth)
+    const monthName = currentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
+    const days = []
+
+    // Empty cells for days before the first day of the month
+    for (let i = 0; i < startDayOfWeek; i++) {
+      days.push(<div key={`empty-${i}`} className="h-24" />)
+    }
+
+    // Days of the month
+    for (let day = 1; day <= totalDays; day++) {
+      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)
+      const dayEntries = getEntriesForDate(date)
+      const isToday = date.toDateString() === new Date().toDateString()
+
+      days.push(
+        <div
+          key={day}
+          onClick={() => dayEntries.length > 0 && onView(dayEntries[0])}
+          className={`h-24 p-2 rounded-lg border border-white/5 transition-all cursor-pointer hover:border-purple-500/30 ${
+            isToday ? 'bg-purple-500/10 border-purple-500/30' : 'bg-white/5'
+          } ${dayEntries.length > 0 ? 'hover:bg-white/10' : ''}`}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className={`text-sm font-medium ${isToday ? 'text-purple-400' : 'text-gray-400'}`}>
+              {day}
+            </span>
+            {dayEntries.length > 0 && (
+              <div className="flex gap-1">
+                {dayEntries.slice(0, 3).map((e) => (
+                  <div
+                    key={e.id}
+                    className={`w-2 h-2 rounded-full ${
+                      e.mood === 'confident' ? 'bg-emerald-400' :
+                      e.mood === 'anxious' ? 'bg-red-400' :
+                      'bg-purple-400'
+                    }`}
+                  />
+                ))}
+                {dayEntries.length > 3 && (
+                  <span className="text-xs text-gray-500">+{dayEntries.length - 3}</span>
+                )}
+              </div>
+            )}
+          </div>
+          {dayEntries.length > 0 && (
+            <div className="space-y-1">
+              {dayEntries.slice(0, 2).map((e) => (
+                <p key={e.id} className="text-xs text-gray-400 truncate">
+                  {e.title}
+                </p>
+              ))}
+              {dayEntries.length > 2 && (
+                <p className="text-xs text-gray-500">+{dayEntries.length - 2} more</p>
+              )}
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    return (
+      <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
+                className="text-gray-400 hover:text-white"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <CardTitle className="text-lg">{monthName}</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
+                className="text-gray-400 hover:text-white"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentMonth(new Date())}
+              className="border-purple-500/30 text-purple-400"
+            >
+              Today
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-7 gap-2 mb-2">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+              <div key={day} className="text-center text-xs text-gray-500 font-medium">
+                {day}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-2">{days}</div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -154,6 +284,22 @@ function JournalTab({
           <p className="text-sm text-gray-400">Document your trading journey</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant={viewMode === 'list' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('list')}
+            className={viewMode === 'list' ? 'bg-purple-500' : 'border-purple-500/30 text-purple-400'}
+          >
+            <BookOpen className="w-4 h-4 mr-1" /> List
+          </Button>
+          <Button
+            variant={viewMode === 'calendar' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('calendar')}
+            className={viewMode === 'calendar' ? 'bg-purple-500' : 'border-purple-500/30 text-purple-400'}
+          >
+            <Calendar className="w-4 h-4 mr-1" /> Calendar
+          </Button>
           {entries.length > 2 && (
             <Button
               variant="outline"
@@ -334,6 +480,9 @@ function JournalTab({
         )}
       </AnimatePresence>
 
+      {/* Calendar View */}
+      {viewMode === 'calendar' && entries.length > 0 && <CalendarView />}
+
       {/* Journal Entries List */}
       {entries.length === 0 ? (
         <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
@@ -349,9 +498,11 @@ function JournalTab({
             </Button>
           </CardContent>
         </Card>
-      ) : (
+      ) : viewMode === 'list' ? (
         <div className="grid gap-4">
-          {entries.map((entry) => (
+          {entries.map((entry) => {
+            const tags = entry.tags ? JSON.parse(entry.tags) : []
+            return (
             <Card
               key={entry.id}
               className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30 hover:border-purple-500/30 transition-colors cursor-pointer group"
@@ -374,7 +525,7 @@ function JournalTab({
                   </div>
                 </div>
                 <p className="text-gray-400 text-sm line-clamp-2">{entry.content}</p>
-                <div className="flex items-center gap-2 mt-3">
+                <div className="flex flex-wrap items-center gap-2 mt-3">
                   {entry.mood && (
                     <Badge variant="outline" className="text-xs border-white/10 text-gray-400">
                       {getMoodIcon(entry.mood)} {entry.mood}
@@ -385,12 +536,33 @@ function JournalTab({
                       {entry.market_condition}
                     </Badge>
                   )}
+                  {/* Tags */}
+                  {tags.length > 0 && tags.map((tag: string, idx: number) => (
+                    <Badge key={idx} variant="outline" className="text-xs border-purple-500/30 text-purple-300">
+                      <Tag className="w-2.5 h-2.5 mr-1" />
+                      {tag}
+                    </Badge>
+                  ))}
+                  {/* Image Attachment Indicator */}
+                  {entry.image_url && (
+                    <Badge variant="outline" className="text-xs border-cyan-500/30 text-cyan-400">
+                      <ImageIcon className="w-2.5 h-2.5 mr-1" />
+                      Image
+                    </Badge>
+                  )}
+                  {/* Linked Trades Indicator */}
+                  {entry.linked_trades_count && entry.linked_trades_count > 0 && (
+                    <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-400">
+                      <Link2 className="w-2.5 h-2.5 mr-1" />
+                      {entry.linked_trades_count} trades
+                    </Badge>
+                  )}
                 </div>
               </CardContent>
             </Card>
-          ))}
+          )})}
         </div>
-      )}
+      ) : null}
 
       {/* PRO Upgrade Banner */}
       {!isPro && onUpgrade && (

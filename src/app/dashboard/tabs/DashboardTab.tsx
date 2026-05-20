@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   DollarSign, Target, Activity, TrendingUp, TrendingDown,
   Sparkles, AlertTriangle, Clock, BarChart3, RefreshCw, Plus,
-  Link2, Zap, Trophy, CheckCircle2, XCircle, Loader2, ArrowRight, Star, Settings
+  Link2, Zap, Trophy, CheckCircle2, XCircle, Loader2, ArrowRight, Star, Settings, Flame
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -33,6 +33,11 @@ interface Trade {
   session: string | null
   notes?: string
   image_url?: string | null
+  trade_duration?: number | null
+  risk_reward_ratio?: number | null
+  tags?: string | null
+  setup_type?: string | null
+  linked_journal_id?: string | null
 }
 
 interface JournalEntry {
@@ -42,6 +47,9 @@ interface JournalEntry {
   mood: string | null
   market_condition: string | null
   created_at: string
+  tags?: string | null
+  image_url?: string | null
+  linked_trades_count?: number
 }
 
 interface Analytics {
@@ -224,6 +232,95 @@ function calculateConsecutiveStreaks(trades: Trade[], type: 'win' | 'lose'): num
   return maxStreak
 }
 
+// Helper: Calculate current active streak (most recent)
+function calculateActiveStreak(trades: Trade[]): { type: 'win' | 'lose' | null; count: number } {
+  if (trades.length === 0) return { type: null, count: 0 }
+  
+  const sorted = [...trades].sort((a, b) => new Date(b.close_time).getTime() - new Date(a.close_time).getTime())
+  let streakCount = 0
+  let streakType: 'win' | 'lose' | null = null
+  
+  for (const trade of sorted) {
+    const isWin = trade.profit_loss > 0
+    const isLoss = trade.profit_loss < 0
+    
+    if (streakType === null) {
+      // Initialize streak type based on first trade
+      if (isWin) {
+        streakType = 'win'
+        streakCount = 1
+      } else if (isLoss) {
+        streakType = 'lose'
+        streakCount = 1
+      }
+    } else if (streakType === 'win' && isWin) {
+      streakCount++
+    } else if (streakType === 'lose' && isLoss) {
+      streakCount++
+    } else {
+      break // Streak broken
+    }
+  }
+  
+  return { type: streakType, count: streakCount }
+}
+
+// Helper: Get today's trades and performance
+function getTodayPerformance(trades: Trade[]) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  const todayTrades = trades.filter(t => {
+    const tradeDate = new Date(t.close_time)
+    tradeDate.setHours(0, 0, 0, 0)
+    return tradeDate.getTime() === today.getTime()
+  })
+  
+  const totalPL = todayTrades.reduce((sum, t) => sum + t.profit_loss, 0)
+  const wins = todayTrades.filter(t => t.profit_loss > 0).length
+  const losses = todayTrades.filter(t => t.profit_loss < 0).length
+  
+  return {
+    trades: todayTrades.length,
+    totalPL,
+    wins,
+    losses,
+    winRate: todayTrades.length > 0 ? (wins / todayTrades.length) * 100 : 0
+  }
+}
+
+// Helper: Get week's start date (Monday)
+function getWeekStart(date: Date = new Date()): Date {
+  const d = new Date(date)
+  const day = d.getDay()
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Adjust when Sunday
+  return new Date(d.setDate(diff))
+}
+
+// Helper: Get weekly trades and performance
+function getWeeklyPerformance(trades: Trade[]) {
+  const weekStart = getWeekStart()
+  weekStart.setHours(0, 0, 0, 0)
+  
+  const weekTrades = trades.filter(t => {
+    const tradeDate = new Date(t.close_time)
+    tradeDate.setHours(0, 0, 0, 0)
+    return tradeDate.getTime() >= weekStart.getTime()
+  })
+  
+  const totalPL = weekTrades.reduce((sum, t) => sum + t.profit_loss, 0)
+  const wins = weekTrades.filter(t => t.profit_loss > 0).length
+  const losses = weekTrades.filter(t => t.profit_loss < 0).length
+  
+  return {
+    trades: weekTrades.length,
+    totalPL,
+    wins,
+    losses,
+    winRate: weekTrades.length > 0 ? (wins / weekTrades.length) * 100 : 0
+  }
+}
+
 // ==================== DASHBOARD TAB COMPONENT ====================
 
 interface DashboardTabProps {
@@ -284,6 +381,9 @@ function DashboardTab({
   }
 
   const hasData = trades.length > 0
+  const todayPerf = getTodayPerformance(trades)
+  const weeklyPerf = getWeeklyPerformance(trades)
+  const activeStreak = calculateActiveStreak(trades)
 
   return (
     <div className="space-y-6">
@@ -433,6 +533,167 @@ function DashboardTab({
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Today's Performance Card */}
+      {hasData && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+        >
+          <Card className="relative overflow-hidden bg-gradient-to-br from-emerald-500/15 to-cyan-500/10 border-emerald-500/30">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl" />
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2 text-emerald-300">
+                <Clock className="w-4 h-4" />
+                Today's Performance
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-4 gap-3">
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Trades</p>
+                  <p className="text-lg font-bold text-white">{todayPerf.trades}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">P/L</p>
+                  <p className={`text-lg font-bold ${todayPerf.totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {todayPerf.totalPL >= 0 ? '+' : ''}{todayPerf.totalPL.toFixed(2)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Win Rate</p>
+                  <p className="text-lg font-bold text-amber-400">{todayPerf.winRate.toFixed(0)}%</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">W/L</p>
+                  <p className="text-lg font-bold text-purple-400">
+                    {todayPerf.wins}/{todayPerf.losses}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Weekly Goal Progress Card */}
+      {hasData && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.15 }}
+        >
+          <Card className="relative overflow-hidden bg-gradient-to-br from-amber-500/15 to-orange-500/10 border-amber-500/30">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl" />
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2 text-amber-300">
+                <Trophy className="w-4 h-4" />
+                Weekly Goal Progress
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-gray-400">Trade Count Goal</p>
+                    <p className="text-sm font-bold text-white">
+                      {weeklyPerf.trades} / 10 trades
+                    </p>
+                  </div>
+                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min((weeklyPerf.trades / 10) * 100, 100)}%` }}
+                      transition={{ duration: 1.5, ease: "easeOut" }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-gray-400">Weekly P/L</p>
+                    <p className={`text-sm font-bold ${weeklyPerf.totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {weeklyPerf.totalPL >= 0 ? '+' : ''}{weeklyPerf.totalPL.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div className="p-2 rounded-lg bg-white/5 text-center">
+                      <p className="text-xs text-gray-400">Win Rate</p>
+                      <p className="text-sm font-bold text-amber-400">{weeklyPerf.winRate.toFixed(0)}%</p>
+                    </div>
+                    <div className="p-2 rounded-lg bg-white/5 text-center">
+                      <p className="text-xs text-gray-400">W/L Ratio</p>
+                      <p className="text-sm font-bold text-purple-400">
+                        {weeklyPerf.losses > 0 ? (weeklyPerf.wins / weeklyPerf.losses).toFixed(2) : weeklyPerf.wins}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Active Streak Display */}
+      {hasData && activeStreak.count > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <Card className={`relative overflow-hidden bg-gradient-to-br ${
+            activeStreak.type === 'win' 
+              ? 'from-emerald-500/20 to-green-500/10 border-emerald-500/30' 
+              : 'from-red-500/20 to-rose-500/10 border-red-500/30'
+          }`}>
+            <div className={`absolute top-0 right-0 w-32 h-32 ${
+              activeStreak.type === 'win' ? 'bg-emerald-500/10' : 'bg-red-500/10'
+            } rounded-full blur-3xl`} />
+            <CardHeader className="pb-3">
+              <CardTitle className={`text-base flex items-center gap-2 ${
+                activeStreak.type === 'win' ? 'text-emerald-300' : 'text-red-300'
+              }`}>
+                <Flame className="w-4 h-4" />
+                Active {activeStreak.type === 'win' ? 'Winning' : 'Losing'} Streak
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className={`text-4xl font-bold ${
+                    activeStreak.type === 'win' ? 'text-emerald-400' : 'text-red-400'
+                  }`}>
+                    {activeStreak.count}
+                  </div>
+                  <div>
+                    <p className={`text-sm font-medium ${
+                      activeStreak.type === 'win' ? 'text-emerald-300' : 'text-red-300'
+                    }`}>
+                      {activeStreak.type === 'win' ? '🔥 On fire!' : '🧘 Stay calm'}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {activeStreak.type === 'win' 
+                        ? 'Keep the momentum going!' 
+                        : 'Take a break and reset your mindset.'}
+                    </p>
+                  </div>
+                </div>
+                {activeStreak.type === 'win' && activeStreak.count >= 3 && (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="text-5xl"
+                  >
+                    🏆
+                  </motion.div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Stats Cards with Animation */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
