@@ -60,15 +60,6 @@ interface Analytics {
   monthlyPerformance: { month: string; pl: number; trades: number }[]
 }
 
-interface TradingAccount {
-  id: string
-  account_number: string
-  broker_server: string
-  platform: 'MT4' | 'MT5'
-  status: 'CONNECTED' | 'DISCONNECTED' | 'PENDING' | 'ERROR'
-  created_at: string
-}
-
 // ==================== ANIMATED NUMBER HOOK ====================
 
 function useCountUp(end: number, duration: number = 1500, start: number = 0, decimals: number = 2) {
@@ -214,150 +205,6 @@ function AnimatedStatCard({
   )
 }
 
-// ==================== ENHANCED AUTO-JOURNAL CARD WITH GLASSMORPHISM ====================
-
-function AutoJournalCard({ tradingAccounts, isPro, language }: {
-  tradingAccounts: TradingAccount[]
-  isPro: boolean
-  language: 'id' | 'en'
-}) {
-  const router = useRouter()
-  const [isHovered, setIsHovered] = useState(false)
-  
-  const connectedCount = tradingAccounts.filter(acc => acc.status === 'CONNECTED').length
-  const totalCount = tradingAccounts.length
-  const maxAccounts = isPro ? 5 : 1
-  
-  return (
-    <motion.div
-      onHoverStart={() => setIsHovered(true)}
-      onHoverEnd={() => setIsHovered(false)}
-      whileHover={{ scale: 1.02, y: -5 }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      className="relative"
-    >
-      <Card className={`relative overflow-hidden bg-gradient-to-br from-purple-500/15 via-violet-500/10 to-amber-500/10 backdrop-blur-sm border border-purple-500/30 transition-all duration-300 ${isHovered ? 'shadow-2xl shadow-purple-500/30 border-purple-400/50' : ''}`}>
-        {/* Animated Gradient Background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-violet-500/5 to-amber-500/5" />
-        
-        {/* Animated Glow Orbs */}
-        <motion.div
-          className="absolute top-0 right-0 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl"
-          animate={{
-            scale: isHovered ? 1.3 : 1,
-            opacity: isHovered ? 0.7 : 0.3
-          }}
-          transition={{ duration: 0.5 }}
-        />
-        <motion.div
-          className="absolute bottom-0 left-0 w-32 h-32 bg-amber-500/20 rounded-full blur-3xl"
-          animate={{
-            scale: isHovered ? 1.4 : 1,
-            opacity: isHovered ? 0.6 : 0.2
-          }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-        />
-        
-        <CardHeader className="relative">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <motion.div
-                  animate={{ rotate: isHovered ? 360 : 0 }}
-                  transition={{ duration: 0.6 }}
-                >
-                  <div className="p-2 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl shadow-lg">
-                    <Zap className="w-5 h-5 text-white" />
-                  </div>
-                </motion.div>
-                <CardTitle className="text-base font-bold bg-gradient-to-r from-amber-300 via-orange-300 to-amber-400 bg-clip-text text-transparent">
-                  ⚡ Auto-Journal
-                </CardTitle>
-                <Badge className="bg-gradient-to-r from-amber-500/30 to-orange-500/30 text-amber-300 border-amber-500/30 text-[10px]">
-                  NEW
-                </Badge>
-              </div>
-              <p className="text-xs text-gray-400 max-w-[200px]">
-                {language === 'id' 
-                  ? 'Otomatis sync trading dari MT4/MT5 Anda' 
-                  : 'Auto-sync trades from your MT4/MT5'}
-              </p>
-            </div>
-            {totalCount > 0 && (
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full backdrop-blur-sm ${
-                connectedCount > 0 
-                  ? 'bg-emerald-500/20 border border-emerald-500/40' 
-                  : 'bg-yellow-500/20 border border-yellow-500/40'
-              }`}>
-                {connectedCount > 0 ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                ) : (
-                  <AlertTriangle className="w-3.5 h-3.5 text-yellow-400" />
-                )}
-                <span className="text-xs font-semibold text-white">
-                  {connectedCount}/{totalCount}
-                </span>
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        
-        <CardContent className="relative">
-          {/* Enhanced Quota Indicator */}
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden backdrop-blur-sm">
-              <motion.div
-                className={`h-full rounded-full ${
-                  totalCount >= maxAccounts 
-                    ? 'bg-gradient-to-r from-red-500 to-red-600' 
-                    : totalCount / maxAccounts > 0.7 
-                      ? 'bg-gradient-to-r from-yellow-500 to-orange-500'
-                      : 'bg-gradient-to-r from-emerald-500 to-emerald-600'
-                }`}
-                initial={{ width: 0 }}
-                animate={{ width: `${(totalCount / maxAccounts) * 100}%` }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-              />
-            </div>
-            <span className="text-xs text-gray-400 font-medium">
-              {totalCount}/{maxAccounts}
-            </span>
-          </div>
-
-          {/* Enhanced Action Buttons */}
-          <div className="flex gap-2 relative z-10">
-            {totalCount === 0 ? (
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  console.log('🔵 [AutoJournal Card] Connect button clicked')
-                  router.push('/dashboard/connections')
-                }}
-                className="flex-1 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-400 hover:to-violet-500 text-white text-xs font-bold shadow-lg shadow-purple-500/30 h-10 pointer-events-auto backdrop-blur-sm"
-              >
-                <Link2 className="w-3.5 h-3.5 mr-1.5" />
-                {language === 'id' ? 'Hubungkan Akun' : 'Connect Account'}
-              </Button>
-            ) : (
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  console.log('🟢 [AutoJournal Card] Manage button clicked')
-                  router.push('/dashboard/connections')
-                }}
-                className="flex-1 bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/20 h-10 pointer-events-auto backdrop-blur-sm"
-              >
-                <Settings className="w-3.5 h-3.5 mr-1.5" />
-                {language === 'id' ? 'Kelola Akun' : 'Manage Accounts'}
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  )
-}
-
 // ==================== HELPER FUNCTIONS ====================
 
 function calculateConsecutiveStreaks(trades: Trade[], type: 'win' | 'lose'): number {
@@ -408,29 +255,6 @@ function DashboardTab({
   isPro,
   profile
 }: DashboardTabProps) {
-
-  // Trading Accounts State
-  const [tradingAccounts, setTradingAccounts] = useState<TradingAccount[]>([])
-  const [accountsLoading, setAccountsLoading] = useState(true)
-
-  // Fetch trading accounts
-  useEffect(() => {
-    const fetchTradingAccounts = async () => {
-      try {
-        setAccountsLoading(true)
-        const res = await fetch('/api/trading-accounts')
-        if (res.ok) {
-          const data = await res.json()
-          setTradingAccounts(data.accounts || [])
-        }
-      } catch (error) {
-        console.error('Failed to fetch trading accounts:', error)
-      } finally {
-        setAccountsLoading(false)
-      }
-    }
-    fetchTradingAccounts()
-  }, [])
 
   if (loading) {
     return (
@@ -610,19 +434,6 @@ function DashboardTab({
         </Card>
       </motion.div>
 
-      {/* Auto-Journal Quick Access Card - Always Show First */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.05 }}
-      >
-        <AutoJournalCard
-          tradingAccounts={accountsLoading ? [] : tradingAccounts}
-          isPro={isPro}
-          language={language}
-        />
-      </motion.div>
-
       {/* Stats Cards with Animation */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <AnimatedStatCard
@@ -667,66 +478,6 @@ function DashboardTab({
           decimals={2}
         />
       </div>
-
-      {/* Trading Accounts Statistics - Show if connected */}
-      {tradingAccounts.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-        >
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Link2 className="w-5 h-5 text-purple-400" />
-                {language === 'id' ? 'Akun Trading Terhubung' : 'Connected Trading Accounts'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {tradingAccounts.map((account, index) => (
-                  <motion.div
-                    key={account.id}
-                    className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-purple-500/30 transition-all group"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                    whileHover={{ y: -2 }}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${
-                          account.status === 'CONNECTED' ? 'bg-emerald-400 animate-pulse' :
-                          account.status === 'PENDING' ? 'bg-yellow-400 animate-pulse' :
-                          'bg-red-400'
-                        }`} />
-                        <span className="font-bold text-sm">{account.account_number}</span>
-                      </div>
-                      <Badge variant={
-                        account.status === 'CONNECTED' ? 'default' :
-                        account.status === 'PENDING' ? 'secondary' :
-                        'destructive'
-                      } className="text-[10px]">
-                        {account.status}
-                      </Badge>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-500">{account.platform}</span>
-                        <span className="text-gray-400">{account.broker_server}</span>
-                      </div>
-                      <div className="text-[10px] text-gray-500">
-                        {language === 'id' ? 'Terhubung:' : 'Connected:'}{' '}
-                        {new Date(account.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
 
       {/* Additional Stats Row - Streak & Best/Worst with Glassmorphism */}
       {hasData && (
