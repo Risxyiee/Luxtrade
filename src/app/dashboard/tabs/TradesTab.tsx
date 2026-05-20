@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Activity, Search, Upload, Download, FileText, View as ViewIcon, Edit, Trash2, RefreshCw } from 'lucide-react'
+import { Activity, Search, Upload, Download, FileText, View as ViewIcon, Edit, Trash2, RefreshCw, Clock, Target, Tag, Link2, Image as ImageIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,6 +25,11 @@ interface Trade {
   session: string | null
   notes?: string
   image_url?: string | null
+  trade_duration?: number | null
+  risk_reward_ratio?: number | null
+  tags?: string | null
+  setup_type?: string | null
+  linked_journal_id?: string | null
 }
 
 // ==================== TRADES TAB COMPONENT ====================
@@ -68,19 +73,27 @@ function TradesTab({
     // Safety check - document.createElement only available in browser
     if (typeof document === 'undefined') return
 
-    const headers = ['Symbol','Type','Entry','Exit','Lot Size','P/L','Session','Open Time','Close Time','Notes']
-    const rows = filteredTrades.map(t => [
-      t.symbol,
-      t.type,
-      t.open_price,
-      t.close_price,
-      t.lot_size,
-      t.profit_loss,
-      t.session || '',
-      t.open_time,
-      t.close_time,
-      (t.notes || '').replace(/,/g, ';')
-    ])
+    const headers = ['Symbol','Type','Setup Type','Entry','Exit','Lot Size','P/L','Duration','R:R Ratio','Tags','Session','Open Time','Close Time','Notes','Journal Link']
+    const rows = filteredTrades.map(t => {
+      const tags = t.tags ? JSON.parse(t.tags) : []
+      return [
+        t.symbol,
+        t.type,
+        t.setup_type || '',
+        t.open_price,
+        t.close_price,
+        t.lot_size,
+        t.profit_loss,
+        t.trade_duration || '',
+        t.risk_reward_ratio || '',
+        tags.join(';'),
+        t.session || '',
+        t.open_time,
+        t.close_time,
+        (t.notes || '').replace(/,/g, ';'),
+        t.linked_journal_id || ''
+      ]
+    })
     const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -184,6 +197,10 @@ function TradesTab({
                 <tr className="border-b border-purple-900/30 text-gray-400">
                   <th className="text-left p-4 font-medium">Symbol</th>
                   <th className="text-left p-4 font-medium">Type</th>
+                  <th className="text-left p-4 font-medium hidden lg:table-cell">Setup</th>
+                  <th className="text-left p-4 font-medium hidden md:table-cell">Duration</th>
+                  <th className="text-left p-4 font-medium hidden md:table-cell">R:R</th>
+                  <th className="text-left p-4 font-medium hidden sm:table-cell">Tags</th>
                   <th className="text-left p-4 font-medium hidden sm:table-cell">Entry</th>
                   <th className="text-left p-4 font-medium hidden sm:table-cell">Exit</th>
                   <th className="text-left p-4 font-medium hidden md:table-cell">Session</th>
@@ -194,12 +211,25 @@ function TradesTab({
               <tbody>
                 {filteredTrades.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-gray-400">
+                    <td colSpan={11} className="p-8 text-center text-gray-400">
                       No trades match your filters
                     </td>
                   </tr>
                 ) : (
-                  filteredTrades.map((trade) => (
+                  filteredTrades.map((trade) => {
+                    // Parse tags from JSON string
+                    const tags = trade.tags ? JSON.parse(trade.tags) : []
+                    
+                    // Calculate duration in readable format
+                    const getDurationDisplay = (minutes: number | null | undefined) => {
+                      if (!minutes) return '-'
+                      if (minutes < 60) return `${minutes}m`
+                      const hours = Math.floor(minutes / 60)
+                      const mins = minutes % 60
+                      return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
+                    }
+
+                    return (
                     <tr key={trade.id} className="border-b border-purple-900/20 hover:bg-white/5 transition-colors">
                       <td className="p-4 font-bold">{trade.symbol}</td>
                       <td className="p-4">
@@ -207,14 +237,73 @@ function TradesTab({
                           {trade.type}
                         </Badge>
                       </td>
+                      {/* Setup Type */}
+                      <td className="p-4 hidden lg:table-cell">
+                        {trade.setup_type ? (
+                          <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-400">
+                            {trade.setup_type}
+                          </Badge>
+                        ) : (
+                          <span className="text-gray-500">-</span>
+                        )}
+                      </td>
+                      {/* Duration */}
+                      <td className="p-4 hidden md:table-cell">
+                        <div className="flex items-center gap-1 text-gray-400">
+                          <Clock className="w-3 h-3" />
+                          <span className="text-xs">{getDurationDisplay(trade.trade_duration)}</span>
+                        </div>
+                      </td>
+                      {/* R:R Ratio */}
+                      <td className="p-4 hidden md:table-cell">
+                        {trade.risk_reward_ratio ? (
+                          <div className="flex items-center gap-1">
+                            <Target className="w-3 h-3 text-purple-400" />
+                            <span className="text-xs font-medium text-purple-400">1:{trade.risk_reward_ratio}</span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-500">-</span>
+                        )}
+                      </td>
+                      {/* Tags */}
+                      <td className="p-4 hidden sm:table-cell">
+                        {tags.length > 0 ? (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {tags.slice(0, 2).map((tag: string, idx: number) => (
+                              <Badge key={idx} variant="outline" className="text-xs border-purple-500/30 text-purple-300">
+                                <Tag className="w-2.5 h-2.5 mr-1" />
+                                {tag}
+                              </Badge>
+                            ))}
+                            {tags.length > 2 && (
+                              <span className="text-xs text-gray-500">+{tags.length - 2}</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-500">-</span>
+                        )}
+                      </td>
+                      {/* Entry */}
                       <td className="p-4 text-gray-400 hidden sm:table-cell">{trade.open_price}</td>
+                      {/* Exit */}
                       <td className="p-4 text-gray-400 hidden sm:table-cell">{trade.close_price}</td>
+                      {/* Session */}
                       <td className="p-4 text-gray-500 hidden md:table-cell">{trade.session || '-'}</td>
+                      {/* P/L */}
                       <td className={`p-4 text-right font-bold ${trade.profit_loss >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {trade.profit_loss >= 0 ? '+' : ''}{formatCurrency(trade.profit_loss)}
                       </td>
+                      {/* Actions */}
                       <td className="p-4">
                         <div className="flex items-center justify-end gap-1">
+                          {/* Journal Link */}
+                          {trade.linked_journal_id && (
+                            <Link2 className="w-4 h-4 text-amber-400" title="Linked to Journal" />
+                          )}
+                          {/* Image Attachment Indicator */}
+                          {trade.image_url && (
+                            <ImageIcon className="w-4 h-4 text-purple-400" title="Has Image" />
+                          )}
                           <button
                             onClick={() => onView(trade)}
                             className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
@@ -236,7 +325,7 @@ function TradesTab({
                         </div>
                       </td>
                     </tr>
-                  ))
+                  )})
                 )}
               </tbody>
             </table>
