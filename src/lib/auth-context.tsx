@@ -77,6 +77,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         console.log('Profile fetch error:', error.message);
+
+        // If profile doesn't exist, try to create it via API route
+        if (error.code === 'PGRST116') {
+          console.log('Profile not found, attempting to create via API...');
+          try {
+            const response = await fetch('/api/auth/ensure-profile', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId,
+                email: user?.email,
+                fullName: user?.user_metadata?.full_name || user?.email?.split('@')[0],
+              }),
+            });
+
+            const result = await response.json();
+            if (result.profile) {
+              console.log('✅ Profile created via API');
+              return result.profile as Profile;
+            }
+          } catch (apiError) {
+            console.error('❌ Failed to create profile via API:', apiError);
+          }
+        }
         return null;
       }
       return data as Profile;

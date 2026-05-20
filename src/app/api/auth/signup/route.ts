@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabase, supabaseAdmin } from '@/lib/supabase'
 
 // Helper function to generate referral code
 function generateReferralCode(): string {
@@ -156,46 +156,59 @@ export async function POST(request: NextRequest) {
     console.log('✅ User email:', data.user.email)
 
     // ============================================
-    // Step 4: Try to create/update profile (non-blocking)
+    // Step 4: Try to create/update profile using admin client (bypasses RLS)
     // ============================================
     try {
-      // First try to update (in case trigger already created a basic profile)
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          email: data.user.email,
-          full_name: fullName,
-          subscription_status: 'FREE',
-          is_pro: false,
-          device_id: deviceId || null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', data.user.id)
-
-      if (!updateError) {
-        console.log('✅ Profile updated')
-      } else {
-        // If update failed, try insert
-        console.warn('⚠️ Profile update failed, trying insert...')
-        const { error: insertError } = await supabase
+      if (supabaseAdmin) {
+        // First try to update (in case trigger already created a basic profile)
+        const { error: updateError } = await supabaseAdmin
           .from('profiles')
-          .insert({
-            id: data.user.id,
+          .update({
             email: data.user.email,
             full_name: fullName,
             subscription_status: 'FREE',
             is_pro: false,
             device_id: deviceId || null,
-            created_at: new Date().toISOString(),
+            my_referral_code: myReferralCode,
+            referred_by_code: referralCode || null,
             updated_at: new Date().toISOString()
           })
+          .eq('id', data.user.id)
 
-        if (insertError) {
-          console.error('⚠️ Profile creation error:', insertError.message)
-          // Don't fail signup - user was already created in auth
+        if (!updateError) {
+          console.log('✅ Profile updated with admin privileges')
         } else {
-          console.log('✅ Profile created')
+          // If update failed, try insert with admin
+          console.warn('⚠️ Profile update failed, trying insert with admin...')
+          const { error: insertError } = await supabaseAdmin
+            .from('profiles')
+            .insert({
+              id: data.user.id,
+              email: data.user.email,
+              full_name: fullName,
+              subscription_status: 'FREE',
+              is_pro: false,
+              device_id: deviceId || null,
+              my_referral_code: myReferralCode,
+              referred_by_code: referralCode || null,
+              has_ever_been_pro: false,
+              commission_paid: false,
+              streakCount: 0,
+              bestStreak: 0,
+              achievements: [],
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+
+          if (insertError) {
+            console.error('⚠️ Profile creation error with admin:', insertError.message)
+            // Don't fail signup - user was already created in auth
+          } else {
+            console.log('✅ Profile created with admin privileges')
+          }
         }
+      } else {
+        console.warn('⚠️ Supabase admin client not available, skipping profile creation')
       }
     } catch (profileErr) {
       console.error('⚠️ Profile setup error (non-fatal):', profileErr)
