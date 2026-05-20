@@ -126,7 +126,7 @@ export default function Sidebar({
                 className="relative rounded-xl shadow-xl"
               />
             </motion.div>
-            {sidebarOpen && (
+            {(sidebarOpen || mobileSidebarOpen) && (
               <motion.div
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -150,7 +150,7 @@ export default function Sidebar({
 
             return (
               <div key={category} className="space-y-1">
-                {sidebarOpen && (
+                {(sidebarOpen || mobileSidebarOpen) && (
                   <motion.div
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -249,8 +249,8 @@ export default function Sidebar({
                           <item.icon className="w-5 h-5 relative z-10" />
                         </motion.div>
 
-                        {/* Menu Text - ONLY SHOW WHEN SIDEBAR OPEN */}
-                        {sidebarOpen && (
+                        {/* Menu Text - SHOW WHEN SIDEBAR OPEN (DESKTOP OR MOBILE) */}
+                        {(sidebarOpen || mobileSidebarOpen) && (
                           <span className={`text-sm font-medium flex-1 text-left truncate relative z-10 overflow-hidden ${
                             activeTab === item.id ? 'text-white' : ''
                           }`}>
@@ -258,8 +258,8 @@ export default function Sidebar({
                           </span>
                         )}
 
-                        {/* PRO Badge - ONLY SHOW WHEN SIDEBAR OPEN */}
-                        {sidebarOpen && item.proOnly && (
+                        {/* PRO Badge - SHOW WHEN SIDEBAR OPEN (DESKTOP OR MOBILE) */}
+                        {(sidebarOpen || mobileSidebarOpen) && item.proOnly && (
                           <motion.span
                             className="flex items-center gap-1 relative z-10 flex-shrink-0"
                             whileHover={{ scale: 1.1 }}
@@ -287,7 +287,7 @@ export default function Sidebar({
 
         {/* Bottom Section */}
         <div className="relative p-3 border-t border-purple-500/20 space-y-2">
-          {!isPro && sidebarOpen && (
+          {!isPro && (sidebarOpen || mobileSidebarOpen) && (
             <motion.button
               onClick={() => setPlanSelectionModalOpen(true)}
               className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-purple-600 via-violet-600 to-pink-600 text-sm font-bold text-white shadow-lg shadow-purple-500/30 relative overflow-hidden group"
@@ -302,7 +302,7 @@ export default function Sidebar({
             </motion.button>
           )}
 
-          {isPro && sidebarOpen && (
+          {isPro && (sidebarOpen || mobileSidebarOpen) && (
             <motion.div
               className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-purple-500/20 via-violet-500/10 to-pink-500/20 border border-purple-500/30 shadow-lg shadow-purple-500/20"
               initial={{ scale: 0.95, opacity: 0 }}
@@ -331,11 +331,11 @@ export default function Sidebar({
                 className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
               />
               <Settings className="w-4 h-4 relative z-10 group-hover:text-purple-400 transition-colors flex-shrink-0" />
-              {sidebarOpen && <span className="relative z-10 overflow-hidden whitespace-nowrap">Settings</span>}
+              {(sidebarOpen || mobileSidebarOpen) && <span className="relative z-10 overflow-hidden whitespace-nowrap">Settings</span>
             </motion.button>
           </Link>
 
-          {sidebarOpen && (
+          {(sidebarOpen || mobileSidebarOpen) && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -374,7 +374,7 @@ export default function Sidebar({
             </motion.div>
           )}
 
-          {isAdmin && sidebarOpen && (
+          {isAdmin && (sidebarOpen || mobileSidebarOpen) && (
             <Link href="/admin-secure" className="block">
               <motion.button
                 className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-purple-600/20 to-violet-600/20 text-purple-300 border border-purple-500/30 hover:from-purple-600/30 hover:to-violet-600/30 transition-all flex items-center justify-center gap-2 text-sm font-bold shadow-lg shadow-purple-500/10"
@@ -390,7 +390,7 @@ export default function Sidebar({
             </Link>
           )}
 
-          {isFreeUser && sidebarOpen && (
+          {isFreeUser && (sidebarOpen || mobileSidebarOpen) && (
             <motion.div
               className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20"
               initial={{ opacity: 0, x: -10 }}
