@@ -681,7 +681,7 @@ function LuxTradeDashboardContent() {
   console.log('✅ [DIAGNOSTIC] Auth checks passed, rendering main content')
 
   return (
-    <div className="min-h-screen bg-[#0a0712] text-white flex" suppressHydrationWarning={true}>
+    <div className="min-h-screen bg-[#0a0712] text-white flex w-full" suppressHydrationWarning={true}>
       {/* Mobile Sidebar Overlay */}
       {mobileSidebarOpen && (
         <div
@@ -711,8 +711,8 @@ function LuxTradeDashboardContent() {
         handleSignOut={handleSignOut}
       />
 
-      {/* Main Content */}
-      <main className={`flex-1 overflow-auto transition-all duration-300 ml-0 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
+      {/* Main Content - Fixed Mobile Layout */}
+      <main className={`flex-1 overflow-auto transition-all duration-300 min-h-screen w-full ml-0 md:ml-0 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
         <Header
           sidebarOpen={sidebarOpen}
           setMobileSidebarOpen={setMobileSidebarOpen}
