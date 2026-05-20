@@ -1,181 +1,372 @@
 'use client'
 
-import { AlertCircle, PieChart } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { formatCurrency } from '@/lib/supabase'
-
-export interface Analytics {
-  totalTrades: number
-  winningTrades: number
-  losingTrades: number
-  winRate: number
-  totalPL: number
-  avgProfit: number
-  avgLoss: number
-  profitFactor: number
-  maxDrawdown: number
-  sharpeRatio: number
-  equityCurve: { date: string; equity: number }[]
-  sessionPerformance: { session: string; trades: number; pl: number; winRate: number }[]
-  monthlyPerformance: { month: string; pl: number; trades: number }[]
-}
-
-export interface Trade {
-  id: string
-  symbol: string
-  type: 'BUY' | 'SELL'
-  open_price: number
-  close_price: number
-  lot_size: number
-  profit_loss: number
-  open_time: string
-  close_time: string
-  session: string | null
-  notes?: string
-  image_url?: string | null
-}
-
-// Animated number display component
-function AnimatedNumber({ value, prefix = '', suffix = '', decimals = 2, className = '' }: {
-  value: number
-  prefix?: string
-  suffix?: string
-  decimals?: number
-  className?: string
-}) {
-  return (
-    <span className={className}>
-      {prefix}{value.toFixed(decimals)}{suffix}
-    </span>
-  )
-}
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts'
+import { TrendingUp, TrendingDown, Target, Clock, DollarSign, Activity } from 'lucide-react'
 
 interface AnalyticsTabProps {
-  analytics: Analytics | null
-  loading: boolean
-  trades: Trade[]
+  language: 'id' | 'en'
 }
 
-export default function AnalyticsTab({ analytics, loading, trades }: AnalyticsTabProps) {
+const COLORS = ['#a855f7', '#f59e0b', '#22c55e', '#3b82f6', '#ec4899']
+
+export default function AnalyticsTab({ language }: AnalyticsTabProps) {
+  const [analytics, setAnalytics] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [period, setPeriod] = useState('all')
+
+  useEffect(() => {
+    fetchAnalytics()
+  }, [period])
+
+  const fetchAnalytics = async () => {
+    try {
+      setLoading(true)
+      const token = localStorage.getItem('sb-access-token')
+      const res = await fetch(`/api/analytics?period=${period}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      const data = await res.json()
+      setAnalytics(data)
+    } catch (error) {
+      console.error('Failed to fetch analytics:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i} className="bg-gradient-to-br from-[#0f0b18]/80 to-[#12091a]/80 backdrop-blur-sm border border-white/10">
+            <CardContent className="p-6">
+              <div className="h-4 w-24 bg-white/10 rounded animate-pulse mb-3" />
+              <div className="h-8 w-32 bg-white/10 rounded animate-pulse" />
+            </CardContent>
+          </Card>
+        ))}
       </div>
     )
   }
 
-  if (!analytics || analytics.totalTrades === 0) {
+  if (!analytics) {
     return (
       <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
-        <CardContent className="py-16 text-center">
-          <PieChart className="w-12 h-12 mx-auto mb-4 text-gray-500" />
-          <h3 className="text-lg font-semibold mb-2">No Analytics Yet</h3>
-          <p className="text-gray-400">Add some trades to see analytics!</p>
+        <CardContent className="py-20 text-center">
+          <Activity className="w-12 h-12 text-purple-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No Data Available</h3>
+          <p className="text-gray-400">Start logging trades to see analytics</p>
         </CardContent>
       </Card>
     )
-  }
-
-  const sessionColors: Record<string, string> = {
-    'London': '#f59e0b',
-    'New York': '#8b5cf6',
-    'Asia': '#10b981',
-    'Off-Market': '#6b7280'
   }
 
   return (
     <div className="space-y-6">
-      {/* Session Performance Chart */}
-      <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
-        <CardHeader>
-          <CardTitle className="text-lg">Session Performance</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[200px] lg:h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={analytics.sessionPerformance}>
-                <XAxis dataKey="session" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ background: '#0f0b18', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 8 }}
-                  formatter={(value: number) => formatCurrency(value)}
-                />
-                <Bar dataKey="pl" radius={[4, 4, 0, 0]} animationDuration={1000}>
-                  {analytics.sessionPerformance.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={sessionColors[entry.session] || '#8b5cf6'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Session Performance Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-        {analytics.sessionPerformance.map((session) => (
-          <motion.div
-            key={session.session}
-            className="p-4 rounded-xl bg-white/5 border border-purple-900/30"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
+      {/* Period Selector */}
+      <div className="flex gap-2 mb-6">
+        {(['all', 'week', 'month', 'year'] as const).map((p) => (
+          <button
+            key={p}
+            onClick={() => setPeriod(p)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              period === p
+                ? 'bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg shadow-purple-500/30'
+                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+            }`}
           >
-            <div className="text-sm text-gray-400 mb-1">{session.session}</div>
-            <div className={`text-xl font-bold ${session.pl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              <AnimatedNumber value={session.pl} prefix={session.pl >= 0 ? '+' : ''} decimals={0} />
-            </div>
-            <div className="text-xs text-gray-500 mt-1">
-              {session.trades} trades - {session.winRate.toFixed(0)}% WR
-            </div>
-          </motion.div>
+            {language === 'id' ?
+              p === 'all' ? 'Semua' :
+              p === 'week' ? 'Minggu' :
+              p === 'month' ? 'Bulan' : 'Tahun'
+            :
+              p.charAt(0).toUpperCase() + p.slice(1)
+            }
+          </button>
         ))}
       </div>
 
-      {/* Risk Metrics */}
-      <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-purple-400" />
-            Risk Metrics
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl bg-white/5 border border-purple-900/30">
-              <div className="text-sm text-gray-400 mb-1">Max Drawdown</div>
-              <div className="text-2xl font-bold text-red-400">
-                -<AnimatedNumber value={analytics.maxDrawdown || 0} decimals={0} />
+      {/* Today's Performance */}
+      {analytics.today && (
+        <Card className="bg-gradient-to-br from-purple-500/15 via-violet-500/10 to-pink-500/10 backdrop-blur-sm border border-purple-500/30">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-purple-400" />
+              {language === 'id' ? 'Performa Hari Ini' : "Today's Performance"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs text-gray-400 mb-1">{language === 'id' ? 'Jumlah Trade' : 'Trades'}</p>
+                <p className="text-2xl font-bold text-white">{analytics.today.trades}</p>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Peak to trough decline</p>
+              <div>
+                <p className="text-xs text-gray-400 mb-1">{language === 'id' ? 'Profit/Loss' : 'P/L'}</p>
+                <p className={`text-2xl font-bold ${analytics.today.pl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  ${analytics.today.pl.toFixed(2)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 mb-1">{language === 'id' ? 'Win Rate' : 'Win Rate'}</p>
+                <p className="text-2xl font-bold text-amber-400">{analytics.today.winRate.toFixed(1)}%</p>
+              </div>
             </div>
-            <div className="p-4 rounded-xl bg-white/5 border border-purple-900/30">
-              <div className="text-sm text-gray-400 mb-1">Sharpe Ratio</div>
-              <div className="text-2xl font-bold text-purple-400">
-                <AnimatedNumber value={analytics.sharpeRatio || 0} decimals={2} />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Risk-adjusted return</p>
-            </div>
-            <div className="p-4 rounded-xl bg-white/5 border border-purple-900/30">
-              <div className="text-sm text-gray-400 mb-1">Average Win</div>
-              <div className="text-2xl font-bold text-emerald-400">
-                +<AnimatedNumber value={analytics.avgProfit} decimals={0} />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Per winning trade</p>
-            </div>
-            <div className="p-4 rounded-xl bg-white/5 border border-purple-900/30">
-              <div className="text-sm text-gray-400 mb-1">Average Loss</div>
-              <div className="text-2xl font-bold text-red-400">
-                -<AnimatedNumber value={analytics.avgLoss} decimals={0} />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Per losing trade</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Active Streak */}
+      {analytics.activeStreak && analytics.activeStreak.count > 0 && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className={`p-4 rounded-xl border ${
+            analytics.activeStreak.type === 'win'
+              ? 'bg-gradient-to-r from-emerald-500/20 to-emerald-600/10 border-emerald-500/30'
+              : 'bg-gradient-to-r from-red-500/20 to-red-600/10 border-red-500/30'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            {analytics.activeStreak.type === 'win' ? (
+              <TrendingUp className="w-6 h-6 text-emerald-400" />
+            ) : (
+              <TrendingDown className="w-6 h-6 text-red-400" />
+            )}
+            <div>
+              <p className="text-sm text-gray-400">
+                {language === 'id' ? 'Streak Aktif' : 'Active Streak'}
+              </p>
+              <p className={`text-xl font-bold ${
+                analytics.activeStreak.type === 'win' ? 'text-emerald-400' : 'text-red-400'
+              }`}>
+                {analytics.activeStreak.count} {analytics.activeStreak.type === 'win' ? 'Wins' : 'Losses'}
+              </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </motion.div>
+      )}
+
+      {/* Symbol Performance */}
+      {analytics.symbolPerformance && analytics.symbolPerformance.length > 0 && (
+        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Target className="w-5 h-5 text-purple-400" />
+              {language === 'id' ? 'Performa Symbol' : 'Symbol Performance'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analytics.symbolPerformance.slice(0, 10)}>
+                  <XAxis
+                    dataKey="symbol"
+                    tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: '#0f0b18',
+                      border: '1px solid rgba(139,92,246,0.3)',
+                      borderRadius: 8
+                    }}
+                    formatter={(value: number) => `$${value.toFixed(2)}`}
+                  />
+                  <Bar dataKey="pl" radius={[4, 4, 0, 0]}>
+                    {analytics.symbolPerformance.slice(0, 10).map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={entry.pl >= 0 ? '#22c55e' : '#ef4444'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Monthly Performance */}
+      {analytics.monthlyPerformance && analytics.monthlyPerformance.length > 0 && (
+        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-purple-400" />
+              {language === 'id' ? 'Performa Bulanan' : 'Monthly Performance'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analytics.monthlyPerformance}>
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: '#0f0b18',
+                      border: '1px solid rgba(139,92,246,0.3)',
+                      borderRadius: 8
+                    }}
+                    formatter={(value: number) => `$${value.toFixed(2)}`}
+                  />
+                  <Bar dataKey="pl" radius={[4, 4, 0, 0]}>
+                    {analytics.monthlyPerformance.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={entry.pl >= 0 ? '#22c55e' : '#ef4444'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Day of Week Performance */}
+      {analytics.dayOfWeekPerformance && analytics.dayOfWeekPerformance.length > 0 && (
+        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Activity className="w-5 h-5 text-purple-400" />
+              {language === 'id' ? 'Performa Hari' : 'Day of Week Performance'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analytics.dayOfWeekPerformance}>
+                  <XAxis
+                    dataKey="day"
+                    tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: '#0f0b18',
+                      border: '1px solid rgba(139,92,246,0.3)',
+                      borderRadius: 8
+                    }}
+                    formatter={(value: number) => `$${value.toFixed(2)}`}
+                  />
+                  <Bar dataKey="pl" radius={[4, 4, 0, 0]}>
+                    {analytics.dayOfWeekPerformance.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={entry.pl >= 0 ? '#22c55e' : '#ef4444'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Trade Duration & R:R Ratio */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Clock className="w-5 h-5 text-purple-400" />
+              {language === 'id' ? 'Durasi Rata-rata' : 'Avg Trade Duration'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-white">
+              {analytics.avgTradeDuration > 0
+                ? `${Math.round(analytics.avgTradeDuration)} min`
+                : language === 'id' ? 'N/A' : 'N/A'
+              }
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Target className="w-5 h-5 text-purple-400" />
+              {language === 'id' ? 'R:R Ratio Rata-rata' : 'Avg R:R Ratio'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-white">
+              {analytics.avgRRRatio > 0
+                ? analytics.avgRRRatio.toFixed(2)
+                : language === 'id' ? 'N/A' : 'N/A'
+              }
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Setup Type Performance */}
+      {analytics.setupTypePerformance && analytics.setupTypePerformance.length > 0 && (
+        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Target className="w-5 h-5 text-purple-400" />
+              {language === 'id' ? 'Performa Setup Type' : 'Setup Type Performance'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analytics.setupTypePerformance} layout="vertical">
+                  <XAxis
+                    type="number"
+                    tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    dataKey="setup_type"
+                    type="category"
+                    width={100}
+                    tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: '#0f0b18',
+                      border: '1px solid rgba(139,92,246,0.3)',
+                      borderRadius: 8
+                    }}
+                    formatter={(value: number) => `$${value.toFixed(2)}`}
+                  />
+                  <Bar dataKey="pl" radius={[0, 4, 4, 0]}>
+                    {analytics.setupTypePerformance.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
