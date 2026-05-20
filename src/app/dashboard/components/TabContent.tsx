@@ -92,7 +92,7 @@ export default function TabContent({
   hasMounted,
 }: TabContentProps) {
   return (
-    <div className="p-4 lg:p-6 pb-24">
+    <div className="p-2 sm:p-4 lg:p-6 pb-24">
       {activeTab === 'dashboard' && (
         <motion.div
           key="dashboard"
