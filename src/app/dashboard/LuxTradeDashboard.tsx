@@ -712,7 +712,7 @@ function LuxTradeDashboardContent() {
       />
 
       {/* Main Content */}
-      <main className={`flex-1 overflow-auto transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
+      <main className={`flex-1 overflow-auto transition-all duration-300 ml-0 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
         <Header
           sidebarOpen={sidebarOpen}
           setMobileSidebarOpen={setMobileSidebarOpen}
