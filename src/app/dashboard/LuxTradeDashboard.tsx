@@ -689,14 +689,6 @@ function LuxTradeDashboardContent() {
 
   return (
     <div className="min-h-screen bg-[#0a0712] text-white flex w-full" suppressHydrationWarning={true}>
-      {/* Mobile Sidebar Overlay */}
-      {mobileSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 z-30 lg:hidden backdrop-blur-sm"
-          onClick={() => setMobileSidebarOpen(false)}
-        />
-      )}
-
       {/* Sidebar */}
       <Sidebar
         sidebarOpen={sidebarOpen}
@@ -718,8 +710,11 @@ function LuxTradeDashboardContent() {
         handleSignOut={handleSignOut}
       />
 
-      {/* Main Content - Fixed Mobile Layout */}
-      <main className={`flex-1 overflow-auto transition-all duration-300 min-h-screen w-full ml-0 md:ml-0 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
+      {/* Main Content - MOBILE: Full width, DESKTOP: Adjusted by sidebar */}
+      <main className={`flex-1 overflow-auto transition-all duration-300 min-h-screen
+        w-full ml-0 pl-0 pr-0
+        ${sidebarOpen ? 'lg:ml-64 lg:pl-0' : 'lg:ml-20 lg:pl-0'}
+      `}>
         <Header
           sidebarOpen={sidebarOpen}
           setMobileSidebarOpen={setMobileSidebarOpen}
