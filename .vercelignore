@@ -1,0 +1,3 @@
+# Cache busting - force rebuild
+node_modules/.cache
+.next/cache
