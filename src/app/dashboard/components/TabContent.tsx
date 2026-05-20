@@ -113,6 +113,7 @@ export default function TabContent({
             chartAnimated={chartAnimated}
             language={language}
             isPro={isPro}
+            profile={profile}
           />
         </motion.div>
       )}
