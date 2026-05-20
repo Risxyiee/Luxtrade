@@ -17,13 +17,20 @@ model Profile {
   plan              String    @default("FREE")
   proExpiry         DateTime?
   role              String    @default("USER")
+  full_name         String?
+  is_pro            Boolean   @default(false)
+  subscription_until DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
-  
+
   // Relations
   submissions       UserSubmission[]
   missionProgresses  MissionProgress[]
-  
+  trades            Trade[]
+  journalEntries    JournalEntry[]
+  tags              Tag[]
+  weeklyGoals        WeeklyGoal[]
+
   @@map("profiles")
 }
 
@@ -37,10 +44,10 @@ model UserSubmission {
   reviewedAt      DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  
+
   // Relations
   user            Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@map("user_submissions")
 }
 
@@ -54,10 +61,10 @@ model MissionProgress {
   claimed         Boolean   @default(false)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  
+
   // Relations
   user            Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@unique([userId, missionKey])
   @@map("mission_progress")
 }
@@ -71,11 +78,11 @@ model User {
   role              String    @default("USER")
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
-  
+
   // Relations
   subscriptions     UserSubscription[]
   withdrawals       Withdrawal[]
-  
+
   @@map("users")
 }
 
@@ -88,10 +95,10 @@ model UserSubscription {
   endDate           DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
-  
+
   // Relations
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@map("user_subscriptions")
 }
 
@@ -111,4 +118,83 @@ model Withdrawal {
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("withdrawals")
+}
+
+model Trade {
+  id                String    @id @default(uuid())
+  user_id           String
+  symbol            String
+  type              String    // BUY or SELL
+  open_price        Float
+  close_price       Float
+  lot_size          Float
+  profit_loss       Float
+  open_time         DateTime
+  close_time        DateTime
+  session           String?   // London, New York, Tokyo, Sydney
+  notes             String?
+  image_url         String?
+  setup_type        String?   // Breakout, Reversal, etc.
+  tags              String?   // JSON array of tag IDs
+  risk_reward_ratio Float?
+  trade_duration    Int?      // in minutes
+  linked_journal_id String?   // Link to journal entry
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  // Relations
+  user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  linkedJournal     JournalEntry? @relation("TradeJournal", fields: [linked_journal_id], references: [id])
+
+  @@map("trades")
+}
+
+model JournalEntry {
+  id                String    @id @default(uuid())
+  user_id           String
+  title             String
+  content           String
+  mood              String?   // happy, neutral, sad, frustrated, etc.
+  market_condition  String?   // trending, ranging, volatile
+  tags              String?   // JSON array of tag IDs
+  image_url         String?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  // Relations
+  user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  linkedTrades      Trade[]   @relation("TradeJournal")
+
+  @@map("journal_entries")
+}
+
+model Tag {
+  id                String    @id @default(uuid())
+  user_id           String
+  name              String
+  color             String    @default("#a855f7")
+  created_at        DateTime  @default(now())
+
+  // Relations
+  user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("tags")
+}
+
+model WeeklyGoal {
+  id                String    @id @default(uuid())
+  user_id           String
+  week_start        DateTime
+  target_trades     Int       @default(10)
+  target_profit     Float?
+  current_trades    Int       @default(0)
+  current_profit    Float     @default(0)
+  status            String    @default("active") // active, completed, failed
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  // Relations
+  user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("weekly_goals")
 }
