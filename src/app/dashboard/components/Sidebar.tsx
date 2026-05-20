@@ -82,7 +82,7 @@ export default function Sidebar({
   handleSignOut
 }: SidebarProps) {
   return (
-    <aside className={`relative flex flex-col fixed h-full z-40 transition-all duration-500 ease-out
+    <aside className={`relative flex flex-col fixed lg:static h-full z-40 transition-all duration-300 ease-out
       ${sidebarOpen ? 'w-72' : 'w-20'}
       ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
       {/* Glassmorphism Background */}
