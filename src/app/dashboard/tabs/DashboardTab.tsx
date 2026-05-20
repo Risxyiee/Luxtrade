@@ -952,25 +952,6 @@ function DashboardTab({
               <h3 className="text-xl lg:text-2xl font-bold mb-3 bg-gradient-to-r from-purple-200 to-purple-400 bg-clip-text text-transparent">Welcome to LuxTrade!</h3>
               <p className="text-gray-400 mb-6 max-w-md mx-auto">Start tracking your trades to see powerful analytics and insights.</p>
               
-              {/* Suggestion Box */}
-              <div className="max-w-md mx-auto mb-8 p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0">
-                    <Star className="w-5 h-5 text-purple-400" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-semibold text-purple-300 mb-1">
-                      {language === 'id' ? '💡 Tips Otomatisasi' : '💡 Automation Tip'}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {language === 'id' 
-                        ? 'Gunakan ⚡ Auto-Journal untuk otomatis sync trading dari MT4/MT5 Anda. Cukup connect sekali, semua trades masuk otomatis!'
-                        : 'Use ⚡ Auto-Journal to auto-sync trades from your MT4/MT5. Just connect once, all trades sync automatically!'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button onClick={() => setAddTradeOpen(true)} className="bg-gradient-to-r from-purple-500 to-violet-600 shadow-lg shadow-purple-500/20">
                   <Plus className="w-4 h-4 mr-2" />Add Your First Trade
