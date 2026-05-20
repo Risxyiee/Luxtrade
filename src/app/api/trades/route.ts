@@ -139,6 +139,11 @@ export async function POST(request: NextRequest) {
       session: body.session || null,
       notes: body.notes || null,
       image_url: body.image_url || null,
+      setup_type: body.setup_type || null,
+      tags: body.tags ? JSON.stringify(body.tags) : null,
+      risk_reward_ratio: body.risk_reward_ratio ? parseFloat(body.risk_reward_ratio) : null,
+      trade_duration: body.trade_duration ? parseInt(body.trade_duration) : null,
+      linked_journal_id: body.linked_journal_id || null,
     }
     
     const { data, error } = await supabase
