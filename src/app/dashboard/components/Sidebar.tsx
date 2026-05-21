@@ -97,9 +97,9 @@ export default function Sidebar({
         top-0 left-0
         h-full
         z-50
-        transition-transform duration-300 ease-in-out
+        transition-all duration-300 ease-in-out
         ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        ${sidebarOpen ? 'w-72' : 'w-20'}
+        ${mobileSidebarOpen ? 'w-80' : sidebarOpen ? 'w-80' : 'w-20'}
       `}>
         {/* Glassmorphism Background */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0d0a1a]/98 via-[#0f0b18]/98 to-[#0d0a1a]/98 backdrop-blur-3xl border-r border-purple-500/20" />
