@@ -438,10 +438,31 @@ export default function AboutPage() {
       {/* Footer */}
       <footer className="border-t border-white/[0.08] py-16 px-4 sm:px-6 lg:px-8 mt-auto">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-white/40 text-sm font-medium">
               © 2024 LuxTrade. All rights reserved.
             </p>
+            <div className="flex items-center gap-6">
+              <Link
+                href="/privacy"
+                className="text-white/40 hover:text-white text-sm font-medium transition-colors"
+              >
+                {isEnglish ? 'Privacy Policy' : 'Kebijakan Privasi'}
+              </Link>
+              <Link
+                href="/terms"
+                className="text-white/40 hover:text-white text-sm font-medium transition-colors"
+              >
+                {isEnglish ? 'Terms of Service' : 'Syarat & Ketentuan'}
+              </Link>
+              <Link
+                href="/contact"
+                className="text-white/40 hover:text-white text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                <Mail className="w-4 h-4" />
+                {isEnglish ? 'Contact Us' : 'Hubungi Kami'}
+              </Link>
+            </div>
           </div>
         </div>
       </footer>
