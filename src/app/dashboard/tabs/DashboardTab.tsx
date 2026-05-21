@@ -155,6 +155,7 @@ function AnimatedStatCard({
   icon: Icon,
   iconColor,
   iconBgColor,
+  gradientBg = 'from-purple-500/20 to-pink-500/20',
   valueColor = 'text-white',
   prefix = '',
   suffix = '',
@@ -166,6 +167,7 @@ function AnimatedStatCard({
   icon: React.ElementType
   iconColor: string
   iconBgColor: string
+  gradientBg?: string
   valueColor?: string
   prefix?: string
   suffix?: string
@@ -177,38 +179,60 @@ function AnimatedStatCard({
     <motion.div
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
-      whileHover={{ scale: 1.03, y: -5 }}
+      whileHover={{ scale: 1.05, y: -8 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
     >
-      <Card className={`relative overflow-hidden bg-gradient-to-br from-[#0f0b18]/80 to-[#12091a]/80 backdrop-blur-sm border border-white/10 transition-all duration-300 ${isHovered ? 'shadow-lg shadow-purple-500/20 border-purple-500/30' : ''}`}>
-        {/* Glassmorphism Effect */}
-        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300" />
-        
-        {/* Animated Glow */}
+      <Card className={`relative overflow-hidden bg-gradient-to-br from-[#0f0b18]/90 to-[#12091a]/90 backdrop-blur-md border transition-all duration-300 ${isHovered ? 'shadow-2xl shadow-purple-500/30 border-purple-500/40' : 'border-white/10'}`}>
+        {/* Glassmorphism Effect with More Depth */}
+        <div className="absolute inset-0 bg-gradient-to-br from-white/8 to-white/2 opacity-0 hover:opacity-100 transition-opacity duration-300" />
+
+        {/* Animated Background Glow - Always Present, Brighter on Hover */}
+        <motion.div
+          className={`absolute -inset-0.5 bg-gradient-to-br ${gradientBg} blur-2xl opacity-20 transition-opacity duration-300`}
+          animate={{
+            opacity: isHovered ? [0.3, 0.5, 0.3] : [0.15, 0.25, 0.15],
+          }}
+          transition={{
+            duration: 3,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+
+        {/* Hover Glow Effect */}
         {isHovered && (
           <motion.div
-            className="absolute -inset-1 bg-gradient-to-r from-purple-500/20 via-violet-500/20 to-amber-500/20 blur-xl"
+            className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-violet-500/10 to-pink-500/10"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
           />
         )}
-        
+
         <CardHeader className="flex flex-row items-center justify-between pb-2 relative">
-          <CardTitle className="text-xs lg:text-sm font-medium text-gray-400">{title}</CardTitle>
+          <CardTitle className="text-xs lg:text-sm font-medium text-gray-300">{title}</CardTitle>
           <motion.div
-            className={`w-10 h-10 rounded-xl ${iconBgColor} flex items-center justify-center shadow-lg`}
-            animate={isHovered ? { scale: 1.1, rotate: 5 } : { scale: 1, rotate: 0 }}
+            className={`w-12 h-12 rounded-xl ${iconBgColor} flex items-center justify-center shadow-xl relative overflow-hidden`}
+            animate={isHovered ? { scale: 1.15, rotate: 8 } : { scale: 1, rotate: 0 }}
             transition={{ type: "spring", stiffness: 300 }}
           >
-            <Icon className={`w-5 h-5 ${iconColor}`} />
+            <motion.div
+              className="absolute inset-0 bg-white/20"
+              animate={isHovered ? {
+                x: ['-100%', '100%'],
+              } : {}}
+              transition={{
+                duration: 0.6,
+                ease: "easeInOut"
+              }}
+            />
+            <Icon className={`w-6 h-6 ${iconColor} relative z-10`} />
           </motion.div>
         </CardHeader>
         <CardContent className="relative">
-          <div className={`text-2xl lg:text-3xl font-bold ${valueColor} drop-shadow-sm`}>
+          <div className={`text-3xl lg:text-4xl font-bold ${valueColor} drop-shadow-lg mb-1`}>
             <AnimatedNumber value={value} prefix={prefix} suffix={suffix} decimals={decimals} />
           </div>
-          {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
+          {subtitle && <p className="text-sm text-gray-400 font-medium">{subtitle}</p>}
         </CardContent>
       </Card>
     </motion.div>
@@ -764,6 +788,7 @@ function DashboardTab({
           icon={DollarSign}
           iconColor="text-white"
           iconBgColor={(analytics?.totalPL || 0) >= 0 ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/10' : 'bg-gradient-to-br from-red-500/20 to-red-600/10'}
+          gradientBg={(analytics?.totalPL || 0) >= 0 ? 'from-emerald-500/30 to-emerald-600/20' : 'from-red-500/30 to-red-600/20'}
           valueColor={(analytics?.totalPL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}
         />
         <AnimatedStatCard
@@ -774,6 +799,7 @@ function DashboardTab({
           icon={Target}
           iconColor="text-amber-400"
           iconBgColor="bg-gradient-to-br from-amber-500/20 to-orange-600/10"
+          gradientBg="from-amber-500/30 to-orange-600/20"
           valueColor="text-amber-400"
           decimals={1}
         />
@@ -784,6 +810,7 @@ function DashboardTab({
           icon={Activity}
           iconColor="text-purple-400"
           iconBgColor="bg-gradient-to-br from-purple-500/20 to-violet-600/10"
+          gradientBg="from-purple-500/30 to-violet-600/20"
           valueColor="text-purple-400"
           decimals={0}
         />
@@ -794,6 +821,7 @@ function DashboardTab({
           icon={TrendingUp}
           iconColor="text-blue-400"
           iconBgColor="bg-gradient-to-br from-blue-500/20 to-cyan-600/10"
+          gradientBg="from-blue-500/30 to-cyan-600/20"
           valueColor="text-blue-400"
           decimals={2}
         />
