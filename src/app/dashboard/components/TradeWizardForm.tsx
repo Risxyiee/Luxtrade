@@ -51,6 +51,21 @@ interface TradeWizardFormProps {
   saving?: boolean
 }
 
+// Quick pairs for easy selection
+const quickPairs = [
+  'EURUSD', 'GBPUSD', 'USDJPY', 'XAUUSD', 'BTCUSD', 'ETHUSD'
+]
+
+// Trading sessions
+const tradingSessions = [
+  { value: 'london', label: 'London', emoji: '🇬🇧', color: 'text-blue-400' },
+  { value: 'new_york', label: 'New York', emoji: '🇺🇸', color: 'text-green-400' },
+  { value: 'tokyo', label: 'Tokyo', emoji: '🇯🇵', color: 'text-red-400' },
+  { value: 'sydney', label: 'Sydney', emoji: '🇦🇺', color: 'text-yellow-400' },
+  { value: 'asian', label: 'Asian', emoji: '🌏', color: 'text-orange-400' },
+  { value: 'overlap', label: 'Overlap', emoji: '⏰', color: 'text-purple-400' },
+]
+
 export default function TradeWizardForm({
   formData,
   onFormChange,
@@ -196,6 +211,45 @@ export default function TradeWizardForm({
     return stepErrors
   }
 
+  const calculateProfitLoss = () => {
+    const entry = parseFloat(formData.open_price) || 0
+    const exit = parseFloat(formData.close_price) || 0
+    const lot = parseFloat(formData.lot_size) || 0
+    const type = formData.type
+
+    if (entry && exit && lot && type) {
+      // Simple calculation for forex (assuming standard lot = 100,000 units)
+      // For JPY pairs, multiplier is 1,000 instead of 100,000
+      const isJPY = formData.symbol?.includes('JPY')
+      const multiplier = isJPY ? 1000 : 100000
+
+      let calculatedPL = 0
+      if (type === 'BUY') {
+        calculatedPL = (exit - entry) * lot * multiplier
+      } else {
+        calculatedPL = (entry - exit) * lot * multiplier
+      }
+
+      // Round to 2 decimal places
+      const roundedPL = Math.round(calculatedPL * 100) / 100
+
+      // Only auto-fill if profit_loss is empty or user hasn't manually edited it
+      if (!formData.profit_loss) {
+        onFormChange('profit_loss', roundedPL.toString())
+        toast.success(`Auto-calculated P/L: $${roundedPL.toFixed(2)}`)
+      }
+    }
+  }
+
+  const handlePriceChange = (field: 'open_price' | 'close_price', value: string) => {
+    onFormChange(field, value)
+    // Auto-calculate P/L when both prices are available
+    if (formData.open_price && formData.close_price) {
+      // Debounce calculation slightly
+      setTimeout(() => calculateProfitLoss(), 300)
+    }
+  }
+
   const handleSave = () => {
     // Final validation before saving
     const allErrors: Record<string, string> = {}
@@ -265,14 +319,33 @@ export default function TradeWizardForm({
                 <Label className="text-white font-semibold">Trading Pair *</Label>
                 <Input
                   placeholder="EURUSD"
-                  className={`bg-[#0a0712] border-purple-900/30 mt-2 text-white ${errors.symbol ? 'border-red-500' : ''}`}
+                  className={`bg-[#0a0712] border-purple-900/30 mt-2 text-white uppercase ${errors.symbol ? 'border-red-500' : ''}`}
                   value={formData.symbol}
                   onChange={(e) => {
-                    onFormChange('symbol', e.target.value)
+                    onFormChange('symbol', e.target.value.toUpperCase())
                     if (errors.symbol) setErrors({ ...errors, symbol: '' })
                   }}
                 />
                 {errors.symbol && <p className="text-red-400 text-xs mt-1">{errors.symbol}</p>}
+                {/* Quick Pair Selector */}
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {quickPairs.map((pair) => (
+                    <button
+                      key={pair}
+                      onClick={() => {
+                        onFormChange('symbol', pair)
+                        if (errors.symbol) setErrors({ ...errors, symbol: '' })
+                      }}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                        formData.symbol === pair
+                          ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20'
+                          : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      {pair}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
@@ -292,20 +365,40 @@ export default function TradeWizardForm({
                 {errors.type && <p className="text-red-400 text-xs mt-1">{errors.type}</p>}
               </div>
 
-              <div>
-                <Label className="text-white font-semibold">Lot Size *</Label>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="0.1"
-                  className={`bg-[#0a0712] border-purple-900/30 mt-2 text-white ${errors.lot_size ? 'border-red-500' : ''}`}
-                  value={formData.lot_size}
-                  onChange={(e) => {
-                    onNumberInput('lot_size', e)
-                    if (errors.lot_size) setErrors({ ...errors, lot_size: '' })
-                  }}
-                />
-                {errors.lot_size && <p className="text-red-400 text-xs mt-1">{errors.lot_size}</p>}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-white font-semibold">Lot Size *</Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0.1"
+                    className={`bg-[#0a0712] border-purple-900/30 mt-2 text-white ${errors.lot_size ? 'border-red-500' : ''}`}
+                    value={formData.lot_size}
+                    onChange={(e) => {
+                      onNumberInput('lot_size', e)
+                      if (errors.lot_size) setErrors({ ...errors, lot_size: '' })
+                    }}
+                  />
+                  {errors.lot_size && <p className="text-red-400 text-xs mt-1">{errors.lot_size}</p>}
+                </div>
+                <div>
+                  <Label className="text-white font-semibold">Trading Session</Label>
+                  <Select value={formData.session || ''} onValueChange={(value) => {
+                    onSessionChange(value)
+                  }}>
+                    <SelectTrigger className="bg-[#0a0712] border-purple-900/30 mt-2 text-white">
+                      <SelectValue placeholder="Select session" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#0f0b18] border-purple-900/30">
+                      {tradingSessions.map((session) => (
+                        <SelectItem key={session.value} value={session.value} className="flex items-center gap-2">
+                          <span>{session.emoji}</span>
+                          <span className={session.color}>{session.label}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -335,10 +428,16 @@ export default function TradeWizardForm({
                     value={formData.open_price}
                     onChange={(e) => {
                       onNumberInput('open_price', e)
+                      handlePriceChange('open_price', e.target.value)
                       if (errors.open_price) setErrors({ ...errors, open_price: '' })
                     }}
                   />
-                  <p className="text-xs text-gray-500 mt-1">Price when you opened the position</p>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-xs text-gray-500">Price when you opened the position</p>
+                    {formData.open_price && (
+                      <span className="text-xs text-green-400 font-medium">✓ Entry set</span>
+                    )}
+                  </div>
                   {errors.open_price && <p className="text-red-400 text-xs mt-1">{errors.open_price}</p>}
                 </CardContent>
               </Card>
@@ -356,10 +455,16 @@ export default function TradeWizardForm({
                     value={formData.close_price}
                     onChange={(e) => {
                       onNumberInput('close_price', e)
+                      handlePriceChange('close_price', e.target.value)
                       if (errors.close_price) setErrors({ ...errors, close_price: '' })
                     }}
                   />
-                  <p className="text-xs text-gray-500 mt-1">Leave empty if position is still open</p>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-xs text-gray-500">Leave empty if position is still open</p>
+                    {formData.close_price && (
+                      <span className="text-xs text-red-400 font-medium">✓ Exit set</span>
+                    )}
+                  </div>
                   {errors.close_price && <p className="text-red-400 text-xs mt-1">{errors.close_price}</p>}
                 </CardContent>
               </Card>
@@ -380,27 +485,41 @@ export default function TradeWizardForm({
                       if (errors.profit_loss) setErrors({ ...errors, profit_loss: '' })
                     }}
                   />
-                  <p className="text-xs text-gray-500 mt-1">Leave empty if position is still open</p>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-xs text-gray-500">Leave empty if position is still open</p>
+                    {formData.profit_loss && (
+                      <span className={`text-xs font-medium ${
+                        parseFloat(formData.profit_loss) >= 0 ? 'text-green-400' : 'text-red-400'
+                      }`}>
+                        {parseFloat(formData.profit_loss) >= 0 ? '📈' : '📉'} P/L: ${formData.profit_loss}
+                      </span>
+                    )}
+                  </div>
                   {errors.profit_loss && <p className="text-red-400 text-xs mt-1">{errors.profit_loss}</p>}
                 </CardContent>
               </Card>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-gray-300 text-sm">Open Time</Label>
+            {/* Compact Time Section */}
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="space-y-1">
+                <Label className="text-gray-400 text-xs font-medium flex items-center gap-1">
+                  <span className="text-green-400">▸</span> Open Time
+                </Label>
                 <Input
                   type="datetime-local"
-                  className="bg-[#0a0712] border-purple-900/30 mt-1 text-sm"
+                  className="bg-[#0a0712] border-purple-900/30 text-xs h-9"
                   value={formData.open_time ? formData.open_time.slice(0, 16) : ''}
                   onChange={(e) => onFormChange('open_time', e.target.value ? new Date(e.target.value).toISOString() : '')}
                 />
               </div>
-              <div>
-                <Label className="text-gray-300 text-sm">Close Time</Label>
+              <div className="space-y-1">
+                <Label className="text-gray-400 text-xs font-medium flex items-center gap-1">
+                  <span className="text-red-400">▸</span> Close Time
+                </Label>
                 <Input
                   type="datetime-local"
-                  className="bg-[#0a0712] border-purple-900/30 mt-1 text-sm"
+                  className="bg-[#0a0712] border-purple-900/30 text-xs h-9"
                   value={formData.close_time ? formData.close_time.slice(0, 16) : ''}
                   onChange={(e) => onFormChange('close_time', e.target.value ? new Date(e.target.value).toISOString() : '')}
                 />
