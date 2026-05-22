@@ -8,8 +8,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { ArrowRight, ArrowLeft, Upload, CheckCircle, Sparkles } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Upload, CheckCircle, Sparkles, Loader2, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { z } from 'zod'
+import { toast } from 'sonner'
+
+// ==================== ZOD VALIDATION SCHEMA ====================
+const tradeFormSchema = z.object({
+  symbol: z.string().min(3, 'Symbol must be at least 3 characters'),
+  type: z.enum(['BUY', 'SELL'], { required_error: 'Type is required' }),
+  lot_size: z.string().min(1, 'Lot size is required').regex(/^\d+(\.\d+)?$/, 'Invalid lot size'),
+  open_price: z.string().min(1, 'Entry price is required').regex(/^\d+(\.\d+)?$/, 'Invalid price'),
+  close_price: z.string().min(1, 'Exit price is required').regex(/^\d+(\.\d+)?$/, 'Invalid price'),
+  profit_loss: z.string().min(1, 'Profit/Loss is required').regex(/^-?\d+(\.\d+)?$/, 'Invalid amount'),
+  open_time: z.string().optional(),
+  close_time: z.string().optional(),
+  session: z.string().optional(),
+  notes: z.string().optional(),
+  emotion: z.string().optional(),
+  screenshot_url: z.string().optional(),
+})
 
 // Emotion options with emoji
 const emotionOptions = [
@@ -47,9 +65,21 @@ export default function TradeWizardForm({
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedEmotion, setSelectedEmotion] = useState<string>(formData.emotion || '')
   const [uploadedImage, setUploadedImage] = useState<string | null>(formData.screenshot_url || null)
+  const [uploading, setUploading] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const totalSteps = 3
 
   const handleNext = () => {
+    // Validate current step before proceeding
+    const stepErrors = validateStep(currentStep)
+
+    if (Object.keys(stepErrors).length > 0) {
+      setErrors(stepErrors)
+      toast.error('Please fix the errors before proceeding')
+      return
+    }
+
+    setErrors({})
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1)
     }
@@ -66,25 +96,133 @@ export default function TradeWizardForm({
     onFormChange('emotion', emotion)
   }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      // For now, store as base64 (later will be uploaded to Supabase Storage)
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        const imageUrl = ev.target?.result as string
-        setUploadedImage(imageUrl)
-        onFormChange('screenshot_url', imageUrl)
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB')
+      return
+    }
+
+    setUploading(true)
+
+    try {
+      // Get the auth token
+      const token = localStorage.getItem('sb-access-token')
+
+      if (!token) {
+        throw new Error('Please login to upload screenshots')
       }
-      reader.readAsDataURL(file)
+
+      // Create FormData
+      const formData = new FormData()
+      formData.append('file', file)
+
+      // Upload to Supabase Storage via API
+      const response = await fetch('/api/upload/screenshot', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || result.message || 'Upload failed')
+      }
+
+      // Update state with the public URL
+      setUploadedImage(result.url)
+      onFormChange('screenshot_url', result.url)
+
+      toast.success('Screenshot uploaded successfully!')
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to upload screenshot')
+    } finally {
+      setUploading(false)
     }
   }
 
-  const handleSave = () => {
-    // Save emotion to notes if not empty
-    if (selectedEmotion && !formData.notes) {
-      onFormChange('notes', `Mood: ${selectedEmotion}`)
+  const handleRemoveImage = () => {
+    setUploadedImage(null)
+    onFormChange('screenshot_url', '')
+    toast.success('Image removed')
+  }
+
+  const validateStep = (step: number): Record<string, string> => {
+    const stepErrors: Record<string, string> = {}
+
+    try {
+      if (step === 1) {
+        // Validate symbol, type, lot_size
+        if (!formData.symbol || formData.symbol.length < 3) {
+          stepErrors.symbol = 'Symbol must be at least 3 characters'
+        }
+        if (!formData.type || !['BUY', 'SELL'].includes(formData.type)) {
+          stepErrors.type = 'Please select a trade type'
+        }
+        if (!formData.lot_size || !/^\d+(\.\d+)?$/.test(formData.lot_size)) {
+          stepErrors.lot_size = 'Invalid lot size'
+        }
+      } else if (step === 2) {
+        // Validate open_price, close_price, profit_loss
+        if (!formData.open_price || !/^\d+(\.\d+)?$/.test(formData.open_price)) {
+          stepErrors.open_price = 'Invalid entry price'
+        }
+        if (!formData.close_price || !/^\d+(\.\d+)?$/.test(formData.close_price)) {
+          stepErrors.close_price = 'Invalid exit price'
+        }
+        if (!formData.profit_loss || !/^-?\d+(\.\d+)?$/.test(formData.profit_loss)) {
+          stepErrors.profit_loss = 'Invalid profit/loss amount'
+        }
+      }
+    } catch (error) {
+      console.error('Validation error:', error)
     }
+
+    return stepErrors
+  }
+
+  const handleSave = () => {
+    // Final validation before saving
+    const allErrors: Record<string, string> = {}
+
+    // Validate all steps
+    for (let i = 1; i <= totalSteps; i++) {
+      const stepErrors = validateStep(i)
+      Object.assign(allErrors, stepErrors)
+    }
+
+    if (Object.keys(allErrors).length > 0) {
+      setErrors(allErrors)
+      toast.error('Please fix all errors before saving')
+      return
+    }
+
+    setErrors({})
+
+    // Save emotion to notes if selected
+    if (selectedEmotion) {
+      const emotionNote = `Mood: ${selectedEmotion}`
+      const currentNotes = formData.notes || ''
+      if (currentNotes && !currentNotes.includes('Mood:')) {
+        onFormChange('notes', `${emotionNote}\n${currentNotes}`)
+      } else if (!currentNotes) {
+        onFormChange('notes', emotionNote)
+      }
+    }
+
     onSave()
   }
 
@@ -117,16 +255,23 @@ export default function TradeWizardForm({
                 <Label className="text-white font-semibold">Trading Pair *</Label>
                 <Input
                   placeholder="EURUSD"
-                  className="bg-[#0a0712] border-purple-900/30 mt-2 text-white"
+                  className={`bg-[#0a0712] border-purple-900/30 mt-2 text-white ${errors.symbol ? 'border-red-500' : ''}`}
                   value={formData.symbol}
-                  onChange={(e) => onFormChange('symbol', e.target.value)}
+                  onChange={(e) => {
+                    onFormChange('symbol', e.target.value)
+                    if (errors.symbol) setErrors({ ...errors, symbol: '' })
+                  }}
                 />
+                {errors.symbol && <p className="text-red-400 text-xs mt-1">{errors.symbol}</p>}
               </div>
 
               <div>
                 <Label className="text-white font-semibold">Trade Type *</Label>
-                <Select value={formData.type} onValueChange={onTypeChange}>
-                  <SelectTrigger className="bg-[#0a0712] border-purple-900/30 mt-2 text-white">
+                <Select value={formData.type} onValueChange={(value) => {
+                  onTypeChange(value)
+                  if (errors.type) setErrors({ ...errors, type: '' })
+                }}>
+                  <SelectTrigger className={`bg-[#0a0712] border-purple-900/30 mt-2 text-white ${errors.type ? 'border-red-500' : ''}`}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-[#0f0b18] border-purple-900/30">
@@ -134,6 +279,7 @@ export default function TradeWizardForm({
                     <SelectItem value="SELL" className="text-red-400">📉 SELL (Short)</SelectItem>
                   </SelectContent>
                 </Select>
+                {errors.type && <p className="text-red-400 text-xs mt-1">{errors.type}</p>}
               </div>
 
               <div>
@@ -142,10 +288,14 @@ export default function TradeWizardForm({
                   type="text"
                   inputMode="decimal"
                   placeholder="0.1"
-                  className="bg-[#0a0712] border-purple-900/30 mt-2 text-white"
+                  className={`bg-[#0a0712] border-purple-900/30 mt-2 text-white ${errors.lot_size ? 'border-red-500' : ''}`}
                   value={formData.lot_size}
-                  onChange={(e) => onNumberInput('lot_size', e)}
+                  onChange={(e) => {
+                    onNumberInput('lot_size', e)
+                    if (errors.lot_size) setErrors({ ...errors, lot_size: '' })
+                  }}
                 />
+                {errors.lot_size && <p className="text-red-400 text-xs mt-1">{errors.lot_size}</p>}
               </div>
             </div>
           </motion.div>
@@ -162,7 +312,7 @@ export default function TradeWizardForm({
             className="space-y-4"
           >
             <div className="grid grid-cols-1 gap-4">
-              <Card className="bg-gradient-to-br from-green-500/10 to-transparent border-green-500/30">
+              <Card className={`bg-gradient-to-br from-green-500/10 to-transparent border-green-500/30 ${errors.open_price ? 'border-red-500' : ''}`}>
                 <CardContent className="p-4">
                   <Label className="text-green-400 font-semibold flex items-center gap-2">
                     <span className="text-lg">📥</span> Entry Price *
@@ -173,13 +323,17 @@ export default function TradeWizardForm({
                     placeholder="1.0850"
                     className="bg-[#0a0712] border-green-900/30 mt-2 text-green-300"
                     value={formData.open_price}
-                    onChange={(e) => onNumberInput('open_price', e)}
+                    onChange={(e) => {
+                      onNumberInput('open_price', e)
+                      if (errors.open_price) setErrors({ ...errors, open_price: '' })
+                    }}
                   />
                   <p className="text-xs text-gray-500 mt-1">Price when you opened the position</p>
+                  {errors.open_price && <p className="text-red-400 text-xs mt-1">{errors.open_price}</p>}
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-red-500/10 to-transparent border-red-500/30">
+              <Card className={`bg-gradient-to-br from-red-500/10 to-transparent border-red-500/30 ${errors.close_price ? 'border-red-500' : ''}`}>
                 <CardContent className="p-4">
                   <Label className="text-red-400 font-semibold flex items-center gap-2">
                     <span className="text-lg">📤</span> Exit Price *
@@ -190,13 +344,17 @@ export default function TradeWizardForm({
                     placeholder="1.0890"
                     className="bg-[#0a0712] border-red-900/30 mt-2 text-red-300"
                     value={formData.close_price}
-                    onChange={(e) => onNumberInput('close_price', e)}
+                    onChange={(e) => {
+                      onNumberInput('close_price', e)
+                      if (errors.close_price) setErrors({ ...errors, close_price: '' })
+                    }}
                   />
                   <p className="text-xs text-gray-500 mt-1">Price when you closed the position</p>
+                  {errors.close_price && <p className="text-red-400 text-xs mt-1">{errors.close_price}</p>}
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/30">
+              <Card className={`bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/30 ${errors.profit_loss ? 'border-red-500' : ''}`}>
                 <CardContent className="p-4">
                   <Label className="text-purple-400 font-semibold flex items-center gap-2">
                     <span className="text-lg">💰</span> Profit/Loss ($) *
@@ -207,9 +365,13 @@ export default function TradeWizardForm({
                     placeholder="400"
                     className="bg-[#0a0712] border-purple-900/30 mt-2 text-purple-300"
                     value={formData.profit_loss}
-                    onChange={(e) => onNumberInput('profit_loss', e)}
+                    onChange={(e) => {
+                      onNumberInput('profit_loss', e)
+                      if (errors.profit_loss) setErrors({ ...errors, profit_loss: '' })
+                    }}
                   />
                   <p className="text-xs text-gray-500 mt-1">Use positive for profit, negative for loss</p>
+                  {errors.profit_loss && <p className="text-red-400 text-xs mt-1">{errors.profit_loss}</p>}
                 </CardContent>
               </Card>
             </div>
@@ -280,7 +442,12 @@ export default function TradeWizardForm({
                 Trade Screenshot (Optional)
               </Label>
               <div className="border-2 border-dashed border-purple-900/30 rounded-xl p-6 text-center hover:border-purple-500/50 transition-colors">
-                {uploadedImage ? (
+                {uploading ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+                    <p className="text-gray-400">Uploading to Supabase Storage...</p>
+                  </div>
+                ) : uploadedImage ? (
                   <div className="space-y-3">
                     <img
                       src={uploadedImage}
@@ -290,13 +457,10 @@ export default function TradeWizardForm({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        setUploadedImage(null)
-                        onFormChange('screenshot_url', '')
-                      }}
+                      onClick={handleRemoveImage}
                       className="border-red-500/30 text-red-400 hover:bg-red-500/10"
                     >
-                      Remove Image
+                      <X className="w-4 h-4 mr-2" /> Remove Image
                     </Button>
                   </div>
                 ) : (
@@ -306,8 +470,9 @@ export default function TradeWizardForm({
                       accept="image/*"
                       onChange={handleImageUpload}
                       className="max-w-sm mx-auto"
+                      disabled={uploading}
                     />
-                    <p className="text-xs text-gray-500 mt-2">Upload MT5/MT4 screenshot as proof</p>
+                    <p className="text-xs text-gray-500 mt-2">Upload MT5/MT4 screenshot as proof (max 5MB)</p>
                   </div>
                 )}
               </div>
@@ -334,7 +499,7 @@ export default function TradeWizardForm({
           <Button
             variant="outline"
             onClick={handlePrevious}
-            disabled={saving}
+            disabled={saving || uploading}
             className="border-purple-900/30 flex-1"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -344,7 +509,7 @@ export default function TradeWizardForm({
           <Button
             variant="outline"
             onClick={onCancel}
-            disabled={saving}
+            disabled={saving || uploading}
             className="border-purple-900/30 flex-1"
           >
             Cancel
@@ -354,7 +519,7 @@ export default function TradeWizardForm({
         {currentStep < totalSteps ? (
           <Button
             onClick={handleNext}
-            disabled={saving}
+            disabled={saving || uploading}
             className="flex-1 bg-gradient-to-r from-purple-500 to-violet-600"
           >
             Next
@@ -363,12 +528,12 @@ export default function TradeWizardForm({
         ) : (
           <Button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || uploading}
             className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600"
           >
             {saving ? (
               <>
-                <span className="animate-spin mr-2">⏳</span>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Saving...
               </>
             ) : (
