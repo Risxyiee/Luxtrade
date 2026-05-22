@@ -43,7 +43,7 @@ export const createTradeHandlers = ({
 }: TradeHandlersProps) => {
   
   const handleAddTrade = async () => {
-    if (!formData.symbol || !formData.open_price || !formData.close_price || !formData.profit_loss) {
+    if (!formData.symbol || !formData.type || !formData.lot_size || !formData.open_price) {
       toast.error('Please fill all required fields')
       return
     }
@@ -57,24 +57,51 @@ export const createTradeHandlers = ({
 
     setSaving(true)
     try {
+      const payload: any = {
+        symbol: formData.symbol.toUpperCase(),
+        type: formData.type,
+        lot_size: parseFloat(formData.lot_size) || 0.1,
+        open_price: parseFloat(formData.open_price),
+      }
+
+      // Only add these fields if they have values
+      if (formData.close_price) {
+        payload.close_price = parseFloat(formData.close_price)
+      }
+      if (formData.profit_loss) {
+        payload.profit_loss = parseFloat(formData.profit_loss)
+      }
+      if (formData.open_time) {
+        payload.open_time = formData.open_time
+      } else {
+        payload.open_time = formatLocalDateTime(new Date())
+      }
+      if (formData.close_time) {
+        payload.close_time = formData.close_time
+      } else if (formData.close_price) {
+        // If trade has close_price but no close_time, use current time
+        payload.close_time = formatLocalDateTime(new Date())
+      }
+      if (formData.session) {
+        payload.session = formData.session
+      }
+      if (formData.notes) {
+        payload.notes = formData.notes
+      }
+      if (formData.image_url) {
+        payload.image_url = formData.image_url
+      }
+      if (formData.screenshot_url) {
+        payload.screenshot_url = formData.screenshot_url
+      }
+      if (formData.emotion) {
+        payload.emotion = formData.emotion
+      }
+
       const res = await fetch('/api/trades', {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({
-          symbol: formData.symbol.toUpperCase(),
-          type: formData.type,
-          open_price: parseFloat(formData.open_price),
-          close_price: parseFloat(formData.close_price),
-          lot_size: parseFloat(formData.lot_size) || 0.1,
-          profit_loss: parseFloat(formData.profit_loss),
-          open_time: formData.open_time || formatLocalDateTime(new Date()),
-          close_time: formData.close_time || formatLocalDateTime(new Date()),
-          session: formData.session || null,
-          notes: formData.notes || null,
-          image_url: formData.image_url || null,
-          screenshot_url: formData.screenshot_url || null, // New field
-          emotion: formData.emotion || null, // New field
-        }),
+        body: JSON.stringify(payload),
       })
 
       const data = await res.json()
@@ -87,6 +114,7 @@ export const createTradeHandlers = ({
         toast.error(data.error || 'Failed to add trade')
       }
     } catch (error) {
+      console.error('Error adding trade:', error)
       toast.error('Failed to add trade')
     } finally {
       setSaving(false)

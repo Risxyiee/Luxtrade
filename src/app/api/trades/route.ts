@@ -159,11 +159,11 @@ export async function POST(request: NextRequest) {
         symbol: body.symbol.toUpperCase(),
         type: body.type, // BUY or SELL
         open_price: parseFloat(body.open_price),
-        close_price: parseFloat(body.close_price) || 0,
-        lot_size: parseFloat(body.lot_size) || 0.01,
-        profit_loss: parseFloat(body.profit_loss) || 0,
+        close_price: body.close_price ? parseFloat(body.close_price) : 0,
+        lot_size: body.lot_size ? parseFloat(body.lot_size) : 0.01,
+        profit_loss: body.profit_loss ? parseFloat(body.profit_loss) : 0,
         open_time: body.open_time ? new Date(body.open_time) : new Date(),
-        close_time: body.close_time ? new Date(body.close_time) : new Date(),
+        close_time: body.close_time ? new Date(body.close_time) : (body.close_price ? new Date() : new Date()),
         session: body.session || null,
         notes: body.notes || null,
         image_url: body.image_url || null,
@@ -174,6 +174,8 @@ export async function POST(request: NextRequest) {
         risk_reward_ratio: body.risk_reward_ratio ? parseFloat(body.risk_reward_ratio) : null,
         trade_duration: body.trade_duration ? parseInt(body.trade_duration) : null,
         linked_journal_id: body.linked_journal_id || null,
+        // Auto-set status to OPEN if no close_price or profit_loss
+        status: (!body.close_price || !body.profit_loss) ? 'OPEN' : 'CLOSED',
       }
     })
 
