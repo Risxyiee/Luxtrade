@@ -165,7 +165,7 @@ export const createTradeHandlers = ({
   }
 
   const handleEditTrade = async () => {
-    if (!selectedTrade || !formData.symbol || !formData.open_price || !formData.close_price || !formData.profit_loss) {
+    if (!selectedTrade || !formData.symbol || !formData.open_price) {
       toast.error('Please fill all required fields')
       return
     }

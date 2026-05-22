@@ -215,37 +215,11 @@ export default function TradeWizardForm({
     return stepErrors
   }
 
-  const calculateProfitLoss = () => {
-    const entry = formatTradingInput(formData.open_price || '')
-    const exit = formatTradingInput(formData.close_price || '')
-    const lot = formatTradingInput(formData.lot_size || '')
-    const type = formData.type
-    const symbol = formData.symbol || ''
-    const accountType = formData.account_type || 'STANDARD'
 
-    if (entry > 0 && exit > 0 && lot > 0 && type && symbol) {
-      // Use the professional forex calculation function
-      const calculatedPL = calculateForexProfitLoss(
-        symbol,
-        type as 'BUY' | 'SELL',
-        entry,
-        exit,
-        lot,
-        accountType as AccountType
-      )
-
-      // Auto-fill P/L field
-      onFormChange('profit_loss', calculatedPL.toString())
-    }
-  }
 
   const handlePriceChange = (field: 'open_price' | 'close_price', value: string) => {
     // Allow any decimal input
     onFormChange(field, value)
-    // Auto-calculate P/L when both prices are available
-    if (formData.open_price && formData.close_price) {
-      calculateProfitLoss()
-    }
   }
 
   const handleSave = () => {
@@ -507,7 +481,7 @@ export default function TradeWizardForm({
                     className="bg-[#0a0712] border-green-900/30 mt-2 text-green-300"
                     value={formData.open_price}
                     onChange={(e) => {
-                      handlePriceChange('open_price', e.target.value)
+                      onFormChange('open_price', e.target.value)
                       if (errors.open_price) setErrors({ ...errors, open_price: '' })
                     }}
                   />
@@ -534,7 +508,7 @@ export default function TradeWizardForm({
                     className="bg-[#0a0712] border-red-900/30 mt-2 text-red-300"
                     value={formData.close_price}
                     onChange={(e) => {
-                      handlePriceChange('close_price', e.target.value)
+                      onFormChange('close_price', e.target.value)
                       if (errors.close_price) setErrors({ ...errors, close_price: '' })
                     }}
                   />
@@ -551,22 +525,21 @@ export default function TradeWizardForm({
               <Card className={`bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/30 ${errors.profit_loss ? 'border-red-500' : ''}`}>
                 <CardContent className="p-4">
                   <Label className="text-purple-400 font-semibold flex items-center gap-2">
-                    <span className="text-lg">💰</span> Profit/Loss ($) (Auto-calculated)
+                    <span className="text-lg">💰</span> Profit/Loss ($)
                   </Label>
                   <Input
                     type="number"
                     step="0.01"
-                    placeholder="Auto-calculated"
+                    placeholder="Enter profit/loss amount"
                     className="bg-[#0a0712] border-purple-900/30 mt-2 text-purple-300"
                     value={formData.profit_loss}
                     onChange={(e) => {
                       onFormChange('profit_loss', e.target.value)
                       if (errors.profit_loss) setErrors({ ...errors, profit_loss: '' })
                     }}
-                    readOnly
                   />
                   <div className="flex items-center justify-between mt-1">
-                    <p className="text-xs text-gray-500">Auto-calculated when entry & exit are set</p>
+                    <p className="text-xs text-gray-500">Enter the profit (positive) or loss (negative) amount</p>
                     {formData.profit_loss && (
                       <span className={`text-xs font-medium ${
                         parseFloat(formData.profit_loss) >= 0 ? 'text-green-400' : 'text-red-400'
