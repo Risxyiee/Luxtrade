@@ -22,6 +22,35 @@ async function getAuthUser(request: NextRequest): Promise<{ id: string; email: s
   }
 }
 
+// Helper: Ensure profile exists (auto-create if not)
+async function ensureProfile(userId: string, email?: string): Promise<void> {
+  try {
+    const existing = await db.profile.findUnique({
+      where: { id: userId }
+    })
+
+    if (!existing) {
+      console.log('📝 Auto-creating profile for user:', userId)
+      await db.profile.create({
+        data: {
+          id: userId,
+          email: email || null,
+          plan: 'FREE',
+          is_pro: false,
+          role: 'USER',
+          streakCount: 0,
+          bestStreak: 0,
+          achievements: '[]',
+        }
+      })
+      console.log('✅ Profile created automatically')
+    }
+  } catch (error) {
+    console.error('❌ Error creating profile:', error)
+    throw error
+  }
+}
+
 // Helper: Check if user is PRO
 async function isUserPro(userId: string): Promise<boolean> {
   try {
@@ -105,6 +134,9 @@ export async function POST(request: NextRequest) {
 
     const userId = authUser.id
     const body = await request.json()
+
+    // Auto-create profile if not exists
+    await ensureProfile(userId, authUser.email)
 
     // SERVER-SIDE LIMIT CHECK: Free users can only have 15 trades per month
     const isPro = await isUserPro(userId)
