@@ -923,3 +923,104 @@ Next Steps:
 2. Test trading account connection in production
 3. Verify no more "Unauthorized" or "No session found" errors
 
+
+---
+Task ID: 1
+Agent: fullstack-developer
+Task: Create AddAccountForm component for adding trading accounts
+
+Work Log:
+- Created /home/z/my-project/src/app/dashboard/components/AddAccountForm.tsx (376 lines)
+- Implemented complete form with all required fields:
+  - Account Name (String) - text input with validation
+  - Broker Name (String) - text input with validation
+  - Account Type (Select) - Demo/Real/Cent options with color-coded labels
+  - Balance (Number) - input with type="number" step="0.01" validation
+  - Currency (Select) - USD/IDR options with emoji flags
+- Added comprehensive form validation:
+  - validateForm() function checks all required fields
+  - Error state management with visual feedback
+  - Red border styling for invalid fields
+  - Error messages with AlertCircle icon
+- Implemented handleSubmit() function:
+  - Retrieves auth token from localStorage/sessionStorage
+  - Validates form before submission
+  - Sends POST request to /api/trading-accounts endpoint
+  - Transforms form data to match API specification
+  - Sets is_default: false and is_active: true
+  - Sets current_balance = initial_balance on creation
+- Added success toast notification with CheckCircle icon
+- Implemented error handling with descriptive error messages
+- Added form reset functionality after successful submission
+- Used Dialog component from shadcn/ui for modal display
+- Applied consistent purple/dark theme styling (matching TradeWizardForm):
+  - bg-gradient-to-br from-[#0f0b18] to-[#1a1030]
+  - Border colors: border-purple-900/30
+  - Focus states: focus:border-purple-500
+  - Button: bg-gradient-to-r from-purple-500 to-violet-600
+  - Text colors: text-white for labels, text-gray-400 for hints
+- Added loading state with Loader2 spinner during submission
+- Implemented Cancel button to close dialog and reset form
+- Added onSuccess callback prop for parent component refresh
+- Used all required shadcn/ui components: Input, Select, Button, Label, Dialog, DialogContent, DialogHeader, DialogTitle
+- Imported icons from lucide-react: Loader2, CheckCircle, Wallet, AlertCircle
+- Used sonner toast for notifications (consistent with TradeWizardForm)
+- Verified file creation with no ESLint errors
+- File ready for integration into dashboard
+
+Stage Summary:
+- ✅ Successfully created AddAccountForm.tsx component (376 lines)
+- ✅ All required fields implemented with proper validation
+- ✅ Form submits to /api/trading-accounts with correct data structure
+- ✅ Success toast displayed after successful account creation
+- ✅ Form resets after successful submission
+- ✅ Error messages shown for validation failures
+- ✅ Consistent purple/dark theme styling matching TradeWizardForm
+- ✅ All shadcn/ui components properly imported and used
+- ✅ Loading state with spinner during API call
+- ✅ No TypeScript or ESLint errors detected
+- ✅ Component ready for immediate use in dashboard
+
+API Integration Details:
+- Endpoint: POST /api/trading-accounts
+- Auth: Bearer token from localStorage/sessionStorage
+- Data structure:
+  {
+    name: string (trimmed)
+    broker: string (trimmed)
+    account_type: "DEMO" | "REAL" | "CENT"
+    initial_balance: number
+    current_balance: number (same as initial_balance)
+    currency: "USD" | "IDR"
+    is_default: false
+    is_active: true
+  }
+
+Usage Example:
+```tsx
+import AddAccountForm from '@/app/dashboard/components/AddAccountForm'
+
+function MyComponent() {
+  const [isOpen, setIsOpen] = useState(false)
+
+  const handleSuccess = () => {
+    // Refresh accounts list
+    console.log('Account added successfully!')
+  }
+
+  return (
+    <>
+      <Button onClick={() => setIsOpen(true)}>Add Account</Button>
+      <AddAccountForm 
+        open={isOpen} 
+        onOpenChange={setIsOpen}
+        onSuccess={handleSuccess}
+      />
+    </>
+  )
+}
+```
+
+File Location: /home/z/my-project/src/app/dashboard/components/AddAccountForm.tsx
+
+Note: The component is fully functional and ready to use. It follows the same patterns and styling as TradeWizardForm, ensuring consistency across the dashboard. All form validations, error handling, and API integration are implemented.
