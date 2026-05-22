@@ -398,7 +398,10 @@ export default function TradeWizardForm({
                       <Info className="w-3.5 h-3.5 text-purple-400 mt-0.5 flex-shrink-0" />
                       <div className="text-xs">
                         <p className="text-gray-400">
-                          {getPipInfo(formData.symbol).description} · {getPipInfo(formData.symbol).example}
+                          {getPipInfo(formData.symbol).description} · {getPipInfo(formData.symbol).pipValue}
+                        </p>
+                        <p className="text-gray-500 mt-0.5">
+                          {getPipInfo(formData.symbol).example}
                         </p>
                       </div>
                     </div>
