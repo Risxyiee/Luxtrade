@@ -169,6 +169,7 @@ export async function POST(request: NextRequest) {
     const trade = await db.trade.create({
       data: {
         user_id: userId,
+        account_id: body.account_id || null,
         symbol: body.symbol.toUpperCase(),
         type: body.type, // BUY or SELL
         open_price: parseFloat(body.open_price),

@@ -3,6 +3,7 @@
 export interface Trade {
   id: string
   user_id: string
+  account_id: string | null
   symbol: string
   type: 'BUY' | 'SELL'
   open_price: number
@@ -78,6 +79,8 @@ export interface TradeFormData {
   image_url: string
   screenshot_url: string
   emotion: string
+  account_id: string
+  account_type: string
 }
 
 export interface MTReportPreview {
@@ -105,4 +108,6 @@ export const emptyFormData: TradeFormData = {
   image_url: '',
   screenshot_url: '',
   emotion: '',
+  account_id: '',
+  account_type: 'STANDARD',
 }

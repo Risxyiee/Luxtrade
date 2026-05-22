@@ -1,280 +1,135 @@
-/**
- * API Route: Trading Accounts
- * GET - Get all trading accounts for current user
- * POST - Create a new trading account
- */
-
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { checkAccountQuota, checkAccountNumberExists, getUserTradingAccounts } from '@/lib/trading-account'
-import { Database } from '@/types/supabase'
+import { db } from '@/lib/db'
+import { supabase } from '@/lib/supabase'
 
-// Helper: Create trading account using admin client (bypasses RLS)
-async function createTradingAccountAdmin(
-  userId: string,
-  accountData: {
-    account_number: string
-    broker_server: string
-    platform: 'MT4' | 'MT5'
-    metaapi_account_id?: string
-  },
-  supabaseAdmin: any
-) {
-  if (!supabaseAdmin) {
-    throw new Error('Supabase admin client not configured')
+// Helper: Get authenticated user from request
+async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
+  try {
+    const authHeader = request.headers.get('authorization')
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '')
+      const { data: { user }, error } = await supabase.auth.getUser(token)
+      if (!error && user) {
+        return { id: user.id, email: user.email || '' }
+      }
+    }
+    return null
+  } catch {
+    return null
   }
+}
 
-  const { data, error } = await supabaseAdmin
-    .from('trading_accounts')
-    .insert({
-      user_id: userId,
-      account_number: accountData.account_number,
-      broker_server: accountData.broker_server,
-      platform: accountData.platform,
-      metaapi_account_id: accountData.metaapi_account_id || null,
-      status: 'PENDING'
+// Helper: Ensure profile exists (auto-create if not)
+async function ensureProfile(userId: string, email?: string): Promise<void> {
+  try {
+    const existing = await db.profile.findUnique({
+      where: { id: userId }
     })
-    .select()
-    .single()
 
-  if (error) {
-    console.error('Error creating trading account (admin):', error)
+    if (!existing) {
+      console.log('📝 Auto-creating profile for user:', userId)
+      await db.profile.create({
+        data: {
+          id: userId,
+          email: email || null,
+          plan: 'FREE',
+          is_pro: false,
+          role: 'USER',
+          streakCount: 0,
+          bestStreak: 0,
+          achievements: '[]',
+        }
+      })
+      console.log('✅ Profile created automatically')
+    }
+  } catch (error) {
+    console.error('❌ Error creating profile:', error)
     throw error
   }
-
-  return data
 }
 
-// GET: Fetch all trading accounts for the authenticated user
-export async function GET(req: NextRequest) {
+// GET - Fetch all trading accounts for authenticated user
+export async function GET(request: NextRequest) {
   try {
-    console.log('🔵 [TRADING ACCOUNTS API GET] Fetching trading accounts...')
+    const authUser = await getAuthUser(request)
 
-    // Create Supabase client with SSR
-    const cookieStore = cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore in route handlers
-            }
-          },
-        },
-      }
-    )
-
-    // Get user from session
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      console.log('🔴 [TRADING ACCOUNTS API GET] No session found', authError?.message)
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized - Please login' }, { status: 401 })
     }
 
-    console.log('✅ [TRADING ACCOUNTS API GET] User authenticated:', user.id)
-
-    // Create admin client for data access
-    const { createClient: createAdminClient } = await import('@supabase/supabase-js')
-    const supabaseAdmin = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-
-    // Get user's trading accounts
-    const accounts = await getUserTradingAccounts(user.id)
-    console.log('📊 [TRADING ACCOUNTS API GET] Found accounts:', accounts.length)
-    console.log('📋 [TRADING ACCOUNTS API GET] Accounts data:', accounts)
-
-    // Get user's quota information
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('subscription_plan')
-      .eq('id', user.id)
-      .single()
-
-    const quota = await checkAccountQuota(user.id, profile?.subscription_plan || 'free')
-    console.log('📊 [TRADING ACCOUNTS API GET] Quota:', quota)
-
-    const response = {
-      success: true,
-      data: accounts,
-      quota
-    }
-
-    console.log('✅ [TRADING ACCOUNTS API GET] Sending response:', response)
-
-    return NextResponse.json(response)
-  } catch (error) {
-    console.error('🔴 [TRADING ACCOUNTS API GET] Error fetching trading accounts:', error)
-    return NextResponse.json(
-      {
-        error: 'Failed to fetch trading accounts',
-        details: error instanceof Error ? error.message : 'Unknown error'
+    const accounts = await db.tradingAccount.findMany({
+      where: {
+        user_id: authUser.id,
+        is_active: true
       },
-      { status: 500 }
-    )
+      orderBy: [
+        { is_default: 'desc' },
+        { created_at: 'desc' }
+      ]
+    })
+
+    return NextResponse.json({ accounts })
+  } catch (err) {
+    console.error('Trading accounts API error:', err)
+    return NextResponse.json({ error: 'Failed to fetch accounts' }, { status: 500 })
   }
 }
 
-// POST: Create a new trading account
-export async function POST(req: NextRequest) {
+// POST - Create new trading account
+export async function POST(request: NextRequest) {
   try {
-    // Create Supabase client with SSR
-    const cookieStore = cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              )
-            } catch {
-              // Ignore in route handlers
-            }
-          },
-        },
+    console.log('🟢 [API /api/trading-accounts POST] Creating trading account...')
+
+    const authUser = await getAuthUser(request)
+
+    if (!authUser) {
+      console.log('❌ [API] Unauthorized - no auth user')
+      return NextResponse.json({ error: 'Unauthorized - Please login' }, { status: 401 })
+    }
+
+    const userId = authUser.id
+    const body = await request.json()
+    console.log('📊 [API] Request body:', body)
+
+    // Auto-create profile if not exists
+    await ensureProfile(userId, authUser.email)
+
+    // Check if this is the first account (make it default)
+    const existingAccounts = await db.tradingAccount.count({
+      where: { user_id: userId }
+    })
+
+    const isDefault = existingAccounts === 0 || body.is_default === true
+
+    // If setting this as default, unset other defaults
+    if (isDefault) {
+      await db.tradingAccount.updateMany({
+        where: { user_id: userId },
+        data: { is_default: false }
+      })
+    }
+
+    console.log('💾 [API] Creating trading account in database...')
+    const account = await db.tradingAccount.create({
+      data: {
+        user_id: userId,
+        name: body.name || 'Account',
+        broker: body.broker || null,
+        account_type: body.account_type || 'STANDARD',
+        account_number: body.account_number || null,
+        initial_balance: body.initial_balance || 0,
+        current_balance: body.current_balance || body.initial_balance || 0,
+        leverage: body.leverage || 100,
+        currency: body.currency || 'USD',
+        is_default: isDefault,
+        is_active: true,
       }
-    )
+    })
 
-    // Get user from session
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      console.log('🔴 [TRADING ACCOUNTS API POST] No session found', authError?.message)
-      return NextResponse.json(
-        { error: 'Unauthorized - No session' },
-        { status: 401 }
-      )
-    }
-
-    // Parse request body
-    const body = await req.json()
-    const { account_number, broker_server, platform } = body
-
-    // Validate required fields
-    if (!account_number || !broker_server || !platform) {
-      return NextResponse.json(
-        {
-          error: 'Missing required fields',
-          required: ['account_number', 'broker_server', 'platform']
-        },
-        { status: 400 }
-      )
-    }
-
-    // Validate platform
-    if (!['MT4', 'MT5'].includes(platform)) {
-      return NextResponse.json(
-        {
-          error: 'Invalid platform',
-          valid_platforms: ['MT4', 'MT5']
-        },
-        { status: 400 }
-      )
-    }
-
-    // Create admin client
-    const { createClient: createAdminClient } = await import('@supabase/supabase-js')
-    const supabaseAdmin = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-
-    // Get user's subscription plan
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('subscription_plan')
-      .eq('id', user.id)
-      .single()
-
-    // Check account quota
-    const quota = await checkAccountQuota(user.id, profile?.subscription_plan || 'free')
-
-    if (!quota.canAddMore) {
-      return NextResponse.json(
-        {
-          error: 'Account quota exceeded',
-          quota: {
-            current: quota.currentAccounts,
-            max: quota.maxAllowed,
-            remaining: quota.remainingQuota
-          },
-          message: `You have reached your maximum limit of ${quota.maxAllowed} trading account(s). Upgrade your plan to add more.`
-        },
-        { status: 403 }
-      )
-    }
-
-    // Check for duplicate account number
-    const accountExists = await checkAccountNumberExists(user.id, account_number)
-    if (accountExists) {
-      return NextResponse.json(
-        {
-          error: 'Account number already exists',
-          message: 'This trading account is already connected to your account'
-        },
-        { status: 409 }
-      )
-    }
-
-    // Create the trading account using admin client (bypasses RLS)
-    const newAccount = await createTradingAccountAdmin(user.id, {
-      account_number,
-      broker_server,
-      platform
-    }, supabaseAdmin)
-
-    return NextResponse.json({
-      success: true,
-      data: newAccount,
-      quota: {
-        ...quota,
-        currentAccounts: quota.currentAccounts + 1,
-        remainingQuota: quota.remainingQuota - 1
-      }
-    }, { status: 201 })
-  } catch (error: any) {
-    console.error('Error creating trading account:', error)
-
-    // Handle duplicate key error specifically
-    if (error?.code === '23505') {
-      console.log('🟡 [TRADING ACCOUNTS API POST] Duplicate account detected:', error.details)
-      return NextResponse.json(
-        {
-          error: 'Account number already exists',
-          message: 'This trading account is already connected to your account',
-          details: error.details
-        },
-        { status: 409 }
-      )
-    }
-
-    return NextResponse.json(
-      {
-        error: 'Failed to create trading account',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    )
+    console.log('✅ [API] Trading account created successfully:', account.id)
+    return NextResponse.json({ account })
+  } catch (err) {
+    console.error('❌ [API] Trading account create error:', err)
+    return NextResponse.json({ error: 'Failed to create account', details: err instanceof Error ? err.message : 'Unknown error' }, { status: 500 })
   }
 }

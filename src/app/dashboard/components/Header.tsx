@@ -32,6 +32,7 @@ interface HeaderProps {
   user: any
   handleSignOut: () => void
   userInitials: string
+  tradingAccounts?: any[]
 }
 
 export default function Header({
@@ -57,7 +58,8 @@ export default function Header({
   setSmartImportOpen,
   user,
   handleSignOut,
-  userInitials
+  userInitials,
+  tradingAccounts = []
 }: HeaderProps) {
   return (
     <header className="h-16 border-b border-purple-900/30 flex items-center justify-between px-4 lg:px-6 bg-[#0f0b18]/90 backdrop-blur-md sticky top-0 z-30">
@@ -127,6 +129,7 @@ export default function Header({
               onSave={handleAddTrade}
               onCancel={() => { setAddTradeOpen(false); setFormData(emptyFormData) }}
               saving={saving}
+              tradingAccounts={tradingAccounts}
             />
           </DialogContent>
         </Dialog>

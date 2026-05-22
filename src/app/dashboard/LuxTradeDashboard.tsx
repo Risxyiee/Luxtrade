@@ -224,6 +224,7 @@ function LuxTradeDashboardContent() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([])
   const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([])
+  const [tradingAccounts, setTradingAccounts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   
@@ -407,11 +408,12 @@ function LuxTradeDashboardContent() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [tradesRes, analyticsRes, journalRes, watchlistRes] = await Promise.all([
+      const [tradesRes, analyticsRes, journalRes, watchlistRes, accountsRes] = await Promise.all([
         fetch('/api/trades'),
         fetch('/api/analytics'),
         fetch('/api/journal'),
         fetch('/api/watchlist'),
+        fetch('/api/trading-accounts'),
       ])
 
       if (tradesRes.ok) {
@@ -423,15 +425,52 @@ function LuxTradeDashboardContent() {
         const data = await analyticsRes.json()
         setAnalytics(data.analytics)
       }
-      
+
       if (journalRes.ok) {
         const data = await journalRes.json()
         setJournalEntries(data.entries || [])
       }
-      
+
       if (watchlistRes.ok) {
         const data = await watchlistRes.json()
         setWatchlistItems(data.items || [])
+      }
+
+      if (accountsRes.ok) {
+        const data = await accountsRes.json()
+        let accounts = data.accounts || []
+
+        // If user has no accounts, create a default one
+        if (accounts.length === 0) {
+          console.log('📝 No trading accounts found, creating default...')
+          const token = localStorage.getItem('sb-access-token')
+          if (token) {
+            const ensureRes = await fetch('/api/trading-accounts/ensure-default', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            })
+            if (ensureRes.ok) {
+              const ensureData = await ensureRes.json()
+              accounts = [ensureData.account]
+              console.log('✅ Default account created')
+            }
+          }
+        }
+
+        setTradingAccounts(accounts)
+
+        // Auto-select default account for new trades
+        if (accounts.length > 0) {
+          const defaultAccount = accounts.find((acc: any) => acc.is_default) || accounts[0]
+          setFormData(prev => ({
+            ...prev,
+            account_id: defaultAccount.id,
+            account_type: defaultAccount.account_type
+          }))
+        }
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
@@ -739,6 +778,7 @@ function LuxTradeDashboardContent() {
           user={user}
           handleSignOut={handleSignOut}
           userInitials={userInitials}
+          tradingAccounts={tradingAccounts}
         />
 
         {/* Tab Content */}
@@ -861,6 +901,7 @@ function LuxTradeDashboardContent() {
         handleSelectPlan={handleSelectPlan}
         proTrialCount={proTrialCount}
         language={language}
+        tradingAccounts={tradingAccounts}
       />
     </div>
   )
