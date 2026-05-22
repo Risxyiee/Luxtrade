@@ -126,23 +126,35 @@ export async function GET(request: NextRequest) {
 // POST - Create new trade
 export async function POST(request: NextRequest) {
   try {
+    console.log('🟢 [API /api/trades POST] Starting trade creation...')
+    
     // Get authenticated user
     const authUser = await getAuthUser(request)
+    console.log('👤 [API] Auth user:', authUser ? { id: authUser.id, email: authUser.email } : 'null')
+    
     if (!authUser) {
+      console.log('❌ [API] Unauthorized - no auth user')
       return NextResponse.json({ error: 'Unauthorized - Please login' }, { status: 401 })
     }
 
     const userId = authUser.id
     const body = await request.json()
+    console.log('📊 [API] Request body:', body)
 
     // Auto-create profile if not exists
     await ensureProfile(userId, authUser.email)
+    console.log('✅ [API] Profile ensured for user:', userId)
 
     // SERVER-SIDE LIMIT CHECK: Free users can only have 15 trades per month
     const isPro = await isUserPro(userId)
+    console.log('💎 [API] Is PRO user:', isPro)
+    
     if (!isPro) {
       const tradeCount = await countUserTrades(userId)
+      console.log('📈 [API] Trade count for user:', tradeCount, '/', FREE_TRADE_LIMIT)
+      
       if (tradeCount >= FREE_TRADE_LIMIT) {
+        console.log('⚠️ [API] Trade limit exceeded!')
         return NextResponse.json({
           error: `Pengguna Free dibatasi maksimal ${FREE_TRADE_LIMIT} jurnal transaksi per bulan. Upgrade ke PRO untuk akses UNLIMITED!`,
           code: 'TRADE_LIMIT_EXCEEDED',
@@ -153,6 +165,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log('💾 [API] Creating trade in database...')
     const trade = await db.trade.create({
       data: {
         user_id: userId,
@@ -179,10 +192,11 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    console.log('✅ [API] Trade created successfully:', trade.id)
     return NextResponse.json({ trade })
   } catch (err) {
-    console.error('Trade create error:', err)
-    return NextResponse.json({ error: 'Failed to create trade' }, { status: 500 })
+    console.error('❌ [API] Trade create error:', err)
+    return NextResponse.json({ error: 'Failed to create trade', details: err instanceof Error ? err.message : 'Unknown error' }, { status: 500 })
   }
 }
 
