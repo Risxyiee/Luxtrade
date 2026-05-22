@@ -43,13 +43,18 @@ export const createTradeHandlers = ({
 }: TradeHandlersProps) => {
   
   const handleAddTrade = async () => {
+    console.log('🟢 [handleAddTrade] Starting trade creation...')
+    console.log('📊 [handleAddTrade] Form data:', formData)
+    
     if (!formData.symbol || !formData.type || !formData.lot_size || !formData.open_price) {
+      console.log('❌ [handleAddTrade] Validation failed - missing required fields')
       toast.error('Please fill all required fields')
       return
     }
 
     // Check trade limit for free users
     if (isFreeUser && trades.length >= FREE_TRADE_LIMIT) {
+      console.log('⚠️ [handleAddTrade] Trade limit exceeded')
       toast.error(`Free users are limited to ${FREE_TRADE_LIMIT} trades. Upgrade to PRO for unlimited trades!`)
       setPlanSelectionModalOpen(true)
       return
@@ -98,23 +103,32 @@ export const createTradeHandlers = ({
         payload.emotion = formData.emotion
       }
 
+      console.log('📤 [handleAddTrade] Sending payload:', payload)
+      console.log('🔑 [handleAddTrade] Auth headers:', getAuthHeaders())
+
       const res = await fetch('/api/trades', {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(payload),
       })
 
+      console.log('📡 [handleAddTrade] Response status:', res.status)
+      
       const data = await res.json()
+      console.log('📥 [handleAddTrade] Response data:', data)
+      
       if (res.ok) {
+        console.log('✅ [handleAddTrade] Trade created successfully!')
         toast.success('Trade added successfully!')
         setAddTradeOpen(false)
         setFormData(emptyFormData)
         fetchData()
       } else {
+        console.log('❌ [handleAddTrade] Failed to create trade:', data)
         toast.error(data.error || 'Failed to add trade')
       }
     } catch (error) {
-      console.error('Error adding trade:', error)
+      console.error('❌ [handleAddTrade] Error:', error)
       toast.error('Failed to add trade')
     } finally {
       setSaving(false)

@@ -12,6 +12,7 @@ import { ArrowRight, ArrowLeft, Upload, CheckCircle, Sparkles, Loader2, X } from
 import { motion, AnimatePresence } from 'framer-motion'
 import { z } from 'zod'
 import { toast } from 'sonner'
+import { calculateForexProfitLoss, isoToDatetimeLocal, datetimeLocalToISO } from '../utils/helpers'
 
 // ==================== ZOD VALIDATION SCHEMA ====================
 const tradeFormSchema = z.object({
@@ -216,27 +217,16 @@ export default function TradeWizardForm({
     const exit = parseFloat(formData.close_price) || 0
     const lot = parseFloat(formData.lot_size) || 0
     const type = formData.type
+    const symbol = formData.symbol || ''
 
-    if (entry && exit && lot && type) {
-      // Simple calculation for forex (assuming standard lot = 100,000 units)
-      // For JPY pairs, multiplier is 1,000 instead of 100,000
-      const isJPY = formData.symbol?.includes('JPY')
-      const multiplier = isJPY ? 1000 : 100000
-
-      let calculatedPL = 0
-      if (type === 'BUY') {
-        calculatedPL = (exit - entry) * lot * multiplier
-      } else {
-        calculatedPL = (entry - exit) * lot * multiplier
-      }
-
-      // Round to 2 decimal places
-      const roundedPL = Math.round(calculatedPL * 100) / 100
+    if (entry && exit && lot && type && symbol) {
+      // Use the proper forex calculation function
+      const calculatedPL = calculateForexProfitLoss(entry, exit, lot, type, symbol)
 
       // Only auto-fill if profit_loss is empty or user hasn't manually edited it
       if (!formData.profit_loss) {
-        onFormChange('profit_loss', roundedPL.toString())
-        toast.success(`Auto-calculated P/L: $${roundedPL.toFixed(2)}`)
+        onFormChange('profit_loss', calculatedPL.toString())
+        toast.success(`Auto-calculated P/L: $${calculatedPL.toFixed(2)}`)
       }
     }
   }
@@ -504,24 +494,24 @@ export default function TradeWizardForm({
             <div className="grid grid-cols-2 gap-3 pt-2">
               <div className="space-y-1">
                 <Label className="text-gray-400 text-xs font-medium flex items-center gap-1">
-                  <span className="text-green-400">▸</span> Open Time
+                  <span className="text-green-400">▸</span> Open Time (WIB)
                 </Label>
                 <Input
                   type="datetime-local"
                   className="bg-[#0a0712] border-purple-900/30 text-xs h-9"
-                  value={formData.open_time ? formData.open_time.slice(0, 16) : ''}
-                  onChange={(e) => onFormChange('open_time', e.target.value ? new Date(e.target.value).toISOString() : '')}
+                  value={isoToDatetimeLocal(formData.open_time || '')}
+                  onChange={(e) => onFormChange('open_time', datetimeLocalToISO(e.target.value))}
                 />
               </div>
               <div className="space-y-1">
                 <Label className="text-gray-400 text-xs font-medium flex items-center gap-1">
-                  <span className="text-red-400">▸</span> Close Time
+                  <span className="text-red-400">▸</span> Close Time (WIB)
                 </Label>
                 <Input
                   type="datetime-local"
                   className="bg-[#0a0712] border-purple-900/30 text-xs h-9"
-                  value={formData.close_time ? formData.close_time.slice(0, 16) : ''}
-                  onChange={(e) => onFormChange('close_time', e.target.value ? new Date(e.target.value).toISOString() : '')}
+                  value={isoToDatetimeLocal(formData.close_time || '')}
+                  onChange={(e) => onFormChange('close_time', datetimeLocalToISO(e.target.value))}
                 />
               </div>
             </div>
