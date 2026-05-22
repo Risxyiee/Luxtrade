@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { db } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,62 +13,33 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!supabaseAdmin) {
-      console.error('❌ Supabase admin client not configured')
-      return NextResponse.json(
-        { error: 'Admin access not configured' },
-        { status: 500 }
-      )
-    }
-
     console.log('🔄 Ensuring profile exists for user:', userId)
 
-    // Check if profile already exists
-    const { data: existingProfile, error: fetchError } = await supabaseAdmin
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-
-    if (fetchError && fetchError.code !== 'PGRST116') {
-      console.error('❌ Error fetching profile:', fetchError)
-      return NextResponse.json(
-        { error: 'Failed to check profile' },
-        { status: 500 }
-      )
-    }
+    // Check if profile already exists in Prisma/SQLite
+    const existingProfile = await db.profile.findUnique({
+      where: { id: userId }
+    })
 
     if (existingProfile) {
       console.log('✅ Profile already exists')
       return NextResponse.json({ profile: existingProfile, created: false })
     }
 
-    // Create new profile using service role (bypasses RLS)
-    console.log('📝 Creating new profile with admin privileges...')
-    const { data: profile, error: insertError } = await supabaseAdmin
-      .from('profiles')
-      .insert({
+    // Create new profile using Prisma
+    console.log('📝 Creating new profile in SQLite...')
+    const profile = await db.profile.create({
+      data: {
         id: userId,
         email: email || null,
         full_name: fullName || null,
         plan: 'FREE',
         is_pro: false,
         role: 'USER',
-        subscription_status: 'FREE',
         streakCount: 0,
         bestStreak: 0,
-        achievements: [],
-      })
-      .select()
-      .single()
-
-    if (insertError) {
-      console.error('❌ Error creating profile:', insertError)
-      return NextResponse.json(
-        { error: insertError.message || 'Failed to create profile' },
-        { status: 500 }
-      )
-    }
+        achievements: '[]',
+      }
+    })
 
     console.log('✅ Profile created successfully')
     return NextResponse.json({ profile, created: true })
