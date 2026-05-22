@@ -134,6 +134,8 @@ model Trade {
   session           String?   // London, New York, Tokyo, Sydney
   notes             String?
   image_url         String?
+  screenshot_url    String?   // New field for trade screenshots
+  emotion           String?   // New field for emotion tracking
   setup_type        String?   // Breakout, Reversal, etc.
   tags              String?   // JSON array of tag IDs
   risk_reward_ratio Float?
