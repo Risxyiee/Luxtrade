@@ -8,11 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { ArrowRight, ArrowLeft, Upload, CheckCircle, Sparkles, Loader2, X } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Upload, CheckCircle, Sparkles, Loader2, X, Info } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { calculateForexProfitLoss, isoToDatetimeLocal, datetimeLocalToISO } from '../utils/helpers'
+import { calculateForexProfitLoss, isoToDatetimeLocal, datetimeLocalToISO, getPipInfo } from '../utils/helpers'
 
 // ==================== ZOD VALIDATION SCHEMA ====================
 const tradeFormSchema = z.object({
@@ -54,7 +54,15 @@ interface TradeWizardFormProps {
 
 // Quick pairs for easy selection
 const quickPairs = [
-  'EURUSD', 'GBPUSD', 'USDJPY', 'XAUUSD', 'BTCUSD', 'ETHUSD'
+  { symbol: 'EURUSD', label: 'EUR/USD', type: 'major' },
+  { symbol: 'GBPUSD', label: 'GBP/USD', type: 'major' },
+  { symbol: 'USDJPY', label: 'USD/JPY', type: 'major' },
+  { symbol: 'XAUUSD', label: 'GOLD', type: 'gold' },
+  { symbol: 'XAGUSD', label: 'SILVER', type: 'gold' },
+  { symbol: 'BTCUSD', label: 'BTC', type: 'crypto' },
+  { symbol: 'ETHUSD', label: 'ETH', type: 'crypto' },
+  { symbol: 'US30', label: 'US30', type: 'indices' },
+  { symbol: 'NAS100', label: 'NAS100', type: 'indices' },
 ]
 
 // Trading sessions
@@ -318,23 +326,37 @@ export default function TradeWizardForm({
                 />
                 {errors.symbol && <p className="text-red-400 text-xs mt-1">{errors.symbol}</p>}
                 {/* Quick Pair Selector */}
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {quickPairs.map((pair) => (
-                    <button
-                      key={pair}
-                      onClick={() => {
-                        onFormChange('symbol', pair)
-                        if (errors.symbol) setErrors({ ...errors, symbol: '' })
-                      }}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                        formData.symbol === pair
-                          ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20'
-                          : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      {pair}
-                    </button>
-                  ))}
+                <div className="space-y-2 mt-2">
+                  <p className="text-xs text-gray-500">Quick select:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {quickPairs.map((pair) => {
+                      const isSelected = formData.symbol === pair.symbol
+                      const typeColors = {
+                        major: isSelected ? 'bg-green-500' : 'bg-green-500/20 text-green-400 border-green-500/30',
+                        gold: isSelected ? 'bg-yellow-500' : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+                        crypto: isSelected ? 'bg-orange-500' : 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+                        indices: isSelected ? 'bg-blue-500' : 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+                      }
+                      
+                      return (
+                        <button
+                          key={pair.symbol}
+                          onClick={() => {
+                            onFormChange('symbol', pair.symbol)
+                            if (errors.symbol) setErrors({ ...errors, symbol: '' })
+                          }}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
+                            isSelected 
+                              ? `text-white shadow-lg shadow-${pair.type === 'gold' ? 'yellow' : pair.type === 'crypto' ? 'orange' : pair.type === 'indices' ? 'blue' : 'green'}-500/20`
+                              : typeColors[pair.type]
+                          }`}
+                          title={pair.label}
+                        >
+                          {pair.label}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -370,6 +392,17 @@ export default function TradeWizardForm({
                     }}
                   />
                   {errors.lot_size && <p className="text-red-400 text-xs mt-1">{errors.lot_size}</p>}
+                  {/* Pip/Contract Info */}
+                  {formData.symbol && (
+                    <div className="mt-2 flex items-start gap-2 p-2 rounded bg-white/5 border border-purple-900/20">
+                      <Info className="w-3.5 h-3.5 text-purple-400 mt-0.5 flex-shrink-0" />
+                      <div className="text-xs">
+                        <p className="text-gray-400">
+                          {getPipInfo(formData.symbol).description} · {getPipInfo(formData.symbol).example}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label className="text-white font-semibold">Trading Session</Label>
