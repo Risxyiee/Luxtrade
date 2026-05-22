@@ -8,27 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { ArrowRight, ArrowLeft, Upload, CheckCircle, Sparkles, Loader2, X, Info } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Upload, CheckCircle, Sparkles, Loader2, X, Info, Wallet } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { z } from 'zod'
 import { toast } from 'sonner'
-import { calculateForexProfitLoss, isoToDatetimeLocal, datetimeLocalToISO, getPipInfo } from '../utils/helpers'
-
-// ==================== ZOD VALIDATION SCHEMA ====================
-const tradeFormSchema = z.object({
-  symbol: z.string().min(3, 'Symbol must be at least 3 characters'),
-  type: z.enum(['BUY', 'SELL'], { required_error: 'Type is required' }),
-  lot_size: z.string().min(1, 'Lot size is required').regex(/^\d+(\.\d+)?$/, 'Invalid lot size'),
-  open_price: z.string().min(1, 'Entry price is required').regex(/^\d+(\.\d+)?$/, 'Invalid price'),
-  close_price: z.string().optional(), // Optional - can be empty for open positions
-  profit_loss: z.string().optional(), // Optional - can be empty for open positions
-  open_time: z.string().optional(),
-  close_time: z.string().optional(),
-  session: z.string().optional(),
-  notes: z.string().optional(),
-  emotion: z.string().optional(),
-  screenshot_url: z.string().optional(),
-})
+import { calculateForexProfitLoss, getPipInfo, formatTradingInput, AccountType } from '@/lib/trading-helpers'
+import { isoToDatetimeLocal, datetimeLocalToISO } from '../utils/helpers'
 
 // Emotion options with emoji
 const emotionOptions = [
@@ -40,16 +24,23 @@ const emotionOptions = [
   { value: 'regretful', emoji: '😔', label: 'Regretful', color: 'text-purple-400' },
 ]
 
+interface TradingAccountOption {
+  id: string
+  name: string
+  account_type: AccountType
+  is_default: boolean
+}
+
 interface TradeWizardFormProps {
   formData: any
   onFormChange: (field: string, value: string) => void
   onTypeChange: (value: string) => void
   onSessionChange: (value: string) => void
-  onNumberInput: (field: string, e: React.ChangeEvent<HTMLInputElement>) => void
   onSave: () => void
   onCancel: () => void
   isEdit?: boolean
   saving?: boolean
+  tradingAccounts?: TradingAccountOption[]
 }
 
 // Quick pairs for easy selection
@@ -80,11 +71,11 @@ export default function TradeWizardForm({
   onFormChange,
   onTypeChange,
   onSessionChange,
-  onNumberInput,
   onSave,
   onCancel,
   isEdit = false,
-  saving = false
+  saving = false,
+  tradingAccounts = []
 }: TradeWizardFormProps) {
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedEmotion, setSelectedEmotion] = useState<string>(formData.emotion || '')
@@ -147,8 +138,8 @@ export default function TradeWizardForm({
       }
 
       // Create FormData
-      const formData = new FormData()
-      formData.append('file', file)
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', file)
 
       // Upload to Supabase Storage via API
       const response = await fetch('/api/upload/screenshot', {
@@ -156,7 +147,7 @@ export default function TradeWizardForm({
         headers: {
           'Authorization': `Bearer ${token}`,
         },
-        body: formData,
+        body: uploadFormData,
       })
 
       const result = await response.json()
@@ -189,28 +180,32 @@ export default function TradeWizardForm({
 
     try {
       if (step === 1) {
-        // Validate symbol, type, lot_size
+        // Validate symbol, type, lot_size, account_id
         if (!formData.symbol || formData.symbol.length < 3) {
           stepErrors.symbol = 'Symbol must be at least 3 characters'
         }
         if (!formData.type || !['BUY', 'SELL'].includes(formData.type)) {
           stepErrors.type = 'Please select a trade type'
         }
-        if (!formData.lot_size || !/^\d+(\.\d+)?$/.test(formData.lot_size)) {
+        const lot = formatTradingInput(formData.lot_size || '')
+        if (!formData.lot_size || lot <= 0) {
           stepErrors.lot_size = 'Invalid lot size'
+        }
+        if (!formData.account_id) {
+          stepErrors.account_id = 'Please select a trading account'
         }
       } else if (step === 2) {
         // Validate open_price (required), close_price and profit_loss (optional for open positions)
-        if (!formData.open_price || !/^\d+(\.\d+)?$/.test(formData.open_price)) {
+        const openPrice = formatTradingInput(formData.open_price || '')
+        if (!formData.open_price || openPrice <= 0) {
           stepErrors.open_price = 'Invalid entry price'
         }
-        // close_price and profit_loss are now optional
-        // They will be validated in the final save if both are provided (must be valid)
-        if (formData.close_price && !/^\d+(\.\d+)?$/.test(formData.close_price)) {
-          stepErrors.close_price = 'Invalid exit price'
-        }
-        if (formData.profit_loss && !/^-?\d+(\.\d+)?$/.test(formData.profit_loss)) {
-          stepErrors.profit_loss = 'Invalid profit/loss amount'
+        // close_price and profit_loss are optional
+        if (formData.close_price) {
+          const closePrice = formatTradingInput(formData.close_price || '')
+          if (closePrice <= 0) {
+            stepErrors.close_price = 'Invalid exit price'
+          }
         }
       }
     } catch (error) {
@@ -221,30 +216,35 @@ export default function TradeWizardForm({
   }
 
   const calculateProfitLoss = () => {
-    const entry = parseFloat(formData.open_price) || 0
-    const exit = parseFloat(formData.close_price) || 0
-    const lot = parseFloat(formData.lot_size) || 0
+    const entry = formatTradingInput(formData.open_price || '')
+    const exit = formatTradingInput(formData.close_price || '')
+    const lot = formatTradingInput(formData.lot_size || '')
     const type = formData.type
     const symbol = formData.symbol || ''
+    const accountType = formData.account_type || 'STANDARD'
 
-    if (entry && exit && lot && type && symbol) {
-      // Use the proper forex calculation function
-      const calculatedPL = calculateForexProfitLoss(entry, exit, lot, type, symbol)
+    if (entry > 0 && exit > 0 && lot > 0 && type && symbol) {
+      // Use the professional forex calculation function
+      const calculatedPL = calculateForexProfitLoss(
+        symbol,
+        type as 'BUY' | 'SELL',
+        entry,
+        exit,
+        lot,
+        accountType as AccountType
+      )
 
-      // Only auto-fill if profit_loss is empty or user hasn't manually edited it
-      if (!formData.profit_loss) {
-        onFormChange('profit_loss', calculatedPL.toString())
-        toast.success(`Auto-calculated P/L: $${calculatedPL.toFixed(2)}`)
-      }
+      // Auto-fill P/L field
+      onFormChange('profit_loss', calculatedPL.toString())
     }
   }
 
   const handlePriceChange = (field: 'open_price' | 'close_price', value: string) => {
+    // Allow any decimal input
     onFormChange(field, value)
     // Auto-calculate P/L when both prices are available
     if (formData.open_price && formData.close_price) {
-      // Debounce calculation slightly
-      setTimeout(() => calculateProfitLoss(), 300)
+      calculateProfitLoss()
     }
   }
 
@@ -265,6 +265,38 @@ export default function TradeWizardForm({
     }
 
     setErrors({})
+
+    // Validate account_id is set (required for multi-account system)
+    if (!formData.account_id) {
+      toast.error('Please select a trading account')
+      return
+    }
+
+    // Ensure numeric values are properly formatted
+    const lot = formatTradingInput(formData.lot_size || '')
+    const openPrice = formatTradingInput(formData.open_price || '')
+    const closePrice = formatTradingInput(formData.close_price || '')
+    const profitLoss = formatTradingInput(formData.profit_loss || '')
+
+    if (lot <= 0) {
+      toast.error('Lot size must be greater than 0')
+      return
+    }
+
+    if (openPrice <= 0) {
+      toast.error('Entry price must be greater than 0')
+      return
+    }
+
+    // Update formData with properly formatted numbers
+    onFormChange('lot_size', lot.toString())
+    onFormChange('open_price', openPrice.toString())
+    if (closePrice > 0) {
+      onFormChange('close_price', closePrice.toString())
+    }
+    if (profitLoss !== 0) {
+      onFormChange('profit_loss', profitLoss.toString())
+    }
 
     // Save emotion to formData before calling onSave
     if (selectedEmotion && !formData.emotion) {
@@ -301,7 +333,7 @@ export default function TradeWizardForm({
         <Progress value={progress} className="h-2 bg-purple-900/30" />
       </div>
 
-      {/* Step 1: Pair, Type, and Lot Size */}
+      {/* Step 1: Pair, Type, Lot, and Account */}
       <AnimatePresence mode="wait">
         {currentStep === 1 && (
           <motion.div
@@ -337,7 +369,7 @@ export default function TradeWizardForm({
                         crypto: isSelected ? 'bg-orange-500' : 'bg-orange-500/20 text-orange-400 border-orange-500/30',
                         indices: isSelected ? 'bg-blue-500' : 'bg-blue-500/20 text-blue-400 border-blue-500/30',
                       }
-                      
+
                       return (
                         <button
                           key={pair.symbol}
@@ -346,7 +378,7 @@ export default function TradeWizardForm({
                             if (errors.symbol) setErrors({ ...errors, symbol: '' })
                           }}
                           className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
-                            isSelected 
+                            isSelected
                               ? `text-white shadow-lg shadow-${pair.type === 'gold' ? 'yellow' : pair.type === 'crypto' ? 'orange' : pair.type === 'indices' ? 'blue' : 'green'}-500/20`
                               : typeColors[pair.type]
                           }`}
@@ -377,35 +409,56 @@ export default function TradeWizardForm({
                 {errors.type && <p className="text-red-400 text-xs mt-1">{errors.type}</p>}
               </div>
 
+              <div>
+                <Label className="text-white font-semibold flex items-center gap-2">
+                  <Wallet className="w-4 h-4" />
+                  Trading Account *
+                </Label>
+                <Select value={formData.account_id} onValueChange={(value) => {
+                  onFormChange('account_id', value)
+                  // Find and set account_type
+                  const account = tradingAccounts.find(acc => acc.id === value)
+                  if (account) {
+                    onFormChange('account_type', account.account_type)
+                  }
+                  if (errors.account_id) setErrors({ ...errors, account_id: '' })
+                }}>
+                  <SelectTrigger className={`bg-[#0a0712] border-purple-900/30 mt-2 text-white ${errors.account_id ? 'border-red-500' : ''}`}>
+                    <SelectValue placeholder="Select account" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#0f0b18] border-purple-900/30">
+                    {tradingAccounts.length === 0 ? (
+                      <div className="p-2 text-center text-gray-400 text-xs">
+                        No accounts found
+                      </div>
+                    ) : (
+                      tradingAccounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.name} {account.is_default && '(Default)'} - {account.account_type}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {errors.account_id && <p className="text-red-400 text-xs mt-1">{errors.account_id}</p>}
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-white font-semibold">Lot Size *</Label>
                   <Input
-                    type="text"
-                    inputMode="decimal"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
                     placeholder="0.1"
                     className={`bg-[#0a0712] border-purple-900/30 mt-2 text-white ${errors.lot_size ? 'border-red-500' : ''}`}
                     value={formData.lot_size}
                     onChange={(e) => {
-                      onNumberInput('lot_size', e)
+                      onFormChange('lot_size', e.target.value)
                       if (errors.lot_size) setErrors({ ...errors, lot_size: '' })
                     }}
                   />
                   {errors.lot_size && <p className="text-red-400 text-xs mt-1">{errors.lot_size}</p>}
-                  {/* Pip/Contract Info */}
-                  {formData.symbol && (
-                    <div className="mt-2 flex items-start gap-2 p-2 rounded bg-white/5 border border-purple-900/20">
-                      <Info className="w-3.5 h-3.5 text-purple-400 mt-0.5 flex-shrink-0" />
-                      <div className="text-xs">
-                        <p className="text-gray-400">
-                          {getPipInfo(formData.symbol).description} · {getPipInfo(formData.symbol).pipValue}
-                        </p>
-                        <p className="text-gray-500 mt-0.5">
-                          {getPipInfo(formData.symbol).example}
-                        </p>
-                      </div>
-                    </div>
-                  )}
                 </div>
                 <div>
                   <Label className="text-white font-semibold">Trading Session</Label>
@@ -447,13 +500,13 @@ export default function TradeWizardForm({
                     <span className="text-lg">📥</span> Entry Price *
                   </Label>
                   <Input
-                    type="text"
-                    inputMode="decimal"
+                    type="number"
+                    step="0.0001"
+                    min="0"
                     placeholder="1.0850"
                     className="bg-[#0a0712] border-green-900/30 mt-2 text-green-300"
                     value={formData.open_price}
                     onChange={(e) => {
-                      onNumberInput('open_price', e)
                       handlePriceChange('open_price', e.target.value)
                       if (errors.open_price) setErrors({ ...errors, open_price: '' })
                     }}
@@ -474,13 +527,13 @@ export default function TradeWizardForm({
                     <span className="text-lg">📤</span> Exit Price (Optional)
                   </Label>
                   <Input
-                    type="text"
-                    inputMode="decimal"
+                    type="number"
+                    step="0.0001"
+                    min="0"
                     placeholder="1.0890"
                     className="bg-[#0a0712] border-red-900/30 mt-2 text-red-300"
                     value={formData.close_price}
                     onChange={(e) => {
-                      onNumberInput('close_price', e)
                       handlePriceChange('close_price', e.target.value)
                       if (errors.close_price) setErrors({ ...errors, close_price: '' })
                     }}
@@ -498,21 +551,22 @@ export default function TradeWizardForm({
               <Card className={`bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/30 ${errors.profit_loss ? 'border-red-500' : ''}`}>
                 <CardContent className="p-4">
                   <Label className="text-purple-400 font-semibold flex items-center gap-2">
-                    <span className="text-lg">💰</span> Profit/Loss ($) (Optional)
+                    <span className="text-lg">💰</span> Profit/Loss ($) (Auto-calculated)
                   </Label>
                   <Input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="400"
+                    type="number"
+                    step="0.01"
+                    placeholder="Auto-calculated"
                     className="bg-[#0a0712] border-purple-900/30 mt-2 text-purple-300"
                     value={formData.profit_loss}
                     onChange={(e) => {
-                      onNumberInput('profit_loss', e)
+                      onFormChange('profit_loss', e.target.value)
                       if (errors.profit_loss) setErrors({ ...errors, profit_loss: '' })
                     }}
+                    readOnly
                   />
                   <div className="flex items-center justify-between mt-1">
-                    <p className="text-xs text-gray-500">Leave empty if position is still open</p>
+                    <p className="text-xs text-gray-500">Auto-calculated when entry & exit are set</p>
                     {formData.profit_loss && (
                       <span className={`text-xs font-medium ${
                         parseFloat(formData.profit_loss) >= 0 ? 'text-green-400' : 'text-red-400'

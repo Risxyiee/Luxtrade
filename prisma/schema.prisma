@@ -30,6 +30,7 @@ model Profile {
   journalEntries    JournalEntry[]
   tags              Tag[]
   weeklyGoals        WeeklyGoal[]
+  tradingAccounts   TradingAccount[]
 
   @@map("profiles")
 }
@@ -123,6 +124,7 @@ model Withdrawal {
 model Trade {
   id                String    @id @default(uuid())
   user_id           String
+  account_id        String?   // Link to TradingAccount
   symbol            String
   type              String    // BUY or SELL
   open_price        Float
@@ -146,6 +148,7 @@ model Trade {
 
   // Relations
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  account           TradingAccount? @relation(fields: [account_id], references: [id])
   linkedJournal     JournalEntry? @relation("TradeJournal", fields: [linked_journal_id], references: [id])
 
   @@map("trades")
@@ -199,4 +202,27 @@ model WeeklyGoal {
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("weekly_goals")
+}
+
+model TradingAccount {
+  id                String    @id @default(uuid())
+  user_id           String
+  name              String    // e.g., "Account A", "Main Account"
+  broker            String?   // e.g., "IC Markets", "Exness"
+  account_type      String    @default("STANDARD") // STANDARD, CENT, ECN, RAW
+  account_number    String?   // Broker account number
+  initial_balance   Float     @default(0)
+  current_balance   Float     @default(0)
+  leverage          Int       @default(100)
+  currency          String    @default("USD")
+  is_default        Boolean   @default(false)
+  is_active         Boolean   @default(true)
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  // Relations
+  user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  trades            Trade[]
+
+  @@map("trading_accounts")
 }

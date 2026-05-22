@@ -45,10 +45,29 @@ export const createTradeHandlers = ({
   const handleAddTrade = async () => {
     console.log('🟢 [handleAddTrade] Starting trade creation...')
     console.log('📊 [handleAddTrade] Form data:', formData)
-    
-    if (!formData.symbol || !formData.type || !formData.lot_size || !formData.open_price) {
-      console.log('❌ [handleAddTrade] Validation failed - missing required fields')
-      toast.error('Please fill all required fields')
+
+    // Validate required fields with specific error messages
+    const errors = []
+
+    if (!formData.symbol || formData.symbol.length < 3) {
+      errors.push('Symbol must be at least 3 characters')
+    }
+    if (!formData.type || !['BUY', 'SELL'].includes(formData.type)) {
+      errors.push('Trade type is required')
+    }
+    if (!formData.lot_size || parseFloat(formData.lot_size) <= 0) {
+      errors.push('Lot size must be greater than 0')
+    }
+    if (!formData.open_price || parseFloat(formData.open_price) <= 0) {
+      errors.push('Entry price must be greater than 0')
+    }
+    if (!formData.account_id) {
+      errors.push('Trading account is required')
+    }
+
+    if (errors.length > 0) {
+      console.log('❌ [handleAddTrade] Validation failed:', errors)
+      toast.error(errors.join(', '))
       return
     }
 
@@ -65,16 +84,22 @@ export const createTradeHandlers = ({
       const payload: any = {
         symbol: formData.symbol.toUpperCase(),
         type: formData.type,
-        lot_size: parseFloat(formData.lot_size) || 0.1,
+        lot_size: parseFloat(formData.lot_size),
         open_price: parseFloat(formData.open_price),
+        account_id: formData.account_id,
+        account_type: formData.account_type || 'STANDARD',
       }
 
       // Only add these fields if they have values
       if (formData.close_price) {
         payload.close_price = parseFloat(formData.close_price)
+      } else {
+        payload.close_price = 0 // Required by schema
       }
       if (formData.profit_loss) {
         payload.profit_loss = parseFloat(formData.profit_loss)
+      } else {
+        payload.profit_loss = 0 // Required by schema
       }
       if (formData.open_time) {
         payload.open_time = formData.open_time
@@ -86,6 +111,8 @@ export const createTradeHandlers = ({
       } else if (formData.close_price) {
         // If trade has close_price but no close_time, use current time
         payload.close_time = formatLocalDateTime(new Date())
+      } else {
+        payload.close_time = new Date().toISOString()
       }
       if (formData.session) {
         payload.session = formData.session
@@ -113,10 +140,10 @@ export const createTradeHandlers = ({
       })
 
       console.log('📡 [handleAddTrade] Response status:', res.status)
-      
+
       const data = await res.json()
       console.log('📥 [handleAddTrade] Response data:', data)
-      
+
       if (res.ok) {
         console.log('✅ [handleAddTrade] Trade created successfully!')
         toast.success('Trade added successfully!')
@@ -125,11 +152,13 @@ export const createTradeHandlers = ({
         fetchData()
       } else {
         console.log('❌ [handleAddTrade] Failed to create trade:', data)
-        toast.error(data.error || 'Failed to add trade')
+        // Show specific error message from API
+        const errorMessage = data.error || data.details || 'Failed to add trade'
+        toast.error(errorMessage)
       }
     } catch (error) {
       console.error('❌ [handleAddTrade] Error:', error)
-      toast.error('Failed to add trade')
+      toast.error('Failed to add trade. Please try again.')
     } finally {
       setSaving(false)
     }

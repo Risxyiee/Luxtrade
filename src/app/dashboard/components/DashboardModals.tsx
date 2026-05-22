@@ -101,6 +101,7 @@ interface DashboardModalsProps {
   handleSelectPlan: (plan: any) => void
   proTrialCount: number
   language: 'id' | 'en'
+  tradingAccounts?: any[]
 }
 
 export default function DashboardModals({
@@ -184,6 +185,7 @@ export default function DashboardModals({
   handleSelectPlan,
   proTrialCount,
   language,
+  tradingAccounts = []
 }: DashboardModalsProps) {
   return (
     <>
@@ -212,6 +214,7 @@ export default function DashboardModals({
             onCancel={() => { setEditTradeOpen(false); setSelectedTrade(null); setFormData(emptyFormData) }}
             isEdit
             saving={saving}
+            tradingAccounts={tradingAccounts}
           />
         </DialogContent>
       </Dialog>
