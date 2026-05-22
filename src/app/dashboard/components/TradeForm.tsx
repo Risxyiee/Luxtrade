@@ -61,8 +61,8 @@ function TradeForm({
         <div>
           <Label>Open Price *</Label>
           <Input
-            type="text"
-            inputMode="decimal"
+            type="number"
+            step="0.0001"
             placeholder="1.0850"
             className="bg-[#0a0712] border-purple-900/30 mt-1"
             value={formData.open_price}
@@ -72,8 +72,8 @@ function TradeForm({
         <div>
           <Label>Close Price *</Label>
           <Input
-            type="text"
-            inputMode="decimal"
+            type="number"
+            step="0.0001"
             placeholder="1.0890"
             className="bg-[#0a0712] border-purple-900/30 mt-1"
             value={formData.close_price}
@@ -85,8 +85,9 @@ function TradeForm({
         <div>
           <Label>Lot Size</Label>
           <Input
-            type="text"
-            inputMode="decimal"
+            type="number"
+            step="0.01"
+            min="0.01"
             placeholder="0.1"
             className="bg-[#0a0712] border-purple-900/30 mt-1"
             value={formData.lot_size}
@@ -96,8 +97,8 @@ function TradeForm({
         <div>
           <Label>P/L ($) *</Label>
           <Input
-            type="text"
-            inputMode="decimal"
+            type="number"
+            step="0.01"
             placeholder="400"
             className="bg-[#0a0712] border-purple-900/30 mt-1"
             value={formData.profit_loss}
