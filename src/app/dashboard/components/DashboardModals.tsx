@@ -15,7 +15,7 @@ import PaymentModal from '@/components/PaymentModal'
 import PlanSelectionModal from '@/components/PlanSelectionModal'
 import PaywallModal from '@/components/PaywallModal'
 import WelcomeOnboarding from '@/components/WelcomeOnboarding'
-import TradeForm from './TradeForm'
+import TradeWizardForm from './TradeWizardForm'
 import { formatCurrency } from '@/lib/supabase'
 import { Trade, TradeFormData } from '../utils/types'
 import { emptyFormData, moodOptions, marketConditions } from '../utils/helpers'
@@ -195,9 +195,14 @@ export default function DashboardModals({
           setFormData(emptyFormData)
         }
       }}>
-        <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-md">
-          <DialogHeader><DialogTitle className="text-xl">Edit Trade</DialogTitle></DialogHeader>
-          <TradeForm
+        <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <Edit className="w-5 h-5 text-purple-400" />
+              Edit Trade
+            </DialogTitle>
+          </DialogHeader>
+          <TradeWizardForm
             formData={formData}
             onFormChange={handleFormChange}
             onTypeChange={handleFormTypeChange}

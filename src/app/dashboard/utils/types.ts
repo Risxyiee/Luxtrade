@@ -2,6 +2,7 @@
 
 export interface Trade {
   id: string
+  user_id: string
   symbol: string
   type: 'BUY' | 'SELL'
   open_price: number
@@ -11,21 +12,35 @@ export interface Trade {
   open_time: string
   close_time: string
   session: string | null
-  notes?: string
-  image_url?: string | null
+  notes: string | null
+  image_url: string | null
+  screenshot_url: string | null
+  emotion: string | null
+  setup_type: string | null
+  tags: string | null
+  risk_reward_ratio: number | null
+  trade_duration: number | null
+  linked_journal_id: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface JournalEntry {
   id: string
+  user_id: string
   title: string
   content: string
   mood: string | null
   market_condition: string | null
+  tags: string | null
+  image_url: string | null
   created_at: string
+  updated_at: string
 }
 
 export interface WatchlistItem {
   id: string
+  user_id: string
   symbol: string
   name: string
   target_price: number | null
@@ -61,6 +76,8 @@ export interface TradeFormData {
   session: string
   notes: string
   image_url: string
+  screenshot_url: string
+  emotion: string
 }
 
 export interface MTReportPreview {
@@ -86,4 +103,6 @@ export const emptyFormData: TradeFormData = {
   session: '',
   notes: '',
   image_url: '',
+  screenshot_url: '',
+  emotion: '',
 }

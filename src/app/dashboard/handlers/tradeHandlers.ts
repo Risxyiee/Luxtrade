@@ -72,6 +72,8 @@ export const createTradeHandlers = ({
           session: formData.session || null,
           notes: formData.notes || null,
           image_url: formData.image_url || null,
+          screenshot_url: formData.screenshot_url || null, // New field
+          emotion: formData.emotion || null, // New field
         }),
       })
 
@@ -172,6 +174,9 @@ export const createTradeHandlers = ({
       close_time: trade.close_time,
       session: trade.session || '',
       notes: trade.notes || '',
+      image_url: trade.image_url || '',
+      screenshot_url: trade.screenshot_url || '', // New field
+      emotion: trade.emotion || '', // New field
     })
     setEditTradeOpen(true)
   }

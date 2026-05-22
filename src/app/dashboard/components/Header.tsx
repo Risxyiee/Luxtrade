@@ -5,7 +5,7 @@ import { Menu, RefreshCw, Upload, Plus, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import NotificationCenter from '@/components/NotificationCenter'
-import TradeForm from './TradeForm'
+import TradeWizardForm from './TradeWizardForm'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 interface HeaderProps {
@@ -111,9 +111,14 @@ export default function Header({
               <span className="hidden lg:inline">New Trade</span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-md">
-            <DialogHeader><DialogTitle className="text-xl">Add New Trade</DialogTitle></DialogHeader>
-            <TradeForm 
+          <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="text-xl flex items-center gap-2">
+                <Plus className="w-5 h-5 text-purple-400" />
+                Add New Trade
+              </DialogTitle>
+            </DialogHeader>
+            <TradeWizardForm
               formData={formData}
               onFormChange={handleFormChange}
               onTypeChange={handleFormTypeChange}
