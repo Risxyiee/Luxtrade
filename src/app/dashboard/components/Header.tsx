@@ -1,11 +1,12 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Menu, RefreshCw, Upload, Plus, LogOut } from 'lucide-react'
+import { Menu, RefreshCw, Upload, Plus, LogOut, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import NotificationCenter from '@/components/NotificationCenter'
 import TradeWizardForm from './TradeWizardForm'
+import AddAccountForm from './AddAccountForm'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 interface HeaderProps {
@@ -33,6 +34,8 @@ interface HeaderProps {
   handleSignOut: () => void
   userInitials: string
   tradingAccounts?: any[]
+  isAddAccountOpen?: boolean
+  setAddAccountOpen?: (open: boolean) => void
 }
 
 export default function Header({
@@ -59,12 +62,14 @@ export default function Header({
   user,
   handleSignOut,
   userInitials,
-  tradingAccounts = []
+  tradingAccounts = [],
+  isAddAccountOpen = false,
+  setAddAccountOpen = () => {}
 }: HeaderProps) {
   return (
     <header className="h-16 border-b border-purple-900/30 flex items-center justify-between px-4 lg:px-6 bg-[#0f0b18]/90 backdrop-blur-md sticky top-0 z-30">
       <div className="flex items-center gap-3">
-        <button 
+        <button
           onClick={() => setMobileSidebarOpen(true)}
           className="lg:hidden p-2 text-gray-400 hover:text-white transition-colors"
         >
@@ -73,7 +78,7 @@ export default function Header({
         <h2 className="text-lg font-semibold">
           {menuItems.find(m => m.id === activeTab)?.label || 'Dashboard'}
         </h2>
-        <button 
+        <button
           onClick={fetchData}
           className="p-2 text-gray-400 hover:text-purple-400 transition-colors"
           title="Refresh data"
@@ -81,11 +86,11 @@ export default function Header({
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
-      
+
       <div className="flex items-center gap-2 lg:gap-3">
         <LanguageSwitcher />
         <NotificationCenter trades={trades} isPro={isPro} />
-        
+
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
           <motion.div
             className="w-2 h-2 rounded-full bg-emerald-400"
@@ -94,7 +99,7 @@ export default function Header({
           />
           <span className="text-xs text-emerald-400">Connected</span>
         </div>
-        
+
         <button
           onClick={() => setSmartImportOpen(true)}
           className="hidden sm:flex px-3 lg:px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-violet-500/20 text-purple-400 border border-purple-500/30 hover:from-purple-500/30 hover:to-violet-500/30 transition-all text-sm font-medium items-center gap-2"
@@ -102,6 +107,15 @@ export default function Header({
           <Upload className="w-4 h-4" />
           <span className="hidden lg:inline">Smart Import</span>
         </button>
+
+        <Button
+          onClick={() => setAddAccountOpen(true)}
+          variant="outline"
+          className="hidden sm:flex px-3 lg:px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 border border-blue-500/30 hover:from-blue-500/30 hover:to-cyan-500/30 transition-all text-sm font-medium items-center gap-2"
+        >
+          <Wallet className="w-4 h-4" />
+          <span className="hidden lg:inline">Add Account</span>
+        </Button>
 
         <Dialog open={addTradeOpen} onOpenChange={(open) => {
           setAddTradeOpen(open)
@@ -133,7 +147,13 @@ export default function Header({
             />
           </DialogContent>
         </Dialog>
-        
+
+        <AddAccountForm
+          open={isAddAccountOpen}
+          onOpenChange={setAddAccountOpen}
+          onSuccess={fetchData}
+        />
+
         {user && (
           <button
             onClick={handleSignOut}
@@ -143,7 +163,7 @@ export default function Header({
             <LogOut className="w-5 h-5" />
           </button>
         )}
-        
+
         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold" title={user?.email || 'User'}>
           {userInitials}
         </div>
