@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 
-// Ensure DATABASE_URL is properly set for SQLite
+// Get database URL and ensure it's properly formatted
 const getDatabaseUrl = () => {
   const url = process.env.DATABASE_URL
   
@@ -9,10 +9,15 @@ const getDatabaseUrl = () => {
     console.warn('⚠️ DATABASE_URL not set, using default SQLite path')
     return 'file:./db/custom.db'
   }
+
+  // Check if it's a PostgreSQL connection
+  if (url.startsWith('postgresql://') || url.startsWith('postgres://')) {
+    return url // Use PostgreSQL URL as-is
+  }
   
-  // Ensure it starts with file: for SQLite
+  // For SQLite, ensure it starts with file:
   if (!url.startsWith('file:')) {
-    console.warn('⚠️ DATABASE_URL does not start with file:, fixing it')
+    console.warn('⚠️ DATABASE_URL does not start with file:, fixing it for SQLite')
     if (url.startsWith('/') || url.startsWith('./')) {
       return `file:${url}`
     }
@@ -43,5 +48,8 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
 
 // Log database URL in development for debugging
 if (process.env.NODE_ENV === 'development') {
-  console.log('🗄️ Database URL:', getDatabaseUrl())
+  const dbUrl = getDatabaseUrl()
+  const dbType = dbUrl.startsWith('postgresql://') ? 'PostgreSQL' : 'SQLite'
+  console.log(`🗄️ Database Type: ${dbType}`)
+  console.log(`🗄️ Database URL: ${dbUrl}`)
 }

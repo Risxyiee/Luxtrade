@@ -1,12 +1,12 @@
-// DEVELOPMENT: SQLite schema for local development
-// PRODUCTION: Switch to schema.prisma.pgsql.backup for PostgreSQL
+// This schema supports both SQLite (development) and PostgreSQL (production)
+// The provider will be dynamically set based on DATABASE_URL in the db.ts file
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql" // Use PostgreSQL for production
   url      = env("DATABASE_URL")
 }
 
@@ -16,7 +16,7 @@ model Profile {
   streakCount       Int       @default(0)
   lastLoginAt       DateTime?
   bestStreak        Int       @default(0)
-  achievements      String    @default("[]")
+  achievements      Json      @default("[]")
   plan              String    @default("FREE")
   proExpiry         DateTime?
   role              String    @default("USER")
