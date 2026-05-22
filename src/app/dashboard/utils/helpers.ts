@@ -96,11 +96,55 @@ export function calculateConsecutiveStreaks(trades: { profit_loss: number }[]) {
   return { currentWinStreak, currentLoseStreak, maxWinStreak, maxLoseStreak }
 }
 
+// Helper: Get pip value and contract size for different instruments
+type InstrumentType = 'JPY_PAIR' | 'GOLD' | 'INDICES' | 'CRYPTO' | 'STANDARD'
+
+function getInstrumentInfo(symbol: string): { pipSize: number; contractSize: number; type: InstrumentType } {
+  const sym = symbol.toUpperCase()
+  
+  // JPY Pairs (2 decimal places)
+  if (sym.includes('JPY')) {
+    return { pipSize: 0.01, contractSize: 100000, type: 'JPY_PAIR' }
+  }
+  
+  // Gold (XAUUSD) - special handling
+  if (sym.includes('XAU') || sym.includes('GOLD')) {
+    // Gold: 1 lot = 100 oz, price in USD/oz
+    // Pip size typically 0.01 or 0.1 depending on broker
+    return { pipSize: 0.01, contractSize: 100, type: 'GOLD' }
+  }
+  
+  // Silver (XAGUSD)
+  if (sym.includes('XAG') || sym.includes('SILVER')) {
+    return { pipSize: 0.001, contractSize: 5000, type: 'GOLD' }
+  }
+  
+  // Indices (US30, NAS100, etc.)
+  if (sym.includes('US30') || sym.includes('DOW') || sym.includes('DJ30')) {
+    return { pipSize: 1, contractSize: 10, type: 'INDICES' }
+  }
+  if (sym.includes('NAS100') || sym.includes('NAS') || sym.includes('NDX')) {
+    return { pipSize: 0.25, contractSize: 20, type: 'INDICES' }
+  }
+  if (sym.includes('SP500') || sym.includes('S&P') || sym.includes('US500')) {
+    return { pipSize: 0.25, contractSize: 50, type: 'INDICES' }
+  }
+  
+  // Crypto (BTC, ETH, etc.)
+  if (sym.includes('BTC') || sym.includes('BITCOIN')) {
+    return { pipSize: 1, contractSize: 1, type: 'CRYPTO' }
+  }
+  if (sym.includes('ETH') || sym.includes('ETHEREUM')) {
+    return { pipSize: 0.01, contractSize: 10, type: 'CRYPTO' }
+  }
+  
+  // Standard Forex Pairs (EURUSD, GBPUSD, etc.)
+  return { pipSize: 0.0001, contractSize: 100000, type: 'STANDARD' }
+}
+
 // Helper: Calculate P/L based on forex standard lots
-// Standard lot = 100,000 units
-// Mini lot = 10,000 units  (0.1 lot)
-// Micro lot = 1,000 units  (0.01 lot)
-// Nano lot = 100 units     (0.001 lot)
+// Standard lot = 100,000 units for forex
+// Different contract sizes for other instruments
 export function calculateForexProfitLoss(
   entryPrice: number,
   exitPrice: number,
@@ -108,16 +152,7 @@ export function calculateForexProfitLoss(
   type: 'BUY' | 'SELL',
   symbol: string
 ): number {
-  // Check if it's a JPY pair (2 decimal places vs 5)
-  const isJPY = symbol.toUpperCase().includes('JPY')
-  
-  // For JPY pairs: 1 pip = 0.01
-  // For other pairs: 1 pip = 0.0001
-  const pipValue = isJPY ? 0.01 : 0.0001
-  
-  // Standard lot multiplier (100,000 units for standard)
-  // 1.0 lot = 100,000 units
-  const lotMultiplier = lotSize * 100000
+  const info = getInstrumentInfo(symbol)
   
   let priceDiff = 0
   if (type === 'BUY') {
@@ -126,10 +161,72 @@ export function calculateForexProfitLoss(
     priceDiff = entryPrice - exitPrice
   }
   
-  // Calculate profit in base currency (for most pairs it's USD)
-  // For simplicity, we're assuming USD account
-  const profit = priceDiff * lotMultiplier
+  let profit = 0
+  
+  switch (info.type) {
+    case 'GOLD':
+      // Gold: 1 lot = 100 oz
+      // Profit = (Exit - Entry) × Lots × 100
+      profit = priceDiff * lotSize * info.contractSize
+      break
+      
+    case 'JPY_PAIR':
+      // JPY pairs: 1 lot = 100,000 units
+      // But pip value is different (0.01 instead of 0.0001)
+      // For USD account, need to convert
+      profit = priceDiff * lotSize * info.contractSize
+      break
+      
+    case 'INDICES':
+      // Indices have their own contract sizes
+      profit = priceDiff * lotSize * info.contractSize
+      break
+      
+    case 'CRYPTO':
+      // Crypto: 1 lot = 1 unit (usually)
+      profit = priceDiff * lotSize * info.contractSize
+      break
+      
+    case 'STANDARD':
+    default:
+      // Standard forex pairs: 1 lot = 100,000 units
+      profit = priceDiff * lotSize * info.contractSize
+      break
+  }
   
   // Round to 2 decimal places
   return Math.round(profit * 100) / 100
+}
+
+// Helper: Get pip value description for display
+export function getPipInfo(symbol: string): { description: string; example: string } {
+  const info = getInstrumentInfo(symbol)
+  
+  switch (info.type) {
+    case 'GOLD':
+      return {
+        description: '1 pip = $0.01 per oz',
+        example: '100 oz contract'
+      }
+    case 'JPY_PAIR':
+      return {
+        description: '1 pip = 0.01',
+        example: '100,000 JPY contract'
+      }
+    case 'INDICES':
+      return {
+        description: `1 point = $${info.contractSize}`,
+        example: 'Index points'
+      }
+    case 'CRYPTO':
+      return {
+        description: '1 pip = $1',
+        example: 'Per unit'
+      }
+    default:
+      return {
+        description: '1 pip = 0.0001',
+        example: '100,000 units contract'
+      }
+  }
 }
