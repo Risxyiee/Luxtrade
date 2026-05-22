@@ -1,3 +1,6 @@
+// DEVELOPMENT: SQLite schema for local development
+// PRODUCTION: Switch to schema.prisma.pgsql.backup for PostgreSQL
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,7 +16,7 @@ model Profile {
   streakCount       Int       @default(0)
   lastLoginAt       DateTime?
   bestStreak        Int       @default(0)
-  achievements      Json      @default("[]")
+  achievements      String    @default("[]")
   plan              String    @default("FREE")
   proExpiry         DateTime?
   role              String    @default("USER")
@@ -31,8 +34,6 @@ model Profile {
   tags              Tag[]
   weeklyGoals        WeeklyGoal[]
   tradingAccounts   TradingAccount[]
-
-  @@map("profiles")
 }
 
 model UserSubmission {
@@ -48,8 +49,6 @@ model UserSubmission {
 
   // Relations
   user            Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("user_submissions")
 }
 
 model MissionProgress {
@@ -67,7 +66,6 @@ model MissionProgress {
   user            Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, missionKey])
-  @@map("mission_progress")
 }
 
 model User {
@@ -83,8 +81,6 @@ model User {
   // Relations
   subscriptions     UserSubscription[]
   withdrawals       Withdrawal[]
-
-  @@map("users")
 }
 
 model UserSubscription {
@@ -99,8 +95,6 @@ model UserSubscription {
 
   // Relations
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("user_subscriptions")
 }
 
 model Withdrawal {
@@ -117,32 +111,30 @@ model Withdrawal {
 
   // Relations
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("withdrawals")
 }
 
 model Trade {
   id                String    @id @default(uuid())
   user_id           String
-  account_id        String?   // Link to TradingAccount
+  account_id        String?
   symbol            String
-  type              String    // BUY or SELL
+  type              String
   open_price        Float
   close_price       Float
   lot_size          Float
   profit_loss       Float
   open_time         DateTime
   close_time        DateTime
-  session           String?   // London, New York, Tokyo, Sydney
+  session           String?
   notes             String?
   image_url         String?
-  screenshot_url    String?   // New field for trade screenshots
-  emotion           String?   // New field for emotion tracking
-  setup_type        String?   // Breakout, Reversal, etc.
-  tags              String?   // JSON array of tag IDs
+  screenshot_url    String?
+  emotion           String?
+  setup_type        String?
+  tags              String?
   risk_reward_ratio Float?
-  trade_duration    Int?      // in minutes
-  linked_journal_id String?   // Link to journal entry
+  trade_duration    Int?
+  linked_journal_id String?
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt
 
@@ -150,8 +142,6 @@ model Trade {
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   account           TradingAccount? @relation(fields: [account_id], references: [id])
   linkedJournal     JournalEntry? @relation("TradeJournal", fields: [linked_journal_id], references: [id])
-
-  @@map("trades")
 }
 
 model JournalEntry {
@@ -159,9 +149,9 @@ model JournalEntry {
   user_id           String
   title             String
   content           String
-  mood              String?   // happy, neutral, sad, frustrated, etc.
-  market_condition  String?   // trending, ranging, volatile
-  tags              String?   // JSON array of tag IDs
+  mood              String?
+  market_condition  String?
+  tags              String?
   image_url         String?
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt
@@ -169,8 +159,6 @@ model JournalEntry {
   // Relations
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   linkedTrades      Trade[]   @relation("TradeJournal")
-
-  @@map("journal_entries")
 }
 
 model Tag {
@@ -182,8 +170,6 @@ model Tag {
 
   // Relations
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@map("tags")
 }
 
 model WeeklyGoal {
@@ -194,23 +180,21 @@ model WeeklyGoal {
   target_profit     Float?
   current_trades    Int       @default(0)
   current_profit    Float     @default(0)
-  status            String    @default("active") // active, completed, failed
+  status            String    @default("active")
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt
 
   // Relations
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@map("weekly_goals")
 }
 
 model TradingAccount {
   id                String    @id @default(uuid())
   user_id           String
-  name              String    // e.g., "Account A", "Main Account"
-  broker            String?   // e.g., "IC Markets", "Exness"
-  account_type      String    @default("STANDARD") // STANDARD, CENT, ECN, RAW
-  account_number    String?   // Broker account number
+  name              String
+  broker            String?
+  account_type      String    @default("STANDARD")
+  account_number    String?
   initial_balance   Float     @default(0)
   current_balance   Float     @default(0)
   leverage          Int       @default(100)
@@ -223,6 +207,4 @@ model TradingAccount {
   // Relations
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   trades            Trade[]
-
-  @@map("trading_accounts")
 }
