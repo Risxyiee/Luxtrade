@@ -44,14 +44,31 @@ All changes have been successfully pushed to the main branch:
 ### ⚠️ Next Steps Required for Production
 
 #### Step 1: Create Database Tables in Supabase
-Since the development environment cannot connect to Supabase (network restrictions), you need to create the tables manually in Supabase Dashboard:
 
+Since the development environment cannot connect to Supabase (network restrictions), you need to create the tables manually in Supabase Dashboard.
+
+**You have two options:**
+
+**Option A: Fresh Setup (Recommended)**
 1. Go to Supabase Dashboard → Project → SQL Editor
-2. Run the SQL script from `DEPLOYMENT.md` (lines 64-174) which includes:
-   - All table definitions (profiles, users, trades, trading_accounts, etc.)
-   - Indexes for performance
-   - Row Level Security (RLS) policies
-   - Access policies for user data
+2. Open the file `setup-supabase-database.sql` from this repository
+3. Copy and paste the entire SQL script into the SQL Editor
+4. Click "Run" to execute
+5. This will create all tables with correct schema including `close_time`
+
+**Option B: Fix Existing Tables**
+If you already have tables in Supabase but are getting "close_time does not exist" error:
+1. Go to Supabase Dashboard → Project → SQL Editor
+2. Open the file `fix-supabase-tables.sql` from this repository
+3. Copy and paste the SQL script
+4. Click "Run" to add missing columns
+5. This will add `close_time` and any other missing columns
+
+**What the scripts do:**
+- Create all required tables (profiles, users, trades, trading_accounts, etc.)
+- Add all required columns including `close_time`, `open_time`, `account_id`, etc.
+- Create foreign key constraints and indexes
+- Set up Row Level Security (RLS) policies for data protection
 
 #### Step 2: Set Production Environment Variable
 In your production deployment platform (Vercel, Railway, etc.):
@@ -107,11 +124,16 @@ To test production connectivity:
 3. Check that Supabase database is accessible from production environment
 4. Verify all tables exist in Supabase database
 
-### If connection errors occur
-1. Test Supabase connection from production server
-2. Verify Supabase project is active and not paused
-3. Check firewall rules allow PostgreSQL connections
-4. Ensure database user has proper permissions
+### If "close_time does not exist" error occurs
+1. Use `fix-supabase-tables.sql` script to add missing columns
+2. Run the script in Supabase SQL Editor
+3. The script will check and add any missing columns automatically
+4. After running, verify the trades table structure in Supabase Dashboard
+
+### If other column errors occur
+1. Check the error message for the missing column name
+2. Run `setup-supabase-database.sql` for complete setup
+3. Or run `fix-supabase-tables.sql` to add specific missing columns
 
 ## Benefits of This Fix
 
@@ -128,6 +150,9 @@ To test production connectivity:
 3. `src/lib/db.ts` - Enhanced database connection handling
 4. `prisma/schema.prisma.sqlite.backup` - Created SQLite schema backup
 5. `DEPLOYMENT.md` - Deployment guide (already existed)
+6. `setup-supabase-database.sql` - Complete database setup script
+7. `fix-supabase-tables.sql` - Script to fix missing columns in existing tables
+8. `DATABASE_FIX_SUMMARY.md` - This summary document
 
 ## Support
 
