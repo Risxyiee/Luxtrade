@@ -19,8 +19,8 @@ const tradeFormSchema = z.object({
   type: z.enum(['BUY', 'SELL'], { required_error: 'Type is required' }),
   lot_size: z.string().min(1, 'Lot size is required').regex(/^\d+(\.\d+)?$/, 'Invalid lot size'),
   open_price: z.string().min(1, 'Entry price is required').regex(/^\d+(\.\d+)?$/, 'Invalid price'),
-  close_price: z.string().min(1, 'Exit price is required').regex(/^\d+(\.\d+)?$/, 'Invalid price'),
-  profit_loss: z.string().min(1, 'Profit/Loss is required').regex(/^-?\d+(\.\d+)?$/, 'Invalid amount'),
+  close_price: z.string().optional(), // Optional - can be empty for open positions
+  profit_loss: z.string().optional(), // Optional - can be empty for open positions
   open_time: z.string().optional(),
   close_time: z.string().optional(),
   session: z.string().optional(),
@@ -176,14 +176,16 @@ export default function TradeWizardForm({
           stepErrors.lot_size = 'Invalid lot size'
         }
       } else if (step === 2) {
-        // Validate open_price, close_price, profit_loss
+        // Validate open_price (required), close_price and profit_loss (optional for open positions)
         if (!formData.open_price || !/^\d+(\.\d+)?$/.test(formData.open_price)) {
           stepErrors.open_price = 'Invalid entry price'
         }
-        if (!formData.close_price || !/^\d+(\.\d+)?$/.test(formData.close_price)) {
+        // close_price and profit_loss are now optional
+        // They will be validated in the final save if both are provided (must be valid)
+        if (formData.close_price && !/^\d+(\.\d+)?$/.test(formData.close_price)) {
           stepErrors.close_price = 'Invalid exit price'
         }
-        if (!formData.profit_loss || !/^-?\d+(\.\d+)?$/.test(formData.profit_loss)) {
+        if (formData.profit_loss && !/^-?\d+(\.\d+)?$/.test(formData.profit_loss)) {
           stepErrors.profit_loss = 'Invalid profit/loss amount'
         }
       }
@@ -344,7 +346,7 @@ export default function TradeWizardForm({
               <Card className={`bg-gradient-to-br from-red-500/10 to-transparent border-red-500/30 ${errors.close_price ? 'border-red-500' : ''}`}>
                 <CardContent className="p-4">
                   <Label className="text-red-400 font-semibold flex items-center gap-2">
-                    <span className="text-lg">📤</span> Exit Price *
+                    <span className="text-lg">📤</span> Exit Price (Optional)
                   </Label>
                   <Input
                     type="text"
@@ -357,7 +359,7 @@ export default function TradeWizardForm({
                       if (errors.close_price) setErrors({ ...errors, close_price: '' })
                     }}
                   />
-                  <p className="text-xs text-gray-500 mt-1">Price when you closed the position</p>
+                  <p className="text-xs text-gray-500 mt-1">Leave empty if position is still open</p>
                   {errors.close_price && <p className="text-red-400 text-xs mt-1">{errors.close_price}</p>}
                 </CardContent>
               </Card>
@@ -365,7 +367,7 @@ export default function TradeWizardForm({
               <Card className={`bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/30 ${errors.profit_loss ? 'border-red-500' : ''}`}>
                 <CardContent className="p-4">
                   <Label className="text-purple-400 font-semibold flex items-center gap-2">
-                    <span className="text-lg">💰</span> Profit/Loss ($) *
+                    <span className="text-lg">💰</span> Profit/Loss ($) (Optional)
                   </Label>
                   <Input
                     type="text"
@@ -378,7 +380,7 @@ export default function TradeWizardForm({
                       if (errors.profit_loss) setErrors({ ...errors, profit_loss: '' })
                     }}
                   />
-                  <p className="text-xs text-gray-500 mt-1">Use positive for profit, negative for loss</p>
+                  <p className="text-xs text-gray-500 mt-1">Leave empty if position is still open</p>
                   {errors.profit_loss && <p className="text-red-400 text-xs mt-1">{errors.profit_loss}</p>}
                 </CardContent>
               </Card>
