@@ -212,7 +212,12 @@ export default function TradeWizardForm({
 
     setErrors({})
 
-    // Save emotion to notes if selected
+    // Save emotion to formData before calling onSave
+    if (selectedEmotion && !formData.emotion) {
+      onFormChange('emotion', selectedEmotion)
+    }
+
+    // Append emotion to notes if needed
     if (selectedEmotion) {
       const emotionNote = `Mood: ${selectedEmotion}`
       const currentNotes = formData.notes || ''
@@ -223,7 +228,10 @@ export default function TradeWizardForm({
       }
     }
 
-    onSave()
+    // Call onSave after updating formData
+    setTimeout(() => {
+      onSave()
+    }, 0)
   }
 
   const progress = (currentStep / totalSteps) * 100
