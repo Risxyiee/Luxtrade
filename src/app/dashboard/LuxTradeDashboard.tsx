@@ -171,6 +171,7 @@ function LuxTradeDashboardContent() {
   
   // Trade modals
   const [addTradeOpen, setAddTradeOpen] = useState(false)
+  const [isAddAccountOpen, setIsAddAccountOpen] = useState(false)
   const [editTradeOpen, setEditTradeOpen] = useState(false)
   const [deleteTradeOpen, setDeleteTradeOpen] = useState(false)
   const [viewTradeOpen, setViewTradeOpen] = useState(false)
@@ -779,6 +780,8 @@ function LuxTradeDashboardContent() {
           handleSignOut={handleSignOut}
           userInitials={userInitials}
           tradingAccounts={tradingAccounts}
+          isAddAccountOpen={isAddAccountOpen}
+          setAddAccountOpen={setIsAddAccountOpen}
         />
 
         {/* Tab Content */}
