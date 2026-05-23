@@ -6,15 +6,33 @@ import { supabase } from '@/lib/supabase'
 async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
   try {
     const authHeader = request.headers.get('authorization')
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '')
-      const { data: { user }, error } = await supabase.auth.getUser(token)
-      if (!error && user) {
-        return { id: user.id, email: user.email || '' }
-      }
+    if (!authHeader) {
+      console.log('❌ [API] No authorization header')
+      return null
     }
-    return null
-  } catch {
+
+    const token = authHeader.replace('Bearer ', '')
+    if (!token || token === 'undefined') {
+      console.log('❌ [API] Invalid or empty token')
+      return null
+    }
+
+    const { data: { user }, error } = await supabase.auth.getUser(token)
+
+    if (error) {
+      console.error('❌ [API] Supabase auth error:', error.message)
+      return null
+    }
+
+    if (!user) {
+      console.log('❌ [API] No user found in token')
+      return null
+    }
+
+    console.log('✅ [API] Authenticated user:', { id: user.id, email: user.email })
+    return { id: user.id, email: user.email || '' }
+  } catch (error) {
+    console.error('❌ [API] Auth error:', error)
     return null
   }
 }
@@ -27,7 +45,7 @@ async function ensureProfile(userId: string, email?: string): Promise<void> {
     })
 
     if (!existing) {
-      console.log('📝 Auto-creating profile for user:', userId)
+      console.log('📝 [API] Auto-creating profile for user:', userId)
       await db.profile.create({
         data: {
           id: userId,
@@ -37,13 +55,15 @@ async function ensureProfile(userId: string, email?: string): Promise<void> {
           role: 'USER',
           streakCount: 0,
           bestStreak: 0,
-          achievements: '[]',
+          achievements: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
         }
       })
-      console.log('✅ Profile created automatically')
+      console.log('✅ [API] Profile created successfully')
     }
   } catch (error) {
-    console.error('❌ Error creating profile:', error)
+    console.error('❌ [API] Error creating profile:', error)
     throw error
   }
 }
@@ -51,10 +71,16 @@ async function ensureProfile(userId: string, email?: string): Promise<void> {
 // GET - Fetch all trading accounts for authenticated user
 export async function GET(request: NextRequest) {
   try {
+    console.log('🟢 [API /api/trading-accounts GET] Fetching accounts...')
+
     const authUser = await getAuthUser(request)
 
     if (!authUser) {
-      return NextResponse.json({ error: 'Unauthorized - Please login' }, { status: 401 })
+      console.log('❌ [API] Unauthorized - no valid user')
+      return NextResponse.json(
+        { error: 'Unauthorized - Please login' },
+        { status: 401 }
+      )
     }
 
     const accounts = await db.tradingAccount.findMany({
@@ -68,10 +94,14 @@ export async function GET(request: NextRequest) {
       ]
     })
 
+    console.log(`✅ [API] Found ${accounts.length} accounts for user ${authUser.id}`)
     return NextResponse.json({ accounts })
   } catch (err) {
-    console.error('Trading accounts API error:', err)
-    return NextResponse.json({ error: 'Failed to fetch accounts' }, { status: 500 })
+    console.error('❌ [API /api/trading-accounts GET] Error:', err)
+    return NextResponse.json(
+      { error: 'Failed to fetch accounts', details: err instanceof Error ? err.message : 'Unknown error' },
+      { status: 500 }
+    )
   }
 }
 
@@ -83,13 +113,25 @@ export async function POST(request: NextRequest) {
     const authUser = await getAuthUser(request)
 
     if (!authUser) {
-      console.log('❌ [API] Unauthorized - no auth user')
-      return NextResponse.json({ error: 'Unauthorized - Please login' }, { status: 401 })
+      console.log('❌ [API] Unauthorized - no valid user')
+      return NextResponse.json(
+        { error: 'Unauthorized - Please login' },
+        { status: 401 }
+      )
     }
 
     const userId = authUser.id
     const body = await request.json()
     console.log('📊 [API] Request body:', body)
+
+    // Validate required fields
+    if (!body.name) {
+      console.log('❌ [API] Missing required field: name')
+      return NextResponse.json(
+        { error: 'Account name is required' },
+        { status: 400 }
+      )
+    }
 
     // Auto-create profile if not exists
     await ensureProfile(userId, authUser.email)
@@ -103,6 +145,7 @@ export async function POST(request: NextRequest) {
 
     // If setting this as default, unset other defaults
     if (isDefault) {
+      console.log('🔄 [API] Setting account as default, unsetting others...')
       await db.tradingAccount.updateMany({
         where: { user_id: userId },
         data: { is_default: false }
@@ -113,23 +156,50 @@ export async function POST(request: NextRequest) {
     const account = await db.tradingAccount.create({
       data: {
         user_id: userId,
-        name: body.name || 'Account',
-        broker: body.broker || null,
-        account_type: body.account_type || 'STANDARD',
-        account_number: body.account_number || null,
-        initial_balance: body.initial_balance || 0,
-        current_balance: body.current_balance || body.initial_balance || 0,
-        leverage: body.leverage || 100,
-        currency: body.currency || 'USD',
-        is_default: isDefault,
+        name: String(body.name),
+        broker: body.broker ? String(body.broker) : null,
+        account_type: body.account_type ? String(body.account_type) : 'STANDARD',
+        account_number: body.account_number ? String(body.account_number) : null,
+        initial_balance: body.initial_balance ? parseFloat(String(body.initial_balance)) : 0,
+        current_balance: body.current_balance
+          ? parseFloat(String(body.current_balance))
+          : (body.initial_balance ? parseFloat(String(body.initial_balance)) : 0),
+        leverage: body.leverage ? parseInt(String(body.leverage)) : 100,
+        currency: body.currency ? String(body.currency) : 'USD',
+        is_default: Boolean(isDefault),
         is_active: true,
+        created_at: new Date(),
+        updated_at: new Date(),
       }
     })
 
     console.log('✅ [API] Trading account created successfully:', account.id)
     return NextResponse.json({ account })
   } catch (err) {
-    console.error('❌ [API] Trading account create error:', err)
-    return NextResponse.json({ error: 'Failed to create account', details: err instanceof Error ? err.message : 'Unknown error' }, { status: 500 })
+    console.error('❌ [API /api/trading-accounts POST] Error:', err)
+    console.error('Error stack:', err instanceof Error ? err.stack : 'No stack trace')
+
+    // Check for specific Prisma errors
+    if (err instanceof Error) {
+      if (err.message.includes('Foreign key constraint')) {
+        console.error('❌ [API] Foreign key constraint violation - profile may not exist')
+        return NextResponse.json(
+          { error: 'User profile not found. Please try logging out and in again.', details: err.message },
+          { status: 400 }
+        )
+      }
+
+      if (err.message.includes('Unique constraint')) {
+        return NextResponse.json(
+          { error: 'Account number already exists', details: err.message },
+          { status: 409 }
+        )
+      }
+    }
+
+    return NextResponse.json(
+      { error: 'Failed to create account', details: err instanceof Error ? err.message : 'Unknown error' },
+      { status: 500 }
+    )
   }
 }
