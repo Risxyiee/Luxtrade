@@ -12,27 +12,9 @@ const getDatabaseUrl = () => {
 
   // Check if it's a PostgreSQL connection
   if (url.startsWith('postgresql://') || url.startsWith('postgres://')) {
-    // For production, automatically ensure port 6543 and pgbouncer=true
-    if (process.env.NODE_ENV === 'production') {
-      let prodUrl = url
-
-      // Replace port 5432 with 6543 if needed
-      if (prodUrl.includes(':5432/')) {
-        prodUrl = prodUrl.replace(':5432/', ':6543/')
-        console.log('🔧 [DB] Auto-switched to port 6543 for production')
-      }
-
-      // Add pgbouncer=true if not present
-      if (!prodUrl.includes('pgbouncer=true')) {
-        const separator = prodUrl.includes('?') ? '&' : '?'
-        prodUrl = `${prodUrl}${separator}pgbouncer=true`
-        console.log('🔧 [DB] Auto-added pgbouncer=true')
-      }
-
-      console.log('🔗 [DB] Production PostgreSQL with connection pooling')
-      return prodUrl
-    }
-    return url // Use PostgreSQL URL as-is in development
+    // Use DATABASE_URL as-is - don't auto-modify port or add pgbouncer
+    console.log('🔗 [DB] PostgreSQL connection established')
+    return url
   }
 
   // For SQLite, ensure it starts with file:
