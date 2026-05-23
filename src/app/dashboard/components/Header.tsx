@@ -111,7 +111,7 @@ export default function Header({
         <Button
           onClick={() => setAddAccountOpen(true)}
           variant="outline"
-          className="hidden sm:flex px-3 lg:px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 border border-blue-500/30 hover:from-blue-500/30 hover:to-cyan-500/30 transition-all text-sm font-medium items-center gap-2"
+          className="px-3 lg:px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 border border-blue-500/30 hover:from-blue-500/30 hover:to-cyan-500/30 transition-all text-sm font-medium items-center gap-2"
         >
           <Wallet className="w-4 h-4" />
           <span className="hidden lg:inline">Add Account</span>
