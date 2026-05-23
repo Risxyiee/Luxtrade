@@ -123,8 +123,7 @@ export default function Header({
         }}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 shadow-lg shadow-purple-500/20">
-              <Plus className="w-4 h-4 mr-0 lg:mr-2" />
-              <span className="hidden lg:inline">New Trade</span>
+              <Plus className="w-4 h-4" />
             </Button>
           </DialogTrigger>
           <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-lg">
