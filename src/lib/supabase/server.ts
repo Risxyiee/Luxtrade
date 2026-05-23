@@ -2,11 +2,8 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 /**
- * Create a Supabase client for server-side use (Server Components and Route Handlers)
- * This function should be used in:
- * - Server Components (async components)
- * - Route Handlers (app/api/*/route.ts)
- * - Server Actions
+ * Create a Supabase client for server-side use
+ * This function should be used in Server Components and Route Handlers
  *
  * @returns Supabase client configured for server-side use
  */
@@ -29,8 +26,7 @@ export function createClient() {
               ...options,
             })
           } catch (error) {
-            // The `set` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing user sessions.
+            // Ignore in Server Components
           }
         },
         remove(name: string, options: CookieOptions) {
@@ -41,8 +37,7 @@ export function createClient() {
               ...options,
             })
           } catch (error) {
-            // The `delete` method was called from a Server Component.
-            // This can be ignored if you have be middleware refreshing user sessions.
+            // Ignore in Server Components
           }
         },
       },
