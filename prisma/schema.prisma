@@ -34,6 +34,7 @@ model Profile {
   tags              Tag[]
   weeklyGoals        WeeklyGoal[]
   tradingAccounts   TradingAccount[]
+
 }
 
 model UserSubmission {
@@ -49,6 +50,7 @@ model UserSubmission {
 
   // Relations
   user            Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
 }
 
 model MissionProgress {
@@ -81,6 +83,7 @@ model User {
   // Relations
   subscriptions     UserSubscription[]
   withdrawals       Withdrawal[]
+
 }
 
 model UserSubscription {
@@ -95,6 +98,7 @@ model UserSubscription {
 
   // Relations
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
 }
 
 model Withdrawal {
@@ -111,6 +115,7 @@ model Withdrawal {
 
   // Relations
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
 }
 
 model Trade {
@@ -142,6 +147,7 @@ model Trade {
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   account           TradingAccount? @relation(fields: [account_id], references: [id])
   linkedJournal     JournalEntry? @relation("TradeJournal", fields: [linked_journal_id], references: [id])
+
 }
 
 model JournalEntry {
@@ -159,6 +165,7 @@ model JournalEntry {
   // Relations
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   linkedTrades      Trade[]   @relation("TradeJournal")
+
 }
 
 model Tag {
@@ -170,6 +177,7 @@ model Tag {
 
   // Relations
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
 }
 
 model WeeklyGoal {
@@ -186,6 +194,7 @@ model WeeklyGoal {
 
   // Relations
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
 }
 
 model TradingAccount {
@@ -207,4 +216,5 @@ model TradingAccount {
   // Relations
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   trades            Trade[]
+
 }
