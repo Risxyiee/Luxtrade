@@ -12,27 +12,12 @@ const getDatabaseUrl = () => {
 
   // Check if it's a PostgreSQL connection
   if (url.startsWith('postgresql://') || url.startsWith('postgres://')) {
-    // For production, ensure connection pooling is enabled
+    // For production, log the configuration
     if (process.env.NODE_ENV === 'production') {
-      // Check if already has connection pooling parameters
-      if (!url.includes('pgbouncer=true')) {
-        // Replace port 5432 with 6543 for connection pooling
-        let poolerUrl = url
-
-        // If using direct port 5432, switch to pooler port 6543
-        if (poolerUrl.includes(':5432/')) {
-          poolerUrl = poolerUrl.replace(':5432/', ':6543/')
-        }
-
-        // Add pgbouncer=true parameter
-        const separator = poolerUrl.includes('?') ? '&' : '?'
-        poolerUrl = poolerUrl + separator + 'pgbouncer=true'
-
-        console.log('🔗 Production: Using connection pooling (port 6543 with pgbouncer=true)')
-        return poolerUrl
-      }
+      console.log('🔗 Production: Using PostgreSQL connection')
+      // Use URL as-is - don't modify port or add pgbouncer
+      return url
     }
-
     return url // Use PostgreSQL URL as-is
   }
 
@@ -69,18 +54,23 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
 
 // Log database configuration on startup
 const dbUrl = getDatabaseUrl()
-const dbType = dbUrl.startsWith('postgresql://') ? 'PostgreSQL' : 'SQLite'
+const dbType = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://') ? 'PostgreSQL' : 'SQLite'
 console.log('🗄️ ============================================')
 console.log(`🗄️ Database Type: ${dbType}`)
 console.log(`🗄️ Environment: ${process.env.NODE_ENV || 'development'}`)
 
 if (dbType === 'PostgreSQL') {
+  // Mask password for security
   const maskedUrl = dbUrl.replace(/:[^:]+@/, ':****@')
   console.log(`🗄️ Database URL: ${maskedUrl}`)
+
+  // Check for connection pooling
   if (dbUrl.includes('pgbouncer=true')) {
     console.log(`🗄️ Connection Pooling: ✅ Enabled (pgbouncer)`)
-  } else if (process.env.NODE_ENV === 'production') {
-    console.log(`⚠️ Connection Pooling: ❌ Not enabled (add ?pgbouncer=true)`)
+  } else if (dbUrl.includes(':6543/')) {
+    console.log(`🗄️ Connection Pooling: ⚠️ Port 6543 used (pooler)`)
+  } else if (dbUrl.includes(':5432/')) {
+    console.log(`🗄️ Connection Pooling: ❌ Direct connection (port 5432)`)
   }
 } else {
   console.log(`🗄️ Database Path: ${dbUrl}`)
