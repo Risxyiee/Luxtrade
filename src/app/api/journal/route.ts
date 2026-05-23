@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/server'
 
 // GET - Fetch journal entries with optional analytics
 export async function GET(request: NextRequest) {
   try {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const searchParams = request.nextUrl.searchParams
     const limit = parseInt(searchParams.get('limit') || '50')
     const includeAnalytics = searchParams.get('analytics') === 'true'
@@ -11,6 +18,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from('journal_entries')
       .select('*')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(limit)
 
@@ -37,11 +45,19 @@ export async function GET(request: NextRequest) {
 // POST - Create journal entry
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
 
     const { data, error } = await supabase
       .from('journal_entries')
       .insert([{
+        user_id: user.id,
         title: body.title,
         content: body.content,
         mood: body.mood || null,
@@ -63,6 +79,13 @@ export async function POST(request: NextRequest) {
 // DELETE - Delete journal entry
 export async function DELETE(request: NextRequest) {
   try {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const searchParams = request.nextUrl.searchParams
     const id = searchParams.get('id')
 
@@ -74,6 +97,7 @@ export async function DELETE(request: NextRequest) {
       .from('journal_entries')
       .delete()
       .eq('id', id)
+      .eq('user_id', user.id)
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
