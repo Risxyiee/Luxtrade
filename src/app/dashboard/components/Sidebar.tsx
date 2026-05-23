@@ -110,7 +110,7 @@ export default function Sidebar({
         {/* Top Glow */}
         <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-500/5 to-transparent pointer-events-none" />
 
-        <div className="relative p-4 border-b border-purple-500/20">
+        <div className="relative p-4 border-b border-purple-500/20 shrink-0">
           <Link href="/" className="flex items-center gap-3 group">
             <motion.div
               className="relative flex-shrink-0"
@@ -143,7 +143,7 @@ export default function Sidebar({
           </Link>
         </div>
 
-        <nav className="flex-1 p-3 space-y-2 overflow-y-auto relative">
+        <nav className="flex-1 p-3 space-y-2 overflow-y-auto relative min-h-0">
           {(['utama', 'alat', 'lanjutan'] as const).map((category) => {
             const categoryItems = menuItems.filter(item => item.category === category)
             const catInfo = menuCategories[category]
@@ -286,7 +286,7 @@ export default function Sidebar({
         </nav>
 
         {/* Bottom Section */}
-        <div className="relative p-3 border-t border-purple-500/20 space-y-2">
+        <div className="relative p-3 border-t border-purple-500/20 space-y-2 shrink-0">
           {!isPro && (sidebarOpen || mobileSidebarOpen) && (
             <motion.button
               onClick={() => setPlanSelectionModalOpen(true)}
