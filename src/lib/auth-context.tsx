@@ -154,8 +154,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    console.log('🔵 [AuthContext] Initializing auth...');
+
     // Get initial session quickly - don't wait for profile
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('🟢 [AuthContext] Got initial session:', session ? 'EXISTS' : 'NULL');
+
       setSession(session);
       setUser(session?.user ?? null);
       // Set loading to false immediately so auth doesn't block
@@ -163,9 +167,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Fetch profile in background (non-blocking)
       if (session?.user) {
+        console.log('📝 [AuthContext] User found, fetching profile:', session.user.id);
         fetchProfile(session.user.id).then(async (profileData) => {
           const checkedProfile = await checkAndLockExpired(profileData);
           setProfile(checkedProfile);
+          console.log('✅ [AuthContext] Profile loaded:', profileData ? 'YES' : 'NO');
         });
       }
     });
@@ -173,10 +179,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('Auth state changed:', event);
+        console.log('🔄 [AuthContext] Auth state changed:', event, 'session:', session ? 'EXISTS' : 'NULL');
 
         // Handle sign out - clear everything immediately
         if (event === 'SIGNED_OUT') {
+          console.log('🔴 [AuthContext] User signed out');
           setSession(null);
           setUser(null);
           setProfile(null);
@@ -190,6 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Fetch profile in background for sign in
         if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+          console.log('📝 [AuthContext] Signed in or token refreshed, fetching profile');
           fetchProfile(session.user.id).then(async (profileData) => {
             const checkedProfile = await checkAndLockExpired(profileData);
             setProfile(checkedProfile);
