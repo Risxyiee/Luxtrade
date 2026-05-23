@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/server'
 
 // Free user trade limit - 15 trades per month
 const FREE_TRADE_LIMIT = 15
@@ -8,19 +8,8 @@ const FREE_TRADE_LIMIT = 15
 // Helper: Get authenticated user from request
 async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader) {
-      console.log('❌ [API] No authorization header')
-      return null
-    }
-
-    const token = authHeader.replace('Bearer ', '')
-    if (!token || token === 'undefined') {
-      console.log('❌ [API] Invalid or empty token')
-      return null
-    }
-
-    const { data: { user }, error } = await supabase.auth.getUser(token)
+    const supabase = createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error) {
       console.error('❌ [API] Supabase auth error:', error.message)
@@ -28,7 +17,7 @@ async function getAuthUser(request: NextRequest): Promise<{ id: string; email: s
     }
 
     if (!user) {
-      console.log('❌ [API] No user found in token')
+      console.log('❌ [API] No user found in session')
       return null
     }
 

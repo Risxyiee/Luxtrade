@@ -1,19 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/server'
 
 // Helper: Get authenticated user from request
 async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '')
-      const { data: { user }, error } = await supabase.auth.getUser(token)
-      if (!error && user) {
-        return { id: user.id, email: user.email || '' }
-      }
+    const supabase = createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+
+    if (error) {
+      console.error('❌ [API] Supabase auth error:', error.message)
+      return null
     }
-    return null
-  } catch {
+
+    if (!user) {
+      console.log('❌ [API] No user found in session')
+      return null
+    }
+
+    console.log('✅ [API] Authenticated user:', { id: user.id, email: user.email })
+    return { id: user.id, email: user.email || '' }
+  } catch (error) {
+    console.error('❌ [API] Auth error:', error)
     return null
   }
 }
