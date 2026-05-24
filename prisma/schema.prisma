@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql" // Use PostgreSQL for production
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -34,6 +34,7 @@ model Profile {
   tags              Tag[]
   weeklyGoals        WeeklyGoal[]
   tradingAccounts   TradingAccount[]
+  socialLinks       SocialLink[]
 
 }
 
@@ -217,4 +218,24 @@ model TradingAccount {
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   trades            Trade[]
 
+}
+
+model SocialLink {
+  id                String    @id @default(uuid())
+  userId            String
+  platform          String
+  url               String
+  username          String?
+  status            String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  rejectionReason   String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  user              Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
 }
