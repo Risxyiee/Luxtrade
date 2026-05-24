@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { createClient } from '@/lib/supabase/server'
+import { createClientForApi } from '@/lib/supabase/server'
 
 // Helper: Get authenticated user from request
 async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
   try {
-    const supabase = createClient()
+    const supabase = createClientForApi(request)
     const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error) {

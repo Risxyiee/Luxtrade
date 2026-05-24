@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClientForApi } from '@/lib/supabase/server'
 
 // GET - Fetch goals for a user
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = createClientForApi(request)
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 // POST - Create or update goals
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = createClientForApi(request)
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClientForApi } from '@/lib/supabase/server'
 
 // Helper: Get authenticated user from request
 async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
   try {
-    const supabase = createClient()
+    const supabase = createClientForApi(request)
     const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error) {
@@ -68,13 +68,16 @@ export async function POST(request: NextRequest) {
     const batchSize = 100
     let inserted = 0
     const errors: string[] = []
-    
+
+    // Get supabase client for API operations
+    const supabase = createClientForApi(request)
+
     for (let i = 0; i < tradesToInsert.length; i += batchSize) {
       const batch = tradesToInsert.slice(i, i + batchSize)
       const { error } = await supabase
         .from('trades')
         .insert(batch)
-      
+
       if (error) {
         console.error('Batch insert error:', error)
         errors.push(error.message)
