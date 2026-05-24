@@ -126,8 +126,11 @@ export default function LuxTradeDashboard() {
   useEffect(() => {
     try {
       console.log('🔵 [DIAGNOSTIC] useEffect mounting - START')
-      setHasMounted(true)
-      console.log('🟢 [DIAGNOSTIC] CLIENT_MOUNTED - setHasMounted(true) called')
+      // Use setTimeout to avoid direct setState in effect
+      setTimeout(() => {
+        setHasMounted(true)
+        console.log('🟢 [DIAGNOSTIC] CLIENT_MOUNTED - setHasMounted(true) called')
+      }, 0)
     } catch (error) {
       console.error('🔴 [DIAGNOSTIC] Error setting hasMounted:', error)
       // Force set to true even if there's an error to prevent black screen
