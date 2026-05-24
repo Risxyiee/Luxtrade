@@ -1,17 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
+import { createClientForApi } from '@/lib/supabase/server'
+
+// Helper: Get authenticated user from request
+async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
+  try {
+    const { supabase } = createClientForApi(request)
+    const { data: { user }, error } = await supabase.auth.getUser()
+
+    if (error) {
+      console.error('❌ [API] Supabase auth error:', error.message)
+      return null
+    }
+
+    if (!user) {
+      console.log('❌ [API] No user found in session')
+      return null
+    }
+
+    console.log('✅ [API] Authenticated user:', { id: user.id, email: user.email })
+    return { id: user.id, email: user.email || '' }
+  } catch (error) {
+    console.error('❌ [API] Auth error:', error)
+    return null
+  }
+}
 
 // Helper function to check if user is admin
-async function isAdmin(session: any) {
-  if (!session?.user?.email) return false
+async function isAdmin(userId: string): Promise<boolean> {
+  try {
+    const profile = await db.profile.findUnique({
+      where: { id: userId },
+      select: { role: true }
+    })
 
-  const user = await db.user.findUnique({
-    where: { email: session.user.email }
-  })
-
-  return user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN'
+    return profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN'
+  } catch (error) {
+    console.error('Error checking admin status:', error)
+    return false
+  }
 }
 
 // PATCH /api/admin/social-links/[id] - Approve or reject a social link (admin only)
@@ -20,9 +47,10 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const authUser = await getAuthUser(request)
 
-    if (!session?.user?.email) {
+    if (!authUser) {
+      console.log('❌ [API] Unauthorized - no valid user')
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -30,7 +58,7 @@ export async function PATCH(
     }
 
     // Check if user is admin
-    const adminCheck = await isAdmin(session)
+    const adminCheck = await isAdmin(authUser.id)
     if (!adminCheck) {
       return NextResponse.json(
         { error: 'Forbidden. Admin access required.' },
@@ -73,7 +101,7 @@ export async function PATCH(
     // Update social link status
     const updateData: any = {
       status: action === 'approve' ? 'APPROVED' : 'REJECTED',
-      reviewedBy: session.user.email,
+      reviewedBy: authUser.email,
       reviewedAt: new Date()
     }
 
@@ -109,9 +137,10 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const authUser = await getAuthUser(request)
 
-    if (!session?.user?.email) {
+    if (!authUser) {
+      console.log('❌ [API] Unauthorized - no valid user')
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -119,7 +148,7 @@ export async function DELETE(
     }
 
     // Check if user is admin
-    const adminCheck = await isAdmin(session)
+    const adminCheck = await isAdmin(authUser.id)
     if (!adminCheck) {
       return NextResponse.json(
         { error: 'Forbidden. Admin access required.' },
