@@ -44,10 +44,6 @@ export const db =
       },
     },
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error', 'warn'],
-    // PgBouncer configuration for connection pooling
-    ...(process.env.NODE_ENV === 'production' && {
-      connectionLimit: 1, // PgBouncer requires single connection
-    }),
   })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
