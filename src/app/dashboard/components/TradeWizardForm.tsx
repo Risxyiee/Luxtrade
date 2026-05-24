@@ -130,13 +130,6 @@ export default function TradeWizardForm({
     setUploading(true)
 
     try {
-      // Get the auth token
-      const token = localStorage.getItem('sb-access-token')
-
-      if (!token) {
-        throw new Error('Please login to upload screenshots')
-      }
-
       // Create FormData
       const uploadFormData = new FormData()
       uploadFormData.append('file', file)
@@ -144,9 +137,7 @@ export default function TradeWizardForm({
       // Upload to Supabase Storage via API
       const response = await fetch('/api/upload/screenshot', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        credentials: 'include',
         body: uploadFormData,
       })
 

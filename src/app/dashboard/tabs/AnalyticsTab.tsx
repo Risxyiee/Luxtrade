@@ -24,11 +24,8 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
   const fetchAnalytics = async () => {
     try {
       setLoading(true)
-      const token = localStorage.getItem('sb-access-token')
       const res = await fetch(`/api/analytics?period=${period}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        credentials: 'include'
       })
       const data = await res.json()
       setAnalytics(data)

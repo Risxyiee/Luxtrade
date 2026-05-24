@@ -89,40 +89,17 @@ export default function ConnectionsPage() {
   // Helper: Get auth headers for API calls
   const getAuthHeaders = useCallback(() => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-
-    // Try multiple sources for the token
-    let token = null
-
-    // Priority 1: session access_token
-    if (session?.access_token) {
-      token = session.access_token
-    }
-    // Priority 2: localStorage token (fallback) - only on client side
-    else if (typeof window !== 'undefined') {
-      try {
-        const sessionStr = localStorage.getItem('sb-luxtradee-web-id-auth-token')
-        if (sessionStr) {
-          const sessionData = JSON.parse(sessionStr)
-          token = sessionData?.access_token
-        }
-      } catch (e) {
-        console.error('Failed to get token from localStorage:', e)
-      }
-    }
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    }
-
+    // Cookie-based auth - no Bearer token needed
     return headers
-  }, [session?.access_token])
+  }, [])
 
   // Silent cleanup of PENDING accounts - no user notification
   const cleanupPendingAccountsSilently = async () => {
     try {
       const response = await fetch('/api/trading-accounts/cleanup-orphan', {
         method: 'DELETE',
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
+        credentials: 'include'
       })
 
       if (response.ok) {
@@ -265,7 +242,8 @@ export default function ConnectionsPage() {
       console.log('🔍 [fetchConnectedAccounts] Starting fetch...')
       setLoadingAccounts(true)
       const response = await fetch('/api/trading-accounts', {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
+        credentials: 'include'
       })
 
       console.log('📡 [fetchConnectedAccounts] Response status:', response.status)
@@ -302,7 +280,9 @@ export default function ConnectionsPage() {
 
       // Fetch total trades count
       try {
-        const tradesRes = await fetch('/api/trades')
+        const tradesRes = await fetch('/api/trades', {
+          credentials: 'include'
+        })
         if (tradesRes.ok) {
           const tradesData = await tradesRes.json()
           setTotalTrades(tradesData.trades?.length || 0)
@@ -325,7 +305,8 @@ export default function ConnectionsPage() {
     try {
       console.log('🔵 [DEBUG] Checking quota with session:', !!session)
       const response = await fetch('/api/trading-accounts/quota', {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
+        credentials: 'include'
       })
 
       if (response.status === 401) {
@@ -391,6 +372,7 @@ export default function ConnectionsPage() {
       const createResponse = await fetch('/api/trading-accounts', {
         method: 'POST',
         headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify({
           account_number: formData.accountNumber,
           broker_server: formData.brokerServer,
@@ -435,6 +417,7 @@ export default function ConnectionsPage() {
           'Content-Type': 'application/json',
           ...getAuthHeaders(),
         },
+        credentials: 'include',
         body: JSON.stringify({
           tradingAccountId,
           accountNumber: formData.accountNumber,
@@ -534,6 +517,7 @@ export default function ConnectionsPage() {
     try {
       const response = await fetch(`/api/trading-accounts/${accountId}`, {
         method: 'DELETE',
+        credentials: 'include'
       })
 
       if (!response.ok) {
@@ -558,6 +542,7 @@ export default function ConnectionsPage() {
           'Content-Type': 'application/json',
           ...getAuthHeaders(),
         },
+        credentials: 'include',
         body: JSON.stringify({ accountId }),
       })
 
@@ -578,7 +563,8 @@ export default function ConnectionsPage() {
   const handleCheckDebug = async () => {
     try {
       const response = await fetch('/api/debug/check-env', {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
+        credentials: 'include'
       })
       const data = await response.json()
       setDebugInfo(data)
@@ -596,7 +582,8 @@ export default function ConnectionsPage() {
       console.log('🧹 [CLEANUP] Starting cleanup...')
       const response = await fetch('/api/trading-accounts/cleanup-orphan', {
         method: 'DELETE',
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
+        credentials: 'include'
       })
 
       const data = await response.json()
@@ -630,7 +617,8 @@ export default function ConnectionsPage() {
 
       // First, debug what accounts we have
       const debugResponse = await fetch('/api/debug/accounts-detail', {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
+        credentials: 'include'
       })
       const debugData = await debugResponse.json()
       console.log('📊 [DEBUG] Account details:', debugData)
@@ -641,6 +629,7 @@ export default function ConnectionsPage() {
           'Content-Type': 'application/json',
           ...getAuthHeaders(),
         },
+        credentials: 'include',
       })
 
       const data = await response.json()
@@ -680,7 +669,9 @@ export default function ConnectionsPage() {
     setSyncingAccountId(accountId)
 
     try {
-      const response = await fetch(`/api/metaapi/deals?tradingAccountId=${accountId}`)
+      const response = await fetch(`/api/metaapi/deals?tradingAccountId=${accountId}`, {
+        credentials: 'include'
+      })
 
       if (!response.ok) {
         throw new Error('Failed to sync deals')

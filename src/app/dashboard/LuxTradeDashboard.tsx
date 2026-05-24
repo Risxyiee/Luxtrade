@@ -354,11 +354,9 @@ function LuxTradeDashboardContent() {
   // Helper: Get auth header for API calls
   const getAuthHeaders = useCallback(() => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    if (session?.access_token) {
-      headers['Authorization'] = `Bearer ${session.access_token}`
-    }
+    // Cookie-based auth - no Bearer token needed
     return headers
-  }, [session?.access_token])
+  }, [])
 
   // Free user trade limit
   const FREE_TRADE_LIMIT = 5
@@ -444,20 +442,17 @@ function LuxTradeDashboardContent() {
         // If user has no accounts, create a default one
         if (accounts.length === 0) {
           console.log('📝 No trading accounts found, creating default...')
-          const token = localStorage.getItem('sb-access-token')
-          if (token) {
-            const ensureRes = await fetch('/api/trading-accounts/ensure-default', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              }
-            })
-            if (ensureRes.ok) {
-              const ensureData = await ensureRes.json()
-              accounts = [ensureData.account]
-              console.log('✅ Default account created')
-            }
+          const ensureRes = await fetch('/api/trading-accounts/ensure-default', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+          })
+          if (ensureRes.ok) {
+            const ensureData = await ensureRes.json()
+            accounts = [ensureData.account]
+            console.log('✅ Default account created')
           }
         }
 

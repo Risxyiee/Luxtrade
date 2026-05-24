@@ -492,16 +492,8 @@ export default function AdminPanel() {
 
     setLoading(true)
     try {
-      const session = await supabase.auth.getSession()
-      const token = session.data.session?.access_token
-
-      if (!token) {
-        toast.error('Session expired. Please login again.')
-        return
-      }
-
       const res = await fetch('/api/admin/users', {
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include'
       })
 
       const data = await res.json()
@@ -548,7 +540,8 @@ export default function AdminPanel() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ userId, action: 'activate', days: 30 })
+        body: JSON.stringify({ userId, action: 'activate', days: 30 }),
+        credentials: 'include'
       })
 
       const data = await res.json()
@@ -589,7 +582,8 @@ export default function AdminPanel() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ userId, action: 'revoke' })
+        body: JSON.stringify({ userId, action: 'revoke' }),
+        credentials: 'include'
       })
 
       const data = await res.json()
@@ -649,7 +643,8 @@ export default function AdminPanel() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ userId })
+        body: JSON.stringify({ userId }),
+        credentials: 'include'
       })
 
       const data = await res.json()
