@@ -1,7 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
+import { createClientForApi } from '@/lib/supabase/server'
+
+// Helper: Get authenticated user from request
+async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
+  try {
+    const { supabase } = createClientForApi(request)
+    const { data: { user }, error } = await supabase.auth.getUser()
+
+    if (error) {
+      console.error('❌ [API] Supabase auth error:', error.message)
+      return null
+    }
+
+    if (!user) {
+      console.log('❌ [API] No user found in session')
+      return null
+    }
+
+    console.log('✅ [API] Authenticated user:', { id: user.id, email: user.email })
+    return { id: user.id, email: user.email || '' }
+  } catch (error) {
+    console.error('❌ [API] Auth error:', error)
+    return null
+  }
+}
 
 // DELETE /api/social-links/[id] - Delete a social link (user's own only)
 export async function DELETE(
@@ -9,24 +32,13 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const authUser = await getAuthUser(request)
 
-    if (!session?.user?.email) {
+    if (!authUser) {
+      console.log('❌ [API] Unauthorized - no valid user')
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
-      )
-    }
-
-    // Get user from database
-    const user = await db.user.findUnique({
-      where: { email: session.user.email }
-    })
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
       )
     }
 
@@ -42,7 +54,7 @@ export async function DELETE(
       )
     }
 
-    if (socialLink.userId !== user.id) {
+    if (socialLink.userId !== authUser.id) {
       return NextResponse.json(
         { error: 'Forbidden. You can only delete your own links.' },
         { status: 403 }
