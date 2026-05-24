@@ -396,13 +396,20 @@ function LifetimeUltraCard({ onButtonClick, language, t }: { onButtonClick: () =
   const [isSoldOut, setIsSoldOut] = useState(false)
 
   useEffect(() => {
-    setSlotsInfo({
+    // Initialize slots info after component mounts
+    const slotsData = {
       totalSlots: 30,
       usedSlots: 0,
       availableSlots: 30,
       isSoldOut: false
-    })
-    setLoading(false)
+    }
+    // Use setTimeout to avoid synchronous setState in effect
+    const timer = setTimeout(() => {
+      setSlotsInfo(slotsData)
+      setLoading(false)
+    }, 0)
+
+    return () => clearTimeout(timer)
   }, [])
 
   if (loading) {

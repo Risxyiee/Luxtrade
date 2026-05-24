@@ -1,7 +1,7 @@
 // ============================================
 // ACHIEVEMENT SYSTEM INTEGRATION GUIDE
 // ============================================
-// 
+//
 // This file shows you how to integrate the Achievement System
 // into your LuxTrade dashboard.
 // ============================================
@@ -32,9 +32,9 @@ function YourComponent() {
       {/* In SidebarMewah.tsx - Footer Section */}
       {userId && (
         <div className="p-3 border-t border-white/5">
-          <AchievementProgress 
-            userId={userId} 
-            compact={true} 
+          <AchievementProgress
+            userId={userId}
+            compact={true}
             showInView={true}
           />
         </div>
@@ -52,17 +52,13 @@ function YourComponent() {
     <>
       {/* In dashboard - stats section */}
       {userId && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="col-span-12 md:col-span-6 lg:col-span-4"
-        >
-          <AchievementProgress 
-            userId={userId} 
+        <div className="col-span-12 md:col-span-6 lg:col-span-4">
+          <AchievementProgress
+            userId={userId}
             compact={false}
             showInView={true}
           />
-        </motion.div>
+        </div>
       )}
     </>
   )
@@ -73,31 +69,31 @@ function YourComponent() {
   // Add achievement center as a new menu item in SidebarMewah.tsx
 
   // Add to menuItems array:
-  const menuItems: MenuItem[] = [
-    // ... existing items ...
-    { 
-      id: 'achievements', 
-      labelId: 'Pencapaian', 
-      icon: Trophy, 
-      proOnly: false, 
-      category: 'main' 
-    },
-    // ... rest of items ...
-  ]
+  // const menuItems: MenuItem[] = [
+  //   // ... existing items ...
+  //   {
+  //     id: 'achievements',
+  //     labelId: 'Pencapaian',
+  //     icon: Trophy,
+  //     proOnly: false,
+  //     category: 'main'
+  //   },
+  //   // ... rest of items ...
+  // ]
 
   // Add Achievement icon import:
-  import {
-    // ... existing imports ...
-    Trophy,
-  } from 'lucide-react'
+  // import {
+  //   // ... existing imports ...
+  //   Trophy,
+  // } from 'lucide-react'
 
   // In the main component, handle the achievements tab:
-  const [activeTab, setActiveTab] = useState('dashboard')
+  // const [activeTab, setActiveTab] = useState('dashboard')
 
   // Render AchievementCenter when activeTab === 'achievements':
-  {activeTab === 'achievements' && userId && (
-    <AchievementCenter userId={userId} />
-  )}
+  // {activeTab === 'achievements' && userId && (
+  //   <AchievementCenter userId={userId} />
+  // )}
 
   // ============================================
   // STEP 5: Database Migration (IMPORTANT!)
@@ -113,9 +109,9 @@ function YourComponent() {
   // ============================================
   // STEP 6: Testing the Achievement System
   // ============================================
-  // 
+  //
   // After integrating:
-  // 
+  //
   // 1. Login to your dashboard
   // 2. Look for the Achievement Progress bar/card
   // 3. Click "View Achievement Center" to see all achievements
@@ -163,7 +159,7 @@ function YourComponent() {
   // ============================================
   // STEP 8: API Endpoint Testing
   // ============================================
-  // 
+  //
   // Test the achievement API:
   //
   // GET endpoint (fetch progress):
@@ -182,7 +178,7 @@ function YourComponent() {
   // ============================================
   // STEP 9: Styling Customization
   // ============================================
-  // 
+  //
   // Customize colors and styles in:
   // - src/lib/achievements-data.ts (RARITY_COLORS)
   // - src/components/AchievementCenter.tsx (card styles)

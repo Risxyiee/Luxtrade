@@ -150,7 +150,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // If Supabase is not configured, just set loading to false
     if (!supabase) {
       console.log('Supabase not configured, running in no-auth mode');
-      setLoading(false);
+      // Use setTimeout to avoid synchronous setState in effect
+      setTimeout(() => {
+        setLoading(false);
+      }, 0);
       return;
     }
 

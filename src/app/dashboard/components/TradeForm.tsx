@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { CheckCircle2, AlertCircle, Upload, X } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Upload, X, Info } from 'lucide-react'
 import { TradeFormData } from '../utils/types'
+import { datetimeLocalToFormat } from '../utils/helpers'
 
 interface TradeFormProps {
   formData: TradeFormData
@@ -32,8 +33,6 @@ function TradeForm({
   isEdit = false,
   saving = false
 }: TradeFormProps) {
-  const { datetimeLocalToFormat } = require('../utils/helpers')
-
   // Form validation state
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -335,24 +334,59 @@ function TradeForm({
         <Button
           onClick={onSave}
           disabled={saving || !isFormValid()}
-          className="flex-1 bg-gradient-to-r from-purple-500 to-violet-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`flex-1 bg-gradient-to-r from-purple-500 to-violet-600 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden transition-all ${
+            isFormValid() && !saving ? 'hover:shadow-lg hover:shadow-purple-500/30 hover:scale-[1.02]' : ''
+          }`}
         >
-          {saving ? 'Saving...' : isEdit ? 'Update Trade' : 'Add Trade'}
+          {saving ? (
+            <>
+              <span className="inline-block animate-spin mr-2">⟳</span>
+              Saving...
+            </>
+          ) : isEdit ? 'Update Trade' : 'Add Trade'}
         </Button>
         <Button
           variant="outline"
           onClick={onCancel}
-          className="border-purple-900/30"
+          className="border-purple-900/30 hover:bg-white/5 active:bg-white/10 transition-all"
         >
           Cancel
         </Button>
       </div>
-      {!isFormValid() && touched.symbol && (
-        <p className="text-xs text-amber-400 text-center flex items-center justify-center gap-1">
-          <AlertCircle className="w-3 h-3" />
-          Please fill in all required fields (marked with *)
+
+      {/* Form Validation Status */}
+      <div className={`p-3 rounded-lg border transition-all ${
+        isFormValid()
+          ? 'bg-emerald-500/10 border-emerald-500/30'
+          : touched.symbol || touched.open_price || touched.close_price || touched.profit_loss
+          ? 'bg-amber-500/10 border-amber-500/30'
+          : 'bg-white/5 border-white/10'
+      }`}>
+        <div className="flex items-center gap-2 text-sm">
+          {isFormValid() ? (
+            <>
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span className="text-emerald-400">All fields are valid. Ready to save!</span>
+            </>
+          ) : (
+            <>
+              <Info className="w-4 h-4 text-amber-400" />
+              <span className="text-amber-300">
+                {!touched.symbol && !touched.open_price && !touched.close_price && !touched.profit_loss
+                  ? 'Fill in required fields (marked with *) to continue'
+                  : 'Please fix validation errors before saving'}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Required Fields Notice */}
+      <div className="text-center">
+        <p className="text-xs text-gray-500">
+          <span className="text-purple-400">*</span> Required fields
         </p>
-      )}
+      </div>
     </div>
   )
 }
