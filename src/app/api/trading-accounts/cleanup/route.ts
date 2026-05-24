@@ -5,23 +5,34 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
-// DELETE: Cleanup stuck accounts (admin only or internal use)
+// DELETE: Cleanup stuck accounts (authenticated users only)
 export async function DELETE(req: NextRequest) {
   try {
     console.log('🧹 [CLEANUP] Starting cleanup of stuck trading accounts...')
+
+    // Get authenticated user
+    const supabase = createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      console.error('Auth error:', authError)
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
 
     if (!supabaseAdmin) {
       throw new Error('Supabase admin client not configured')
     }
 
-    // Find accounts in PENDING status for more than 1 hour
+    // Find accounts in PENDING status for more than 1 hour (for this user only)
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
 
     const { data: stuckAccounts, error: fetchError } = await supabaseAdmin
       .from('trading_accounts')
       .select('*')
+      .eq('user_id', user.id)
       .eq('status', 'PENDING')
       .lt('created_at', oneHourAgo)
 
@@ -40,10 +51,11 @@ export async function DELETE(req: NextRequest) {
       })
     }
 
-    // Delete stuck accounts
+    // Delete stuck accounts (for this user only)
     const { error: deleteError } = await supabaseAdmin
       .from('trading_accounts')
       .delete()
+      .eq('user_id', user.id)
       .eq('status', 'PENDING')
       .lt('created_at', oneHourAgo)
 
