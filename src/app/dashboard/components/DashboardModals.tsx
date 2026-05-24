@@ -697,7 +697,7 @@ export default function DashboardModals({
                   />
                 </div>
 
-                {/* Loading Indicator */}
+                {/* Loading Indicator - Enhanced */}
                 {importParsing && (
                   <div className="bg-purple-500/10 rounded-xl p-6 border border-purple-500/30">
                     <div className="flex flex-col items-center gap-4">
@@ -708,9 +708,13 @@ export default function DashboardModals({
                         </div>
                       </div>
                       <div className="text-center">
-                        <p className="text-white font-medium">🔍 Analyzing Screenshot...</p>
-                        <p className="text-sm text-gray-400 mt-1">AI is reading your trade data</p>
-                        <p className="text-xs text-gray-500 mt-2">This may take 10-30 seconds</p>
+                        <p className="text-white font-medium">🔍 Menganalisis Screenshot...</p>
+                        <p className="text-sm text-gray-400 mt-1">AI sedang membaca data trading Anda</p>
+                        <p className="text-xs text-gray-500 mt-2">Ini mungkin memakan waktu 10-60 detik</p>
+                        <div className="mt-3 flex items-center justify-center gap-2 text-xs text-purple-300">
+                          <span className="inline-block w-2 h-2 bg-purple-400 rounded-full animate-pulse"></span>
+                          <span>Mohon jangan tutup halaman ini</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -729,7 +733,17 @@ export default function DashboardModals({
 
                 <div className="bg-purple-500/10 rounded-lg p-4 border border-purple-500/20">
                   <p className="text-xs text-purple-300">
-                    <strong>Tip:</strong> For best results, use clear MT5 history screenshots showing Symbol, Type, Lots, Price, and Profit columns.
+                    <strong>💡 Tips untuk hasil terbaik:</strong>
+                  </p>
+                  <ul className="text-xs text-purple-200/80 mt-2 space-y-1 list-disc list-inside">
+                    <li>Screenshot harus jelas dan tidak blur</li>
+                    <li>Pastikan kolom Symbol, Type, Lots, Price, dan Profit terlihat</li>
+                    <li>Gunakan screenshot dengan resolusi yang cukup tinggi</li>
+                    <li>Hindari screenshot yang terlalu gelap atau kontras rendah</li>
+                    <li>Ukuran file maksimal 10MB</li>
+                  </ul>
+                  <p className="text-xs text-purple-200/60 mt-2">
+                    Jika gagal, coba tab "Upload File" untuk import CSV/HTML dari MT5/MT4
                   </p>
                 </div>
               </div>
@@ -740,8 +754,8 @@ export default function DashboardModals({
               <div className="space-y-4">
                 <div className="border-2 border-dashed border-purple-900/30 rounded-xl p-6 text-center hover:border-purple-500/50 transition-colors">
                   <FileText className="w-12 h-12 mx-auto mb-4 text-purple-400" />
-                  <p className="text-gray-300 mb-2 font-medium">Upload Report File</p>
-                  <p className="text-sm text-gray-500 mb-4">PDF, HTML, or CSV from MT4/MT5</p>
+                  <p className="text-gray-300 mb-2 font-medium">Upload File Laporan MT5/MT4</p>
+                  <p className="text-sm text-gray-500 mb-4">PDF, HTML, atau CSV dari MT4/MT5</p>
                   <Input
                     type="file"
                     accept=".pdf,.html,.htm,.csv"
