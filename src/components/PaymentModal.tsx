@@ -25,7 +25,7 @@ export default function PaymentModal({ isOpen, onClose, userId, email }: Payment
     bankName: 'Bank Jago',
     accountNumber: '104051474194',
     accountHolder: 'RIZQI AKBAR PRATAMA',
-    amount: 49000,
+    amount: 25000,
   });
   const [tgLink, setTgLink] = useState('');
   const [adminTelegram, setAdminTelegram] = useState('');

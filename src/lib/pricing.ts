@@ -7,9 +7,9 @@
 
 export const PRICING = {
   // PRO Subscription Plans (PROMO PRICES)
-  PRO_30_DAYS: 48000,      // Rp48.000 (Promo Price)
-  PRO_180_DAYS: 250000,     // Rp250.000
-  PRO_LIFETIME: 52000,      // Rp52.000 (Lifetime Promo Price)
+  PRO_30_DAYS: 25000,      // Rp25.000 (Promo Price)
+  PRO_180_DAYS: 120000,    // Rp120.000
+  PRO_LIFETIME: 52000,     // Rp52.000 (Lifetime Promo Price)
 
   // Legacy pricing (for reference)
   LEGACY: {
