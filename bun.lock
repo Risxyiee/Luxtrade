@@ -39,7 +39,6 @@
         "@radix-ui/react-toggle-group": "^1.1.10",
         "@radix-ui/react-tooltip": "^1.2.7",
         "@reactuses/core": "^6.0.5",
-        "@supabase/auth-helpers-nextjs": "^0.15.0",
         "@supabase/auth-helpers-react": "^0.15.0",
         "@supabase/ssr": "^0.9.0",
         "@supabase/supabase-js": "^2.105.4",
@@ -623,8 +622,6 @@
     "@standard-schema/utils": ["@standard-schema/utils@0.3.0", "https://registry.npmjs.com/@standard-schema/utils/-/utils-0.3.0.tgz", {}, "sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g=="],
 
     "@stitches/core": ["@stitches/core@1.2.8", "https://registry.npmjs.com/@stitches/core/-/core-1.2.8.tgz", {}, "sha512-Gfkvwk9o9kE9r9XNBmJRfV8zONvXThnm1tcuojL04Uy5uRyqg93DC83lDebl0rocZCfKSjUv+fWYtMQmEDJldg=="],
-
-    "@supabase/auth-helpers-nextjs": ["@supabase/auth-helpers-nextjs@0.15.0", "", { "dependencies": { "cookie": "^1.0.2" }, "peerDependencies": { "@supabase/supabase-js": "^2.76.1" } }, "sha512-VtXz3GGnxluoxks1g3SaCoYr2OZ7PgRukDl+pLWrDfD2dPDaG8hmkp5iBZsU+lmsDYALGNO2dgbymgpAfD8eCQ=="],
 
     "@supabase/auth-helpers-react": ["@supabase/auth-helpers-react@0.15.0", "", { "dependencies": { "cookie": "^1.0.2" }, "peerDependencies": { "@supabase/supabase-js": "^2.76.1" } }, "sha512-ddyCelBWeOtBNJiJ1x947ZxVEbjydIvpo9hIQ/J/uf+ozLj2buOal+P273rfUIyUf5mIfOtWo9l2hnAqsP/x0w=="],
 
