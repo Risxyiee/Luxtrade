@@ -87,16 +87,6 @@ export default function AddAccountForm({ open, onOpenChange, onSuccess }: AddAcc
     setIsSubmitting(true)
 
     try {
-      // Get auth token
-      const token = localStorage.getItem('sb-access-token') || 
-                    sessionStorage.getItem('sb-access-token')
-
-      if (!token) {
-        toast.error('Please login to add a trading account')
-        setIsSubmitting(false)
-        return
-      }
-
       const balance = parseFloat(formData.initial_balance)
 
       // Prepare data according to API specification
@@ -111,14 +101,14 @@ export default function AddAccountForm({ open, onOpenChange, onSuccess }: AddAcc
         is_active: true
       }
 
-      // Send to API endpoint
+      // Send to API endpoint (auth is handled via cookies by @supabase/ssr)
       const response = await fetch('/api/trading-accounts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(accountData)
+        body: JSON.stringify(accountData),
+        credentials: 'include' // Important for cookie-based auth
       })
 
       const result = await response.json()
