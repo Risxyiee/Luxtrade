@@ -288,9 +288,9 @@ export default function TradeWizardForm({
   const progress = (currentStep / totalSteps) * 100
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-4"> {/* Added pb-4 for mobile spacing */}
       {/* Progress Bar */}
-      <div className="space-y-2">
+      <div className="space-y-2 shrink-0"> {/* Added shrink-0 */}
         <div className="flex items-center justify-between text-sm">
           <span className="text-purple-300 font-medium">Step {currentStep} of {totalSteps}</span>
           <span className="text-gray-400">{Math.round(progress)}% Complete</span>
@@ -298,7 +298,8 @@ export default function TradeWizardForm({
         <Progress value={progress} className="h-2 bg-purple-900/30" />
       </div>
 
-      {/* Step 1: Pair, Type, Lot, and Account */}
+      {/* Step Content - Scrollable on mobile */}
+      <div className="overflow-y-auto max-h-[50vh] lg:max-h-none -mx-1 px-1">
       <AnimatePresence mode="wait">
         {currentStep === 1 && (
           <motion.div
@@ -665,9 +666,10 @@ export default function TradeWizardForm({
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
 
       {/* Navigation Buttons */}
-      <div className="flex gap-3 pt-4 border-t border-purple-900/30">
+      <div className="flex gap-3 pt-4 border-t border-purple-900/30 shrink-0">
         {currentStep > 1 ? (
           <Button
             variant="outline"

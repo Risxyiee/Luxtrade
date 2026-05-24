@@ -117,7 +117,7 @@ export default function Sidebar({
         {/* Top Glow */}
         <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-500/5 to-transparent pointer-events-none" />
 
-        <div className="relative p-4 border-b border-purple-500/20 shrink-0">
+        <div className="relative p-4 border-b border-purple-500/20 shrink-0 flex flex-col">
           <Link href="/" className="flex items-center gap-3 group">
             <motion.div
               className="relative flex-shrink-0"
