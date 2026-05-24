@@ -107,6 +107,8 @@ export default function Sidebar({
         transition-all duration-300 ease-in-out
         ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         ${mobileSidebarOpen ? 'w-80' : sidebarOpen ? 'w-80' : 'w-20'}
+        flex flex-col
+        overscroll-behavior-y-contain
       `}>
         {/* Glassmorphism Background */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0d0a1a]/98 via-[#0f0b18]/98 to-[#0d0a1a]/98 backdrop-blur-3xl border-r border-purple-500/20" />
@@ -117,6 +119,7 @@ export default function Sidebar({
         {/* Top Glow */}
         <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-500/5 to-transparent pointer-events-none" />
 
+        {/* Header Section - Logo & Account Selector */}
         <div className="relative p-4 border-b border-purple-500/20 shrink-0 flex flex-col">
           <Link href="/" className="flex items-center gap-3 group">
             <motion.div
@@ -193,7 +196,7 @@ export default function Sidebar({
           )}
         </div>
 
-        <nav className="flex-1 p-3 space-y-2 overflow-y-auto relative min-h-0">
+        <nav className="flex-1 p-3 space-y-2 overflow-y-auto overflow-x-hidden relative min-h-0 -webkit-overflow-scrolling touch overscroll-behavior-y-contain">
           {(['utama', 'alat', 'lanjutan'] as const).map((category) => {
             const categoryItems = menuItems.filter(item => item.category === category)
             const catInfo = menuCategories[category]
