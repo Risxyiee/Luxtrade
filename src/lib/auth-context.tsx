@@ -204,6 +204,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           fetchProfile(session.user.id).then(async (profileData) => {
             const checkedProfile = await checkAndLockExpired(profileData);
             setProfile(checkedProfile);
+
+            // Update login streak when user signs in
+            if (event === 'SIGNED_IN') {
+              try {
+                const { updateLoginStreak, checkStreakAchievements } = await import('./streak-tracker')
+                const newStreak = await updateLoginStreak(session.user.id)
+                await checkStreakAchievements(session.user.id, newStreak)
+                console.log(`🔥 [AuthContext] Login streak updated: ${newStreak}`)
+              } catch (error) {
+                console.error('[AuthContext] Error updating streak:', error)
+              }
+            }
           });
         }
       }
