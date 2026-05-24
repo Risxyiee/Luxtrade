@@ -150,6 +150,18 @@ export const createTradeHandlers = ({
         setAddTradeOpen(false)
         setFormData(emptyFormData)
         fetchData()
+
+        // Check for unlocked achievements
+        if (data.unlockedAchievements && data.unlockedAchievements.length > 0) {
+          console.log('🎉 [handleAddTrade] Unlocked achievements:', data.unlockedAchievements)
+          // Show achievement notification
+          data.unlockedAchievements.forEach((achievement: any) => {
+            toast.success(`🏆 Achievement Unlocked: ${achievement.title}!`, {
+              description: achievement.reward,
+              duration: 5000,
+            })
+          })
+        }
       } else {
         console.log('❌ [handleAddTrade] Failed to create trade:', data)
         // Show specific error message from API

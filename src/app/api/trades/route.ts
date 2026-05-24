@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { createClientForApi } from '@/lib/supabase/server'
+import { checkAchievementsAfterTrade } from '@/lib/achievement-checker'
 
 // Free user trade limit - 15 trades per month
 const FREE_TRADE_LIMIT = 15
@@ -226,7 +227,24 @@ export async function POST(request: NextRequest) {
     })
 
     console.log('✅ [API] Trade created successfully:', trade.id)
-    return NextResponse.json({ trade })
+
+    // Check achievements after trade creation
+    console.log('🏆 [API] Checking achievements after trade...')
+    let unlockedAchievements: any[] = []
+    try {
+      unlockedAchievements = await checkAchievementsAfterTrade(userId)
+      if (unlockedAchievements.length > 0) {
+        console.log(`🎉 [API] Unlocked ${unlockedAchievements.length} achievements:`, unlockedAchievements)
+      }
+    } catch (error) {
+      console.error('❌ [API] Error checking achievements:', error)
+      // Don't fail the trade creation if achievement check fails
+    }
+
+    return NextResponse.json({
+      trade,
+      unlockedAchievements
+    })
   } catch (err) {
     console.error('❌ [API /api/trades POST] Error:', err)
     console.error('Error stack:', err instanceof Error ? err.stack : 'No stack trace')
