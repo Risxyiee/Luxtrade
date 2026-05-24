@@ -226,6 +226,7 @@ function LuxTradeDashboardContent() {
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([])
   const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([])
   const [tradingAccounts, setTradingAccounts] = useState<any[]>([])
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   
@@ -743,6 +744,9 @@ function LuxTradeDashboardContent() {
         setPlanSelectionModalOpen={setPlanSelectionModalOpen}
         userInitials={userInitials}
         handleSignOut={handleSignOut}
+        tradingAccounts={tradingAccounts}
+        selectedAccountId={selectedAccountId}
+        setSelectedAccountId={setSelectedAccountId}
       />
 
       {/* Main Content - MOBILE: Full width, DESKTOP: Adjusted by sidebar */}

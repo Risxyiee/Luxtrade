@@ -6,9 +6,10 @@ import { motion } from 'framer-motion'
 import { Menu, X, BarChart3, Activity, Calendar, BookOpen, Eye,
   Newspaper, CalendarDays, Trophy, Target, Grid3X3, PieChart,
   Brain, FileText, Flame, Heart, Settings, Shield, Crown,
-  Zap, AlertCircle, Lock, LogOut
+  Zap, AlertCircle, Lock, LogOut, Wallet, ChevronDown
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 
 interface SidebarProps {
@@ -29,6 +30,9 @@ interface SidebarProps {
   setPlanSelectionModalOpen: (open: boolean) => void
   userInitials: string
   handleSignOut: () => void
+  tradingAccounts?: any[]
+  selectedAccountId?: string | null
+  setSelectedAccountId?: (accountId: string | null) => void
 }
 
 const menuCategories = {
@@ -79,7 +83,10 @@ export default function Sidebar({
   FREE_TRADE_LIMIT,
   setPlanSelectionModalOpen,
   userInitials,
-  handleSignOut
+  handleSignOut,
+  tradingAccounts = [],
+  selectedAccountId = null,
+  setSelectedAccountId = () => {}
 }: SidebarProps) {
   return (
     <>
@@ -141,6 +148,49 @@ export default function Sidebar({
               </motion.div>
             )}
           </Link>
+
+          {/* Account Selector */}
+          {(sidebarOpen || mobileSidebarOpen) && tradingAccounts.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+              className="mt-4 relative"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Wallet className="w-4 h-4 text-purple-400" />
+                <span className="text-xs font-semibold text-gray-400">Trading Account</span>
+              </div>
+              <Select
+                value={selectedAccountId || 'all'}
+                onValueChange={(value) => {
+                  setSelectedAccountId(value === 'all' ? null : value)
+                  toast.success(`Switched to ${value === 'all' ? 'All Accounts' : 'Selected Account'}`)
+                }}
+              >
+                <SelectTrigger className="bg-[#0a0712] border-purple-900/30 text-white text-sm h-9">
+                  <SelectValue placeholder="Select Account" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#0f0b18] border-purple-900/30">
+                  <SelectItem value="all" className="text-gray-300">
+                    <span className="flex items-center gap-2">
+                      <Grid3X3 className="w-4 h-4 text-purple-400" />
+                      All Accounts
+                    </span>
+                  </SelectItem>
+                  {tradingAccounts.map((account: any) => (
+                    <SelectItem key={account.id} value={account.id} className="text-white">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                        <span className="truncate max-w-[150px]">{account.name}</span>
+                        <span className="text-xs text-gray-500">{account.currency}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </motion.div>
+          )}
         </div>
 
         <nav className="flex-1 p-3 space-y-2 overflow-y-auto relative min-h-0">
