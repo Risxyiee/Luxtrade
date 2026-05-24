@@ -1,28 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase, supabaseAdmin } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function GET(req: NextRequest) {
   try {
     // Get authenticated user
-    const authHeader = req.headers.get('authorization')
-    let user = null
+    const supabase = createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7)
-      const { data, error } = await supabase.auth.getUser(token)
-      if (!error && data.user) {
-        user = data.user
-      }
-    }
-
-    if (!user) {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        user = session.user
-      }
-    }
-
-    if (!user) {
+    if (authError || !user) {
+      console.error('Auth error:', authError)
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 

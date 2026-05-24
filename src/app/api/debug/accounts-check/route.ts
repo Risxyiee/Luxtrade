@@ -1,28 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase, supabaseAdmin } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function GET(req: NextRequest) {
   try {
     // Get authenticated user
-    const authHeader = req.headers.get('authorization')
-    let user = null
+    const supabase = createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7)
-      const { data, error } = await supabase.auth.getUser(token)
-      if (!error && data.user) {
-        user = data.user
-      }
-    }
-
-    if (!user) {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        user = session.user
-      }
-    }
-
-    if (!user) {
+    if (authError || !user) {
+      console.error('Auth error:', authError)
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
@@ -32,22 +19,10 @@ export async function GET(req: NextRequest) {
       checks: []
     }
 
-    // Check 1: Fetch with regular client (subject to RLS)
-    console.log('🔍 [DEBUG] Checking with regular supabase client...')
-    const { data: regularData, error: regularError } = await supabase
-      .from('trading_accounts')
-      .select('*')
-      .eq('user_id', user.id)
+    // Note: Not checking with regular client since we're using cookie-based auth now
+    // Direct to admin client check
 
-    debugInfo.checks.push({
-      name: 'Regular Client (with RLS)',
-      success: !regularError,
-      count: regularData?.length || 0,
-      error: regularError?.message || null,
-      data: regularData
-    })
-
-    // Check 2: Fetch with admin client (bypasses RLS)
+    // Check: Fetch with admin client (bypasses RLS)
     console.log('🔍 [DEBUG] Checking with supabaseAdmin...')
     if (supabaseAdmin) {
       const { data: adminData, error: adminError } = await supabaseAdmin
@@ -62,16 +37,8 @@ export async function GET(req: NextRequest) {
         error: adminError?.message || null,
         data: adminData
       })
-    } else {
-      debugInfo.checks.push({
-        name: 'Admin Client',
-        success: false,
-        error: 'supabaseAdmin is not configured'
-      })
-    }
 
-    // Check 3: Direct SQL query to see all records
-    if (supabaseAdmin) {
+      // Check 2: Direct SQL query to see all records
       const { data: allData, error: allError } = await supabaseAdmin
         .from('trading_accounts')
         .select('*')
@@ -91,6 +58,12 @@ export async function GET(req: NextRequest) {
           platform: acc.platform,
           created_at: acc.created_at
         }))
+      })
+    } else {
+      debugInfo.checks.push({
+        name: 'Admin Client',
+        success: false,
+        error: 'supabaseAdmin is not configured'
       })
     }
 
