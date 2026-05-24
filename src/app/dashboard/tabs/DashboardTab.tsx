@@ -379,6 +379,35 @@ function DashboardTab({
   profile
 }: DashboardTabProps) {
 
+  // Move ALL hooks before any conditional return
+  const hasData = trades.length > 0
+  const todayPerf = getTodayPerformance(trades)
+  const weeklyPerf = getWeeklyPerformance(trades)
+  const activeStreak = calculateActiveStreak(trades)
+  const { triggerMilestoneConfetti } = useConfetti()
+
+  // Trigger confetti on milestones
+  useEffect(() => {
+    if (!hasData) {
+      // First trade celebration
+      triggerMilestoneConfetti('first-trade')
+    }
+  }, [hasData, triggerMilestoneConfetti])
+
+  useEffect(() => {
+    // Win streak celebration
+    if (activeStreak.type === 'win' && activeStreak.count >= 3) {
+      triggerMilestoneConfetti('win-streak')
+    }
+  }, [activeStreak, triggerMilestoneConfetti])
+
+  useEffect(() => {
+    // Weekly target celebration
+    if (weeklyPerf.trades >= 10) {
+      triggerMilestoneConfetti('weekly-target')
+    }
+  }, [weeklyPerf.trades, triggerMilestoneConfetti])
+
   if (loading) {
     return (
       <div className="space-y-6 relative">
@@ -418,34 +447,6 @@ function DashboardTab({
       </div>
     )
   }
-
-  const hasData = trades.length > 0
-  const todayPerf = getTodayPerformance(trades)
-  const weeklyPerf = getWeeklyPerformance(trades)
-  const activeStreak = calculateActiveStreak(trades)
-  const { triggerMilestoneConfetti } = useConfetti()
-
-  // Trigger confetti on milestones
-  useEffect(() => {
-    if (!hasData) {
-      // First trade celebration
-      triggerMilestoneConfetti('first-trade')
-    }
-  }, [hasData, triggerMilestoneConfetti])
-
-  useEffect(() => {
-    // Win streak celebration
-    if (activeStreak.type === 'win' && activeStreak.count >= 3) {
-      triggerMilestoneConfetti('win-streak')
-    }
-  }, [activeStreak, triggerMilestoneConfetti])
-
-  useEffect(() => {
-    // Weekly target celebration
-    if (weeklyPerf.trades >= 10) {
-      triggerMilestoneConfetti('weekly-target')
-    }
-  }, [weeklyPerf.trades, triggerMilestoneConfetti])
 
   return (
     <div className="space-y-6 relative min-h-screen">

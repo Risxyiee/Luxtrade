@@ -83,6 +83,138 @@ interface JournalTabProps {
   onUpgrade?: () => void
 }
 
+// Separate Calendar View Component (defined outside to avoid component-in-render warning)
+interface CalendarViewProps {
+  entries: JournalEntry[]
+  currentMonth: Date
+  setCurrentMonth: (date: Date) => void
+  onView: (entry: JournalEntry) => void
+}
+
+function CalendarView({ entries, currentMonth, setCurrentMonth, onView }: CalendarViewProps) {
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear()
+    const month = date.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const startDayOfWeek = firstDay.getDay()
+    const totalDays = lastDay.getDate()
+    return { startDayOfWeek, totalDays }
+  }
+
+  const getEntriesForDate = (date: Date) => {
+    const dateStr = date.toDateString()
+    return entries.filter(e => new Date(e.created_at).toDateString() === dateStr)
+  }
+
+  const { startDayOfWeek, totalDays } = getDaysInMonth(currentMonth)
+  const monthName = currentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
+  const days = []
+
+  // Empty cells for days before the first day of the month
+  for (let i = 0; i < startDayOfWeek; i++) {
+    days.push(<div key={`empty-${i}`} className="h-24" />)
+  }
+
+  // Days of the month
+  for (let day = 1; day <= totalDays; day++) {
+    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)
+    const dayEntries = getEntriesForDate(date)
+    const isToday = date.toDateString() === new Date().toDateString()
+
+    days.push(
+      <div
+        key={day}
+        onClick={() => dayEntries.length > 0 && onView(dayEntries[0])}
+        className={`h-24 p-2 rounded-lg border border-white/5 transition-all cursor-pointer hover:border-purple-500/30 ${
+          isToday ? 'bg-purple-500/10 border-purple-500/30' : 'bg-white/5'
+        } ${dayEntries.length > 0 ? 'hover:bg-white/10' : ''}`}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <span className={`text-sm font-medium ${isToday ? 'text-purple-400' : 'text-gray-400'}`}>
+            {day}
+          </span>
+          {dayEntries.length > 0 && (
+            <div className="flex gap-1">
+              {dayEntries.slice(0, 3).map((e) => (
+                <div
+                  key={e.id}
+                  className={`w-2 h-2 rounded-full ${
+                    e.mood === 'confident' ? 'bg-emerald-400' :
+                    e.mood === 'anxious' ? 'bg-red-400' :
+                    'bg-purple-400'
+                  }`}
+                />
+              ))}
+              {dayEntries.length > 3 && (
+                <span className="text-xs text-gray-500">+{dayEntries.length - 3}</span>
+              )}
+            </div>
+          )}
+        </div>
+        {dayEntries.length > 0 && (
+          <div className="space-y-1">
+            {dayEntries.slice(0, 2).map((e) => (
+              <p key={e.id} className="text-xs text-gray-400 truncate">
+                {e.title}
+              </p>
+            ))}
+            {dayEntries.length > 2 && (
+              <p className="text-xs text-gray-500">+{dayEntries.length - 2} more</p>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
+              className="text-gray-400 hover:text-white"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <CardTitle className="text-lg">{monthName}</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
+              className="text-gray-400 hover:text-white"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentMonth(new Date())}
+            className="border-purple-500/30 text-purple-400"
+          >
+            Today
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-7 gap-2 mb-2">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+            <div key={day} className="text-center text-xs text-gray-500 font-medium">
+              {day}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-2">{days}</div>
+      </CardContent>
+    </Card>
+  )
+}
+
 function JournalTab({
   entries,
   loading,
@@ -164,115 +296,6 @@ function JournalTab({
   const getEntriesForDate = (date: Date) => {
     const dateStr = date.toDateString()
     return entries.filter(e => new Date(e.created_at).toDateString() === dateStr)
-  }
-
-  const CalendarView = () => {
-    const { startDayOfWeek, totalDays } = getDaysInMonth(currentMonth)
-    const monthName = currentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
-    const days = []
-
-    // Empty cells for days before the first day of the month
-    for (let i = 0; i < startDayOfWeek; i++) {
-      days.push(<div key={`empty-${i}`} className="h-24" />)
-    }
-
-    // Days of the month
-    for (let day = 1; day <= totalDays; day++) {
-      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)
-      const dayEntries = getEntriesForDate(date)
-      const isToday = date.toDateString() === new Date().toDateString()
-
-      days.push(
-        <div
-          key={day}
-          onClick={() => dayEntries.length > 0 && onView(dayEntries[0])}
-          className={`h-24 p-2 rounded-lg border border-white/5 transition-all cursor-pointer hover:border-purple-500/30 ${
-            isToday ? 'bg-purple-500/10 border-purple-500/30' : 'bg-white/5'
-          } ${dayEntries.length > 0 ? 'hover:bg-white/10' : ''}`}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className={`text-sm font-medium ${isToday ? 'text-purple-400' : 'text-gray-400'}`}>
-              {day}
-            </span>
-            {dayEntries.length > 0 && (
-              <div className="flex gap-1">
-                {dayEntries.slice(0, 3).map((e) => (
-                  <div
-                    key={e.id}
-                    className={`w-2 h-2 rounded-full ${
-                      e.mood === 'confident' ? 'bg-emerald-400' :
-                      e.mood === 'anxious' ? 'bg-red-400' :
-                      'bg-purple-400'
-                    }`}
-                  />
-                ))}
-                {dayEntries.length > 3 && (
-                  <span className="text-xs text-gray-500">+{dayEntries.length - 3}</span>
-                )}
-              </div>
-            )}
-          </div>
-          {dayEntries.length > 0 && (
-            <div className="space-y-1">
-              {dayEntries.slice(0, 2).map((e) => (
-                <p key={e.id} className="text-xs text-gray-400 truncate">
-                  {e.title}
-                </p>
-              ))}
-              {dayEntries.length > 2 && (
-                <p className="text-xs text-gray-500">+{dayEntries.length - 2} more</p>
-              )}
-            </div>
-          )}
-        </div>
-      )
-    }
-
-    return (
-      <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
-                className="text-gray-400 hover:text-white"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <CardTitle className="text-lg">{monthName}</CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
-                className="text-gray-400 hover:text-white"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentMonth(new Date())}
-              className="border-purple-500/30 text-purple-400"
-            >
-              Today
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-7 gap-2 mb-2">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-              <div key={day} className="text-center text-xs text-gray-500 font-medium">
-                {day}
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-2">{days}</div>
-        </CardContent>
-      </Card>
-    )
   }
 
   return (
@@ -481,7 +504,14 @@ function JournalTab({
       </AnimatePresence>
 
       {/* Calendar View */}
-      {viewMode === 'calendar' && entries.length > 0 && <CalendarView />}
+      {viewMode === 'calendar' && entries.length > 0 && (
+        <CalendarView 
+          entries={entries} 
+          currentMonth={currentMonth} 
+          setCurrentMonth={setCurrentMonth}
+          onView={onView}
+        />
+      )}
 
       {/* Journal Entries List */}
       {entries.length === 0 ? (

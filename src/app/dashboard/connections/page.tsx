@@ -43,30 +43,7 @@ export default function ConnectionsPage() {
   const { user, loading: authLoading, session } = useAuth()
   const { language, t } = useLanguage()
 
-  // Redirect to login if not authenticated (with delay to prevent flicker)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!authLoading && !user && !session) {
-        console.log('🔴 [DEBUG] Not authenticated, redirecting to login')
-        router.push('/auth/login')
-      }
-    }, 1000) // Wait 1 second before redirecting
-
-    return () => clearTimeout(timer)
-  }, [user, authLoading, session, router])
-
-  // Show loading while checking auth
-  if (authLoading || (!user && !session)) {
-    return (
-      <div className="min-h-screen bg-[#0f051d] text-white flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-10 h-10 text-purple-500 animate-spin mx-auto mb-4" />
-          <p className="text-white/60">Loading...</p>
-        </div>
-      </div>
-    )
-  }
-
+  // Move ALL hooks before any early return to avoid conditional hooks
   const [formData, setFormData] = useState<FormData>({
     platform: 'MT5',
     accountNumber: '',
@@ -92,6 +69,30 @@ export default function ConnectionsPage() {
     // Cookie-based auth - no Bearer token needed
     return headers
   }, [])
+
+  // Redirect to login if not authenticated (with delay to prevent flicker)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!authLoading && !user && !session) {
+        console.log('🔴 [DEBUG] Not authenticated, redirecting to login')
+        router.push('/auth/login')
+      }
+    }, 1000) // Wait 1 second before redirecting
+
+    return () => clearTimeout(timer)
+  }, [user, authLoading, session, router])
+
+  // Show loading while checking auth
+  if (authLoading || (!user && !session)) {
+    return (
+      <div className="min-h-screen bg-[#0f051d] text-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-purple-500 animate-spin mx-auto mb-4" />
+          <p className="text-white/60">Loading...</p>
+        </div>
+      </div>
+    )
+  }
 
   // Silent cleanup of PENDING accounts - no user notification
   const cleanupPendingAccountsSilently = async () => {
