@@ -33,8 +33,8 @@ export const ACHIEVEMENTS: Achievement[] = [
     rarity: 'common',
     reward: {
       type: 'pro_days',
-      value: 3,
-      label: '3 Days PRO Access'
+      value: 1,
+      label: '1 Day PRO Access'
     },
     criteria: {
       type: 'trade_count',

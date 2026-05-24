@@ -1,13 +1,5 @@
 import { ACHIEVEMENTS } from './achievements-data'
-import { supabase } from './supabase'
-import {
-  getUserSubmissions,
-  getMissionProgressByKey,
-  upsertMissionProgress,
-  createUserSubmission,
-  addAchievementToProfile,
-  ensureProfileExists,
-} from './supabase-db'
+import { db } from '@/lib/db'
 
 export interface AchievementResult {
   id: string
@@ -28,18 +20,18 @@ export async function checkAchievementsAfterTrade(userId: string): Promise<Achie
       return []
     }
 
-    // Ensure profile exists
-    const profile = await ensureProfileExists(userId)
+    // Get user's profile
+    const profile = await db.profile.findUnique({
+      where: { id: userId }
+    })
+
     if (!profile) {
       console.log('[Achievement Checker] Failed to get profile')
       return []
     }
 
-    // Get user's existing submissions
-    const submissions = await getUserSubmissions(userId)
-    const claimedAchievementIds = submissions
-      .filter(s => s.status === 'APPROVED')
-      .map(s => s.achievement_key)
+    // Get user's claimed achievement IDs from profile.achievements array
+    const claimedAchievementIds = profile.achievements || []
 
     // Check each automatic achievement
     const unlockedAchievements: AchievementResult[] = []
@@ -61,17 +53,16 @@ export async function checkAchievementsAfterTrade(userId: string): Promise<Achie
       if (isMet) {
         console.log(`[Achievement Checker] Achievement "${achievement.title}" is now complete!`)
 
-        // Update mission progress
-        const existingProgress = await getMissionProgressByKey(userId, achievement.id)
-
-        await upsertMissionProgress({
-          userId,
-          missionKey: achievement.id,
-          progress: achievement.criteria.target,
-          target: achievement.criteria.target,
-          completed: true,
-          claimed: false,
+        // Add achievement to profile
+        await db.profile.update({
+          where: { id: userId },
+          data: {
+            achievements: [...claimedAchievementIds, achievement.id]
+          }
         })
+
+        // Apply reward immediately
+        await applyReward(userId, achievement)
 
         unlockedAchievements.push({
           id: achievement.id,
@@ -101,46 +92,46 @@ async function checkAchievementCriteria(
   try {
     switch (achievement.criteria.type) {
       case 'trade_count':
-        const tradesCount = await supabase
-          .from('trades')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', userId)
+        const tradesCount = await db.trade.count({
+          where: { user_id: userId }
+        })
 
-        const totalTrades = tradesCount.count || 0
+        const totalTrades = tradesCount || 0
         console.log(`[Achievement Checker] Trade count: ${totalTrades}, Target: ${achievement.criteria.target}`)
         return totalTrades >= achievement.criteria.target
 
       case 'profit':
-        const { data: profitData } = await supabase
-          .from('trades')
-          .select('profit_loss')
-          .eq('user_id', userId)
-          .gt('profit_loss', 0)
+        const trades = await db.trade.findMany({
+          where: {
+            user_id: userId,
+            profit_loss: { gt: 0 }
+          },
+          select: { profit_loss: true }
+        })
 
-        const totalProfit = (profitData || []).reduce((sum, t) => sum + (t.profit_loss || 0), 0)
+        const totalProfit = trades.reduce((sum, t) => sum + (t.profit_loss || 0), 0)
         console.log(`[Achievement Checker] Total profit: $${totalProfit}, Target: $${achievement.criteria.target}`)
         return totalProfit >= achievement.criteria.target
 
       case 'win_streak':
-        const { data: winTrades } = await supabase
-          .from('trades')
-          .select('profit_loss, close_time')
-          .eq('user_id', userId)
-          .gt('profit_loss', 0)
-          .order('close_time', { ascending: false })
+        const winTrades = await db.trade.findMany({
+          where: {
+            user_id: userId,
+            profit_loss: { gt: 0 }
+          },
+          orderBy: { close_time: 'desc' },
+          select: { profit_loss: true }
+        })
 
         let currentStreak = 0
         if (winTrades && winTrades.length > 0) {
-          currentStreak = 1
-          for (let i = 1; i < winTrades.length; i++) {
-            currentStreak++
-          }
+          currentStreak = winTrades.length // All positive trades count as win streak
         }
         console.log(`[Achievement Checker] Win streak: ${currentStreak}, Target: ${achievement.criteria.target}`)
         return currentStreak >= achievement.criteria.target
 
       case 'login_streak':
-        const streakCount = profile.streak_count || 0
+        const streakCount = profile.streakCount || 0
         console.log(`[Achievement Checker] Login streak: ${streakCount}, Target: ${achievement.criteria.target}`)
         return streakCount >= achievement.criteria.target
 
@@ -154,54 +145,6 @@ async function checkAchievementCriteria(
 }
 
 /**
- * Automatically claim an achievement (for automatic types)
- */
-export async function autoClaimAchievement(userId: string, achievementId: string): Promise<boolean> {
-  try {
-    const achievement = ACHIEVEMENTS.find(a => a.id === achievementId)
-    if (!achievement || achievement.type !== 'automatic') {
-      console.log('[Achievement Checker] Invalid achievement or not automatic')
-      return false
-    }
-
-    // Create submission
-    const submission = await createUserSubmission({
-      userId,
-      achievementKey: achievementId,
-      status: 'APPROVED',
-      reviewedBy: 'SYSTEM',
-    })
-
-    if (!submission) {
-      console.log('[Achievement Checker] Failed to create submission')
-      return false
-    }
-
-    // Add achievement to profile
-    await addAchievementToProfile(userId, achievementId)
-
-    // Update mission progress
-    await upsertMissionProgress({
-      userId,
-      missionKey: achievementId,
-      progress: achievement.criteria.target,
-      target: achievement.criteria.target,
-      completed: true,
-      claimed: true,
-    })
-
-    // Apply reward
-    await applyReward(userId, achievement)
-
-    console.log(`[Achievement Checker] Achievement "${achievement.title}" auto-claimed successfully`)
-    return true
-  } catch (error) {
-    console.error('[Achievement Checker] Error auto-claiming achievement:', error)
-    return false
-  }
-}
-
-/**
  * Apply achievement reward to user
  */
 async function applyReward(userId: string, achievement: any): Promise<void> {
@@ -209,15 +152,16 @@ async function applyReward(userId: string, achievement: any): Promise<void> {
     switch (achievement.reward.type) {
       case 'pro_days':
         const daysToAdd = achievement.reward.value as number
-        const { getProfile, updateProfile } = await import('./supabase-db')
-        const profile = await getProfile(userId)
+        const profile = await db.profile.findUnique({
+          where: { id: userId }
+        })
 
         if (!profile) {
           console.error('[Achievement Checker] Profile not found when applying reward')
           return
         }
 
-        const currentExpiry = profile.pro_expiry ? new Date(profile.pro_expiry) : null
+        const currentExpiry = profile.subscription_until ? new Date(profile.subscription_until) : null
         const now = new Date()
 
         let newExpiry: Date
@@ -229,23 +173,14 @@ async function applyReward(userId: string, achievement: any): Promise<void> {
 
         newExpiry.setDate(newExpiry.getDate() + daysToAdd)
 
-        await updateProfile(userId, {
-          pro_expiry: newExpiry.toISOString(),
-          plan: 'PRO',
-        })
-
-        // Update Supabase Auth metadata
-        const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
-          user_metadata: {
-            is_pro: true,
-            subscription_status: 'active',
+        await db.profile.update({
+          where: { id: userId },
+          data: {
             subscription_until: newExpiry.toISOString(),
+            plan: 'PRO',
+            is_pro: true,
           }
         })
-
-        if (updateError) {
-          console.error('[Achievement Checker] Error updating user metadata:', updateError)
-        }
 
         console.log(`[Achievement Checker] Applied ${daysToAdd} days PRO to user ${userId}`)
         break

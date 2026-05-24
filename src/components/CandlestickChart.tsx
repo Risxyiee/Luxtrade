@@ -27,10 +27,14 @@ function CandlestickChartInner({
   // Mount tracking
   useEffect(() => {
     console.log('[CandlestickChart] Component mounting...')
-    setMounted(true)
+    // Use setTimeout to avoid synchronous setState in effect
+    const timer = setTimeout(() => {
+      setMounted(true)
+    }, 0)
+
     return () => {
+      clearTimeout(timer)
       console.log('[CandlestickChart] Component unmounting')
-      setMounted(false)
     }
   }, [])
 
@@ -188,7 +192,10 @@ function CandlestickChartInner({
 
       if (validData.length === 0) {
         console.error('[CandlestickChart] No valid data after filtering')
-        setError('No valid data available')
+        // Use setTimeout to avoid synchronous setState in effect
+        setTimeout(() => {
+          setError('No valid data available')
+        }, 0)
         return
       }
 
@@ -197,7 +204,10 @@ function CandlestickChartInner({
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       console.error('[CandlestickChart] ❌ Error updating chart data:', err)
-      setError(errorMessage)
+      // Use setTimeout to avoid synchronous setState in effect
+      setTimeout(() => {
+        setError(errorMessage)
+      }, 0)
     }
   }, [mounted, data])
 

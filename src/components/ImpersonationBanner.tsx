@@ -19,8 +19,11 @@ export default function ImpersonationBanner() {
   useEffect(() => {
     // Check if admin is impersonating
     const email = localStorage.getItem('admin_impersonating_email')
+    // Use setTimeout to avoid synchronous setState in effect
     if (email) {
-      setImpersonatingEmail(email)
+      setTimeout(() => {
+        setImpersonatingEmail(email)
+      }, 0)
     }
   }, [])
 

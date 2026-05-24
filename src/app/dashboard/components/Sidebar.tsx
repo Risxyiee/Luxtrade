@@ -90,11 +90,17 @@ export default function Sidebar({
 }: SidebarProps) {
   return (
     <>
-      {/* Mobile Overlay Background - Click to close */}
+      {/* Mobile Overlay Background - Click to close with better feedback */}
       {mobileSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
-          onClick={() => setMobileSidebarOpen(false)}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300"
+          onClick={() => {
+            setMobileSidebarOpen(false)
+            // Add haptic feedback if available
+            if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+              navigator.vibrate(10)
+            }
+          }}
         />
       )}
 
@@ -254,13 +260,17 @@ export default function Sidebar({
                             setActiveTab(item.id)
                             setMobileSidebarOpen(false)
                           }
+                          // Add haptic feedback on mobile
+                          if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                            navigator.vibrate(5)
+                          }
                         }}
                         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 relative overflow-hidden group ${
                           activeTab === item.id
                             ? 'bg-gradient-to-r from-purple-500/20 via-violet-500/15 to-pink-500/10 text-white shadow-lg shadow-purple-500/20'
                             : isLocked
                               ? 'text-gray-500/50 hover:text-gray-400'
-                              : 'text-gray-400 hover:text-white hover:bg-white/5'
+                              : 'text-gray-400 hover:text-white hover:bg-white/5 active:bg-white/10'
                         }`}
                       >
                         {/* Active State Glow */}
@@ -463,8 +473,12 @@ export default function Sidebar({
                 setMobileSidebarOpen(false)
               }
               setSidebarOpen(!sidebarOpen)
+              // Add haptic feedback on mobile
+              if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                navigator.vibrate(10)
+              }
             }}
-            className="relative w-full flex items-center justify-center p-2.5 text-gray-400 hover:text-white transition-colors rounded-xl hover:bg-white/5 group"
+            className="relative w-full flex items-center justify-center p-2.5 text-gray-400 hover:text-white transition-colors rounded-xl hover:bg-white/5 active:bg-white/10 group"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >

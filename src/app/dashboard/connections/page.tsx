@@ -82,6 +82,29 @@ export default function ConnectionsPage() {
     return () => clearTimeout(timer)
   }, [user, authLoading, session, router])
 
+  // Fetch user's connected accounts on mount
+  useEffect(() => {
+    console.log('🚀 [DEBUG] ConnectionsPage mounted')
+    fetchConnectedAccounts()
+  }, [])
+
+  // Simulate sync progress when syncing
+  useEffect(() => {
+    if (syncingAccountId) {
+      setSyncProgress(0)
+      const interval = setInterval(() => {
+        setSyncProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(interval)
+            return 90
+          }
+          return prev + Math.random() * 15
+        })
+      }, 500)
+      return () => clearInterval(interval)
+    }
+  }, [syncingAccountId])
+
   // Show loading while checking auth
   if (authLoading || (!user && !session)) {
     return (
@@ -214,29 +237,6 @@ export default function ConnectionsPage() {
       max: 100
     }
   ]
-
-  // Fetch user's connected accounts on mount
-  useEffect(() => {
-    console.log('🚀 [DEBUG] ConnectionsPage mounted')
-    fetchConnectedAccounts()
-  }, [])
-
-  // Simulate sync progress when syncing
-  useEffect(() => {
-    if (syncingAccountId) {
-      setSyncProgress(0)
-      const interval = setInterval(() => {
-        setSyncProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(interval)
-            return 90
-          }
-          return prev + Math.random() * 15
-        })
-      }, 500)
-      return () => clearInterval(interval)
-    }
-  }, [syncingAccountId])
 
   const fetchConnectedAccounts = async () => {
     try {

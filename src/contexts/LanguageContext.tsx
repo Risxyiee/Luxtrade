@@ -23,7 +23,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     try {
       const saved = localStorage.getItem(STORAGE_KEY) as Language
       if (saved === 'id' || saved === 'en') {
-        setLanguageState(saved)
+        // Use setTimeout to avoid synchronous setState in effect
+        setTimeout(() => {
+          setLanguageState(saved)
+        }, 0)
       }
     } catch (error) {
       console.error('Failed to load language preference:', error)
