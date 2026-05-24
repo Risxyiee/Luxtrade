@@ -39,7 +39,7 @@ export default function PaywallModal({
   const pricing = {
     pro: {
       title: isEnglish ? 'ELITE PRO' : 'ELITE PRO',
-      price: isEnglish ? '$3' : 'Rp 49.000',
+      price: isEnglish ? '$3' : 'Rp 25.000',
       period: isEnglish ? '/ Month' : '/ Bulan',
       description: isEnglish ? 'For serious traders who want consistent profits' : 'Untuk trader serius yang ingin profit konsisten',
       popular: isEnglish ? 'Most Popular' : 'Paling Populer'

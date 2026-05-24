@@ -6,7 +6,7 @@ const PAYMENT_CONFIG = {
   bankName: 'Bank Jago',
   accountNumber: '104051474194',
   accountHolder: 'RIZQI AKBAR PRATAMA',
-  amount: 49000, // Rp 49.000
+  amount: 25000, // Rp 25.000
   adminTelegram: '@Risxyiee',
 }
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       `Saya ingin konfirmasi pembayaran PRO Membership:\n\n` +
       `📧 Email: ${email || 'Not provided'}\n` +
       `🆔 User ID: ${userId || 'Not provided'}\n\n` +
-      `Saya sudah transfer Rp 49.000 ke:\n` +
+      `Saya sudah transfer Rp 25.000 ke:\n` +
       `Bank: ${PAYMENT_CONFIG.bankName}\n` +
       `Rekening: ${PAYMENT_CONFIG.accountNumber}\n` +
       `Atas Nama: ${PAYMENT_CONFIG.accountHolder}\n\n` +
