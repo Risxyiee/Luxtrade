@@ -4,7 +4,7 @@ import { createClientForApi } from '@/lib/supabase/server'
 // GET - Fetch watchlist
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClientForApi(request)
+    const { supabase } = createClientForApi(request)
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 // POST - Add to watchlist
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClientForApi(request)
+    const { supabase } = createClientForApi(request)
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 // DELETE - Remove from watchlist
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClientForApi(request)
+    const { supabase } = createClientForApi(request)
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {

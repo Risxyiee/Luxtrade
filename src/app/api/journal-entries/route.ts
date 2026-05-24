@@ -3,7 +3,7 @@ import { createClientForApi } from '@/lib/supabase/server'
 
 async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
   try {
-    const supabase = createClientForApi(request)
+    const { supabase } = createClientForApi(request)
     const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error) {

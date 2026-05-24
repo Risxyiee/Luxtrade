@@ -14,7 +14,7 @@ export async function DELETE(req: NextRequest) {
     console.log('🧹 [CLEANUP] Starting cleanup of stuck trading accounts...')
 
     // Get authenticated user
-    const supabase = createClientForApi(req)
+    const { supabase } = createClientForApi(req)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
