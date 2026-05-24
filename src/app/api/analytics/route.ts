@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
 import { createClientForApi } from '@/lib/supabase/server'
 
 // Helper: Get authenticated user
@@ -17,7 +18,6 @@ async function getAuthUser(request: NextRequest): Promise<{ id: string; email: s
       return null
     }
 
-    console.log('✅ [API] Authenticated user:', { id: user.id, email: user.email })
     return { id: user.id, email: user.email || '' }
   } catch (error) {
     console.error('❌ [API] Auth error:', error)
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     const userId = authUser.id
     const searchParams = request.nextUrl.searchParams
-    const period = searchParams.get('period') || 'all' // all, week, month, year
+    const period = searchParams.get('period') || 'all'
 
     // Build date filter
     let dateFilter: any = {}
@@ -43,35 +43,32 @@ export async function GET(request: NextRequest) {
 
     if (period === 'week') {
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-      dateFilter = { gte: weekAgo.toISOString() }
+      dateFilter = { gte: weekAgo }
     } else if (period === 'month') {
       const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
-      dateFilter = { gte: monthAgo.toISOString() }
+      dateFilter = { gte: monthAgo }
     } else if (period === 'year') {
       const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
-      dateFilter = { gte: yearAgo.toISOString() }
+      dateFilter = { gte: yearAgo }
     }
 
-    // Fetch trades
-    const supabase = createClientForApi(request)
-    let tradesQuery = supabase
-      .from('trades')
-      .select('*')
-      .eq('user_id', userId)
-      .order('close_time', { ascending: false })
+    // Fetch trades using Prisma
+    const whereClause: any = {
+      user_id: userId,
+    }
 
     if (period !== 'all') {
-      tradesQuery = tradesQuery.gte('close_time', dateFilter.gte)
+      whereClause.close_time = dateFilter
     }
 
-    const { data: trades, error } = await tradesQuery
+    const trades = await db.trade.findMany({
+      where: whereClause,
+      orderBy: {
+        close_time: 'desc',
+      },
+    })
 
-    if (error) {
-      console.error('Analytics fetch error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    const tradesList = trades || []
+    const tradesList = trades
 
     // Calculate basic analytics
     const totalTrades = tradesList.length
@@ -119,7 +116,7 @@ export async function GET(request: NextRequest) {
 
     // Equity Curve
     const equityCurve = []
-    cumulative = 10000 // Starting equity
+    cumulative = 10000
 
     sortedByTime.reverse().forEach(trade => {
       cumulative += trade.profit_loss
@@ -166,7 +163,7 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => a.month.localeCompare(b.month))
 
-    // Symbol Performance (NEW)
+    // Symbol Performance
     const symbolMap = new Map<string, { trades: number; pl: number; wins: number }>()
     tradesList.forEach(trade => {
       const symbol = trade.symbol
@@ -185,9 +182,9 @@ export async function GET(request: NextRequest) {
         wins: data.wins,
         winRate: data.trades > 0 ? (data.wins / data.trades) * 100 : 0
       }))
-      .sort((a, b) => b.pl - a.pl) // Sort by profitability
+      .sort((a, b) => b.pl - a.pl)
 
-    // Day of Week Performance (NEW)
+    // Day of Week Performance
     const dayOfWeekMap = new Map<number, { trades: number; pl: number; wins: number }>()
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -209,7 +206,7 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => a.day.localeCompare(b.day))
 
-    // Trade Duration & R:R Ratio Stats (NEW)
+    // Trade Duration & R:R Ratio Stats
     const tradeDurations = tradesList.filter(t => t.trade_duration).map(t => t.trade_duration!)
     const avgTradeDuration = tradeDurations.length > 0
       ? tradeDurations.reduce((a, b) => a + b, 0) / tradeDurations.length
@@ -220,7 +217,7 @@ export async function GET(request: NextRequest) {
       ? rrRatios.reduce((a, b) => a + b, 0) / rrRatios.length
       : 0
 
-    // Setup Type Performance (NEW)
+    // Setup Type Performance
     const setupTypeMap = new Map<string, { trades: number; pl: number; wins: number }>()
     tradesList.forEach(trade => {
       const setupType = trade.setup_type || 'Unknown'
@@ -241,7 +238,7 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => b.pl - a.pl)
 
-    // Today's Performance (NEW)
+    // Today's Performance
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const todayTrades = tradesList.filter(t =>
@@ -251,7 +248,7 @@ export async function GET(request: NextRequest) {
     const todayWins = todayTrades.filter(t => t.profit_loss > 0).length
     const todayWinRate = todayTrades.length > 0 ? (todayWins / todayTrades.length) * 100 : 0
 
-    // Active Streak (NEW)
+    // Active Streak
     const sortedByDate = [...tradesList].sort((a, b) =>
       new Date(b.close_time).getTime() - new Date(a.close_time).getTime()
     )
