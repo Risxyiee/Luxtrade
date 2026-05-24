@@ -49,9 +49,10 @@ export function createClient() {
 /**
  * Create a Supabase client for API routes
  * This function should be used in Route Handlers
+ * Returns both client and response to ensure cookies are set
  *
  * @param request - NextRequest object
- * @returns Supabase client configured for API routes
+ * @returns Object with supabase client and response
  */
 export function createClientForApi(request: NextRequest) {
   let response = NextResponse.next({
@@ -84,5 +85,5 @@ export function createClientForApi(request: NextRequest) {
     }
   )
 
-  return supabase
+  return { supabase, response }
 }

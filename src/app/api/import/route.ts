@@ -4,7 +4,7 @@ import { createClientForApi } from '@/lib/supabase/server'
 // Helper: Get authenticated user from request
 async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
   try {
-    const supabase = createClientForApi(request)
+    const { supabase } = createClientForApi(request)
     const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error) {
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     const errors: string[] = []
 
     // Get supabase client for API operations
-    const supabase = createClientForApi(request)
+    const { supabase } = createClientForApi(request)
 
     for (let i = 0; i < tradesToInsert.length; i += batchSize) {
       const batch = tradesToInsert.slice(i, i + batchSize)

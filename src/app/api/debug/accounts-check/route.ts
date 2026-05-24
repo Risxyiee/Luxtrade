@@ -5,7 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 export async function GET(req: NextRequest) {
   try {
     // Get authenticated user
-    const supabase = createClientForApi(req)
+    const { supabase } = createClientForApi(req)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
