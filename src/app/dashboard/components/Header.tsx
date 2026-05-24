@@ -126,24 +126,26 @@ export default function Header({
               <Plus className="w-4 h-4" />
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-lg">
-            <DialogHeader>
+          <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader className="shrink-0">
               <DialogTitle className="text-xl flex items-center gap-2">
                 <Plus className="w-5 h-5 text-purple-400" />
                 Add New Trade
               </DialogTitle>
             </DialogHeader>
-            <TradeWizardForm
-              formData={formData}
-              onFormChange={handleFormChange}
-              onTypeChange={handleFormTypeChange}
-              onSessionChange={handleFormSessionChange}
-              onNumberInput={handleNumberInput}
-              onSave={handleAddTrade}
-              onCancel={() => { setAddTradeOpen(false); setFormData(emptyFormData) }}
-              saving={saving}
-              tradingAccounts={tradingAccounts}
-            />
+            <div className="overflow-y-auto flex-1 -mx-1 px-1">
+              <TradeWizardForm
+                formData={formData}
+                onFormChange={handleFormChange}
+                onTypeChange={handleFormTypeChange}
+                onSessionChange={handleFormSessionChange}
+                onNumberInput={handleNumberInput}
+                onSave={handleAddTrade}
+                onCancel={() => { setAddTradeOpen(false); setFormData(emptyFormData) }}
+                saving={saving}
+                tradingAccounts={tradingAccounts}
+              />
+            </div>
           </DialogContent>
         </Dialog>
 
