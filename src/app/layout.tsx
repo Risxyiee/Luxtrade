@@ -7,6 +7,7 @@ import { Providers } from "@/components/providers";
 import TelegramFloatingWidget from "@/components/TelegramFloatingWidget";
 import GlobalErrorBoundary from "@/components/GlobalErrorBoundary";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { Analytics } from '@vercel/analytics/react';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -140,6 +141,9 @@ export default function RootLayout({
               `,
             }}
           />
+
+          {/* Vercel Analytics */}
+          <Analytics />
         </GlobalErrorBoundary>
       </body>
     </html>
