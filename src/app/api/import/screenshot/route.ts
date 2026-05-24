@@ -14,72 +14,32 @@ interface ParsedTrade {
   notes: string
 }
 
-// ==================== VLM OCR ====================
-async function ocrWithVLM(imageBase64: string): Promise<any[]> {
-  console.log('🔍 Starting VLM OCR...')
-
-  // Dynamic import - SDK only available in sandbox environment
-  let ZAI: any
-  try {
-    ZAI = (await import('z-ai-web-dev-sdk')).default
-  } catch {
-    throw new Error('VLM service is currently unavailable. Please use the File Import tab instead (CSV/HTML format).')
-  }
-
-  const zai = await ZAI.create()
-
-  const imageUrl = imageBase64.startsWith('data:')
-    ? imageBase64
-    : `data:image/png;base64,${imageBase64}`
-
-  // EXACT PROMPT yang berhasil di CLI
-  const prompt = `Extract ALL trades from this MT5 screenshot. For each trade row, extract: symbol (like XAUUSD), type (buy/sell), lot size, entry price, exit price, profit, and time. Return as JSON array with fields: symbol, type, lot_size, open_price, close_price, profit_loss, time. Example: [{"symbol": "XAUUSD", "type": "BUY", "lot_size": 0.2, "open_price": 5135.40, "close_price": 5072.37, "profit_loss": 1228.20, "time": "2026.03.03 16:44:06"}]
-
-IMPORTANT: Return ONLY the JSON array, no markdown, no explanation.`
-
-  try {
-    const response = await zai.chat.completions.createVision({
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: prompt },
-            { type: 'image_url', image_url: { url: imageUrl } }
-          ]
-        }
-      ],
-      thinking: { type: 'disabled' }
-    })
-
-    const content = response.choices?.[0]?.message?.content || '[]'
-    console.log('📝 VLM Raw Response:', content.substring(0, 300) + '...')
-
-    // Clean and parse JSON
-    let cleanContent = content.trim()
-    if (cleanContent.startsWith('```json')) cleanContent = cleanContent.slice(7)
-    if (cleanContent.startsWith('```')) cleanContent = cleanContent.slice(3)
-    if (cleanContent.endsWith('```')) cleanContent = cleanContent.slice(0, -3)
-    cleanContent = cleanContent.trim()
-
-    const parsed = JSON.parse(cleanContent)
-    const trades = Array.isArray(parsed) ? parsed : [parsed]
-
-    console.log(`✅ VLM found ${trades.length} trades`)
-    return trades
-  } catch (error) {
-    console.error('VLM Error:', error)
-    throw error
-  }
-}
-
-// ==================== PARSE DATE ====================
+// ==================== PARSE DATE - IMPROVED ====================
 function parseMT5Date(dateStr: string): string {
   if (!dateStr) return new Date().toISOString()
 
-  const match = dateStr.match(/(\d{4})\.(\d{2})\.(\d{2})\s+(\d{2}):(\d{2}):?(\d{2})?/)
+  // Try MT5 format: 2026.03.03 16:44:06
+  let match = dateStr.match(/(\d{4})\.(\d{2})\.(\d{2})\s+(\d{2}):(\d{2}):?(\d{2})?/)
   if (match) {
     const [, year, month, day, hour, minute, second = '00'] = match
     return `${year}-${month}-${day}T${hour}:${minute}:${second.padStart(2, '0')}Z`
+  }
+
+  // Try MT4 format: 2026.03.03
+  match = dateStr.match(/(\d{4})\.(\d{2})\.(\d{2})/)
+  if (match) {
+    const [, year, month, day] = match
+    return `${year}-${month}-${day}T12:00:00Z`
+  }
+
+  // Try standard ISO format
+  try {
+    const date = new Date(dateStr)
+    if (!isNaN(date.getTime())) {
+      return date.toISOString()
+    }
+  } catch {
+    // Ignore date parsing errors
   }
 
   return new Date().toISOString()
@@ -96,39 +56,184 @@ function getSessionFromHour(isoDate: string): string | null {
   return 'New York'
 }
 
+// ==================== CLEAN JSON RESPONSE ====================
+function cleanJsonContent(content: string): any {
+  let cleanContent = content.trim()
+
+  // Remove markdown code blocks
+  if (cleanContent.startsWith('```json')) cleanContent = cleanContent.slice(7)
+  if (cleanContent.startsWith('```')) cleanContent = cleanContent.slice(3)
+  if (cleanContent.endsWith('```')) cleanContent = cleanContent.slice(0, -3)
+  cleanContent = cleanContent.trim()
+
+  // Try to extract JSON if there's extra text
+  const jsonMatch = cleanContent.match(/\[.*\]/s) || cleanContent.match(/\{.*\}/s)
+  if (jsonMatch) {
+    cleanContent = jsonMatch[0]
+  }
+
+  return JSON.parse(cleanContent)
+}
+
+// ==================== VLM OCR ====================
+async function ocrWithVLM(imageBase64: string, retryCount = 0): Promise<any[]> {
+  console.log(`🔍 Starting VLM OCR (attempt ${retryCount + 1})...`)
+
+  // Dynamic import - SDK only available in sandbox environment
+  let ZAI: any
+  try {
+    ZAI = (await import('z-ai-web-dev-sdk')).default
+  } catch (importError) {
+    console.error('❌ Failed to import z-ai-web-dev-sdk:', importError)
+    throw new Error('VLM_SERVICE_UNAVAILABLE')
+  }
+
+  try {
+    const zai = await ZAI.create()
+
+    const imageUrl = imageBase64.startsWith('data:')
+      ? imageBase64
+      : `data:image/png;base64,${imageBase64}`
+
+    // Enhanced prompt with more specific instructions
+    const prompt = `You are a professional trading data extractor. Extract ALL trades from this MT5/MT4 screenshot.
+
+For EACH trade row, extract these fields:
+- symbol: Currency pair (e.g., XAUUSD, EURUSD, GBPJPY)
+- type: Either "BUY" or "SELL" (uppercase)
+- lot_size: Lot size as a number (e.g., 0.1, 0.5, 1.0)
+- open_price: Entry price (e.g., 5135.40)
+- close_price: Exit price (e.g., 5072.37)
+- profit_loss: Profit/Loss value (can be negative for losses)
+- time: Date and time in format YYYY.MM.DD HH:MM:SS
+
+CRITICAL RULES:
+1. Return ONLY a valid JSON array - no markdown, no explanation, no extra text
+2. Every trade MUST have symbol, type, lot_size, open_price, close_price, profit_loss
+3. If profit is red or has parentheses, it's negative (e.g., -$50 = -50)
+4. Extract ALL visible trades from the table
+5. If no trades found, return empty array []
+
+Example output:
+[{"symbol": "XAUUSD", "type": "BUY", "lot_size": 0.2, "open_price": 5135.40, "close_price": 5072.37, "profit_loss": 1228.20, "time": "2026.03.03 16:44:06"}, {"symbol": "EURUSD", "type": "SELL", "lot_size": 0.5, "open_price": 1.0850, "close_price": 1.0870, "profit_loss": -100.00, "time": "2026.03.03 15:30:00"}]`
+
+    const response = await zai.chat.completions.createVision({
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt },
+            { type: 'image_url', image_url: { url: imageUrl } }
+          ]
+        }
+      ],
+      thinking: { type: 'disabled' },
+      temperature: 0.1, // Lower temperature for more consistent results
+      max_tokens: 4000
+    })
+
+    const content = response.choices?.[0]?.message?.content || '[]'
+    console.log('📝 VLM Raw Response (first 200 chars):', content.substring(0, 200) + '...')
+
+    // Clean and parse JSON
+    const parsed = cleanJsonContent(content)
+    const trades = Array.isArray(parsed) ? parsed : [parsed]
+
+    console.log(`✅ VLM found ${trades.length} trades`)
+    return trades
+
+  } catch (error) {
+    console.error('❌ VLM Error:', error)
+
+    // Retry logic for transient errors
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    const isTransientError =
+      errorMsg.includes('timeout') ||
+      errorMsg.includes('network') ||
+      errorMsg.includes('rate limit') ||
+      errorMsg.includes('ECONNREFUSED')
+
+    if (isTransientError && retryCount < 2) {
+      console.log(`🔄 Retrying VLM OCR (${retryCount + 1}/2)...`)
+      await new Promise(resolve => setTimeout(resolve, 2000)) // Wait 2 seconds
+      return ocrWithVLM(imageBase64, retryCount + 1)
+    }
+
+    throw error
+  }
+}
+
 // ==================== TRANSFORM TRADES ====================
 function transformTrades(vlmTrades: any[]): ParsedTrade[] {
   return vlmTrades
-    .filter(t => t && t.symbol && t.profit_loss !== undefined)
+    .filter(t => {
+      // Filter out invalid trades
+      if (!t) return false
+      if (!t.symbol || typeof t.symbol !== 'string') return false
+      if (t.profit_loss === undefined || t.profit_loss === null) return false
+
+      // Ensure symbol has at least 3 characters after cleaning
+      const cleanSymbol = String(t.symbol).toUpperCase().replace(/[^A-Z]/g, '')
+      if (cleanSymbol.length < 3) return false
+
+      return true
+    })
     .map(t => {
       const openTime = parseMT5Date(t.time || '')
 
+      // Clean symbol - remove non-alphabetic characters
+      const cleanSymbol = String(t.symbol || 'UNKNOWN').toUpperCase().replace(/[^A-Z]/g, '')
+      const finalSymbol = cleanSymbol.length >= 3 ? cleanSymbol : 'UNKNOWN'
+
+      // Normalize trade type
+      const typeStr = String(t.type || 'BUY').toUpperCase()
+      const finalType = typeStr.includes('SELL') ? 'SELL' : 'BUY'
+
+      // Parse numeric values safely
+      const openPrice = parseFloat(String(t.open_price || 0))
+      const closePrice = parseFloat(String(t.close_price || 0))
+      const lotSize = parseFloat(String(t.lot_size || 0.1))
+      const profitLoss = parseFloat(String(t.profit_loss || 0))
+
       return {
-        symbol: String(t.symbol || 'UNKNOWN').toUpperCase().replace(/[^A-Z]/g, ''),
-        type: String(t.type || 'BUY').toUpperCase() === 'SELL' ? 'SELL' : 'BUY',
-        open_price: parseFloat(String(t.open_price || 0)) || 0,
-        close_price: parseFloat(String(t.close_price || 0)) || 0,
-        lot_size: parseFloat(String(t.lot_size || 0.1)) || 0.1,
-        profit_loss: parseFloat(String(t.profit_loss || 0)) || 0,
+        symbol: finalSymbol,
+        type: finalType,
+        open_price: isNaN(openPrice) ? 0 : openPrice,
+        close_price: isNaN(closePrice) ? 0 : closePrice,
+        lot_size: isNaN(lotSize) || lotSize <= 0 ? 0.01 : lotSize,
+        profit_loss: isNaN(profitLoss) ? 0 : profitLoss,
         open_time: openTime,
         close_time: openTime,
         session: getSessionFromHour(openTime),
-        notes: 'Imported from MT5 screenshot'
+        notes: 'Imported from MT5/MT4 screenshot'
       }
     })
 }
 
 // ==================== MAIN HANDLER ====================
 export async function POST(request: NextRequest) {
+  const startTime = Date.now()
+
   try {
     const body = await request.json()
     const { imageBase64 } = body
 
-    if (!imageBase64) {
+    // Validate input
+    if (!imageBase64 || typeof imageBase64 !== 'string') {
       return NextResponse.json({
         success: false,
         error: 'No image provided',
         message: 'Please upload an image file.'
+      }, { status: 400 })
+    }
+
+    // Validate image size (max 10MB)
+    const imageSize = Buffer.from(imageBase64, 'base64').length
+    if (imageSize > 10 * 1024 * 1024) {
+      return NextResponse.json({
+        success: false,
+        error: 'Image too large',
+        message: 'Please upload an image smaller than 10MB.'
       }, { status: 400 })
     }
 
@@ -140,21 +245,28 @@ export async function POST(request: NextRequest) {
     // Transform trades
     const trades = transformTrades(vlmTrades)
 
-    // Validate trades
+    // Additional validation
     const validTrades = trades.filter(t =>
       t.symbol &&
       t.symbol.length >= 3 &&
-      !isNaN(t.profit_loss)
+      t.symbol !== 'UNKNOWN' &&
+      !isNaN(t.profit_loss) &&
+      t.lot_size > 0
     )
 
-    console.log(`📊 Valid trades extracted: ${validTrades.length}`)
+    const processingTime = ((Date.now() - startTime) / 1000).toFixed(2)
+    console.log(`📊 Valid trades extracted: ${validTrades.length}/${vlmTrades.length} (took ${processingTime}s)`)
 
     if (validTrades.length === 0) {
       return NextResponse.json({
         success: false,
         error: 'Tidak ada transaksi terdeteksi',
-        message: 'Tidak dapat menemukan transaksi di gambar. Pastikan screenshot menampilkan history MT5 dengan jelas.',
-        method: 'VLM'
+        message: 'Tidak dapat menemukan transaksi di gambar. Tips:\n• Pastikan screenshot menampilkan history MT5/MT4 dengan jelas\n• Pastikan kolom Symbol, Type, Price, dan Profit terlihat\n• Gunakan screenshot dengan resolusi yang cukup tinggi\n• Pastikan screenshot tidak blur atau gelap\n\nAlternatif: Gunakan tab "Upload File" untuk import CSV/HTML dari MT5.',
+        method: 'VLM OCR',
+        debug: {
+          rawTradesCount: vlmTrades.length,
+          processingTime: `${processingTime}s`
+        }
       }, { status: 422 })
     }
 
@@ -162,29 +274,50 @@ export async function POST(request: NextRequest) {
       success: true,
       trades: validTrades,
       count: validTrades.length,
-      method: 'VLM OCR'
+      method: 'VLM OCR',
+      processingTime: `${processingTime}s`,
+      timestamp: new Date().toISOString()
     })
 
   } catch (error) {
-    console.error('Screenshot OCR error:', error)
+    console.error('❌ Screenshot OCR error:', error)
 
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     console.error('Error details:', errorMessage)
 
     // If SDK is not available, provide helpful fallback message
-    if (errorMessage.includes('VLM service is currently unavailable') || errorMessage.includes('Cannot find module')) {
+    if (errorMessage.includes('VLM_SERVICE_UNAVAILABLE') ||
+        errorMessage.includes('Cannot find module') ||
+        errorMessage.includes('z-ai-web-dev-sdk')) {
       return NextResponse.json({
         success: false,
-        error: 'VLM Tidak Tersedia',
-        message: 'Fitur screenshot OCR memerlukan AI service yang saat ini hanya tersedia di demo.\n\nAlternatif:\n1. Gunakan tab "Upload File" untuk import CSV/HTML dari MT5\n2. Atau tambahkan trade secara manual melalui tombol "+ Add Trade"',
-        method: 'unavailable'
+        error: 'AI Service Tidak Tersedia',
+        message: 'Maaf, fitur Screenshot OCR saat ini sedang tidak tersedia karena kendala teknis pada layanan AI.\n\nAlternatif yang tersedia:\n1. Gunakan tab "Upload File" untuk import file CSV/HTML dari MT5/MT4\n2. Ekspor trade history dari MT5/MT4 ke format HTML atau CSV\n3. Atau tambahkan trade secara manual melalui tombol "+ Add Trade"\n\nKami sedang bekerja untuk mengembalikan fitur ini secepat mungkin.',
+        method: 'unavailable',
+        suggestions: [
+          'Use File Import tab instead (CSV/HTML format)',
+          'Export trade history from MT5/MT4',
+          'Add trades manually'
+        ]
       }, { status: 503 })
+    }
+
+    // Handle timeout errors
+    if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
+      return NextResponse.json({
+        success: false,
+        error: 'Timeout',
+        message: 'Proses OCR membutuhkan waktu terlalu lama. Silakan coba lagi atau gunakan file dengan ukuran lebih kecil.\n\nTips:\n• Gunakan gambar dengan resolusi lebih rendah\n• Pastikan koneksi internet stabil\n• Atau gunakan tab "Upload File" sebagai alternatif',
+        method: 'timeout'
+      }, { status: 504 })
     }
 
     return NextResponse.json({
       success: false,
       error: 'Gagal memproses screenshot',
-      message: `Error: ${errorMessage}. Silakan coba lagi.`
+      message: `Terjadi kesalahan: ${errorMessage}.\n\nSilakan:\n1. Coba upload ulang screenshot\n2. Pastikan screenshot menampilkan data trade dengan jelas\n3. Gunakan tab "Upload File" sebagai alternatif\n\nJika masalah berlanjut, hubungi support.`,
+      method: 'error',
+      errorMessage: errorMessage
     }, { status: 500 })
   }
 }

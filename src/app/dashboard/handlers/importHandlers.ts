@@ -171,56 +171,110 @@ export const createImportHandlers = ({
   const handleScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    
+
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      toast.error('❌ Invalid file type', {
-        description: 'Please upload an image file (PNG, JPG, etc.)'
+      toast.error('❌ Tipe File Salah', {
+        description: 'Mohon upload file gambar (PNG, JPG, WEBP, dll)'
       })
       return
     }
-    
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024 // 10MB
+    if (file.size > maxSize) {
+      toast.error('❌ File Terlalu Besar', {
+        description: 'Ukuran file maksimal 10MB. Silakan kompres gambar terlebih dahulu.'
+      })
+      return
+    }
+
     // Show preview
     const reader = new FileReader()
     reader.onload = (ev) => {
       setScreenshotPreview(ev.target?.result as string)
     }
     reader.readAsDataURL(file)
-    
+
     // Send to OCR API
     setImportParsing(true)
     setImportedTrades([])
-    
+
     try {
       const base64 = await fileToBase64(file)
-      
+
+      // Add timeout handling
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
+
       const res = await fetch('/api/import/screenshot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: base64 })
+        body: JSON.stringify({ imageBase64: base64 }),
+        signal: controller.signal
       })
-      
+
+      clearTimeout(timeoutId)
+
       const data = await res.json()
-      
+
       if (res.ok && data.success && data.trades?.length > 0) {
         setImportedTrades(data.trades)
-        toast.success(`✅ Detected ${data.trades.length} trades from screenshot!`, {
-          description: `Method: ${data.method || 'VLM'}. Review and edit before saving.`
+        const processingInfo = data.processingTime ? ` (⏱️ ${data.processingTime})` : ''
+        toast.success(`✅ Berhasil Mendeteksi ${data.trades.length} Trade!`, {
+          description: `Method: ${data.method || 'VLM OCR'}${processingInfo}. Silakan review dan edit sebelum disimpan.`
         })
       } else {
         // Clear preview and show error
         setScreenshotPreview(null)
-        const errorMsg = data.message || data.error || 'Data tidak terbaca - Could not detect trades in screenshot'
-        toast.error('❌ Data Tidak Terbaca', {
-          description: errorMsg + '. Pastikan screenshot menampilkan history MT5 dengan jelas (Symbol, Type, Lots, Price, Profit).'
-        })
+
+        // Handle specific error types
+        if (data.method === 'unavailable') {
+          toast.error('🚫 Layanan AI Sedang Tidak Tersedia', {
+            description: 'Gunakan tab "Upload File" (CSV/HTML) atau tambahkan trade secara manual.',
+            duration: 8000
+          })
+        } else if (data.method === 'timeout') {
+          toast.error('⏱️ Waktu Habis', {
+            description: 'Proses terlalu lama. Coba gambar lebih kecil atau gunakan file import.',
+            duration: 6000
+          })
+        } else {
+          const errorMsg = data.message || data.error || 'Data tidak terbaca dari screenshot'
+          toast.error('❌ Data Tidak Terbaca', {
+            description: errorMsg,
+            duration: 8000
+          })
+        }
       }
     } catch (err) {
       console.error('Screenshot OCR error:', err)
       setScreenshotPreview(null)
-      toast.error('❌ Failed to process screenshot', {
-        description: 'Please check your internet connection and try again.'
-      })
+
+      // Handle different error types
+      if (err instanceof Error) {
+        if (err.name === 'AbortError') {
+          toast.error('⏱️ Waktu Habis', {
+            description: 'Proses OCR membutuhkan waktu terlalu lama. Coba gambar lebih kecil atau gunakan file import.',
+            duration: 6000
+          })
+        } else if (err.message.includes('fetch') || err.message.includes('network')) {
+          toast.error('❌ Masalah Koneksi', {
+            description: 'Pastikan koneksi internet stabil dan coba lagi.',
+            duration: 6000
+          })
+        } else {
+          toast.error('❌ Gagal Memproses Screenshot', {
+            description: `Error: ${err.message}. Silakan coba lagi.`,
+            duration: 6000
+          })
+        }
+      } else {
+        toast.error('❌ Gagal Memproses Screenshot', {
+          description: 'Terjadi kesalahan tidak terduga. Silakan coba lagi atau gunakan tab "Upload File".',
+          duration: 6000
+        })
+      }
     } finally {
       setImportParsing(false)
     }
