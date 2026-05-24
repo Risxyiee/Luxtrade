@@ -35,79 +35,61 @@ const plans: Plan[] = [
     durationValue: 0,
     durationType: 'lifetime',
     features: [
-      'Up to 5 trades',
-      'Basic trade tracking',
-      'Trade journal',
-      'Basic analytics'
+      '15 Jurnal Transaksi / Bulan',
+      'Grafik Performa & Statistik Standar',
+      'Kalkulator Risiko Trading Pemula',
+      '🎁 BONUS: 3x Uji Coba Fitur Analisis AI & Statistik PRO'
     ]
   },
   {
     id: 'pro-1-month',
     name: 'Elite Pro',
-    description: 'Best for serious traders',
+    description: 'Paling Populer',
     price: 25000,
     duration: '1 month',
     durationValue: 1,
     durationType: 'month',
     features: [
-      'Unlimited trades',
-      'All Free features',
-      'Advanced analytics',
-      'Export to PDF/CSV',
-      'AI trade insights',
-      'Custom indicators',
-      'Email support'
+      '🔥 UNLIMITED Jurnal Transaksi (Tanpa Batas Bulanan)',
+      '🧠 Akses Penuh Analisis AI Pintar (Deteksi Kesalahan & Solusi)',
+      '📊 Grafik Win-Rate Mendalam & Mistake Tracker',
+      '🧮 Kalkulator Risiko & Posisi Advance',
+      '📥 Bebas Ekspor Data ke Excel / PDF',
+      '👑 Akses VIP Grup & Dukungan Prioritas'
     ],
     popular: true
   },
   {
     id: 'pro-6-months',
     name: 'Elite Pro',
-    description: 'Save 20% with 6-month plan',
+    description: 'Hemat 20% dengan paket 6 bulan',
     price: 120000,
     duration: '6 months',
     durationValue: 6,
     durationType: 'month',
     features: [
-      'Unlimited trades',
-      'All 1-month features',
-      'Priority support',
-      'Early access to new features',
-      'Detailed trade analysis'
-    ]
-  },
-  {
-    id: 'pro-1-year',
-    name: 'Elite Pro',
-    description: 'Best value - Save 40%',
-    price: 180000,
-    duration: '1 year',
-    durationValue: 1,
-    durationType: 'year',
-    features: [
-      'Unlimited trades',
-      'All 6-month features',
-      '1-on-1 support session',
-      'Custom dashboard setup',
-      'API access'
+      '🔥 UNLIMITED Jurnal Transaksi (Tanpa Batas Bulanan)',
+      '🧠 Akses Penuh Analisis AI Pintar (Deteksi Kesalahan & Solusi)',
+      '📊 Grafik Win-Rate Mendalam & Mistake Tracker',
+      '🧮 Kalkulator Risiko & Posisi Advance',
+      '📥 Bebas Ekspor Data ke Excel / PDF',
+      '👑 Akses VIP Grup & Dukungan Prioritas',
+      '✨ Hemat Rp 30.000 dibanding paket bulanan'
     ]
   },
   {
     id: 'lifetime-ultra',
     name: 'Lifetime Ultra',
-    description: 'Limited to 30 slots only',
-    price: 100000,
+    description: 'PROMO - Sisa 30 Slot!',
+    price: 52000,
     duration: 'Lifetime',
     durationValue: 999,
     durationType: 'lifetime',
     features: [
-      'All Elite Pro features',
-      'LIFETIME access (no renewal)',
-      'Exclusive trading signals',
-      '1-on-1 coaching session',
-      'Private community access',
-      'Priority feature requests',
-      'VIP Telegram support'
+      '👑 AKSES SEUMUR HIDUP',
+      'Semua Fitur Elite PRO Terbuka Selamanya',
+      'VIP Telegram Support & Akses Grup Privat',
+      'Tanpa Biaya Bulanan Lagi'
     ],
     highlight: true
   }
@@ -190,7 +172,7 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan }: Pl
             </div>
 
             {/* Plans Grid */}
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {plans.map((plan, index) => (
                 <motion.div
                   key={plan.id}
@@ -233,7 +215,7 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan }: Pl
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                       <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-3 py-1 shadow-lg flex items-center gap-1">
                         <Crown className="w-3 h-3" />
-                        LIMITED
+                        PROMO
                       </Badge>
                     </div>
                   )}
