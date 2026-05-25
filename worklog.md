@@ -1024,3 +1024,73 @@ function MyComponent() {
 File Location: /home/z/my-project/src/app/dashboard/components/AddAccountForm.tsx
 
 Note: The component is fully functional and ready to use. It follows the same patterns and styling as TradeWizardForm, ensuring consistency across the dashboard. All form validations, error handling, and API integration are implemented.
+---
+Task ID: 1
+Agent: screenshot-journal-api
+Task: Create /api/screenshot-journal endpoint for AI-powered screenshot analysis
+
+Work Log:
+- Created src/app/api/screenshot-journal/route.ts
+- Implemented multipart/form-data image upload handling with File type extraction
+- Integrated z-ai-web-dev-sdk VLM (createVision) for screenshot analysis
+- Structured prompt for trading data extraction with ISO 8601 date conversion, session detection, mood/market condition inference
+- Added robust JSON parsing with 3-level fallback: direct parse → code block extraction → brace extraction → raw text fallback
+- Added input validation (file type whitelist: JPEG/PNG/WebP)
+- Added error handling for SDK-specific errors (timeout, size, service unavailability)
+- Used existing auth pattern from createClientForApi(request)
+- Added normalization helpers for trade type, mood, and market condition values
+- Returns structured { success, data: { trade, journal, raw_analysis } } response
+
+Stage Summary:
+- Created API endpoint that accepts screenshot, analyzes with VLM, returns structured trade+journal data
+- File: src/app/api/screenshot-journal/route.ts
+- No new lint errors introduced (all 9 pre-existing errors are in other files)
+---
+Task ID: 12
+Agent: Z.ai Code
+Task: Add Screenshot → Auto Journal feature with VLM AI
+
+Work Log:
+- Tested VLM (Vision Language Model) on user's trading screenshot (IMG_6189.jpeg)
+- VLM successfully extracted: XAUUSD Buy, entry 4503.38, SL 4488.50, TP 4533.40, profit $300.20
+- Created API endpoint /api/screenshot-journal/route.ts using z-ai-web-dev-sdk VLM
+- API sends screenshot to VLM with detailed trading analysis prompt
+- VLM returns structured JSON with trade data + journal entry
+- Created ScreenshotJournalModal component with:
+  - Image upload with camera capture support (mobile-friendly)
+  - Image preview with remove option
+  - "Analisis dengan AI" button to trigger VLM analysis
+  - Loading state with animated spinner
+  - Trade info card (symbol, type, entry, SL, TP, P/L, lot, RR ratio)
+  - Journal preview with mood, market condition, tags, setup type
+  - Edit mode to modify AI-generated journal before saving
+  - Save button that creates both journal entry AND trade record
+- Added Camera button (SS Journal) to Header - visible on ALL screen sizes including mobile
+- Fixed Smart Import button visibility on mobile (changed from hidden sm:flex to always visible)
+- Wired up state management in LuxTradeDashboard.tsx:
+  - screenshotJournalOpen state
+  - handleSaveJournalFromScreenshot handler (POST to /api/journal-entries)
+  - handleSaveTradeFromScreenshot handler (POST to /api/trades with selectedAccountId)
+- Installed pdf-parse library for PDF text extraction fix
+
+Stage Summary:
+- ✅ New feature: Screenshot → Auto Journal using VLM AI
+- ✅ API endpoint: /api/screenshot-journal with VLM integration
+- ✅ UI Component: ScreenshotJournalModal with full mobile support
+- ✅ Button visible on mobile: Camera icon "SS Journal" in header
+- ✅ Smart Import button now visible on mobile too
+- ✅ AI extracts: symbol, type, entry, SL, TP, P/L, lot, swap, commission, order ID
+- ✅ AI generates: journal title, content (Indonesian), mood, market condition, tags, setup type, RR ratio
+- ✅ User can edit AI result before saving
+- ✅ Saves both journal entry AND trade record to database
+- ✅ PDF upload fix: installed pdf-parse for proper PDF text extraction
+- ✅ All files pass ESLint with no new errors
+
+Files Created:
+1. /home/z/my-project/src/app/api/screenshot-journal/route.ts (VLM API endpoint)
+2. /home/z/my-project/src/app/dashboard/components/ScreenshotJournalModal.tsx (UI modal)
+
+Files Modified:
+1. /home/z/my-project/src/app/dashboard/components/Header.tsx (added SS Journal button, fixed Smart Import visibility)
+2. /home/z/my-project/src/app/dashboard/LuxTradeDashboard.tsx (added state + handlers)
+3. /home/z/my-project/src/app/api/import/file/route.ts (PDF parsing fix with pdf-parse)
