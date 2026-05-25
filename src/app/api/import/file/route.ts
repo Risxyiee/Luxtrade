@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import pdf from 'pdf-parse'
+import { PDFParse } from 'pdf-parse'
 
 // ==================== TYPES ====================
 interface ParsedTrade {
@@ -438,10 +438,12 @@ export async function POST(request: NextRequest) {
       try {
         // Convert base64 back to buffer for pdf-parse
         const pdfBuffer = Buffer.from(base64Data, 'base64')
-        const data = await pdf(pdfBuffer)
+        const pdfParser = new PDFParse({ data: pdfBuffer })
+        const data = await pdfParser.getText()
+        await pdfParser.destroy()
 
         console.log('📝 Extracted text length:', data.text.length)
-        console.log('📄 PDF pages:', data.numpages)
+        console.log('📄 PDF pages:', data.total)
 
         const pdfText = data.text.trim()
 
