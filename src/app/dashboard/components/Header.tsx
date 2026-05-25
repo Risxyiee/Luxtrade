@@ -102,10 +102,11 @@ export default function Header({
 
         <button
           onClick={() => setSmartImportOpen(true)}
-          className="hidden sm:flex px-3 lg:px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-violet-500/20 text-purple-400 border border-purple-500/30 hover:from-purple-500/30 hover:to-violet-500/30 transition-all text-sm font-medium items-center gap-2"
+          className="flex px-2 sm:px-3 lg:px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-violet-500/20 text-purple-400 border border-purple-500/30 hover:from-purple-500/30 hover:to-violet-500/30 transition-all text-sm font-medium items-center gap-1 sm:gap-2"
         >
-          <Upload className="w-4 h-4" />
-          <span className="hidden lg:inline">Smart Import</span>
+          <Upload className="w-4 h-4 flex-shrink-0" />
+          <span className="hidden sm:inline">Smart</span>
+          <span className="hidden lg:inline">Import</span>
         </button>
 
         <Button
