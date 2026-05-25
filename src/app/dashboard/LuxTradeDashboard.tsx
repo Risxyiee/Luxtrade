@@ -222,7 +222,7 @@ function LuxTradeDashboardContent() {
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
   const [importedTrades, setImportedTrades] = useState<Trade[]>([])
   const [importParsing, setImportParsing] = useState(false)
-  
+
   // Data states
   const [trades, setTrades] = useState<Trade[]>([])
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
@@ -232,6 +232,12 @@ function LuxTradeDashboardContent() {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+
+  // Filter trades based on selected account
+  const filteredTrades = useMemo(() => {
+    if (!selectedAccountId) return trades
+    return trades.filter(trade => trade.account_id === selectedAccountId)
+  }, [trades, selectedAccountId])
   
   // Form states - separate state to prevent re-renders
   const [formData, setFormData] = useState<TradeFormData>(emptyFormData)
@@ -365,7 +371,7 @@ function LuxTradeDashboardContent() {
   // Free user trade limit
   const FREE_TRADE_LIMIT = 5
   const isFreeUser = !isPro
-  const tradeCount = trades.length
+  const tradeCount = filteredTrades.length
   const canAddTrade = isPro || tradeCount < FREE_TRADE_LIMIT
 
   // ==================== STABLE FORM HANDLERS ====================
@@ -789,7 +795,7 @@ function LuxTradeDashboardContent() {
         {/* Tab Content */}
         <TabContent
           activeTab={activeTab}
-          trades={trades}
+          trades={filteredTrades}
           analytics={analytics}
           journalEntries={journalEntries}
           watchlistItems={watchlistItems}
