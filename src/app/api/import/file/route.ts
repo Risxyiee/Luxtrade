@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import pdf from 'pdf-parse'
 
 // ==================== TYPES ====================
 interface ParsedTrade {
@@ -431,35 +432,59 @@ export async function POST(request: NextRequest) {
         trades = parseTextTrades(content)
       }
     } else if (mimeType === 'application/pdf' || name.endsWith('.pdf')) {
-      // PDF needs special handling - extract text first
+      // PDF needs special handling - extract text using pdf-parse
       console.log('📕 PDF detected - extracting text...')
-      
-      // For PDF, we try to extract readable text
-      // The content from base64 might be binary, so we look for readable strings
-      const readableText = content
-        .replace(/[^\x20-\x7E\n\r]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-      
-      console.log('📝 Extracted text length:', readableText.length)
-      
-      if (readableText.length < 50) {
+
+      try {
+        // Convert base64 back to buffer for pdf-parse
+        const pdfBuffer = Buffer.from(base64Data, 'base64')
+        const data = await pdf(pdfBuffer)
+
+        console.log('📝 Extracted text length:', data.text.length)
+        console.log('📄 PDF pages:', data.numpages)
+
+        const pdfText = data.text.trim()
+
+        if (pdfText.length < 50) {
+          return NextResponse.json({
+            success: false,
+            error: 'PDF Kosong atau Tidak Terbaca',
+            message: '⚠️ PDF tidak mengandung teks yang dapat dibaca.\n\nSolusi:\n1. Buka PDF di browser\n2. Screenshot halaman yang berisi daftar transaksi\n3. Upload screenshot tersebut\n\nAtau export dari MT5 dalam format HTML/CSV.',
+            fileType: 'pdf_empty'
+          }, { status: 422 })
+        }
+
+        // Detect if this is a summary file
+        const fileTypeDetected = detectFileType(pdfText, name)
+
+        if (fileTypeDetected === 'summary') {
+          return NextResponse.json({
+            success: false,
+            error: 'File Summary Terdeteksi',
+            message: '⚠️ Ini adalah file SUMMARY (ringkasan), bukan detail transaksi.\n\nSilakan upload Screenshot Riwayat atau File Detail yang berisi daftar transaksi individual (Symbol, Type, Lots, Price, Profit per transaksi).',
+            fileType: 'summary'
+          }, { status: 422 })
+        }
+
+        trades = parseTextTrades(pdfText)
+
+        if (trades.length === 0) {
+          return NextResponse.json({
+            success: false,
+            error: 'PDF Perlu Screenshot',
+            message: '⚠️ PDF tidak mengandung format transaksi yang dikenali.\n\nSolusi:\n1. Buka PDF di browser\n2. Screenshot halaman yang berisi daftar transaksi\n3. Upload screenshot melalui tab "Screenshot OCR"\n\nAtau export dari MT5 dalam format HTML/CSV.',
+            fileType: 'pdf_no_trades'
+          }, { status: 422 })
+        }
+
+        console.log(`✅ Successfully parsed ${trades.length} trades from PDF`)
+      } catch (pdfError) {
+        console.error('PDF parsing error:', pdfError)
         return NextResponse.json({
           success: false,
-          error: 'PDF Tidak Terbaca',
-          message: '⚠️ PDF tidak dapat dibaca secara langsung.\n\nSolusi:\n1. Buka PDF di browser\n2. Screenshot halaman yang berisi daftar transaksi\n3. Upload screenshot tersebut\n\nAtau export dari MT5 dalam format HTML/CSV.',
-          fileType: 'pdf_unreadable'
-        }, { status: 422 })
-      }
-      
-      trades = parseTextTrades(readableText)
-      
-      if (trades.length === 0) {
-        return NextResponse.json({
-          success: false,
-          error: 'PDF Perlu Screenshot',
-          message: '⚠️ PDF terdeteksi sebagai file SUMMARY atau tidak dapat diparse.\n\nSolusi:\n1. Buka PDF di browser\n2. Screenshot halaman yang berisi daftar transaksi\n3. Upload screenshot melalui tab "Screenshot OCR"',
-          fileType: 'pdf_needs_screenshot'
+          error: 'Gagal Membaca PDF',
+          message: '⚠️ Tidak dapat membaca file PDF.\n\nSolusi:\n1. Pastikan file PDF tidak rusak\n2. Buka PDF di browser dan screenshot\n3. Upload screenshot melalui tab "Screenshot OCR"\n\nAtau gunakan format HTML/CSV dari MT5.',
+          fileType: 'pdf_error'
         }, { status: 422 })
       }
     } else {
