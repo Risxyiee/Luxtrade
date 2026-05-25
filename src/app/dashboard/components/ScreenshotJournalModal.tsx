@@ -86,6 +86,7 @@ export default function ScreenshotJournalModal({
   onSaveTrade
 }: ScreenshotJournalModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [imageBase64, setImageBase64] = useState<string | null>(null)
   const [mimeType, setMimeType] = useState<string>('image/jpeg')
@@ -256,17 +257,36 @@ export default function ScreenshotJournalModal({
         <div className="overflow-y-auto flex-1 -mx-1 px-1 space-y-4">
           {/* Upload Area */}
           {!imagePreview ? (
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-purple-500/30 rounded-xl p-8 text-center cursor-pointer hover:border-purple-500/50 hover:bg-purple-500/5 transition-all"
-            >
-              <Camera className="w-12 h-12 text-purple-400 mx-auto mb-3" />
-              <p className="text-sm font-medium text-gray-300">
-                Tap untuk upload screenshot
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                PNG, JPG, JPEG — Maks 10MB
-              </p>
+            <div className="space-y-3">
+              <button
+                onClick={() => cameraInputRef.current?.click()}
+                className="w-full border-2 border-dashed border-emerald-500/30 rounded-xl p-6 text-center cursor-pointer hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all"
+              >
+                <Camera className="w-10 h-10 text-emerald-400 mx-auto mb-2" />
+                <p className="text-sm font-medium text-gray-300">
+                  Buka Kamera
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Ambil screenshot langsung
+                </p>
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-white/10" />
+                <span className="text-xs text-gray-500">atau</span>
+                <div className="flex-1 h-px bg-white/10" />
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full border-2 border-dashed border-purple-500/30 rounded-xl p-6 text-center cursor-pointer hover:border-purple-500/50 hover:bg-purple-500/5 transition-all"
+              >
+                <Upload className="w-10 h-10 text-purple-400 mx-auto mb-2" />
+                <p className="text-sm font-medium text-gray-300">
+                  Pilih dari Galeri
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  PNG, JPG, JPEG — Maks 10MB
+                </p>
+              </button>
             </div>
           ) : (
             <div className="space-y-3">
@@ -514,6 +534,13 @@ export default function ScreenshotJournalModal({
         <DialogFooter className="shrink-0 pt-3 border-t border-purple-900/20 flex flex-col sm:flex-row gap-2">
           <input
             ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          <input
+            ref={cameraInputRef}
             type="file"
             accept="image/*"
             capture="environment"
