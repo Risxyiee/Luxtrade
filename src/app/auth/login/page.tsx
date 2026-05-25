@@ -7,7 +7,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { 
   Crown, Mail, Lock, Eye, EyeOff, ArrowRight, 
-  AlertCircle, Loader2
+  AlertCircle, Loader2, RefreshCw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,7 +20,42 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
+  const [isResending, setIsResending] = useState(false)
+  const [showResendButton, setShowResendButton] = useState(false)
   const router = useRouter()
+
+  const handleResendVerification = async () => {
+    if (!email) {
+      setError('Masukkan email Anda untuk mengirim ulang link konfirmasi')
+      return
+    }
+
+    setIsResending(true)
+    setError('')
+    setSuccessMessage('')
+
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || 'Gagal mengirim ulang email konfirmasi')
+        return
+      }
+
+      setSuccessMessage(data.message || 'Email konfirmasi telah dikirim ulang. Silakan cek inbox/spam Anda.')
+    } catch (err) {
+      setError('Gagal mengirim ulang email konfirmasi. Silakan coba lagi.')
+    } finally {
+      setIsResending(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,7 +80,8 @@ export default function LoginPage() {
         if (errorMsg.includes('invalid login credentials') || errorMsg.includes('invalid credentials')) {
           setError('Email atau password salah. Silakan coba lagi.')
         } else if (errorMsg.includes('email not confirmed')) {
-          setError('Email belum dikonfirmasi. Silakan cek inbox/spam Anda.')
+          setError('Email belum dikonfirmasi. Silakan cek inbox/spam Anda atau klik tombol di bawah untuk mengirim ulang.')
+          setShowResendButton(true)
         } else if (errorMsg.includes('too many requests') || errorMsg.includes('rate limit')) {
           setError('Terlalu banyak percobaan. Silakan tunggu beberapa menit.')
         } else if (errorMsg.includes('user not found')) {
@@ -136,10 +172,45 @@ export default function LoginPage() {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-2 p-3 mb-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm"
+              className="flex flex-col gap-2 mb-4"
             >
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{error}</span>
+              <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+              {showResendButton && (
+                <Button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={isResending}
+                  variant="outline"
+                  className="w-full bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20 h-10"
+                >
+                  {isResending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Mengirim ulang...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Kirim Ulang Email Konfirmasi
+                    </>
+                  )}
+                </Button>
+              )}
+            </motion.div>
+          )}
+
+          {/* Success Message */}
+          {successMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-2 p-3 mb-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm"
+            >
+              <Mail className="w-4 h-4 flex-shrink-0" />
+              <span>{successMessage}</span>
             </motion.div>
           )}
 
