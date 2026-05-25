@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import dynamicImport from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import '@/lib/error-handler' // Global error handler
@@ -748,7 +748,7 @@ function LuxTradeDashboardContent() {
         isAdmin={isAdmin}
         language={language}
         isFreeUser={isFreeUser}
-        tradeCount={trades.length}
+        tradeCount={filteredTrades.length}
         FREE_TRADE_LIMIT={FREE_TRADE_LIMIT}
         setPlanSelectionModalOpen={setPlanSelectionModalOpen}
         userInitials={userInitials}
