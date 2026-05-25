@@ -1,12 +1,10 @@
-// This schema supports both SQLite (development) and PostgreSQL (production)
-// The provider will be dynamically set based on DATABASE_URL in the db.ts file
-
+// Production Schema - PostgreSQL
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -26,7 +24,6 @@ model Profile {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  // Relations
   submissions       UserSubmission[]
   missionProgresses  MissionProgress[]
   trades            Trade[]
@@ -35,7 +32,6 @@ model Profile {
   weeklyGoals        WeeklyGoal[]
   tradingAccounts   TradingAccount[]
   socialLinks       SocialLink[]
-
 }
 
 model UserSubmission {
@@ -49,9 +45,9 @@ model UserSubmission {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  // Relations
   user            Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
 }
 
 model MissionProgress {
@@ -65,10 +61,10 @@ model MissionProgress {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  // Relations
   user            Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, missionKey])
+  @@index([userId])
 }
 
 model User {
@@ -81,10 +77,8 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  // Relations
   subscriptions     UserSubscription[]
   withdrawals       Withdrawal[]
-
 }
 
 model UserSubscription {
@@ -97,9 +91,9 @@ model UserSubscription {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  // Relations
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
 }
 
 model Withdrawal {
@@ -114,9 +108,9 @@ model Withdrawal {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  // Relations
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
 }
 
 model Trade {
@@ -144,11 +138,12 @@ model Trade {
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt
 
-  // Relations
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   account           TradingAccount? @relation(fields: [account_id], references: [id])
   linkedJournal     JournalEntry? @relation("TradeJournal", fields: [linked_journal_id], references: [id])
 
+  @@index([user_id])
+  @@index([user_id, close_time])
 }
 
 model JournalEntry {
@@ -163,10 +158,10 @@ model JournalEntry {
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt
 
-  // Relations
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   linkedTrades      Trade[]   @relation("TradeJournal")
 
+  @@index([user_id])
 }
 
 model Tag {
@@ -176,9 +171,9 @@ model Tag {
   color             String    @default("#a855f7")
   created_at        DateTime  @default(now())
 
-  // Relations
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@index([user_id])
 }
 
 model WeeklyGoal {
@@ -193,9 +188,9 @@ model WeeklyGoal {
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt
 
-  // Relations
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@index([user_id, week_start])
 }
 
 model TradingAccount {
@@ -214,10 +209,10 @@ model TradingAccount {
   created_at        DateTime  @default(now())
   updated_at        DateTime  @updatedAt
 
-  // Relations
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   trades            Trade[]
 
+  @@index([user_id])
 }
 
 model SocialLink {
@@ -226,14 +221,13 @@ model SocialLink {
   platform          String
   url               String
   username          String?
-  status            String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  status            String    @default("PENDING")
   reviewedBy        String?
   reviewedAt        DateTime?
   rejectionReason   String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  // Relations
   user              Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
