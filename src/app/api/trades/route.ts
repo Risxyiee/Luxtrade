@@ -30,7 +30,7 @@ async function getAuthUser(request: NextRequest): Promise<{ id: string; email: s
   }
 }
 
-// Helper: Ensure profile exists (auto-create if not)
+// Helper: Ensure profile exists (auto-create if not) - MUST RUN FIRST
 async function ensureProfile(userId: string, email?: string): Promise<void> {
   try {
     const existing = await db.profile.findUnique({
@@ -54,6 +54,15 @@ async function ensureProfile(userId: string, email?: string): Promise<void> {
         }
       })
       console.log('✅ [API] Profile created successfully')
+    } else {
+      // Update email if changed
+      if (email && existing.email !== email) {
+        await db.profile.update({
+          where: { id: userId },
+          data: { email, updatedAt: new Date() }
+        })
+        console.log('✅ [API] Profile email updated')
+      }
     }
   } catch (error) {
     console.error('❌ [API] Error creating profile:', error)
@@ -143,6 +152,8 @@ export async function GET(request: NextRequest) {
 
 // POST - Create new trade
 export async function POST(request: NextRequest) {
+  let createdTradeId: string | null = null
+  
   try {
     console.log('🟢 [API /api/trades POST] Starting trade creation...')
 
@@ -160,6 +171,8 @@ export async function POST(request: NextRequest) {
     const userId = authUser.id
     const body = await request.json()
     console.log('📊 [API] Request body:', body)
+    console.log('👤 [API] User ID:', userId)
+    console.log('📧 [API] User Email:', authUser.email)
 
     // Validate required fields
     const requiredFields = ['symbol', 'type', 'open_price', 'lot_size', 'profit_loss', 'open_time', 'close_time']
@@ -173,11 +186,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Auto-create profile if not exists
+    // STEP 1: Auto-create profile if not exists - CRITICAL FOR DATA INTEGRITY
     await ensureProfile(userId, authUser.email)
     console.log('✅ [API] Profile ensured for user:', userId)
 
-    // SERVER-SIDE LIMIT CHECK: Free users can only have 15 trades per month
+    // STEP 2: Check PRO status BEFORE creating trade
     const isPro = await isUserPro(userId)
     console.log('💎 [API] Is PRO user:', isPro)
 
@@ -199,12 +212,13 @@ export async function POST(request: NextRequest) {
 
     console.log('💾 [API] Creating trade in database...')
 
+    // STEP 3: Create trade with explicit user_id
     const trade = await db.trade.create({
       data: {
-        user_id: userId,
+        user_id: userId, // EXPLICIT USER ID - PREVENTS DATA LOSS
         account_id: body.account_id ? String(body.account_id) : null,
         symbol: String(body.symbol).toUpperCase(),
-        type: String(body.type), // BUY or SELL
+        type: String(body.type),
         open_price: parseFloat(String(body.open_price)),
         close_price: parseFloat(String(body.close_price)),
         lot_size: parseFloat(String(body.lot_size)),
@@ -226,9 +240,31 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    console.log('✅ [API] Trade created successfully:', trade.id)
+    createdTradeId = trade.id
+    console.log('✅ [API] Trade created successfully:', {
+      id: trade.id,
+      symbol: trade.symbol,
+      user_id: trade.user_id
+    })
 
-    // Check achievements after trade creation
+    // STEP 4: Verify trade ownership immediately
+    const verification = await db.trade.findUnique({
+      where: { id: trade.id },
+      select: { id: true, user_id: true, symbol: true }
+    })
+    
+    if (!verification || verification.user_id !== userId) {
+      console.error('❌ [API] CRITICAL: Trade ownership verification failed!', {
+        tradeId: trade.id,
+        expectedUserId: userId,
+        actualUserId: verification?.user_id
+      })
+      // Trade was created but with wrong user_id - this is a critical data integrity issue
+    } else {
+      console.log('✅ [API] Trade ownership verified:', verification)
+    }
+
+    // STEP 5: Check achievements after trade creation
     console.log('🏆 [API] Checking achievements after trade...')
     let unlockedAchievements: any[] = []
     try {
@@ -242,19 +278,26 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
+      success: true,
       trade,
-      unlockedAchievements
+      unlockedAchievements,
+      debug: {
+        userId,
+        tradeId: trade.id,
+        verified: verification?.user_id === userId
+      }
     })
   } catch (err) {
     console.error('❌ [API /api/trades POST] Error:', err)
+    console.error('❌ [API] Trade ID (if created):', createdTradeId)
     console.error('Error stack:', err instanceof Error ? err.stack : 'No stack trace')
 
     // Check for specific Prisma errors
     if (err instanceof Error) {
       if (err.message.includes('Foreign key constraint')) {
-        console.error('❌ [API] Foreign key constraint violation')
+        console.error('❌ [API] Foreign key constraint violation - PROFILE MAY NOT EXIST')
         return NextResponse.json(
-          { error: 'Related record not found (profile or account)', details: err.message },
+          { error: 'Profile not found. Please refresh and try again.', details: err.message },
           { status: 400 }
         )
       }
