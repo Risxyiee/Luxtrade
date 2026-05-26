@@ -8,13 +8,16 @@ interface ExtractedTrade {
   type: string
   open_price: number
   close_price: number
+  stop_loss: number
+  take_profit: number
   lot_size: number
   profit_loss: number
   open_time: string
   close_time: string
-  session: string
-  notes: string
-  image_url: string
+  swap: number
+  commission: number
+  order_id: string
+  platform: string
 }
 
 interface ExtractedJournal {
@@ -22,6 +25,9 @@ interface ExtractedJournal {
   content: string
   mood: string
   market_condition: string
+  tags: string[]
+  setup_type: string
+  risk_reward_ratio: number
 }
 
 interface VLMResponse {
@@ -39,29 +45,38 @@ const VLM_PROMPT = `Analyze this trading screenshot. Extract ALL trading data an
     "type": "BUY",
     "open_price": 4503.38,
     "close_price": 4533.40,
+    "stop_loss": 4480.00,
+    "take_profit": 4560.00,
     "lot_size": 0.1,
     "profit_loss": 300.20,
     "open_time": "2026-05-22T17:13:16Z",
     "close_time": "2026-05-25T01:15:00Z",
-    "session": "New York",
-    "notes": "",
-    "image_url": ""
+    "swap": 0,
+    "commission": 0,
+    "order_id": "",
+    "platform": "MT5"
   },
   "journal": {
     "title": "XAUUSD Buy - Profit $300.20",
-    "content": "AI-generated journal entry describing the trade, including analysis of entry/exit, risk management, and lessons learned.",
+    "content": "Detailed journal entry in English describing the trade setup, entry reason, exit reason, risk management, emotional state, and lessons learned. Write 3-5 sentences.",
     "mood": "confident",
-    "market_condition": "trending"
+    "market_condition": "trending_up",
+    "tags": ["gold", "breakout", "tp_hit"],
+    "setup_type": "breakout",
+    "risk_reward_ratio": 2.5
   },
-  "raw_analysis": "Brief raw text analysis of what was seen in the screenshot"
+  "raw_analysis": "Brief description of what was seen in the screenshot"
 }
 
 Rules:
 - Convert date format YYYY.MM.DD HH:MM:SS to ISO 8601 (YYYY-MM-DDTHH:MM:SSZ)
 - Determine session from open_time hour: 0-7=Asia, 8-15=London, 16-23=New York
-- Determine mood: profitable trades=confident/happy, losing trades=frustrated/regretful, breakeven=neutral
-- Determine market_condition: look for clues like trending/ranging/volatile
-- If any field cannot be determined, use reasonable defaults
+- mood must be one of: confident, calm, excited, anxious, fearful, greedy, frustrated, regretful, neutral
+- market_condition must be one of: trending_up, trending_down, ranging, volatile, breakout, reversal
+- tags should be 2-5 relevant lowercase tags
+- setup_type: breakout, pullback, reversal, range, scalping, swing
+- risk_reward_ratio: calculate as (potential profit / potential loss) or estimate
+- If stop_loss or take_profit not visible, set to 0
 - profit_loss should be negative for losing trades
 - Return ONLY the JSON, no other text`
 
@@ -103,19 +118,25 @@ function parseVLMResponse(content: string): VLMResponse {
         type: 'BUY',
         open_price: 0,
         close_price: 0,
+        stop_loss: 0,
+        take_profit: 0,
         lot_size: 0,
         profit_loss: 0,
         open_time: '',
         close_time: '',
-        session: '',
-        notes: '',
-        image_url: ''
+        swap: 0,
+        commission: 0,
+        order_id: '',
+        platform: ''
       },
       journal: {
         title: '',
         content: '',
         mood: 'neutral',
-        market_condition: 'unknown'
+        market_condition: 'ranging',
+        tags: [],
+        setup_type: '',
+        risk_reward_ratio: 0
       },
       raw_analysis: content
     }
@@ -133,19 +154,25 @@ function validateAndNormalize(data: Record<string, unknown>): VLMResponse {
       type: normalizeTradeType(String(trade.type || 'BUY')),
       open_price: Number(trade.open_price) || 0,
       close_price: Number(trade.close_price) || 0,
+      stop_loss: Number(trade.stop_loss) || 0,
+      take_profit: Number(trade.take_profit) || 0,
       lot_size: Number(trade.lot_size) || 0,
       profit_loss: Number(trade.profit_loss) || 0,
       open_time: String(trade.open_time || ''),
       close_time: String(trade.close_time || ''),
-      session: String(trade.session || ''),
-      notes: String(trade.notes || ''),
-      image_url: String(trade.image_url || '')
+      swap: Number(trade.swap) || 0,
+      commission: Number(trade.commission) || 0,
+      order_id: String(trade.order_id || ''),
+      platform: String(trade.platform || '')
     },
     journal: {
       title: String(journal.title || ''),
       content: String(journal.content || ''),
       mood: normalizeMood(String(journal.mood || 'neutral')),
-      market_condition: normalizeMarketCondition(String(journal.market_condition || 'unknown'))
+      market_condition: normalizeMarketCondition(String(journal.market_condition || 'ranging')),
+      tags: Array.isArray(journal.tags) ? journal.tags.map(String) : [],
+      setup_type: String(journal.setup_type || ''),
+      risk_reward_ratio: Number(journal.risk_reward_ratio) || 0
     },
     raw_analysis: String(data.raw_analysis || '')
   }
@@ -158,17 +185,24 @@ function normalizeTradeType(type: string): string {
 }
 
 function normalizeMood(mood: string): string {
-  const validMoods = ['confident', 'happy', 'frustrated', 'regretful', 'neutral', 'anxious', 'calm', 'excited']
+  const validMoods = ['confident', 'calm', 'excited', 'anxious', 'fearful', 'greedy', 'frustrated', 'regretful', 'neutral']
   const lower = mood.toLowerCase().trim()
   if (validMoods.includes(lower)) return lower
+  // Map common alternatives
+  if (lower === 'happy') return 'confident'
+  if (lower === 'sad') return 'regretful'
+  if (lower === 'angry') return 'frustrated'
   return 'neutral'
 }
 
 function normalizeMarketCondition(condition: string): string {
-  const validConditions = ['trending', 'ranging', 'volatile', 'calm', 'breakout', 'reversal', 'unknown']
+  const validConditions = ['trending_up', 'trending_down', 'ranging', 'volatile', 'breakout', 'reversal']
   const lower = condition.toLowerCase().trim()
   if (validConditions.includes(lower)) return lower
-  return 'unknown'
+  // Map common alternatives
+  if (lower === 'trending') return 'trending_up'
+  if (lower === 'calm' || lower === 'sideways') return 'ranging'
+  return 'ranging'
 }
 
 // ==================== HELPER: Get authenticated user ====================
@@ -211,39 +245,59 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Step 2: Parse multipart form data
-    const formData = await request.formData()
-    const imageFile = formData.get('image') as File | null
-    const accountId = formData.get('accountId') as string | null
+    // Step 2: Parse image - support both JSON (base64) and multipart/form-data
+    let base64Image: string
+    let mimeType = 'image/jpeg'
 
-    if (!imageFile) {
-      console.log('❌ [Screenshot Journal] No image provided')
-      return NextResponse.json(
-        { error: 'No image provided. Please upload a screenshot (JPEG/PNG).' },
-        { status: 400 }
-      )
-    }
+    const contentType = request.headers.get('content-type') || ''
 
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp']
-    const mimeType = imageFile.type || 'image/jpeg'
+    if (contentType.includes('multipart/form-data')) {
+      // Multipart: extract file from form data
+      const formData = await request.formData()
+      const imageFile = formData.get('image') as File | null
 
-    if (!allowedTypes.includes(mimeType)) {
-      console.log('❌ [Screenshot Journal] Invalid file type:', mimeType)
-      return NextResponse.json(
-        { error: `Invalid file type "${mimeType}". Only JPEG and PNG images are supported.` },
-        { status: 400 }
-      )
-    }
+      if (!imageFile) {
+        console.log('❌ [Screenshot Journal] No image in form data')
+        return NextResponse.json(
+          { error: 'No image provided. Please upload a screenshot (JPEG/PNG).' },
+          { status: 400 }
+        )
+      }
 
-    // Step 3: Convert image to base64
-    console.log(`📷 [Screenshot Journal] Processing image: ${imageFile.name} (${mimeType}, ${imageFile.size} bytes)`)
-    const bytes = await imageFile.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    const base64Image = buffer.toString('base64')
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp']
+      mimeType = imageFile.type || 'image/jpeg'
 
-    if (accountId) {
-      console.log(`🔗 [Screenshot Journal] Account ID: ${accountId}`)
+      if (!allowedTypes.includes(mimeType)) {
+        console.log('❌ [Screenshot Journal] Invalid file type:', mimeType)
+        return NextResponse.json(
+          { error: `Invalid file type "${mimeType}". Only JPEG and PNG images are supported.` },
+          { status: 400 }
+        )
+      }
+
+      console.log(`📷 [Screenshot Journal] Processing multipart image: ${imageFile.name} (${mimeType}, ${imageFile.size} bytes)`)
+      const bytes = await imageFile.arrayBuffer()
+      const buffer = Buffer.from(bytes)
+      base64Image = buffer.toString('base64')
+    } else {
+      // JSON: extract base64 string from body
+      const body = await request.json()
+      const { imageBase64, mimeType: bodyMime } = body
+
+      if (!imageBase64) {
+        console.log('❌ [Screenshot Journal] No imageBase64 in JSON body')
+        return NextResponse.json(
+          { error: 'No image provided. Please upload a screenshot (JPEG/PNG).' },
+          { status: 400 }
+        )
+      }
+
+      mimeType = bodyMime || 'image/jpeg'
+
+      // Strip data URL prefix if present
+      base64Image = imageBase64.replace(/^data:[^;]+;base64,/, '')
+
+      console.log(`📷 [Screenshot Journal] Processing JSON base64 image (${mimeType}, ${Math.round(base64Image.length * 0.75)} bytes)`)
     }
 
     // Step 4: Call VLM for analysis
@@ -289,12 +343,10 @@ export async function POST(request: NextRequest) {
       console.warn('⚠️ [Screenshot Journal] No structured data extracted, returning raw analysis')
       return NextResponse.json({
         success: true,
-        data: {
-          trade: parsed.trade,
-          journal: parsed.journal,
-          raw_analysis: parsed.raw_analysis || content
-        },
-        warning: 'Could not extract structured trading data from the screenshot. The raw analysis is provided for reference.'
+        trade: parsed.trade,
+        journal: parsed.journal,
+        raw_analysis: parsed.raw_analysis || content,
+        warning: 'Could not extract structured trading data from the screenshot.'
       })
     }
 
@@ -305,14 +357,12 @@ export async function POST(request: NextRequest) {
       mood: parsed.journal.mood
     })
 
-    // Step 6: Return structured data
+    // Step 6: Return structured data (flat format matching frontend expectations)
     return NextResponse.json({
       success: true,
-      data: {
-        trade: parsed.trade,
-        journal: parsed.journal,
-        raw_analysis: parsed.raw_analysis
-      }
+      trade: parsed.trade,
+      journal: parsed.journal,
+      raw_analysis: parsed.raw_analysis
     })
 
   } catch (error) {
