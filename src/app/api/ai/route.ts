@@ -244,8 +244,8 @@ export async function POST(request: NextRequest) {
 
     // Try AI SDK first (only works in sandbox)
     try {
-      const ZAI: any = (await import('z-ai-web-dev-sdk')).default
-      const zai = await ZAI.create()
+      const { createZAI }: any = await import('@/lib/zai')
+      const zai = await createZAI()
 
       const completion = await zai.chat.completions.create({
         messages: [

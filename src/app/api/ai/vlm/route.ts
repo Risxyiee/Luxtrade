@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import ZAI from 'z-ai-web-dev-sdk'
+import { createZAI } from '@/lib/zai'
 
 let zaiInstance: any = null
 
 async function getZAI() {
   if (!zaiInstance) {
-    zaiInstance = await ZAI.create()
+    zaiInstance = await createZAI()
   }
   return zaiInstance
 }
