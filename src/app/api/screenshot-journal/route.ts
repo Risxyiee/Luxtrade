@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
-import ZAI from 'z-ai-web-dev-sdk'
+import { createZAI } from '@/lib/zai'
 
 // ==================== TYPES ====================
 interface ExtractedTrade {
@@ -302,7 +302,7 @@ export async function POST(request: NextRequest) {
 
     // Step 4: Call VLM for analysis
     console.log('🤖 [Screenshot Journal] Sending to VLM for analysis...')
-    const zai = await ZAI.create()
+    const zai = await createZAI()
 
     const vlmResponse = await zai.chat.completions.createVision({
       messages: [

@@ -141,8 +141,8 @@ function classifyImpact(title: string, snippet: string): 'high' | 'medium' | 'lo
 async function fetchFullNews(): Promise<FullNewsItem[]> {
   try {
     // Try to use z-ai-web-dev-sdk for real news
-    const ZAI = await import('z-ai-web-dev-sdk');
-    const zai = await ZAI.create();
+    const { createZAI } = await import('@/lib/zai');
+    const zai = await createZAI();
 
     const queries = [
       'site:investing.com forex market news',
@@ -154,7 +154,7 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
 
     const searchResults = await Promise.allSettled(
       queries.map(query =>
-        zai.default.functions.invoke('web_search', {
+        zai.functions.invoke('web_search', {
           query,
           num: 10,
           recency_days: 3,

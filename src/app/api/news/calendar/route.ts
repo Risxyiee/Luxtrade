@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { createZAI } from '@/lib/zai';
 
 // In-memory cache
 let calendarCache: { items: CalendarEvent[]; timestamp: number } | null = null;
@@ -614,7 +614,7 @@ export async function GET() {
       });
     }
 
-    const zai = await ZAI.create();
+    const zai = await createZAI();
 
     // PRIMARY: Fetch from Investing.com Economic Calendar
     let events = await fetchInvestingCalendar(zai);

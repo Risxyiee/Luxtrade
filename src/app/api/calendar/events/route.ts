@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { createZAI } from '@/lib/zai';
 
 // In-memory cache
 let cache: { events: CalendarEvent[]; timestamp: number } | null = null;
@@ -95,7 +95,7 @@ function extractCountry(text: string): string {
 }
 
 async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
-  const zai = await ZAI.create();
+  const zai = await createZAI();
 
   const queries = [
     'forex economic calendar this week high impact events 2025',

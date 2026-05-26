@@ -80,16 +80,16 @@ async function ocrWithVLM(imageBase64: string, retryCount = 0): Promise<any[]> {
   console.log(`🔍 Starting VLM OCR (attempt ${retryCount + 1})...`)
 
   // Dynamic import - SDK only available in sandbox environment
-  let ZAI: any
+  let createZAI: any
   try {
-    ZAI = (await import('z-ai-web-dev-sdk')).default
+    ;({ createZAI } = await import('@/lib/zai'))
   } catch (importError) {
-    console.error('❌ Failed to import z-ai-web-dev-sdk:', importError)
+    console.error('❌ Failed to import zai lib:', importError)
     throw new Error('VLM_SERVICE_UNAVAILABLE')
   }
 
   try {
-    const zai = await ZAI.create()
+    const zai = await createZAI()
 
     const imageUrl = imageBase64.startsWith('data:')
       ? imageBase64
