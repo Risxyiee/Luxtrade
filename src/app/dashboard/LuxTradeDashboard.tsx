@@ -372,7 +372,7 @@ function LuxTradeDashboardContent() {
   }, [])
 
   // Free user trade limit
-  const FREE_TRADE_LIMIT = 5
+  const FREE_TRADE_LIMIT = 10
   const isFreeUser = !isPro
   const tradeCount = filteredTrades.length
   const canAddTrade = isPro || tradeCount < FREE_TRADE_LIMIT
