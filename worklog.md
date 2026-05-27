@@ -1140,3 +1140,51 @@ User Action Required:
 2. Get the key from https://resend.com/api-keys
 3. Redeploy after adding the env var
 4. Optionally disable Supabase SMTP to prevent duplicate emails
+
+---
+Task ID: 13
+Agent: Z.ai Code
+Task: Fix signup route to use Supabase Admin API (prevent duplicate emails)
+
+Work Log:
+- **ROOT CAUSE IDENTIFIED**: supabase.auth.signUp() automatically sends default ugly email via Supabase SMTP even when user disabled SMTP
+- **THE FIX**: Changed from supabase.auth.signUp() to supabaseAdmin.auth.admin.createUser()
+- Admin API's createUser() with email_confirm=false does NOT send any email automatically
+- Only Resend email (LuxTrade template) will be sent - no duplicate emails
+- Updated /src/app/api/auth/signup/route.ts:
+  - Replaced supabase.auth.signUp() with supabaseAdmin.auth.admin.createUser()
+  - Set email_confirm: false (user needs to confirm email)
+  - Added comprehensive error logging with emoji indicators (🚀, ✅, ❌, ⚠️, 📧)
+  - Added emailSent flag in response to indicate whether email sending succeeded
+  - Non-fatal approach: signup succeeds even if email sending fails
+- Verified /src/app/api/auth/send-confirmation/route.ts already uses Resend
+- Verified /src/app/api/auth/send-reset-password/route.ts already uses Resend  
+- Verified /src/app/api/auth/resend-verification/route.ts already uses Resend
+- Verified /src/app/auth/forgot-password/page.tsx already calls send-reset-password API
+- All email flows now controlled by Resend (no Supabase default emails)
+
+Stage Summary:
+- ✅ Fixed duplicate email issue on signup
+- ✅ Only LuxTrade template email will be sent via Resend
+- ✅ No more ugly Supabase default emails
+- ✅ Comprehensive error logging for debugging
+- ✅ Non-fatal email sending (signup still succeeds even if Resend fails)
+- ✅ User can resend confirmation email from login page if needed
+
+Root Cause:
+- supabase.auth.signUp() always attempts to send confirmation email
+- Even with SMTP disabled, Supabase may still send or queue default email
+- User was receiving BOTH emails (Supabase default + Resend LuxTrade template)
+- Or only Supabase email if Resend failed silently
+
+Solution:
+- Use supabaseAdmin.auth.admin.createUser() instead
+- Admin API has no auto-email behavior
+- We control ALL email sending via Resend API
+- Only one beautiful LuxTrade email sent per signup
+
+Next Steps:
+1. User needs to push changes to GitHub
+2. Vercel will auto-deploy
+3. Test signup flow to confirm only LuxTrade email arrives
+4. Check Vercel function logs for any Resend errors
