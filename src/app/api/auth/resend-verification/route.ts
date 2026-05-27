@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sendEmail, getConfirmationEmailHtml } from '@/lib/email'
+import { sendEmailFromTemplate, getConfirmationEmailHtml } from '@/lib/email'
 import { supabaseAdmin } from '@/lib/supabase'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
@@ -34,18 +34,16 @@ export async function POST(request: NextRequest) {
 
     if (linkError) {
       console.error('Generate link error:', linkError)
-
       if (linkError.message?.includes('not found') || linkError.message?.includes('No user')) {
         return NextResponse.json(
           { error: 'Email tidak terdaftar. Silakan daftar terlebih dahulu.' },
           { status: 404 }
         )
       }
-
       return NextResponse.json({ error: linkError.message }, { status: 400 })
     }
 
-    // Step 2: Send email via Resend
+    // Step 2: Send email via Resend (template or inline fallback)
     const confirmationUrl = linkData.properties?.action_link || linkData.action_link
     if (!confirmationUrl) {
       console.error('No confirmation URL generated:', linkData)
@@ -56,17 +54,21 @@ export async function POST(request: NextRequest) {
                  linkData.user?.user_metadata?.display_name ||
                  email.split('@')[0]
 
-    const html = getConfirmationEmailHtml(name, confirmationUrl)
+    const fallbackHtml = getConfirmationEmailHtml(name, confirmationUrl)
 
-    const emailResult = await sendEmail({
+    const emailResult = await sendEmailFromTemplate({
       to: email,
       subject: 'Konfirmasi Email - LuxTrade 👑',
-      html,
+      templateId: process.env.RESEND_TEMPLATE_CONFIRM || '',
+      templateParams: {
+        name,
+        confirmationUrl,
+      },
+      fallbackHtml,
     })
 
     if (!emailResult.success) {
-      console.error('Resend email error:', emailResult.error)
-      console.log('⚠️ Email send failed but link was generated. URL:', confirmationUrl)
+      console.error('Email error:', emailResult.error)
     }
 
     return NextResponse.json({

@@ -20,7 +20,7 @@ async function getResendClient() {
 
 export async function sendEmail({ to, subject, html }: EmailOptions) {
   const resend = await getResendClient()
-  
+
   if (!resend) {
     console.warn('⚠️ Email not sent - RESEND_API_KEY not configured')
     return { success: false, error: 'Email service not configured' }
@@ -43,6 +43,66 @@ export async function sendEmail({ to, subject, html }: EmailOptions) {
   } catch (error) {
     console.error('Email send error:', error)
     return { success: false, error }
+  }
+}
+
+/**
+ * Kirim email menggunakan Resend Template dari Dashboard.
+ * Template variables: {{ name }}, {{ confirmationUrl }}, {{ resetUrl }}
+ *
+ * CARA SETUP:
+ * 1. Buka Resend Dashboard → Emails → Create Template
+ * 2. Paste HTML dari file resend-templates/confirm-signup.html atau reset-password.html
+ * 3. Copy Template ID (format: tpl_xxxxxxxx)
+ * 4. Set env var: RESEND_TEMPLATE_CONFIRM=tpl_xxxxxxxx dan RESEND_TEMPLATE_RESET=tpl_xxxxxxxx
+ */
+export async function sendEmailFromTemplate({
+  to,
+  subject,
+  templateId,
+  templateParams,
+  fallbackHtml,
+}: {
+  to: string
+  subject: string
+  templateId: string
+  templateParams: Record<string, string>
+  fallbackHtml: string
+}) {
+  const resend = await getResendClient()
+
+  if (!resend) {
+    console.warn('⚠️ Email not sent - RESEND_API_KEY not configured')
+    return { success: false, error: 'Email service not configured' }
+  }
+
+  // Jika template ID belum diset, fallback ke inline HTML
+  if (!templateId || templateId.startsWith('your_')) {
+    console.log('📧 No template ID set, using inline HTML fallback')
+    return sendEmail({ to, subject, html: fallbackHtml })
+  }
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: 'LuxTrade <noreply@luxtradee.web.id>',
+      to,
+      subject,
+      templateId,
+      templateParams,
+    })
+
+    if (error) {
+      console.error('Resend template error:', error)
+      // Fallback ke inline HTML jika template gagal
+      console.log('📧 Template send failed, falling back to inline HTML')
+      return sendEmail({ to, subject, html: fallbackHtml })
+    }
+
+    console.log('✅ Email sent via Resend template:', templateId)
+    return { success: true, data }
+  } catch (error) {
+    console.error('Email template error, falling back to inline HTML:', error)
+    return sendEmail({ to, subject, html: fallbackHtml })
   }
 }
 
