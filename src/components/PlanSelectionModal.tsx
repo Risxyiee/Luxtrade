@@ -35,7 +35,7 @@ const plans: Plan[] = [
     durationValue: 0,
     durationType: 'lifetime',
     features: [
-      '5 Jurnal Transaksi / Bulan',
+      '10 Jurnal Transaksi / Bulan',
       'Grafik Performa & Statistik Standar',
       'Kalkulator Risiko Trading Pemula',
       '🎁 BONUS: 3x Uji Coba Fitur Analisis AI & Statistik PRO'
