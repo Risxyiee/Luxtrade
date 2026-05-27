@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase, supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 import { sendEmailFromTemplate, getConfirmationEmailHtml } from '@/lib/email'
 
 // Helper function to generate referral code
@@ -11,6 +11,8 @@ function generateReferralCode(): string {
   }
   return code
 }
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,83 +44,57 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // ============================================
-    // Step 1: Pre-flight check - verify profiles table exists
-    // ============================================
-    // NOTE: Database setup check is now non-blocking
-    // If tables don't exist, they will be created automatically by trigger
-    let tableExists = true
-    try {
-      const { error: tableCheck } = await supabase
-        .from('profiles')
-        .select('id')
-        .limit(1)
-        .single()
-
-      const msg = tableCheck ? String(tableCheck) : ''
-      if (msg.includes('does not exist') || msg.includes('relation') || msg.includes('42P01')) {
-        console.warn('⚠️ Profiles table does not exist - signup will continue anyway')
-        tableExists = false
-      }
-    } catch (checkErr) {
-      console.warn('⚠️ Could not verify profiles table:', checkErr)
-      tableExists = false
+    if (!supabaseAdmin) {
+      console.error('❌ Supabase admin client not configured')
+      return NextResponse.json(
+        { error: 'Server tidak dikonfigurasi dengan benar.' },
+        { status: 500 }
+      )
     }
-
-    // ============================================
-    // Step 2: Sign up user with Supabase Auth
-    // ============================================
-    console.log('🚀 Calling supabase.auth.signUp...')
 
     // Generate unique referral code for this user
     const myReferralCode = generateReferralCode()
     const now = new Date().toISOString()
 
-    const { data, error: signUpError } = await supabase.auth.signUp({
+    // ============================================
+    // Step 1: Create user via ADMIN API (no auto-email!)
+    // supabaseAdmin.auth.admin.createUser() does NOT send confirmation email
+    // This is the key fix - we control email sending ourselves via Resend
+    // ============================================
+    console.log('🚀 Creating user via admin API (no auto-email)...')
+
+    const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      options: {
-        data: {
-          full_name: fullName,
-          // Auto-init user metadata for admin panel
-          is_pro: false,
-          subscription_status: 'inactive',
-          subscription_until: null,
-          my_referral_code: myReferralCode,
-          referred_by_code: referralCode || null,
-          has_ever_been_pro: false,
-          commission_paid: false,
-          device_id: deviceId || null,
-          created_at: now,
-          updated_at: now,
-          role: 'member'
-        },
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'}/auth/callback`,
+      email_confirm: false, // User needs to confirm email
+      user_metadata: {
+        full_name: fullName,
+        is_pro: false,
+        subscription_status: 'inactive',
+        subscription_until: null,
+        my_referral_code: myReferralCode,
+        referred_by_code: referralCode || null,
+        has_ever_been_pro: false,
+        commission_paid: false,
+        device_id: deviceId || null,
+        created_at: now,
+        updated_at: now,
+        role: 'member'
       },
     })
 
-    if (signUpError) {
-      console.error('❌ Supabase signup error:', signUpError)
+    if (createError) {
+      console.error('❌ Admin create user error:', createError)
 
-      // Parse common errors and provide helpful messages
-      const errorMsg = signUpError.message || 'Unknown error'
-
-      // Check for database-related errors - NON-BLOCKING
-      if (errorMsg.toLowerCase().includes('database') ||
-          errorMsg.toLowerCase().includes('saving new user') ||
-          errorMsg.toLowerCase().includes('relation') ||
-          errorMsg.toLowerCase().includes('does not exist') ||
-          errorMsg.toLowerCase().includes('trigger')) {
-        console.warn('⚠️ Database warning (non-blocking):', errorMsg)
-        // Don't block signup - continue and try to handle profile creation later
-      }
+      const errorMsg = createError.message || 'Unknown error'
 
       // Check for duplicate email
-      if (errorMsg.toLowerCase().includes('already registered') || 
+      if (errorMsg.toLowerCase().includes('already registered') ||
           errorMsg.toLowerCase().includes('already been registered') ||
           errorMsg.toLowerCase().includes('unique') ||
           errorMsg.toLowerCase().includes('already exists') ||
-          errorMsg.toLowerCase().includes('duplicate')) {
+          errorMsg.toLowerCase().includes('duplicate') ||
+          errorMsg.toLowerCase().includes('user already exists')) {
         return NextResponse.json(
           { error: 'Email sudah terdaftar. Silakan login atau gunakan email lain.' },
           { status: 409 }
@@ -126,7 +102,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Check for rate limiting
-      if (errorMsg.toLowerCase().includes('rate limit') || 
+      if (errorMsg.toLowerCase().includes('rate limit') ||
           errorMsg.toLowerCase().includes('too many') ||
           errorMsg.toLowerCase().includes('security')) {
         return NextResponse.json(
@@ -135,130 +111,111 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Generic Supabase error
       return NextResponse.json(
         { error: `Gagal membuat akun: ${errorMsg}` },
         { status: 400 }
       )
     }
 
-    // ============================================
-    // Step 3: User created in auth - now handle profile
-    // ============================================
-    if (!data.user) {
-      console.error('❌ No user returned from signUp')
+    if (!userData.user) {
+      console.error('❌ No user returned from admin.createUser')
       return NextResponse.json(
         { error: 'Gagal membuat akun. Silakan coba lagi.' },
         { status: 500 }
       )
     }
 
-    console.log('✅ User created:', data.user.id)
-    console.log('✅ User email:', data.user.email)
+    const user = userData.user
+    console.log('✅ User created via admin API:', user.id)
+    console.log('✅ User email:', user.email)
+    console.log('✅ Email confirmed?', user.email_confirmed_at) // Should be null
 
     // ============================================
-    // Step 4: Try to create/update profile using admin client (bypasses RLS)
+    // Step 2: Create profile
     // ============================================
     try {
-      if (supabaseAdmin) {
-        // First try to update (in case trigger already created a basic profile)
-        const { error: updateError } = await supabaseAdmin
-          .from('profiles')
-          .update({
-            email: data.user.email,
-            full_name: fullName,
-            subscription_status: 'FREE',
-            is_pro: false,
-            device_id: deviceId || null,
-            my_referral_code: myReferralCode,
-            referred_by_code: referralCode || null,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', data.user.id)
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .insert({
+          id: user.id,
+          email: user.email,
+          full_name: fullName,
+          subscription_status: 'FREE',
+          is_pro: false,
+          device_id: deviceId || null,
+          my_referral_code: myReferralCode,
+          referred_by_code: referralCode || null,
+          has_ever_been_pro: false,
+          commission_paid: false,
+          streakCount: 0,
+          bestStreak: 0,
+          achievements: [],
+          created_at: now,
+          updated_at: now
+        })
 
-        if (!updateError) {
-          console.log('✅ Profile updated with admin privileges')
-        } else {
-          // If update failed, try insert with admin
-          console.warn('⚠️ Profile update failed, trying insert with admin...')
-          const { error: insertError } = await supabaseAdmin
-            .from('profiles')
-            .insert({
-              id: data.user.id,
-              email: data.user.email,
-              full_name: fullName,
-              subscription_status: 'FREE',
-              is_pro: false,
-              device_id: deviceId || null,
-              my_referral_code: myReferralCode,
-              referred_by_code: referralCode || null,
-              has_ever_been_pro: false,
-              commission_paid: false,
-              streakCount: 0,
-              bestStreak: 0,
-              achievements: [],
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            })
-
-          if (insertError) {
-            console.error('⚠️ Profile creation error with admin:', insertError.message)
-            // Don't fail signup - user was already created in auth
-          } else {
-            console.log('✅ Profile created with admin privileges')
-          }
-        }
+      if (profileError) {
+        console.error('⚠️ Profile creation error (non-fatal):', profileError.message)
       } else {
-        console.warn('⚠️ Supabase admin client not available, skipping profile creation')
+        console.log('✅ Profile created')
       }
     } catch (profileErr) {
       console.error('⚠️ Profile setup error (non-fatal):', profileErr)
-      // User was already created in auth, so signup is still successful
     }
 
     // ============================================
-    // Step 5: Send confirmation email via Resend (bypasses Supabase email)
+    // Step 3: Generate confirmation link & send via Resend
     // ============================================
+    let emailSent = false
     try {
-      // Generate confirmation link via admin API
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
-      const { data: linkData, error: linkError } = await supabaseAdmin!.auth.admin.generateLink({
+      console.log('📧 Generating confirmation link...')
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'signup',
         email,
-        options: { emailRedirectTo: `${siteUrl}/auth/callback` },
+        options: { emailRedirectTo: `${SITE_URL}/auth/callback` },
       })
 
-      if (!linkError && linkData) {
+      if (linkError) {
+        console.error('❌ Failed to generate confirmation link:', linkError.message)
+      } else if (linkData) {
         const confirmationUrl = linkData.properties?.action_link || linkData.action_link
+        console.log('📧 Confirmation URL generated:', confirmationUrl ? 'YES' : 'NO')
+
         if (confirmationUrl) {
-          const fallbackHtml = getConfirmationEmailHtml(fullName || email.split('@')[0], confirmationUrl)
+          const name = fullName || email.split('@')[0]
+          const fallbackHtml = getConfirmationEmailHtml(name, confirmationUrl)
+
+          console.log('📧 Sending email via Resend...')
           const emailResult = await sendEmailFromTemplate({
             to: email,
             subject: 'Konfirmasi Email - LuxTrade 👑',
             templateId: process.env.RESEND_TEMPLATE_CONFIRM || '',
-            templateParams: { name: fullName || email.split('@')[0], confirmationUrl },
+            templateParams: { name, confirmationUrl },
             fallbackHtml,
           })
+
           if (emailResult.success) {
-            console.log('✅ Confirmation email sent via Resend')
+            console.log('✅ Confirmation email sent via Resend successfully!')
+            emailSent = true
           } else {
-            console.warn('⚠️ Failed to send confirmation email:', emailResult.error)
+            console.error('❌ Failed to send confirmation email via Resend:', JSON.stringify(emailResult.error))
           }
         }
-      } else {
-        console.warn('⚠️ Failed to generate confirmation link:', linkError?.message)
       }
     } catch (emailErr) {
-      console.error('⚠️ Confirmation email error (non-fatal):', emailErr)
+      console.error('❌ Confirmation email error:', emailErr)
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Akun berhasil dibuat! Cek email untuk konfirmasi.',
+      message: emailSent
+        ? 'Akun berhasil dibuat! Cek email untuk konfirmasi.'
+        : 'Akun berhasil dibuat, tapi gagal mengirim email konfirmasi. Silakan kirim ulang dari halaman login.',
       user: {
-        id: data.user.id,
-        email: data.user.email
-      }
+        id: user.id,
+        email: user.email
+      },
+      emailSent
     })
   } catch (error) {
     console.error('Signup API error:', error)
