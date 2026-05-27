@@ -215,6 +215,27 @@ export async function POST(request: NextRequest) {
       // User was already created in auth, so signup is still successful
     }
 
+    // ============================================
+    // Step 5: Send confirmation email via Resend (bypasses Supabase email)
+    // ============================================
+    try {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
+      const confirmResponse = await fetch(`${siteUrl}/api/auth/send-confirmation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, fullName }),
+      })
+      const confirmData = await confirmResponse.json()
+      if (confirmData.success) {
+        console.log('✅ Confirmation email sent via Resend')
+      } else {
+        console.warn('⚠️ Failed to send confirmation email via Resend:', confirmData.error)
+      }
+    } catch (emailErr) {
+      console.error('⚠️ Confirmation email error (non-fatal):', emailErr)
+      // Don't fail signup - user was created, they can request resend later
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Akun berhasil dibuat! Cek email untuk konfirmasi.',

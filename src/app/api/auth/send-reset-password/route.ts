@@ -1,0 +1,77 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { supabaseAdmin } from '@/lib/supabase'
+import { sendEmail, getResetPasswordEmailHtml } from '@/lib/email'
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
+
+export async function POST(request: NextRequest) {
+  try {
+    const { email } = await request.json()
+
+    if (!email) {
+      return NextResponse.json({ error: 'Email wajib diisi' }, { status: 400 })
+    }
+
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
+    }
+
+    // Step 1: Generate reset password link via admin API (doesn't send email from Supabase)
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: {
+        redirectTo: `${SITE_URL}/auth/reset-password`,
+      },
+    })
+
+    if (linkError) {
+      console.error('Generate reset link error:', linkError)
+
+      if (linkError.message?.includes('not found') || linkError.message?.includes('No user')) {
+        return NextResponse.json(
+          { error: 'Email tidak terdaftar di LuxTrade.' },
+          { status: 404 }
+        )
+      }
+
+      return NextResponse.json({ error: linkError.message }, { status: 400 })
+    }
+
+    // Step 2: Send email via Resend with our template
+    const resetUrl = linkData.properties?.action_link || linkData.action_link
+    if (!resetUrl) {
+      console.error('No reset URL generated:', linkData)
+      return NextResponse.json({ error: 'Gagal membuat link reset password' }, { status: 500 })
+    }
+
+    const name = linkData.user?.user_metadata?.full_name ||
+                 linkData.user?.user_metadata?.display_name ||
+                 email.split('@')[0]
+
+    const html = getResetPasswordEmailHtml(name, resetUrl)
+
+    const emailResult = await sendEmail({
+      to: email,
+      subject: 'Reset Password - LuxTrade 🔒',
+      html,
+    })
+
+    if (!emailResult.success) {
+      console.error('Resend email error:', emailResult.error)
+      console.log('⚠️ Email send failed but link was generated. URL:', resetUrl)
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Link reset password telah dikirim ke email Anda.',
+      ...(process.env.NODE_ENV === 'development' ? { debugUrl: resetUrl } : {}),
+    })
+  } catch (error) {
+    console.error('Send reset password error:', error)
+    return NextResponse.json(
+      { error: 'Terjadi kesalahan. Silakan coba lagi.' },
+      { status: 500 }
+    )
+  }
+}
