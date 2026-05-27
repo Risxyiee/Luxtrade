@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { sendEmail, getConfirmationEmailHtml } from '@/lib/email'
+import { sendEmailFromTemplate, getConfirmationEmailHtml } from '@/lib/email'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 
@@ -16,8 +16,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
     }
 
-    // Step 1: Generate OTP for this user via admin API
-    // This creates a confirmation link without sending any email from Supabase
+    // Step 1: Generate confirmation link via admin API
     const { data: otpData, error: otpError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'signup',
       email,
@@ -28,19 +27,16 @@ export async function POST(request: NextRequest) {
 
     if (otpError) {
       console.error('Generate link error:', otpError)
-
-      // If user not found, try signup type
       if (otpError.message?.includes('not found') || otpError.message?.includes('No user')) {
         return NextResponse.json(
           { error: 'Email tidak terdaftar. Silakan daftar terlebih dahulu.' },
           { status: 404 }
         )
       }
-
       return NextResponse.json({ error: otpError.message }, { status: 400 })
     }
 
-    // Step 2: Send email via Resend with our beautiful template
+    // Step 2: Send email via Resend (template or inline fallback)
     const confirmationUrl = otpData.properties?.action_link || otpData.action_link
     if (!confirmationUrl) {
       console.error('No confirmation URL generated:', otpData)
@@ -48,25 +44,26 @@ export async function POST(request: NextRequest) {
     }
 
     const name = fullName || email.split('@')[0]
-    const html = getConfirmationEmailHtml(name, confirmationUrl)
+    const fallbackHtml = getConfirmationEmailHtml(name, confirmationUrl)
 
-    const emailResult = await sendEmail({
+    const emailResult = await sendEmailFromTemplate({
       to: email,
       subject: 'Konfirmasi Email - LuxTrade 👑',
-      html,
+      templateId: process.env.RESEND_TEMPLATE_CONFIRM || '',
+      templateParams: {
+        name,
+        confirmationUrl,
+      },
+      fallbackHtml,
     })
 
     if (!emailResult.success) {
-      console.error('Resend email error:', emailResult.error)
-      // Fallback: still return success so user doesn't get stuck
-      // The Supabase link is still valid
-      console.log('⚠️ Email send failed but link was generated. URL:', confirmationUrl)
+      console.error('Email error:', emailResult.error)
     }
 
     return NextResponse.json({
       success: true,
       message: 'Email konfirmasi telah dikirim. Silakan cek inbox Anda.',
-      // Dev only: include link for debugging (remove in production)
       ...(process.env.NODE_ENV === 'development' ? { debugUrl: confirmationUrl } : {}),
     })
   } catch (error) {

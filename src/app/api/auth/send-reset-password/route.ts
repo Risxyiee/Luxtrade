@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { sendEmail, getResetPasswordEmailHtml } from '@/lib/email'
+import { sendEmailFromTemplate, getResetPasswordEmailHtml } from '@/lib/email'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
     }
 
-    // Step 1: Generate reset password link via admin API (doesn't send email from Supabase)
+    // Step 1: Generate reset password link via admin API
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email,
@@ -27,18 +27,16 @@ export async function POST(request: NextRequest) {
 
     if (linkError) {
       console.error('Generate reset link error:', linkError)
-
       if (linkError.message?.includes('not found') || linkError.message?.includes('No user')) {
         return NextResponse.json(
           { error: 'Email tidak terdaftar di LuxTrade.' },
           { status: 404 }
         )
       }
-
       return NextResponse.json({ error: linkError.message }, { status: 400 })
     }
 
-    // Step 2: Send email via Resend with our template
+    // Step 2: Send email via Resend (template or inline fallback)
     const resetUrl = linkData.properties?.action_link || linkData.action_link
     if (!resetUrl) {
       console.error('No reset URL generated:', linkData)
@@ -49,17 +47,21 @@ export async function POST(request: NextRequest) {
                  linkData.user?.user_metadata?.display_name ||
                  email.split('@')[0]
 
-    const html = getResetPasswordEmailHtml(name, resetUrl)
+    const fallbackHtml = getResetPasswordEmailHtml(name, resetUrl)
 
-    const emailResult = await sendEmail({
+    const emailResult = await sendEmailFromTemplate({
       to: email,
       subject: 'Reset Password - LuxTrade 🔒',
-      html,
+      templateId: process.env.RESEND_TEMPLATE_RESET || '',
+      templateParams: {
+        name,
+        resetUrl,
+      },
+      fallbackHtml,
     })
 
     if (!emailResult.success) {
-      console.error('Resend email error:', emailResult.error)
-      console.log('⚠️ Email send failed but link was generated. URL:', resetUrl)
+      console.error('Email error:', emailResult.error)
     }
 
     return NextResponse.json({
