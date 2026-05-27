@@ -3,8 +3,8 @@ import { db } from '@/lib/db'
 import { createClientForApi } from '@/lib/supabase/server'
 import { checkAchievementsAfterTrade } from '@/lib/achievement-checker'
 
-// Free user trade limit - 5 trades per month
-const FREE_TRADE_LIMIT = 5
+// Free user trade limit - 10 trades per month
+const FREE_TRADE_LIMIT = 10
 
 // Helper: Get authenticated user from request
 async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
