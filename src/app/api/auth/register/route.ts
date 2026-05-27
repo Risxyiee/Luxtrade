@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
           display_name: fullName || email.split('@')[0],
           full_name: fullName || email.split('@')[0],
         },
-        emailRedirectTo: 'https://q1arx165rdc0-d.space.z.ai/auth/callback',
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'}/auth/callback`,
       },
     })
 

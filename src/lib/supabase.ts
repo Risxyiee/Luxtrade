@@ -12,7 +12,7 @@ export const getBaseUrl = () => {
     return window.location.origin
   }
   // Server-side: use NEXT_PUBLIC_APP_URL or fallback
-  return process.env.NEXT_PUBLIC_APP_URL || 'https://luxtrade-jade.vercel.app'
+  return process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 }
 
 // Validate configuration
