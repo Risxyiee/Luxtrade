@@ -46,7 +46,271 @@ export async function sendEmail({ to, subject, html }: EmailOptions) {
   }
 }
 
-// Email confirmation template
+// ============================================
+// SUPABASE EMAIL TEMPLATES
+// Copy-paste these directly into:
+// Supabase Dashboard → Authentication → Email Templates
+// ============================================
+
+// VARIABLES YANG TERSEDIA DI SUPABASE TEMPLATE:
+// {{ .ConfirmationURL }} - Link konfirmasi/reset
+// {{ .Token }} - Token raw
+// {{ .SiteURL }} - Site URL dari config
+// {{ .Email }} - Email user
+// {{ .NewEmail }} - Email baru (hanya di change email)
+// {{ .RedirectTo }} - Redirect URL
+// {{ .Data.DisplayName }} - Nama user dari metadata
+
+/**
+ * === SUPABASE: Confirm Signup Template ===
+ * Paste ke: Authentication → Email Templates → Confirm signup
+ */
+export const SUPABASE_CONFIRM_SIGNUP = `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Konfirmasi Email - LuxTrade</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0a0612; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="margin: 0 auto; background: linear-gradient(135deg, #1a0f2e 0%, #0d0715 100%); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
+          <tr>
+            <td style="padding: 40px 40px 20px 40px; text-align: center;">
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+                <tr>
+                  <td style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); border-radius: 12px; padding: 12px 16px;">
+                    <span style="font-size: 24px;">👑</span>
+                  </td>
+                </tr>
+              </table>
+              <h1 style="color: #fbbf24; font-size: 28px; margin: 20px 0 10px 0; font-weight: 700;">LuxTrade</h1>
+              <p style="color: rgba(255,255,255,0.5); font-size: 14px; margin: 0;">Premium Trading Journal</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 30px 40px;">
+              <h2 style="color: #ffffff; font-size: 22px; margin: 0 0 20px 0; font-weight: 600;">
+                Halo{{if .Data.DisplayName}} {{.Data.DisplayName}}{{end}}! 👋
+              </h2>
+              <p style="color: rgba(255,255,255,0.7); font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                Terima kasih telah mendaftar di LuxTrade. Untuk memulai perjalanan trading Anda, silakan konfirmasi alamat email Anda:
+              </p>
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 30px 0;">
+                <tr>
+                  <td style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); border-radius: 12px; box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);">
+                    <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                      Konfirmasi Email
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="color: rgba(255,255,255,0.5); font-size: 14px; line-height: 1.6; margin: 0 0 15px 0;">
+                Atau salin link berikut ke browser Anda:
+              </p>
+              <p style="color: #f59e0b; font-size: 13px; word-break: break-all; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; margin: 0 0 20px 0;">
+                {{ .ConfirmationURL }}
+              </p>
+              <p style="color: rgba(255,255,255,0.5); font-size: 14px; margin: 0;">
+                ⏰ Link ini akan kadaluarsa dalam 24 jam.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <div style="border-top: 1px solid rgba(255,255,255,0.1);"></div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 30px 40px; text-align: center;">
+              <p style="color: rgba(255,255,255,0.4); font-size: 13px; margin: 0 0 10px 0;">
+                Jika Anda tidak merasa mendaftar di LuxTrade, mohon abaikan email ini.
+              </p>
+              <p style="color: rgba(255,255,255,0.3); font-size: 12px; margin: 0;">
+                &copy; 2025 LuxTrade. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+
+/**
+ * === SUPABASE: Reset Password Template ===
+ * Paste ke: Authentication → Email Templates → Reset password
+ */
+export const SUPABASE_RESET_PASSWORD = `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset Password - LuxTrade</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0a0612; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="margin: 0 auto; background: linear-gradient(135deg, #1a0f2e 0%, #0d0715 100%); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
+          <tr>
+            <td style="padding: 40px 40px 20px 40px; text-align: center;">
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+                <tr>
+                  <td style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); border-radius: 12px; padding: 12px 16px;">
+                    <span style="font-size: 24px;">👑</span>
+                  </td>
+                </tr>
+              </table>
+              <h1 style="color: #fbbf24; font-size: 28px; margin: 20px 0 10px 0; font-weight: 700;">LuxTrade</h1>
+              <p style="color: rgba(255,255,255,0.5); font-size: 14px; margin: 0;">Premium Trading Journal</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 40px 0 40px; text-align: center;">
+              <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(245, 158, 11, 0.1); display: inline-flex; align-items: center; justify-content: center;">
+                <span style="font-size: 32px;">🔒</span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 20px 40px 30px 40px;">
+              <h2 style="color: #ffffff; font-size: 22px; margin: 0 0 20px 0; font-weight: 600; text-align: center;">
+                Reset Password
+              </h2>
+              <p style="color: rgba(255,255,255,0.7); font-size: 16px; line-height: 1.6; margin: 0 0 20px 0; text-align: center;">
+                Kami menerima permintaan untuk mengubah password akun LuxTrade Anda. Klik tombol di bawah untuk membuat password baru:
+              </p>
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 30px auto;">
+                <tr>
+                  <td style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); border-radius: 12px; box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);">
+                    <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                      Ubah Password
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="color: rgba(255,255,255,0.5); font-size: 14px; line-height: 1.6; margin: 0 0 15px 0; text-align: center;">
+                Atau salin link berikut ke browser Anda:
+              </p>
+              <p style="color: #f59e0b; font-size: 13px; word-break: break-all; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; margin: 0 0 20px 0; text-align: center;">
+                {{ .ConfirmationURL }}
+              </p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 20px 0 0 0;">
+                <tr>
+                  <td style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 10px; padding: 14px 16px;">
+                    <p style="color: rgba(255,255,255,0.6); font-size: 13px; line-height: 1.5; margin: 0;">
+                      ⚠️ <strong style="color: #fca5a5;">Jangan bagikan link ini</strong> dengan siapa pun. Link ini akan kadaluarsa dalam <strong style="color: #fca5a5;">1 jam</strong>. Jika Anda tidak meminta reset password, mohon abaikan email ini — password Anda tidak akan berubah.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <div style="border-top: 1px solid rgba(255,255,255,0.1);"></div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 30px 40px; text-align: center;">
+              <p style="color: rgba(255,255,255,0.4); font-size: 13px; margin: 0 0 10px 0;">
+                Jika Anda tidak meminta reset password, abaikan email ini.
+              </p>
+              <p style="color: rgba(255,255,255,0.3); font-size: 12px; margin: 0;">
+                &copy; 2025 LuxTrade. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+
+/**
+ * === SUPABASE: Change Email Template ===
+ * Paste ke: Authentication → Email Templates → Change email address
+ */
+export const SUPABASE_CHANGE_EMAIL = `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Konfirmasi Ubah Email - LuxTrade</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0a0612; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="margin: 0 auto; background: linear-gradient(135deg, #1a0f2e 0%, #0d0715 100%); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
+          <tr>
+            <td style="padding: 40px 40px 20px 40px; text-align: center;">
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+                <tr>
+                  <td style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); border-radius: 12px; padding: 12px 16px;">
+                    <span style="font-size: 24px;">👑</span>
+                  </td>
+                </tr>
+              </table>
+              <h1 style="color: #fbbf24; font-size: 28px; margin: 20px 0 10px 0; font-weight: 700;">LuxTrade</h1>
+              <p style="color: rgba(255,255,255,0.5); font-size: 14px; margin: 0;">Premium Trading Journal</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 30px 40px;">
+              <h2 style="color: #ffffff; font-size: 22px; margin: 0 0 20px 0; font-weight: 600; text-align: center;">
+                Konfirmasi Ubah Email 📧
+              </h2>
+              <p style="color: rgba(255,255,255,0.7); font-size: 16px; line-height: 1.6; margin: 0 0 10px 0; text-align: center;">
+                Anda ingin mengubah email ke:
+              </p>
+              <p style="color: #f59e0b; font-size: 16px; font-weight: 600; text-align: center; margin: 0 0 20px 0;">
+                {{ .NewEmail }}
+              </p>
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 20px auto 30px auto;">
+                <tr>
+                  <td style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); border-radius: 12px; box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);">
+                    <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                      Konfirmasi Ubah Email
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="color: rgba(255,255,255,0.5); font-size: 14px; margin: 0; text-align: center;">
+                ⏰ Link ini akan kadaluarsa dalam 24 jam.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 40px;">
+              <div style="border-top: 1px solid rgba(255,255,255,0.1);"></div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 30px 40px; text-align: center;">
+              <p style="color: rgba(255,255,255,0.4); font-size: 13px; margin: 0 0 10px 0;">
+                Jika Anda tidak merasa meminta perubahan ini, mohon abaikan email ini.
+              </p>
+              <p style="color: rgba(255,255,255,0.3); font-size: 12px; margin: 0;">
+                &copy; 2025 LuxTrade. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+
+// ============================================
+// PROGRAMMATIC TEMPLATES (untuk sendEmail via Resend langsung)
+// ============================================
 export function getConfirmationEmailHtml(name: string, confirmationUrl: string) {
   return `
     <!DOCTYPE html>
