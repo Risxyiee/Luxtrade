@@ -203,7 +203,7 @@ export function getWelcomeEmailHtml(name: string) {
                   <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
                     <tr>
                       <td style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); border-radius: 12px; box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);">
-                        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://luxtrade.id'}/dashboard" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                        <a href="${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'}/dashboard" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
                           Mulai Trading Journal →
                         </a>
                       </td>
