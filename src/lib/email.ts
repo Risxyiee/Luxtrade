@@ -28,7 +28,7 @@ export async function sendEmail({ to, subject, html }: EmailOptions) {
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'LuxTrade <noreply@luxtrade.id>',
+      from: 'LuxTrade <noreply@luxtradee.web.id>',
       to,
       subject,
       html,
