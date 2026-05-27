@@ -1,43 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sendEmail, getConfirmationEmailHtml } from '@/lib/email'
 import { supabaseAdmin } from '@/lib/supabase'
+import { sendEmail, getResetPasswordEmailHtml } from '@/lib/email'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { email } = body
+    const { email } = await request.json()
 
     if (!email) {
-      return NextResponse.json(
-        { error: 'Email wajib diisi' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Email wajib diisi' }, { status: 400 })
     }
 
     if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: 'Server not configured' },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
     }
 
-    // Step 1: Generate new confirmation link via admin API
+    // Step 1: Generate reset password link via admin API (doesn't send email from Supabase)
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'signup',
+      type: 'recovery',
       email,
       options: {
-        emailRedirectTo: `${SITE_URL}/auth/callback`,
+        redirectTo: `${SITE_URL}/auth/reset-password`,
       },
     })
 
     if (linkError) {
-      console.error('Generate link error:', linkError)
+      console.error('Generate reset link error:', linkError)
 
       if (linkError.message?.includes('not found') || linkError.message?.includes('No user')) {
         return NextResponse.json(
-          { error: 'Email tidak terdaftar. Silakan daftar terlebih dahulu.' },
+          { error: 'Email tidak terdaftar di LuxTrade.' },
           { status: 404 }
         )
       }
@@ -45,36 +38,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: linkError.message }, { status: 400 })
     }
 
-    // Step 2: Send email via Resend
-    const confirmationUrl = linkData.properties?.action_link || linkData.action_link
-    if (!confirmationUrl) {
-      console.error('No confirmation URL generated:', linkData)
-      return NextResponse.json({ error: 'Gagal membuat link konfirmasi' }, { status: 500 })
+    // Step 2: Send email via Resend with our template
+    const resetUrl = linkData.properties?.action_link || linkData.action_link
+    if (!resetUrl) {
+      console.error('No reset URL generated:', linkData)
+      return NextResponse.json({ error: 'Gagal membuat link reset password' }, { status: 500 })
     }
 
     const name = linkData.user?.user_metadata?.full_name ||
                  linkData.user?.user_metadata?.display_name ||
                  email.split('@')[0]
 
-    const html = getConfirmationEmailHtml(name, confirmationUrl)
+    const html = getResetPasswordEmailHtml(name, resetUrl)
 
     const emailResult = await sendEmail({
       to: email,
-      subject: 'Konfirmasi Email - LuxTrade 👑',
+      subject: 'Reset Password - LuxTrade 🔒',
       html,
     })
 
     if (!emailResult.success) {
       console.error('Resend email error:', emailResult.error)
-      console.log('⚠️ Email send failed but link was generated. URL:', confirmationUrl)
+      console.log('⚠️ Email send failed but link was generated. URL:', resetUrl)
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Email konfirmasi telah dikirim ulang. Silakan cek inbox Anda.',
+      message: 'Link reset password telah dikirim ke email Anda.',
+      ...(process.env.NODE_ENV === 'development' ? { debugUrl: resetUrl } : {}),
     })
   } catch (error) {
-    console.error('Resend verification error:', error)
+    console.error('Send reset password error:', error)
     return NextResponse.json(
       { error: 'Terjadi kesalahan. Silakan coba lagi.' },
       { status: 500 }

@@ -1094,3 +1094,49 @@ Files Modified:
 1. /home/z/my-project/src/app/dashboard/components/Header.tsx (added SS Journal button, fixed Smart Import visibility)
 2. /home/z/my-project/src/app/dashboard/LuxTradeDashboard.tsx (added state + handlers)
 3. /home/z/my-project/src/app/api/import/file/route.ts (PDF parsing fix with pdf-parse)
+
+---
+Task ID: 12
+Agent: Z.ai Code
+Task: Switch email delivery from Supabase templates to Resend API
+
+Work Log:
+- Created /src/app/api/auth/send-confirmation/route.ts - New API route that:
+  - Uses supabaseAdmin.auth.admin.generateLink() to create confirmation link (no email sent by Supabase)
+  - Sends beautiful HTML email via Resend API using getConfirmationEmailHtml() template
+  - Returns debug URL in development mode
+- Created /src/app/api/auth/send-reset-password/route.ts - New API route that:
+  - Uses supabaseAdmin.auth.admin.generateLink() with type 'recovery' to create reset link
+  - Sends reset password email via Resend API using getResetPasswordEmailHtml() template
+  - Returns debug URL in development mode
+- Updated /src/app/api/auth/signup/route.ts - Added Step 5:
+  - After user creation and profile setup, calls /api/auth/send-confirmation internally
+  - Non-fatal: signup succeeds even if email sending fails
+- Updated /src/app/api/auth/resend-verification/route.ts:
+  - Replaced supabase.auth.resend() with supabaseAdmin.auth.admin.generateLink() + Resend sendEmail()
+  - Now sends email via Resend with beautiful template instead of Supabase default
+- Updated /src/app/auth/forgot-password/page.tsx:
+  - Replaced supabase.auth.resetPasswordForEmail() with fetch('/api/auth/send-reset-password')
+  - Removed unused supabase import
+- Updated /src/.env.example:
+  - Added RESEND_API_KEY placeholder
+  - Added ZAI SDK env vars documentation
+  - Added NEXT_PUBLIC_SITE_URL
+
+Stage Summary:
+- ✅ Email confirmation now sent via Resend API (not Supabase email system)
+- ✅ Reset password email now sent via Resend API
+- ✅ Resend verification now sent via Resend API
+- ✅ Beautiful dark-themed email templates used automatically
+- ✅ No need to copy-paste templates into Supabase Dashboard
+- ✅ User only needs to add RESEND_API_KEY to Vercel env vars
+- ✅ Supabase SMTP can be disabled/removed if desired
+- ✅ All changes non-fatal: if Resend fails, links still generated
+- ✅ Dev server running without errors
+- ✅ No lint errors in modified files
+
+User Action Required:
+1. Add RESEND_API_KEY to Vercel Environment Variables
+2. Get the key from https://resend.com/api-keys
+3. Redeploy after adding the env var
+4. Optionally disable Supabase SMTP to prevent duplicate emails

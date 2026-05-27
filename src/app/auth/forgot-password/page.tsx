@@ -9,7 +9,6 @@ import { Mail, ArrowLeft, Loader2, CheckCircle, AlertCircle } from 'lucide-react
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { supabase } from '@/lib/supabase'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -30,12 +29,16 @@ export default function ForgotPasswordPage() {
     setIsLoading(true)
 
     try {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://luxtradee.web.id')}/auth/reset-password`,
+      const response = await fetch('/api/auth/send-reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
       })
 
-      if (resetError) {
-        setError(resetError.message)
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || 'Gagal mengirim link reset password.')
       } else {
         setSuccess(true)
       }
