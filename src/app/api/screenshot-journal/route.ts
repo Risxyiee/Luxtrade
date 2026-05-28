@@ -205,6 +205,54 @@ function normalizeMarketCondition(condition: string): string {
   return 'ranging'
 }
 
+// ==================== HELPER: Retry logic for VLM requests ====================
+async function callVLMWithRetry(zai: any, prompt: string, base64Image: string, mimeType: string, maxRetries = 2): Promise<any> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`🤖 [Screenshot Journal] VLM attempt ${attempt + 1}/${maxRetries + 1}...`)
+
+      const vlmResponse = await zai.chat.completions.createVision({
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              {
+                type: 'image_url',
+                image_url: { url: `data:${mimeType};base64,${base64Image}` }
+              }
+            ]
+          }
+        ],
+        thinking: { type: 'disabled' }
+      })
+
+      return vlmResponse
+    } catch (error: any) {
+      const isLastAttempt = attempt === maxRetries
+
+      console.error(`❌ [Screenshot Journal] VLM attempt ${attempt + 1} failed:`, error.message)
+
+      // If it's a connection timeout or network error, retry
+      if (error.cause?.code === 'UND_ERR_CONNECT_TIMEOUT' ||
+          error.message?.includes('timeout') ||
+          error.message?.includes('fetch failed')) {
+        if (!isLastAttempt) {
+          const delayMs = Math.pow(2, attempt) * 2000 // 2s, 4s, 8s...
+          console.log(`⏳ [Screenshot Journal] Retrying in ${delayMs}ms...`)
+          await new Promise(resolve => setTimeout(resolve, delayMs))
+          continue
+        }
+      }
+
+      // Re-throw non-retryable errors or last retry attempt
+      throw error
+    }
+  }
+
+  throw new Error('All VLM retry attempts failed')
+}
+
 // ==================== HELPER: Get authenticated user ====================
 async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
   try {
@@ -300,25 +348,11 @@ export async function POST(request: NextRequest) {
       console.log(`📷 [Screenshot Journal] Processing JSON base64 image (${mimeType}, ${Math.round(base64Image.length * 0.75)} bytes)`)
     }
 
-    // Step 4: Call VLM for analysis
+    // Step 4: Call VLM for analysis with retry logic
     console.log('🤖 [Screenshot Journal] Sending to VLM for analysis...')
     const zai = await createZAI()
 
-    const vlmResponse = await zai.chat.completions.createVision({
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: VLM_PROMPT },
-            {
-              type: 'image_url',
-              image_url: { url: `data:${mimeType};base64,${base64Image}` }
-            }
-          ]
-        }
-      ],
-      thinking: { type: 'disabled' }
-    })
+    const vlmResponse = await callVLMWithRetry(zai, VLM_PROMPT, base64Image, mimeType)
 
     const content = vlmResponse.choices?.[0]?.message?.content
 
@@ -369,24 +403,33 @@ export async function POST(request: NextRequest) {
     console.error('❌ [Screenshot Journal] Error:', error)
 
     if (error instanceof Error) {
+      // Handle network/connection errors
+      if (error.message.includes('Connect Timeout') || error.message.includes('ETIMEDOUT') || error.message.includes('fetch failed')) {
+        console.error('❌ [Screenshot Journal] Network/Connection Error:', error.message)
+        return NextResponse.json(
+          { error: 'Tidak dapat terhubung ke AI Vision. Masalah jaringan atau server AI sedang sibuk. Silakan coba lagi dalam beberapa saat.' },
+          { status: 503 }
+        )
+      }
+
       // Handle specific SDK errors
       if (error.message.includes('ZAI') || error.message.includes('vision') || error.message.includes('VLM')) {
         return NextResponse.json(
-          { error: 'AI vision service is currently unavailable. Please try again in a moment.' },
+          { error: 'AI vision service sedang tidak tersedia. Silakan coba lagi nanti.' },
           { status: 500 }
         )
       }
 
       if (error.message.includes('timeout')) {
         return NextResponse.json(
-          { error: 'AI analysis timed out. The screenshot might be too complex. Please try with a simpler screenshot.' },
+          { error: 'Analisis AI terlalu lama. Screenshot mungkin terlalu kompleks. Silakan coba dengan screenshot yang lebih sederhana.' },
           { status: 500 }
         )
       }
 
       if (error.message.includes('file too large') || error.message.includes('size')) {
         return NextResponse.json(
-          { error: 'Image is too large. Please use a screenshot under 10MB.' },
+          { error: 'Gambar terlalu besar. Gunakan screenshot di bawah 10MB.' },
           { status: 400 }
         )
       }
@@ -394,8 +437,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        error: 'Failed to analyze screenshot',
-        details: error instanceof Error ? error.message : 'Unknown error occurred'
+        error: 'Gagal menganalisis screenshot',
+        details: error instanceof Error ? error.message : 'Terjadi kesalahan tidak diketahui'
       },
       { status: 500 }
     )

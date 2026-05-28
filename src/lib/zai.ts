@@ -61,7 +61,19 @@ export async function createZAI(): Promise<ZAI> {
         'ZAI config not found. Set env vars (ZAI_BASE_URL, ZAI_API_KEY, ZAI_CHAT_ID, ZAI_TOKEN, ZAI_USER_ID) or create .z-ai-config file.'
       )
     }
+
+    console.log('✅ [ZAI] Configuration loaded:', {
+      baseUrl: cachedConfig.baseUrl,
+      hasApiKey: !!cachedConfig.apiKey,
+      hasChatId: !!cachedConfig.chatId
+    })
   }
 
-  return new ZAI(cachedConfig)
+  // Create ZAI instance with extended timeout for image processing
+  const zai = new ZAI({
+    ...cachedConfig,
+    timeout: 60000 // 60 seconds timeout for VLM requests
+  } as any)
+
+  return zai
 }
