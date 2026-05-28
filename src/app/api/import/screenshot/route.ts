@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { analyzeImageWithOpenAI } from '@/lib/openai-vision'
 
 // ==================== TYPES ====================
 interface ParsedTrade {
@@ -79,24 +80,12 @@ function cleanJsonContent(content: string): any {
 async function ocrWithVLM(imageBase64: string, retryCount = 0): Promise<any[]> {
   console.log(`🔍 Starting VLM OCR (attempt ${retryCount + 1})...`)
 
-  // Dynamic import - SDK only available in sandbox environment
-  let createZAI: any
-  try {
-    ;({ createZAI } = await import('@/lib/zai'))
-  } catch (importError) {
-    console.error('❌ Failed to import zai lib:', importError)
-    throw new Error('VLM_SERVICE_UNAVAILABLE')
-  }
+  const imageUrl = imageBase64.startsWith('data:')
+    ? imageBase64
+    : `data:image/png;base64,${imageBase64}`
 
-  try {
-    const zai = await createZAI()
-
-    const imageUrl = imageBase64.startsWith('data:')
-      ? imageBase64
-      : `data:image/png;base64,${imageBase64}`
-
-    // Enhanced prompt with more specific instructions
-    const prompt = `You are a professional trading data extractor. Extract ALL trades from this MT5/MT4 screenshot.
+  // Enhanced prompt with more specific instructions
+  const prompt = `You are a professional trading data extractor. Extract ALL trades from this MT5/MT4 screenshot.
 
 For EACH trade row, extract these fields:
 - symbol: Currency pair (e.g., XAUUSD, EURUSD, GBPJPY)
@@ -117,28 +106,30 @@ CRITICAL RULES:
 Example output:
 [{"symbol": "XAUUSD", "type": "BUY", "lot_size": 0.2, "open_price": 5135.40, "close_price": 5072.37, "profit_loss": 1228.20, "time": "2026.03.03 16:44:06"}, {"symbol": "EURUSD", "type": "SELL", "lot_size": 0.5, "open_price": 1.0850, "close_price": 1.0870, "profit_loss": -100.00, "time": "2026.03.03 15:30:00"}]`
 
-    const response = await zai.chat.completions.createVision({
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: prompt },
-            { type: 'image_url', image_url: { url: imageUrl } }
-          ]
-        }
-      ],
-      thinking: { type: 'disabled' },
-      temperature: 0.1, // Lower temperature for more consistent results
-      max_tokens: 4000
-    })
-
-    const content = response.choices?.[0]?.message?.content || '[]'
-    console.log('📝 VLM Raw Response (first 200 chars):', content.substring(0, 200) + '...')
-
-    // Clean and parse JSON
-    const parsed = cleanJsonContent(content)
+  try {
+    const content = await analyzeImageWithOpenAI(imageBase64, 'image/png', prompt)
+    const cleanContent = content.trim()
+    
+    // Remove markdown code blocks if present
+    if (cleanContent.startsWith('```json')) {
+      const jsonStr = cleanContent.slice(7, -3).trim()
+      const parsed = JSON.parse(jsonStr)
+      const trades = Array.isArray(parsed) ? parsed : [parsed]
+      console.log(`✅ VLM found ${trades.length} trades`)
+      return trades
+    }
+    
+    if (cleanContent.startsWith('```')) {
+      const jsonStr = cleanContent.slice(3, -3).trim()
+      const parsed = JSON.parse(jsonStr)
+      const trades = Array.isArray(parsed) ? parsed : [parsed]
+      console.log(`✅ VLM found ${trades.length} trades`)
+      return trades
+    }
+    
+    // Try direct JSON parse
+    const parsed = JSON.parse(cleanContent)
     const trades = Array.isArray(parsed) ? parsed : [parsed]
-
     console.log(`✅ VLM found ${trades.length} trades`)
     return trades
 
@@ -151,12 +142,17 @@ Example output:
       errorMsg.includes('timeout') ||
       errorMsg.includes('network') ||
       errorMsg.includes('rate limit') ||
-      errorMsg.includes('ECONNREFUSED')
+      errorMsg.includes('ECONNREFUSED') ||
+      errorMsg.includes('ETIMEDOUT')
 
     if (isTransientError && retryCount < 2) {
       console.log(`🔄 Retrying VLM OCR (${retryCount + 1}/2)...`)
       await new Promise(resolve => setTimeout(resolve, 2000)) // Wait 2 seconds
       return ocrWithVLM(imageBase64, retryCount + 1)
+    }
+
+    if (errorMsg.includes('OPENAI_API_KEY')) {
+      throw new Error('VLM_SERVICE_NOT_CONFIGURED')
     }
 
     throw error
@@ -286,13 +282,12 @@ export async function POST(request: NextRequest) {
     console.error('Error details:', errorMessage)
 
     // If SDK is not available, provide helpful fallback message
-    if (errorMessage.includes('VLM_SERVICE_UNAVAILABLE') ||
-        errorMessage.includes('Cannot find module') ||
-        errorMessage.includes('z-ai-web-dev-sdk')) {
+    if (errorMessage.includes('VLM_SERVICE_NOT_CONFIGURED') ||
+        errorMessage.includes('OPENAI_API_KEY')) {
       return NextResponse.json({
         success: false,
-        error: 'AI Service Tidak Tersedia',
-        message: 'Maaf, fitur Screenshot OCR saat ini sedang tidak tersedia karena kendala teknis pada layanan AI.\n\nAlternatif yang tersedia:\n1. Gunakan tab "Upload File" untuk import file CSV/HTML dari MT5/MT4\n2. Ekspor trade history dari MT5/MT4 ke format HTML atau CSV\n3. Atau tambahkan trade secara manual melalui tombol "+ Add Trade"\n\nKami sedang bekerja untuk mengembalikan fitur ini secepat mungkin.',
+        error: 'AI Service Tidak Dikonfigurasi',
+        message: 'Maaf, fitur Screenshot OCR saat ini sedang tidak tersedia karena OpenAI API Key belum dikonfigurasi.\n\nAlternatif yang tersedia:\n1. Gunakan tab "Upload File" untuk import file CSV/HTML dari MT5/MT4\n2. Ekspor trade history dari MT5/MT4 ke format HTML atau CSV\n3. Atau tambahkan trade secara manual melalui tombol "+ Add Trade"\n\nUntuk mengaktifkan fitur ini, hubungi admin untuk mengkonfigurasi OpenAI API Key.',
         method: 'unavailable',
         suggestions: [
           'Use File Import tab instead (CSV/HTML format)',
