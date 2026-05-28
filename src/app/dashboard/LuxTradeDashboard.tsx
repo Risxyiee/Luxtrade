@@ -790,6 +790,7 @@ function LuxTradeDashboardContent() {
         tradingAccounts={tradingAccounts}
         selectedAccountId={selectedAccountId}
         setSelectedAccountId={setSelectedAccountId}
+        fetchData={fetchData}
       />
 
       {/* Main Content - MOBILE: Full width, DESKTOP: Adjusted by sidebar */}
