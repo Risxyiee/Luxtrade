@@ -50,8 +50,34 @@ function loadConfigFromEnv(): ZAIConfig | null {
 }
 
 let cachedConfig: ZAIConfig | null = null
+let zaiInstance: any = null
 
-export async function createZAI(): Promise<ZAI> {
+// Create AbortController with timeout
+function createTimeoutController(timeoutMs: number): AbortController {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+  
+  // Store timeout ID so it can be cleared if needed
+  ;(controller as any)._timeoutId = timeoutId
+  
+  return controller
+}
+
+// Fetch with timeout
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs: number = 120000): Promise<Response> {
+  const controller = createTimeoutController(timeoutMs)
+  
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal
+    })
+  } finally {
+    clearTimeout((controller as any)._timeoutId)
+  }
+}
+
+export async function createZAI(): Promise<any> {
   if (!cachedConfig) {
     // Priority: env var > file config
     cachedConfig = loadConfigFromEnv() || loadConfigFromFile()
@@ -69,11 +95,38 @@ export async function createZAI(): Promise<ZAI> {
     })
   }
 
-  // Create ZAI instance with extended timeout for image processing
-  const zai = new ZAI({
-    ...cachedConfig,
-    timeout: 60000 // 60 seconds timeout for VLM requests
-  } as any)
+  // Reuse existing instance or create new one
+  if (!zaiInstance) {
+    // Override global fetch with extended timeout
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = fetchWithTimeout
 
-  return zai
+    // Create ZAI instance using create() method
+    zaiInstance = await ZAI.create()
+
+    // Restore original fetch after SDK initialization
+    globalThis.fetch = originalFetch
+
+    // Patch createVision method to use timeout
+    const originalCreateVision = zaiInstance.chat.completions.createVision
+    zaiInstance.chat.completions.createVision = async (body: any) => {
+      console.log('🤖 [ZAI] createVision called with 120s timeout')
+      const startTime = Date.now()
+      
+      try {
+        const result = await originalCreateVision.call(zaiInstance.chat.completions, body)
+        const duration = ((Date.now() - startTime) / 1000).toFixed(2)
+        console.log(`✅ [ZAI] createVision completed in ${duration}s`)
+        return result
+      } catch (error: any) {
+        const duration = ((Date.now() - startTime) / 1000).toFixed(2)
+        console.error(`❌ [ZAI] createVision failed after ${duration}s:`, error.message)
+        throw error
+      }
+    }
+
+    console.log('✅ [ZAI] SDK instance created and createVision patched with 120s timeout')
+  }
+
+  return zaiInstance
 }
