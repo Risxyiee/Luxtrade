@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createZAI } from '@/lib/zai';
 
 // In-memory cache
 let cache: { events: CalendarEvent[]; timestamp: number } | null = null;
@@ -74,7 +73,6 @@ function categorize(title: string): string {
 }
 
 function extractCountry(text: string): string {
-  // Try to extract country from the beginning of the text
   const patterns = [
     /\b(US|USA|United States)\b/i,
     /\b(UK|GB|Britain|United Kingdom)\b/i,
@@ -94,9 +92,61 @@ function extractCountry(text: string): string {
   return 'GLOBAL';
 }
 
-async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
-  const zai = await createZAI();
+async function performSearch(query: string): Promise<any[]> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 10000)
 
+  try {
+    const ddgResponse = await fetch(
+      `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
+      {
+        signal: controller.signal
+      }
+    )
+
+    clearTimeout(timeoutId)
+
+    if (!ddgResponse.ok) {
+      return []
+    }
+
+    const data = await ddgResponse.json()
+    const results = []
+
+    // Add abstract if available
+    if (data.Abstract) {
+      results.push({
+        name: data.Heading || query,
+        snippet: data.Abstract,
+        url: data.AbstractURL || '',
+        date: new Date().toISOString().split('T')[0]
+      })
+    }
+
+    // Add related topics if available
+    if (data.RelatedTopics && Array.isArray(data.RelatedTopics)) {
+      const topics = data.RelatedTopics
+        .filter((topic: any) => topic.Text && topic.FirstURL)
+        .slice(0, 10)
+
+      topics.forEach((topic: any) => {
+        results.push({
+          name: topic.Text.split(' - ')[0] || topic.Text.substring(0, 100),
+          snippet: topic.Text,
+          url: topic.FirstURL,
+          date: new Date().toISOString().split('T')[0]
+        })
+      })
+    }
+
+    return results
+  } catch (error) {
+    clearTimeout(timeoutId)
+    return []
+  }
+}
+
+async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
   const queries = [
     'forex economic calendar this week high impact events 2025',
     'economic calendar schedule central bank meetings interest rate decisions',
@@ -104,7 +154,7 @@ async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
   ];
 
   const results = await Promise.allSettled(
-    queries.map(q => zai.functions.invoke('web_search', { query: q, num: 10, recency_days: 7 }))
+    queries.map(q => performSearch(q))
   );
 
   const seen = new Set<string>();

@@ -1,14 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createZAI } from '@/lib/zai'
-
-let zaiInstance: any = null
-
-async function getZAI() {
-  if (!zaiInstance) {
-    zaiInstance = await createZAI()
-  }
-  return zaiInstance
-}
+import { chatWithOpenAI } from '@/lib/openai-vision'
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,36 +12,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const zai = await getZAI()
-
     // Build messages array with system prompt
     const messages = [
       {
-        role: 'assistant',
+        role: 'system' as const,
         content: 'You are a helpful and friendly AI assistant. Respond clearly and concisely.'
       },
       ...(history || []).map((msg: any) => ({
-        role: msg.role === 'user' ? 'user' : 'assistant',
+        role: (msg.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
         content: msg.content
       })),
       {
-        role: 'user',
+        role: 'user' as const,
         content: message
       }
     ]
 
-    const completion = await zai.chat.completions.create({
-      messages,
-      thinking: { type: 'disabled' }
-    })
-
-    const response = completion.choices?.[0]?.message?.content || 'No response generated'
+    const response = await chatWithOpenAI(messages, 'gpt-4o', 0.7)
 
     return NextResponse.json({ response })
-  } catch (error) {
-    console.error('LLM Error:', error)
+  } catch (error: any) {
+    console.error('Chat Error:', error)
     return NextResponse.json(
-      { error: 'Failed to process chat message' },
+      { error: error.message || 'Failed to process chat message' },
       { status: 500 }
     )
   }

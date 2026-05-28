@@ -139,79 +139,9 @@ function classifyImpact(title: string, snippet: string): 'high' | 'medium' | 'lo
 }
 
 async function fetchFullNews(): Promise<FullNewsItem[]> {
-  try {
-    // Try to use z-ai-web-dev-sdk for real news
-    const { createZAI } = await import('@/lib/zai');
-    const zai = await createZAI();
-
-    const queries = [
-      'site:investing.com forex market news',
-      'forex trading news today',
-      'currency market analysis',
-      'central bank decision news',
-      'economic calendar forex today',
-    ];
-
-    const searchResults = await Promise.allSettled(
-      queries.map(query =>
-        zai.functions.invoke('web_search', {
-          query,
-          num: 10,
-          recency_days: 3,
-        })
-      )
-    );
-
-    const seen = new Set<string>();
-    const allItems: FullNewsItem[] = [];
-
-    for (const result of searchResults) {
-      if (result.status !== 'fulfilled' || !Array.isArray(result.value)) continue;
-      const items = result.value as any[];
-
-      for (const item of items) {
-        if (!item?.name || !item?.url || seen.has(item.url)) continue;
-        seen.add(item.url);
-
-        // Extract source from URL
-        let source = 'News';
-        try {
-          const hostname = new URL(item.url).hostname.replace('www.', '');
-          source = hostname;
-        } catch {
-          source = 'News';
-        }
-
-        const type = classifyImpact(item.name, item.snippet || '');
-
-        allItems.push({
-          title: item.name,
-          source,
-          url: item.url,
-          snippet: item.snippet || '',
-          date: item.date || new Date().toISOString(),
-          type,
-        });
-      }
-    }
-
-    if (allItems.length > 0) {
-      // Sort by impact and date
-      const impactOrder = { high: 0, medium: 1, low: 2 };
-      allItems.sort((a, b) => {
-        const impactDiff = impactOrder[a.type] - impactOrder[b.type];
-        if (impactDiff !== 0) return impactDiff;
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
-      });
-
-      return allItems.slice(0, 30);
-    }
-  } catch (error) {
-    console.error('Error fetching news from API:', error);
-  }
-
-  // Fallback to mock data
-  console.log('Using mock news data as fallback');
+  // ZAI SDK removed - using mock data for now
+  // TODO: Implement proper news API in the future
+  console.log('Using mock news data (ZAI SDK removed)');
   return mockNewsData;
 }
 
