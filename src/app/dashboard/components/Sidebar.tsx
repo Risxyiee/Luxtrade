@@ -1,15 +1,17 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Menu, X, BarChart3, Activity, Calendar, BookOpen, Eye,
   Newspaper, CalendarDays, Trophy, Target, Grid3X3, PieChart,
   Brain, FileText, Flame, Heart, Settings, Shield, Crown,
-  Zap, AlertCircle, Lock, LogOut, Wallet, ChevronDown
+  Zap, AlertCircle, Lock, LogOut, Wallet, ChevronDown, Trash2, MoreHorizontal, Loader2
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
 interface SidebarProps {
@@ -33,6 +35,7 @@ interface SidebarProps {
   tradingAccounts?: any[]
   selectedAccountId?: string | null
   setSelectedAccountId?: (accountId: string | null) => void
+  fetchData?: () => void
 }
 
 const menuCategories = {
@@ -86,8 +89,56 @@ export default function Sidebar({
   handleSignOut,
   tradingAccounts = [],
   selectedAccountId = null,
-  setSelectedAccountId = () => {}
+  setSelectedAccountId = () => {},
+  fetchData = () => {}
 }: SidebarProps) {
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
+  const [accountToDelete, setAccountToDelete] = useState<any>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDeleteAccount = async () => {
+    if (!accountToDelete) return
+
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/trading-accounts/${accountToDelete.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+
+      if (res.ok) {
+        toast.success('Akun trading berhasil dihapus')
+        setDeleteAccountOpen(false)
+        setAccountToDelete(null)
+
+        // If we deleted the selected account, switch to 'all'
+        if (selectedAccountId === accountToDelete.id) {
+          setSelectedAccountId(null)
+        }
+
+        // Refresh data
+        fetchData()
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Gagal menghapus akun trading')
+      }
+    } catch (error) {
+      console.error('Error deleting account:', error)
+      toast.error('Gagal menghapus akun trading')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const openDeleteModal = (account: any) => {
+    // Prevent deleting if it's the last account
+    if (tradingAccounts.length <= 1) {
+      toast.error('Tidak bisa menghapus akun terakhir. Minimal 1 akun diperlukan.')
+      return
+    }
+    setAccountToDelete(account)
+    setDeleteAccountOpen(true)
+  }
   return (
     <>
       {/* Mobile Overlay Background - Click to close with better feedback */}
@@ -158,7 +209,7 @@ export default function Sidebar({
             )}
           </Link>
 
-          {/* Account Selector */}
+          {/* Account Selector with Delete Button */}
           {(sidebarOpen || mobileSidebarOpen) && tradingAccounts.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -166,38 +217,67 @@ export default function Sidebar({
               transition={{ duration: 0.3, delay: 0.1 }}
               className="mt-4 relative"
             >
-              <div className="flex items-center gap-2 mb-2">
-                <Wallet className="w-4 h-4 text-purple-400" />
-                <span className="text-xs font-semibold text-gray-400">Trading Account</span>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-purple-400" />
+                  <span className="text-xs font-semibold text-gray-400">Trading Account</span>
+                </div>
+                {tradingAccounts.length > 1 && (
+                  <span className="text-[10px] text-gray-500">
+                    {tradingAccounts.length} accounts
+                  </span>
+                )}
               </div>
-              <Select
-                value={selectedAccountId || 'all'}
-                onValueChange={(value) => {
-                  setSelectedAccountId(value === 'all' ? null : value)
-                  toast.success(`Switched to ${value === 'all' ? 'All Accounts' : 'Selected Account'}`)
-                }}
-              >
-                <SelectTrigger className="bg-[#0a0712] border-purple-900/30 text-white text-sm h-9">
-                  <SelectValue placeholder="Select Account" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#0f0b18] border-purple-900/30">
-                  <SelectItem value="all" className="text-gray-300">
-                    <span className="flex items-center gap-2">
-                      <Grid3X3 className="w-4 h-4 text-purple-400" />
-                      All Accounts
-                    </span>
-                  </SelectItem>
-                  {tradingAccounts.map((account: any) => (
-                    <SelectItem key={account.id} value={account.id} className="text-white">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                        <span className="truncate max-w-[150px]">{account.name}</span>
-                        <span className="text-xs text-gray-500">{account.currency}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                <button
+                  onClick={() => {
+                    setSelectedAccountId(null)
+                    toast.success('All Accounts selected')
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                    selectedAccountId === null
+                      ? 'bg-purple-500/20 border border-purple-500/30 text-white'
+                      : 'bg-[#0a0712] border border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <Grid3X3 className={`w-4 h-4 ${selectedAccountId === null ? 'text-purple-400' : 'text-gray-500'}`} />
+                  <span className="flex-1 text-left">All Accounts</span>
+                </button>
+
+                {tradingAccounts.map((account: any) => (
+                  <div
+                    key={account.id}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all group ${
+                      selectedAccountId === account.id
+                        ? 'bg-purple-500/20 border border-purple-500/30 text-white'
+                        : 'bg-[#0a0712] border border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <button
+                      onClick={() => {
+                        setSelectedAccountId(account.id)
+                        toast.success(`Switched to ${account.name}`)
+                      }}
+                      className="flex-1 flex items-center gap-2 text-left"
+                    >
+                      <div className={`w-2 h-2 rounded-full ${selectedAccountId === account.id ? 'bg-emerald-400' : 'bg-gray-500'}`} />
+                      <span className="truncate max-w-[120px]">{account.name}</span>
+                      <span className="text-xs text-gray-500">{account.currency}</span>
+                    </button>
+
+                    {tradingAccounts.length > 1 && (
+                      <button
+                        onClick={() => openDeleteModal(account)}
+                        className="p-1 rounded text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100"
+                        title="Delete Account"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </motion.div>
           )}
         </div>
@@ -491,6 +571,66 @@ export default function Sidebar({
           </motion.button>
         </div>
       </aside>
+
+      {/* Delete Account Confirmation Modal */}
+      <Dialog open={deleteAccountOpen} onOpenChange={setDeleteAccountOpen}>
+        <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center gap-2 text-red-400">
+              <Trash2 className="w-5 h-5" />
+              Hapus Akun Trading
+            </DialogTitle>
+            <DialogDescription className="text-gray-400 mt-2">
+              Apakah Anda yakin ingin menghapus akun trading "{accountToDelete?.name}"?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-4">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+              <p className="text-sm text-red-300 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>Tindakan ini tidak dapat dibatalkan. Semua data trading yang terkait dengan akun ini akan tetap tersimpan.</span>
+              </p>
+            </div>
+
+            <div className="text-sm text-gray-400">
+              <p>Account: <span className="text-white font-medium">{accountToDelete?.name}</span></p>
+              <p>Currency: <span className="text-white font-medium">{accountToDelete?.currency}</span></p>
+              <p>Type: <span className="text-white font-medium">{accountToDelete?.account_type}</span></p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteAccountOpen(false)
+                setAccountToDelete(null)
+              }}
+              className="border-gray-600 text-gray-300 hover:bg-gray-700"
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={handleDeleteAccount}
+              disabled={deleting}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Menghapus...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Hapus Akun
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
