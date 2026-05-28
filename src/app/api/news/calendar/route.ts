@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { createZAI } from '@/lib/zai';
 
 // In-memory cache
 let calendarCache: { items: CalendarEvent[]; timestamp: number } | null = null;
@@ -377,137 +376,21 @@ function parseInvestingCalendarHtml(html: string): CalendarEvent[] {
 /**
  * Fetch and parse Investing.com Economic Calendar using page_reader
  */
-async function fetchInvestingCalendar(zai: any): Promise<CalendarEvent[]> {
-  try {
-    console.log('[Calendar] Fetching Investing.com Economic Calendar...');
-
-    const pageData = await zai.functions.invoke('page_reader', {
-      url: 'https://www.investing.com/economic-calendar/',
-    });
-
-    const html = pageData?.data?.html || pageData?.html || '';
-
-    if (!html || html.length < 500) {
-      console.log('[Calendar] Investing.com returned insufficient HTML content');
-      return [];
-    }
-
-    console.log(`[Calendar] Received ${html.length} chars from Investing.com`);
-
-    const events = parseInvestingCalendarHtml(html);
-
-    console.log(`[Calendar] Parsed ${events.length} events from Investing.com`);
-    return events;
-  } catch (error) {
-    console.error('[Calendar] Error fetching Investing.com calendar:', error);
-    return [];
-  }
+async function fetchInvestingCalendar(): Promise<CalendarEvent[]> {
+  // ZAI SDK removed - returning empty for now
+  // TODO: Implement proper calendar API in the future
+  console.log('[Calendar] ZAI SDK removed - returning empty calendar');
+  return [];
 }
 
 /**
  * Fallback: Search for economic calendar data using web_search,
  * then try page_reader on found URLs
  */
-async function fetchCalendarFromSearch(zai: any): Promise<CalendarEvent[]> {
-  console.log('[Calendar] Falling back to web_search for calendar data...');
-
-  const queries = [
-    'investing.com economic calendar this week',
-    'forex economic calendar NFP FOMC CPI 2025',
-    'economic calendar high impact events this week forex',
-  ];
-
-  const searchResults = await Promise.allSettled(
-    queries.map(q =>
-      zai.functions.invoke('web_search', {
-        query: q,
-        num: 10,
-        recency_days: 7,
-      })
-    )
-  );
-
-  const investingUrls: string[] = [];
-
-  // Collect Investing.com URLs from search results
-  for (const result of searchResults) {
-    if (result.status !== 'fulfilled' || !Array.isArray(result.value)) continue;
-    for (const item of result.value) {
-      const url = item.url || '';
-      if (url.includes('investing.com') && url.includes('calendar')) {
-        investingUrls.push(url);
-      }
-    }
-  }
-
-  // Try page_reader on found Investing.com URLs (up to 3)
-  let allEvents: CalendarEvent[] = [];
-
-  const uniqueUrls = [...new Set(investingUrls)].slice(0, 3);
-  for (const url of uniqueUrls) {
-    try {
-      const pageData = await zai.functions.invoke('page_reader', { url });
-      const html = pageData?.data?.html || pageData?.html || '';
-      if (html.length > 500) {
-        const events = parseInvestingCalendarHtml(html);
-        allEvents.push(...events);
-        if (allEvents.length >= 30) break;
-      }
-    } catch (err) {
-      console.error(`[Calendar] Failed to fetch ${url}:`, err);
-    }
-  }
-
-  if (allEvents.length > 0) {
-    console.log(`[Calendar] Got ${allEvents.length} events from search + page_reader`);
-    return allEvents;
-  }
-
-  // Last resort: extract events from search result snippets
-  const snippetEvents: CalendarEvent[] = [];
-  const seen = new Set<string>();
-
-  for (const result of searchResults) {
-    if (result.status !== 'fulfilled' || !Array.isArray(result.value)) continue;
-    for (const item of result.value) {
-      const text = `${item.name || ''} ${item.snippet || ''}`;
-      const lower = text.toLowerCase();
-
-      // Extract currency
-      const currencyMatch = text.match(/\b(USD|EUR|GBP|JPY|AUD|NZD|CAD|CHF|CNY|IDR)\b/i);
-      if (!currencyMatch) continue;
-      const currency = currencyMatch[1].toUpperCase();
-
-      // Extract event name
-      let event = item.name || '';
-      if (seen.has(event) || event.length < 10) continue;
-      seen.add(event);
-
-      // Extract date
-      const dayMatch = lower.match(/(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/);
-      const dateMatch = text.match(/(\d{1,2})\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i);
-      const timeMatch = text.match(/(\d{1,2}[:.]\d{2})\s*(am|pm|gmt|est|utc)/i);
-
-      const impact = classifyEventImpact(event, currency);
-
-      snippetEvents.push({
-        date: dateMatch
-          ? `${dateMatch[2].charAt(0).toUpperCase() + dateMatch[2].slice(1)} ${dateMatch[1]}`
-          : dayMatch
-            ? dayMatch[1].charAt(0).toUpperCase() + dayMatch[1].slice(1)
-            : '',
-        time: timeMatch ? timeMatch[1].toUpperCase() : '',
-        currency,
-        impact,
-        event: event.replace(/[^\w\s:()-]/g, '').trim(),
-        forecast: '',
-        previous: '',
-      });
-    }
-  }
-
-  console.log(`[Calendar] Got ${snippetEvents.length} events from search snippets`);
-  return snippetEvents;
+async function fetchCalendarFromSearch(): Promise<CalendarEvent[]> {
+  // ZAI SDK removed - returning empty for now
+  console.log('[Calendar] ZAI SDK removed - returning empty calendar from search');
+  return [];
 }
 
 /**
@@ -614,15 +497,13 @@ export async function GET() {
       });
     }
 
-    const zai = await createZAI();
-
     // PRIMARY: Fetch from Investing.com Economic Calendar
-    let events = await fetchInvestingCalendar(zai);
+    let events = await fetchInvestingCalendar();
 
     // SECONDARY: If primary returns few/no events, try web_search + page_reader
     if (events.length < 5) {
       console.log('[Calendar] Primary source returned few events, trying search fallback...');
-      const searchEvents = await fetchCalendarFromSearch(zai);
+      const searchEvents = await fetchCalendarFromSearch();
       if (searchEvents.length > events.length) {
         events = searchEvents;
       }

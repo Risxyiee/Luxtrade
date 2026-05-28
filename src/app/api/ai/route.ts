@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { chatWithOpenAI } from '@/lib/openai-vision'
 
 // ==================== SMART LOCAL INSIGHT ENGINE ====================
 // Generates insightful trading analysis without requiring external AI SDK.
@@ -239,26 +240,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid analysis type' }, { status: 400 })
     }
 
-    // For trade_analysis type, try SDK with local fallback
+    // For trade_analysis type, try OpenAI with local fallback
     let response: string | null = null
 
-    // Try AI SDK first (only works in sandbox)
+    // Try OpenAI first
     try {
-      const { createZAI }: any = await import('@/lib/zai')
-      const zai = await createZAI()
-
-      const completion = await zai.chat.completions.create({
-        messages: [
-          { role: 'system', content: 'You are an expert trading coach and analyst. Provide concise, actionable insights in a friendly but professional tone.' },
-          { role: 'user', content: prompt }
-        ],
-        thinking: { type: 'disabled' }
-      })
-
-      response = completion.choices[0]?.message?.content
-    } catch {
-      // SDK not available, use local fallback
-      console.log('AI SDK not available, using local insight engine')
+      response = await chatWithOpenAI([
+        { role: 'system' as const, content: 'You are an expert trading coach and analyst. Provide concise, actionable insights in a friendly but professional tone.' },
+        { role: 'user' as const, content: prompt }
+      ], 'gpt-4o', 0.7)
+    } catch (error) {
+      // OpenAI not available, use local fallback
+      console.log('OpenAI not available, using local insight engine', error)
     }
 
     // Local fallback for trade analysis

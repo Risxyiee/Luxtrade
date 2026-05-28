@@ -1,18 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createZAI } from '@/lib/zai'
-
-let zaiInstance: any = null
-
-async function getZAI() {
-  if (!zaiInstance) {
-    zaiInstance = await createZAI()
-  }
-  return zaiInstance
-}
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, voice = 'tongtong', speed = 1.0, format = 'wav' } = await request.json()
+    const { text, voice = 'alloy', speed = 1.0, format = 'mp3' } = await request.json()
 
     if (!text) {
       return NextResponse.json(
@@ -21,40 +11,89 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check text length limit (max 1024 characters)
-    if (text.length > 1024) {
+    // Check text length limit (max 4096 characters for OpenAI TTS)
+    if (text.length > 4096) {
       return NextResponse.json(
-        { error: 'Text exceeds maximum length of 1024 characters' },
+        { error: 'Text exceeds maximum length of 4096 characters' },
         { status: 400 }
       )
     }
 
-    const zai = await getZAI()
+    const apiKey = process.env.OPENAI_API_KEY
 
-    const response = await zai.audio.tts.create({
-      input: text,
-      voice,
-      speed,
-      response_format: format,
-      stream: false
-    })
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: 'OpenAI API key not configured' },
+        { status: 500 }
+      )
+    }
 
-    // Get array buffer from Response object
-    const arrayBuffer = await response.arrayBuffer()
-    const buffer = Buffer.from(new Uint8Array(arrayBuffer))
-    
-    // Convert to base64 for JSON response
-    const base64Audio = buffer.toString('base64')
-    const audioDataUrl = `data:audio/${format};base64,${base64Audio}`
+    // Create AbortController with 60s timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 60000)
 
-    return NextResponse.json({
-      success: true,
-      audio: audioDataUrl
-    })
-  } catch (error) {
+    try {
+      const response = await fetch('https://api.openai.com/v1/audio/speech', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'tts-1',
+          input: text,
+          voice: voice,
+          speed: speed
+        }),
+        signal: controller.signal
+      })
+
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('OpenAI TTS API error:', response.status, errorText)
+
+        if (response.status === 401) {
+          return NextResponse.json({ error: 'Invalid OpenAI API key' }, { status: 401 })
+        } else if (response.status === 429) {
+          return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+        } else {
+          return NextResponse.json(
+            { error: `TTS API error: ${response.status}` },
+            { status: 500 }
+          )
+        }
+      }
+
+      // Get array buffer from Response object
+      const arrayBuffer = await response.arrayBuffer()
+      const buffer = Buffer.from(new Uint8Array(arrayBuffer))
+
+      // Convert to base64 for JSON response
+      const base64Audio = buffer.toString('base64')
+      const audioDataUrl = `data:audio/${format};base64,${base64Audio}`
+
+      return NextResponse.json({
+        success: true,
+        audio: audioDataUrl
+      })
+    } catch (error: any) {
+      clearTimeout(timeoutId)
+
+      if (error.name === 'AbortError') {
+        return NextResponse.json(
+          { error: 'TTS request timeout' },
+          { status: 504 }
+        )
+      }
+
+      throw error
+    }
+  } catch (error: any) {
     console.error('TTS Error:', error)
     return NextResponse.json(
-      { error: 'Failed to generate speech' },
+      { error: error.message || 'Failed to generate speech' },
       { status: 500 }
     )
   }

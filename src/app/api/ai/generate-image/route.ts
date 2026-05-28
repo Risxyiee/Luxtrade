@@ -1,14 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createZAI } from '@/lib/zai'
-
-let zaiInstance: any = null
-
-async function getZAI() {
-  if (!zaiInstance) {
-    zaiInstance = await createZAI()
-  }
-  return zaiInstance
-}
+import { generateImageWithOpenAI } from '@/lib/openai-vision'
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,30 +12,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const zai = await getZAI()
-
-    const response = await zai.images.generations.create({
-      prompt,
-      size
-    })
-
-    const imageBase64 = response.data?.[0]?.base64
-
-    if (!imageBase64) {
-      throw new Error('No image data in response')
-    }
-
-    // Return base64 image data URL
-    const imageDataUrl = `data:image/png;base64,${imageBase64}`
+    const imageUrl = await generateImageWithOpenAI(prompt, size)
 
     return NextResponse.json({
       success: true,
-      image: imageDataUrl
+      image: imageUrl
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Image Generation Error:', error)
     return NextResponse.json(
-      { error: 'Failed to generate image' },
+      { error: error.message || 'Failed to generate image' },
       { status: 500 }
     )
   }

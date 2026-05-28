@@ -1,14 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createZAI } from '@/lib/zai'
-
-let zaiInstance: any = null
-
-async function getZAI() {
-  if (!zaiInstance) {
-    zaiInstance = await createZAI()
-  }
-  return zaiInstance
-}
+import { analyzeImageWithOpenAI } from '@/lib/openai-vision'
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,31 +19,21 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes)
     const base64Image = buffer.toString('base64')
 
-    const zai = await getZAI()
-
-    const response = await zai.chat.completions.createVision({
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: question },
-            { type: 'image_url', image_url: { url: `data:${image.type};base64,${base64Image}` } }
-          ]
-        }
-      ],
-      thinking: { type: 'disabled' }
-    })
-
-    const analysis = response.choices?.[0]?.message?.content || 'No analysis generated'
+    const analysis = await analyzeImageWithOpenAI(
+      base64Image,
+      image.type,
+      question,
+      'gpt-4o'
+    )
 
     return NextResponse.json({
       success: true,
       response: analysis
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('VLM Error:', error)
     return NextResponse.json(
-      { error: 'Failed to analyze image' },
+      { error: error.message || 'Failed to analyze image' },
       { status: 500 }
     )
   }

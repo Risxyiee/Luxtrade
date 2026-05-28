@@ -1,14 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createZAI } from '@/lib/zai'
-
-let zaiInstance: any = null
-
-async function getZAI() {
-  if (!zaiInstance) {
-    zaiInstance = await createZAI()
-  }
-  return zaiInstance
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,28 +11,89 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const zai = await getZAI()
+    // Using DuckDuckGo instant answer API for search
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000)
 
-    const args: any = {
-      query,
-      num
+    try {
+      const ddgResponse = await fetch(
+        `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
+        {
+          signal: controller.signal
+        }
+      )
+
+      clearTimeout(timeoutId)
+
+      if (!ddgResponse.ok) {
+        throw new Error('Search API error')
+      }
+
+      const data = await ddgResponse.json()
+
+      // Extract results from DuckDuckGo response
+      const results = []
+
+      // Add abstract if available
+      if (data.Abstract) {
+        results.push({
+          title: data.Heading || query,
+          url: data.AbstractURL || '',
+          snippet: data.Abstract,
+          source: 'DuckDuckGo'
+        })
+      }
+
+      // Add related topics if available
+      if (data.RelatedTopics && Array.isArray(data.RelatedTopics)) {
+        const topics = data.RelatedTopics
+          .filter((topic: any) => topic.Text && topic.FirstURL)
+          .slice(0, num - results.length)
+
+        topics.forEach((topic: any) => {
+          results.push({
+            title: topic.Text.split(' - ')[0] || topic.Text.substring(0, 100),
+            url: topic.FirstURL,
+            snippet: topic.Text,
+            source: 'DuckDuckGo'
+          })
+        })
+      }
+
+      // If no results from DuckDuckGo, return a mock result
+      if (results.length === 0) {
+        results.push({
+          title: `Search results for: ${query}`,
+          url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+          snippet: `Web search functionality is limited. Try searching directly on Google.`,
+          source: 'Fallback'
+        })
+      }
+
+      return NextResponse.json({
+        success: true,
+        results: results.slice(0, num)
+      })
+    } catch (error: any) {
+      clearTimeout(timeoutId)
+
+      // Fallback to mock results if search API fails
+      return NextResponse.json({
+        success: true,
+        results: [
+          {
+            title: `Search results for: ${query}`,
+            url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+            snippet: `Web search functionality is currently unavailable. Please try again later.`,
+            source: 'Fallback'
+          }
+        ]
+      })
     }
-
-    // Add recency filter if provided
-    if (recency_days) {
-      args.recency_days = recency_days
-    }
-
-    const results = await zai.functions.invoke('web_search', args)
-
-    return NextResponse.json({
-      success: true,
-      results: results || []
-    })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Search Error:', error)
     return NextResponse.json(
-      { error: 'Failed to perform search' },
+      { error: error.message || 'Failed to perform search' },
       { status: 500 }
     )
   }
