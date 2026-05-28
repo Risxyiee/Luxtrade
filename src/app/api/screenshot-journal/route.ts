@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
-import { createZAI } from '@/lib/zai'
+import { analyzeImageWithOpenAI } from '@/lib/openai-vision'
 
 // ==================== TYPES ====================
 interface ExtractedTrade {
@@ -206,37 +206,27 @@ function normalizeMarketCondition(condition: string): string {
 }
 
 // ==================== HELPER: Retry logic for VLM requests ====================
-async function callVLMWithRetry(zai: any, prompt: string, base64Image: string, mimeType: string, maxRetries = 2): Promise<any> {
+async function callOpenAIWithRetry(
+  base64Image: string,
+  mimeType: string,
+  prompt: string,
+  maxRetries = 2
+): Promise<string> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`🤖 [Screenshot Journal] VLM attempt ${attempt + 1}/${maxRetries + 1}...`)
-
-      const vlmResponse = await zai.chat.completions.createVision({
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: prompt },
-              {
-                type: 'image_url',
-                image_url: { url: `data:${mimeType};base64,${base64Image}` }
-              }
-            ]
-          }
-        ],
-        thinking: { type: 'disabled' }
-      })
-
-      return vlmResponse
+      console.log(`🤖 [Screenshot Journal] OpenAI attempt ${attempt + 1}/${maxRetries + 1}...`)
+      
+      const content = await analyzeImageWithOpenAI(base64Image, mimeType, prompt)
+      return content
     } catch (error: any) {
       const isLastAttempt = attempt === maxRetries
-
-      console.error(`❌ [Screenshot Journal] VLM attempt ${attempt + 1} failed:`, error.message)
+      console.error(`❌ [Screenshot Journal] OpenAI attempt ${attempt + 1} failed:`, error.message)
 
       // If it's a connection timeout or network error, retry
-      if (error.cause?.code === 'UND_ERR_CONNECT_TIMEOUT' ||
+      if (error.name === 'AbortError' ||
           error.message?.includes('timeout') ||
-          error.message?.includes('fetch failed')) {
+          error.message?.includes('fetch failed') ||
+          error.message?.includes('ETIMEDOUT')) {
         if (!isLastAttempt) {
           const delayMs = Math.pow(2, attempt) * 2000 // 2s, 4s, 8s...
           console.log(`⏳ [Screenshot Journal] Retrying in ${delayMs}ms...`)
@@ -250,7 +240,7 @@ async function callVLMWithRetry(zai: any, prompt: string, base64Image: string, m
     }
   }
 
-  throw new Error('All VLM retry attempts failed')
+  throw new Error('All OpenAI retry attempts failed')
 }
 
 // ==================== HELPER: Get authenticated user ====================
@@ -348,24 +338,21 @@ export async function POST(request: NextRequest) {
       console.log(`📷 [Screenshot Journal] Processing JSON base64 image (${mimeType}, ${Math.round(base64Image.length * 0.75)} bytes)`)
     }
 
-    // Step 4: Call VLM for analysis with retry logic
-    console.log('🤖 [Screenshot Journal] Sending to VLM for analysis...')
-    const zai = await createZAI()
+    // Step 4: Call OpenAI Vision API with retry logic
+    console.log('🤖 [Screenshot Journal] Sending to OpenAI Vision for analysis...')
 
-    const vlmResponse = await callVLMWithRetry(zai, VLM_PROMPT, base64Image, mimeType)
-
-    const content = vlmResponse.choices?.[0]?.message?.content
+    const content = await callOpenAIWithRetry(base64Image, mimeType, VLM_PROMPT)
 
     if (!content) {
-      console.error('❌ [Screenshot Journal] VLM returned empty content')
+      console.error('❌ [Screenshot Journal] OpenAI returned empty content')
       return NextResponse.json(
         { error: 'AI analysis failed - no response from vision model. Please try again with a clearer screenshot.' },
         { status: 500 }
       )
     }
 
-    console.log('📝 [Screenshot Journal] VLM response length:', content.length)
-    console.log('📝 [Screenshot Journal] VLM preview:', content.substring(0, 200))
+    console.log('📝 [Screenshot Journal] OpenAI response length:', content.length)
+    console.log('📝 [Screenshot Journal] OpenAI preview:', content.substring(0, 200))
 
     // Step 5: Parse the VLM response
     const parsed = parseVLMResponse(content)
@@ -412,10 +399,10 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Handle specific SDK errors
-      if (error.message.includes('ZAI') || error.message.includes('vision') || error.message.includes('VLM')) {
+      // Handle OpenAI specific errors
+      if (error.message.includes('OpenAI API') || error.message.includes('quota') || error.message.includes('limit')) {
         return NextResponse.json(
-          { error: 'AI vision service sedang tidak tersedia. Silakan coba lagi nanti.' },
+          { error: 'AI Vision service unavailable. API key mungkin belum dikonfigurasi atau kuota habis.' },
           { status: 500 }
         )
       }
