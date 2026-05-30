@@ -5,7 +5,6 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import dynamicImport from 'next/dynamic'
 import { useRouter } from 'next/navigation'
-import '@/lib/error-handler' // Global error handler
 import {
   TrendingUp, TrendingDown, Plus, BarChart3, BookOpen,
   Eye, Brain, Menu, X, DollarSign, Target,
