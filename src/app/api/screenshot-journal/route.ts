@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { analyzeImageWithOpenAI } from '@/lib/openai-vision'
+import { analyzeImageWithOllama, generateJournalEntry, checkOllamaHealth } from '@/lib/ollama-vision'
 
 // ==================== TYPES ====================
 interface ExtractedTrade {
@@ -205,6 +206,89 @@ function normalizeMarketCondition(condition: string): string {
   return 'ranging'
 }
 
+// ==================== HELPER: Call VLM with Ollama + OpenAI Fallback ====================
+async function analyzeScreenshotWithVLM(
+  base64Image: string,
+  mimeType: string
+): Promise<VLMResponse> {
+  // Step 1: Try Ollama first (FREE)
+  console.log('🤖 [Screenshot Journal] Checking Ollama availability...')
+
+  try {
+    const ollamaHealth = await checkOllamaHealth()
+
+    if (ollamaHealth.running) {
+      console.log('✅ [Screenshot Journal] Ollama is available, using it for analysis')
+
+      // Extract trading data using Ollama
+      const ollamaResult = await analyzeImageWithOllama(
+        base64Image,
+        mimeType,
+        'Analyze this trading screenshot and extract all relevant information including symbol, type, entry/exit prices, profit/loss, lot size, timeframe, strategy, and notes. Return in JSON format.'
+      )
+
+      console.log('📊 [Screenshot Journal] Ollama extraction result:', ollamaResult)
+
+      // Convert Ollama result to VLMResponse format
+      const trade: ExtractedTrade = {
+        symbol: ollamaResult.symbol || '',
+        type: ollamaResult.type?.toUpperCase() || 'BUY',
+        open_price: ollamaResult.entry_price || 0,
+        close_price: ollamaResult.exit_price || 0,
+        stop_loss: 0,
+        take_profit: 0,
+        lot_size: ollamaResult.lot_size || 0,
+        profit_loss: ollamaResult.profit_loss || 0,
+        open_time: new Date().toISOString(),
+        close_time: ollamaResult.exit_price ? new Date().toISOString() : '',
+        swap: 0,
+        commission: 0,
+        order_id: '',
+        platform: 'MT5'
+      }
+
+      const journalContent = generateJournalEntry(ollamaResult)
+
+      const journal: ExtractedJournal = {
+        title: `${trade.symbol || 'Trade'} ${trade.type} - ${trade.profit_loss >= 0 ? 'Profit' : 'Loss'} $${Math.abs(trade.profit_loss).toFixed(2)}`,
+        content: journalContent,
+        mood: 'neutral',
+        market_condition: 'ranging',
+        tags: [trade.symbol?.toLowerCase() || 'trade'],
+        setup_type: ollamaResult.strategy || '',
+        risk_reward_ratio: 0
+      }
+
+      return {
+        trade,
+        journal,
+        raw_analysis: JSON.stringify(ollamaResult)
+      }
+    } else {
+      console.log('⚠️ [Screenshot Journal] Ollama is not available, falling back to OpenAI')
+    }
+  } catch (error: any) {
+    console.log('⚠️ [Screenshot Journal] Ollama analysis failed, falling back to OpenAI:', error.message)
+  }
+
+  // Step 2: Fallback to OpenAI
+  console.log('🤖 [Screenshot Journal] Using OpenAI Vision as fallback')
+
+  try {
+    const content = await callOpenAIWithRetry(base64Image, mimeType, VLM_PROMPT)
+
+    if (!content) {
+      throw new Error('OpenAI returned empty content')
+    }
+
+    console.log('📝 [Screenshot Journal] OpenAI response length:', content.length)
+    return parseVLMResponse(content)
+  } catch (error: any) {
+    console.error('❌ [Screenshot Journal] Both Ollama and OpenAI failed')
+    throw new Error('All VLM services failed: ' + error.message)
+  }
+}
+
 // ==================== HELPER: Retry logic for VLM requests ====================
 async function callOpenAIWithRetry(
   base64Image: string,
@@ -215,7 +299,7 @@ async function callOpenAIWithRetry(
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       console.log(`🤖 [Screenshot Journal] OpenAI attempt ${attempt + 1}/${maxRetries + 1}...`)
-      
+
       const content = await analyzeImageWithOpenAI(base64Image, mimeType, prompt)
       return content
     } catch (error: any) {
@@ -338,24 +422,10 @@ export async function POST(request: NextRequest) {
       console.log(`📷 [Screenshot Journal] Processing JSON base64 image (${mimeType}, ${Math.round(base64Image.length * 0.75)} bytes)`)
     }
 
-    // Step 4: Call OpenAI Vision API with retry logic
-    console.log('🤖 [Screenshot Journal] Sending to OpenAI Vision for analysis...')
+    // Step 4: Call VLM (Ollama first, then OpenAI fallback)
+    console.log('🤖 [Screenshot Journal] Starting VLM analysis...')
 
-    const content = await callOpenAIWithRetry(base64Image, mimeType, VLM_PROMPT)
-
-    if (!content) {
-      console.error('❌ [Screenshot Journal] OpenAI returned empty content')
-      return NextResponse.json(
-        { error: 'AI analysis failed - no response from vision model. Please try again with a clearer screenshot.' },
-        { status: 500 }
-      )
-    }
-
-    console.log('📝 [Screenshot Journal] OpenAI response length:', content.length)
-    console.log('📝 [Screenshot Journal] OpenAI preview:', content.substring(0, 200))
-
-    // Step 5: Parse the VLM response
-    const parsed = parseVLMResponse(content)
+    const parsed = await analyzeScreenshotWithVLM(base64Image, mimeType)
 
     // If we only got raw_analysis (JSON parsing failed), still return it
     const hasTradeData = parsed.trade.symbol && parsed.trade.symbol.length > 0
@@ -366,7 +436,7 @@ export async function POST(request: NextRequest) {
         success: true,
         trade: parsed.trade,
         journal: parsed.journal,
-        raw_analysis: parsed.raw_analysis || content,
+        raw_analysis: parsed.raw_analysis,
         warning: 'Could not extract structured trading data from the screenshot.'
       })
     }
@@ -402,8 +472,16 @@ export async function POST(request: NextRequest) {
       // Handle OpenAI specific errors
       if (error.message.includes('OpenAI API') || error.message.includes('quota') || error.message.includes('limit')) {
         return NextResponse.json(
-          { error: 'AI Vision service unavailable. API key mungkin belum dikonfigurasi atau kuota habis.' },
+          { error: 'AI Vision service unavailable. Ollama mungkin belum siap atau API key OpenAI belum dikonfigurasi.' },
           { status: 500 }
+        )
+      }
+
+      // Handle Ollama specific errors
+      if (error.message.includes('Ollama') || error.message.includes('server is not running')) {
+        return NextResponse.json(
+          { error: 'Ollama AI service tidak tersedia. Pastikan Ollama sudah terinstall dan berjalan di server.' },
+          { status: 503 }
         )
       }
 
