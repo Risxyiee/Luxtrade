@@ -216,19 +216,54 @@ async function analyzeScreenshotWithVLM(
   console.log('🤖 [Screenshot Journal] Checking Hugging Face availability...')
 
   try {
-    const hfApiKey = process.env.HUGGING_FACE_API_TOKEN
-    if (hfApiKey) {
+    // Try to get token from process.env first, then from .env file
+    let hfApiKey = process.env.HUGGING_FACE_API_TOKEN
+
+    // If not in process.env, try to read from .env file
+    if (!hfApiKey) {
+      try {
+        const fs = await import('fs')
+        const path = await import('path')
+        const envPath = path.join(process.cwd(), '.env')
+        const envContent = fs.readFileSync(envPath, 'utf-8')
+        const match = envContent.match(/HUGGING_FACE_API_TOKEN=([^\s\n]+)/)
+        if (match && match[1]) {
+          hfApiKey = match[1]
+          console.log('📝 [Screenshot Journal] Loaded Hugging Face token from .env file')
+        }
+      } catch (error) {
+        console.log('⚠️ [Screenshot Journal] Could not read .env file')
+      }
+    }
+
+    if (hfApiKey && hfApiKey.startsWith('hf_')) {
       console.log('✅ [Screenshot Journal] Using Hugging Face Vision (FREE)...')
-      const result = await analyzeImageWithHuggingFace(base64Image, VLM_PROMPT, {
-        timeout: 45000,
-        maxRetries: 2
-      })
-      const parsed = parseVLMResponse(result.text)
-      console.log(`✅ [Screenshot Journal] Hugging Face analysis completed`)
-      return parsed
+      console.log(`🔑 [Screenshot Journal] Token: ${hfApiKey.substring(0, 10)}...`)
+
+      // Temporarily set the env var for the function
+      const originalToken = process.env.HUGGING_FACE_API_TOKEN
+      process.env.HUGGING_FACE_API_TOKEN = hfApiKey
+
+      try {
+        const result = await analyzeImageWithHuggingFace(base64Image, VLM_PROMPT, {
+          timeout: 45000,
+          maxRetries: 2
+        })
+        const parsed = parseVLMResponse(result.text)
+        console.log(`✅ [Screenshot Journal] Hugging Face analysis completed`)
+        return parsed
+      } finally {
+        // Restore original env var
+        if (originalToken) {
+          process.env.HUGGING_FACE_API_TOKEN = originalToken
+        }
+      }
+    } else {
+      console.log('⚠️ [Screenshot Journal] No valid Hugging Face token found, skipping...')
     }
   } catch (error: any) {
     console.log('⚠️ [Screenshot Journal] Hugging Face failed:', error.message)
+    console.log('📋 [Screenshot Journal] Error details:', error.stack?.substring(0, 200))
   }
 
   // Step 2: Try Ollama (FREE, local installation)

@@ -45,7 +45,25 @@ export async function analyzeImageWithHuggingFace(
     maxRetries = 3
   } = options
 
-  const apiKey = process.env.HUGGING_FACE_API_TOKEN
+  // Get API key from multiple sources
+  let apiKey = process.env.HUGGING_FACE_API_TOKEN
+
+  // If not in process.env, try to read from .env file
+  if (!apiKey) {
+    try {
+      const fs = await import('fs')
+      const path = await import('path')
+      const envPath = path.join(process.cwd(), '.env')
+      const envContent = fs.readFileSync(envPath, 'utf-8')
+      const match = envContent.match(/HUGGING_FACE_API_TOKEN=([^\s\n]+)/)
+      if (match && match[1]) {
+        apiKey = match[1]
+        console.log('📝 [Hugging Face Vision] Loaded token from .env file')
+      }
+    } catch (error) {
+      console.log('⚠️ [Hugging Face Vision] Could not read .env file')
+    }
+  }
 
   if (!apiKey) {
     throw new Error('HUGGING_FACE_API_TOKEN environment variable is not set')
