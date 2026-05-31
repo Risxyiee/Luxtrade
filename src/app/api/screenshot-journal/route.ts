@@ -215,16 +215,22 @@ async function analyzeScreenshotWithVLM(
 ): Promise<VLMResponse> {
   // Step 1: Try Z.ai Vision first (Working, SDK included in project)
   console.log('🤖 [Screenshot Journal] Using Z.ai Vision (GLM-4.6v) as primary...')
+  console.log('📊 [Screenshot Journal] Image size:', base64Image.length, 'chars')
+  console.log('📊 [Screenshot Journal] Prompt length:', VLM_PROMPT.length, 'chars')
 
   try {
+    console.log('🔄 [Screenshot Journal] Calling analyzeImageWithZAIVision...')
     const result = await analyzeImageWithZAIVision(base64Image, VLM_PROMPT, {
       model: 'glm-4.6v'
     })
+    console.log('✅ [Screenshot Journal] Z.ai Vision returned result:', result.text.length, 'chars')
     const parsed = parseVLMResponse(result.text)
     console.log(`✅ [Screenshot Journal] Z.ai Vision analysis completed`)
     return parsed
   } catch (error: any) {
     console.log('⚠️ [Screenshot Journal] Z.ai Vision failed:', error.message)
+    console.log('⚠️ [Screenshot Journal] Error name:', error.name)
+    console.log('⚠️ [Screenshot Journal] Error stack:', error.stack?.substring(0, 500))
     console.log('⚠️ [Screenshot Journal] Trying Hugging Face...')
   }
 
