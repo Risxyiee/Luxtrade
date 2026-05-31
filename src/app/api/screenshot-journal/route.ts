@@ -3,6 +3,7 @@ import { createClientForApi } from '@/lib/supabase/server'
 import { analyzeImageWithOpenAI } from '@/lib/openai-vision'
 import { analyzeImageWithOllama, generateJournalEntry, checkOllamaHealth } from '@/lib/ollama-vision'
 import { analyzeImageWithHuggingFace } from '@/lib/huggingface-vision'
+import { analyzeImageWithZAIVision, checkZAIVisionHealth } from '@/lib/zai-vision'
 
 // ==================== TYPES ====================
 interface ExtractedTrade {
@@ -207,12 +208,34 @@ function normalizeMarketCondition(condition: string): string {
   return 'ranging'
 }
 
-// ==================== HELPER: Call VLM with Hugging Face + Ollama + OpenAI Fallback ====================
+// ==================== HELPER: Call VLM with Z.ai (Primary) + Hugging Face + Ollama + OpenAI Fallback ====================
 async function analyzeScreenshotWithVLM(
   base64Image: string,
   mimeType: string
 ): Promise<VLMResponse> {
-  // Step 1: Try Hugging Face first (FREE, no installation needed)
+  // Step 1: Try Z.ai Vision first (Working, SDK included in project)
+  console.log('🤖 [Screenshot Journal] Checking Z.ai Vision availability...')
+
+  try {
+    const zaiHealth = await checkZAIVisionHealth()
+
+    if (zaiHealth) {
+      console.log('✅ [Screenshot Journal] Using Z.ai Vision (GLM-4.6v)...')
+
+      const result = await analyzeImageWithZAIVision(base64Image, VLM_PROMPT, {
+        model: 'glm-4.6v'
+      })
+      const parsed = parseVLMResponse(result.text)
+      console.log(`✅ [Screenshot Journal] Z.ai Vision analysis completed`)
+      return parsed
+    } else {
+      console.log('⚠️ [Screenshot Journal] Z.ai Vision not available, trying Hugging Face...')
+    }
+  } catch (error: any) {
+    console.log('⚠️ [Screenshot Journal] Z.ai Vision failed:', error.message)
+  }
+
+  // Step 2: Try Hugging Face (FREE, but network blocked in this environment)
   console.log('🤖 [Screenshot Journal] Checking Hugging Face availability...')
 
   try {
@@ -238,7 +261,6 @@ async function analyzeScreenshotWithVLM(
 
     if (hfApiKey && hfApiKey.startsWith('hf_')) {
       console.log('✅ [Screenshot Journal] Using Hugging Face Vision (FREE)...')
-      console.log(`🔑 [Screenshot Journal] Token: ${hfApiKey.substring(0, 10)}...`)
 
       // Temporarily set the env var for the function
       const originalToken = process.env.HUGGING_FACE_API_TOKEN
@@ -263,10 +285,9 @@ async function analyzeScreenshotWithVLM(
     }
   } catch (error: any) {
     console.log('⚠️ [Screenshot Journal] Hugging Face failed:', error.message)
-    console.log('📋 [Screenshot Journal] Error details:', error.stack?.substring(0, 200))
   }
 
-  // Step 2: Try Ollama (FREE, local installation)
+  // Step 3: Try Ollama (FREE, local installation)
   console.log('🤖 [Screenshot Journal] Checking Ollama availability...')
 
   try {
@@ -326,7 +347,7 @@ async function analyzeScreenshotWithVLM(
     console.log('⚠️ [Screenshot Journal] Ollama analysis failed, falling back to OpenAI:', error.message)
   }
 
-  // Step 3: Fallback to OpenAI (Paid)
+  // Step 4: Fallback to OpenAI (Paid)
   console.log('🤖 [Screenshot Journal] Using OpenAI Vision as fallback')
 
   try {
@@ -339,7 +360,7 @@ async function analyzeScreenshotWithVLM(
     console.log('📝 [Screenshot Journal] OpenAI response length:', content.length)
     return parseVLMResponse(content)
   } catch (error: any) {
-    console.error('❌ [Screenshot Journal] All VLM services failed (Hugging Face, Ollama, OpenAI)')
+    console.error('❌ [Screenshot Journal] All VLM services failed (Z.ai, Hugging Face, Ollama, OpenAI)')
     throw new Error('All VLM services failed: ' + error.message)
   }
 }
