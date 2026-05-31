@@ -3,7 +3,7 @@ import { createClientForApi } from '@/lib/supabase/server'
 import { analyzeImageWithOpenAI } from '@/lib/openai-vision'
 import { analyzeImageWithOllama, generateJournalEntry, checkOllamaHealth } from '@/lib/ollama-vision'
 import { analyzeImageWithHuggingFace } from '@/lib/huggingface-vision'
-import { analyzeImageWithZAIVision, checkZAIVisionHealth } from '@/lib/zai-vision'
+import { analyzeImageWithZAIVision } from '@/lib/zai-vision'
 
 // ==================== TYPES ====================
 interface ExtractedTrade {
@@ -214,25 +214,18 @@ async function analyzeScreenshotWithVLM(
   mimeType: string
 ): Promise<VLMResponse> {
   // Step 1: Try Z.ai Vision first (Working, SDK included in project)
-  console.log('🤖 [Screenshot Journal] Checking Z.ai Vision availability...')
+  console.log('🤖 [Screenshot Journal] Using Z.ai Vision (GLM-4.6v) as primary...')
 
   try {
-    const zaiHealth = await checkZAIVisionHealth()
-
-    if (zaiHealth) {
-      console.log('✅ [Screenshot Journal] Using Z.ai Vision (GLM-4.6v)...')
-
-      const result = await analyzeImageWithZAIVision(base64Image, VLM_PROMPT, {
-        model: 'glm-4.6v'
-      })
-      const parsed = parseVLMResponse(result.text)
-      console.log(`✅ [Screenshot Journal] Z.ai Vision analysis completed`)
-      return parsed
-    } else {
-      console.log('⚠️ [Screenshot Journal] Z.ai Vision not available, trying Hugging Face...')
-    }
+    const result = await analyzeImageWithZAIVision(base64Image, VLM_PROMPT, {
+      model: 'glm-4.6v'
+    })
+    const parsed = parseVLMResponse(result.text)
+    console.log(`✅ [Screenshot Journal] Z.ai Vision analysis completed`)
+    return parsed
   } catch (error: any) {
     console.log('⚠️ [Screenshot Journal] Z.ai Vision failed:', error.message)
+    console.log('⚠️ [Screenshot Journal] Trying Hugging Face...')
   }
 
   // Step 2: Try Hugging Face (FREE, but network blocked in this environment)
