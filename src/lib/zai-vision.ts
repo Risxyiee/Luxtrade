@@ -37,16 +37,23 @@ export async function analyzeImageWithZAIVision(
     model = DEFAULT_MODEL
   } = options
 
-  console.log(`🤖 [Z.ai Vision] Analyzing image with model: ${model}`)
+  console.log(`🤖 [Z.ai Vision] Starting analysis with model: ${model}`)
   console.log(`🤖 [Z.ai Vision] Prompt length: ${prompt.length}`)
+  console.log(`🤖 [Z.ai Vision] Image size: ${base64Image.length} chars`)
 
   try {
+    console.log(`🔄 [Z.ai Vision] Creating SDK instance...`)
     // Initialize Z.ai SDK
     const zai = await ZAI.create()
+
+    console.log(`✅ [Z.ai Vision] SDK instance created`)
+    console.log(`📊 [Z.ai Vision] Config baseUrl: ${zai.config.baseUrl}`)
+    console.log(`📊 [Z.ai Vision] Has apiKey: ${!!zai.config.apiKey}`)
 
     // Prepare image data URL
     const imageDataUrl = `data:image/jpeg;base64,${base64Image}`
 
+    console.log(`🔄 [Z.ai Vision] Calling Vision API...`)
     // Call Vision API
     const response = await zai.chat.completions.createVision({
       model: model,
@@ -70,6 +77,8 @@ export async function analyzeImageWithZAIVision(
       thinking: { type: 'disabled' }
     })
 
+    console.log(`✅ [Z.ai Vision] API call successful`)
+
     // Extract content from response
     const content = response.choices?.[0]?.message?.content || ''
 
@@ -87,6 +96,8 @@ export async function analyzeImageWithZAIVision(
 
   } catch (error: any) {
     console.error(`❌ [Z.ai Vision] Error:`, error.message)
+    console.error(`❌ [Z.ai Vision] Error name:`, error.name)
+    console.error(`❌ [Z.ai Vision] Error code:`, error.code)
 
     // Handle specific error cases
     if (error.message?.includes('Configuration file not found')) {
