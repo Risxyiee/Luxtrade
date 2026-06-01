@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { CheckCircle2, AlertCircle, Upload, X, Info } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Upload, X, Info, Loader2 } from 'lucide-react'
 import { TradeFormData } from '../utils/types'
 import { datetimeLocalToFormat } from '../utils/helpers'
+import { toast } from 'sonner'
 
 interface TradeFormProps {
   formData: TradeFormData
@@ -36,6 +37,8 @@ function TradeForm({
   // Form validation state
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // Image upload state
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   // Validate field
   const validateField = (field: keyof TradeFormData, value: string): string => {
@@ -81,6 +84,51 @@ function TradeForm({
   const getFieldStatus = (field: keyof TradeFormData): 'valid' | 'invalid' | 'none' => {
     if (!touched[field]) return 'none'
     return errors[field] ? 'invalid' : 'valid'
+  }
+
+  // Handle image upload using API
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File too large. Maximum size is 5MB.')
+      return
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Invalid file type. Please upload an image.')
+      return
+    }
+
+    setUploadingImage(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        onFormChange('image_url', data.url)
+        toast.success('Image uploaded successfully!')
+      } else {
+        toast.error(data.error || 'Failed to upload image')
+      }
+    } catch (error) {
+      console.error('❌ [TradeForm] Image upload error:', error)
+      toast.error('Failed to upload image. Please try again.')
+    } finally {
+      setUploadingImage(false)
+      // Reset file input
+      e.target.value = ''
+    }
   }
 
   const isFormValid = () => {
@@ -293,21 +341,17 @@ function TradeForm({
                 type="file"
                 accept="image/*"
                 className="bg-[#0a0712] border-purple-900/30"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) {
-                    // For now, store as base64 data URL
-                    const reader = new FileReader()
-                    reader.onload = (ev) => {
-                      onFormChange('image_url', ev.target?.result as string || '')
-                    }
-                    reader.readAsDataURL(file)
-                  }
-                }}
+                onChange={handleImageUpload}
+                disabled={uploadingImage}
               />
+              {uploadingImage && (
+                <div className="absolute inset-0 bg-black/50 rounded-md flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+                </div>
+              )}
               <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
                 <Upload className="w-3 h-3" />
-                <span>Upload trade screenshot for visual reference</span>
+                <span>Upload trade screenshot (Max 5MB - JPEG/PNG/WebP)</span>
               </div>
             </div>
           ) : (
