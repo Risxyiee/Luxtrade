@@ -5,6 +5,9 @@
  */
 
 import ZAI from 'z-ai-web-dev-sdk'
+import fs from 'fs/promises'
+import path from 'path'
+import os from 'os'
 
 interface VisionAnalysisResult {
   text: string
@@ -18,6 +21,66 @@ interface ZAIVisionOptions {
 // ==================== CONFIGURATION ====================
 
 const DEFAULT_MODEL = 'glm-4.6v'
+
+/**
+ * Create Z.ai instance with config loading from files or environment variables
+ * This works in both development (with /etc/.z-ai-config) and production (with env vars)
+ */
+async function createZAIInstance() {
+  // Try file-based config first (development environment)
+  const homeDir = os.homedir()
+  const configPaths = [
+    path.join(process.cwd(), '.z-ai-config'),
+    path.join(homeDir, '.z-ai-config'),
+    '/etc/.z-ai-config'
+  ]
+
+  for (const filePath of configPaths) {
+    try {
+      const configStr = await fs.readFile(filePath, 'utf-8')
+      const config = JSON.parse(configStr)
+      if (config.baseUrl && config.apiKey) {
+        console.log(`📝 [Z.ai Vision] Loaded config from: ${filePath}`)
+        return new ZAI(config)
+      }
+    } catch (error: any) {
+      if (error.code !== 'ENOENT') {
+        console.log(`⚠️ [Z.ai Vision] Could not read ${filePath}:`, error.message)
+      }
+    }
+  }
+
+  // Fallback: Use environment variables (production environment)
+  console.log('📝 [Z.ai Vision] File config not found, trying environment variables...')
+
+  const baseUrl = process.env.ZAI_BASE_URL
+  const apiKey = process.env.ZAI_API_KEY
+  const chatId = process.env.ZAI_CHAT_ID
+  const userId = process.env.ZAI_USER_ID
+  const token = process.env.ZAI_TOKEN
+
+  if (!baseUrl) {
+    throw new Error('ZAI_BASE_URL environment variable not set')
+  }
+
+  if (!apiKey) {
+    throw new Error('ZAI_API_KEY environment variable not set')
+  }
+
+  const config = {
+    baseUrl,
+    apiKey,
+    chatId,
+    userId,
+    token
+  }
+
+  console.log(`📊 [Z.ai Vision] Using environment config`)
+  console.log(`📊 [Z.ai Vision] Base URL: ${baseUrl}`)
+  console.log(`📊 [Z.ai Vision] Has API key: true`)
+
+  return new ZAI(config)
+}
 
 // ==================== MAIN FUNCTION ====================
 
@@ -43,8 +106,7 @@ export async function analyzeImageWithZAIVision(
 
   try {
     console.log(`🔄 [Z.ai Vision] Creating SDK instance...`)
-    // Initialize Z.ai SDK
-    const zai = await ZAI.create()
+    const zai = await createZAIInstance()
 
     console.log(`✅ [Z.ai Vision] SDK instance created`)
     console.log(`📊 [Z.ai Vision] Config baseUrl: ${zai.config.baseUrl}`)
@@ -98,33 +160,7 @@ export async function analyzeImageWithZAIVision(
     console.error(`❌ [Z.ai Vision] Error:`, error.message)
     console.error(`❌ [Z.ai Vision] Error name:`, error.name)
     console.error(`❌ [Z.ai Vision] Error code:`, error.code)
-
-    // Handle specific error cases
-    if (error.message?.includes('Configuration file not found')) {
-      throw new Error('Z.ai config not found. Please ensure .z-ai-config is properly set up.')
-    }
-
-    if (error.message?.includes('API request failed')) {
-      throw new Error('Z.ai API request failed. Please check network connection.')
-    }
-
     throw error
-  }
-}
-
-// ==================== HELPER FUNCTIONS ====================
-
-/**
- * Check if Z.ai Vision service is available
- */
-export async function checkZAIVisionHealth(): Promise<boolean> {
-  try {
-    const zai = await ZAI.create()
-    // Just try to create - if it works, service is available
-    return true
-  } catch (error: any) {
-    console.log('⚠️ [Z.ai Vision] Health check failed:', error.message)
-    return false
   }
 }
 
