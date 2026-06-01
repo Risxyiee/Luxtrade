@@ -34,6 +34,7 @@ export default function SettingsPage() {
   
   // Delete account
   const [deleteConfirm, setDeleteConfirm] = useState('')
+  const [deleteEmailConfirm, setDeleteEmailConfirm] = useState('')
   const [deleteLoading, setDeleteLoading] = useState(false)
 
   useEffect(() => {
@@ -154,17 +155,39 @@ export default function SettingsPage() {
       toast.error('Ketik DELETE untuk konfirmasi')
       return
     }
-    
+
+    if (!deleteEmailConfirm || deleteEmailConfirm !== user?.email) {
+      toast.error('Email tidak cocok. Masukkan email Anda dengan benar.')
+      return
+    }
+
     setDeleteLoading(true)
-    
+
     try {
-      // In production, this would call a server-side function
-      // For now, just sign out
-      await signOut()
-      router.push('/')
-      toast.success('Akun berhasil dihapus')
+      const res = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          confirmation: deleteConfirm,
+          email: deleteEmailConfirm,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        toast.success('Akun berhasil dihapus')
+        // Sign out and redirect
+        await signOut()
+        router.push('/')
+      } else {
+        toast.error(data.error || 'Gagal menghapus akun')
+      }
     } catch (error) {
-      toast.error('Gagal menghapus akun')
+      console.error('❌ [Settings] Delete account error:', error)
+      toast.error('Gagal menghapus akun. Silakan coba lagi.')
     } finally {
       setDeleteLoading(false)
     }
@@ -376,11 +399,38 @@ export default function SettingsPage() {
           {/* Danger Zone */}
           <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6">
             <h2 className="text-xl font-semibold mb-2 text-red-400">Zona Berbahaya</h2>
-            <p className="text-white/60 mb-6">
+            <p className="text-white/60 mb-4">
               Hapus akun Anda secara permanen. Tindakan ini tidak dapat dibatalkan.
+              Semua data Anda (trades, journals, watchlist, dll) akan dihapus.
             </p>
-            
+
             <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-white/70">Email Anda</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
+                  <Input
+                    value={email}
+                    disabled
+                    className="pl-10 h-12 bg-white/[0.03] border-white/10 text-white/50"
+                  />
+                </div>
+                <p className="text-xs text-white/30">Masukkan email yang tertera di atas</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-white/70">Konfirmasi Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
+                  <Input
+                    value={deleteEmailConfirm}
+                    onChange={(e) => setDeleteEmailConfirm(e.target.value)}
+                    className="pl-10 h-12 bg-white/[0.03] border-red-500/20 text-white"
+                    placeholder={email}
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label className="text-white/70">Ketik &quot;DELETE&quot; untuk konfirmasi</Label>
                 <Input
@@ -390,10 +440,10 @@ export default function SettingsPage() {
                   placeholder="DELETE"
                 />
               </div>
-              
+
               <Button
                 onClick={handleDeleteAccount}
-                disabled={deleteLoading || deleteConfirm !== 'DELETE'}
+                disabled={deleteLoading || deleteConfirm !== 'DELETE' || deleteEmailConfirm !== user?.email}
                 variant="destructive"
                 className="bg-red-600 hover:bg-red-700"
               >
@@ -402,7 +452,7 @@ export default function SettingsPage() {
                 ) : (
                   <Trash2 className="w-4 h-4 mr-2" />
                 )}
-                Hapus Akun
+                Hapus Akun Secara Permanen
               </Button>
             </div>
           </div>
