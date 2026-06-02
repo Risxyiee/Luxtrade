@@ -91,9 +91,9 @@ function TradeForm({
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file size (5MB max)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File too large. Maximum size is 5MB.')
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File too large. Maximum size is 10MB.')
       return
     }
 
@@ -108,7 +108,7 @@ function TradeForm({
       const formData = new FormData()
       formData.append('file', file)
 
-      const res = await fetch('/api/upload', {
+      const res = await fetch('/api/trade-upload', {
         method: 'POST',
         body: formData,
       })
@@ -351,7 +351,7 @@ function TradeForm({
               )}
               <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
                 <Upload className="w-3 h-3" />
-                <span>Upload trade screenshot (Max 5MB - JPEG/PNG/WebP)</span>
+                <span>Upload trade screenshot (Max 10MB - JPEG/PNG/WebP)</span>
               </div>
             </div>
           ) : (
