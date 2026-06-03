@@ -254,16 +254,15 @@ export async function DELETE(request: NextRequest) {
       where: { account_id: String(id) }
     })
 
+    console.log(`ℹ️ [API] Account has ${tradeCount} trade(s)`)
+
+    // Allow deletion even with trades, but delete them cascade
     if (tradeCount > 0) {
-      console.log(`⚠️ [API] Account has ${tradeCount} trades`)
-      return NextResponse.json(
-        {
-          error: `Cannot delete account with ${tradeCount} trade(s). Please delete or reassign trades first.`,
-          hasTrades: true,
-          tradeCount
-        },
-        { status: 400 }
-      )
+      // First delete all trades associated with this account
+      await db.trade.deleteMany({
+        where: { account_id: String(id) }
+      })
+      console.log(`🗑️ [API] Deleted ${tradeCount} trades associated with account`)
     }
 
     // Delete the trading account

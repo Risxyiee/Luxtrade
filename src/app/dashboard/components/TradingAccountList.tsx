@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -35,6 +36,28 @@ export default function TradingAccountList({ accounts, loading, onRefresh }: Tra
   const [accountToDelete, setAccountToDelete] = useState<TradingAccount | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteReason, setDeleteReason] = useState('')
+  const [accountTrades, setAccountTrades] = useState<Record<string, number>>({})
+
+  // Load trade counts when accounts change
+  const loadTradeCounts = async () => {
+    const counts: Record<string, number> = {}
+    for (const account of accounts) {
+      try {
+        const response = await fetch(`/api/trades?accountId=${account.id}`)
+        const data = await response.json()
+        if (data.trades) {
+          counts[account.id] = data.trades.length
+        }
+      } catch (error) {
+        counts[account.id] = 0
+      }
+    }
+    setAccountTrades(counts)
+  }
+
+  React.useEffect(() => {
+    loadTradeCounts()
+  }, [accounts])
 
   const handleDeleteClick = (account: TradingAccount) => {
     setAccountToDelete(account)
@@ -66,8 +89,6 @@ export default function TradingAccountList({ accounts, loading, onRefresh }: Tra
       console.error('Error deleting account:', error)
       if (error.message?.includes('Cannot delete default account')) {
         toast.error('Tidak bisa menghapus akun default. Setel akun lain sebagai default terlebih dahulu.')
-      } else if (error.message?.includes('hasTrades')) {
-        toast.error('Akun ini memiliki trade. Hapus trade terlebih dahulu.')
       } else {
         toast.error(error.message || 'Gagal menghapus akun trading')
       }
@@ -194,7 +215,29 @@ export default function TradingAccountList({ accounts, loading, onRefresh }: Tra
               {accountToDelete?.broker && (
                 <>Broker: {accountToDelete.broker}<br /></>
               )}
-              Tindakan ini tidak dapat dibatalkan.
+              {accountToDelete && accountTrades[accountToDelete.id] > 0 && (
+                <>
+                  <br />
+                  <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mt-2">
+                    <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-amber-400 font-medium">Peringatan!</p>
+                      <p className="text-sm text-white/70">
+                        Akun ini memiliki <strong className="text-amber-400">{accountTrades[accountToDelete.id]} trade(s)</strong>.
+                        <br /><br />
+                        Semua trade yang terkait akan <strong>dihapus secara permanen</strong> bersama dengan akun ini.
+                        Tindakan ini tidak dapat dibatalkan.
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
+              {accountToDelete && accountTrades[accountToDelete.id] === 0 && (
+                <>
+                  <br />
+                  <span className="text-white/40 text-sm">Tindakan ini tidak dapat dibatalkan.</span>
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
