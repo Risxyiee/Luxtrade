@@ -192,3 +192,100 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+// DELETE - Delete trading account
+export async function DELETE(request: NextRequest) {
+  try {
+    console.log('🟢 [API /api/trading-accounts DELETE] Deleting trading account...')
+
+    const authUser = await getAuthUser(request)
+
+    if (!authUser) {
+      console.log('❌ [API] Unauthorized - no valid user')
+      return NextResponse.json(
+        { error: 'Unauthorized - Please login' },
+        { status: 401 }
+      )
+    }
+
+    const searchParams = request.nextUrl.searchParams
+    const id = searchParams.get('id')
+
+    if (!id) {
+      console.log('❌ [API] Missing account ID')
+      return NextResponse.json(
+        { error: 'Trading account ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // Verify account belongs to user
+    const existingAccount = await db.tradingAccount.findUnique({
+      where: { id: String(id) }
+    })
+
+    if (!existingAccount) {
+      console.log('❌ [API] Trading account not found')
+      return NextResponse.json(
+        { error: 'Trading account not found' },
+        { status: 404 }
+      )
+    }
+
+    if (existingAccount.user_id !== authUser.id) {
+      console.log('❌ [API] Unauthorized - account belongs to another user')
+      return NextResponse.json(
+        { error: 'Unauthorized - Trading account belongs to another user' },
+        { status: 403 }
+      )
+    }
+
+    // Check if this is the default account
+    if (existingAccount.is_default) {
+      console.log('⚠️ [API] Cannot delete default account')
+      return NextResponse.json(
+        { error: 'Cannot delete default trading account. Please set another account as default first.' },
+        { status: 400 }
+      )
+    }
+
+    // Check if account has any trades
+    const tradeCount = await db.trade.count({
+      where: { account_id: String(id) }
+    })
+
+    if (tradeCount > 0) {
+      console.log(`⚠️ [API] Account has ${tradeCount} trades`)
+      return NextResponse.json(
+        {
+          error: `Cannot delete account with ${tradeCount} trade(s). Please delete or reassign trades first.`,
+          hasTrades: true,
+          tradeCount
+        },
+        { status: 400 }
+      )
+    }
+
+    // Delete the trading account
+    await db.tradingAccount.delete({
+      where: { id: String(id) }
+    })
+
+    console.log('✅ [API] Trading account deleted successfully')
+    return NextResponse.json({
+      success: true,
+      message: 'Trading account deleted successfully'
+    })
+  } catch (err) {
+    console.error('❌ [API /api/trading-accounts DELETE] Error:', err)
+    console.error('Error stack:', err instanceof Error ? err.stack : 'No stack trace')
+
+    return NextResponse.json(
+      {
+        error: 'Failed to delete trading account',
+        details: err instanceof Error ? err.message : 'Unknown error'
+      },
+      { status: 500 }
+    )
+  }
+}
