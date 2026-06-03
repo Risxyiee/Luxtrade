@@ -3,6 +3,7 @@ import { createClientForApi } from '@/lib/supabase/server'
 import { analyzeImageWithOpenAI } from '@/lib/openai-vision'
 import { analyzeImageWithOllama, generateJournalEntry, checkOllamaHealth } from '@/lib/ollama-vision'
 import { analyzeImageWithHuggingFace } from '@/lib/huggingface-vision'
+import { analyzeImageWithZAIVision } from '@/lib/zai-vision'
 
 // ==================== TYPES ====================
 interface ExtractedTrade {
@@ -207,7 +208,7 @@ function normalizeMarketCondition(condition: string): string {
   return 'ranging'
 }
 
-// ==================== HELPER: Call VLM with Hugging Face + Ollama + OpenAI Fallback ====================
+// ==================== HELPER: Call VLM with Hugging Face + Ollama + Z.ai Vision + OpenAI Fallback ====================
 async function analyzeScreenshotWithVLM(
   base64Image: string,
   mimeType: string
@@ -318,14 +319,27 @@ async function analyzeScreenshotWithVLM(
         raw_analysis: JSON.stringify(ollamaResult)
       }
     } else {
-      console.log('⚠️ [Screenshot Journal] Ollama is not available, falling back to OpenAI')
+      console.log('⚠️ [Screenshot Journal] Ollama is not available, trying Z.ai Vision')
     }
   } catch (error: any) {
-    console.log('⚠️ [Screenshot Journal] Ollama analysis failed, falling back to OpenAI:', error.message)
+    console.log('⚠️ [Screenshot Journal] Ollama analysis failed, trying Z.ai Vision:', error.message)
   }
 
-  // Step 3: Fallback to OpenAI (Paid)
-  console.log('🤖 [Screenshot Journal] Using OpenAI Vision as fallback')
+  // Step 3: Try Z.ai Vision (Build-required SDK)
+  console.log('🤖 [Screenshot Journal] Checking Z.ai Vision availability...')
+
+  try {
+    console.log('🔄 [Screenshot Journal] Calling analyzeImageWithZAIVision...')
+    const result = await analyzeImageWithZAIVision(base64Image, VLM_PROMPT, {})
+    const parsed = parseVLMResponse(result.text)
+    console.log(`✅ [Screenshot Journal] Z.ai Vision analysis completed`)
+    return parsed
+  } catch (error: any) {
+    console.log('⚠️ [Screenshot Journal] Z.ai Vision failed, falling back to OpenAI:', error.message)
+  }
+
+  // Step 4: Fallback to OpenAI (Paid)
+  console.log('🤖 [Screenshot Journal] Using OpenAI Vision as final fallback')
 
   try {
     const content = await callOpenAIWithRetry(base64Image, mimeType, VLM_PROMPT)
@@ -337,7 +351,7 @@ async function analyzeScreenshotWithVLM(
     console.log('📝 [Screenshot Journal] OpenAI response length:', content.length)
     return parseVLMResponse(content)
   } catch (error: any) {
-    console.error('❌ [Screenshot Journal] All VLM services failed (Hugging Face, Ollama, OpenAI)')
+    console.error('❌ [Screenshot Journal] All VLM services failed (Hugging Face, Ollama, Z.ai Vision, OpenAI)')
     throw new Error('All VLM services failed: ' + error.message)
   }
 }
