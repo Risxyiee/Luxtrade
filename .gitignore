@@ -62,4 +62,4 @@ upload/*.gif
 *.sqlite3
 
 # Skills directory
-/skills/
+/skills/.env
