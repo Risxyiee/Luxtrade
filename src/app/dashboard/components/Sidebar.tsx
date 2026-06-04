@@ -107,7 +107,8 @@ export default function Sidebar({
       })
 
       if (res.ok) {
-        toast.success('Akun trading berhasil dihapus')
+        const data = await res.json()
+        toast.success(data.message || 'Akun trading berhasil dihapus')
         setDeleteAccountOpen(false)
         setAccountToDelete(null)
 
@@ -137,12 +138,7 @@ export default function Sidebar({
       return
     }
 
-    // Prevent deleting default account
-    if (account.is_default) {
-      toast.error('Tidak bisa menghapus akun default. Setel akun lain sebagai default terlebih dahulu.')
-      return
-    }
-
+    // Allow deleting any account including default
     setAccountToDelete(account)
     setDeleteAccountOpen(true)
   }
@@ -274,7 +270,7 @@ export default function Sidebar({
                     </button>
 
                     {/* Delete button - visible for all accounts except when it's the only one */}
-                    {tradingAccounts.length > 1 && !account.is_default && (
+                    {tradingAccounts.length > 1 && (
                       <button
                         onClick={() => openDeleteModal(account)}
                         className="p-1.5 rounded text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-60 hover:opacity-100"
@@ -594,6 +590,15 @@ export default function Sidebar({
           </DialogHeader>
 
           <div className="space-y-3 py-4">
+            {accountToDelete?.is_default && (
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
+                <p className="text-sm text-amber-300 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>Ini adalah akun default. Setelah dihapus, akun lain akan otomatis dijadikan default.</span>
+                </p>
+              </div>
+            )}
+
             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
               <p className="text-sm text-red-300 flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -605,6 +610,9 @@ export default function Sidebar({
               <p>Account: <span className="text-white font-medium">{accountToDelete?.name}</span></p>
               <p>Currency: <span className="text-white font-medium">{accountToDelete?.currency}</span></p>
               <p>Type: <span className="text-white font-medium">{accountToDelete?.account_type}</span></p>
+              {accountToDelete?.is_default && (
+                <p className="text-amber-400 font-medium">⚠️ Akun Default</p>
+              )}
             </div>
           </div>
 
