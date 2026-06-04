@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
-import { analyzeImageWithOpenAI } from '@/lib/openai-vision'
-import { analyzeImageWithOllama, generateJournalEntry, checkOllamaHealth } from '@/lib/ollama-vision'
 import { analyzeImageWithHuggingFace } from '@/lib/huggingface-vision'
+import { analyzeImageWithOllama, generateJournalEntry, checkOllamaHealth } from '@/lib/ollama-vision'
 import { analyzeImageWithZAIVision } from '@/lib/zai-vision'
+import { performOCR, parseJournalData, cleanupOCR } from '@/lib/tesseract-ocr'
 
 // ==================== TYPES ====================
 interface ExtractedTrade {
@@ -208,7 +208,36 @@ function normalizeMarketCondition(condition: string): string {
   return 'ranging'
 }
 
-// ==================== HELPER: Call VLM with Hugging Face + Ollama + Z.ai Vision + OpenAI Fallback ====================
+// ==================== HELPER: Tesseract OCR (FREE) ====================
+async function analyzeWithTesseract(
+  base64Image: string,
+  mimeType: string
+): Promise<VLMResponse> {
+  console.log('🔍 [Screenshot Journal] Using Tesseract OCR (FREE)...')
+
+  try {
+    const imageBuffer = Buffer.from(base64Image, 'base64')
+
+    // Perform OCR
+    const ocrResult = await performOCR(imageBuffer, {
+      language: 'eng',
+      oem: 3,
+      psm: 6
+    })
+
+    // Parse journal data from OCR text
+    const journalData = parseJournalData(ocrResult.text)
+
+    console.log(`✅ [Screenshot Journal] Tesseract OCR completed with ${ocrResult.confidence.toFixed(1)}% confidence`)
+    return journalData
+
+  } catch (error: any) {
+    console.error('❌ [Screenshot Journal] Tesseract OCR failed:', error.message)
+    throw new Error('Tesseract OCR failed: ' + error.message)
+  }
+}
+
+// ==================== HELPER: Call VLM with Hugging Face + Ollama + Z.ai Vision + Tesseract + OpenAI Fallback ====================
 async function analyzeScreenshotWithVLM(
   base64Image: string,
   mimeType: string
@@ -335,63 +364,20 @@ async function analyzeScreenshotWithVLM(
     console.log(`✅ [Screenshot Journal] Z.ai Vision analysis completed`)
     return parsed
   } catch (error: any) {
-    console.log('⚠️ [Screenshot Journal] Z.ai Vision failed, falling back to OpenAI:', error.message)
+    console.log('⚠️ [Screenshot Journal] Z.ai Vision failed, trying Tesseract OCR:', error.message)
   }
 
-  // Step 4: Fallback to OpenAI (Paid)
-  console.log('🤖 [Screenshot Journal] Using OpenAI Vision as final fallback')
+  // Step 4: Try Tesseract OCR (FREE, client-side)
+  console.log('🤖 [Screenshot Journal] Using Tesseract OCR (FREE)...')
 
   try {
-    const content = await callOpenAIWithRetry(base64Image, mimeType, VLM_PROMPT)
-
-    if (!content) {
-      throw new Error('OpenAI returned empty content')
-    }
-
-    console.log('📝 [Screenshot Journal] OpenAI response length:', content.length)
-    return parseVLMResponse(content)
+    const result = await analyzeWithTesseract(base64Image, mimeType)
+    console.log(`✅ [Screenshot Journal] Tesseract OCR analysis completed`)
+    return result
   } catch (error: any) {
-    console.error('❌ [Screenshot Journal] All VLM services failed (Hugging Face, Ollama, Z.ai Vision, OpenAI)')
-    throw new Error('All VLM services failed: ' + error.message)
+    console.log('⚠️ [Screenshot Journal] Tesseract OCR failed, all services failed:', error.message)
+    throw new Error('All AI/OCR services failed: ' + error.message)
   }
-}
-
-// ==================== HELPER: Retry logic for VLM requests ====================
-async function callOpenAIWithRetry(
-  base64Image: string,
-  mimeType: string,
-  prompt: string,
-  maxRetries = 2
-): Promise<string> {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`🤖 [Screenshot Journal] OpenAI attempt ${attempt + 1}/${maxRetries + 1}...`)
-
-      const content = await analyzeImageWithOpenAI(base64Image, mimeType, prompt)
-      return content
-    } catch (error: any) {
-      const isLastAttempt = attempt === maxRetries
-      console.error(`❌ [Screenshot Journal] OpenAI attempt ${attempt + 1} failed:`, error.message)
-
-      // If it's a connection timeout or network error, retry
-      if (error.name === 'AbortError' ||
-          error.message?.includes('timeout') ||
-          error.message?.includes('fetch failed') ||
-          error.message?.includes('ETIMEDOUT')) {
-        if (!isLastAttempt) {
-          const delayMs = Math.pow(2, attempt) * 2000 // 2s, 4s, 8s...
-          console.log(`⏳ [Screenshot Journal] Retrying in ${delayMs}ms...`)
-          await new Promise(resolve => setTimeout(resolve, delayMs))
-          continue
-        }
-      }
-
-      // Re-throw non-retryable errors or last retry attempt
-      throw error
-    }
-  }
-
-  throw new Error('All OpenAI retry attempts failed')
 }
 
 // ==================== HELPER: Get authenticated user ====================
@@ -489,7 +475,7 @@ export async function POST(request: NextRequest) {
       console.log(`📷 [Screenshot Journal] Processing JSON base64 image (${mimeType}, ${Math.round(base64Image.length * 0.75)} bytes)`)
     }
 
-    // Step 4: Call VLM (Ollama first, then OpenAI fallback)
+    // Step 4: Call VLM (try all free services first)
     console.log('🤖 [Screenshot Journal] Starting VLM analysis...')
 
     const parsed = await analyzeScreenshotWithVLM(base64Image, mimeType)
@@ -504,7 +490,7 @@ export async function POST(request: NextRequest) {
         trade: parsed.trade,
         journal: parsed.journal,
         raw_analysis: parsed.raw_analysis,
-        warning: 'Could not extract structured trading data from the screenshot.'
+        warning: 'Could not extract structured trading data from the screenshot. OCR service (Tesseract) may have limitations.'
       })
     }
 
@@ -515,7 +501,10 @@ export async function POST(request: NextRequest) {
       mood: parsed.journal.mood
     })
 
-    // Step 6: Return structured data (flat format matching frontend expectations)
+    // Cleanup OCR worker
+    await cleanupOCR().catch(err => console.warn('Cleanup warning:', err))
+
+    // Step 6: Return structured data
     return NextResponse.json({
       success: true,
       trade: parsed.trade,
@@ -526,35 +515,30 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('❌ [Screenshot Journal] Error:', error)
 
+    // Cleanup OCR worker on error
+    await cleanupOCR().catch(err => console.warn('Cleanup warning:', err))
+
     if (error instanceof Error) {
       // Handle network/connection errors
       if (error.message.includes('Connect Timeout') || error.message.includes('ETIMEDOUT') || error.message.includes('fetch failed')) {
         console.error('❌ [Screenshot Journal] Network/Connection Error:', error.message)
         return NextResponse.json(
-          { error: 'Tidak dapat terhubung ke AI Vision. Masalah jaringan atau server AI sedang sibuk. Silakan coba lagi dalam beberapa saat.' },
+          { error: 'Tidak dapat terhubung ke AI/OCR service. Masalah jaringan atau server sedang sibuk. Silakan coba lagi dalam beberapa saat.' },
           { status: 503 }
         )
       }
 
-      // Handle OpenAI specific errors
-      if (error.message.includes('OpenAI API') || error.message.includes('quota') || error.message.includes('limit')) {
+      // Handle OCR specific errors
+      if (error.message.includes('Tesseract') || error.message.includes('OCR')) {
         return NextResponse.json(
-          { error: 'AI Vision service unavailable. Ollama mungkin belum siap atau API key OpenAI belum dikonfigurasi.' },
-          { status: 500 }
-        )
-      }
-
-      // Handle Ollama specific errors
-      if (error.message.includes('Ollama') || error.message.includes('server is not running')) {
-        return NextResponse.json(
-          { error: 'Ollama AI service tidak tersedia. Pastikan Ollama sudah terinstall dan berjalan di server.' },
+          { error: 'Tesseract OCR service tidak tersedia. Tesseract membutuhkan lebih banyak waktu dan mungkin tidak seakurat OpenAI Vision. Silakan coba lagi atau gunakan input manual.' },
           { status: 503 }
         )
       }
 
       if (error.message.includes('timeout')) {
         return NextResponse.json(
-          { error: 'Analisis AI terlalu lama. Screenshot mungkin terlalu kompleks. Silakan coba dengan screenshot yang lebih sederhana.' },
+          { error: 'Analisis OCR terlalu lama. Screenshot mungkin terlalu kompleks. Silakan coba dengan screenshot yang lebih sederhana atau gunakan input manual.' },
           { status: 500 }
         )
       }
