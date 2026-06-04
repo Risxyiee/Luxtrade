@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
-import { randomUUID } from 'crypto'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 // Maximum file size: 10MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -33,10 +31,10 @@ async function getAuthUser(request: NextRequest): Promise<{ id: string; email: s
   }
 }
 
-// POST - Upload trade image
+// POST - Upload trade image to Supabase Storage
 export async function POST(request: NextRequest) {
   try {
-    console.log('🟢 [API /api/trade-upload] Starting image upload...')
+    console.log('🟢 [API /api/trade-upload] Starting image upload to Supabase Storage...')
 
     // Step 1: Authenticate user
     const authUser = await getAuthUser(request)
@@ -87,27 +85,60 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    // Step 6: Generate unique filename
-    const fileExtension = path.extname(file.name) || '.jpg'
-    const filename = `${userId}-${randomUUID()}${fileExtension}`
+    // Step 6: Generate unique filename with user folder structure
+    const fileExtension = file.name.split('.').pop() || 'jpg'
+    const timestamp = Date.now()
+    const randomSuffix = Math.random().toString(36).substring(2, 8)
+    const filename = `${userId}/${timestamp}-${randomSuffix}.${fileExtension}`
 
-    // Step 7: Create uploads directory if not exists
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'trades')
-    await mkdir(uploadsDir, { recursive: true })
+    console.log('📦 [API] Uploading to Supabase Storage bucket: trade-screenshots')
+    console.log('📦 [API] File path:', filename)
 
-    // Step 8: Write file to disk
-    const filePath = path.join(uploadsDir, filename)
-    await writeFile(filePath, buffer)
+    // Step 7: Upload to Supabase Storage using admin client
+    const supabaseAdmin = createAdminClient()
 
-    console.log('✅ [API] File saved:', filePath)
+    const { data: uploadData, error: uploadError } = await supabaseAdmin
+      .storage
+      .from('trade-screenshots')
+      .upload(filename, buffer, {
+        contentType: file.type,
+        upsert: false
+      })
 
-    // Step 9: Return public URL
-    const publicUrl = `/uploads/trades/${filename}`
+    if (uploadError) {
+      console.error('❌ [API] Supabase Storage upload error:', uploadError)
+      return NextResponse.json(
+        {
+          error: 'Failed to upload image to storage',
+          details: uploadError.message
+        },
+        { status: 500 }
+      )
+    }
 
+    console.log('✅ [API] File uploaded successfully to Supabase Storage:', uploadData.path)
+
+    // Step 8: Get public URL
+    const { data: publicUrlData } = supabaseAdmin
+      .storage
+      .from('trade-screenshots')
+      .getPublicUrl(filename)
+
+    if (!publicUrlData?.publicUrl) {
+      console.error('❌ [API] Failed to get public URL')
+      return NextResponse.json(
+        { error: 'Failed to get public URL for uploaded image' },
+        { status: 500 }
+      )
+    }
+
+    console.log('✅ [API] Public URL generated:', publicUrlData.publicUrl)
+
+    // Step 9: Return success response
     return NextResponse.json({
       success: true,
-      url: publicUrl,
-      filename,
+      url: publicUrlData.publicUrl,
+      path: filename,
       size: file.size,
       type: file.type
     })
