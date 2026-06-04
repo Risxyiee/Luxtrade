@@ -186,18 +186,67 @@ export async function DELETE(
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    const { error } = await supabaseAdmin
+    // Get the account to be deleted first (to check if it's default)
+    const { data: accountToDelete, error: fetchError } = await supabaseAdmin
+      .from('trading_accounts')
+      .select('id, name, is_default')
+      .eq('id', params.id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (fetchError || !accountToDelete) {
+      return NextResponse.json({ error: 'Trading account not found' }, { status: 404 })
+    }
+
+    // Check if this is the last account - prevent deletion
+    const { data: allAccounts, error: countError } = await supabaseAdmin
+      .from('trading_accounts')
+      .select('id')
+      .eq('user_id', user.id)
+
+    if (countError) {
+      return NextResponse.json({ error: 'Failed to check account count' }, { status: 500 })
+    }
+
+    if (allAccounts && allAccounts.length <= 1) {
+      return NextResponse.json({ error: 'Cannot delete the last account. At least 1 account is required.' }, { status: 400 })
+    }
+
+    // Delete the account
+    const { error: deleteError } = await supabaseAdmin
       .from('trading_accounts')
       .delete()
       .eq('id', params.id)
       .eq('user_id', user.id)
 
-    if (error) {
-      console.error('Error deleting trading account:', error)
+    if (deleteError) {
+      console.error('Error deleting trading account:', deleteError)
       return NextResponse.json({ error: 'Failed to delete trading account' }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, message: 'Trading account deleted' })
+    // If we deleted the default account, set another account as default
+    if (accountToDelete.is_default) {
+      // Get the first remaining account
+      const { data: remainingAccounts } = await supabaseAdmin
+        .from('trading_accounts')
+        .select('id')
+        .eq('user_id', user.id)
+        .limit(1)
+
+      if (remainingAccounts && remainingAccounts.length > 0) {
+        // Set it as default
+        await supabaseAdmin
+          .from('trading_accounts')
+          .update({ is_default: true })
+          .eq('id', remainingAccounts[0].id)
+          .eq('user_id', user.id)
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Trading account "${accountToDelete.name}" deleted${accountToDelete.is_default ? ' and a new default account has been set' : ''}`
+    })
   } catch (error) {
     console.error('Error deleting trading account:', error)
     return NextResponse.json(
