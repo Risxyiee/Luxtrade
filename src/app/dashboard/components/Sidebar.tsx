@@ -136,6 +136,13 @@ export default function Sidebar({
       toast.error('Tidak bisa menghapus akun terakhir. Minimal 1 akun diperlukan.')
       return
     }
+
+    // Prevent deleting default account
+    if (account.is_default) {
+      toast.error('Tidak bisa menghapus akun default. Setel akun lain sebagai default terlebih dahulu.')
+      return
+    }
+
     setAccountToDelete(account)
     setDeleteAccountOpen(true)
   }
@@ -266,7 +273,8 @@ export default function Sidebar({
                       <span className="text-xs text-gray-500">{account.currency}</span>
                     </button>
 
-                    {tradingAccounts.length > 1 && (
+                    {/* Delete button - visible for all accounts except when it's the only one */}
+                    {tradingAccounts.length > 1 && !account.is_default && (
                       <button
                         onClick={() => openDeleteModal(account)}
                         className="p-1 rounded text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100"

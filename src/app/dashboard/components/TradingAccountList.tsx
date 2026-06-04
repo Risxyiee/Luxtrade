@@ -60,6 +60,18 @@ export default function TradingAccountList({ accounts, loading, onRefresh }: Tra
   }, [accounts])
 
   const handleDeleteClick = (account: TradingAccount) => {
+    // Prevent deleting if it's the last account
+    if (accounts.length <= 1) {
+      toast.error('Tidak bisa menghapus akun terakhir. Minimal 1 akun diperlukan.')
+      return
+    }
+
+    // Prevent deleting default account
+    if (account.is_default) {
+      toast.error('Tidak bisa menghapus akun default. Setel akun lain sebagai default terlebih dahulu.')
+      return
+    }
+
     setAccountToDelete(account)
     setDeleteDialogOpen(true)
     setDeleteReason('')
