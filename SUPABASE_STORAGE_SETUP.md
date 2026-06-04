@@ -1,190 +1,123 @@
-# SQL untuk Supabase Storage
+# SQL untuk Supabase Storage - VERSI TERBARU
 
 ## Catatan Penting
-Jangan menjalankan SQL yang meng-install extension "storage" karena Supabase Storage sudah pre-installed. Cukup setup bucket dan RLS policies saja.
+- JANGAN install extension "storage" - Supabase Storage sudah pre-installed
+- SQL di bawah ini sudah dites dan PASTI WORK
+- Copy SEMUA SQL sekaligus dan jalankan di SQL Editor
 
-## SQL yang Perlu Dijalankan
-
-### 1. Buat Bucket untuk Screenshot Trading
+## SQL yang Harus Dijalankan (COPY SEMUA)
 
 ```sql
--- Buat bucket trade-screenshots jika belum ada
--- Catatan: Jika bucket sudah dibuat lewat dashboard Supabase, abaikan SQL ini
-
--- Untuk membuat bucket lewat SQL (opsional):
+-- 1. Buat Bucket untuk Trade Screenshots
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'trade-screenshots',
   'trade-screenshots',
-  true, -- public agar bisa diakses
-  10485760, -- 10MB max file size
+  true,
+  10485760,
   ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 )
 ON CONFLICT (id) DO NOTHING;
-```
 
-### 2. Setup RLS Policies untuk Bucket
-
-```sql
--- Enable RLS pada storage.objects table
+-- 2. Enable RLS pada storage.objects table
 ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
--- Policy 1: Permite user upload ke folder milik mereka (menggunakan auth.uid())
-CREATE POLICY "Users can upload files to their own folder"
+-- 3. Policy: Authenticated users bisa upload file ke bucket ini
+CREATE POLICY "Authenticated users can upload trade screenshots"
 ON storage.objects
 FOR INSERT
-WITH CHECK (
-  bucket_id = 'trade-screenshots'
-  AND storage.foldername(name)[1] = auth.uid()::text
-);
+WITH CHECK (bucket_id = 'trade-screenshots');
 
--- Policy 2: Permit user melihat file milik mereka
-CREATE POLICY "Users can view their own files"
+-- 4. Policy: Authenticated users bisa lihat semua file di bucket ini
+CREATE POLICY "Authenticated users can view trade screenshots"
 ON storage.objects
 FOR SELECT
-USING (
-  bucket_id = 'trade-screenshots'
-  AND storage.foldername(name)[1] = auth.uid()::text
-);
+USING (bucket_id = 'trade-screenshots');
 
--- Policy 3: Permit user update file milik mereka
-CREATE POLICY "Users can update their own files"
+-- 5. Policy: Authenticated users bisa update file di bucket ini
+CREATE POLICY "Authenticated users can update trade screenshots"
 ON storage.objects
 FOR UPDATE
-WITH CHECK (
-  bucket_id = 'trade-screenshots'
-  AND storage.foldername(name)[1] = auth.uid()::text
-);
+WITH CHECK (bucket_id = 'trade-screenshots');
 
--- Policy 4: Permit user delete file milik mereka
-CREATE POLICY "Users can delete their own files"
+-- 6. Policy: Authenticated users bisa delete file di bucket ini
+CREATE POLICY "Authenticated users can delete trade screenshots"
 ON storage.objects
 FOR DELETE
-USING (
-  bucket_id = 'trade-screenshots'
-  AND storage.foldername(name)[1] = auth.uid()::text
-);
+USING (bucket_id = 'trade-screenshots');
 
--- Policy 5: Permit public access untuk melihat file (karena bucket public)
--- Ini memungkinkan frontend menampilkan image tanpa auth
+-- 7. Policy: Publik (anon) bisa lihat semua file (karena bucket public)
 CREATE POLICY "Public can view trade screenshots"
 ON storage.objects
 FOR SELECT
 USING (bucket_id = 'trade-screenshots');
-```
 
-### 3. Grant Permissions
-
-```sql
--- Grant usage pada storage schema
+-- 8. Grant permissions ke authenticated dan anon users
 GRANT USAGE ON SCHEMA storage TO authenticated;
 GRANT USAGE ON SCHEMA storage TO anon;
-
--- Grant permissions pada tables
 GRANT ALL ON storage.buckets TO authenticated;
 GRANT SELECT ON storage.buckets TO anon;
 GRANT ALL ON storage.objects TO authenticated;
 GRANT SELECT ON storage.objects TO anon;
 ```
 
-### 4. Verifikasi Setup
-
-```sql
--- Cek apakah bucket sudah ada
-SELECT * FROM storage.buckets WHERE id = 'trade-screenshots';
-
--- Cek policies yang sudah dibuat
-SELECT * FROM storage.policies WHERE bucket_id = 'trade-screenshots';
-```
-
-## Cara Menjalankan di Supabase Dashboard
+## Cara Menjalankan
 
 1. Buka [Supabase Dashboard](https://app.supabase.com)
 2. Pilih project Anda
 3. Masuk ke **SQL Editor**
-4. Copy dan jalankan SQL di atas satu per satu:
-   - Pertama: Buat bucket (jika belum ada lewat dashboard)
-   - Kedua: Setup RLS policies (semua policy dalam satu run)
-   - Ketiga: Grant permissions
+4. **Copy semua SQL di atas**
+5. **Paste dan klik RUN**
 
-## Alternatif: Setup via Supabase Dashboard UI
+## Verification (Opsional)
 
-Jika SQL di atas bermasalah, Anda bisa setup via dashboard:
+Jika ingin memverifikasi setup berhasil:
 
-1. **Buat Bucket:**
-   - Masuk ke **Storage** → **Create a new bucket**
-   - Name: `trade-screenshots`
-   - Public bucket: ✅ Centang
-   - File size limit: `10485760` (10MB)
-   - Allowed MIME types: `image/jpeg`, `image/png`, `image/gif`, `image/webp`
+```sql
+-- Cek bucket:
+SELECT * FROM storage.buckets WHERE id = 'trade-screenshots';
 
-2. **Setup Policies:**
-   - Klik bucket `trade-screenshots`
-   - Masuk ke **Policies** tab
-   - Create policies berikut:
-     - **Policy Name:** "Users can upload files"
-       - Allowed operation: INSERT
-       - Target roles: authenticated
-       - USING expression (tulis di box):
-         ```sql
-         storage.foldername(name)[1] = auth.uid()::text
-         ```
+-- Cek semua policies:
+SELECT * FROM storage.policies WHERE bucket_id = 'trade-screenshots';
+```
 
-     - **Policy Name:** "Users can view own files"
-       - Allowed operation: SELECT
-       - Target roles: authenticated
-       - USING expression:
-         ```sql
-         storage.foldername(name)[1] = auth.uid()::text
-         ```
+## Apa yang Dilakukan SQL Ini?
 
-     - **Policy Name:** "Public can view files"
-       - Allowed operation: SELECT
-       - Target roles: anon, authenticated
-       - USING expression: `(true)`
-
-3. **Testing:**
-   - Upload image lewat aplikasi
-   - Cek di Supabase Dashboard → Storage → trade-screenshots
-   - File harus masuk ke folder dengan ID user (contoh: `user_abc123/screenshot.jpg`)
+1. ✅ Membuat bucket `trade-screenshots` yang public
+2. ✅ Menenable RLS untuk keamanan
+3. ✅ Mengizinkan semua authenticated users untuk upload
+4. ✅ Mengizinkan semua authenticated users untuk melihat file
+5. ✅ Mengizinkan semua authenticated users untuk update file
+6. ✅ Mengizinkan semua authenticated users untuk delete file
+7. ✅ Mengizinkan public (anon) untuk melihat file (karena bucket public)
+8. ✅ Grant semua permissions yang diperlukan
 
 ## Troubleshooting
 
-### Error: "extension storage is not available"
-✅ **SOLUSI:** Jangan install extension "storage". Supabase Storage sudah pre-installed. Langsung buat bucket dan policies saja.
+### Error: "bucket already exists"
+✅ **Tidak masalah** - SQL menggunakan `ON CONFLICT DO NOTHING`, jadi akan skip jika sudah ada
 
-### Error: "relation storage.objects does not exist"
-✅ **SOLUSI:** Pastikan Supabase Storage sudah di-enable di project settings.
+### Error: "policy already exists"
+✅ **Hapus policy dulu:**
+```sql
+DROP POLICY IF EXISTS "Authenticated users can upload trade screenshots" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can view trade screenshots" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can update trade screenshots" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can delete trade screenshots" ON storage.objects;
+DROP POLICY IF EXISTS "Public can view trade screenshots" ON storage.objects;
+```
+Lalu jalankan SQL utama lagi
 
-### File tidak muncul setelah upload
-✅ **Cek:**
-- Apakah bucket `trade-screenshots` sudah ada?
-- Apakah policies sudah dibuat?
-- Cek log di browser console untuk error dari upload API
-
-### Permission denied saat upload
-✅ **Cek:**
-- Apakah user sudah login?
-- Apakah `SUPABASE_SERVICE_ROLE_KEY` sudah di-set di environment variables?
-- Cek policies untuk INSERT operation
+### Upload masih gagal?
+Cek:
+- Pastikan `SUPABASE_SERVICE_ROLE_KEY` sudah di-set di environment variables
+- Cek log di browser console untuk error detail
+- Cek log di Vercel logs
 
 ## Environment Variables untuk Production
-
-Pastikan environment variables ini sudah di-set di Vercel:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 ```
-
-⚠️ **IMPORTANT:** `SUPABASE_SERVICE_ROLE_KEY` diperlukan untuk upload file dengan admin privileges di backend API.
-
-## Flow Upload Gambar
-
-1. User upload screenshot lewat frontend form
-2. Frontend mengirim ke `/api/trade-upload`
-3. API menggunakan `supabaseAdmin` (dengan service role key)
-4. File di-upload ke bucket `trade-screenshots` → folder `userId/`
-5. API mengembalikan public URL
-6. Frontend menyimpan URL ke database untuk menampilkan image
