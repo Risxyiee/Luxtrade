@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { analyzeImageWithOpenAI } from '@/lib/openai-vision'
+import { performOCR, parseMT5TradeData, cleanupOCR } from '@/lib/tesseract-ocr'
 
 // ==================== TYPES ====================
 interface ParsedTrade {
@@ -57,102 +57,42 @@ function getSessionFromHour(isoDate: string): string | null {
   return 'New York'
 }
 
-// ==================== CLEAN JSON RESPONSE ====================
-function cleanJsonContent(content: string): any {
-  let cleanContent = content.trim()
-
-  // Remove markdown code blocks
-  if (cleanContent.startsWith('```json')) cleanContent = cleanContent.slice(7)
-  if (cleanContent.startsWith('```')) cleanContent = cleanContent.slice(3)
-  if (cleanContent.endsWith('```')) cleanContent = cleanContent.slice(0, -3)
-  cleanContent = cleanContent.trim()
-
-  // Try to extract JSON if there's extra text
-  const jsonMatch = cleanContent.match(/\[.*\]/s) || cleanContent.match(/\{.*\}/s)
-  if (jsonMatch) {
-    cleanContent = jsonMatch[0]
-  }
-
-  return JSON.parse(cleanContent)
-}
-
-// ==================== VLM OCR ====================
-async function ocrWithVLM(imageBase64: string, retryCount = 0): Promise<any[]> {
-  console.log(`🔍 Starting VLM OCR (attempt ${retryCount + 1})...`)
-
-  const imageUrl = imageBase64.startsWith('data:')
-    ? imageBase64
-    : `data:image/png;base64,${imageBase64}`
-
-  // Enhanced prompt with more specific instructions
-  const prompt = `You are a professional trading data extractor. Extract ALL trades from this MT5/MT4 screenshot.
-
-For EACH trade row, extract these fields:
-- symbol: Currency pair (e.g., XAUUSD, EURUSD, GBPJPY)
-- type: Either "BUY" or "SELL" (uppercase)
-- lot_size: Lot size as a number (e.g., 0.1, 0.5, 1.0)
-- open_price: Entry price (e.g., 5135.40)
-- close_price: Exit price (e.g., 5072.37)
-- profit_loss: Profit/Loss value (can be negative for losses)
-- time: Date and time in format YYYY.MM.DD HH:MM:SS
-
-CRITICAL RULES:
-1. Return ONLY a valid JSON array - no markdown, no explanation, no extra text
-2. Every trade MUST have symbol, type, lot_size, open_price, close_price, profit_loss
-3. If profit is red or has parentheses, it's negative (e.g., -$50 = -50)
-4. Extract ALL visible trades from the table
-5. If no trades found, return empty array []
-
-Example output:
-[{"symbol": "XAUUSD", "type": "BUY", "lot_size": 0.2, "open_price": 5135.40, "close_price": 5072.37, "profit_loss": 1228.20, "time": "2026.03.03 16:44:06"}, {"symbol": "EURUSD", "type": "SELL", "lot_size": 0.5, "open_price": 1.0850, "close_price": 1.0870, "profit_loss": -100.00, "time": "2026.03.03 15:30:00"}]`
+// ==================== TESSERACT OCR ====================
+async function ocrWithTesseract(imageBase64: string, retryCount = 0): Promise<any[]> {
+  console.log(`🔍 Starting Tesseract OCR (attempt ${retryCount + 1})...`)
 
   try {
-    const content = await analyzeImageWithOpenAI(imageBase64, 'image/png', prompt)
-    const cleanContent = content.trim()
-    
-    // Remove markdown code blocks if present
-    if (cleanContent.startsWith('```json')) {
-      const jsonStr = cleanContent.slice(7, -3).trim()
-      const parsed = JSON.parse(jsonStr)
-      const trades = Array.isArray(parsed) ? parsed : [parsed]
-      console.log(`✅ VLM found ${trades.length} trades`)
-      return trades
-    }
-    
-    if (cleanContent.startsWith('```')) {
-      const jsonStr = cleanContent.slice(3, -3).trim()
-      const parsed = JSON.parse(jsonStr)
-      const trades = Array.isArray(parsed) ? parsed : [parsed]
-      console.log(`✅ VLM found ${trades.length} trades`)
-      return trades
-    }
-    
-    // Try direct JSON parse
-    const parsed = JSON.parse(cleanContent)
-    const trades = Array.isArray(parsed) ? parsed : [parsed]
-    console.log(`✅ VLM found ${trades.length} trades`)
+    // Convert base64 to buffer
+    const imageBuffer = Buffer.from(imageBase64, 'base64')
+
+    // Perform OCR
+    const ocrResult = await performOCR(imageBuffer, {
+      language: 'eng',
+      oem: 3,
+      psm: 6
+    })
+
+    // Parse trade data from OCR text
+    const trades = parseMT5TradeData(ocrResult.text)
+
+    console.log(`✅ Tesseract OCR completed: ${trades.length} trades found`)
     return trades
 
   } catch (error) {
-    console.error('❌ VLM Error:', error)
+    console.error('❌ Tesseract OCR Error:', error)
+
+    const errorMsg = error instanceof Error ? error.message : String(error)
 
     // Retry logic for transient errors
-    const errorMsg = error instanceof Error ? error.message : String(error)
     const isTransientError =
       errorMsg.includes('timeout') ||
       errorMsg.includes('network') ||
-      errorMsg.includes('rate limit') ||
-      errorMsg.includes('ECONNREFUSED') ||
       errorMsg.includes('ETIMEDOUT')
 
     if (isTransientError && retryCount < 2) {
-      console.log(`🔄 Retrying VLM OCR (${retryCount + 1}/2)...`)
-      await new Promise(resolve => setTimeout(resolve, 2000)) // Wait 2 seconds
-      return ocrWithVLM(imageBase64, retryCount + 1)
-    }
-
-    if (errorMsg.includes('OPENAI_API_KEY')) {
-      throw new Error('VLM_SERVICE_NOT_CONFIGURED')
+      console.log(`🔄 Retrying Tesseract OCR (${retryCount + 1}/2)...`)
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      return ocrWithTesseract(imageBase64, retryCount + 1)
     }
 
     throw error
@@ -160,8 +100,8 @@ Example output:
 }
 
 // ==================== TRANSFORM TRADES ====================
-function transformTrades(vlmTrades: any[]): ParsedTrade[] {
-  return vlmTrades
+function transformTrades(tesseractTrades: any[]): ParsedTrade[] {
+  return tesseractTrades
     .filter(t => {
       // Filter out invalid trades
       if (!t) return false
@@ -201,7 +141,7 @@ function transformTrades(vlmTrades: any[]): ParsedTrade[] {
         open_time: openTime,
         close_time: openTime,
         session: getSessionFromHour(openTime),
-        notes: 'Imported from MT5/MT4 screenshot'
+        notes: 'Imported from MT5/MT4 screenshot using OCR'
       }
     })
 }
@@ -233,13 +173,13 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    console.log('📸 Processing screenshot with VLM...')
+    console.log('📸 Processing screenshot with Tesseract OCR (FREE)...')
 
-    // Use VLM for OCR
-    const vlmTrades = await ocrWithVLM(imageBase64)
+    // Use Tesseract for OCR
+    const tesseractTrades = await ocrWithTesseract(imageBase64)
 
     // Transform trades
-    const trades = transformTrades(vlmTrades)
+    const trades = transformTrades(tesseractTrades)
 
     // Additional validation
     const validTrades = trades.filter(t =>
@@ -251,16 +191,19 @@ export async function POST(request: NextRequest) {
     )
 
     const processingTime = ((Date.now() - startTime) / 1000).toFixed(2)
-    console.log(`📊 Valid trades extracted: ${validTrades.length}/${vlmTrades.length} (took ${processingTime}s)`)
+    console.log(`📊 Valid trades extracted: ${validTrades.length}/${tesseractTrades.length} (took ${processingTime}s)`)
+
+    // Cleanup OCR worker
+    await cleanupOCR().catch(err => console.warn('Cleanup warning:', err))
 
     if (validTrades.length === 0) {
       return NextResponse.json({
         success: false,
         error: 'Tidak ada transaksi terdeteksi',
-        message: 'Tidak dapat menemukan transaksi di gambar. Tips:\n• Pastikan screenshot menampilkan history MT5/MT4 dengan jelas\n• Pastikan kolom Symbol, Type, Price, dan Profit terlihat\n• Gunakan screenshot dengan resolusi yang cukup tinggi\n• Pastikan screenshot tidak blur atau gelap\n\nAlternatif: Gunakan tab "Upload File" untuk import CSV/HTML dari MT5.',
-        method: 'VLM OCR',
+        message: 'Tidak dapat menemukan transaksi di gambar. Tips:\n• Pastikan screenshot menampilkan history MT5/MT4 dengan jelas\n• Pastikan kolom Symbol, Type, Price, dan Profit terlihat\n• Gunakan screenshot dengan resolusi yang cukup tinggi\n• Pastikan screenshot tidak blur atau gelap\n• OCR gratis (Tesseract) mungkin tidak seakurat OpenAI Vision\n\nAlternatif:\n1. Gunakan tab "Upload File" untuk import CSV/HTML dari MT5\n2. Atau tambahkan trade secara manual melalui tombol "+ Add Trade"',
+        method: 'Tesseract OCR (FREE)',
         debug: {
-          rawTradesCount: vlmTrades.length,
+          rawTradesCount: tesseractTrades.length,
           processingTime: `${processingTime}s`
         }
       }, { status: 422 })
@@ -270,7 +213,7 @@ export async function POST(request: NextRequest) {
       success: true,
       trades: validTrades,
       count: validTrades.length,
-      method: 'VLM OCR',
+      method: 'Tesseract OCR (FREE)',
       processingTime: `${processingTime}s`,
       timestamp: new Date().toISOString()
     })
@@ -281,37 +224,24 @@ export async function POST(request: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     console.error('Error details:', errorMessage)
 
-    // If SDK is not available, provide helpful fallback message
-    if (errorMessage.includes('VLM_SERVICE_NOT_CONFIGURED') ||
-        errorMessage.includes('OPENAI_API_KEY')) {
-      return NextResponse.json({
-        success: false,
-        error: 'AI Service Tidak Dikonfigurasi',
-        message: 'Maaf, fitur Screenshot OCR saat ini sedang tidak tersedia karena OpenAI API Key belum dikonfigurasi.\n\nAlternatif yang tersedia:\n1. Gunakan tab "Upload File" untuk import file CSV/HTML dari MT5/MT4\n2. Ekspor trade history dari MT5/MT4 ke format HTML atau CSV\n3. Atau tambahkan trade secara manual melalui tombol "+ Add Trade"\n\nUntuk mengaktifkan fitur ini, hubungi admin untuk mengkonfigurasi OpenAI API Key.',
-        method: 'unavailable',
-        suggestions: [
-          'Use File Import tab instead (CSV/HTML format)',
-          'Export trade history from MT5/MT4',
-          'Add trades manually'
-        ]
-      }, { status: 503 })
-    }
+    // Cleanup OCR worker on error
+    await cleanupOCR().catch(err => console.warn('Cleanup warning:', err))
 
     // Handle timeout errors
     if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
       return NextResponse.json({
         success: false,
         error: 'Timeout',
-        message: 'Proses OCR membutuhkan waktu terlalu lama. Silakan coba lagi atau gunakan file dengan ukuran lebih kecil.\n\nTips:\n• Gunakan gambar dengan resolusi lebih rendah\n• Pastikan koneksi internet stabil\n• Atau gunakan tab "Upload File" sebagai alternatif',
-        method: 'timeout'
+        message: 'Proses OCR membutuhkan waktu terlalu lama. Tesseract OCR memerlukan lebih banyak waktu daripada OpenAI Vision.\n\nTips:\n• Gunakan gambar dengan resolusi lebih rendah\n• Pastikan koneksi internet stabil\n• Atau gunakan tab "Upload File" sebagai alternatif',
+        method: 'Tesseract OCR (FREE)'
       }, { status: 504 })
     }
 
     return NextResponse.json({
       success: false,
       error: 'Gagal memproses screenshot',
-      message: `Terjadi kesalahan: ${errorMessage}.\n\nSilakan:\n1. Coba upload ulang screenshot\n2. Pastikan screenshot menampilkan data trade dengan jelas\n3. Gunakan tab "Upload File" sebagai alternatif\n\nJika masalah berlanjut, hubungi support.`,
-      method: 'error',
+      message: `Terjadi kesalahan OCR: ${errorMessage}.\n\nSilakan:\n1. Coba upload ulang screenshot\n2. Pastikan screenshot menampilkan data trade dengan jelas\n3. Gunakan tab "Upload File" sebagai alternatif\n\nTesseract OCR adalah layanan gratis, jadi mungkin tidak seakurat OpenAI Vision.`,
+      method: 'Tesseract OCR (FREE)',
       errorMessage: errorMessage
     }, { status: 500 })
   }
