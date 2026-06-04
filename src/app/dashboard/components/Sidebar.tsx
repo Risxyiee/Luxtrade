@@ -277,7 +277,7 @@ export default function Sidebar({
                     {tradingAccounts.length > 1 && !account.is_default && (
                       <button
                         onClick={() => openDeleteModal(account)}
-                        className="p-1 rounded text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100"
+                        className="p-1.5 rounded text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-60 hover:opacity-100"
                         title="Delete Account"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
