@@ -11,9 +11,10 @@ import { createSupabaseClient } from '@/lib/supabase/server-client'
 // GET: Fetch a specific trading account
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params
     const supabase = await createSupabaseClient(req)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -52,9 +53,10 @@ export async function GET(
 // PATCH: Update a trading account
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params
     const supabase = await createSupabaseClient(req)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -105,9 +107,10 @@ export async function PATCH(
 // DELETE: Delete a trading account
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params
     const supabase = await createSupabaseClient(req)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 

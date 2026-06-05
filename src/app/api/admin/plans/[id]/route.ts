@@ -4,9 +4,10 @@ import { db } from '@/lib/db'
 // PUT update a subscription plan
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params
     const body = await request.json()
     const { id } = params
     const { name, description, price, currency, durationMonths, isLifetime, maxSlots, isActive } = body
@@ -60,9 +61,10 @@ export async function PUT(
 // DELETE a subscription plan
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params
     const { id } = params
 
     await db.subscriptionPlan.delete({

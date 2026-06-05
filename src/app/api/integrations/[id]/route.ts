@@ -23,9 +23,10 @@ const supabaseAdmin = createClient(
  */
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params
     const supabase = await createSupabaseClient(req)
 
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -84,9 +85,10 @@ export async function PATCH(
  */
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params
     const supabase = await createSupabaseClient(req)
 
     const { data: { user }, error: authError } = await supabase.auth.getUser()
