@@ -86,23 +86,22 @@ export async function POST(request: NextRequest) {
 
     console.log('📸 Processing screenshot...')
 
-    // Since we can't do OCR on server-side with Tesseract.js in this environment,
-    // return a helpful message directing user to alternatives
+    // AI Vision analysis is available through the AI Vision service
     const processingTime = ((Date.now() - startTime) / 1000).toFixed(2)
 
     return NextResponse.json({
       success: false,
-      error: 'Fitur Screenshot OCR membutuhkan client-side processing',
-      message: 'Maaf, fitur import dari screenshot saat ini tidak tersedia di server environment ini.\n\nAlternatif yang tersedia:\n1. Gunakan tab "Upload File" untuk import CSV/HTML dari MT5/MT4 (REKOMENDASI)\n2. Ekspor trade history dari MT5/MT4 ke format HTML atau CSV\n3. Atau tambahkan trade secara manual melalui tombol "+ Add Trade"\n\nFitur Screenshot OCR akan bekerja setelah deploy ke production environment yang mendukung client-side processing.',
-      method: 'unavailable',
+      error: 'Gunakan fitur Quick Import di Trade Form',
+      message: 'Untuk import dari screenshot:\n\n1. Buka form Add Trade (+)\n2. Gunakan Quick Import section\n3. Upload screenshot untuk AI Vision extraction\n\nAtau gunakan alternatif:\n1. Gunakan MT5 Statement import (CSV/Excel/HTML)\n2. Atau tambahkan trade secara manual',
+      method: 'use_quick_import',
       suggestions: [
-        'Use File Import tab (CSV/HTML format from MT5/MT4)',
-        'Export trade history from MT5/MT4 terminal',
+        'Use Quick Import in Add Trade form for AI Vision analysis',
+        'Use MT5 Statement file import (CSV/Excel/HTML)',
         'Add trades manually'
       ],
       debug: {
         processingTime: `${processingTime}s`,
-        note: 'OCR processing requires client-side environment'
+        note: 'AI Vision analysis available through Quick Import feature'
       }
     }, { status: 503 })
 

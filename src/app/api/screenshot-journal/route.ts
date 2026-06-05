@@ -487,7 +487,7 @@ export async function POST(request: NextRequest) {
         trade: parsed.trade,
         journal: parsed.journal,
         raw_analysis: parsed.raw_analysis,
-        warning: 'Could not extract structured trading data from the screenshot. OCR service (Tesseract) may have limitations.'
+        warning: 'Could not extract structured trading data from the screenshot. AI Vision service may have limitations with this image.'
       })
     }
 
@@ -519,17 +519,10 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Handle OCR specific errors
-      if (error.message.includes('Tesseract') || error.message.includes('OCR')) {
-        return NextResponse.json(
-          { error: 'Tesseract OCR service tidak tersedia. Tesseract membutuhkan lebih banyak waktu dan mungkin tidak seakurat OpenAI Vision. Silakan coba lagi atau gunakan input manual.' },
-          { status: 503 }
-        )
-      }
-
+      // Handle AI Vision specific errors
       if (error.message.includes('timeout')) {
         return NextResponse.json(
-          { error: 'Analisis OCR terlalu lama. Screenshot mungkin terlalu kompleks. Silakan coba dengan screenshot yang lebih sederhana atau gunakan input manual.' },
+          { error: 'Analisis AI Vision terlalu lama. Screenshot mungkin terlalu kompleks. Silakan coba dengan screenshot yang lebih sederhana atau gunakan input manual.' },
           { status: 500 }
         )
       }
