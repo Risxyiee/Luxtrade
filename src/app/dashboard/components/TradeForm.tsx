@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { CheckCircle2, AlertCircle, Upload, X, Info, Loader2 } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Upload, X, Info, Loader2, FileText, Sparkles } from 'lucide-react'
 import { TradeFormData } from '../utils/types'
 import { datetimeLocalToFormat } from '../utils/helpers'
 import { toast } from 'sonner'
@@ -37,8 +37,11 @@ function TradeForm({
   // Form validation state
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
-  // Image upload state
+
+  // Upload states
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [analyzingScreenshot, setAnalyzingScreenshot] = useState(false)
+  const [uploadingMT5, setUploadingMT5] = useState(false)
 
   // Validate field
   const validateField = (field: keyof TradeFormData, value: string): string => {
@@ -86,8 +89,8 @@ function TradeForm({
     return errors[field] ? 'invalid' : 'valid'
   }
 
-  // Handle image upload using API
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle screenshot upload with AI analysis
+  const handleScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -103,12 +106,12 @@ function TradeForm({
       return
     }
 
-    setUploadingImage(true)
+    setAnalyzingScreenshot(true)
     try {
       const formData = new FormData()
-      formData.append('file', file)
+      formData.append('image', file)
 
-      const res = await fetch('/api/trade-upload', {
+      const res = await fetch('/api/analyze-screenshot', {
         method: 'POST',
         body: formData,
       })
@@ -116,17 +119,73 @@ function TradeForm({
       const data = await res.json()
 
       if (res.ok && data.success) {
-        onFormChange('image_url', data.url)
-        toast.success('Image uploaded successfully!')
+        // Auto-fill form with extracted data
+        if (data.data.symbol) onFormChange('symbol', data.data.symbol)
+        if (data.data.type) onTypeChange(data.data.type)
+        if (data.data.lot_size) onFormChange('lot_size', data.data.lot_size.toString())
+        if (data.data.open_price) onFormChange('open_price', data.data.open_price.toString())
+        if (data.data.close_price) onFormChange('close_price', data.data.close_price.toString())
+        if (data.data.profit_loss) onFormChange('profit_loss', data.data.profit_loss.toString())
+        if (data.data.stop_loss) onFormChange('stop_loss', data.data.stop_loss.toString())
+        if (data.data.take_profit) onFormChange('take_profit', data.data.take_profit.toString())
+        if (data.image_url) onFormChange('image_url', data.image_url)
+
+        toast.success('✨ Screenshot analyzed! Form auto-filled with trading data.')
       } else {
-        toast.error(data.error || 'Failed to upload image')
+        toast.error(data.error || 'Failed to analyze screenshot')
       }
     } catch (error) {
-      console.error('❌ [TradeForm] Image upload error:', error)
-      toast.error('Failed to upload image. Please try again.')
+      console.error('❌ [TradeForm] Screenshot analysis error:', error)
+      toast.error('Failed to analyze screenshot. Please try again.')
     } finally {
-      setUploadingImage(false)
-      // Reset file input
+      setAnalyzingScreenshot(false)
+      e.target.value = ''
+    }
+  }
+
+  // Handle MT5 file upload
+  const handleMT5Upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File too large. Maximum size is 5MB.')
+      return
+    }
+
+    setUploadingMT5(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await fetch('/api/import/file', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        // Auto-fill form with imported data
+        if (data.data.symbol) onFormChange('symbol', data.data.symbol)
+        if (data.data.type) onTypeChange(data.data.type)
+        if (data.data.lot_size) onFormChange('lot_size', data.data.lot_size.toString())
+        if (data.data.open_price) onFormChange('open_price', data.data.open_price.toString())
+        if (data.data.close_price) onFormChange('close_price', data.data.close_price.toString())
+        if (data.data.profit_loss) onFormChange('profit_loss', data.data.profit_loss.toString())
+        if (data.data.open_time) onFormChange('open_time', data.data.open_time)
+        if (data.data.close_time) onFormChange('close_time', data.data.close_time)
+
+        toast.success('✅ MT5 file imported successfully! Form auto-filled.')
+      } else {
+        toast.error(data.error || 'Failed to import MT5 file')
+      }
+    } catch (error) {
+      console.error('❌ [TradeForm] MT5 import error:', error)
+      toast.error('Failed to import MT5 file. Please try again.')
+    } finally {
+      setUploadingMT5(false)
       e.target.value = ''
     }
   }
@@ -141,239 +200,290 @@ function TradeForm({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="symbol" className="flex items-center gap-2">
-            Symbol *
-            {getFieldStatus('symbol') === 'valid' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
-            {getFieldStatus('symbol') === 'invalid' && <AlertCircle className="w-4 h-4 text-red-400" />}
-          </Label>
-          <Input
-            id="symbol"
-            placeholder="EURUSD"
-            className={`bg-[#0a0712] border-purple-900/30 mt-1 transition-colors ${
-              getFieldStatus('symbol') === 'invalid' ? 'border-red-500/50 focus:border-red-500' :
-              getFieldStatus('symbol') === 'valid' ? 'border-emerald-500/50 focus:border-emerald-500' : ''
-            }`}
-            value={formData.symbol}
-            onChange={(e) => handleFieldChange('symbol', e.target.value)}
-            onBlur={() => handleFieldBlur('symbol')}
-          />
-          {errors.symbol && touched.symbol && (
-            <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" /> {errors.symbol}
-            </p>
-          )}
+      {/* Quick Import Section - Show First */}
+      <div className="bg-gradient-to-r from-purple-500/10 to-violet-600/10 rounded-lg border border-purple-900/30 p-4">
+        <Label className="text-sm font-semibold text-purple-300 mb-3 block flex items-center gap-2">
+          <Sparkles className="w-4 h-4" />
+          Quick Import - Choose One
+        </Label>
+        <div className="grid grid-cols-2 gap-3">
+          {/* Screenshot AI Analysis */}
+          <div>
+            <Input
+              id="screenshot"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="bg-[#0a0712] border-purple-900/30 text-xs"
+              onChange={handleScreenshotUpload}
+              disabled={analyzingScreenshot}
+            />
+            <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-400">
+              {analyzingScreenshot ? (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin text-purple-400" />
+                  <span className="text-purple-400">Analyzing with AI...</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="w-3 h-3" />
+                  <span>Screenshot (AI Auto-fill)</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* MT5 File Import */}
+          <div>
+            <Input
+              id="mt5-file"
+              type="file"
+              accept=".csv,.txt,.xlsx,.xls"
+              className="bg-[#0a0712] border-purple-900/30 text-xs"
+              onChange={handleMT5Upload}
+              disabled={uploadingMT5}
+            />
+            <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-400">
+              {uploadingMT5 ? (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin text-purple-400" />
+                  <span className="text-purple-400">Importing...</span>
+                </>
+              ) : (
+                <>
+                  <FileText className="w-3 h-3" />
+                  <span>MT5 Statement</span>
+                </>
+              )}
+            </div>
+          </div>
         </div>
+        <p className="text-[10px] text-gray-500 mt-2">
+          Upload a screenshot for AI extraction OR MT5 file for direct import. You can also fill the form manually below.
+        </p>
+      </div>
+
+      {/* Manual Entry Section */}
+      <div className="border-t border-purple-900/30 pt-4">
+        <Label className="text-xs font-semibold text-gray-400 mb-3 block">
+          Or Fill Manually
+        </Label>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="symbol" className="flex items-center gap-2">
+              Symbol *
+              {getFieldStatus('symbol') === 'valid' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+              {getFieldStatus('symbol') === 'invalid' && <AlertCircle className="w-4 h-4 text-red-400" />}
+            </Label>
+            <Input
+              id="symbol"
+              placeholder="EURUSD"
+              className={`bg-[#0a0712] border-purple-900/30 mt-1 transition-colors ${
+                getFieldStatus('symbol') === 'invalid' ? 'border-red-500/50 focus:border-red-500' :
+                getFieldStatus('symbol') === 'valid' ? 'border-emerald-500/50 focus:border-emerald-500' : ''
+              }`}
+              value={formData.symbol}
+              onChange={(e) => handleFieldChange('symbol', e.target.value)}
+              onBlur={() => handleFieldBlur('symbol')}
+            />
+            {errors.symbol && touched.symbol && (
+              <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" /> {errors.symbol}
+              </p>
+            )}
+          </div>
+          <div>
+            <Label htmlFor="type">Type</Label>
+            <Select value={formData.type} onValueChange={onTypeChange}>
+              <SelectTrigger id="type" className="bg-[#0a0712] border-purple-900/30 mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-[#0f0b18] border-purple-900/30">
+                <SelectItem value="BUY">BUY</SelectItem>
+                <SelectItem value="SELL">SELL</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="open_price" className="flex items-center gap-2">
+              Open Price *
+              {getFieldStatus('open_price') === 'valid' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+              {getFieldStatus('open_price') === 'invalid' && <AlertCircle className="w-4 h-4 text-red-400" />}
+            </Label>
+            <Input
+              id="open_price"
+              type="number"
+              step="0.0001"
+              placeholder="1.0850"
+              className={`bg-[#0a0712] border-purple-900/30 mt-1 transition-colors ${
+                getFieldStatus('open_price') === 'invalid' ? 'border-red-500/50 focus:border-red-500' :
+                getFieldStatus('open_price') === 'valid' ? 'border-emerald-500/50 focus:border-emerald-500' : ''
+              }`}
+              value={formData.open_price}
+              onChange={(e) => handleFieldChange('open_price', e.target.value)}
+              onBlur={() => handleFieldBlur('open_price')}
+            />
+            {errors.open_price && touched.open_price && (
+              <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" /> {errors.open_price}
+              </p>
+            )}
+          </div>
+          <div>
+            <Label htmlFor="close_price" className="flex items-center gap-2">
+              Close Price *
+              {getFieldStatus('close_price') === 'valid' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+              {getFieldStatus('close_price') === 'invalid' && <AlertCircle className="w-4 h-4 text-red-400" />}
+            </Label>
+            <Input
+              id="close_price"
+              type="number"
+              step="0.0001"
+              placeholder="1.0890"
+              className={`bg-[#0a0712] border-purple-900/30 mt-1 transition-colors ${
+                getFieldStatus('close_price') === 'invalid' ? 'border-red-500/50 focus:border-red-500' :
+                getFieldStatus('close_price') === 'valid' ? 'border-emerald-500/50 focus:border-emerald-500' : ''
+              }`}
+              value={formData.close_price}
+              onChange={(e) => handleFieldChange('close_price', e.target.value)}
+              onBlur={() => handleFieldBlur('close_price')}
+            />
+            {errors.close_price && touched.close_price && (
+              <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" /> {errors.close_price}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="lot_size" className="flex items-center gap-2">
+              Lot Size
+              {getFieldStatus('lot_size') === 'valid' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+              {getFieldStatus('lot_size') === 'invalid' && <AlertCircle className="w-4 h-4 text-red-400" />}
+            </Label>
+            <Input
+              id="lot_size"
+              type="number"
+              step="0.01"
+              min="0.01"
+              placeholder="0.1"
+              className={`bg-[#0a0712] border-purple-900/30 mt-1 transition-colors ${
+                getFieldStatus('lot_size') === 'invalid' ? 'border-red-500/50 focus:border-red-500' :
+                getFieldStatus('lot_size') === 'valid' ? 'border-emerald-500/50 focus:border-emerald-500' : ''
+              }`}
+              value={formData.lot_size}
+              onChange={(e) => handleFieldChange('lot_size', e.target.value)}
+              onBlur={() => handleFieldBlur('lot_size')}
+            />
+            {errors.lot_size && touched.lot_size && (
+              <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" /> {errors.lot_size}
+              </p>
+            )}
+          </div>
+          <div>
+            <Label htmlFor="profit_loss" className="flex items-center gap-2">
+              P/L ($) *
+              {getFieldStatus('profit_loss') === 'valid' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+              {getFieldStatus('profit_loss') === 'invalid' && <AlertCircle className="w-4 h-4 text-red-400" />}
+            </Label>
+            <Input
+              id="profit_loss"
+              type="number"
+              step="0.01"
+              placeholder="400"
+              className={`bg-[#0a0712] border-purple-900/30 mt-1 transition-colors ${
+                getFieldStatus('profit_loss') === 'invalid' ? 'border-red-500/50 focus:border-red-500' :
+                getFieldStatus('profit_loss') === 'valid' ? 'border-emerald-500/50 focus:border-emerald-500' : ''
+              }`}
+              value={formData.profit_loss}
+              onChange={(e) => handleFieldChange('profit_loss', e.target.value)}
+              onBlur={() => handleFieldBlur('profit_loss')}
+            />
+            {errors.profit_loss && touched.profit_loss && (
+              <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" /> {errors.profit_loss}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="open_time">Open Time</Label>
+            <Input
+              id="open_time"
+              type="datetime-local"
+              className="bg-[#0a0712] border-purple-900/30 mt-1"
+              value={formData.open_time ? formData.open_time.slice(0, 16) : ''}
+              onChange={(e) => onFormChange('open_time', e.target.value ? datetimeLocalToFormat(e.target.value) : '')}
+            />
+          </div>
+          <div>
+            <Label htmlFor="close_time">Close Time</Label>
+            <Input
+              id="close_time"
+              type="datetime-local"
+              className="bg-[#0a0712] border-purple-900/30 mt-1"
+              value={formData.close_time ? formData.close_time.slice(0, 16) : ''}
+              onChange={(e) => onFormChange('close_time', e.target.value ? datetimeLocalToFormat(e.target.value) : '')}
+            />
+          </div>
+        </div>
+
         <div>
-          <Label htmlFor="type">Type</Label>
-          <Select value={formData.type} onValueChange={onTypeChange}>
-            <SelectTrigger id="type" className="bg-[#0a0712] border-purple-900/30 mt-1">
-              <SelectValue />
+          <Label htmlFor="session">Session</Label>
+          <Select value={formData.session} onValueChange={onSessionChange}>
+            <SelectTrigger id="session" className="bg-[#0a0712] border-purple-900/30 mt-1">
+              <SelectValue placeholder="Select session" />
             </SelectTrigger>
             <SelectContent className="bg-[#0f0b18] border-purple-900/30">
-              <SelectItem value="BUY">BUY</SelectItem>
-              <SelectItem value="SELL">SELL</SelectItem>
+              <SelectItem value="London">London</SelectItem>
+              <SelectItem value="New York">New York</SelectItem>
+              <SelectItem value="Asia">Asia</SelectItem>
+              <SelectItem value="Off-Market">Off-Market</SelectItem>
             </SelectContent>
           </Select>
         </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
+
         <div>
-          <Label htmlFor="open_price" className="flex items-center gap-2">
-            Open Price *
-            {getFieldStatus('open_price') === 'valid' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
-            {getFieldStatus('open_price') === 'invalid' && <AlertCircle className="w-4 h-4 text-red-400" />}
-          </Label>
-          <Input
-            id="open_price"
-            type="number"
-            step="0.0001"
-            placeholder="1.0850"
-            className={`bg-[#0a0712] border-purple-900/30 mt-1 transition-colors ${
-              getFieldStatus('open_price') === 'invalid' ? 'border-red-500/50 focus:border-red-500' :
-              getFieldStatus('open_price') === 'valid' ? 'border-emerald-500/50 focus:border-emerald-500' : ''
-            }`}
-            value={formData.open_price}
-            onChange={(e) => handleFieldChange('open_price', e.target.value)}
-            onBlur={() => handleFieldBlur('open_price')}
-          />
-          {errors.open_price && touched.open_price && (
-            <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" /> {errors.open_price}
-            </p>
-          )}
-        </div>
-        <div>
-          <Label htmlFor="close_price" className="flex items-center gap-2">
-            Close Price *
-            {getFieldStatus('close_price') === 'valid' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
-            {getFieldStatus('close_price') === 'invalid' && <AlertCircle className="w-4 h-4 text-red-400" />}
-          </Label>
-          <Input
-            id="close_price"
-            type="number"
-            step="0.0001"
-            placeholder="1.0890"
-            className={`bg-[#0a0712] border-purple-900/30 mt-1 transition-colors ${
-              getFieldStatus('close_price') === 'invalid' ? 'border-red-500/50 focus:border-red-500' :
-              getFieldStatus('close_price') === 'valid' ? 'border-emerald-500/50 focus:border-emerald-500' : ''
-            }`}
-            value={formData.close_price}
-            onChange={(e) => handleFieldChange('close_price', e.target.value)}
-            onBlur={() => handleFieldBlur('close_price')}
-          />
-          {errors.close_price && touched.close_price && (
-            <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" /> {errors.close_price}
-            </p>
-          )}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="lot_size" className="flex items-center gap-2">
-            Lot Size
-            {getFieldStatus('lot_size') === 'valid' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
-            {getFieldStatus('lot_size') === 'invalid' && <AlertCircle className="w-4 h-4 text-red-400" />}
-          </Label>
-          <Input
-            id="lot_size"
-            type="number"
-            step="0.01"
-            min="0.01"
-            placeholder="0.1"
-            className={`bg-[#0a0712] border-purple-900/30 mt-1 transition-colors ${
-              getFieldStatus('lot_size') === 'invalid' ? 'border-red-500/50 focus:border-red-500' :
-              getFieldStatus('lot_size') === 'valid' ? 'border-emerald-500/50 focus:border-emerald-500' : ''
-            }`}
-            value={formData.lot_size}
-            onChange={(e) => handleFieldChange('lot_size', e.target.value)}
-            onBlur={() => handleFieldBlur('lot_size')}
-          />
-          {errors.lot_size && touched.lot_size && (
-            <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" /> {errors.lot_size}
-            </p>
-          )}
-        </div>
-        <div>
-          <Label htmlFor="profit_loss" className="flex items-center gap-2">
-            P/L ($) *
-            {getFieldStatus('profit_loss') === 'valid' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
-            {getFieldStatus('profit_loss') === 'invalid' && <AlertCircle className="w-4 h-4 text-red-400" />}
-          </Label>
-          <Input
-            id="profit_loss"
-            type="number"
-            step="0.01"
-            placeholder="400"
-            className={`bg-[#0a0712] border-purple-900/30 mt-1 transition-colors ${
-              getFieldStatus('profit_loss') === 'invalid' ? 'border-red-500/50 focus:border-red-500' :
-              getFieldStatus('profit_loss') === 'valid' ? 'border-emerald-500/50 focus:border-emerald-500' : ''
-            }`}
-            value={formData.profit_loss}
-            onChange={(e) => handleFieldChange('profit_loss', e.target.value)}
-            onBlur={() => handleFieldBlur('profit_loss')}
-          />
-          {errors.profit_loss && touched.profit_loss && (
-            <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" /> {errors.profit_loss}
-            </p>
-          )}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="open_time">Open Time</Label>
-          <Input
-            id="open_time"
-            type="datetime-local"
-            className="bg-[#0a0712] border-purple-900/30 mt-1"
-            value={formData.open_time ? formData.open_time.slice(0, 16) : ''}
-            onChange={(e) => onFormChange('open_time', e.target.value ? datetimeLocalToFormat(e.target.value) : '')}
-          />
-        </div>
-        <div>
-          <Label htmlFor="close_time">Close Time</Label>
-          <Input
-            id="close_time"
-            type="datetime-local"
-            className="bg-[#0a0712] border-purple-900/30 mt-1"
-            value={formData.close_time ? formData.close_time.slice(0, 16) : ''}
-            onChange={(e) => onFormChange('close_time', e.target.value ? datetimeLocalToFormat(e.target.value) : '')}
+          <Label htmlFor="notes">Notes</Label>
+          <Textarea
+            id="notes"
+            placeholder="Trade notes, setup, emotions..."
+            className="bg-[#0a0712] border-purple-900/30 mt-1 resize-none"
+            rows={3}
+            value={formData.notes}
+            onChange={(e) => onFormChange('notes', e.target.value)}
           />
         </div>
       </div>
-      <div>
-        <Label htmlFor="session">Session</Label>
-        <Select value={formData.session} onValueChange={onSessionChange}>
-          <SelectTrigger id="session" className="bg-[#0a0712] border-purple-900/30 mt-1">
-            <SelectValue placeholder="Select session" />
-          </SelectTrigger>
-          <SelectContent className="bg-[#0f0b18] border-purple-900/30">
-            <SelectItem value="London">London</SelectItem>
-            <SelectItem value="New York">New York</SelectItem>
-            <SelectItem value="Asia">Asia</SelectItem>
-            <SelectItem value="Off-Market">Off-Market</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div>
-        <Label htmlFor="notes">Notes</Label>
-        <Textarea
-          id="notes"
-          placeholder="Trade notes, setup, emotions..."
-          className="bg-[#0a0712] border-purple-900/30 mt-1 resize-none"
-          rows={3}
-          value={formData.notes}
-          onChange={(e) => onFormChange('notes', e.target.value)}
-        />
-      </div>
-      {/* Image Upload */}
-      <div>
-        <Label htmlFor="image">Trade Screenshot (Optional)</Label>
-        <div className="mt-1">
-          {!formData.image_url ? (
-            <div className="relative">
-              <Input
-                id="image"
-                type="file"
-                accept="image/*"
-                className="bg-[#0a0712] border-purple-900/30"
-                onChange={handleImageUpload}
-                disabled={uploadingImage}
-              />
-              {uploadingImage && (
-                <div className="absolute inset-0 bg-black/50 rounded-md flex items-center justify-center">
-                  <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
-                </div>
-              )}
-              <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
-                <Upload className="w-3 h-3" />
-                <span>Upload trade screenshot (Max 10MB - JPEG/PNG/WebP)</span>
-              </div>
-            </div>
-          ) : (
-            <div className="relative group">
-              <img
-                src={formData.image_url}
-                alt="Trade preview"
-                className="w-full h-32 object-cover rounded-lg border border-purple-900/30"
-              />
-              <button
-                onClick={() => onFormChange('image_url', '')}
-                className="absolute top-2 right-2 p-1.5 bg-red-500/80 hover:bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all"
-              >
-                <X className="w-4 h-4" />
-              </button>
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
-                <p className="text-white text-sm font-medium">Click to remove</p>
-              </div>
-            </div>
-          )}
+
+      {/* Screenshot Preview */}
+      {formData.image_url && (
+        <div className="relative group">
+          <div className="rounded-lg overflow-hidden border border-purple-900/30">
+            <img
+              src={formData.image_url}
+              alt="Trade screenshot"
+              className="w-full h-40 object-cover"
+            />
+          </div>
+          <button
+            onClick={() => onFormChange('image_url', '')}
+            className="absolute top-2 right-2 p-1.5 bg-red-500/80 hover:bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
-      </div>
+      )}
+
+      {/* Action Buttons */}
       <div className="flex gap-3 pt-2">
         <Button
           onClick={onSave}
@@ -384,7 +494,7 @@ function TradeForm({
         >
           {saving ? (
             <>
-              <span className="inline-block animate-spin mr-2">⟳</span>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               Saving...
             </>
           ) : isEdit ? 'Update Trade' : 'Add Trade'}
