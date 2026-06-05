@@ -1,13 +1,12 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Menu, RefreshCw, Upload, Plus, LogOut, Wallet, Camera } from 'lucide-react'
+import { Menu, RefreshCw, Upload, Plus, LogOut, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import NotificationCenter from '@/components/NotificationCenter'
+import { NotificationCenter } from '@/components/NotificationCenter'
 import TradeWizardForm from './TradeWizardForm'
 import AddAccountForm from './AddAccountForm'
-import ScreenshotJournalModal from './ScreenshotJournalModal'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 interface HeaderProps {
@@ -37,10 +36,6 @@ interface HeaderProps {
   tradingAccounts?: any[]
   isAddAccountOpen?: boolean
   setAddAccountOpen?: (open: boolean) => void
-  screenshotJournalOpen?: boolean
-  setScreenshotJournalOpen?: (open: boolean) => void
-  handleSaveJournalFromScreenshot?: (journal: any) => Promise<boolean>
-  handleSaveTradeFromScreenshot?: (trade: any) => Promise<boolean>
 }
 
 export default function Header({
@@ -69,11 +64,7 @@ export default function Header({
   userInitials,
   tradingAccounts = [],
   isAddAccountOpen = false,
-  setAddAccountOpen = () => {},
-  screenshotJournalOpen = false,
-  setScreenshotJournalOpen = () => {},
-  handleSaveJournalFromScreenshot = async () => false,
-  handleSaveTradeFromScreenshot = async () => false
+  setAddAccountOpen = () => {}
 }: HeaderProps) {
   return (
     <header className="h-16 border-b border-purple-900/30 flex items-center justify-between px-4 lg:px-6 bg-[#0f0b18]/90 backdrop-blur-md sticky top-0 z-30">
@@ -108,15 +99,6 @@ export default function Header({
           />
           <span className="text-xs text-emerald-400">Connected</span>
         </div>
-
-        <button
-          onClick={() => setScreenshotJournalOpen(true)}
-          className="flex px-2 sm:px-3 py-2 rounded-lg bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-400 border border-emerald-500/30 hover:from-emerald-500/30 hover:to-teal-500/30 transition-all text-sm font-medium items-center gap-1 sm:gap-2"
-          title="Screenshot → Auto Journal"
-        >
-          <Camera className="w-4 h-4 flex-shrink-0" />
-          <span className="hidden sm:inline">SS Journal</span>
-        </button>
 
         <button
           onClick={() => setSmartImportOpen(true)}
@@ -172,13 +154,6 @@ export default function Header({
           open={isAddAccountOpen}
           onOpenChange={setAddAccountOpen}
           onSuccess={fetchData}
-        />
-
-        <ScreenshotJournalModal
-          open={screenshotJournalOpen}
-          onOpenChange={setScreenshotJournalOpen}
-          onSaveJournal={handleSaveJournalFromScreenshot}
-          onSaveTrade={handleSaveTradeFromScreenshot}
         />
 
         {user && (

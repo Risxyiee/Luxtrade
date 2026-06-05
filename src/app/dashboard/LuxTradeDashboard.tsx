@@ -216,9 +216,6 @@ function LuxTradeDashboardContent() {
   const [smartImportFile, setSmartImportFile] = useState<File | null>(null)
   const [smartImportParsing, setSmartImportParsing] = useState(false)
 
-  // Screenshot → Auto Journal
-  const [screenshotJournalOpen, setScreenshotJournalOpen] = useState(false)
-
   // Universal Trade Importer - 2 Tabs
   const [importTab, setImportTab] = useState<'screenshot' | 'file'>('screenshot')
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
@@ -622,39 +619,8 @@ function LuxTradeDashboardContent() {
     fetchData
   })
 
-  // ==================== SCREENSHOT JOURNAL HANDLERS ====================
-
-  const handleSaveJournalFromScreenshot = useCallback(async (journal: any) => {
-    try {
-      const res = await fetch('/api/journal-entries', {
-        method: 'POST',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify(journal)
-      })
-      return res.ok
-    } catch {
-      return false
-    }
-  }, [getAuthHeaders])
-
-  const handleSaveTradeFromScreenshot = useCallback(async (trade: any) => {
-    try {
-      const res = await fetch('/api/trades', {
-        method: 'POST',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...trade, account_id: selectedAccountId })
-      })
-      if (res.ok) {
-        fetchData()
-      }
-      return res.ok
-    } catch {
-      return false
-    }
-  }, [getAuthHeaders, selectedAccountId, fetchData])
-
   // ==================== AI INSIGHTS ====================
-  
+
   const getPerformanceTips = async () => {
     if (!analytics || analytics.totalTrades < 5) {
       toast.error('Add at least 5 trades to get AI insights')
@@ -818,10 +784,6 @@ function LuxTradeDashboardContent() {
           setFormData={setFormData}
           emptyFormData={emptyFormData}
           setSmartImportOpen={setSmartImportOpen}
-          screenshotJournalOpen={screenshotJournalOpen}
-          setScreenshotJournalOpen={setScreenshotJournalOpen}
-          handleSaveJournalFromScreenshot={handleSaveJournalFromScreenshot}
-          handleSaveTradeFromScreenshot={handleSaveTradeFromScreenshot}
           user={user}
           handleSignOut={handleSignOut}
           userInitials={userInitials}
