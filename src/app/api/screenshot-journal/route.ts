@@ -3,7 +3,6 @@ import { createClientForApi } from '@/lib/supabase/server'
 import { analyzeImageWithHuggingFace } from '@/lib/huggingface-vision'
 import { analyzeImageWithOllama, generateJournalEntry, checkOllamaHealth } from '@/lib/ollama-vision'
 import { analyzeImageWithZAIVision } from '@/lib/zai-vision'
-import { performOCR, parseJournalData, cleanupOCR } from '@/lib/tesseract-ocr'
 
 // ==================== TYPES ====================
 interface ExtractedTrade {
@@ -208,36 +207,42 @@ function normalizeMarketCondition(condition: string): string {
   return 'ranging'
 }
 
-// ==================== HELPER: Tesseract OCR (FREE) ====================
-async function analyzeWithTesseract(
-  base64Image: string,
-  mimeType: string
-): Promise<VLMResponse> {
-  console.log('🔍 [Screenshot Journal] Using Tesseract OCR (FREE)...')
+// ==================== HELPER: Parse with Fallback (No OCR) ====================
+async function analyzeWithFallback(): Promise<VLMResponse> {
+  console.log('⚠️ [Screenshot Journal] Using fallback - returning empty template')
 
-  try {
-    const imageBuffer = Buffer.from(base64Image, 'base64')
-
-    // Perform OCR
-    const ocrResult = await performOCR(imageBuffer, {
-      language: 'eng',
-      oem: 3,
-      psm: 6
-    })
-
-    // Parse journal data from OCR text
-    const journalData = parseJournalData(ocrResult.text)
-
-    console.log(`✅ [Screenshot Journal] Tesseract OCR completed with ${ocrResult.confidence.toFixed(1)}% confidence`)
-    return journalData
-
-  } catch (error: any) {
-    console.error('❌ [Screenshot Journal] Tesseract OCR failed:', error.message)
-    throw new Error('Tesseract OCR failed: ' + error.message)
+  // Return empty template for manual input
+  return {
+    trade: {
+      symbol: '',
+      type: 'BUY',
+      open_price: 0,
+      close_price: 0,
+      stop_loss: 0,
+      take_profit: 0,
+      lot_size: 0,
+      profit_loss: 0,
+      open_time: new Date().toISOString(),
+      close_time: new Date().toISOString(),
+      swap: 0,
+      commission: 0,
+      order_id: '',
+      platform: 'MT5'
+    },
+    journal: {
+      title: 'New Trade',
+      content: 'Please fill in the trade details manually. Screenshot analysis is currently unavailable.',
+      mood: 'neutral',
+      market_condition: 'ranging',
+      tags: ['manual'],
+      setup_type: '',
+      risk_reward_ratio: 0
+    },
+    raw_analysis: 'No OCR services available in this environment'
   }
 }
 
-// ==================== HELPER: Call VLM with Hugging Face + Ollama + Z.ai Vision + Tesseract + OpenAI Fallback ====================
+// ==================== HELPER: Call VLM with Hugging Face + Ollama + Z.ai Vision Fallback ====================
 async function analyzeScreenshotWithVLM(
   base64Image: string,
   mimeType: string
@@ -364,20 +369,12 @@ async function analyzeScreenshotWithVLM(
     console.log(`✅ [Screenshot Journal] Z.ai Vision analysis completed`)
     return parsed
   } catch (error: any) {
-    console.log('⚠️ [Screenshot Journal] Z.ai Vision failed, trying Tesseract OCR:', error.message)
+    console.log('⚠️ [Screenshot Journal] Z.ai Vision failed, using fallback:', error.message)
   }
 
-  // Step 4: Try Tesseract OCR (FREE, client-side)
-  console.log('🤖 [Screenshot Journal] Using Tesseract OCR (FREE)...')
-
-  try {
-    const result = await analyzeWithTesseract(base64Image, mimeType)
-    console.log(`✅ [Screenshot Journal] Tesseract OCR analysis completed`)
-    return result
-  } catch (error: any) {
-    console.log('⚠️ [Screenshot Journal] Tesseract OCR failed, all services failed:', error.message)
-    throw new Error('All AI/OCR services failed: ' + error.message)
-  }
+  // Step 4: Use fallback (no OCR available)
+  console.log('⚠️ [Screenshot Journal] All AI services failed, using fallback template')
+  return analyzeWithFallback()
 }
 
 // ==================== HELPER: Get authenticated user ====================
@@ -501,9 +498,6 @@ export async function POST(request: NextRequest) {
       mood: parsed.journal.mood
     })
 
-    // Cleanup OCR worker
-    await cleanupOCR().catch(err => console.warn('Cleanup warning:', err))
-
     // Step 6: Return structured data
     return NextResponse.json({
       success: true,
@@ -514,9 +508,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ [Screenshot Journal] Error:', error)
-
-    // Cleanup OCR worker on error
-    await cleanupOCR().catch(err => console.warn('Cleanup warning:', err))
 
     if (error instanceof Error) {
       // Handle network/connection errors
