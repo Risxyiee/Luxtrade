@@ -6,7 +6,32 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseClient } from '@/lib/supabase/server-client'
+import { db } from '@/lib/db'
+import { createClientForApi } from '@/lib/supabase/server'
+
+// Helper: Get authenticated user from request
+async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
+  try {
+    const { supabase } = createClientForApi(request)
+    const { data: { user }, error } = await supabase.auth.getUser()
+
+    if (error) {
+      console.error('❌ [API] Supabase auth error:', error.message)
+      return null
+    }
+
+    if (!user) {
+      console.log('❌ [API] No user found in session')
+      return null
+    }
+
+    console.log('✅ [API] Authenticated user:', { id: user.id, email: user.email })
+    return { id: user.id, email: user.email || '' }
+  } catch (error) {
+    console.error('❌ [API] Auth error:', error)
+    return null
+  }
+}
 
 // GET: Fetch a specific trading account
 export async function GET(
@@ -15,32 +40,25 @@ export async function GET(
 ) {
   try {
     const params = await context.params
-    const supabase = await createSupabaseClient(req)
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const authUser = await getAuthUser(req)
 
-    if (authError || !user) {
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Create admin client
-    const { createClient: createAdminClient } = await import('@supabase/supabase-js')
-    const supabaseAdmin = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const account = await db.tradingAccount.findFirst({
+      where: {
+        id: params.id,
+        user_id: authUser.id,
+        is_active: true
+      }
+    })
 
-    const { data, error } = await supabaseAdmin
-      .from('trading_accounts')
-      .select('*')
-      .eq('id', params.id)
-      .eq('user_id', user.id)
-      .single()
-
-    if (error) {
+    if (!account) {
       return NextResponse.json({ error: 'Trading account not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ success: true, data })
+    return NextResponse.json({ success: true, data: account })
   } catch (error) {
     console.error('Error fetching trading account:', error)
     return NextResponse.json(
@@ -57,10 +75,9 @@ export async function PATCH(
 ) {
   try {
     const params = await context.params
-    const supabase = await createSupabaseClient(req)
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const authUser = await getAuthUser(req)
 
-    if (authError || !user) {
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -73,28 +90,34 @@ export async function PATCH(
     if (body.status !== undefined) {
       updates.status = body.status
     }
-
-    // Create admin client
-    const { createClient: createAdminClient } = await import('@supabase/supabase-js')
-    const supabaseAdmin = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-
-    const { data, error } = await supabaseAdmin
-      .from('trading_accounts')
-      .update(updates)
-      .eq('id', params.id)
-      .eq('user_id', user.id)
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Error updating trading account:', error)
-      return NextResponse.json({ error: 'Failed to update trading account' }, { status: 500 })
+    if (body.is_default !== undefined) {
+      updates.is_default = body.is_default
+    }
+    if (body.name !== undefined) {
+      updates.name = body.name
+    }
+    if (body.current_balance !== undefined) {
+      updates.current_balance = body.current_balance
     }
 
-    return NextResponse.json({ success: true, data })
+    const account = await db.tradingAccount.updateMany({
+      where: {
+        id: params.id,
+        user_id: authUser.id
+      },
+      data: updates
+    })
+
+    if (account.count === 0) {
+      return NextResponse.json({ error: 'Trading account not found' }, { status: 404 })
+    }
+
+    // Fetch updated account
+    const updatedAccount = await db.tradingAccount.findUnique({
+      where: { id: params.id }
+    })
+
+    return NextResponse.json({ success: true, data: updatedAccount })
   } catch (error) {
     console.error('Error updating trading account:', error)
     return NextResponse.json(
@@ -111,74 +134,59 @@ export async function DELETE(
 ) {
   try {
     const params = await context.params
-    const supabase = await createSupabaseClient(req)
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const authUser = await getAuthUser(req)
 
-    if (authError || !user) {
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Create admin client
-    const { createClient: createAdminClient } = await import('@supabase/supabase-js')
-    const supabaseAdmin = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-
     // Get the account to be deleted first (to check if it's default)
-    const { data: accountToDelete, error: fetchError } = await supabaseAdmin
-      .from('trading_accounts')
-      .select('id, name, is_default')
-      .eq('id', params.id)
-      .eq('user_id', user.id)
-      .single()
+    const accountToDelete = await db.tradingAccount.findFirst({
+      where: {
+        id: params.id,
+        user_id: authUser.id,
+        is_active: true
+      }
+    })
 
-    if (fetchError || !accountToDelete) {
+    if (!accountToDelete) {
       return NextResponse.json({ error: 'Trading account not found' }, { status: 404 })
     }
 
     // Check if this is the last account - prevent deletion
-    const { data: allAccounts, error: countError } = await supabaseAdmin
-      .from('trading_accounts')
-      .select('id')
-      .eq('user_id', user.id)
+    const allAccounts = await db.tradingAccount.findMany({
+      where: {
+        user_id: authUser.id,
+        is_active: true
+      }
+    })
 
-    if (countError) {
-      return NextResponse.json({ error: 'Failed to check account count' }, { status: 500 })
-    }
-
-    if (allAccounts && allAccounts.length <= 1) {
+    if (allAccounts.length <= 1) {
       return NextResponse.json({ error: 'Cannot delete the last account. At least 1 account is required.' }, { status: 400 })
     }
 
     // Delete the account
-    const { error: deleteError } = await supabaseAdmin
-      .from('trading_accounts')
-      .delete()
-      .eq('id', params.id)
-      .eq('user_id', user.id)
-
-    if (deleteError) {
-      console.error('Error deleting trading account:', deleteError)
-      return NextResponse.json({ error: 'Failed to delete trading account' }, { status: 500 })
-    }
+    await db.tradingAccount.delete({
+      where: { id: params.id }
+    })
 
     // If we deleted the default account, set another account as default
     if (accountToDelete.is_default) {
       // Get the first remaining account
-      const { data: remainingAccounts } = await supabaseAdmin
-        .from('trading_accounts')
-        .select('id')
-        .eq('user_id', user.id)
-        .limit(1)
+      const remainingAccounts = await db.tradingAccount.findMany({
+        where: {
+          user_id: authUser.id,
+          is_active: true
+        },
+        take: 1
+      })
 
-      if (remainingAccounts && remainingAccounts.length > 0) {
+      if (remainingAccounts.length > 0) {
         // Set it as default
-        await supabaseAdmin
-          .from('trading_accounts')
-          .update({ is_default: true })
-          .eq('id', remainingAccounts[0].id)
-          .eq('user_id', user.id)
+        await db.tradingAccount.update({
+          where: { id: remainingAccounts[0].id },
+          data: { is_default: true }
+        })
       }
     }
 
