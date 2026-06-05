@@ -9,9 +9,10 @@ const COMMISSION_PER_PRO = 14700
 // POST activate a subscription
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params
     const { id } = params
     const body = await request.json()
     const { endDate, paymentMethod, adminNote } = body

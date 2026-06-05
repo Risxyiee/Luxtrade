@@ -29,9 +29,10 @@ async function getAuthUser(request: NextRequest): Promise<{ id: string; email: s
 // DELETE /api/social-links/[id] - Delete a social link (user's own only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params
     const authUser = await getAuthUser(request)
 
     if (!authUser) {

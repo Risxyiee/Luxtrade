@@ -44,9 +44,10 @@ async function isAdmin(userId: string): Promise<boolean> {
 // PATCH /api/admin/social-links/[id] - Approve or reject a social link (admin only)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params
     const authUser = await getAuthUser(request)
 
     if (!authUser) {
@@ -134,9 +135,10 @@ export async function PATCH(
 // DELETE /api/admin/social-links/[id] - Delete a social link (admin only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params
     const authUser = await getAuthUser(request)
 
     if (!authUser) {

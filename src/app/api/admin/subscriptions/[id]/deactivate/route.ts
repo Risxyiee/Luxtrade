@@ -4,9 +4,10 @@ import { db } from '@/lib/db'
 // POST deactivate a subscription
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params
     const { id } = params
     const body = await request.json()
     const { reason } = body
