@@ -1,0 +1,210 @@
+// DEVELOPMENT: SQLite schema for local development
+// PRODUCTION: Switch to schema.prisma.pgsql.backup for PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Profile {
+  id                String    @id @default(uuid())
+  email             String?
+  streakCount       Int       @default(0)
+  lastLoginAt       DateTime?
+  bestStreak        Int       @default(0)
+  achievements      String    @default("[]")
+  plan              String    @default("FREE")
+  proExpiry         DateTime?
+  role              String    @default("USER")
+  full_name         String?
+  is_pro            Boolean   @default(false)
+  subscription_until DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  submissions       UserSubmission[]
+  missionProgresses  MissionProgress[]
+  trades            Trade[]
+  journalEntries    JournalEntry[]
+  tags              Tag[]
+  weeklyGoals        WeeklyGoal[]
+  tradingAccounts   TradingAccount[]
+}
+
+model UserSubmission {
+  id              Int       @id @default(autoincrement())
+  userId          String
+  achievementKey  String
+  proofUrl        String?
+  status          String    @default("PENDING")
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  user            Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MissionProgress {
+  id              String    @id @default(uuid())
+  userId          String
+  missionKey      String
+  progress        Int       @default(0)
+  target          Int       @default(1)
+  completed       Boolean   @default(false)
+  claimed         Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  user            Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, missionKey])
+}
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  name              String?
+  emailVerified     DateTime?
+  image             String?
+  role              String    @default("USER")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  subscriptions     UserSubscription[]
+  withdrawals       Withdrawal[]
+}
+
+model UserSubscription {
+  id                String    @id @default(uuid())
+  userId            String
+  plan              String
+  status            String    @default("active")
+  startDate         DateTime  @default(now())
+  endDate           DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Withdrawal {
+  id                String    @id @default(uuid())
+  userId            String
+  amount            Float
+  bankName          String
+  bankAccount       String
+  bankHolder        String
+  status            String    @default("pending")
+  adminNote         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Trade {
+  id                String    @id @default(uuid())
+  user_id           String
+  account_id        String?
+  symbol            String
+  type              String
+  open_price        Float
+  close_price       Float
+  lot_size          Float
+  profit_loss       Float
+  open_time         DateTime
+  close_time        DateTime
+  session           String?
+  notes             String?
+  image_url         String?
+  screenshot_url    String?
+  emotion           String?
+  setup_type        String?
+  tags              String?
+  risk_reward_ratio Float?
+  trade_duration    Int?
+  linked_journal_id String?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  // Relations
+  user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  account           TradingAccount? @relation(fields: [account_id], references: [id])
+  linkedJournal     JournalEntry? @relation("TradeJournal", fields: [linked_journal_id], references: [id])
+}
+
+model JournalEntry {
+  id                String    @id @default(uuid())
+  user_id           String
+  title             String
+  content           String
+  mood              String?
+  market_condition  String?
+  tags              String?
+  image_url         String?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  // Relations
+  user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  linkedTrades      Trade[]   @relation("TradeJournal")
+}
+
+model Tag {
+  id                String    @id @default(uuid())
+  user_id           String
+  name              String
+  color             String    @default("#a855f7")
+  created_at        DateTime  @default(now())
+
+  // Relations
+  user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model WeeklyGoal {
+  id                String    @id @default(uuid())
+  user_id           String
+  week_start        DateTime
+  target_trades     Int       @default(10)
+  target_profit     Float?
+  current_trades    Int       @default(0)
+  current_profit    Float     @default(0)
+  status            String    @default("active")
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  // Relations
+  user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model TradingAccount {
+  id                String    @id @default(uuid())
+  user_id           String
+  name              String
+  broker            String?
+  account_type      String    @default("STANDARD")
+  account_number    String?
+  initial_balance   Float     @default(0)
+  current_balance   Float     @default(0)
+  leverage          Int       @default(100)
+  currency          String    @default("USD")
+  is_default        Boolean   @default(false)
+  is_active         Boolean   @default(true)
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  // Relations
+  user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  trades            Trade[]
+}
