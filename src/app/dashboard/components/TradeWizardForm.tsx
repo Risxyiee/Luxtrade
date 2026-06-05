@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { ArrowRight, ArrowLeft, Upload, CheckCircle, Sparkles, Loader2, X, Info, Wallet } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Upload, CheckCircle, Sparkles, Loader2, X, Info, Wallet, FileText } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { calculateForexProfitLoss, getPipInfo, formatTradingInput, AccountType } from '@/lib/trading-helpers'
@@ -81,6 +81,8 @@ export default function TradeWizardForm({
   const [selectedEmotion, setSelectedEmotion] = useState<string>(formData.emotion || '')
   const [uploadedImage, setUploadedImage] = useState<string | null>(formData.screenshot_url || null)
   const [uploading, setUploading] = useState(false)
+  const [analyzingScreenshot, setAnalyzingScreenshot] = useState(false)
+  const [uploadingMT5, setUploadingMT5] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const totalSteps = 3
 
@@ -164,6 +166,108 @@ export default function TradeWizardForm({
     setUploadedImage(null)
     onFormChange('screenshot_url', '')
     toast.success('Image removed')
+  }
+
+  // Handle screenshot upload with AI analysis
+  const handleScreenshotAnalysis = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File too large. Maximum size is 10MB.')
+      return
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Invalid file type. Please upload an image.')
+      return
+    }
+
+    setAnalyzingScreenshot(true)
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+
+      const res = await fetch('/api/analyze-screenshot', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        // Auto-fill form with extracted data
+        if (data.data.symbol) onFormChange('symbol', data.data.symbol)
+        if (data.data.type) onTypeChange(data.data.type)
+        if (data.data.lot_size) onFormChange('lot_size', data.data.lot_size.toString())
+        if (data.data.open_price) onFormChange('open_price', data.data.open_price.toString())
+        if (data.data.close_price) onFormChange('close_price', data.data.close_price.toString())
+        if (data.data.profit_loss) onFormChange('profit_loss', data.data.profit_loss.toString())
+        if (data.data.stop_loss) onFormChange('stop_loss', data.data.stop_loss.toString())
+        if (data.data.take_profit) onFormChange('take_profit', data.data.take_profit.toString())
+        if (data.image_url) onFormChange('screenshot_url', data.image_url)
+        if (data.image_url) setUploadedImage(data.image_url)
+
+        toast.success('✨ Screenshot analyzed! Form auto-filled with trading data.')
+      } else {
+        toast.error(data.error || 'Failed to analyze screenshot')
+      }
+    } catch (error) {
+      console.error('❌ [TradeWizardForm] Screenshot analysis error:', error)
+      toast.error('Failed to analyze screenshot. Please try again.')
+    } finally {
+      setAnalyzingScreenshot(false)
+      e.target.value = ''
+    }
+  }
+
+  // Handle MT5 file upload
+  const handleMT5Upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File too large. Maximum size is 5MB.')
+      return
+    }
+
+    setUploadingMT5(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await fetch('/api/import/file', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        // Auto-fill form with imported data
+        if (data.data.symbol) onFormChange('symbol', data.data.symbol)
+        if (data.data.type) onTypeChange(data.data.type)
+        if (data.data.lot_size) onFormChange('lot_size', data.data.lot_size.toString())
+        if (data.data.open_price) onFormChange('open_price', data.data.open_price.toString())
+        if (data.data.close_price) onFormChange('close_price', data.data.close_price.toString())
+        if (data.data.profit_loss) onFormChange('profit_loss', data.data.profit_loss.toString())
+        if (data.data.open_time) onFormChange('open_time', data.data.open_time)
+        if (data.data.close_time) onFormChange('close_time', data.data.close_time)
+
+        toast.success('✅ MT5 file imported successfully! Form auto-filled.')
+      } else {
+        toast.error(data.error || 'Failed to import MT5 file')
+      }
+    } catch (error) {
+      console.error('❌ [TradeWizardForm] MT5 import error:', error)
+      toast.error('Failed to import MT5 file. Please try again.')
+    } finally {
+      setUploadingMT5(false)
+      e.target.value = ''
+    }
   }
 
   const validateStep = (step: number): Record<string, string> => {
@@ -310,6 +414,68 @@ export default function TradeWizardForm({
             transition={{ duration: 0.3 }}
             className="space-y-4"
           >
+            {/* Quick Import Section - Show First in Step 1 */}
+            <div className="bg-gradient-to-r from-purple-500/10 to-violet-600/10 rounded-lg border border-purple-900/30 p-4">
+              <Label className="text-sm font-semibold text-purple-300 mb-3 block flex items-center gap-2">
+                <Sparkles className="w-4 h-4" />
+                Quick Import - Choose One
+              </Label>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Screenshot AI Analysis */}
+                <div>
+                  <Input
+                    id="screenshot"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="bg-[#0a0712] border-purple-900/30 text-xs"
+                    onChange={handleScreenshotAnalysis}
+                    disabled={analyzingScreenshot}
+                  />
+                  <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-400">
+                    {analyzingScreenshot ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin text-purple-400" />
+                        <span className="text-purple-400">Analyzing with AI...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-3 h-3" />
+                        <span>Screenshot (AI Auto-fill)</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* MT5 File Import */}
+                <div>
+                  <Input
+                    id="mt5-file"
+                    type="file"
+                    accept=".csv,.txt,.xlsx,.xls"
+                    className="bg-[#0a0712] border-purple-900/30 text-xs"
+                    onChange={handleMT5Upload}
+                    disabled={uploadingMT5}
+                  />
+                  <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-400">
+                    {uploadingMT5 ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin text-purple-400" />
+                        <span className="text-purple-400">Importing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-3 h-3" />
+                        <span>MT5 Statement</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <p className="text-[10px] text-gray-500 mt-2">
+                Upload a screenshot for AI extraction OR MT5 file for direct import. You can also fill the form manually below.
+              </p>
+            </div>
+
             <div className="space-y-4">
               <div>
                 <Label className="text-white font-semibold">Trading Pair *</Label>
@@ -674,7 +840,7 @@ export default function TradeWizardForm({
           <Button
             variant="outline"
             onClick={handlePrevious}
-            disabled={saving || uploading}
+            disabled={saving || uploading || analyzingScreenshot || uploadingMT5}
             className="border-purple-900/30 flex-1"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -684,7 +850,7 @@ export default function TradeWizardForm({
           <Button
             variant="outline"
             onClick={onCancel}
-            disabled={saving || uploading}
+            disabled={saving || uploading || analyzingScreenshot || uploadingMT5}
             className="border-purple-900/30 flex-1"
           >
             Cancel
@@ -694,7 +860,7 @@ export default function TradeWizardForm({
         {currentStep < totalSteps ? (
           <Button
             onClick={handleNext}
-            disabled={saving || uploading}
+            disabled={saving || uploading || analyzingScreenshot || uploadingMT5}
             className="flex-1 bg-gradient-to-r from-purple-500 to-violet-600"
           >
             Next
@@ -703,7 +869,7 @@ export default function TradeWizardForm({
         ) : (
           <Button
             onClick={handleSave}
-            disabled={saving || uploading}
+            disabled={saving || uploading || analyzingScreenshot || uploadingMT5}
             className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600"
           >
             {saving ? (
