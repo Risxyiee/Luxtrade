@@ -1,23 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { analyzeImageWithOpenAI } from '@/lib/openai-vision'
-import { promises as fs } from 'fs'
-import path from 'path'
+import { createClient } from '@supabase/supabase-js'
 
 /**
  * API Route: Analyze Trading Screenshot
  * Extracts trading data from screenshot using AI Vision
+ * Uploads image to Supabase Storage and returns URL
  */
 
-const UPLOAD_DIR = '/home/z/my-project/upload'
-
-// Ensure upload directory exists
-async function ensureUploadDir() {
-  try {
-    await fs.access(UPLOAD_DIR)
-  } catch {
-    await fs.mkdir(UPLOAD_DIR, { recursive: true })
+// Initialize Supabase admin client with service role key for uploads
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
   }
-}
+)
+
+const BUCKET_NAME = 'trade-screenshots'
 
 /**
  * Parse trading data from AI response
@@ -150,17 +153,44 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Ensure upload directory exists
-    await ensureUploadDir()
+    // Generate unique file name with timestamp
+    const timestamp = Date.now()
+    const randomString = Math.random().toString(36).substring(2, 10)
+    const fileExt = image.name.split('.').pop()
+    const fileName = `${timestamp}_${randomString}_ai.${fileExt}`
 
-    // Save image to filesystem
-    const fileName = `${Date.now()}_${image.name}`
-    const filePath = path.join(UPLOAD_DIR, fileName)
-    const bytes = await image.arrayBuffer()
-    const buffer = Buffer.from(bytes)
+    console.log(`📁 [Analyze Screenshot] Bucket: ${BUCKET_NAME}, File: ${fileName}`)
 
-    await fs.writeFile(filePath, buffer)
-    console.log(`✅ [Analyze Screenshot] Image saved to: ${filePath}`)
+    // Convert image to buffer
+    const arrayBuffer = await image.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from(BUCKET_NAME)
+      .upload(fileName, buffer, {
+        contentType: image.type,
+        cacheControl: '31536000', // 1 year cache
+        upsert: false
+      })
+
+    if (uploadError) {
+      console.error('❌ [Analyze Screenshot] Upload error:', uploadError)
+      return NextResponse.json(
+        { error: `Upload failed: ${uploadError.message}` },
+        { status: 500 }
+      )
+    }
+
+    console.log('✅ [Analyze Screenshot] Image uploaded to Supabase Storage:', uploadData.path)
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from(BUCKET_NAME)
+      .getPublicUrl(fileName)
+
+    const publicUrl = urlData.publicUrl
+    console.log(`🔗 [Analyze Screenshot] Public URL: ${publicUrl}`)
 
     // Convert image to base64 for AI analysis
     const base64Image = buffer.toString('base64')
@@ -218,7 +248,7 @@ Important guidelines:
     return NextResponse.json({
       success: true,
       data: normalizedData,
-      image_url: `/upload/${fileName}`,
+      image_url: publicUrl,
       raw_response: aiResponse // Include for debugging
     })
 
@@ -230,6 +260,20 @@ Important guidelines:
       return NextResponse.json(
         { error: 'AI Vision service is not configured. Please contact support.' },
         { status: 503 }
+      )
+    }
+
+    if (error.message?.includes('SUPABASE_SERVICE_ROLE_KEY')) {
+      return NextResponse.json(
+        { error: 'Supabase Storage is not configured properly. Please check environment variables.' },
+        { status: 503 }
+      )
+    }
+
+    if (error.message?.includes('bucket does not exist')) {
+      return NextResponse.json(
+        { error: `Storage bucket "${BUCKET_NAME}" not found. Please create it in Supabase Dashboard.` },
+        { status: 404 }
       )
     }
 

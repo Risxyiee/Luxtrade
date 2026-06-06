@@ -1,93 +1,82 @@
-# Database Configuration for Production
+# Production Database Setup
 
-## Local Development
+This document provides instructions for setting up the production database for LuxTrade.
 
-Database sudah terkonfigurasi dengan benar untuk local development:
-- `.env` file: `DATABASE_URL=file:/home/z/my-project/db/custom.db`
-- Database file: `/home/z/my-project/db/custom.db`
+## Step 1: Create Database in Supabase
 
-## Production Deployment
+1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
+2. Select your project
+3. Navigate to **SQL Editor**
+4. Run the migration SQL below
 
-### Error yang Terjadi:
-```
-Error code 14: Unable to open the database file
-```
+## Step 2: Run Migration SQL
 
-### Solusi:
+Copy and paste the contents of `prisma/migrations/20250106_create_initial_tables/migration.sql` into the Supabase SQL Editor and click **Run**.
 
-Di production server (Vercel/ hosting lain), environment variable `DATABASE_URL` **HARUS** di-set dengan format:
+Alternatively, you can run it using psql:
 
-```
-DATABASE_URL=file:./db/custom.db
+```bash
+psql $DATABASE_URL -f prisma/migrations/20250106_create_initial_tables/migration.sql
 ```
 
-### Cara Setting di Vercel:
+## Step 3: Generate Prisma Client
 
-1. Buka Vercel Dashboard
-2. Pilih project `luxtradee`
-3. Go to **Settings** → **Environment Variables**
-4. Add new variable:
-   - **Name**: `DATABASE_URL`
-   - **Value**: `file:./db/custom.db`
-   - **Environment**: Production, Preview, Development (pilih semua)
+After running the migration, regenerate the Prisma client:
 
-### Catatan Penting:
-
-⚠️ **SQLite Tidak Cocok untuk Production Multi-Instance**
-
-SQLite file-based database tidak cocok untuk:
-- Vercel Serverless Functions (multiple instances)
-- Multi-server deployment
-- High-traffic applications
-
-### Rekomendasi untuk Production:
-
-Untuk production yang sebenarnya, gunakan database yang sesuai:
-
-1. **PostgreSQL** (Recommended)
-   - Gratis di Vercel dengan Neon Database
-   - Support concurrent connections
-   - Better performance
-
-2. **MySQL** 
-   - PlanetScale (gratis tier)
-   - Supabase (gratis tier)
-
-3. **MongoDB**
-   - MongoDB Atlas (gratis tier)
-
-### Migration ke PostgreSQL:
-
-Jika ingin migrasi ke PostgreSQL:
-
-1. Install Prisma PostgreSQL adapter:
-   ```bash
-   bun add pg
-   ```
-
-2. Update `prisma/schema.prisma`:
-   ```prisma
-   datasource db {
-     provider = "postgresql"
-     url      = env("DATABASE_URL")
-   }
-   ```
-
-3. Set DATABASE_URL di production:
-   ```
-   DATABASE_URL=postgresql://user:password@host:port/database
-   ```
-
-4. Run migration:
-   ```bash
-   bun run prisma migrate dev
-   ```
-
-## Quick Fix untuk Sekarang:
-
-Untuk sekarang, set environment variable di Vercel:
-```
-DATABASE_URL=file:./db/custom.db
+```bash
+bunx prisma generate
 ```
 
-Tapi harap diingat: ini hanya temporary fix dan mungkin tidak bekerja sempurna di serverless environment.
+## Step 4: Verify Tables
+
+Check that all tables were created by running:
+
+```sql
+SELECT table_name 
+FROM information_schema.tables 
+WHERE table_schema = 'public' 
+ORDER BY table_name;
+```
+
+You should see these tables:
+- Profile
+- User
+- UserSubscription
+- Withdrawal
+- Trade
+- JournalEntry
+- Tag
+- WeeklyGoal
+- TradingAccount
+- SocialLink
+- UserSubmission
+- MissionProgress
+
+## Step 5: Test Connection
+
+Test the database connection by running:
+
+```bash
+bun run db:push
+```
+
+Or use the Prisma Studio:
+
+```bash
+bunx prisma studio
+```
+
+## Troubleshooting
+
+### Error: "Relation does not exist"
+This means the tables haven't been created yet. Run the migration SQL.
+
+### Error: "Foreign key constraint fails"
+Make sure the migration SQL was run completely in the correct order.
+
+### Error: "Already exists"
+Drop the database or table and re-run the migration.
+
+---
+
+**Note:** The local development uses SQLite (`file:./db/custom.db`), but production uses PostgreSQL via Supabase. The Prisma schema is configured for PostgreSQL.
