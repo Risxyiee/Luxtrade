@@ -153,7 +153,7 @@ async function validateAutomaticAchievement(
     switch (achievement.criteria.type) {
       case 'trade_count':
         const tradesCount = await supabase
-          .from('trades')
+          .from('Trade')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId)
 
@@ -162,7 +162,7 @@ async function validateAutomaticAchievement(
 
       case 'profit':
         const { data: profitData } = await supabase
-          .from('trades')
+          .from('Trade')
           .select('profit_loss')
           .eq('user_id', userId)
           .gt('profit_loss', 0)
@@ -172,7 +172,7 @@ async function validateAutomaticAchievement(
 
       case 'win_streak':
         const { data: winTrades } = await supabase
-          .from('trades')
+          .from('Trade')
           .select('profit_loss, close_time')
           .eq('user_id', userId)
           .gt('profit_loss', 0)
@@ -291,7 +291,7 @@ export async function GET(request: NextRequest) {
         switch (achievement.criteria.type) {
           case 'trade_count':
             const tradesCount = await supabase
-              .from('trades')
+              .from('Trade')
               .select('*', { count: 'exact', head: true })
               .eq('user_id', userId)
 
@@ -300,7 +300,7 @@ export async function GET(request: NextRequest) {
 
           case 'profit':
             const { data: profitData } = await supabase
-              .from('trades')
+              .from('Trade')
               .select('profit_loss')
               .eq('user_id', userId)
               .gt('profit_loss', 0)
@@ -314,7 +314,7 @@ export async function GET(request: NextRequest) {
 
           case 'win_streak':
             const { data: winTrades } = await supabase
-              .from('trades')
+              .from('Trade')
               .select('profit_loss, close_time')
               .eq('user_id', userId)
               .gt('profit_loss', 0)
