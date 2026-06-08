@@ -7,7 +7,7 @@ import { motion } from 'framer-motion'
 import { Menu, X, BarChart3, Activity, Calendar, BookOpen, Eye,
   Newspaper, CalendarDays, Trophy, Target, Grid3X3, PieChart,
   Brain, FileText, Flame, Heart, Settings, Shield, Crown,
-  Zap, AlertCircle, Lock, LogOut, Wallet, ChevronDown, Trash2, MoreHorizontal, Loader2
+  Zap, AlertCircle, Lock, LogOut, Wallet, ChevronDown, Trash2, MoreHorizontal, Loader2, Plus
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
@@ -36,6 +36,9 @@ interface SidebarProps {
   selectedAccountId?: string | null
   setSelectedAccountId?: (accountId: string | null) => void
   fetchData?: () => void
+  addTradeOpen?: boolean
+  setAddTradeOpen?: (open: boolean) => void
+  setAddAccountOpen?: (open: boolean) => void
 }
 
 const menuCategories = {
@@ -90,7 +93,10 @@ export default function Sidebar({
   tradingAccounts = [],
   selectedAccountId = null,
   setSelectedAccountId = () => {},
-  fetchData = () => {}
+  fetchData = () => {},
+  addTradeOpen = false,
+  setAddTradeOpen = () => {},
+  setAddAccountOpen = () => {}
 }: SidebarProps) {
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
   const [accountToDelete, setAccountToDelete] = useState<any>(null)
@@ -281,6 +287,26 @@ export default function Sidebar({
                     )}
                   </div>
                 ))}
+              </div>
+
+              {/* Quick Action Buttons - Add Trade & Add Account */}
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={() => setAddAccountOpen(true)}
+                  className="flex-1 py-2 px-3 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 border border-blue-500/30 hover:from-blue-500/30 hover:to-cyan-500/30 transition-all text-xs font-medium items-center justify-center gap-1.5 group"
+                  title={language === 'id' ? 'Tambah Akun Trading' : 'Add Trading Account'}
+                >
+                  <Wallet className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="hidden sm:inline">{language === 'id' ? 'Add Account' : 'Add Account'}</span>
+                </button>
+                <button
+                  onClick={() => setAddTradeOpen(true)}
+                  className="flex-1 py-2 px-3 rounded-lg bg-gradient-to-r from-purple-500 to-violet-600 text-white hover:from-purple-600 hover:to-violet-700 shadow-lg shadow-purple-500/20 transition-all text-xs font-medium items-center justify-center gap-1.5 group"
+                  title={language === 'id' ? 'Catat Trade Baru' : 'Add New Trade'}
+                >
+                  <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="hidden sm:inline">{language === 'id' ? 'Add Trade' : 'Add Trade'}</span>
+                </button>
               </div>
             </motion.div>
           )}

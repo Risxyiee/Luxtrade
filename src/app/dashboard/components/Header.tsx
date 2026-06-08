@@ -1,13 +1,10 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Menu, RefreshCw, Upload, Plus, LogOut, Wallet } from 'lucide-react'
+import { Menu, RefreshCw, Upload, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import NotificationCenter from '@/components/NotificationCenter'
-import TradeWizardForm from './TradeWizardForm'
-import AddAccountForm from './AddAccountForm'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
+import NotificationCenter from '@/components/NotificationCenter'
 
 interface HeaderProps {
   sidebarOpen: boolean
@@ -18,24 +15,11 @@ interface HeaderProps {
   fetchData: () => void
   trades: any[]
   isPro: boolean
-  formData: any
-  handleFormChange: (field: any, value: string) => void
-  handleFormTypeChange: (value: string) => void
-  handleFormSessionChange: (value: string) => void
-  handleNumberInput: (field: any, e: React.ChangeEvent<HTMLInputElement>) => void
-  handleAddTrade: () => void
-  setAddTradeOpen: (open: boolean) => void
-  addTradeOpen: boolean
-  saving: boolean
-  setFormData: (data: any) => void
-  emptyFormData: any
   setSmartImportOpen: (open: boolean) => void
   user: any
   handleSignOut: () => void
   userInitials: string
-  tradingAccounts?: any[]
-  isAddAccountOpen?: boolean
-  setAddAccountOpen?: (open: boolean) => void
+  language: 'id' | 'en'
 }
 
 export default function Header({
@@ -47,24 +31,11 @@ export default function Header({
   fetchData,
   trades,
   isPro,
-  formData,
-  handleFormChange,
-  handleFormTypeChange,
-  handleFormSessionChange,
-  handleNumberInput,
-  handleAddTrade,
-  setAddTradeOpen,
-  addTradeOpen,
-  saving,
-  setFormData,
-  emptyFormData,
   setSmartImportOpen,
   user,
   handleSignOut,
   userInitials,
-  tradingAccounts = [],
-  isAddAccountOpen = false,
-  setAddAccountOpen = () => {}
+  language = 'id'
 }: HeaderProps) {
   return (
     <header className="h-16 border-b border-purple-900/30 flex items-center justify-between px-4 lg:px-6 bg-[#0f0b18]/90 backdrop-blur-md sticky top-0 z-30">
@@ -103,58 +74,12 @@ export default function Header({
         <button
           onClick={() => setSmartImportOpen(true)}
           className="flex px-2 sm:px-3 lg:px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-violet-500/20 text-purple-400 border border-purple-500/30 hover:from-purple-500/30 hover:to-violet-500/30 transition-all text-sm font-medium items-center gap-1 sm:gap-2"
+          title={language === 'id' ? 'Import Trade menggunakan AI' : 'Import trades using AI'}
         >
           <Upload className="w-4 h-4 flex-shrink-0" />
           <span className="hidden sm:inline">Smart</span>
           <span className="hidden lg:inline">Import</span>
         </button>
-
-        <Button
-          onClick={() => setAddAccountOpen(true)}
-          variant="outline"
-          className="px-3 lg:px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 border border-blue-500/30 hover:from-blue-500/30 hover:to-cyan-500/30 transition-all text-sm font-medium items-center gap-2"
-        >
-          <Wallet className="w-4 h-4" />
-          <span className="hidden lg:inline">Add Account</span>
-        </Button>
-
-        <Dialog open={addTradeOpen} onOpenChange={(open) => {
-          setAddTradeOpen(open)
-          if (!open) setFormData(emptyFormData)
-        }}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 shadow-lg shadow-purple-500/20">
-              <Plus className="w-4 h-4" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-            <DialogHeader className="shrink-0">
-              <DialogTitle className="text-xl flex items-center gap-2">
-                <Plus className="w-5 h-5 text-purple-400" />
-                Add New Trade
-              </DialogTitle>
-            </DialogHeader>
-            <div className="overflow-y-auto flex-1 -mx-1 px-1">
-              <TradeWizardForm
-                formData={formData}
-                onFormChange={handleFormChange}
-                onTypeChange={handleFormTypeChange}
-                onSessionChange={handleFormSessionChange}
-                onNumberInput={handleNumberInput}
-                onSave={handleAddTrade}
-                onCancel={() => { setAddTradeOpen(false); setFormData(emptyFormData) }}
-                saving={saving}
-                tradingAccounts={tradingAccounts}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        <AddAccountForm
-          open={isAddAccountOpen}
-          onOpenChange={setAddAccountOpen}
-          onSuccess={fetchData}
-        />
 
         {user && (
           <button
