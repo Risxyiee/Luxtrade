@@ -43,6 +43,7 @@ import { formatCurrency } from '@/lib/supabase'
 import { ChartErrorBoundary } from '@/components/ChartErrorBoundary'
 import AchievementCenter from '@/components/AchievementCenter'
 import PaywallModal from '@/components/PaywallModal'
+import { ContextGuideProvider } from '@/components/ContextGuide'
 
 // Extracted Tab Components
 import DashboardTab from './tabs/DashboardTab'
@@ -732,7 +733,8 @@ function LuxTradeDashboardContent() {
   console.log('✅ [DIAGNOSTIC] Auth checks passed, rendering main content')
 
   return (
-    <div className="min-h-screen bg-[#0a0712] text-white flex w-full" suppressHydrationWarning={true}>
+    <ContextGuideProvider>
+      <div className="min-h-screen bg-[#0a0712] text-white flex w-full" suppressHydrationWarning={true}>
       {/* Sidebar */}
       <Sidebar
         sidebarOpen={sidebarOpen}
@@ -914,5 +916,6 @@ function LuxTradeDashboardContent() {
         fetchData={fetchData}
       />
     </div>
+    </ContextGuideProvider>
   )
 }
