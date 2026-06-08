@@ -854,8 +854,6 @@ function LuxTradeDashboardContent() {
         setAddTradeOpen={setAddTradeOpen}
         addAccountOpen={isAddAccountOpen}
         setAddAccountOpen={setIsAddAccountOpen}
-        showGuide={showGuide}
-        setShowGuide={setShowGuide}
 
         // Trade-related
         formData={formData}
