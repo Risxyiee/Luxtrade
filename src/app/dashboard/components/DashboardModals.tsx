@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Upload, Share2, Edit, Trash2, Calendar, Clock, Camera, FileText, Sparkles, Loader2 } from 'lucide-react'
+import { Upload, Share2, Edit, Trash2, Calendar, Clock, Camera, FileText, Sparkles, Loader2, Plus, Wallet } from 'lucide-react'
 import { motion } from 'framer-motion'
 import PNLShareCard from '@/components/PNLShareCard'
 import PaymentModal from '@/components/PaymentModal'
@@ -16,6 +16,8 @@ import PlanSelectionModal from '@/components/PlanSelectionModal'
 import PaywallModal from '@/components/PaywallModal'
 import WelcomeOnboarding from '@/components/WelcomeOnboarding'
 import TradeWizardForm from './TradeWizardForm'
+import AddAccountForm from './AddAccountForm'
+import WebsiteGuide from '@/components/WebsiteGuide'
 import { formatCurrency } from '@/lib/supabase'
 import { Trade, TradeFormData } from '../utils/types'
 import { emptyFormData, moodOptions, marketConditions } from '../utils/helpers'
@@ -46,6 +48,12 @@ interface DashboardModalsProps {
   setPaywallModalOpen: (open: boolean) => void
   showOnboarding: boolean
   setShowOnboarding: (show: boolean) => void
+  addTradeOpen: boolean
+  setAddTradeOpen: (open: boolean) => void
+  addAccountOpen: boolean
+  setAddAccountOpen: (open: boolean) => void
+  showGuide: boolean
+  setShowGuide: (open: boolean) => void
 
   // Trade-related
   formData: TradeFormData
@@ -58,6 +66,7 @@ interface DashboardModalsProps {
   handleFormTypeChange: (value: string) => void
   handleFormSessionChange: (value: string) => void
   handleNumberInput: (field: keyof TradeFormData, e: React.ChangeEvent<HTMLInputElement>) => void
+  handleAddTrade: () => void
   handleEditTrade: () => void
   handleDeleteTrade: () => void
   openEditModal: (trade: Trade) => void
@@ -102,6 +111,7 @@ interface DashboardModalsProps {
   proTrialCount: number
   language: 'id' | 'en'
   tradingAccounts?: any[]
+  fetchData?: () => void
 }
 
 export default function DashboardModals({
@@ -130,6 +140,12 @@ export default function DashboardModals({
   setPaywallModalOpen,
   showOnboarding,
   setShowOnboarding,
+  addTradeOpen,
+  setAddTradeOpen,
+  addAccountOpen,
+  setAddAccountOpen,
+  showGuide,
+  setShowGuide,
 
   // Trade-related
   formData,
@@ -142,6 +158,7 @@ export default function DashboardModals({
   handleFormTypeChange,
   handleFormSessionChange,
   handleNumberInput,
+  handleAddTrade,
   handleEditTrade,
   handleDeleteTrade,
   openEditModal,
@@ -185,7 +202,8 @@ export default function DashboardModals({
   handleSelectPlan,
   proTrialCount,
   language,
-  tradingAccounts = []
+  tradingAccounts = [],
+  fetchData = () => {}
 }: DashboardModalsProps) {
   return (
     <>
@@ -968,6 +986,51 @@ export default function DashboardModals({
         onClose={() => setPaymentModalOpen(false)}
         userId={user?.id}
         email={user?.email}
+      />
+
+      {/* Add Trade Modal */}
+      <Dialog open={addTradeOpen} onOpenChange={(open) => {
+        setAddTradeOpen(open)
+        if (!open) setFormData(emptyFormData)
+      }}>
+        <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <Plus className="w-5 h-5 text-purple-400" />
+              {language === 'id' ? 'Tambah Trade Baru' : 'Add New Trade'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto flex-1 -mx-1 px-1">
+            <TradeWizardForm
+              formData={formData}
+              onFormChange={handleFormChange}
+              onTypeChange={handleFormTypeChange}
+              onSessionChange={handleFormSessionChange}
+              onNumberInput={handleNumberInput}
+              onSave={handleAddTrade}
+              onCancel={() => { setAddTradeOpen(false); setFormData(emptyFormData) }}
+              saving={saving}
+              tradingAccounts={tradingAccounts}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Account Modal */}
+      <AddAccountForm
+        open={addAccountOpen}
+        onOpenChange={setAddAccountOpen}
+        onSuccess={() => {
+          // Refresh data after adding account
+          fetchData && fetchData()
+        }}
+      />
+
+      {/* Website Guide */}
+      <WebsiteGuide
+        isOpen={showGuide}
+        onClose={() => setShowGuide(false)}
+        language={language}
       />
 
       {/* Paywall Modal for PRO Features - DISABLED */}

@@ -756,6 +756,10 @@ function LuxTradeDashboardContent() {
         selectedAccountId={selectedAccountId}
         setSelectedAccountId={setSelectedAccountId}
         fetchData={fetchData}
+        addTradeOpen={addTradeOpen}
+        setAddTradeOpen={setAddTradeOpen}
+        addAccountOpen={isAddAccountOpen}
+        setAddAccountOpen={setIsAddAccountOpen}
       />
 
       {/* Main Content - MOBILE: Full width, DESKTOP: Adjusted by sidebar */}
@@ -772,24 +776,11 @@ function LuxTradeDashboardContent() {
           fetchData={fetchData}
           trades={trades}
           isPro={isPro}
-          formData={formData}
-          handleFormChange={handleFormChange}
-          handleFormTypeChange={handleFormTypeChange}
-          handleFormSessionChange={handleFormSessionChange}
-          handleNumberInput={handleNumberInput}
-          handleAddTrade={handleAddTrade}
-          setAddTradeOpen={setAddTradeOpen}
-          addTradeOpen={addTradeOpen}
-          saving={saving}
-          setFormData={setFormData}
-          emptyFormData={emptyFormData}
           setSmartImportOpen={setSmartImportOpen}
           user={user}
           handleSignOut={handleSignOut}
           userInitials={userInitials}
-          tradingAccounts={tradingAccounts}
-          isAddAccountOpen={isAddAccountOpen}
-          setAddAccountOpen={setIsAddAccountOpen}
+          language={language}
         />
 
         {/* Tab Content */}
@@ -857,6 +848,12 @@ function LuxTradeDashboardContent() {
         setPaywallModalOpen={setPaywallModalOpen}
         showOnboarding={showOnboarding}
         setShowOnboarding={setShowOnboarding}
+        addTradeOpen={addTradeOpen}
+        setAddTradeOpen={setAddTradeOpen}
+        addAccountOpen={isAddAccountOpen}
+        setAddAccountOpen={setIsAddAccountOpen}
+        showGuide={showGuide}
+        setShowGuide={setShowGuide}
 
         // Trade-related
         formData={formData}
@@ -869,6 +866,7 @@ function LuxTradeDashboardContent() {
         handleFormTypeChange={handleFormTypeChange}
         handleFormSessionChange={handleFormSessionChange}
         handleNumberInput={handleNumberInput}
+        handleAddTrade={handleAddTrade}
         handleEditTrade={handleEditTrade}
         handleDeleteTrade={handleDeleteTrade}
         openEditModal={openEditModal}
@@ -913,6 +911,7 @@ function LuxTradeDashboardContent() {
         proTrialCount={proTrialCount}
         language={language}
         tradingAccounts={tradingAccounts}
+        fetchData={fetchData}
       />
     </div>
   )
