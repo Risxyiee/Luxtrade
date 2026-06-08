@@ -32,6 +32,8 @@ model Profile {
   weeklyGoals        WeeklyGoal[]
   tradingAccounts   TradingAccount[]
   socialLinks       SocialLink[]
+
+  @@map("profiles")
 }
 
 model UserSubmission {
@@ -48,6 +50,7 @@ model UserSubmission {
   user            Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@map("user_submissions")
 }
 
 model MissionProgress {
@@ -65,6 +68,7 @@ model MissionProgress {
 
   @@unique([userId, missionKey])
   @@index([userId])
+  @@map("mission_progress")
 }
 
 model User {
@@ -79,6 +83,8 @@ model User {
 
   subscriptions     UserSubscription[]
   withdrawals       Withdrawal[]
+
+  @@map("users")
 }
 
 model UserSubscription {
@@ -94,6 +100,7 @@ model UserSubscription {
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@map("user_subscriptions")
 }
 
 model Withdrawal {
@@ -111,6 +118,7 @@ model Withdrawal {
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@map("withdrawals")
 }
 
 model Trade {
@@ -144,6 +152,7 @@ model Trade {
 
   @@index([user_id])
   @@index([user_id, close_time])
+  @@map("trades")
 }
 
 model JournalEntry {
@@ -162,6 +171,7 @@ model JournalEntry {
   linkedTrades      Trade[]   @relation("TradeJournal")
 
   @@index([user_id])
+  @@map("journal_entries")
 }
 
 model Tag {
@@ -174,6 +184,7 @@ model Tag {
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
+  @@map("tags")
 }
 
 model WeeklyGoal {
@@ -191,6 +202,7 @@ model WeeklyGoal {
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id, week_start])
+  @@map("weekly_goals")
 }
 
 model TradingAccount {
@@ -213,6 +225,7 @@ model TradingAccount {
   trades            Trade[]
 
   @@index([user_id])
+  @@map("trading_accounts")
 }
 
 model SocialLink {
@@ -232,4 +245,5 @@ model SocialLink {
 
   @@index([userId])
   @@index([status])
+  @@map("social_links")
 }
