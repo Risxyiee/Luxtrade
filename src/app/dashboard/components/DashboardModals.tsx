@@ -48,11 +48,6 @@ interface DashboardModalsProps {
   showOnboarding: boolean
   setShowOnboarding: (show: boolean) => void
   addTradeOpen: boolean
-  setAddTradeOpen: (open: boolean) => void
-  addAccountOpen: boolean
-  setAddAccountOpen: (open: boolean) => void
-  showGuide: boolean
-  setShowGuide: (open: boolean) => void
 
   // Trade-related
   formData: TradeFormData
@@ -143,8 +138,6 @@ export default function DashboardModals({
   setAddTradeOpen,
   addAccountOpen,
   setAddAccountOpen,
-  showGuide,
-  setShowGuide,
 
   // Trade-related
   formData,
@@ -1023,13 +1016,6 @@ export default function DashboardModals({
           // Refresh data after adding account
           fetchData && fetchData()
         }}
-      />
-
-      {/* Website Guide */}
-      <WebsiteGuide
-        isOpen={showGuide}
-        onClose={() => setShowGuide(false)}
-        language={language}
       />
 
       {/* Paywall Modal for PRO Features - DISABLED */}
