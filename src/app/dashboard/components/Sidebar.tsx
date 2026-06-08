@@ -7,12 +7,13 @@ import { motion } from 'framer-motion'
 import { Menu, X, BarChart3, Activity, Calendar, BookOpen, Eye,
   Newspaper, CalendarDays, Trophy, Target, Grid3X3, PieChart,
   Brain, FileText, Flame, Heart, Settings, Shield, Crown,
-  Zap, AlertCircle, Lock, LogOut, Wallet, ChevronDown, Trash2, MoreHorizontal, Loader2, Plus
+  Zap, AlertCircle, Lock, LogOut, Wallet, ChevronDown, Trash2, MoreHorizontal, Loader2, Plus, HelpCircle
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { ContextGuide, useContextGuides, guideData } from '@/components/ContextGuide'
 
 interface SidebarProps {
   sidebarOpen: boolean
@@ -98,6 +99,7 @@ export default function Sidebar({
   setAddTradeOpen = () => {},
   setAddAccountOpen = () => {}
 }: SidebarProps) {
+  const { activeGuide, openGuide, closeGuide } = useContextGuides()
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
   const [accountToDelete, setAccountToDelete] = useState<any>(null)
   const [deleting, setDeleting] = useState(false)
@@ -291,22 +293,58 @@ export default function Sidebar({
 
               {/* Quick Action Buttons - Add Trade & Add Account */}
               <div className="mt-3 flex gap-2">
-                <button
-                  onClick={() => setAddAccountOpen(true)}
-                  className="flex-1 py-2 px-3 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 border border-blue-500/30 hover:from-blue-500/30 hover:to-cyan-500/30 transition-all text-xs font-medium items-center justify-center gap-1.5 group"
-                  title={language === 'id' ? 'Tambah Akun Trading' : 'Add Trading Account'}
-                >
-                  <Wallet className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="hidden sm:inline">{language === 'id' ? 'Add Account' : 'Add Account'}</span>
-                </button>
-                <button
-                  onClick={() => setAddTradeOpen(true)}
-                  className="flex-1 py-2 px-3 rounded-lg bg-gradient-to-r from-purple-500 to-violet-600 text-white hover:from-purple-600 hover:to-violet-700 shadow-lg shadow-purple-500/20 transition-all text-xs font-medium items-center justify-center gap-1.5 group"
-                  title={language === 'id' ? 'Catat Trade Baru' : 'Add New Trade'}
-                >
-                  <Plus className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="hidden sm:inline">{language === 'id' ? 'Add Trade' : 'Add Trade'}</span>
-                </button>
+                <div className="relative flex-1">
+                  <button
+                    onClick={() => setAddAccountOpen(true)}
+                    className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 border border-blue-500/30 hover:from-blue-500/30 hover:to-cyan-500/30 transition-all text-xs font-medium items-center justify-center gap-1.5 group"
+                    title={language === 'id' ? 'Tambah Akun Trading' : 'Add Trading Account'}
+                  >
+                    <Wallet className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="hidden sm:inline">{language === 'id' ? 'Add Account' : 'Add Account'}</span>
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); openGuide('addAccount') }}
+                    className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-[8px] text-white hover:bg-blue-600 transition-colors z-10"
+                    title={language === 'id' ? 'Panduan' : 'Guide'}
+                  >
+                    ?
+                  </button>
+                  <ContextGuide
+                    isOpen={activeGuide === 'addAccount'}
+                    onClose={closeGuide}
+                    title={guideData.addAccount.title[language]}
+                    description={guideData.addAccount.description[language]}
+                    tips={guideData.addAccount.tips?.[language]}
+                    language={language}
+                    position="right"
+                  />
+                </div>
+                <div className="relative flex-1">
+                  <button
+                    onClick={() => setAddTradeOpen(true)}
+                    className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-purple-500 to-violet-600 text-white hover:from-purple-600 hover:to-violet-700 shadow-lg shadow-purple-500/20 transition-all text-xs font-medium items-center justify-center gap-1.5 group"
+                    title={language === 'id' ? 'Catat Trade Baru' : 'Add New Trade'}
+                  >
+                    <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="hidden sm:inline">{language === 'id' ? 'Add Trade' : 'Add Trade'}</span>
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); openGuide('addTrade') }}
+                    className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center text-[8px] text-white hover:bg-purple-600 transition-colors z-10"
+                    title={language === 'id' ? 'Panduan' : 'Guide'}
+                  >
+                    ?
+                  </button>
+                  <ContextGuide
+                    isOpen={activeGuide === 'addTrade'}
+                    onClose={closeGuide}
+                    title={guideData.addTrade.title[language]}
+                    description={guideData.addTrade.description[language]}
+                    tips={guideData.addTrade.tips?.[language]}
+                    language={language}
+                    position="right"
+                  />
+                </div>
               </div>
             </motion.div>
           )}
@@ -354,6 +392,7 @@ export default function Sidebar({
                 {categoryItems.map((item: any, index: number) => {
                   const isLocked = item.proOnly && !isPro
                   const proType = item.proType || 'purple'
+                  const hasGuide = guideData[item.id] !== undefined
 
                   return (
                     <motion.div
@@ -362,94 +401,118 @@ export default function Sidebar({
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.2, delay: index * 0.05 }}
                     >
-                      <button
-                        onClick={() => {
-                          if (item.proOnly && !isPro) {
-                            setPlanSelectionModalOpen(true)
-                          } else {
-                            setActiveTab(item.id)
-                            setMobileSidebarOpen(false)
-                          }
-                          // Add haptic feedback on mobile
-                          if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-                            navigator.vibrate(5)
-                          }
-                        }}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 relative overflow-hidden group ${
-                          activeTab === item.id
-                            ? 'bg-gradient-to-r from-purple-500/20 via-violet-500/15 to-pink-500/10 text-white shadow-lg shadow-purple-500/20'
-                            : isLocked
-                              ? 'text-gray-500/50 hover:text-gray-400'
-                              : 'text-gray-400 hover:text-white hover:bg-white/5 active:bg-white/10'
-                        }`}
-                      >
-                        {/* Active State Glow */}
-                        {activeTab === item.id && (
-                          <motion.div
-                            className="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-violet-500/10 to-pink-500/5"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ duration: 0.3 }}
-                          />
-                        )}
-
-                        {/* Icon Container */}
-                        <motion.div
-                          className={`relative flex-shrink-0 ${
+                      <div className="relative">
+                        <button
+                          onClick={() => {
+                            if (item.proOnly && !isPro) {
+                              setPlanSelectionModalOpen(true)
+                            } else {
+                              setActiveTab(item.id)
+                              setMobileSidebarOpen(false)
+                            }
+                            // Add haptic feedback on mobile
+                            if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                              navigator.vibrate(5)
+                            }
+                          }}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 relative overflow-hidden group ${
                             activeTab === item.id
-                              ? 'text-purple-400'
+                              ? 'bg-gradient-to-r from-purple-500/20 via-violet-500/15 to-pink-500/10 text-white shadow-lg shadow-purple-500/20'
                               : isLocked
-                                ? 'text-gray-600'
-                                : 'text-gray-500 group-hover:text-purple-400'
+                                ? 'text-gray-500/50 hover:text-gray-400'
+                                : 'text-gray-400 hover:text-white hover:bg-white/5 active:bg-white/10'
                           }`}
-                          whileHover={{ scale: 1.1, rotate: 5 }}
-                          transition={{ type: "spring", stiffness: 300 }}
                         >
+                          {/* Active State Glow */}
                           {activeTab === item.id && (
                             <motion.div
-                              className="absolute inset-0 bg-purple-500/20 blur-xl rounded-lg"
-                              animate={{
-                                scale: [1, 1.2, 1],
-                                opacity: [0.5, 0.8, 0.5]
-                              }}
-                              transition={{
-                                duration: 2,
-                                repeat: Infinity,
-                                ease: "easeInOut"
-                              }}
+                              className="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-violet-500/10 to-pink-500/5"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ duration: 0.3 }}
                             />
                           )}
-                          <item.icon className="w-5 h-5 relative z-10" />
-                        </motion.div>
 
-                        {/* Menu Text - SHOW WHEN SIDEBAR OPEN (DESKTOP OR MOBILE) */}
-                        {(sidebarOpen || mobileSidebarOpen) && (
-                          <span className={`text-sm font-medium flex-1 text-left truncate relative z-10 overflow-hidden ${
-                            activeTab === item.id ? 'text-white' : ''
-                          }`}>
-                            {language === 'id' ? item.labelId : item.label}
-                          </span>
-                        )}
-
-                        {/* PRO Badge - SHOW WHEN SIDEBAR OPEN (DESKTOP OR MOBILE) */}
-                        {(sidebarOpen || mobileSidebarOpen) && item.proOnly && (
-                          <motion.span
-                            className="flex items-center gap-1 relative z-10 flex-shrink-0"
-                            whileHover={{ scale: 1.1 }}
+                          {/* Icon Container */}
+                          <motion.div
+                            className={`relative flex-shrink-0 ${
+                              activeTab === item.id
+                                ? 'text-purple-400'
+                                : isLocked
+                                  ? 'text-gray-600'
+                                  : 'text-gray-500 group-hover:text-purple-400'
+                            }`}
+                            whileHover={{ scale: 1.1, rotate: 5 }}
+                            transition={{ type: "spring", stiffness: 300 }}
                           >
-                            <Lock className={`w-3 h-3 ${
-                              proType === 'gold' ? 'text-amber-400' : 'text-purple-400'
-                            }`} />
-                            <span className={`text-[7px] font-black px-1 py-0.5 rounded ${
-                              proType === 'gold'
-                                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
-                                : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                            {activeTab === item.id && (
+                              <motion.div
+                                className="absolute inset-0 bg-purple-500/20 blur-xl rounded-lg"
+                                animate={{
+                                  scale: [1, 1.2, 1],
+                                  opacity: [0.5, 0.8, 0.5]
+                                }}
+                                transition={{
+                                  duration: 2,
+                                  repeat: Infinity,
+                                  ease: "easeInOut"
+                                }}
+                              />
+                            )}
+                            <item.icon className="w-5 h-5 relative z-10" />
+                          </motion.div>
+
+                          {/* Menu Text - SHOW WHEN SIDEBAR OPEN (DESKTOP OR MOBILE) */}
+                          {(sidebarOpen || mobileSidebarOpen) && (
+                            <span className={`text-sm font-medium flex-1 text-left truncate relative z-10 overflow-hidden ${
+                              activeTab === item.id ? 'text-white' : ''
                             }`}>
-                              PRO
+                              {language === 'id' ? item.labelId : item.label}
                             </span>
-                          </motion.span>
+                          )}
+
+                          {/* PRO Badge - SHOW WHEN SIDEBAR OPEN (DESKTOP OR MOBILE) */}
+                          {(sidebarOpen || mobileSidebarOpen) && item.proOnly && (
+                            <motion.span
+                              className="flex items-center gap-1 relative z-10 flex-shrink-0"
+                              whileHover={{ scale: 1.1 }}
+                            >
+                              <Lock className={`w-3 h-3 ${
+                                proType === 'gold' ? 'text-amber-400' : 'text-purple-400'
+                              }`} />
+                              <span className={`text-[7px] font-black px-1 py-0.5 rounded ${
+                                proType === 'gold'
+                                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
+                                  : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                              }`}>
+                                PRO
+                              </span>
+                            </motion.span>
+                          )}
+                        </button>
+
+                        {/* Guide Icon "?" for important menu items */}
+                        {hasGuide && (sidebarOpen || mobileSidebarOpen) && (
+                          <>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openGuide(item.id) }}
+                              className="absolute top-2 right-2 w-4 h-4 bg-purple-500/20 hover:bg-purple-500/40 rounded-full flex items-center justify-center text-[8px] text-purple-400 hover:text-white transition-colors z-20"
+                              title={language === 'id' ? 'Panduan' : 'Guide'}
+                            >
+                              ?
+                            </button>
+                            <ContextGuide
+                              isOpen={activeGuide === item.id}
+                              onClose={closeGuide}
+                              title={guideData[item.id].title[language]}
+                              description={guideData[item.id].description[language]}
+                              tips={guideData[item.id].tips?.[language]}
+                              language={language}
+                              position="right"
+                            />
+                          </>
                         )}
-                      </button>
+                      </div>
                     </motion.div>
                   )
                 })}
