@@ -51,6 +51,10 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
 // Log database configuration on startup
 const dbUrl = getDatabaseUrl()
 const dbType = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://') ? 'PostgreSQL' : 'SQLite'
+
+// Verify DATABASE_URL connection status
+console.log('Database connected to:', process.env.DATABASE_URL ? 'OK' : 'MISSING')
+
 console.log('🗄️ ============================================')
 console.log(`🗄️ Database Type: ${dbType}`)
 console.log(`🗄️ Environment: ${process.env.NODE_ENV || 'development'}`)
