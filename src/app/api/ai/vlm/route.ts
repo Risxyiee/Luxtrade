@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { analyzeImageWithOpenAI } from '@/lib/openai-vision'
+import { analyzeImageWithZAIVision } from '@/lib/zai-vision'
+import { analyzeImageWithOllama } from '@/lib/ollama-vision'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,12 +20,22 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes)
     const base64Image = buffer.toString('base64')
 
-    const analysis = await analyzeImageWithOpenAI(
-      base64Image,
-      image.type,
-      question,
-      'gpt-4o'
-    )
+    // Try Ollama first (FREE), then fallback to Z.ai Vision (FREE)
+    let analysis: string
+
+    try {
+      // Ollama returns object, we'll get notes as text
+      const ollamaResult = await analyzeImageWithOllama(
+        base64Image,
+        image.type,
+        question
+      )
+      analysis = JSON.stringify(ollamaResult)
+    } catch (ollamaError) {
+      console.log('⚠️ Ollama failed, trying Z.ai Vision...')
+      const zaiResult = await analyzeImageWithZAIVision(base64Image, question, {})
+      analysis = zaiResult.text
+    }
 
     return NextResponse.json({
       success: true,
