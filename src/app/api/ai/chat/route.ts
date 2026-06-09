@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { chatWithOpenAI } from '@/lib/openai-vision'
+import { createZAI } from '@/lib/zai'
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,9 +28,17 @@ export async function POST(request: NextRequest) {
       }
     ]
 
-    const response = await chatWithOpenAI(messages, 'gpt-4o', 0.7)
+    // Use ZAI (FREE SDK)
+    const zai = await createZAI()
+    const response = await zai.chat.completions.create({
+      model: 'glm-4.6',
+      messages: messages
+    })
 
-    return NextResponse.json({ response })
+    return NextResponse.json({
+      success: true,
+      response: response.choices?.[0]?.message?.content || ''
+    })
   } catch (error: any) {
     console.error('Chat Error:', error)
     return NextResponse.json(

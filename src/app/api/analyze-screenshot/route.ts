@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { analyzeImageWithOpenAI } from '@/lib/openai-vision'
 import { createClient } from '@supabase/supabase-js'
+import { analyzeImageWithOllama } from '@/lib/ollama-vision'
+import { analyzeImageWithZAIVision } from '@/lib/zai-vision'
 
 /**
  * API Route: Analyze Trading Screenshot
@@ -21,42 +22,6 @@ const supabase = createClient(
 )
 
 const BUCKET_NAME = 'trade-screenshots'
-
-/**
- * Convert MT5 server time to WIB (UTC+7)
- * MT5 server time is typically in GMT+0 or GMT+2/+3 depending on broker
- */
-function convertToWIB(isoDate: string): string {
-  try {
-    const date = new Date(isoDate)
-
-    // Check if the time seems to be in a known MT5 timezone offset
-    // Most MT5 brokers use GMT+0, GMT+2, or GMT+3
-    const hours = date.getUTCHours()
-
-    // Detect common MT5 server time patterns
-    let serverOffset = 0 // Default to GMT+0
-
-    // If time indicates European broker (GMT+2/+3 winter/+2 summer)
-    // Times like 09:00-17:00 suggest trading hours
-    if (hours >= 7 && hours <= 19) {
-      // Likely GMT+2 or GMT+3, use conservative offset
-      serverOffset = 2 // GMT+2 (EET)
-    }
-
-    // Convert to WIB (UTC+7)
-    // Formula: WIB = UTC + 7 - serverOffset
-    const wibOffsetHours = 7 - serverOffset
-
-    // Create new date with WIB offset
-    const wibDate = new Date(date.getTime() + (wibOffsetHours * 60 * 60 * 1000))
-
-    return wibDate.toISOString()
-  } catch (error) {
-    console.error('Error converting timezone:', error)
-    return isoDate // Return original if conversion fails
-  }
-}
 
 /**
  * Parse trading data from AI response
@@ -111,103 +76,6 @@ function parseTradingData(aiResponse: string): any {
     console.error('Error parsing trading data:', error)
     return null
   }
-}
-
-/**
- * Validate extracted data has minimum required fields
- * Must contain at least 3 of: Symbol, Profit, Time
- */
-function validateExtractedData(data: any): { valid: boolean; missingFields: string[]; error?: string } {
-  const requiredFieldPatterns = [
-    { key: 'pair', label: 'Symbol' },
-    { key: 'symbol', label: 'Symbol' },
-    { key: 'profit', label: 'Profit' },
-    { key: 'profit_loss', label: 'Profit' },
-    { key: 'time', label: 'Time' },
-    { key: 'open_time', label: 'Time' },
-    { key: 'close_time', label: 'Time' }
-  ]
-
-  const foundFields: string[] = []
-
-  // Check for symbol
-  if (data.pair || data.symbol) {
-    foundFields.push('Symbol')
-  }
-
-  // Check for profit
-  if (data.profit !== undefined || data.profit_loss !== undefined) {
-    foundFields.push('Profit')
-  }
-
-  // Check for time
-  if (data.time || data.open_time || data.close_time) {
-    foundFields.push('Time')
-  }
-
-  // Check if we have at least 3 unique fields
-  if (foundFields.length >= 3) {
-    return { valid: true, missingFields: [] }
-  }
-
-  // Not enough fields - this is likely a detail screenshot, not a table
-  return {
-    valid: false,
-    missingFields: [],
-    error: 'Screenshot yang diunggah adalah detail transaksi. Mohon unggah screenshot tab Riwayat (History) yang berbentuk tabel.'
-  }
-}
-
-/**
- * Check if screenshot appears to be a single trade detail
- * rather than a history table
- */
-function isLikelyDetailScreenshot(aiResponse: string): boolean {
-  const detailKeywords = [
-    'ticket',
-    'order',
-    'swap',
-    'commission',
-    'comment',
-    'magic number',
-    'balance',
-    'equity',
-    'margin',
-    'level',
-    'entry',
-    'exit',
-    'stop loss',
-    'take profit'
-  ]
-
-  const tableKeywords = [
-    'symbol',
-    'volume',
-    'type',
-    'open price',
-    'close price',
-    'profit',
-    'time',
-    'position',
-    'order',
-    'ticket'
-  ]
-
-  let detailCount = 0
-  let tableCount = 0
-
-  const lowerResponse = aiResponse.toLowerCase()
-
-  detailKeywords.forEach(keyword => {
-    if (lowerResponse.includes(keyword)) detailCount++
-  })
-
-  tableKeywords.forEach(keyword => {
-    if (lowerResponse.includes(keyword)) tableCount++
-  })
-
-  // If more detail keywords than table keywords, it's likely a detail screenshot
-  return detailCount > tableCount && detailCount >= 5
 }
 
 /**
@@ -329,13 +197,7 @@ export async function POST(request: NextRequest) {
     const base64Image = buffer.toString('base64')
 
     // Create prompt for AI Vision
-    const prompt = `Analyze this trading platform screenshot. IMPORTANT: This MUST be a HISTORY TABLE screenshot, NOT a single trade detail view.
-
-If you see a single trade with details like "Ticket", "Swap", "Commission", "Balance", "Equity", "Margin", "Level", "Comment", "Magic Number" - this is a DETAIL VIEW and you should REJECT it by returning: {"error": "detail_view"}
-
-Only proceed if you see a TABLE with MULTIPLE trades in a list/grid format, showing columns like Symbol, Profit, Time, Type, etc.
-
-For valid history tables, extract the trading data from the MOST RECENT/first visible trade row in JSON format:
+    const prompt = `Analyze this trading platform screenshot and extract the following trading data in JSON format:
 {
   "pair": "Trading pair/symbol (e.g., XAUUSD, EURUSD)",
   "type": "Trade type - either 'BUY' or 'SELL'",
@@ -344,9 +206,7 @@ For valid history tables, extract the trading data from the MOST RECENT/first vi
   "exit_price": "Exit/close price (e.g., 4473.76)",
   "stop_loss": "Stop loss price if visible (null if not)",
   "take_profit": "Take profit price if visible (null if not)",
-  "profit": "Profit/loss amount (e.g., 32.43, -50.00)",
-  "open_time": "Open time in ISO format if visible (null if not)",
-  "close_time": "Close time in ISO format if visible (null if not)"
+  "profit": "Profit/loss amount (e.g., 32.43, -50.00)"
 }
 
 Important guidelines:
@@ -355,32 +215,39 @@ Important guidelines:
 - Ensure all numbers are properly formatted
 - Pair symbol should be uppercase
 - Type must be exactly 'BUY' or 'SELL'
-- Profit should be negative for losses, positive for gains
-- REJECT single trade detail views with {"error": "detail_view"}`
+- Profit should be negative for losses, positive for gains`
 
-    console.log('🤖 [Analyze Screenshot] Sending to AI Vision...')
+    console.log('🤖 [Analyze Screenshot] Starting AI analysis with FREE services...')
 
-    // Analyze image with AI Vision
-    const aiResponse = await analyzeImageWithOpenAI(
-      base64Image,
-      image.type,
-      prompt,
-      'gpt-4o'
-    )
+    let aiResponse: string
 
-    console.log('✅ [Analyze Screenshot] AI response received')
-
-    // Check if AI explicitly rejected the screenshot as detail view
-    if (aiResponse.includes('"error": "detail_view"') || aiResponse.includes('detail_view')) {
-      console.warn('⚠️ [Analyze Screenshot] AI detected detail view screenshot')
-      return NextResponse.json(
-        {
-          error: 'Screenshot yang diunggah adalah detail transaksi. Mohon unggah screenshot tab Riwayat (History) yang berbentuk tabel.',
-          suggestion: 'Buka tab History di MT5, lalu screenshot bagian tabel riwayat transaksi (bukan detail satu trade).',
-          isDetailView: true
-        },
-        { status: 400 }
+    // Try Ollama first (FREE - local installation)
+    try {
+      console.log('🔄 [Analyze Screenshot] Trying Ollama (FREE)...')
+      const ollamaResult = await analyzeImageWithOllama(
+        base64Image,
+        image.type,
+        prompt
       )
+      // Convert Ollama result to JSON string
+      aiResponse = JSON.stringify(ollamaResult)
+      console.log('✅ [Analyze Screenshot] Ollama analysis completed')
+    } catch (ollamaError: any) {
+      console.log('⚠️ [Analyze Screenshot] Ollama failed:', ollamaError.message)
+      console.log('🔄 [Analyze Screenshot] Trying Z.ai Vision (FREE)...')
+
+      // Fallback to Z.ai Vision (FREE - SDK built-in)
+      try {
+        const zaiResult = await analyzeImageWithZAIVision(base64Image, prompt, {})
+        aiResponse = zaiResult.text
+        console.log('✅ [Analyze Screenshot] Z.ai Vision analysis completed')
+      } catch (zaiError: any) {
+        console.error('❌ [Analyze Screenshot] Z.ai Vision also failed:', zaiError.message)
+        return NextResponse.json(
+          { error: 'AI Vision service tidak tersedia. Pastikan Ollama terinstall atau konfigurasi Z.ai benar.' },
+          { status: 503 }
+        )
+      }
     }
 
     // Parse trading data from AI response
@@ -389,51 +256,13 @@ Important guidelines:
     if (!tradingData) {
       console.error('❌ [Analyze Screenshot] Failed to parse trading data')
       return NextResponse.json(
-        {
-          error: 'Gagal mengekstrak data dari screenshot. Pastikan screenshot jelas dan menampilkan data trading.',
-          suggestion: 'Mohon unggah screenshot tab Riwayat (History) yang berbentuk tabel.'
-        },
+        { error: 'Failed to extract trading data from image. Please try a clearer screenshot.' },
         { status: 500 }
-      )
-    }
-
-    // Check if screenshot is likely a detail view rather than a table
-    if (isLikelyDetailScreenshot(aiResponse)) {
-      console.warn('⚠️ [Analyze Screenshot] Screenshot appears to be detail view, not table')
-      return NextResponse.json(
-        {
-          error: 'Screenshot yang diunggah adalah detail transaksi. Mohon unggah screenshot tab Riwayat (History) yang berbentuk tabel.',
-          suggestion: 'Buka tab History di MT5, lalu screenshot bagian tabel riwayat transaksi.',
-          isDetailView: true
-        },
-        { status: 400 }
-      )
-    }
-
-    // Validate extracted data has minimum required fields
-    const validation = validateExtractedData(tradingData)
-    if (!validation.valid) {
-      console.warn('⚠️ [Analyze Screenshot] Validation failed:', validation.missingFields)
-      return NextResponse.json(
-        {
-          error: validation.error || 'Data tidak lengkap. Minimal harus ada Symbol, Profit, dan Time.',
-          missingFields: validation.missingFields,
-          suggestion: 'Mohon unggah screenshot tab Riwayat (History) yang berbentuk tabel.'
-        },
-        { status: 400 }
       )
     }
 
     // Normalize data to match form fields
     const normalizedData = normalizeTradingData(tradingData)
-
-    // Convert timezone to WIB if time data exists
-    if (normalizedData.open_time && typeof normalizedData.open_time === 'string') {
-      normalizedData.open_time = convertToWIB(normalizedData.open_time)
-    }
-    if (normalizedData.close_time && typeof normalizedData.close_time === 'string') {
-      normalizedData.close_time = convertToWIB(normalizedData.close_time)
-    }
 
     console.log('📊 [Analyze Screenshot] Extracted data:', normalizedData)
 
@@ -448,44 +277,32 @@ Important guidelines:
   } catch (error: any) {
     console.error('❌ [Analyze Screenshot] Error:', error)
 
-    // Handle specific errors
-    if (error.message?.includes('OPENAI_API_KEY')) {
+    // Handle timeout errors
+    if (error.message?.includes('timeout') || error.message?.includes('AbortError') || error.message?.includes('took too long')) {
       return NextResponse.json(
-        { error: 'AI Vision service is not configured. Please contact support.' },
-        { status: 503 }
-      )
-    }
-
-    if (error.message?.includes('SUPABASE_SERVICE_ROLE_KEY')) {
-      return NextResponse.json(
-        { error: 'Supabase Storage is not configured properly. Please check environment variables.' },
-        { status: 503 }
-      )
-    }
-
-    if (error.message?.includes('bucket does not exist')) {
-      return NextResponse.json(
-        { error: `Storage bucket "${BUCKET_NAME}" not found. Please create it in Supabase Dashboard.` },
-        { status: 404 }
-      )
-    }
-
-    if (error.message?.includes('timeout') || error.message?.includes('took too long')) {
-      return NextResponse.json(
-        { error: 'Analysis timeout. Please try again or use a simpler image.' },
+        { error: 'Analisis timeout. Screenshot terlalu kompleks. Silakan coba lagi atau gunakan screenshot yang lebih sederhana.' },
         { status: 504 }
       )
     }
 
+    // Handle rate limit errors (hanya untuk OpenAI fallback)
     if (error.message?.includes('rate limit')) {
       return NextResponse.json(
-        { error: 'AI service rate limit exceeded. Please try again in a moment.' },
+        { error: 'AI service rate limit exceeded. Silakan coba lagi dalam beberapa saat.' },
         { status: 429 }
       )
     }
 
+    // Handle Ollama specific errors
+    if (error.message?.includes('Ollama server is not running')) {
+      return NextResponse.json(
+        { error: 'Ollama server tidak berjalan. Silakan jalankan Ollama atau hubungi admin.' },
+        { status: 503 }
+      )
+    }
+
     return NextResponse.json(
-      { error: error.message || 'Failed to analyze screenshot' },
+      { error: error.message || 'Gagal menganalisis screenshot' },
       { status: 500 }
     )
   }
