@@ -128,11 +128,20 @@ function TradeForm({
         if (data.data.profit_loss) onFormChange('profit_loss', data.data.profit_loss.toString())
         if (data.data.stop_loss) onFormChange('stop_loss', data.data.stop_loss.toString())
         if (data.data.take_profit) onFormChange('take_profit', data.data.take_profit.toString())
+        if (data.data.open_time) onFormChange('open_time', data.data.open_time)
+        if (data.data.close_time) onFormChange('close_time', data.data.close_time)
         if (data.image_url) onFormChange('image_url', data.image_url)
 
         toast.success('✨ Screenshot analyzed! Form auto-filled with trading data.')
       } else {
-        toast.error(data.error || 'Failed to analyze screenshot')
+        // Show specific error message with suggestion
+        const errorMessage = data.error || 'Failed to analyze screenshot'
+        const suggestion = data.suggestion || 'Please try again with a clearer screenshot.'
+
+        toast.error(errorMessage, {
+          description: suggestion,
+          duration: 6000,
+        })
       }
     } catch (error) {
       console.error('❌ [TradeForm] Screenshot analysis error:', error)
