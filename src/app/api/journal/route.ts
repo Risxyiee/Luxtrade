@@ -54,7 +54,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
-    const { data, error } = await supabase
+    // Create journal entry
+    const { data: journalData, error: journalError } = await supabase
       .from('journal_entries')
       .insert([{
         user_id: user.id,
@@ -62,17 +63,53 @@ export async function POST(request: NextRequest) {
         content: body.content,
         mood: body.mood || null,
         market_condition: body.market_condition || null,
+        tags: body.tags || null,
+        image_url: body.image_url || null,
       }])
       .select()
       .single()
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (journalError) {
+      console.error('Journal error:', journalError)
+      return NextResponse.json({ error: journalError.message }, { status: 500 })
     }
 
-    return NextResponse.json({ entry: data })
-  } catch {
-    return NextResponse.json({ error: 'Failed to create journal entry' }, { status: 500 })
+    // If trade data is provided and saveTrade is true, create trade entry
+    if (body.saveTrade && body.tradeData) {
+      const { tradeData } = body
+
+      const { error: tradeError } = await supabase
+        .from('trades')
+        .insert([{
+          user_id: user.id,
+          account_id: body.account_id || null,
+          symbol: tradeData.symbol,
+          type: tradeData.type,
+          open_price: tradeData.open_price,
+          close_price: tradeData.close_price,
+          lot_size: tradeData.lot_size,
+          profit_loss: tradeData.profit_loss,
+          open_time: tradeData.open_time,
+          close_time: tradeData.close_time,
+          session: tradeData.session || null,
+          notes: tradeData.notes || null,
+          image_url: tradeData.image_url || tradeData.screenshot_url || null,
+          screenshot_url: tradeData.screenshot_url || null,
+          linked_journal_id: journalData.id, // Link trade to journal
+        }])
+
+      if (tradeError) {
+        console.error('Trade creation error:', tradeError)
+        // Don't fail the journal creation if trade fails, just log it
+      } else {
+        console.log('✅ Trade created and linked to journal:', journalData.id)
+      }
+    }
+
+    return NextResponse.json({ entry: journalData })
+  } catch (error: any) {
+    console.error('Journal creation error:', error)
+    return NextResponse.json({ error: error.message || 'Failed to create journal entry' }, { status: 500 })
   }
 }
 
