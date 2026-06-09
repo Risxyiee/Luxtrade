@@ -174,7 +174,7 @@ export default function Sidebar({
         z-50
         transition-all duration-300 ease-in-out
         ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        ${mobileSidebarOpen ? 'w-80' : sidebarOpen ? 'w-80' : 'w-20'}
+        ${mobileSidebarOpen ? 'w-[80vw] max-w-[300px] sm:max-w-[320px]' : sidebarOpen ? 'w-80' : 'w-20'}
         flex flex-col
         overscroll-behavior-y-contain
       `}>
@@ -188,7 +188,7 @@ export default function Sidebar({
         <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-500/5 to-transparent pointer-events-none" />
 
         {/* Header Section - Logo & Account Selector */}
-        <div className="relative p-4 border-b border-purple-500/20 shrink-0 flex flex-col">
+        <div className="relative p-3 lg:p-4 border-b border-purple-500/20 shrink-0 flex flex-col min-h-0">
           <Link href="/" className="flex items-center gap-3 group">
             <motion.div
               className="relative flex-shrink-0"
@@ -210,12 +210,12 @@ export default function Sidebar({
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
                 transition={{ duration: 0.3 }}
-                className="overflow-hidden"
+                className="overflow-hidden min-w-0 flex-1"
               >
-                <h1 className="text-xl font-bold bg-gradient-to-r from-purple-300 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                <h1 className="text-lg lg:text-xl font-bold bg-gradient-to-r from-purple-300 via-purple-400 to-pink-400 bg-clip-text text-transparent truncate">
                   LuxTrade
                 </h1>
-                <p className="text-xs text-purple-400/60">Trading Journal</p>
+                <p className="text-[10px] lg:text-xs text-purple-400/60 truncate">Trading Journal</p>
               </motion.div>
             )}
           </Link>
@@ -226,40 +226,40 @@ export default function Sidebar({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.1 }}
-              className="mt-4 relative"
+              className="mt-3 lg:mt-4 relative min-h-0"
             >
               <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Wallet className="w-4 h-4 text-purple-400" />
-                  <span className="text-xs font-semibold text-gray-400">Trading Account</span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <Wallet className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                  <span className="text-[10px] sm:text-xs font-semibold text-gray-400 truncate">Trading Account</span>
                 </div>
                 {tradingAccounts.length > 1 && (
-                  <span className="text-[10px] text-gray-500">
+                  <span className="text-[9px] sm:text-[10px] text-gray-500 flex-shrink-0">
                     {tradingAccounts.length} accounts
                   </span>
                 )}
               </div>
 
-              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+              <div className="space-y-1.5 max-h-32 overflow-y-auto">
                 <button
                   onClick={() => {
                     setSelectedAccountId(null)
                     toast.success('All Accounts selected')
                   }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                  className={`w-full flex items-center gap-2 px-2 lg:px-3 py-2 rounded-lg text-[11px] sm:text-sm transition-all ${
                     selectedAccountId === null
                       ? 'bg-purple-500/20 border border-purple-500/30 text-white'
                       : 'bg-[#0a0712] border border-transparent text-gray-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  <Grid3X3 className={`w-4 h-4 ${selectedAccountId === null ? 'text-purple-400' : 'text-gray-500'}`} />
-                  <span className="flex-1 text-left">All Accounts</span>
+                  <Grid3X3 className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${selectedAccountId === null ? 'text-purple-400' : 'text-gray-500'} flex-shrink-0`} />
+                  <span className="flex-1 text-left truncate">All Accounts</span>
                 </button>
 
                 {tradingAccounts.map((account: any) => (
                   <div
                     key={account.id}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all group ${
+                    className={`flex items-center gap-2 px-2 lg:px-3 py-2 rounded-lg text-[11px] sm:text-sm transition-all group ${
                       selectedAccountId === account.id
                         ? 'bg-purple-500/20 border border-purple-500/30 text-white'
                         : 'bg-[#0a0712] border border-transparent text-gray-400 hover:text-white hover:bg-white/5'
@@ -270,11 +270,11 @@ export default function Sidebar({
                         setSelectedAccountId(account.id)
                         toast.success(`Switched to ${account.name}`)
                       }}
-                      className="flex-1 flex items-center gap-2 text-left"
+                      className="flex-1 flex items-center gap-2 text-left min-w-0"
                     >
-                      <div className={`w-2 h-2 rounded-full ${selectedAccountId === account.id ? 'bg-emerald-400' : 'bg-gray-500'}`} />
-                      <span className="truncate max-w-[120px]">{account.name}</span>
-                      <span className="text-xs text-gray-500">{account.currency}</span>
+                      <div className={`w-2 h-2 rounded-full ${selectedAccountId === account.id ? 'bg-emerald-400' : 'bg-gray-500'} flex-shrink-0`} />
+                      <span className="truncate max-w-[80px] sm:max-w-[120px]">{account.name}</span>
+                      <span className="text-[10px] text-gray-500 flex-shrink-0">{account.currency}</span>
                     </button>
 
                     {/* Delete button - visible for all accounts except when it's the only one */}
@@ -292,15 +292,15 @@ export default function Sidebar({
               </div>
 
               {/* Quick Action Buttons - Add Trade & Add Account */}
-              <div className="mt-3 flex gap-2">
-                <div className="relative flex-1">
+              <div className="mt-2 lg:mt-3 flex gap-2">
+                <div className="relative flex-1 min-w-0">
                   <button
                     onClick={() => setAddAccountOpen(true)}
-                    className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 border border-blue-500/30 hover:from-blue-500/30 hover:to-cyan-500/30 transition-all text-xs font-medium items-center justify-center gap-1.5 group"
+                    className="w-full py-2 px-2 lg:px-3 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 border border-blue-500/30 hover:from-blue-500/30 hover:to-cyan-500/30 transition-all text-[10px] sm:text-xs font-medium items-center justify-center gap-1.5 group truncate"
                     title={language === 'id' ? 'Tambah Akun Trading' : 'Add Trading Account'}
                   >
-                    <Wallet className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span className="hidden sm:inline">{language === 'id' ? 'Add Account' : 'Add Account'}</span>
+                    <Wallet className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+                    <span className="hidden sm:inline whitespace-nowrap overflow-hidden">{language === 'id' ? 'Add Account' : 'Add Account'}</span>
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); openGuide('addAccount') }}
@@ -319,14 +319,14 @@ export default function Sidebar({
                     position="right"
                   />
                 </div>
-                <div className="relative flex-1">
+                <div className="relative flex-1 min-w-0">
                   <button
                     onClick={() => setAddTradeOpen(true)}
-                    className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-purple-500 to-violet-600 text-white hover:from-purple-600 hover:to-violet-700 shadow-lg shadow-purple-500/20 transition-all text-xs font-medium items-center justify-center gap-1.5 group"
+                    className="w-full py-2 px-2 lg:px-3 rounded-lg bg-gradient-to-r from-purple-500 to-violet-600 text-white hover:from-purple-600 hover:to-violet-700 shadow-lg shadow-purple-500/20 transition-all text-[10px] sm:text-xs font-medium items-center justify-center gap-1.5 group truncate"
                     title={language === 'id' ? 'Catat Trade Baru' : 'Add New Trade'}
                   >
-                    <Plus className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span className="hidden sm:inline">{language === 'id' ? 'Add Trade' : 'Add Trade'}</span>
+                    <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+                    <span className="hidden sm:inline whitespace-nowrap overflow-hidden">{language === 'id' ? 'Add Trade' : 'Add Trade'}</span>
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); openGuide('addTrade') }}
@@ -350,7 +350,7 @@ export default function Sidebar({
           )}
         </div>
 
-        <nav className="flex-1 p-3 space-y-2 overflow-y-auto overflow-x-hidden relative min-h-0 -webkit-overflow-scrolling touch overscroll-behavior-y-contain">
+        <nav className="flex-1 p-2 lg:p-3 space-y-1.5 lg:space-y-2 overflow-y-auto overflow-x-hidden relative min-h-0 -webkit-overflow-scrolling touch overscroll-behavior-y-contain max-h-[calc(100vh-200px)] lg:max-h-none">
           {(['utama', 'alat', 'lanjutan'] as const).map((category) => {
             const categoryItems = menuItems.filter(item => item.category === category)
             const catInfo = menuCategories[category]
@@ -362,9 +362,9 @@ export default function Sidebar({
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.3 }}
-                    className="flex items-center gap-2 px-3 py-1.5 overflow-hidden"
+                    className="flex items-center gap-2 px-2 lg:px-3 py-1.5 overflow-hidden min-w-0"
                   >
-                    <span className={`text-[10px] font-bold tracking-wider ${
+                    <span className={`text-[9px] sm:text-[10px] font-bold tracking-wider truncate flex-shrink-0 ${
                       category === 'utama'
                         ? 'text-gray-500'
                         : category === 'alat'
@@ -415,7 +415,7 @@ export default function Sidebar({
                               navigator.vibrate(5)
                             }
                           }}
-                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 relative overflow-hidden group ${
+                          className={`w-full flex items-center gap-2 lg:gap-3 px-2 lg:px-3 py-2 lg:py-2.5 rounded-xl transition-all duration-300 relative overflow-hidden group min-w-0 ${
                             activeTab === item.id
                               ? 'bg-gradient-to-r from-purple-500/20 via-violet-500/15 to-pink-500/10 text-white shadow-lg shadow-purple-500/20'
                               : isLocked
@@ -459,12 +459,12 @@ export default function Sidebar({
                                 }}
                               />
                             )}
-                            <item.icon className="w-5 h-5 relative z-10" />
+                            <item.icon className="w-4 h-4 sm:w-5 sm:h-5 relative z-10" />
                           </motion.div>
 
                           {/* Menu Text - SHOW WHEN SIDEBAR OPEN (DESKTOP OR MOBILE) */}
                           {(sidebarOpen || mobileSidebarOpen) && (
-                            <span className={`text-sm font-medium flex-1 text-left truncate relative z-10 overflow-hidden ${
+                            <span className={`text-[11px] sm:text-sm font-medium flex-1 text-left truncate relative z-10 overflow-hidden whitespace-nowrap min-w-0 ${
                               activeTab === item.id ? 'text-white' : ''
                             }`}>
                               {language === 'id' ? item.labelId : item.label}
@@ -474,13 +474,13 @@ export default function Sidebar({
                           {/* PRO Badge - SHOW WHEN SIDEBAR OPEN (DESKTOP OR MOBILE) */}
                           {(sidebarOpen || mobileSidebarOpen) && item.proOnly && (
                             <motion.span
-                              className="flex items-center gap-1 relative z-10 flex-shrink-0"
+                              className="flex items-center gap-0.5 sm:gap-1 relative z-10 flex-shrink-0"
                               whileHover={{ scale: 1.1 }}
                             >
-                              <Lock className={`w-3 h-3 ${
+                              <Lock className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${
                                 proType === 'gold' ? 'text-amber-400' : 'text-purple-400'
                               }`} />
-                              <span className={`text-[7px] font-black px-1 py-0.5 rounded ${
+                              <span className={`text-[6px] sm:text-[7px] font-black px-1 py-0.5 rounded ${
                                 proType === 'gold'
                                   ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
                                   : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
@@ -522,25 +522,25 @@ export default function Sidebar({
         </nav>
 
         {/* Bottom Section */}
-        <div className="relative p-3 border-t border-purple-500/20 space-y-2 shrink-0">
+        <div className="relative p-2 lg:p-3 border-t border-purple-500/20 space-y-1.5 lg:space-y-2 shrink-0 min-h-0">
           {!isPro && (sidebarOpen || mobileSidebarOpen) && (
             <motion.button
               onClick={() => setPlanSelectionModalOpen(true)}
-              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-purple-600 via-violet-600 to-pink-600 text-sm font-bold text-white shadow-lg shadow-purple-500/30 relative overflow-hidden group"
+              className="w-full py-2 lg:py-2.5 px-2 lg:px-3 rounded-xl bg-gradient-to-r from-purple-600 via-violet-600 to-pink-600 text-[11px] sm:text-sm font-bold text-white shadow-lg shadow-purple-500/30 relative overflow-hidden group"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
-              <span className="relative z-10 flex items-center justify-center gap-2">
-                <Zap className="w-4 h-4" />
-                Upgrade to Pro
+              <span className="relative z-10 flex items-center justify-center gap-1.5 sm:gap-2">
+                <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="truncate">Upgrade to Pro</span>
               </span>
             </motion.button>
           )}
 
           {isPro && (sidebarOpen || mobileSidebarOpen) && (
             <motion.div
-              className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-purple-500/20 via-violet-500/10 to-pink-500/20 border border-purple-500/30 shadow-lg shadow-purple-500/20"
+              className="flex items-center gap-2 px-2 lg:px-3 py-2 lg:py-2.5 rounded-xl bg-gradient-to-r from-purple-500/20 via-violet-500/10 to-pink-500/20 border border-purple-500/30 shadow-lg shadow-purple-500/20"
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.3 }}
@@ -549,9 +549,9 @@ export default function Sidebar({
                 animate={{ rotate: [0, 360] }}
                 transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
               >
-                <Zap className="w-4 h-4 text-purple-400" />
+                <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400" />
               </motion.div>
-              <span className="text-sm font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent overflow-hidden whitespace-nowrap">
+              <span className="text-[11px] sm:text-sm font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent overflow-hidden whitespace-nowrap truncate">
                 ELITE PRO
               </span>
             </motion.div>
@@ -559,15 +559,15 @@ export default function Sidebar({
 
           <Link href="/settings" className="block relative">
             <motion.button
-              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-white/5 to-white/10 text-gray-300 border border-white/10 hover:from-white/10 hover:to-white/15 hover:border-white/20 transition-all flex items-center justify-center gap-2 text-sm font-semibold relative overflow-hidden group"
+              className="w-full py-2 lg:py-2.5 px-2 lg:px-3 rounded-xl bg-gradient-to-r from-white/5 to-white/10 text-gray-300 border border-white/10 hover:from-white/10 hover:to-white/15 hover:border-white/20 transition-all flex items-center justify-center gap-1.5 sm:gap-2 text-[11px] sm:text-sm font-semibold relative overflow-hidden group"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
               <motion.div
                 className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
               />
-              <Settings className="w-4 h-4 relative z-10 group-hover:text-purple-400 transition-colors flex-shrink-0" />
-              {(sidebarOpen || mobileSidebarOpen) && <span className="relative z-10 overflow-hidden whitespace-nowrap">Settings</span>}
+              <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 relative z-10 group-hover:text-purple-400 transition-colors flex-shrink-0" />
+              {(sidebarOpen || mobileSidebarOpen) && <span className="relative z-10 overflow-hidden whitespace-nowrap truncate">Settings</span>}
             </motion.button>
           </Link>
 
@@ -576,33 +576,33 @@ export default function Sidebar({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.1 }}
-              className="relative bg-gradient-to-br from-white/5 to-white/[0.02] rounded-xl p-3 border border-white/10 overflow-hidden"
+              className="relative bg-gradient-to-br from-white/5 to-white/[0.02] rounded-xl p-2 lg:p-3 border border-white/10 overflow-hidden min-h-0"
             >
               <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-purple-500/5 to-pink-500/5 opacity-0 hover:opacity-100 transition-opacity" />
-              <div className="relative flex items-center gap-3">
+              <div className="relative flex items-center gap-2 lg:gap-3 min-w-0">
                 <motion.div
-                  className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-lg shadow-purple-500/30"
+                  className="w-8 h-8 lg:w-9 lg:h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[10px] lg:text-xs font-bold flex-shrink-0 shadow-lg shadow-purple-500/30"
                   whileHover={{ scale: 1.1, rotate: 5 }}
                   transition={{ type: "spring", stiffness: 300 }}
                 >
                   {userInitials}
                 </motion.div>
                 <div className="min-w-0 flex-1 overflow-hidden">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold truncate text-white">
+                  <div className="flex items-center gap-1.5 lg:gap-2">
+                    <span className="text-[11px] sm:text-sm font-semibold truncate text-white">
                       {profile?.full_name || user?.email || 'User'}
                     </span>
                     {isPro ? (
-                      <Badge className="bg-gradient-to-r from-purple-500/40 to-pink-500/40 text-white border-purple-500/30 text-[10px] px-1.5 py-0 flex-shrink-0">
+                      <Badge className="bg-gradient-to-r from-purple-500/40 to-pink-500/40 text-white border-purple-500/30 text-[9px] sm:text-[10px] px-1.5 py-0 flex-shrink-0">
                         PRO
                       </Badge>
                     ) : (
-                      <Badge className="bg-white/10 text-gray-400 border-white/10 text-[10px] px-1.5 py-0 flex-shrink-0">
+                      <Badge className="bg-white/10 text-gray-400 border-white/10 text-[9px] sm:text-[10px] px-1.5 py-0 flex-shrink-0">
                         Free
                       </Badge>
                     )}
                   </div>
-                  <Link href="/settings" className="text-xs text-gray-500 hover:text-purple-400 transition-colors">
+                  <Link href="/settings" className="text-[10px] sm:text-xs text-gray-500 hover:text-purple-400 transition-colors truncate block">
                     Settings
                   </Link>
                 </div>
@@ -613,14 +613,14 @@ export default function Sidebar({
           {isAdmin && (sidebarOpen || mobileSidebarOpen) && (
             <Link href="/admin-secure" className="block">
               <motion.button
-                className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-purple-600/20 to-violet-600/20 text-purple-300 border border-purple-500/30 hover:from-purple-600/30 hover:to-violet-600/30 transition-all flex items-center justify-center gap-2 text-sm font-bold shadow-lg shadow-purple-500/10"
+                className="w-full py-2 lg:py-2.5 px-2 lg:px-3 rounded-xl bg-gradient-to-r from-purple-600/20 to-violet-600/20 text-purple-300 border border-purple-500/30 hover:from-purple-600/30 hover:to-violet-600/30 transition-all flex items-center justify-center gap-1.5 sm:gap-2 text-[11px] sm:text-sm font-bold shadow-lg shadow-purple-500/10"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <Shield className="w-4 h-4" />
-                <span className="flex items-center gap-1">
+                <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="flex items-center gap-1 truncate">
                   Admin Panel
-                  <Crown className="w-3 h-3 text-purple-400" />
+                  <Crown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-purple-400" />
                 </span>
               </motion.button>
             </Link>
@@ -628,13 +628,13 @@ export default function Sidebar({
 
           {isFreeUser && (sidebarOpen || mobileSidebarOpen) && (
             <motion.div
-              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20"
+              className="flex items-center gap-2 px-2 lg:px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 min-h-0"
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3 }}
             >
-              <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
-              <span className="text-xs text-amber-300 overflow-hidden whitespace-nowrap">
+              <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 flex-shrink-0" />
+              <span className="text-[10px] sm:text-xs text-amber-300 overflow-hidden whitespace-nowrap truncate">
                 {tradeCount}/{FREE_TRADE_LIMIT} trades used
               </span>
             </motion.div>
@@ -651,7 +651,7 @@ export default function Sidebar({
                 navigator.vibrate(10)
               }
             }}
-            className="relative w-full flex items-center justify-center p-2.5 text-gray-400 hover:text-white transition-colors rounded-xl hover:bg-white/5 active:bg-white/10 group"
+            className="relative w-full flex items-center justify-center p-2 lg:p-2.5 text-gray-400 hover:text-white transition-colors rounded-xl hover:bg-white/5 active:bg-white/10 group"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -659,7 +659,7 @@ export default function Sidebar({
               animate={{ rotate: sidebarOpen ? 180 : 0 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
             >
-              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {sidebarOpen ? <X className="w-4 h-4 sm:w-5 sm:h-5" /> : <Menu className="w-4 h-4 sm:w-5 sm:h-5" />}
             </motion.div>
           </motion.button>
         </div>
