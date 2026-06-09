@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generateImageWithOpenAI } from '@/lib/openai-vision'
+import { generateImageWithZAI } from '@/lib/zai-image'
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const imageUrl = await generateImageWithOpenAI(prompt, size)
+    const imageUrl = await generateImageWithZAI(prompt, { size })
 
     return NextResponse.json({
       success: true,
