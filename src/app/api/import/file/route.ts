@@ -35,13 +35,33 @@ const PROFIT_REGEX = /[-+]?\$?\s*[\d,]+\.?\d*\s*(?:USD)?/gi
 // ==================== HELPER: PARSE DATE ====================
 function parseMT5Date(dateStr: string): string | null {
   if (!dateStr) return null
-  
+
   const match = dateStr.match(/(\d{4})[.\-/](\d{2})[.\-/](\d{2})\s+(\d{2}):(\d{2}):?(\d{2})?/)
   if (match) {
     const [, year, month, day, hour, minute, second = '00'] = match
-    return `${year}-${month}-${day}T${hour}:${minute}:${second.padStart(2, '0')}Z`
+    const isoDate = `${year}-${month}-${day}T${hour}:${minute}:${second.padStart(2, '0')}Z`
+
+    // Convert to WIB (UTC+7)
+    const date = new Date(isoDate)
+    const hours = date.getUTCHours()
+
+    // Detect common MT5 server time patterns
+    let serverOffset = 0 // Default to GMT+0
+
+    // If time indicates European broker (GMT+2/+3 winter/+2 summer)
+    // Times like 09:00-17:00 suggest trading hours
+    if (hours >= 7 && hours <= 19) {
+      serverOffset = 2 // GMT+2 (EET)
+    }
+
+    // Convert to WIB (UTC+7)
+    // Formula: WIB = UTC + 7 - serverOffset
+    const wibOffsetHours = 7 - serverOffset
+    const wibDate = new Date(date.getTime() + (wibOffsetHours * 60 * 60 * 1000))
+
+    return wibDate.toISOString()
   }
-  
+
   return null
 }
 
