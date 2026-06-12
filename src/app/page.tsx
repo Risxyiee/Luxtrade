@@ -1296,6 +1296,164 @@ export default function LuxTradeLanding() {
         </div>
       </section>
 
+      {/* Promo Code Section - Special Offer */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-amber-900/10 to-transparent">
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <motion.div
+              className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-amber-500/10 border border-amber-500/30 mb-6"
+              animate={{
+                boxShadow: ['0 0 0 0 rgba(251, 191, 36, 0.7)', '0 0 0 10px rgba(251, 191, 36, 0)', '0 0 0 0 rgba(251, 191, 36, 0.7)']
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <Sparkles className="w-4.5 h-4.5 text-amber-400" />
+              <span className="text-sm text-amber-300 font-semibold">{language === 'id' ? 'PROMO SPESIAL' : 'SPECIAL PROMO'}</span>
+            </motion.div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold mb-6 text-white">
+              {language === 'id' ? 'Kode Promo Eksklusif' : 'Exclusive Promo Code'}
+            </h2>
+            <p className="text-white/50 mb-8 max-w-2xl mx-auto font-light text-lg">
+              {language === 'id' ? 'Gunakan kode promo di bawah ini untuk mendapatkan akses Premium 3 bulan GRATIS! Kuota terbatas untuk 30 trader pertama.' : 'Use the promo code below to get 3 months of Premium access for FREE! Limited to the first 30 traders.'}
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+          >
+            <div className="backdrop-blur-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-2 border-amber-500/30 rounded-3xl p-8 hover:shadow-[0_0_50px_rgba(251,191,36,0.3)] transition-all duration-300">
+              <div className="text-center">
+                {/* Promo Code Box */}
+                <div className="mb-8">
+                  <p className="text-amber-300/70 text-sm font-semibold mb-4 uppercase tracking-wider">
+                    {language === 'id' ? 'Kode Promo Anda' : 'Your Promo Code'}
+                  </p>
+                  <motion.div
+                    className="inline-flex items-center gap-4 px-8 py-6 bg-black/40 rounded-2xl border-2 border-amber-500/50 hover:border-amber-500 hover:bg-black/50 transition-all duration-300 cursor-pointer"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      navigator.clipboard.writeText('TRADERCEPAT')
+                      alert(language === 'id' ? 'Kode berhasil disalin!' : 'Code copied to clipboard!')
+                    }}
+                  >
+                    <span className="text-4xl font-extrabold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent tracking-wider font-mono">
+                      TRADERCEPAT
+                    </span>
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                      <Check className="w-5 h-5 text-amber-400" />
+                    </div>
+                  </motion.div>
+                  <p className="text-white/40 text-sm mt-3">
+                    {language === 'id' ? 'Klik untuk menyalin kode' : 'Click to copy code'}
+                  </p>
+                </div>
+
+                {/* Promo Details Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                  {[
+                    {
+                      icon: Crown,
+                      value: '100%',
+                      label: language === 'id' ? 'Diskon' : 'Discount',
+                      color: 'amber'
+                    },
+                    {
+                      icon: Clock,
+                      value: '3',
+                      label: language === 'id' ? 'Bulan' : 'Months',
+                      color: 'purple'
+                    },
+                    {
+                      icon: Users,
+                      value: '30',
+                      label: language === 'id' ? 'Kuota' : 'Quota',
+                      color: 'cyan'
+                    }
+                  ].map((item, index) => (
+                    <div key={index} className="p-4 rounded-xl bg-white/5 border border-white/[0.08]">
+                      <item.icon className={`w-8 h-8 text-${item.color}-400 mx-auto mb-3`} />
+                      <div className="text-3xl font-extrabold text-white mb-1">{item.value}</div>
+                      <div className="text-xs text-white/50 font-medium uppercase tracking-wide">{item.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* How to Use Steps */}
+                <div className="text-left max-w-2xl mx-auto">
+                  <p className="text-amber-300/70 text-sm font-semibold mb-4 uppercase tracking-wider">
+                    {language === 'id' ? 'Cara Menggunakan' : 'How to Use'}
+                  </p>
+                  <div className="space-y-4">
+                    {[
+                      {
+                        step: '1',
+                        text: language === 'id' ? 'Daftar akun LuxTrade di halaman pendaftaran' : 'Sign up for a LuxTrade account on the registration page'
+                      },
+                      {
+                        step: '2',
+                        text: language === 'id' ? 'Login ke dashboard dan buka halaman /upgrade' : 'Login to dashboard and go to the /upgrade page'
+                      },
+                      {
+                        step: '3',
+                        text: language === 'id' ? 'Input kode promo "TRADERCEPAT" dan klik "Terapkan Kode Promo"' : 'Enter promo code "TRADERCEPAT" and click "Apply Promo Code"'
+                      },
+                      {
+                        step: '4',
+                        text: language === 'id' ? 'Selamat! Anda mendapatkan akses Premium selama 3 bulan GRATIS' : 'Congratulations! You get 3 months of Premium access for FREE'
+                      }
+                    ].map((item, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, x: -20 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.3 + index * 0.1 }}
+                        className="flex items-start gap-4"
+                      >
+                        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center font-extrabold text-white text-sm">
+                          {item.step}
+                        </div>
+                        <div className="flex-1 pt-1">
+                          <p className="text-white/70 text-sm font-medium">{item.text}</p>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* CTA Button */}
+                <motion.div
+                  className="mt-10"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Link href="/upgrade">
+                    <Button className="h-14 px-10 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-extrabold text-base shadow-lg shadow-amber-500/30 hover:shadow-[0_0_40px_rgba(251,191,36,0.5)] transition-all duration-300 backdrop-blur-xl">
+                      {language === 'id' ? '🚀 Gunakan Promo Code Sekarang' : '🚀 Use Promo Code Now'}
+                      <ArrowRight className="w-5 h-5 ml-2" />
+                    </Button>
+                  </Link>
+                </motion.div>
+
+                {/* Urgency Note */}
+                <p className="text-white/30 text-xs mt-6 font-medium">
+                  {language === 'id' ? '⚡ Berlaku sampai kuota 30 habis. Segera gunakan sebelum kehabisan!' : '⚡ Valid until 30 quota is exhausted. Use it now before it runs out!'}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Newsletter Section - Premium */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-cyan-900/10 to-transparent">
         <div className="max-w-2xl mx-auto text-center">
