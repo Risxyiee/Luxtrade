@@ -66,7 +66,7 @@ model MissionProgress {
 
   user            Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, missionKey])
+  @@unique([userId, missionKey], name: "userId_missionKey")
   @@index([userId])
   @@map("mission_progress")
 }

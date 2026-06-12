@@ -61,6 +61,40 @@ export async function checkAchievementsAfterTrade(userId: string): Promise<Achie
           }
         })
 
+        // Create submission record for tracking
+        await db.userSubmission.create({
+          data: {
+            userId,
+            achievementKey: achievement.id,
+            proofUrl: null,
+            status: 'APPROVED',
+            reviewedBy: 'SYSTEM',
+          }
+        })
+
+        // Create or update mission progress
+        await db.missionProgress.upsert({
+          where: {
+            userId_missionKey: {
+              userId,
+              missionKey: achievement.id
+            }
+          },
+          create: {
+            userId,
+            missionKey: achievement.id,
+            progress: achievement.criteria.target,
+            target: achievement.criteria.target,
+            completed: true,
+            claimed: true,
+          },
+          update: {
+            progress: achievement.criteria.target,
+            completed: true,
+            claimed: true,
+          }
+        })
+
         // Apply reward immediately
         await applyReward(userId, achievement)
 
