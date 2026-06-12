@@ -110,10 +110,10 @@ export default function ScreenshotJournalDialog({
         throw new Error(data.error || 'Gagal menganalisis screenshot')
       }
 
-      if (data.success && data.data) {
-        const t = data.data.trade
-        const j = data.data.journal
-        const raw = data.data.raw_analysis || ''
+      if (data.success) {
+        const t = data.trade
+        const j = data.journal
+        const raw = data.raw_analysis || ''
 
         const hasTradeData = t && t.symbol && t.symbol.length > 0
         const hasJournalData = j && j.title && j.title.length > 0
@@ -134,7 +134,7 @@ export default function ScreenshotJournalDialog({
           setError('Tidak ada data trading yang terdeteksi di screenshot.')
         }
       } else if (data.warning) {
-        setRawAnalysis(data.data?.raw_analysis || '')
+        setRawAnalysis(data.raw_analysis || '')
         setError(data.warning)
         setStep('result')
       }
