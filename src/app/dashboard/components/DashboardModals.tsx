@@ -48,6 +48,9 @@ interface DashboardModalsProps {
   showOnboarding: boolean
   setShowOnboarding: (show: boolean) => void
   addTradeOpen: boolean
+  setAddTradeOpen: (open: boolean) => void
+  addAccountOpen: boolean
+  setAddAccountOpen: (open: boolean) => void
 
   // Trade-related
   formData: TradeFormData
