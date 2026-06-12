@@ -169,7 +169,7 @@ function LuxTradeDashboardContent() {
   
   // All other states and logic
   const [activeTab, setActiveTab] = useState('dashboard')
-  const [sidebarOpen, setSidebarOpen] = useState(false) // MOBILE: Default CLOSED!
+  const [sidebarOpen, setSidebarOpen] = useState(true) // DESKTOP: Default OPEN!
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   
   // Trade modals
@@ -347,9 +347,9 @@ function LuxTradeDashboardContent() {
       setIsMobile(isMobileCheck)
 
       // Auto-open sidebar on desktop, keep closed on mobile
-      if (!isMobileCheck && !sidebarOpen) {
+      if (!isMobileCheck) {
         setSidebarOpen(true)
-      } else if (isMobileCheck && sidebarOpen) {
+      } else {
         setSidebarOpen(false)
       }
     }
@@ -358,7 +358,7 @@ function LuxTradeDashboardContent() {
     const handleResize = () => checkMobile()
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [sidebarOpen])
+  }, [])
 
   
   // Helper: Get auth header for API calls
