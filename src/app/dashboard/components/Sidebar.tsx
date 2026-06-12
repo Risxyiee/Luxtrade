@@ -221,75 +221,88 @@ export default function Sidebar({
           </Link>
 
           {/* Account Selector with Delete Button */}
-          {(sidebarOpen || mobileSidebarOpen) && tradingAccounts.length > 0 && (
+          {(sidebarOpen || mobileSidebarOpen) && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.1 }}
               className="mt-4 relative"
             >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Wallet className="w-4 h-4 text-purple-400" />
-                  <span className="text-xs font-semibold text-gray-400">Trading Account</span>
-                </div>
-                {tradingAccounts.length > 1 && (
-                  <span className="text-[10px] text-gray-500">
-                    {tradingAccounts.length} accounts
-                  </span>
-                )}
-              </div>
-
-              <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                <button
-                  onClick={() => {
-                    setSelectedAccountId(null)
-                    toast.success('All Accounts selected')
-                  }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
-                    selectedAccountId === null
-                      ? 'bg-purple-500/20 border border-purple-500/30 text-white'
-                      : 'bg-[#0a0712] border border-transparent text-gray-400 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  <Grid3X3 className={`w-4 h-4 ${selectedAccountId === null ? 'text-purple-400' : 'text-gray-500'}`} />
-                  <span className="flex-1 text-left">All Accounts</span>
-                </button>
-
-                {tradingAccounts.map((account: any) => (
-                  <div
-                    key={account.id}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all group ${
-                      selectedAccountId === account.id
-                        ? 'bg-purple-500/20 border border-purple-500/30 text-white'
-                        : 'bg-[#0a0712] border border-transparent text-gray-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    <button
-                      onClick={() => {
-                        setSelectedAccountId(account.id)
-                        toast.success(`Switched to ${account.name}`)
-                      }}
-                      className="flex-1 flex items-center gap-2 text-left"
-                    >
-                      <div className={`w-2 h-2 rounded-full ${selectedAccountId === account.id ? 'bg-emerald-400' : 'bg-gray-500'}`} />
-                      <span className="truncate max-w-[120px]">{account.name}</span>
-                      <span className="text-xs text-gray-500">{account.currency}</span>
-                    </button>
-
-                    {/* Delete button - visible for all accounts except when it's the only one */}
+              {/* Account Selector - Only show if has accounts */}
+              {tradingAccounts.length > 0 && (
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="w-4 h-4 text-purple-400" />
+                      <span className="text-xs font-semibold text-gray-400">Trading Account</span>
+                    </div>
                     {tradingAccounts.length > 1 && (
-                      <button
-                        onClick={() => openDeleteModal(account)}
-                        className="p-1.5 rounded text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-60 hover:opacity-100"
-                        title="Delete Account"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <span className="text-[10px] text-gray-500">
+                        {tradingAccounts.length} accounts
+                      </span>
                     )}
                   </div>
-                ))}
-              </div>
+
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    <button
+                      onClick={() => {
+                        setSelectedAccountId(null)
+                        toast.success('All Accounts selected')
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        selectedAccountId === null
+                          ? 'bg-purple-500/20 border border-purple-500/30 text-white'
+                          : 'bg-[#0a0712] border border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <Grid3X3 className={`w-4 h-4 ${selectedAccountId === null ? 'text-purple-400' : 'text-gray-500'}`} />
+                      <span className="flex-1 text-left">All Accounts</span>
+                    </button>
+
+                    {tradingAccounts.map((account: any) => (
+                      <div
+                        key={account.id}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all group ${
+                          selectedAccountId === account.id
+                            ? 'bg-purple-500/20 border border-purple-500/30 text-white'
+                            : 'bg-[#0a0712] border border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        <button
+                          onClick={() => {
+                            setSelectedAccountId(account.id)
+                            toast.success(`Switched to ${account.name}`)
+                          }}
+                          className="flex-1 flex items-center gap-2 text-left"
+                        >
+                          <div className={`w-2 h-2 rounded-full ${selectedAccountId === account.id ? 'bg-emerald-400' : 'bg-gray-500'}`} />
+                          <span className="truncate max-w-[120px]">{account.name}</span>
+                          <span className="text-xs text-gray-500">{account.currency}</span>
+                        </button>
+
+                        {/* Delete button - visible for all accounts except when it's the only one */}
+                        {tradingAccounts.length > 1 && (
+                          <button
+                            onClick={() => openDeleteModal(account)}
+                            className="p-1.5 rounded text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-60 hover:opacity-100"
+                            title="Delete Account"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* No accounts message */}
+              {tradingAccounts.length === 0 && (
+                <div className="text-center py-3 px-3 bg-white/5 rounded-lg border border-white/10">
+                  <Wallet className="w-5 h-5 text-gray-500 mx-auto mb-1" />
+                  <p className="text-xs text-gray-500">Belum ada trading account</p>
+                </div>
+              )}
 
               {/* Quick Action Buttons - Add Trade & Add Account */}
               <div className="mt-3 flex gap-2">
