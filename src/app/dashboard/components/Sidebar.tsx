@@ -309,7 +309,7 @@ export default function Sidebar({
                 <div className="relative flex-1">
                   <button
                     onClick={() => setAddAccountOpen(true)}
-                    className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 border border-blue-500/30 hover:from-blue-500/30 hover:to-cyan-500/30 transition-all text-xs font-medium items-center justify-center gap-1.5 group"
+                    className="flex w-full py-2 px-3 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 border border-blue-500/30 hover:from-blue-500/30 hover:to-cyan-500/30 transition-all text-xs font-medium items-center justify-center gap-1.5 group"
                     title={language === 'id' ? 'Tambah Akun Trading' : 'Add Trading Account'}
                   >
                     <Wallet className="w-3.5 h-3.5 flex-shrink-0" />
@@ -335,7 +335,7 @@ export default function Sidebar({
                 <div className="relative flex-1">
                   <button
                     onClick={() => setAddTradeOpen(true)}
-                    className="w-full py-2 px-3 rounded-lg bg-gradient-to-r from-purple-500 to-violet-600 text-white hover:from-purple-600 hover:to-violet-700 shadow-lg shadow-purple-500/20 transition-all text-xs font-medium items-center justify-center gap-1.5 group"
+                    className="flex w-full py-2 px-3 rounded-lg bg-gradient-to-r from-purple-500 to-violet-600 text-white hover:from-purple-600 hover:to-violet-700 shadow-lg shadow-purple-500/20 transition-all text-xs font-medium items-center justify-center gap-1.5 group"
                     title={language === 'id' ? 'Catat Trade Baru' : 'Add New Trade'}
                   >
                     <Plus className="w-3.5 h-3.5 flex-shrink-0" />
