@@ -1,16 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ACHIEVEMENTS, getAchievementById } from '@/lib/achievements-data'
-import {
-  ensureProfileExists,
-  getProfile,
-  getUserSubmissions,
-  createUserSubmission,
-  getMissionProgressByKey,
-  upsertMissionProgress,
-  addAchievementToProfile,
-  updateProfile,
-} from '@/lib/supabase-db'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,19 +22,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Ensure profile exists
-    const profile = await ensureProfileExists(userId)
+    let profile = await db.profile.findUnique({
+      where: { id: userId }
+    })
+
     if (!profile) {
       return NextResponse.json(
-        { error: 'Failed to create or fetch profile' },
-        { status: 500 }
+        { error: 'Profile not found' },
+        { status: 404 }
       )
     }
 
-    // Get user's submissions and progress
-    const submissions = await getUserSubmissions(userId)
+    // Get user's submissions and achievements
+    const submissions = await db.userSubmission.findMany({
+      where: { userId }
+    })
 
     const existingClaim = submissions.find(
-      s => s.achievement_key === missionId && s.status === 'APPROVED'
+      s => s.achievementKey === missionId && s.status === 'APPROVED'
     )
 
     if (existingClaim) {
@@ -81,12 +76,14 @@ export async function POST(request: NextRequest) {
     const status = achievement.type === 'automatic' ? 'APPROVED' : 'PENDING'
 
     // Create submission
-    const submission = await createUserSubmission({
-      userId,
-      achievementKey: missionId,
-      proofUrl: proofUrl || undefined,
-      status,
-      reviewedBy: achievement.type === 'automatic' ? 'SYSTEM' : undefined,
+    const submission = await db.userSubmission.create({
+      data: {
+        userId,
+        achievementKey: missionId,
+        proofUrl: proofUrl || null,
+        status,
+        reviewedBy: achievement.type === 'automatic' ? 'SYSTEM' : null,
+      }
     })
 
     if (!submission) {
@@ -96,32 +93,47 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Add achievement to profile if approved
+    // Add achievement to profile and apply reward if approved
     if (achievement.type === 'automatic' && status === 'APPROVED') {
-      await addAchievementToProfile(userId, missionId)
+      const achievements = (profile.achievements as string[]) || []
+      await db.profile.update({
+        where: { id: userId },
+        data: {
+          achievements: [...achievements, missionId]
+        }
+      })
       await applyReward(userId, achievement)
     }
 
-    // Update mission progress
-    const missionProgress = await getMissionProgressByKey(userId, missionId)
+    // Update or create mission progress
+    const missionProgress = await db.missionProgress.findUnique({
+      where: {
+        userId_missionKey: {
+          userId,
+          missionKey: missionId
+        }
+      }
+    })
 
     if (missionProgress) {
-      await upsertMissionProgress({
-        userId,
-        missionKey: missionId,
-        progress: missionProgress.target,
-        target: missionProgress.target,
-        completed: true,
-        claimed: true,
+      await db.missionProgress.update({
+        where: { id: missionProgress.id },
+        data: {
+          progress: missionProgress.target,
+          completed: true,
+          claimed: true,
+        }
       })
     } else {
-      await upsertMissionProgress({
-        userId,
-        missionKey: missionId,
-        progress: 1,
-        target: 1,
-        completed: true,
-        claimed: true,
+      await db.missionProgress.create({
+        data: {
+          userId,
+          missionKey: missionId,
+          progress: 1,
+          target: 1,
+          completed: true,
+          claimed: true,
+        }
       })
     }
 
@@ -152,43 +164,48 @@ async function validateAutomaticAchievement(
   try {
     switch (achievement.criteria.type) {
       case 'trade_count':
-        const tradesCount = await supabase
-          .from('Trade')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', userId)
+        const tradesCount = await db.trade.count({
+          where: { user_id: userId }
+        })
 
-        const totalTrades = tradesCount.count || 0
+        const totalTrades = tradesCount || 0
+        console.log(`[Achievement Validator] Trade count: ${totalTrades}, Target: ${achievement.criteria.target}`)
         return totalTrades >= achievement.criteria.target
 
       case 'profit':
-        const { data: profitData } = await supabase
-          .from('Trade')
-          .select('profit_loss')
-          .eq('user_id', userId)
-          .gt('profit_loss', 0)
+        const trades = await db.trade.findMany({
+          where: {
+            user_id: userId,
+            profit_loss: { gt: 0 }
+          },
+          select: { profit_loss: true }
+        })
 
-        const totalProfit = (profitData || []).reduce((sum, t) => sum + (t.profit_loss || 0), 0)
+        const totalProfit = trades.reduce((sum, t) => sum + (t.profit_loss || 0), 0)
+        console.log(`[Achievement Validator] Total profit: $${totalProfit}, Target: $${achievement.criteria.target}`)
         return totalProfit >= achievement.criteria.target
 
       case 'win_streak':
-        const { data: winTrades } = await supabase
-          .from('Trade')
-          .select('profit_loss, close_time')
-          .eq('user_id', userId)
-          .gt('profit_loss', 0)
-          .order('close_time', { ascending: false })
+        const winTrades = await db.trade.findMany({
+          where: {
+            user_id: userId,
+            profit_loss: { gt: 0 }
+          },
+          orderBy: { close_time: 'desc' },
+          select: { profit_loss: true, close_time: true }
+        })
 
         let currentStreak = 0
         if (winTrades && winTrades.length > 0) {
-          currentStreak = 1
-          for (let i = 1; i < winTrades.length; i++) {
-            currentStreak++
-          }
+          currentStreak = winTrades.length
         }
+        console.log(`[Achievement Validator] Win streak: ${currentStreak}, Target: ${achievement.criteria.target}`)
         return currentStreak >= achievement.criteria.target
 
       case 'login_streak':
-        return profile.streak_count >= achievement.criteria.target
+        const streakCount = profile.streakCount || 0
+        console.log(`[Achievement Validator] Login streak: ${streakCount}, Target: ${achievement.criteria.target}`)
+        return streakCount >= achievement.criteria.target
 
       default:
         return false
@@ -204,14 +221,16 @@ async function applyReward(userId: string, achievement: any) {
     switch (achievement.reward.type) {
       case 'pro_days':
         const daysToAdd = achievement.reward.value as number
-        const profile = await getProfile(userId)
+        const profile = await db.profile.findUnique({
+          where: { id: userId }
+        })
 
         if (!profile) {
-          console.error('Profile not found when applying reward')
+          console.error('[Achievement Reward] Profile not found when applying reward')
           return
         }
 
-        const currentExpiry = profile.pro_expiry ? new Date(profile.pro_expiry) : null
+        const currentExpiry = profile.subscription_until ? new Date(profile.subscription_until) : null
         const now = new Date()
 
         let newExpiry: Date
@@ -223,34 +242,25 @@ async function applyReward(userId: string, achievement: any) {
 
         newExpiry.setDate(newExpiry.getDate() + daysToAdd)
 
-        await updateProfile(userId, {
-          pro_expiry: newExpiry.toISOString(),
-          plan: 'PRO',
-        })
-
-        // Also update Supabase Auth metadata
-        const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
-          user_metadata: {
-            is_pro: true,
-            subscription_status: 'active',
+        await db.profile.update({
+          where: { id: userId },
+          data: {
             subscription_until: newExpiry.toISOString(),
+            plan: 'PRO',
+            is_pro: true,
           }
         })
 
-        if (updateError) {
-          console.error('Error updating user metadata:', updateError)
-        }
-
+        console.log(`[Achievement Reward] Applied ${daysToAdd} days PRO to user ${userId}`)
         break
 
       case 'special_feature':
-        break
-
       case 'badge':
+        // TODO: Implement badge and special feature rewards
         break
     }
   } catch (error) {
-    console.error('Error applying reward:', error)
+    console.error('[Achievement Reward] Error applying reward:', error)
   }
 }
 
@@ -266,20 +276,25 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const profile = await ensureProfileExists(userId)
+    const profile = await db.profile.findUnique({
+      where: { id: userId }
+    })
 
     if (!profile) {
       return NextResponse.json(
-        { error: 'Failed to create or fetch profile' },
-        { status: 500 }
+        { error: 'Profile not found' },
+        { status: 404 }
       )
     }
 
-    const submissions = await getUserSubmissions(userId)
+    const submissions = await db.userSubmission.findMany({
+      where: { userId }
+    })
+
     const achievements = (profile.achievements as string[]) || []
     const claimedAchievements = submissions
       .filter(s => s.status === 'APPROVED')
-      .map(s => s.achievement_key)
+      .map(s => s.achievementKey)
 
     const progressData = await Promise.all(
       ACHIEVEMENTS.map(async (achievement) => {
@@ -290,42 +305,42 @@ export async function GET(request: NextRequest) {
 
         switch (achievement.criteria.type) {
           case 'trade_count':
-            const tradesCount = await supabase
-              .from('Trade')
-              .select('*', { count: 'exact', head: true })
-              .eq('user_id', userId)
+            const tradesCount = await db.trade.count({
+              where: { user_id: userId }
+            })
 
-            currentProgress = tradesCount.count || 0
+            currentProgress = tradesCount || 0
             break
 
           case 'profit':
-            const { data: profitData } = await supabase
-              .from('Trade')
-              .select('profit_loss')
-              .eq('user_id', userId)
-              .gt('profit_loss', 0)
+            const trades = await db.trade.findMany({
+              where: {
+                user_id: userId,
+                profit_loss: { gt: 0 }
+              },
+              select: { profit_loss: true }
+            })
 
-            currentProgress = (profitData || []).reduce((sum, t) => sum + (t.profit_loss || 0), 0)
+            currentProgress = trades.reduce((sum, t) => sum + (t.profit_loss || 0), 0)
             break
 
           case 'login_streak':
-            currentProgress = profile.streak_count || 0
+            currentProgress = profile.streakCount || 0
             break
 
           case 'win_streak':
-            const { data: winTrades } = await supabase
-              .from('Trade')
-              .select('profit_loss, close_time')
-              .eq('user_id', userId)
-              .gt('profit_loss', 0)
-              .order('close_time', { ascending: false })
+            const winTrades = await db.trade.findMany({
+              where: {
+                user_id: userId,
+                profit_loss: { gt: 0 }
+              },
+              orderBy: { close_time: 'desc' },
+              select: { profit_loss: true, close_time: true }
+            })
 
             let currentStreak = 0
             if (winTrades && winTrades.length > 0) {
-              currentStreak = 1
-              for (let i = 1; i < winTrades.length; i++) {
-                currentStreak++
-              }
+              currentStreak = winTrades.length
             }
             currentProgress = currentStreak
             break
@@ -350,8 +365,8 @@ export async function GET(request: NextRequest) {
       achievements: progressData,
       totalCompleted: achievements.length,
       totalClaimed: claimedAchievements.length,
-      streakCount: profile.streak_count || 0,
-      bestStreak: profile.best_streak || 0
+      streakCount: profile.streakCount || 0,
+      bestStreak: profile.bestStreak || 0
     })
 
   } catch (error) {
