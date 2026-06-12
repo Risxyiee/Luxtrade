@@ -1,10 +1,10 @@
-// Production Schema - PostgreSQL
+// Production Schema - SQLite
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -94,12 +94,16 @@ model UserSubscription {
   status            String    @default("active")
   startDate         DateTime  @default(now())
   endDate           DateTime?
+  promoCodeId       String?
+  discountPercent   Float     @default(0)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promoCode         PromoCode? @relation(fields: [promoCodeId], references: [id])
 
   @@index([userId])
+  @@index([promoCodeId])
   @@map("user_subscriptions")
 }
 
@@ -246,4 +250,25 @@ model SocialLink {
   @@index([userId])
   @@index([status])
   @@map("social_links")
+}
+
+model PromoCode {
+  id                String    @id @default(uuid())
+  code              String    @unique
+  description       String?
+  discountPercent   Float
+  maxQuota          Int
+  usedQuota         Int       @default(0)
+  durationMonths    Int
+  startDate         DateTime  @default(now())
+  endDate           DateTime?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  subscriptions     UserSubscription[]
+
+  @@index([code])
+  @@index([isActive, startDate, endDate])
+  @@map("promo_codes")
 }
