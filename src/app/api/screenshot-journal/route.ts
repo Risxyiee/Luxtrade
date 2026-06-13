@@ -359,17 +359,22 @@ async function analyzeScreenshotWithVLM(
     console.log('⚠️ [Screenshot Journal] Ollama analysis failed, trying Z.ai Vision:', error.message)
   }
 
-  // Step 3: Try Z.ai Vision (Build-required SDK)
+  // Step 3: Try Z.ai Vision (Build-required SDK) - SKIP IN PRODUCTION
   console.log('🤖 [Screenshot Journal] Checking Z.ai Vision availability...')
 
-  try {
-    console.log('🔄 [Screenshot Journal] Calling analyzeImageWithZAIVision...')
-    const result = await analyzeImageWithZAIVision(base64Image, VLM_PROMPT, {})
-    const parsed = parseVLMResponse(result.text)
-    console.log(`✅ [Screenshot Journal] Z.ai Vision analysis completed`)
-    return parsed
-  } catch (error: any) {
-    console.log('⚠️ [Screenshot Journal] Z.ai Vision failed, using fallback:', error.message)
+  // Skip Z.ai Vision in production (internal API not accessible from Vercel)
+  if (process.env.NODE_ENV === 'production') {
+    console.log('⚠️ [Screenshot Journal] Skipping Z.ai Vision in production (internal API not accessible)')
+  } else {
+    try {
+      console.log('🔄 [Screenshot Journal] Calling analyzeImageWithZAIVision...')
+      const result = await analyzeImageWithZAIVision(base64Image, VLM_PROMPT, {})
+      const parsed = parseVLMResponse(result.text)
+      console.log(`✅ [Screenshot Journal] Z.ai Vision analysis completed`)
+      return parsed
+    } catch (error: any) {
+      console.log('⚠️ [Screenshot Journal] Z.ai Vision failed, using fallback:', error.message || 'Connection timeout')
+    }
   }
 
   // Step 4: Use fallback (no OCR available)
