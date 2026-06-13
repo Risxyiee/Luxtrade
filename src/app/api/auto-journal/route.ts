@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
-import ZAI from 'z-ai-web-dev-sdk'
-import fs from 'fs/promises'
-import path from 'path'
+import { analyzeImageWithHuggingFace } from '@/lib/huggingface-vision'
 
 // ==================== TYPES ====================
 interface ExtractedTrade {
@@ -32,12 +30,11 @@ interface GeneratedJournal {
 // ==================== HELPERS ====================
 
 /**
- * Convert base64 to file and analyze with VLM
+ * Convert base64 to file and analyze with HuggingFace Vision (FREE)
  */
 async function analyzeImage(base64Image: string) {
   try {
-    // Create ZAI instance
-    const zai = await ZAI.create()
+    console.log('🤖 [Auto Journal] Starting HuggingFace Vision analysis...')
 
     // Extract trading data
     const tradePrompt = `Analyze this trading platform screenshot and extract all trading information in JSON format:
@@ -56,29 +53,13 @@ async function analyzeImage(base64Image: string) {
 
 Return ONLY valid JSON, no other text.`
 
-    const tradeResponse = await zai.chat.completions.createVision({
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: tradePrompt
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`
-              }
-            }
-          ]
-        }
-      ],
-      thinking: { type: 'disabled' }
+    const tradeResponse = await analyzeImageWithHuggingFace(base64Image, tradePrompt, {
+      timeout: 60000,
+      maxRetries: 3
     })
 
-    const tradeContent = tradeResponse.choices?.[0]?.message?.content || ''
-    console.log('📊 [Auto Journal] Trade data:', tradeContent)
+    const tradeContent = tradeResponse.text || ''
+    console.log('📊 [Auto Journal] Trade data extracted')
 
     // Parse JSON
     const tradeData: ExtractedTrade = JSON.parse(tradeContent)
@@ -101,28 +82,12 @@ Market Condition: [trending/ranging/volatile/bullish/bearish]
 Tags: [comma-separated relevant tags]
 Setup Type: [strategy name like breakout/pullback/momentum etc.]`
 
-    const journalResponse = await zai.chat.completions.createVision({
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: journalPrompt
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`
-              }
-            }
-          ]
-        }
-      ],
-      thinking: { type: 'disabled' }
+    const journalResponse = await analyzeImageWithHuggingFace(base64Image, journalPrompt, {
+      timeout: 60000,
+      maxRetries: 3
     })
 
-    const journalContent = journalResponse.choices?.[0]?.message?.content || ''
+    const journalContent = journalResponse.text || ''
     console.log('📝 [Auto Journal] Journal analysis completed')
 
     // Parse journal response
