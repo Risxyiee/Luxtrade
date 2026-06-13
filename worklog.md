@@ -1404,3 +1404,20 @@ Files Reviewed:
 - /home/z/my-project/src/app/api/trading-accounts/route.ts
 - /home/z/my-project/src/app/api/trade-upload/route.ts
 - /home/z/my-project/worklog.md
+
+---
+Task ID: latest
+Agent: Z.ai Code
+Task: Add promo code claim button in sidebar
+
+Work Log:
+- Added promo code claim button to dashboard sidebar
+- Button located in sidebar menu with "Claim Promo" label
+- Allows users to claim free 3-month promo code after login
+- Previously only banner on landing page existed
+- Committed: d0bb93c feat: add promo code claim button in sidebar
+- All changes pushed to GitHub
+
+Stage Summary:
+- Promo code claim functionality now accessible from dashboard sidebar
+- Users can claim codes directly after login, not just from landing page
