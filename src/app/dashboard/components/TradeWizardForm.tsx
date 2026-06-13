@@ -223,6 +223,78 @@ export default function TradeWizardForm({
     }
   }
 
+  // Handle auto-journal creation with AI analysis
+  const handleAutoJournal = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File too large. Maximum size is 10MB.')
+      return
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Invalid file type. Please upload an image.')
+      return
+    }
+
+    setAnalyzingScreenshot(true)
+    toast.loading('🤖 AI is analyzing your screenshot...', { id: 'auto-journal' })
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+
+      const res = await fetch('/api/auto-journal', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        // Auto-fill form with extracted trade data
+        const trade = data.data.trade
+        const journal = data.data.journal
+
+        if (trade.symbol) onFormChange('symbol', trade.symbol)
+        if (trade.type) onTypeChange(trade.type)
+        if (trade.lot_size) onFormChange('lot_size', trade.lot_size.toString())
+        if (trade.open_price) onFormChange('open_price', trade.open_price.toString())
+        if (trade.close_price) onFormChange('close_price', trade.close_price.toString())
+        if (trade.profit_loss) onFormChange('profit_loss', trade.profit_loss.toString())
+        if (trade.stop_loss) onFormChange('stop_loss', trade.stop_loss.toString())
+        if (trade.take_profit) onFormChange('take_profit', trade.take_profit.toString())
+
+        // Auto-fill journal data
+        if (journal.content) onFormChange('notes', journal.content)
+        if (journal.mood) {
+          setSelectedEmotion(journal.mood)
+          onFormChange('emotion', journal.mood)
+        }
+        if (journal.setup_type) onFormChange('setup_type', journal.setup_type)
+        if (journal.risk_reward_ratio) onFormChange('risk_reward_ratio', journal.risk_reward_ratio.toString())
+
+        toast.success('✨ Auto-journal created! Trade and journal have been saved automatically.', { id: 'auto-journal' })
+        toast.success('📝 AI analyzed: ' + journal.setup_type + ' setup in ' + journal.market_condition + ' market')
+
+        // Close modal after successful auto-journal
+        setTimeout(() => {
+          onCancel()
+        }, 1500)
+      } else {
+        toast.error(data.error || 'Failed to create auto-journal', { id: 'auto-journal' })
+      }
+    } catch (error) {
+      console.error('❌ [TradeWizardForm] Auto-journal error:', error)
+      toast.error('Failed to create auto-journal. Please try again.', { id: 'auto-journal' })
+    } finally {
+      setAnalyzingScreenshot(false)
+      e.target.value = ''
+    }
+  }
+
   // Handle MT5 file upload
   const handleMT5Upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -443,6 +515,36 @@ export default function TradeWizardForm({
                         <span>Screenshot (AI Auto-fill)</span>
                       </>
                     )}
+                  </div>
+                </div>
+
+                {/* Auto Journal Button */}
+                <div className="relative">
+                  <Input
+                    id="auto-journal"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="bg-gradient-to-r from-purple-600/20 to-violet-600/20 border-purple-500/30 text-xs cursor-pointer"
+                    onChange={handleAutoJournal}
+                    disabled={analyzingScreenshot}
+                  />
+                  <div className="mt-1.5 flex items-center gap-1.5 text-xs text-purple-300">
+                    {analyzingScreenshot ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin text-purple-400" />
+                        <span className="text-purple-400">Creating Auto-Journal...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3 h-3" />
+                        <span className="font-semibold">Auto-Journal (AI Complete)</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="absolute -top-1 -right-1">
+                    <div className="bg-purple-500 text-white text-[8px] px-1.5 py-0.5 rounded-full font-bold">
+                      AI
+                    </div>
                   </div>
                 </div>
 
