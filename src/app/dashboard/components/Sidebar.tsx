@@ -7,7 +7,7 @@ import { motion } from 'framer-motion'
 import { Menu, X, BarChart3, Activity, Calendar, BookOpen, Eye,
   Newspaper, CalendarDays, Trophy, Target, Grid3X3, PieChart,
   Brain, FileText, Flame, Heart, Settings, Shield, Crown,
-  Zap, AlertCircle, Lock, LogOut, Wallet, ChevronDown, Trash2, MoreHorizontal, Loader2, Plus, HelpCircle
+  Zap, AlertCircle, Lock, LogOut, Wallet, ChevronDown, Trash2, MoreHorizontal, Loader2, Plus, HelpCircle, Gift
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
@@ -535,6 +535,40 @@ export default function Sidebar({
 
         {/* Bottom Section */}
         <div className="relative p-3 border-t border-purple-500/20 space-y-2 shrink-0">
+          {/* Promo Code Claim Button */}
+          {!isPro && (sidebarOpen || mobileSidebarOpen) && (
+            <motion.button
+              onClick={() => {
+                // Open promo code input dialog
+                const promoCode = prompt('Masukkan Kode Promo (3 Bulan Gratis):')
+                if (promoCode) {
+                  // Apply promo code
+                  fetch('/api/promo/apply', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: promoCode })
+                  })
+                  .then(res => res.json())
+                  .then(data => {
+                    if (data.success) {
+                      toast.success(`🎉 ${data.message}`)
+                      fetchData && fetchData()
+                    } else {
+                      toast.error(data.error || 'Kode promo tidak valid')
+                    }
+                  })
+                  .catch(() => toast.error('Gagal mengklaim kode promo'))
+                }
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-green-600/20 to-emerald-600/20 text-green-300 border border-green-500/30 hover:from-green-600/30 hover:to-emerald-600/30 transition-all flex items-center justify-center gap-2 text-sm font-semibold shadow-lg shadow-green-500/10 group"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Gift className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate">Claim Promo Code</span>
+            </motion.button>
+          )}
+
           {!isPro && (sidebarOpen || mobileSidebarOpen) && (
             <motion.button
               onClick={() => setPlanSelectionModalOpen(true)}
