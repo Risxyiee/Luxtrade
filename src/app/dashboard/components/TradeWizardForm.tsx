@@ -258,6 +258,28 @@ export default function TradeWizardForm({
         const trade = data.data.trade
         const journal = data.data.journal
 
+        // Count extracted fields - minimum 3 fields required (Symbol, P/L, Time)
+        const extractedFields = [
+          trade.symbol,
+          trade.type,
+          trade.open_price,
+          trade.close_price,
+          trade.lot_size,
+          trade.profit_loss,
+          trade.open_time,
+          trade.close_time
+        ].filter(field => field !== undefined && field !== null && field !== '').length
+
+        console.log(`📊 [Auto-Journal] Extracted ${extractedFields} fields from image`)
+
+        if (extractedFields < 3) {
+          toast.error('❌ Maaf, hasil scan tidak lengkap. Mohon unggah screenshot halaman History (tabel) yang lebih jelas.', {
+            id: 'auto-journal',
+            duration: 6000
+          })
+          return
+        }
+
         if (trade.symbol) onFormChange('symbol', trade.symbol)
         if (trade.type) onTypeChange(trade.type)
         if (trade.lot_size) onFormChange('lot_size', trade.lot_size.toString())
