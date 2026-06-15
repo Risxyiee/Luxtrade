@@ -31,13 +31,18 @@ interface GeneratedJournal {
 
 /**
  * Convert base64 to file and analyze with HuggingFace Vision (FREE)
+ * With auto-retry on failure
  */
 async function analyzeImage(base64Image: string) {
-  try {
-    console.log('🤖 [Auto Journal] Starting HuggingFace Vision analysis...')
+  const maxRetries = 2 // Total 3 attempts (initial + 2 retries)
+  let lastError: any = null
 
-    // Extract trading data
-    const tradePrompt = `Analyze this trading platform screenshot and extract all trading information in JSON format:
+  for (let attempt = 0; attempt < maxRetries + 1; attempt++) {
+    try {
+      console.log(`🤖 [Auto Journal] Starting HuggingFace Vision analysis (attempt ${attempt + 1}/${maxRetries + 1})...`)
+
+      // Extract trading data
+      const tradePrompt = `Analyze this trading platform screenshot and extract all trading information in JSON format:
 {
   "symbol": "Trading symbol (e.g., XAUUSD, EURUSD)",
   "type": "BUY or SELL",
@@ -53,19 +58,19 @@ async function analyzeImage(base64Image: string) {
 
 Return ONLY valid JSON, no other text.`
 
-    const tradeResponse = await analyzeImageWithHuggingFace(base64Image, tradePrompt, {
-      timeout: 60000,
-      maxRetries: 3
-    })
+      const tradeResponse = await analyzeImageWithHuggingFace(base64Image, tradePrompt, {
+        timeout: 60000,
+        maxRetries: 2
+      })
 
-    const tradeContent = tradeResponse.text || ''
-    console.log('📊 [Auto Journal] Trade data extracted')
+      const tradeContent = tradeResponse.text || ''
+      console.log('📊 [Auto Journal] Trade data extracted')
 
-    // Parse JSON
-    const tradeData: ExtractedTrade = JSON.parse(tradeContent)
+      // Parse JSON
+      const tradeData: ExtractedTrade = JSON.parse(tradeContent)
 
-    // Generate journal entry
-    const journalPrompt = `Based on this trading screenshot, create a detailed trading journal entry including:
+      // Generate journal entry
+      const journalPrompt = `Based on this trading screenshot, create a detailed trading journal entry including:
 1. Setup/strategy used
 2. Market condition analysis
 3. Trading psychology/emotions
@@ -82,32 +87,44 @@ Market Condition: [trending/ranging/volatile/bullish/bearish]
 Tags: [comma-separated relevant tags]
 Setup Type: [strategy name like breakout/pullback/momentum etc.]`
 
-    const journalResponse = await analyzeImageWithHuggingFace(base64Image, journalPrompt, {
-      timeout: 60000,
-      maxRetries: 3
-    })
+      const journalResponse = await analyzeImageWithHuggingFace(base64Image, journalPrompt, {
+        timeout: 60000,
+        maxRetries: 2
+      })
 
-    const journalContent = journalResponse.text || ''
-    console.log('📝 [Auto Journal] Journal analysis completed')
+      const journalContent = journalResponse.text || ''
+      console.log('📝 [Auto Journal] Journal analysis completed')
 
-    // Parse journal response
-    const journal = parseJournalResponse(journalContent)
+      // Parse journal response
+      const journal = parseJournalResponse(journalContent)
 
-    // Calculate risk-reward ratio if SL and TP exist
-    if (tradeData.stop_loss && tradeData.take_profit) {
-      const risk = Math.abs(tradeData.entry_price - tradeData.stop_loss)
-      const reward = Math.abs(tradeData.exit_price - tradeData.entry_price)
-      journal.risk_reward_ratio = reward > 0 ? reward / risk : 0
+      // Calculate risk-reward ratio if SL and TP exist
+      if (tradeData.stop_loss && tradeData.take_profit) {
+        const risk = Math.abs(tradeData.entry_price - tradeData.stop_loss)
+        const reward = Math.abs(tradeData.exit_price - tradeData.entry_price)
+        journal.risk_reward_ratio = reward > 0 ? reward / risk : 0
+      }
+
+      return {
+        trade: tradeData,
+        journal
+      }
+    } catch (error: any) {
+      console.error(`❌ [Auto Journal] Analysis error on attempt ${attempt + 1}/${maxRetries + 1}:`, error.message)
+      lastError = error
+
+      // If not the last attempt, wait before retrying
+      if (attempt < maxRetries) {
+        const waitTime = 3000 * (attempt + 1)
+        console.log(`⏳ [Auto Journal] Waiting ${waitTime}ms before retry...`)
+        await new Promise(resolve => setTimeout(resolve, waitTime))
+      }
     }
-
-    return {
-      trade: tradeData,
-      journal
-    }
-  } catch (error: any) {
-    console.error('❌ [Auto Journal] Analysis error:', error)
-    throw error
   }
+
+  // All attempts failed
+  console.error('❌ [Auto Journal] All retry attempts failed')
+  throw lastError || new Error('Failed to analyze image after multiple attempts')
 }
 
 /**

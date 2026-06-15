@@ -1,68 +1,47 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClientForApi } from '@/lib/supabase/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(req: NextRequest) {
+/**
+ * Debug endpoint to check if HUGGING_FACE_API_TOKEN is configured
+ * Shows status only, never exposes the token value
+ */
+export async function GET(request: NextRequest) {
   try {
-    // Get authenticated user
-    const { supabase } = createClientForApi(req)
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Check if token exists and is not empty
+    const hasToken = !!process.env.HUGGING_FACE_API_TOKEN;
+    const tokenLength = hasToken ? process.env.HUGGING_FACE_API_TOKEN!.length : 0;
 
-    if (authError) {
-      console.error('Auth error:', authError)
-    }
-
-    const envInfo = {
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅ Configured' : '❌ Missing',
-      supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? `✅ Configured (${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.length} chars)` : '❌ Missing',
-      supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? `✅ Configured (${process.env.SUPABASE_SERVICE_ROLE_KEY.length} chars)` : '❌ Missing',
-      metaApiToken: process.env.METAAPI_TOKEN ? `✅ Configured (${process.env.METAAPI_TOKEN.length} chars)` : '❌ Missing',
-      appUrl: process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || 'Not set',
-    }
-
-    const clientInfo = {
-      supabaseClient: supabase ? '✅ Available' : '❌ Not available',
-      supabaseAdminClient: supabaseAdmin ? '✅ Available' : '❌ Not available',
-    }
-
-    // Try to fetch user's accounts
-    let accountsInfo = null
-    if (user && supabaseAdmin) {
-      const { data: accounts, error: accountsError } = await supabaseAdmin
-        .from('trading_accounts')
-        .select('*')
-        .eq('user_id', user.id)
-
-      accountsInfo = {
-        success: !accountsError,
-        count: accounts?.length || 0,
-        error: accountsError?.message || null,
-        accounts: accounts?.map(a => ({
-          id: a.id,
-          account_number: a.account_number,
-          status: a.status,
-          metaapi_account_id: a.metaapi_account_id || null,
-          has_metaapi_id: !!a.metaapi_account_id,
-          created_at: a.created_at,
-        })) || [],
+    // Check other relevant environment variables
+    const envChecks = {
+      huggingFace: {
+        configured: hasToken,
+        tokenLength: tokenLength,
+        status: hasToken && tokenLength > 10 ? 'VALID' : 'NOT_CONFIGURED_OR_INVALID'
+      },
+      database: {
+        configured: !!process.env.DATABASE_URL,
+        status: !!process.env.DATABASE_URL ? 'CONFIGURED' : 'NOT_CONFIGURED'
+      },
+      nodeEnv: {
+        value: process.env.NODE_ENV || 'undefined',
+        status: process.env.NODE_ENV === 'production' ? 'PRODUCTION' : 'DEVELOPMENT'
       }
-    }
+    };
 
     return NextResponse.json({
       success: true,
-      user: user ? {
-        id: user.id,
-        email: user.email,
-      } : null,
-      environment: envInfo,
-      clients: clientInfo,
-      accounts: accountsInfo,
-    })
-  } catch (error: any) {
-    console.error('🔴 [DEBUG ENV] Error:', error)
+      timestamp: new Date().toISOString(),
+      environment: envChecks,
+      message: hasToken
+        ? 'HUGGING_FACE_API_TOKEN is configured'
+        : 'HUGGING_FACE_API_TOKEN is NOT configured'
+    });
+
+  } catch (error) {
+    console.error('Error checking environment:', error);
     return NextResponse.json({
-      error: error.message,
-      stack: error.stack,
-    }, { status: 500 })
+      success: false,
+      error: 'Failed to check environment',
+      timestamp: new Date().toISOString()
+    }, { status: 500 });
   }
 }

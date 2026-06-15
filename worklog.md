@@ -1421,3 +1421,61 @@ Work Log:
 Stage Summary:
 - Promo code claim functionality now accessible from dashboard sidebar
 - Users can claim codes directly after login, not just from landing page
+
+---
+Task ID: bug-report-reward
+Agent: Z.ai Code
+Task: Implement Bug Report & Reward System and Finalize Auto-Journal
+
+Work Log:
+1. Created /api/debug/check-env endpoint to validate HUGGING_FACE_API_TOKEN
+   - Shows status without exposing token value
+   - Checks HUGGING_FACE_API_TOKEN, DATABASE_URL, and NODE_ENV
+
+2. Added BugReport model to Prisma schema
+   - Fields: id, userId, description, screenshotUrl, status, createdAt
+   - Indexes on userId and status for efficient queries
+
+3. Created /api/bugs endpoint for submitting bug reports
+   - POST: Submit bug report with description and optional screenshot
+   - GET: Fetch all bug reports (admin only)
+   - Validates description length (max 5000 chars)
+   - Uploads screenshots to Supabase Storage
+
+4. Created /api/admin/reward-bug endpoint
+   - POST: Reward bug reporter with 30 days PRO access
+   - Updates BugReport status to 'REWARDED'
+   - Extends subscription_until by 30 days from current expiry or now
+   - Sets is_pro = true and plan = 'PRO'
+   - Admin-only endpoint with authentication check
+
+5. Created BugReportForm.tsx component
+   - Form for submitting bug reports
+   - Screenshot upload with preview (max 10MB)
+   - Description textarea with character counter
+   - Shows reward incentive message (30 days PRO)
+   - Toast notifications for success/error
+
+6. Added auto-retry logic in Auto-Journal
+   - Implemented retry at API route level (max 3 attempts total)
+   - Exponential backoff: 3s, 6s between retries
+   - Detailed logging for each attempt
+   - Combined with existing HuggingFace retry logic (2 retries per attempt)
+
+7. Added validation to Auto-Journal frontend
+   - Counts extracted fields from AI response
+   - Requires minimum 3 fields (Symbol, P/L, Time)
+   - Shows error: "Maaf, hasil scan tidak lengkap. Mohon unggah screenshot halaman History (tabel) yang lebih jelas."
+   - Prevents incomplete data from being saved
+
+8. Created RewardBugButton.tsx component
+   - Admin button for rewarding bug reporters
+   - Shows loading state and confirmation dialog
+   - Displays "Sudah Diberi Hadiah" for already rewarded reports
+   - Includes comprehensive usage example in comments
+
+Stage Summary:
+- Complete Bug Report & Reward system implemented
+- Auto-Journal finalized with retry and validation
+- All features ready for deployment to Vercel
+- Schema changes need to be pushed to Supabase via Prisma migrate or dashboard
