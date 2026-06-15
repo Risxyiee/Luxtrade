@@ -272,3 +272,17 @@ model PromoCode {
   @@index([isActive, startDate, endDate])
   @@map("promo_codes")
 }
+
+model BugReport {
+  id                String    @id @default(uuid())
+  userId            String
+  description       String    @db.Text
+  screenshotUrl     String?
+  status            String    @default("PENDING")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("bug_reports")
+}
