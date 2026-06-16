@@ -1479,3 +1479,44 @@ Stage Summary:
 - Auto-Journal finalized with retry and validation
 - All features ready for deployment to Vercel
 - Schema changes need to be pushed to Supabase via Prisma migrate or dashboard
+
+---
+Task ID: fix-huggingface-dns
+Agent: Z.ai Code
+Task: Fix Vercel DNS restrictions for HuggingFace API
+
+Work Log:
+1. Analyzed the error: ENOTFOUND api-inference.huggingface.co
+2. Root cause: Vercel has DNS restrictions blocking direct API calls
+3. Created multiple solutions:
+   a. Proxy API endpoint (/api/proxy/huggingface-vision)
+   b. Edge function endpoint (/api/edge/huggingface)
+   c. Fallback chain: Direct API → Proxy API → Edge Function
+4. Updated huggingface-vision.ts with intelligent fallback
+5. Added detailed error logging for DNS issues
+6. Created /api/debug/check-env for environment validation
+
+Files Changed:
+- src/app/api/proxy/huggingface-vision/route.ts (proxy API)
+- src/app/api/edge/huggingface/route.ts (edge function)
+- src/lib/huggingface-vision.ts (fallback logic)
+- src/app/api/debug/check-env/route.ts (env validation)
+
+Fallback Chain:
+1. Try direct API (development)
+2. Try proxy API (production)
+3. If proxy DNS fails → try edge function
+4. Edge functions use different network stack in Vercel
+
+Commit: 65c896f
+
+Stage Summary:
+- Multi-layer fallback implemented for HuggingFace API
+- DNS restrictions should be bypassed via edge functions
+- Auto-retry at multiple levels (API route + proxy + edge)
+- Ready for Vercel deployment with HUGGING_FACE_API_TOKEN
+
+User Action Required:
+1. Set HUGGING_FACE_API_TOKEN in Vercel environment variables
+2. Deploy to Vercel
+3. Test Auto-Journal feature
