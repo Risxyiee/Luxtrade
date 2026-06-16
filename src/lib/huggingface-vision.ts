@@ -31,6 +31,10 @@ const HF_API_URL = 'https://api-inference.huggingface.co/models'
 const USE_PROXY = process.env.NODE_ENV === 'production'
 const PROXY_URL = '/api/proxy/huggingface-vision'
 
+// Edge function as fallback
+const USE_EDGE_FUNCTION = process.env.NODE_ENV === 'production'
+const EDGE_FUNCTION_URL = '/api/edge/huggingface'
+
 // ==================== MAIN FUNCTION ====================
 
 /**
@@ -81,6 +85,7 @@ export async function analyzeImageWithHuggingFace(
   console.log(`🤖 [Hugging Face Vision] Analyzing image with model: ${model}`)
   console.log(`🤖 [Hugging Face Vision] Prompt length: ${prompt.length}`)
   console.log(`🤖 [Hugging Face Vision] Using proxy: ${USE_PROXY}`)
+  console.log(`🤖 [Hugging Face Vision] Using edge function fallback: ${USE_EDGE_FUNCTION}`)
 
   // Prepare inputs
   const inputs = {
@@ -141,7 +146,48 @@ export async function analyzeImageWithHuggingFace(
 
           if (proxyResponse.status === 503 && data.error?.includes('DNS resolution failed')) {
             console.error(`🌐 [Hugging Face Vision] DNS resolution failed via proxy`)
-            throw new Error('Cannot connect to HuggingFace API. DNS resolution failed. Please check your network connection or try again later.')
+            console.log(`🔄 [Hugging Face Vision] Trying edge function fallback...`)
+
+            // Try edge function as fallback
+            try {
+              const edgeResponse = await fetch(EDGE_FUNCTION_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  model,
+                  imageDataUrl,
+                  prompt,
+                  parameters
+                }),
+                signal: AbortSignal.timeout(timeout),
+              })
+
+              const edgeData = await edgeResponse.json()
+
+              if (!edgeResponse.ok) {
+                throw new Error(edgeData.error || `Edge function error (${edgeResponse.status})`)
+              }
+
+              let analyzedText = ''
+              if (Array.isArray(edgeData)) {
+                analyzedText = edgeData[0]?.generated_text || edgeData[0]?.text || ''
+              } else if (typeof edgeData === 'object') {
+                analyzedText = edgeData.text || edgeData.generated_text || edgeData.answer || ''
+              } else if (typeof edgeData === 'string') {
+                analyzedText = edgeData
+              }
+
+              if (!analyzedText || analyzedText.trim().length === 0) {
+                throw new Error('Empty response from HuggingFace model via edge function')
+              }
+
+              console.log(`✅ [Hugging Face Vision] Edge function fallback succeeded`)
+              return { text: analyzedText, raw: edgeData.raw }
+
+            } catch (edgeError: any) {
+              console.error(`❌ [Hugging Face Vision] Edge function fallback failed:`, edgeError.message)
+              throw new Error('Cannot connect to HuggingFace API. Both proxy and edge function failed. DNS resolution failed.')
+            }
           }
 
           throw new Error(data.error || `Proxy error (${proxyResponse.status})`)
