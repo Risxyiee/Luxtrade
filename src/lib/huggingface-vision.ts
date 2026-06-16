@@ -27,13 +27,8 @@ const DEFAULT_MODEL = 'Qwen/Qwen2-VL-2B-Instruct'
 
 const HF_API_URL = 'https://api-inference.huggingface.co/models'
 
-// Use proxy for Vercel (production) to bypass DNS issues
-const USE_PROXY = process.env.NODE_ENV === 'production'
-const PROXY_URL = '/api/proxy/huggingface-vision'
-
-// Edge function as fallback
+// In production, use edge function directly to bypass DNS restrictions
 const USE_EDGE_FUNCTION = process.env.NODE_ENV === 'production'
-const EDGE_FUNCTION_URL = '/api/edge/huggingface'
 
 // ==================== MAIN FUNCTION ====================
 
@@ -84,8 +79,7 @@ export async function analyzeImageWithHuggingFace(
 
   console.log(`🤖 [Hugging Face Vision] Analyzing image with model: ${model}`)
   console.log(`🤖 [Hugging Face Vision] Prompt length: ${prompt.length}`)
-  console.log(`🤖 [Hugging Face Vision] Using proxy: ${USE_PROXY}`)
-  console.log(`🤖 [Hugging Face Vision] Using edge function fallback: ${USE_EDGE_FUNCTION}`)
+  console.log(`🤖 [Hugging Face Vision] Using edge function: ${USE_EDGE_FUNCTION}`)
 
   // Prepare inputs
   const inputs = {
@@ -105,119 +99,29 @@ export async function analyzeImageWithHuggingFace(
       let response: Response
       let data: any
 
-      if (USE_PROXY) {
-        // Use proxy API (for production/Vercel)
-        console.log(`🌉 [Hugging Face Vision] Using proxy API (attempt ${attempt + 1}/${maxRetries})`)
+      if (USE_EDGE_FUNCTION) {
+        // Use edge function directly (for production/Vercel)
+        console.log(`🌐 [Hugging Face Vision] Using edge function (attempt ${attempt + 1}/${maxRetries})`)
 
-        const proxyResponse = await fetch(PROXY_URL, {
+        const edgeResponse = await fetch('/api/edge/huggingface', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             model,
-            inputs,
-            parameters
-          }),
-        })
-
-        data = await proxyResponse.json()
-
-        if (!proxyResponse.ok) {
-          // Handle specific error cases from proxy
-          if (proxyResponse.status === 503 && data.error?.includes('Model is loading')) {
-            console.log(`⏳ [Hugging Face Vision] Model loading (attempt ${attempt + 1}/${maxRetries})`)
-            if (attempt < maxRetries - 1) {
-              await new Promise(resolve => setTimeout(resolve, 2000 * (attempt + 1)))
-              continue
-            }
-            throw new Error('Model is loading, please try again in a moment')
-          }
-
-          if (proxyResponse.status === 429) {
-            console.log(`⚠️ [Hugging Face Vision] Rate limited (attempt ${attempt + 1}/${maxRetries})`)
-            if (attempt < maxRetries - 1) {
-              const waitTime = 5000 * (attempt + 1)
-              await new Promise(resolve => setTimeout(resolve, waitTime))
-              continue
-            }
-            throw new Error('Rate limited by HuggingFace API. Please try again later.')
-          }
-
-          if (proxyResponse.status === 503 && data.error?.includes('DNS resolution failed')) {
-            console.error(`🌐 [Hugging Face Vision] DNS resolution failed via proxy`)
-            console.log(`🔄 [Hugging Face Vision] Trying edge function fallback...`)
-
-            // Try edge function as fallback
-            try {
-              const edgeResponse = await fetch(EDGE_FUNCTION_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  model,
-                  imageDataUrl,
-                  prompt,
-                  parameters
-                }),
-                signal: AbortSignal.timeout(timeout),
-              })
-
-              const edgeData = await edgeResponse.json()
-
-              if (!edgeResponse.ok) {
-                throw new Error(edgeData.error || `Edge function error (${edgeResponse.status})`)
-              }
-
-              let analyzedText = ''
-              if (Array.isArray(edgeData)) {
-                analyzedText = edgeData[0]?.generated_text || edgeData[0]?.text || ''
-              } else if (typeof edgeData === 'object') {
-                analyzedText = edgeData.text || edgeData.generated_text || edgeData.answer || ''
-              } else if (typeof edgeData === 'string') {
-                analyzedText = edgeData
-              }
-
-              if (!analyzedText || analyzedText.trim().length === 0) {
-                throw new Error('Empty response from HuggingFace model via edge function')
-              }
-
-              console.log(`✅ [Hugging Face Vision] Edge function fallback succeeded`)
-              return { text: analyzedText, raw: edgeData.raw }
-
-            } catch (edgeError: any) {
-              console.error(`❌ [Hugging Face Vision] Edge function fallback failed:`, edgeError.message)
-              throw new Error('Cannot connect to HuggingFace API. Both proxy and edge function failed. DNS resolution failed.')
-            }
-          }
-
-          throw new Error(data.error || `Proxy error (${proxyResponse.status})`)
-        }
-
-        // Proxy returns the data directly
-        response = proxyResponse
-      } else {
-        // Direct API call (for development)
-        console.log(`🔗 [Hugging Face Vision] Using direct API (attempt ${attempt + 1}/${maxRetries})`)
-
-        response = await fetch(`${HF_API_URL}/${model}`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            inputs,
+            imageDataUrl,
+            prompt,
             parameters
           }),
           signal: AbortSignal.timeout(timeout),
         })
 
-        // Handle specific error cases
-        if (!response.ok) {
-          const errorText = await response.text()
+        data = await edgeResponse.json()
 
-          // Model loading
-          if (response.status === 503) {
+        if (!edgeResponse.ok) {
+          // Handle specific error cases from edge function
+          if (edgeResponse.status === 503 && data.error?.includes('Model is loading')) {
             console.log(`⏳ [Hugging Face Vision] Model loading (attempt ${attempt + 1}/${maxRetries})`)
             if (attempt < maxRetries - 1) {
               await new Promise(resolve => setTimeout(resolve, 2000 * (attempt + 1)))
@@ -226,8 +130,7 @@ export async function analyzeImageWithHuggingFace(
             throw new Error('Model is loading, please try again in a moment')
           }
 
-          // Rate limiting
-          if (response.status === 429) {
+          if (edgeResponse.status === 429) {
             console.log(`⚠️ [Hugging Face Vision] Rate limited (attempt ${attempt + 1}/${maxRetries})`)
             if (attempt < maxRetries - 1) {
               const waitTime = 5000 * (attempt + 1)
@@ -237,18 +140,82 @@ export async function analyzeImageWithHuggingFace(
             throw new Error('Rate limited by HuggingFace API. Please try again later.')
           }
 
-          // Authentication error
-          if (response.status === 401) {
-            throw new Error('Invalid HUGGING_FACE_API_TOKEN. Please check your API key.')
-          }
-
-          // Other errors
-          throw new Error(`Hugging Face API error (${response.status}): ${errorText}`)
+          throw new Error(data.error || `Edge function error (${edgeResponse.status})`)
         }
 
-        // Parse response
-        data = await response.json()
+        let analyzedText = ''
+        if (Array.isArray(data)) {
+          analyzedText = data[0]?.generated_text || data[0]?.text || ''
+        } else if (typeof data === 'object') {
+          analyzedText = data.text || data.generated_text || data.answer || ''
+        } else if (typeof data === 'string') {
+          analyzedText = data
+        }
+
+        if (!analyzedText || analyzedText.trim().length === 0) {
+          throw new Error('Empty response from HuggingFace model via edge function')
+        }
+
+        console.log(`✅ [Hugging Face Vision] Edge function analysis completed: ${analyzedText.length} chars`)
+
+        return {
+          text: analyzedText,
+          raw: data.raw,
+        }
       }
+
+      // Direct API call (for development)
+      console.log(`🔗 [Hugging Face Vision] Using direct API (attempt ${attempt + 1}/${maxRetries})`)
+
+      const response = await fetch(`${HF_API_URL}/${model}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          inputs,
+          parameters
+        }),
+        signal: AbortSignal.timeout(timeout),
+      })
+
+      // Handle specific error cases
+      if (!response.ok) {
+        const errorText = await response.text()
+
+        // Model loading
+        if (response.status === 503) {
+          console.log(`⏳ [Hugging Face Vision] Model loading (attempt ${attempt + 1}/${maxRetries})`)
+          if (attempt < maxRetries - 1) {
+            await new Promise(resolve => setTimeout(resolve, 2000 * (attempt + 1)))
+            continue
+          }
+          throw new Error('Model is loading, please try again in a moment')
+        }
+
+        // Rate limiting
+        if (response.status === 429) {
+          console.log(`⚠️ [Hugging Face Vision] Rate limited (attempt ${attempt + 1}/${maxRetries})`)
+          if (attempt < maxRetries - 1) {
+            const waitTime = 5000 * (attempt + 1)
+            await new Promise(resolve => setTimeout(resolve, waitTime))
+            continue
+          }
+          throw new Error('Rate limited by HuggingFace API. Please try again later.')
+        }
+
+        // Authentication error
+        if (response.status === 401) {
+          throw new Error('Invalid HUGGING_FACE_API_TOKEN. Please check your API key.')
+        }
+
+        // Other errors
+        throw new Error(`Hugging Face API error (${response.status}): ${errorText}`)
+      }
+
+      // Parse response
+      const data = await response.json()
 
       // Handle different response formats
       let analyzedText = ''
