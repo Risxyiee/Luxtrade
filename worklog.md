@@ -1520,3 +1520,40 @@ User Action Required:
 1. Set HUGGING_FACE_API_TOKEN in Vercel environment variables
 2. Deploy to Vercel
 3. Test Auto-Journal feature
+
+---
+Task ID: fix-upload-and-huggingface
+Agent: Z.ai Code
+Task: Fix HuggingFace URL parsing error and upload screenshot
+
+Work Log:
+1. Analyzed error: Failed to parse URL from /api/proxy/huggingface-vision
+2. Root cause: Relative URL issues in production Vercel environment
+3. Removed proxy API approach
+4. Updated to use edge function directly (/api/edge/huggingface)
+5. Fixed indentation issues in huggingface-vision.ts
+6. Created SQL script for Supabase Storage buckets
+7. Added RLS policies for screenshot uploads
+
+Files Changed:
+- src/lib/huggingface-vision.ts (simplified to use edge function)
+- prisma/migrations/20250616_create_storage_buckets.sql (new)
+
+Solutions:
+- Production: Use edge function with relative URL /api/edge/huggingface
+- Development: Use direct API call to HuggingFace
+- Storage: SQL script creates 3 buckets with RLS policies
+
+Commits:
+- 97b6195: fix: use edge function directly in production
+- 1e9ca81: add: SQL script for creating Supabase Storage buckets
+
+Stage Summary:
+- HuggingFace API fixed with edge functions
+- Storage buckets ready for screenshot uploads
+- User needs to run SQL script in Supabase SQL Editor
+
+User Action Required:
+1. Run prisma/migrations/20250616_create_storage_buckets.sql in Supabase SQL Editor
+2. Redeploy to Vercel
+3. Test Auto-Journal and screenshot upload
