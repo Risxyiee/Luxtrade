@@ -19,6 +19,7 @@ interface GeneratedJournal {
 
 /**
  * Generate journal content using LLM based on extracted trade data
+ * Uses HuggingFace Vision API (FREE)
  */
 async function generateJournalContent(
   tradeData: any,
@@ -175,9 +176,9 @@ export async function POST(request: NextRequest) {
     const bytes = await imageFile.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    console.log('🤖 [Auto Journal] Extracting trade data with AI (Claude Vision + HuggingFace fallback)...')
+    console.log('🤖 [Auto Journal] Extracting trade data with AI (HuggingFace Vision - FREE)...')
 
-    // Extract trade data using Claude Vision (primary) or HuggingFace (fallback)
+    // Extract trade data using HuggingFace Vision API (FREE)
     const extractionResult = await extractTradeData(buffer)
 
     if (!extractionResult.success) {

@@ -341,38 +341,28 @@ function validateTradeData(rawData: RawTradeData): {
 
 /**
  * Main function to extract trade data from screenshot
- * Uses Claude Vision API first, then falls back to HuggingFace if Claude fails
+ * Uses HuggingFace Vision API (FREE) with retry logic
  */
 export async function extractTradeData(imageBuffer: Buffer): Promise<ExtractionResult> {
   const errors: string[] = [];
   let rawData: RawTradeData | undefined;
-  let useClaude = true;
 
-  // Try Claude Vision first
+  // Use HuggingFace Vision API (FREE)
   try {
-    console.log("🤖 Attempting extraction with Claude Vision API...");
-    rawData = await extractWithClaudeVision(imageBuffer);
-    console.log("✅ Claude Vision extraction successful");
+    console.log("🤖 Attempting extraction with HuggingFace Vision API (FREE)...");
+    rawData = await extractWithHuggingFace(imageBuffer);
+    console.log("✅ HuggingFace extraction successful");
   } catch (error: any) {
-    console.warn("⚠️ Claude Vision failed, falling back to HuggingFace:", error.message);
-    errors.push(`Claude Vision error: ${error.message}`);
-    useClaude = false;
+    console.error("❌ HuggingFace extraction failed:", error.message);
+    errors.push(`HuggingFace error: ${error.message}`);
 
-    // Fallback to HuggingFace
-    try {
-      console.log("🤖 Attempting extraction with HuggingFace API...");
-      rawData = await extractWithHuggingFace(imageBuffer);
-      console.log("✅ HuggingFace extraction successful");
-    } catch (hfError: any) {
-      console.error("❌ HuggingFace extraction also failed:", hfError.message);
-      errors.push(`HuggingFace error: ${hfError.message}`);
-      return {
-        success: false,
-        validFieldCount: 0,
-        errors,
-        confidence: 0,
-      };
-    }
+    return {
+      success: false,
+      rawData,
+      validFieldCount: 0,
+      errors,
+      confidence: 0,
+    };
   }
 
   // Validate extracted data
@@ -388,7 +378,7 @@ export async function extractTradeData(imageBuffer: Buffer): Promise<ExtractionR
     };
   }
 
-  console.log(`✅ Trade data extraction complete (${useClaude ? 'Claude Vision' : 'HuggingFace'})`);
+  console.log(`✅ Trade data extraction complete (HuggingFace)`);
   console.log(`   Confidence: ${validation.confidence.toFixed(1)}%`);
   console.log(`   Valid fields: ${validation.validFieldCount}/11`);
 
