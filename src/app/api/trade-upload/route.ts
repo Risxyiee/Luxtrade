@@ -118,29 +118,30 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ [API] File uploaded successfully to Supabase Storage:', uploadData.path)
 
-    // Step 8: Get public URL
-    const { data: publicUrlData } = supabaseAdmin
+    // Step 8: Generate signed URL (valid for 7 days for private bucket)
+    const { data: signedUrlData, error: signedUrlError } = await supabaseAdmin
       .storage
       .from('trade-screenshots')
-      .getPublicUrl(filename)
+      .createSignedUrl(filename, 60 * 60 * 24 * 7) // 7 days
 
-    if (!publicUrlData?.publicUrl) {
-      console.error('❌ [API] Failed to get public URL')
+    if (signedUrlError || !signedUrlData?.signedUrl) {
+      console.error('❌ [API] Failed to generate signed URL:', signedUrlError)
       return NextResponse.json(
-        { error: 'Failed to get public URL for uploaded image' },
+        { error: 'Failed to generate signed URL for uploaded image' },
         { status: 500 }
       )
     }
 
-    console.log('✅ [API] Public URL generated:', publicUrlData.publicUrl)
+    console.log('✅ [API] Signed URL generated (valid for 7 days)')
 
     // Step 9: Return success response
     return NextResponse.json({
       success: true,
-      url: publicUrlData.publicUrl,
+      url: signedUrlData.signedUrl,
       path: filename,
       size: file.size,
-      type: file.type
+      type: file.type,
+      bucket: 'trade-screenshots'
     })
 
   } catch (err) {
