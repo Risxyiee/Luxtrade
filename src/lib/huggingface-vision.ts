@@ -70,7 +70,7 @@ export async function analyzeImageWithHuggingFace(
     }
   }
 
-  if (!apiKey && !USE_PROXY) {
+  if (!apiKey) {
     throw new Error('HUGGING_FACE_API_TOKEN environment variable is not set')
   }
 
@@ -96,8 +96,8 @@ export async function analyzeImageWithHuggingFace(
   // Retry logic
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      let response: Response
       let data: any
+      let analyzedText: string
 
       if (USE_EDGE_FUNCTION) {
         // Use edge function directly (for production/Vercel)
@@ -143,7 +143,7 @@ export async function analyzeImageWithHuggingFace(
           throw new Error(data.error || `Edge function error (${edgeResponse.status})`)
         }
 
-        let analyzedText = ''
+        analyzedText = ''
         if (Array.isArray(data)) {
           analyzedText = data[0]?.generated_text || data[0]?.text || ''
         } else if (typeof data === 'object') {
@@ -215,10 +215,10 @@ export async function analyzeImageWithHuggingFace(
       }
 
       // Parse response
-      const data = await response.json()
+      data = await response.json()
 
       // Handle different response formats
-      let analyzedText = ''
+      analyzedText = ''
 
       if (Array.isArray(data)) {
         // Some models return array with generated_text
@@ -292,7 +292,7 @@ export async function analyzeImageWithHuggingFace(
 export async function checkHuggingFaceVisionHealth(): Promise<boolean> {
   try {
     const apiKey = process.env.HUGGING_FACE_API_TOKEN
-    if (!apiKey && !USE_PROXY) return false
+    if (!apiKey) return false
 
     // Simple health check - try to access the API
     const response = await fetch(`${HF_API_URL}/${DEFAULT_MODEL}`, {
