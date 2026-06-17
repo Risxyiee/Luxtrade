@@ -26,12 +26,17 @@ export async function GET() {
       );
     }
 
-    const expectedBuckets = ['screenshots', 'bug-reports', 'trade-images'];
-    const bucketStatus = expectedBuckets.map(name => ({
-      name,
-      exists: buckets?.some(b => b.name === name) || false,
-      bucket: buckets?.find(b => b.name === name)
-    }));
+    const expectedBuckets = ['screenshots', 'bug-reports', 'trade-images', 'trade-screenshots'];
+    const bucketStatus = expectedBuckets.map(name => {
+      const exists = buckets?.some(b => b.name === name) || false;
+      const bucketData = buckets?.find(b => b.name === name);
+
+      return {
+        name,
+        exists,
+        bucket: bucketData || null
+      };
+    });
 
     return NextResponse.json({
       success: true,
