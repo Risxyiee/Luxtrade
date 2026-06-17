@@ -1557,3 +1557,44 @@ User Action Required:
 1. Run prisma/migrations/20250616_create_storage_buckets.sql in Supabase SQL Editor
 2. Redeploy to Vercel
 3. Test Auto-Journal and screenshot upload
+
+---
+Task ID: storage-buckets-signed-urls
+Agent: Z.ai Code
+Task: Fix storage buckets and add signed URL support
+
+Work Log:
+1. User reported all buckets show 'public: false' after running SQL
+2. Explained that private buckets are more secure
+3. Added signed URL support for private buckets
+4. Created /api/storage/signed-url endpoint
+5. Created /lib/storage/signed-urls.ts helper
+6. Updated trade-upload API to use signed URLs (valid 7 days)
+7. Created trade-screenshots bucket with RLS policies
+8. Fixed bucket name mismatch
+
+Files Changed:
+- src/app/api/storage/signed-url/route.ts (new)
+- src/lib/storage/signed-urls.ts (new)
+- src/app/api/trade-upload/route.ts (updated)
+- prisma/migrations/20250616_fix_trade_screenshots_bucket.sql (new)
+
+Security Benefits:
+- Private buckets: Only authenticated users can access
+- Signed URLs: Temporary access with expiration
+- RLS policies: User isolation enforced
+- Admin can view all images
+
+Commits:
+- ac4853f: feat: add signed URL support for private storage buckets
+
+Stage Summary:
+- Private buckets with signed URLs implemented
+- Upload screenshots should now work
+- Signed URLs valid for 7 days per upload
+- More secure than public buckets
+
+User Action Required:
+1. Run prisma/migrations/20250616_fix_trade_screenshots_bucket.sql in Supabase
+2. Redeploy to Vercel
+3. Test screenshot upload
