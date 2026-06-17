@@ -1,21 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
-import { analyzeImageWithHuggingFace } from '@/lib/huggingface-vision'
+import { extractTradeData, saveTrade, uploadScreenshot } from '@/lib/extractTradeData'
 
 // ==================== TYPES ====================
-interface ExtractedTrade {
-  symbol: string
-  type: string
-  entry_price: number
-  exit_price: number
-  lot_size: number
-  profit_loss: number
-  open_time: string
-  close_time: string
-  stop_loss?: number
-  take_profit?: number
-}
 
 interface GeneratedJournal {
   title: string
@@ -30,47 +18,30 @@ interface GeneratedJournal {
 // ==================== HELPERS ====================
 
 /**
- * Convert base64 to file and analyze with HuggingFace Vision (FREE)
- * With auto-retry on failure
+ * Generate journal content using LLM based on extracted trade data
  */
-async function analyzeImage(base64Image: string) {
-  const maxRetries = 2 // Total 3 attempts (initial + 2 retries)
-  let lastError: any = null
+async function generateJournalContent(
+  tradeData: any,
+  imageBuffer: Buffer
+): Promise<GeneratedJournal> {
+  // Import here to avoid circular dependency
+  const { analyzeImageWithHuggingFace } = await import('@/lib/huggingface-vision')
 
-  for (let attempt = 0; attempt < maxRetries + 1; attempt++) {
-    try {
-      console.log(`🤖 [Auto Journal] Starting HuggingFace Vision analysis (attempt ${attempt + 1}/${maxRetries + 1})...`)
+  const base64Image = imageBuffer.toString('base64')
 
-      // Extract trading data
-      const tradePrompt = `Analyze this trading platform screenshot and extract all trading information in JSON format:
-{
-  "symbol": "Trading symbol (e.g., XAUUSD, EURUSD)",
-  "type": "BUY or SELL",
-  "entry_price": "Entry price as number",
-  "exit_price": "Exit price as number",
-  "lot_size": "Lot size as number",
-  "profit_loss": "Profit/loss as number",
-  "open_time": "Open time in format YYYY.MM.DD HH:MM:SS",
-  "close_time": "Close time in format YYYY.MM.DD HH:MM:SS",
-  "stop_loss": "Stop loss price as number (if visible)",
-  "take_profit": "Take profit price as number (if visible)"
-}
+  const journalPrompt = `Based on this trading screenshot with the following extracted data:
+- Symbol: ${tradeData.symbol}
+- Type: ${tradeData.type}
+- Open Price: ${tradeData.openPrice}
+- Close Price: ${tradeData.closePrice}
+- Profit/Loss: ${tradeData.profitLoss}
+- Open Time: ${tradeData.openTime}
+- Close Time: ${tradeData.closeTime}
+- Stop Loss: ${tradeData.stopLoss || 'N/A'}
+- Take Profit: ${tradeData.takeProfit || 'N/A'}
+- Volume: ${tradeData.volume || 'N/A'}
 
-Return ONLY valid JSON, no other text.`
-
-      const tradeResponse = await analyzeImageWithHuggingFace(base64Image, tradePrompt, {
-        timeout: 60000,
-        maxRetries: 2
-      })
-
-      const tradeContent = tradeResponse.text || ''
-      console.log('📊 [Auto Journal] Trade data extracted')
-
-      // Parse JSON
-      const tradeData: ExtractedTrade = JSON.parse(tradeContent)
-
-      // Generate journal entry
-      const journalPrompt = `Based on this trading screenshot, create a detailed trading journal entry including:
+Create a detailed trading journal entry including:
 1. Setup/strategy used
 2. Market condition analysis
 3. Trading psychology/emotions
@@ -87,44 +58,25 @@ Market Condition: [trending/ranging/volatile/bullish/bearish]
 Tags: [comma-separated relevant tags]
 Setup Type: [strategy name like breakout/pullback/momentum etc.]`
 
-      const journalResponse = await analyzeImageWithHuggingFace(base64Image, journalPrompt, {
-        timeout: 60000,
-        maxRetries: 2
-      })
+  const journalResponse = await analyzeImageWithHuggingFace(base64Image, journalPrompt, {
+    timeout: 60000,
+    maxRetries: 2
+  })
 
-      const journalContent = journalResponse.text || ''
-      console.log('📝 [Auto Journal] Journal analysis completed')
+  const journalContent = journalResponse.text || ''
+  console.log('📝 [Auto Journal] Journal analysis completed')
 
-      // Parse journal response
-      const journal = parseJournalResponse(journalContent)
+  // Parse journal response
+  const journal = parseJournalResponse(journalContent)
 
-      // Calculate risk-reward ratio if SL and TP exist
-      if (tradeData.stop_loss && tradeData.take_profit) {
-        const risk = Math.abs(tradeData.entry_price - tradeData.stop_loss)
-        const reward = Math.abs(tradeData.exit_price - tradeData.entry_price)
-        journal.risk_reward_ratio = reward > 0 ? reward / risk : 0
-      }
-
-      return {
-        trade: tradeData,
-        journal
-      }
-    } catch (error: any) {
-      console.error(`❌ [Auto Journal] Analysis error on attempt ${attempt + 1}/${maxRetries + 1}:`, error.message)
-      lastError = error
-
-      // If not the last attempt, wait before retrying
-      if (attempt < maxRetries) {
-        const waitTime = 3000 * (attempt + 1)
-        console.log(`⏳ [Auto Journal] Waiting ${waitTime}ms before retry...`)
-        await new Promise(resolve => setTimeout(resolve, waitTime))
-      }
-    }
+  // Calculate risk-reward ratio if SL and TP exist
+  if (tradeData.stopLoss && tradeData.takeProfit) {
+    const risk = Math.abs(tradeData.openPrice - tradeData.stopLoss)
+    const reward = Math.abs(tradeData.closePrice - tradeData.openPrice)
+    journal.risk_reward_ratio = reward > 0 ? reward / risk : 0
   }
 
-  // All attempts failed
-  console.error('❌ [Auto Journal] All retry attempts failed')
-  throw lastError || new Error('Failed to analyze image after multiple attempts')
+  return journal
 }
 
 /**
@@ -219,19 +171,61 @@ export async function POST(request: NextRequest) {
 
     console.log('📷 [Auto Journal] Processing image:', imageFile.name, imageFile.size, 'bytes')
 
-    // Convert image to base64
+    // Convert image to buffer
     const bytes = await imageFile.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    const base64Image = buffer.toString('base64')
 
-    console.log('🤖 [Auto Journal] Analyzing image with AI...')
+    console.log('🤖 [Auto Journal] Extracting trade data with AI (Claude Vision + HuggingFace fallback)...')
 
-    // Analyze image with VLM
-    const { trade, journal } = await analyzeImage(base64Image)
+    // Extract trade data using Claude Vision (primary) or HuggingFace (fallback)
+    const extractionResult = await extractTradeData(buffer)
 
-    console.log('✅ [Auto Journal] AI analysis completed')
-    console.log('📊 [Auto Journal] Trade:', JSON.stringify(trade))
-    console.log('📝 [Auto Journal] Journal:', JSON.stringify(journal))
+    if (!extractionResult.success) {
+      console.error('❌ [Auto Journal] Failed to extract trade data:', extractionResult.errors)
+      return NextResponse.json(
+        {
+          error: 'Failed to extract trade data from screenshot',
+          details: extractionResult.errors,
+          validFieldCount: extractionResult.validFieldCount,
+          confidence: extractionResult.confidence
+        },
+        { status: 400 }
+      )
+    }
+
+    console.log('✅ [Auto Journal] Trade data extracted successfully')
+    console.log('📊 [Auto Journal] Trade:', JSON.stringify(extractionResult.data))
+    console.log('📈 [Auto Journal] Confidence:', extractionResult.confidence.toFixed(1), '%')
+
+    // Check if we have minimum required fields
+    if (extractionResult.validFieldCount < 5) {
+      return NextResponse.json(
+        {
+          error: 'Insufficient trade data extracted. Please upload a clearer screenshot showing trade details.',
+          details: extractionResult.errors,
+          validFieldCount: extractionResult.validFieldCount,
+          confidence: extractionResult.confidence
+        },
+        { status: 400 }
+      )
+    }
+
+    // Upload screenshot to Supabase Storage
+    console.log('📤 [Auto Journal] Uploading screenshot...')
+    let screenshotUrl: string | undefined
+    try {
+      screenshotUrl = await uploadScreenshot(buffer, authUser.id)
+      console.log('✅ [Auto Journal] Screenshot uploaded:', screenshotUrl)
+    } catch (uploadError: any) {
+      console.warn('⚠️ [Auto Journal] Failed to upload screenshot:', uploadError.message)
+      // Continue without screenshot URL
+    }
+
+    // Generate journal content
+    console.log('📝 [Auto Journal] Generating journal content...')
+    const journal = await generateJournalContent(extractionResult.data, buffer)
+
+    console.log('✅ [Auto Journal] Journal generated:', JSON.stringify(journal))
 
     // Ensure profile exists
     try {
@@ -249,19 +243,31 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Create trade record
-    const tradeRecord = await db.trade.create({
+    // Save trade to database using the new saveTrade function
+    console.log('💾 [Auto Journal] Saving trade to database...')
+    const tradeData = {
+      userId: authUser.id,
+      symbol: extractionResult.data!.symbol.toUpperCase(),
+      type: extractionResult.data!.type.toUpperCase(),
+      openPrice: extractionResult.data!.openPrice,
+      closePrice: extractionResult.data!.closePrice,
+      profitLoss: extractionResult.data!.profitLoss,
+      openTime: extractionResult.data!.openTime,
+      closeTime: extractionResult.data!.closeTime,
+      stopLoss: extractionResult.data!.stopLoss,
+      takeProfit: extractionResult.data!.takeProfit,
+      volume: extractionResult.data!.volume,
+      ticketNumber: extractionResult.data!.ticketNumber,
+      screenshotUrl: screenshotUrl,
+      notes: journal.content,
+    }
+
+    const savedTrade = await saveTrade(tradeData)
+
+    // Update the trade record with additional journal data
+    const tradeRecord = await db.trade.update({
+      where: { id: savedTrade.id },
       data: {
-        user_id: authUser.id,
-        symbol: trade.symbol.toUpperCase(),
-        type: trade.type.toUpperCase(),
-        open_price: trade.entry_price,
-        close_price: trade.exit_price,
-        lot_size: trade.lot_size,
-        profit_loss: trade.profit_loss,
-        open_time: new Date(trade.open_time.replace(/\./g, '-')),
-        close_time: new Date(trade.close_time.replace(/\./g, '-')),
-        notes: journal.content,
         emotion: journal.mood,
         setup_type: journal.setup_type,
         tags: journal.tags.join(','),
@@ -290,7 +296,12 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         trade: tradeRecord,
-        journal: journalRecord
+        journal: journalRecord,
+        extraction: {
+          confidence: extractionResult.confidence,
+          validFieldCount: extractionResult.validFieldCount,
+          errors: extractionResult.errors
+        }
       },
       message: 'Auto-journal created successfully!'
     })
