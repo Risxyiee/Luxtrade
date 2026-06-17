@@ -1,6 +1,26 @@
--- Create promo code TRADERCEPAT for 3 months free
+-- Create promo_codes table
 -- Run this in Supabase SQL Editor
 
+CREATE TABLE IF NOT EXISTS promo_codes (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  code TEXT NOT NULL UNIQUE,
+  description TEXT,
+  "discountPercent" DOUBLE PRECISION NOT NULL,
+  "maxQuota" INTEGER NOT NULL,
+  "usedQuota" INTEGER NOT NULL DEFAULT 0,
+  "durationMonths" INTEGER NOT NULL,
+  "startDate" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  "endDate" TIMESTAMP WITH TIME ZONE,
+  "isActive" BOOLEAN NOT NULL DEFAULT true,
+  "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Create indexes
+CREATE INDEX IF NOT EXISTS idx_promo_codes_code ON promo_codes(code);
+CREATE INDEX IF NOT EXISTS idx_promo_codes_active_dates ON promo_codes("isActive", "startDate", "endDate");
+
+-- Create TRADERCEPAT promo code for 3 months free
 INSERT INTO promo_codes (
   id,
   code,
