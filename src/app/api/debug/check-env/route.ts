@@ -2,13 +2,25 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   return NextResponse.json({
-    anthropic: {
-      configured: !!process.env.ANTHROPIC_API_KEY,
-      hasValue: process.env.ANTHROPIC_API_KEY ? 'Yes (hidden)' : 'No'
+    ai_services: {
+      huggingface_vision: {
+        name: 'HuggingFace Vision API',
+        status: process.env.HUGGING_FACE_API_TOKEN ? 'Configured ✅' : 'Not configured ❌',
+        type: 'FREE',
+        required: true,
+        description: 'Used for Auto-Journal trade data extraction'
+      },
+      anthropic_claude: {
+        name: 'Claude Vision API',
+        status: 'Disabled (Using FREE HuggingFace only) ⏸️',
+        type: 'Paid',
+        required: false,
+        description: 'Not needed - using free HuggingFace Vision API'
+      }
     },
-    huggingface: {
-      configured: !!process.env.HUGGING_FACE_API_TOKEN,
-      hasValue: process.env.HUGGING_FACE_API_TOKEN ? 'Yes (hidden)' : 'No'
+    supabase: {
+      url: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Configured ✅' : 'Not configured ❌',
+      service_role: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'Configured ✅' : 'Not configured ❌'
     }
   });
 }
