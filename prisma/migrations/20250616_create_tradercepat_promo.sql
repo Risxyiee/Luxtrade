@@ -1,7 +1,7 @@
--- Create promo code TRADERCEPAR for 3 months free
+-- Create promo code TRADERCEPAT for 3 months free
 -- Run this in Supabase SQL Editor
 
-INSERT INTO "PromoCode" (
+INSERT INTO promo_codes (
   id,
   code,
   description,
@@ -16,7 +16,7 @@ INSERT INTO "PromoCode" (
   "updatedAt"
 ) VALUES (
   gen_random_uuid(),
-  'TRADERCEPAR',
+  'TRADERCEPAT',
   '3 Bulan Gratis PRO',
   100,
   100,
@@ -41,13 +41,13 @@ SELECT
   id,
   code,
   description,
-  "discountPercent" as "discount_percent",
-  "maxQuota" as "max_quota",
-  "usedQuota" as "used_quota",
-  "durationMonths" as "duration_months",
-  "startDate" as "start_date",
-  "endDate" as "end_date",
-  "isActive" as "is_active",
-  "maxQuota" - "usedQuota" as "remaining_quota"
-FROM "PromoCode"
-WHERE code = 'TRADERCEPAR';
+  "discountPercent" as discount_percent,
+  "maxQuota" as max_quota,
+  "usedQuota" as used_quota,
+  "durationMonths" as duration_months,
+  "startDate" as start_date,
+  "endDate" as end_date,
+  "isActive" as is_active,
+  "maxQuota" - "usedQuota" as remaining_quota
+FROM promo_codes
+WHERE code = 'TRADERCEPAT';
