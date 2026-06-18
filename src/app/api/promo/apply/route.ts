@@ -9,13 +9,20 @@ import { db } from '@/lib/db'
  */
 export async function POST(request: NextRequest) {
   try {
-    const { promoCode: code, plan } = await request.json()
+    const body = await request.json()
+    console.log('🔍 [Promo Apply] Request body:', JSON.stringify(body))
+
+    const { promoCode: code, plan } = body
+    console.log('🔍 [Promo Apply] Extracted - code:', code, 'plan:', plan)
 
     // Get authenticated user from session
     const { supabase } = createClientForApi(request)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
+    console.log('🔍 [Promo Apply] Auth result:', { user, authError })
+
     if (authError || !user) {
+      console.error('❌ [Promo Apply] Unauthorized:', authError)
       return NextResponse.json(
         { error: 'Unauthorized. Please login first.' },
         { status: 401 }
@@ -23,8 +30,10 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = user.id
+    console.log('🔍 [Promo Apply] User ID (UUID):', userId)
 
     if (!code || !plan) {
+      console.error('❌ [Promo Apply] Missing required fields - code:', code, 'plan:', plan)
       return NextResponse.json(
         { error: 'promoCode and plan are required' },
         { status: 400 }
