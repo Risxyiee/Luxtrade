@@ -159,10 +159,21 @@ export async function POST(request: NextRequest) {
         remainingQuota
       }
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ [Apply Promo Code] Error:', error)
+    console.error('❌ [Apply Promo Code] Error details:', {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+      meta: error.meta
+    })
     return NextResponse.json(
-      { error: 'Gagal menerapkan kode promo' },
+      {
+        error: 'Gagal menerapkan kode promo',
+        details: error.message,
+        name: error.name,
+        code: error.code || 'UNKNOWN'
+      },
       { status: 500 }
     )
   }
