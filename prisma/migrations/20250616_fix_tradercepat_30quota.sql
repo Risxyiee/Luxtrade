@@ -1,4 +1,4 @@
--- Update TRADERCEPAT promo code to 100% discount (FREE) and 30 quota
+-- Update TRADERCEPAT promo code to 100% discount (FREE) with 30 quota
 -- Run this in Supabase SQL Editor
 
 UPDATE promo_codes
