@@ -554,8 +554,7 @@ export default function Sidebar({
                   .then(data => {
                     if (data.success) {
                       toast.success(`🎉 ${data.message}`)
-                      refreshProfile()
-                      fetchData && fetchData()
+                      setTimeout(() => { window.location.reload() }, 1500)
                     } else {
                       toast.error(data.message || data.error || 'Kode promo tidak valid')
                     }
