@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Update user profile to Pro
+    // Update user profile to Pro (Prisma - source of truth)
     await db.profile.update({
       where: { id: userId },
       data: {
@@ -140,6 +140,28 @@ export async function POST(request: NextRequest) {
         proExpiry: endDate
       }
     })
+
+    // Also update Supabase Auth user_metadata to keep admin panel in sync
+    try {
+      const { supabaseAdmin: adminClient } = await import('@/lib/supabase-admin-alt')
+      if (adminClient) {
+        const { data: { user: authUser } } = await adminClient.auth.admin.getUserById(userId)
+        const currentMeta = authUser?.user_metadata || {}
+        await adminClient.auth.admin.updateUserById(userId, {
+          user_metadata: {
+            ...currentMeta,
+            is_pro: true,
+            subscription_status: 'active',
+            subscription_until: endDate.toISOString(),
+            has_ever_been_pro: true,
+            updated_at: new Date().toISOString()
+          }
+        })
+        console.log('✅ [Promo Apply] Also synced Auth metadata')
+      }
+    } catch (syncErr) {
+      console.warn('⚠️ [Promo Apply] Failed to sync Auth metadata (non-critical):', syncErr)
+    }
 
     const remainingQuota = promoCode.maxQuota - (promoCode.usedQuota + 1)
 

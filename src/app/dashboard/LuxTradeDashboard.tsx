@@ -329,14 +329,20 @@ function LuxTradeDashboardContent() {
 
   
   const handleSelectPlan = (plan: any) => {
-    setPlanSelectionModalOpen(false)
     // For free plan, just close modal
     if (plan.price === 0) {
-      toast.success('You are using Free plan!')
+      setPlanSelectionModalOpen(false)
+      toast.success('Anda menggunakan paket Free!')
       return
     }
-    // For paid plans, open payment modal
-    setPlanSelectionModalOpen(true)
+    // For paid plans, the PlanSelectionModal now handles DOKU payment internally
+    // No need to do anything here — DOKU flow is triggered inside the modal
+  }
+
+  const handlePaymentSuccess = () => {
+    setPlanSelectionModalOpen(false)
+    refreshProfile()
+    toast.success('Selamat! Akun PRO Anda sedang diproses. Refresh halaman dalam beberapa menit.')
   }
 
   useEffect(() => {
@@ -909,6 +915,7 @@ function LuxTradeDashboardContent() {
         // User & Plan
         user={user}
         handleSelectPlan={handleSelectPlan}
+        handlePaymentSuccess={handlePaymentSuccess}
         proTrialCount={proTrialCount}
         language={language}
         tradingAccounts={tradingAccounts}

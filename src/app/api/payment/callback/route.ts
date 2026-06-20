@@ -162,6 +162,28 @@ async function activateSubscription(
   })
 
   console.log(`🎉 [DOKU Callback] Activated ${plan} for user ${userId} until ${endDate.toISOString()}`)
+
+  // Also sync to Supabase Auth metadata to keep admin panel in sync
+  try {
+    const { supabaseAdmin: adminClient } = await import('@/lib/supabase-admin-alt')
+    if (adminClient) {
+      const { data: { user: authUser } } = await adminClient.auth.admin.getUserById(userId)
+      const currentMeta = authUser?.user_metadata || {}
+      await adminClient.auth.admin.updateUserById(userId, {
+        user_metadata: {
+          ...currentMeta,
+          is_pro: true,
+          subscription_status: 'active',
+          subscription_until: endDate.toISOString(),
+          has_ever_been_pro: true,
+          updated_at: new Date().toISOString()
+        }
+      })
+      console.log('✅ [DOKU Callback] Also synced Auth metadata')
+    }
+  } catch (syncErr) {
+    console.warn('⚠️ [DOKU Callback] Failed to sync Auth metadata (non-critical):', syncErr)
+  }
 }
 
 /**
