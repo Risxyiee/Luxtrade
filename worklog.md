@@ -1629,3 +1629,28 @@ Stage Summary:
 - Root cause: Sidebar sent wrong field name (`code` instead of `promoCode`) and missing `plan` field
 - This caused /api/promo/apply to return "promoCode and plan are required"
 - Fix: Send `{ promoCode: promoCode.trim(), plan: 'PRO' }` matching what the API expects
+---
+Task ID: cleanup-debug-files
+Agent: Z.ai Code
+Task: Clean up all debug/test/temporary files from codebase
+
+Work Log:
+- Found 42 debug/test/temp files across the codebase
+- Deleted 37 files (-2,465 lines of code removed)
+- Categories deleted:
+  - /test-promo page
+  - /api/test/* routes (5 files)
+  - /api/debug/* routes (17 files - env dumps, DB dumps)
+  - /api/check-env (exposes env vars)
+  - /api/admin/test-* and debug-* routes (6 files)
+  - /api/promo-simple (parallel debug route)
+  - /api/trading-accounts/test-create (NO AUTH endpoint!)
+  - /api/setup, /api/seed, /api/seed-plans, /api/migrate*
+  - .bak file, supabase-admin-alt.ts
+- Kept: /api/promo-quota (useful for checking remaining quota)
+- Pushed to GitHub: commit 5e0a02e
+
+Stage Summary:
+- Removed security risks: env variable dumps, no-auth endpoints
+- Removed 37 unnecessary files, -2,465 lines
+- Kept promo-quota as useful utility endpoint
