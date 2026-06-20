@@ -474,6 +474,139 @@ export function getConfirmationEmailHtml(name: string, confirmationUrl: string) 
   `
 }
 
+// Reminder verification email template (Indonesian friendly tone)
+export function getReminderVerificationEmailHtml(name: string, confirmationUrl: string) {
+  return `
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Reminder Verifikasi - LuxTrade</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #0a0612; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+          <td style="padding: 40px 20px;">
+            <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="margin: 0 auto; background: linear-gradient(135deg, #1a0f2e 0%, #0d0715 100%); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
+              
+              <!-- Header -->
+              <tr>
+                <td style="padding: 40px 40px 20px 40px; text-align: center;">
+                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+                    <tr>
+                      <td style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); border-radius: 12px; padding: 12px 16px;">
+                        <span style="font-size: 24px;">👑</span>
+                      </td>
+                    </tr>
+                  </table>
+                  <h1 style="color: #fbbf24; font-size: 28px; margin: 20px 0 10px 0; font-weight: 700;">LuxTrade</h1>
+                  <p style="color: rgba(255,255,255,0.5); font-size: 14px; margin: 0;">Premium Trading Journal</p>
+                </td>
+              </tr>
+
+              <!-- Emoji Icon -->
+              <tr>
+                <td style="padding: 10px 40px 0 40px; text-align: center;">
+                  <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(245, 158, 11, 0.1); display: inline-flex; align-items: center; justify-content: center;">
+                    <span style="font-size: 32px;">😅</span>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Content -->
+              <tr>
+                <td style="padding: 20px 40px 30px 40px;">
+                  <h2 style="color: #ffffff; font-size: 22px; margin: 0 0 16px 0; font-weight: 600; text-align: center;">
+                    Eits, ${name}! 🙈
+                  </h2>
+                  <p style="color: rgba(255,255,255,0.7); font-size: 16px; line-height: 1.7; margin: 0 0 16px 0; text-align: center;">
+                    Kamu lupa verifikasi email? Akun LuxTrade kamu masih nunggu tuh buat diaktifin. Tanpa verifikasi, kamu belum bisa login dan mulai trading journal-nya.
+                  </p>
+                  <p style="color: rgba(255,255,255,0.6); font-size: 15px; line-height: 1.6; margin: 0 0 20px 0; text-align: center;">
+                    Yuk, langsung aja klik tombol di bawah ini biar akun kamu aktif:
+                  </p>
+                  
+                  <!-- CTA Button -->
+                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 30px auto;">
+                    <tr>
+                      <td style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); border-radius: 12px; box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);">
+                        <a href="${confirmationUrl}" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                          ✅ Verifikasi Email Sekarang
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <p style="color: rgba(255,255,255,0.5); font-size: 14px; line-height: 1.6; margin: 0 0 10px 0; text-align: center;">
+                    Kalau tombol di atas nggak bisa diklik, salin link ini ke browser:
+                  </p>
+                  <p style="color: #f59e0b; font-size: 13px; word-break: break-all; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; margin: 0 0 24px 0; text-align: center;">
+                    ${confirmationUrl}
+                  </p>
+
+                  <!-- Benefits Box -->
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 16px 0;">
+                    <tr>
+                      <td style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 10px; padding: 16px;">
+                        <p style="color: #c7d2fe; font-size: 14px; font-weight: 600; margin: 0 0 8px 0;">
+                          🎁 Apa yang kamu dapat setelah verifikasi:
+                        </p>
+                        <ul style="color: rgba(255,255,255,0.6); font-size: 13px; line-height: 1.8; margin: 0; padding-left: 20px;">
+                          <li>Login langsung dan akses semua fitur</li>
+                          <li>Trading journal & analisa lengkap</li>
+                          <li>Akses promo dan upgrade PRO</li>
+                          <li>Gratis 7 hari trial PRO (kalau masih berlaku!)</li>
+                        </ul>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <!-- Expiry Warning -->
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                    <tr>
+                      <td style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 10px; padding: 14px 16px;">
+                        <p style="color: rgba(255,255,255,0.6); font-size: 13px; line-height: 1.5; margin: 0;">
+                          ⏰ <strong style="color: #fcd34d;">Perhatian:</strong> Link verifikasi ini berlaku <strong style="color: #fcd34d;">24 jam</strong> aja. Kalau udah expired, kamu bisa request ulang dari halaman login.
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <p style="color: rgba(255,255,255,0.4); font-size: 13px; margin: 20px 0 0 0; text-align: center;">
+                    Kalau kamu nggak merasa daftar di LuxTrade, abaikan email ini ya!
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Divider -->
+              <tr>
+                <td style="padding: 0 40px;">
+                  <div style="border-top: 1px solid rgba(255,255,255,0.1);"></div>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="padding: 30px 40px; text-align: center;">
+                  <p style="color: rgba(255,255,255,0.3); font-size: 12px; margin: 0;">
+                    © ${new Date().getFullYear()} LuxTrade. All rights reserved.
+                  </p>
+                  <p style="color: rgba(255,255,255,0.25); font-size: 11px; margin: 6px 0 0 0;">
+                    Email ini dikirim dari noreply@luxtradee.web.id
+                  </p>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `
+}
+
 // Reset password email template
 export function getResetPasswordEmailHtml(name: string, resetUrl: string) {
   return `
