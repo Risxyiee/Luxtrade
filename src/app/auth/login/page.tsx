@@ -78,14 +78,14 @@ export default function LoginPage() {
         const errorMsg = signInError.message?.toLowerCase() || ''
         
         if (errorMsg.includes('invalid login credentials') || errorMsg.includes('invalid credentials')) {
-          setError('Email atau password salah. Silakan coba lagi.')
+          setError('Email atau password salah. Coba lagi ya.')
         } else if (errorMsg.includes('email not confirmed')) {
-          setError('Email belum dikonfirmasi. Silakan cek inbox/spam Anda atau klik tombol di bawah untuk mengirim ulang.')
+          setError('Email belum diverifikasi. Cek inbox/spam kamu untuk link verifikasi, atau klik tombol di bawah untuk kirim ulang.')
           setShowResendButton(true)
         } else if (errorMsg.includes('too many requests') || errorMsg.includes('rate limit')) {
-          setError('Terlalu banyak percobaan. Silakan tunggu beberapa menit.')
+          setError('Terlalu banyak percobaan login. Tunggu beberapa menit ya.')
         } else if (errorMsg.includes('user not found')) {
-          setError('Akun tidak ditemukan. Silakan daftar terlebih dahulu.')
+          setError('Akun nggak ketemu. Belum daftar ya?')
         } else {
           setError(signInError.message || 'Login gagal')
         }
@@ -102,7 +102,8 @@ export default function LoginPage() {
           const verifyData = await verifyRes.json()
 
           if (!verifyData.verified) {
-            setError('Email belum diverifikasi. Silakan cek email untuk link verifikasi, atau kirim ulang.')
+            setError('Email belum diverifikasi. Cek inbox/spam kamu untuk link verifikasi, atau klik tombol di bawah.')
+            setShowResendButton(true)
             setIsLoading(false)
             // Sign out the user since email not verified
             await supabase.auth.signOut()
@@ -207,12 +208,12 @@ export default function LoginPage() {
                   {isResending ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Mengirim ulang...
+                      Mengirim...
                     </>
                   ) : (
                     <>
                       <RefreshCw className="w-4 h-4 mr-2" />
-                      Kirim Ulang Email Konfirmasi
+                      Kirim Ulang Link Verifikasi
                     </>
                   )}
                 </Button>

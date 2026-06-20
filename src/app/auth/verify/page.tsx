@@ -117,10 +117,15 @@ function VerifyForm() {
             <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-emerald-400" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">Email Terverifikasi!</h2>
-            <p className="text-white/60 text-sm mb-6">
-              Akun Anda sudah aktif. Silakan login untuk mulai trading.
+            <h2 className="text-xl font-bold text-white mb-2">Email Terverifikasi! ✅</h2>
+            <p className="text-white/60 text-sm mb-2">
+              Akun kamu sudah aktif dan siap dipakai.
             </p>
+            <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3 mb-6">
+              <p className="text-emerald-400/80 text-xs">
+                🎉 Selamat! Kamu sekarang bisa login dan mulai menggunakan semua fitur LuxTrade.
+              </p>
+            </div>
             <Button
               onClick={() => router.push('/auth/login')}
               className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold"
@@ -142,8 +147,11 @@ function VerifyForm() {
               <XCircle className="w-8 h-8 text-red-400" />
             </div>
             <h2 className="text-xl font-bold text-white mb-2">Verifikasi Gagal</h2>
-            <p className="text-white/60 text-sm mb-6">
-              Token tidak valid atau sudah digunakan. Masukkan email untuk kirim ulang.
+            <p className="text-white/60 text-sm mb-2">
+              Link verifikasi nggak valid atau sudah pernah dipakai.
+            </p>
+            <p className="text-white/40 text-sm mb-6">
+              Masukkan email kamu di bawah untuk kirim ulang link verifikasi baru.
             </p>
           </motion.div>
         )}
@@ -158,9 +166,12 @@ function VerifyForm() {
             <div className="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-4">
               <Mail className="w-8 h-8 text-amber-400" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">Token Kadaluarsa</h2>
-            <p className="text-white/60 text-sm mb-6">
-              Link verifikasi sudah expired. Masukkan email untuk kirim ulang.
+            <h2 className="text-xl font-bold text-white mb-2">Link Sudah Kadaluarsa ⏰</h2>
+            <p className="text-white/60 text-sm mb-2">
+              Link verifikasi sudah expired (berlaku 24 jam).
+            </p>
+            <p className="text-white/40 text-sm mb-6">
+              Tenang, masukkan email kamu di bawah untuk kirim link verifikasi baru.
             </p>
           </motion.div>
         )}
