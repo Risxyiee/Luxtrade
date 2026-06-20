@@ -94,6 +94,24 @@ export default function LoginPage() {
       }
 
       if (data.session && data.user) {
+        // Check if email is verified via our custom verification
+        try {
+          const verifyRes = await fetch('/api/auth/check-verified', {
+            headers: { Authorization: `Bearer ${data.session.access_token}` }
+          })
+          const verifyData = await verifyRes.json()
+
+          if (!verifyData.verified) {
+            setError('Email belum diverifikasi. Silakan cek email untuk link verifikasi, atau kirim ulang.')
+            setIsLoading(false)
+            // Sign out the user since email not verified
+            await supabase.auth.signOut()
+            return
+          }
+        } catch (verifyErr) {
+          console.warn('Could not check email verification (continuing):', verifyErr)
+        }
+
         // Sync user to Prisma database
         try {
           await fetch('/api/auth/sync-user', {
