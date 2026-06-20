@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 // Public routes that don't require authentication
-const publicRoutes = ['/auth/login', '/auth/signup', '/auth/callback', '/login', '/signup', '/api/']
+const publicRoutes = ['/auth/login', '/auth/signup', '/auth/callback', '/auth/verify', '/auth/forgot-password', '/login', '/signup', '/api/']
 
 // Protected routes that require authentication
 const protectedRoutes = ['/dashboard', '/trades', '/journal', '/analytics', '/settings']
