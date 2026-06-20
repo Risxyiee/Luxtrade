@@ -187,7 +187,7 @@ function LuxTradeDashboardContent() {
   const [proTrialCount, setProTrialCount] = useState(3)
   const MAX_PRO_TRIALS = 3
 
-  const { user, profile, session, signOut, loading: authLoading, isPro: authIsPro, isAdmin } = useAuth()
+  const { user, profile, session, signOut, loading: authLoading, isPro: authIsPro, isAdmin, refreshProfile } = useAuth()
   const router = useRouter()
   const [isMobile, setIsMobile] = useState(false)
 
@@ -758,6 +758,7 @@ function LuxTradeDashboardContent() {
         selectedAccountId={selectedAccountId}
         setSelectedAccountId={setSelectedAccountId}
         fetchData={fetchData}
+        refreshProfile={refreshProfile}
         addTradeOpen={addTradeOpen}
         setAddTradeOpen={setAddTradeOpen}
         addAccountOpen={isAddAccountOpen}

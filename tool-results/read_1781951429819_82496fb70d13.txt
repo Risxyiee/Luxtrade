@@ -1,0 +1,788 @@
+     1→'use client'
+     2→
+     3→import { useState } from 'react'
+     4→import Link from 'next/link'
+     5→import Image from 'next/image'
+     6→import { motion } from 'framer-motion'
+     7→import { Menu, X, BarChart3, Activity, Calendar, BookOpen, Eye,
+     8→  Newspaper, CalendarDays, Trophy, Target, Grid3X3, PieChart,
+     9→  Brain, FileText, Flame, Heart, Settings, Shield, Crown,
+    10→  Zap, AlertCircle, Lock, LogOut, Wallet, ChevronDown, Trash2, MoreHorizontal, Loader2, Plus, HelpCircle, Gift
+    11→} from 'lucide-react'
+    12→import { Badge } from '@/components/ui/badge'
+    13→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+    14→import { Button } from '@/components/ui/button'
+    15→import { toast } from 'sonner'
+    16→import { ContextGuide, useContextGuides, guideData } from '@/components/ContextGuide'
+    17→
+    18→interface SidebarProps {
+    19→  sidebarOpen: boolean
+    20→  setSidebarOpen: (open: boolean) => void
+    21→  mobileSidebarOpen: boolean
+    22→  setMobileSidebarOpen: (open: boolean) => void
+    23→  activeTab: string
+    24→  setActiveTab: (tab: string) => void
+    25→  isPro: boolean
+    26→  user: any
+    27→  profile: any
+    28→  isAdmin: boolean
+    29→  language: 'id' | 'en'
+    30→  isFreeUser: boolean
+    31→  tradeCount: number
+    32→  FREE_TRADE_LIMIT: number
+    33→  setPlanSelectionModalOpen: (open: boolean) => void
+    34→  userInitials: string
+    35→  handleSignOut: () => void
+    36→  tradingAccounts?: any[]
+    37→  selectedAccountId?: string | null
+    38→  setSelectedAccountId?: (accountId: string | null) => void
+    39→  fetchData?: () => void
+    40→  addTradeOpen?: boolean
+    41→  setAddTradeOpen?: (open: boolean) => void
+    42→  setAddAccountOpen?: (open: boolean) => void
+    43→}
+    44→
+    45→const menuCategories = {
+    46→  utama: { label: 'UTAMA' },
+    47→  alat: { label: 'ALAT', proType: 'gold' },
+    48→  lanjutan: { label: 'LANJUTAN', proType: 'purple' },
+    49→}
+    50→
+    51→const menuItems = [
+    52→  // UTAMA - Tanpa PRO
+    53→  { id: 'dashboard', label: 'Dashboard', labelId: 'Dasbor', icon: BarChart3, category: 'utama', proOnly: false },
+    54→  { id: 'trades', label: 'Trades', labelId: 'Transaksi', icon: Activity, category: 'utama', proOnly: false },
+    55→  { id: 'calendar', label: 'Calendar', labelId: 'Kalender', icon: Calendar, category: 'utama', proOnly: false },
+    56→  { id: 'journal', label: 'Journal', labelId: 'Jurnal', icon: BookOpen, category: 'utama', proOnly: false },
+    57→  { id: 'watchlist', label: 'Watchlist', labelId: 'Daftar Pantauan', icon: Eye, category: 'utama', proOnly: false },
+    58→  { id: 'news', label: 'Market News', labelId: 'Berita Pasar', icon: Newspaper, category: 'utama', proOnly: false },
+    59→  { id: 'economic-calendar', label: 'Economic Calendar', labelId: 'Kalender Ekonomi', icon: CalendarDays, category: 'utama', proOnly: false },
+    60→  { id: 'achievements', label: 'Achievements', labelId: 'Pencapaian', icon: Trophy, category: 'utama', proOnly: false },
+    61→
+    62→  // ALAT - PRO Emas
+    63→  { id: 'risk', label: 'Risk Calculator', labelId: 'Kalkulator Risiko', icon: Target, category: 'alat', proOnly: true, proType: 'gold' },
+    64→  { id: 'heatmap', label: 'Market Heatmap', labelId: 'Pasar Heatmap', icon: Grid3X3, category: 'alat', proOnly: true, proType: 'gold' },
+    65→
+    66→  // LANJUTAN - PRO Ungu
+    67→  { id: 'analytics', label: 'Analytics', labelId: 'Analitik', icon: PieChart, category: 'lanjutan', proOnly: true, proType: 'purple' },
+    68→  { id: 'targets', label: 'Targets', labelId: 'Target', icon: Target, category: 'lanjutan', proOnly: true, proType: 'purple' },
+    69→  { id: 'ai', label: 'AI Insights', labelId: 'Insight AI', icon: Brain, category: 'lanjutan', proOnly: true, proType: 'purple' },
+    70→  { id: 'score', label: 'Trading Score', labelId: 'Skor Trading', icon: Trophy, category: 'lanjutan', proOnly: true, proType: 'purple' },
+    71→  { id: 'report', label: 'Weekly Report', labelId: 'Laporan Mingguan', icon: FileText, category: 'lanjutan', proOnly: true, proType: 'purple' },
+    72→  { id: 'streaks', label: 'Streaks', labelId: 'Streak', icon: Flame, category: 'lanjutan', proOnly: true, proType: 'purple' },
+    73→  { id: 'psychology', label: 'Psychology Tracking', labelId: 'Psikologi', icon: Heart, category: 'lanjutan', proOnly: true, proType: 'purple' },
+    74→]
+    75→
+    76→export default function Sidebar({
+    77→  sidebarOpen,
+    78→  setSidebarOpen,
+    79→  mobileSidebarOpen,
+    80→  setMobileSidebarOpen,
+    81→  activeTab,
+    82→  setActiveTab,
+    83→  isPro,
+    84→  user,
+    85→  profile,
+    86→  isAdmin,
+    87→  language,
+    88→  isFreeUser,
+    89→  tradeCount,
+    90→  FREE_TRADE_LIMIT,
+    91→  setPlanSelectionModalOpen,
+    92→  userInitials,
+    93→  handleSignOut,
+    94→  tradingAccounts = [],
+    95→  selectedAccountId = null,
+    96→  setSelectedAccountId = () => {},
+    97→  fetchData = () => {},
+    98→  addTradeOpen = false,
+    99→  setAddTradeOpen = () => {},
+   100→  setAddAccountOpen = () => {}
+   101→}: SidebarProps) {
+   102→  const { activeGuide, openGuide, closeGuide } = useContextGuides()
+   103→  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
+   104→  const [accountToDelete, setAccountToDelete] = useState<any>(null)
+   105→  const [deleting, setDeleting] = useState(false)
+   106→
+   107→  const handleDeleteAccount = async () => {
+   108→    if (!accountToDelete) return
+   109→
+   110→    setDeleting(true)
+   111→    try {
+   112→      const res = await fetch(`/api/trading-accounts/${accountToDelete.id}`, {
+   113→        method: 'DELETE',
+   114→        credentials: 'include'
+   115→      })
+   116→
+   117→      if (res.ok) {
+   118→        const data = await res.json()
+   119→        toast.success(data.message || 'Akun trading berhasil dihapus')
+   120→        setDeleteAccountOpen(false)
+   121→        setAccountToDelete(null)
+   122→
+   123→        // If we deleted the selected account, switch to 'all'
+   124→        if (selectedAccountId === accountToDelete.id) {
+   125→          setSelectedAccountId(null)
+   126→        }
+   127→
+   128→        // Refresh data
+   129→        fetchData()
+   130→      } else {
+   131→        const data = await res.json()
+   132→        toast.error(data.error || 'Gagal menghapus akun trading')
+   133→      }
+   134→    } catch (error) {
+   135→      console.error('Error deleting account:', error)
+   136→      toast.error('Gagal menghapus akun trading')
+   137→    } finally {
+   138→      setDeleting(false)
+   139→    }
+   140→  }
+   141→
+   142→  const openDeleteModal = (account: any) => {
+   143→    // Prevent deleting if it's the last account
+   144→    if (tradingAccounts.length <= 1) {
+   145→      toast.error('Tidak bisa menghapus akun terakhir. Minimal 1 akun diperlukan.')
+   146→      return
+   147→    }
+   148→
+   149→    // Allow deleting any account including default
+   150→    setAccountToDelete(account)
+   151→    setDeleteAccountOpen(true)
+   152→  }
+   153→  return (
+   154→    <>
+   155→      {/* Mobile Overlay Background - Click to close with better feedback */}
+   156→      {mobileSidebarOpen && (
+   157→        <div
+   158→          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300"
+   159→          onClick={() => {
+   160→            setMobileSidebarOpen(false)
+   161→            // Add haptic feedback if available
+   162→            if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+   163→              navigator.vibrate(10)
+   164→            }
+   165→          }}
+   166→        />
+   167→      )}
+   168→
+   169→      {/* Sidebar Component */}
+   170→      <aside className={`
+   171→        fixed lg:static
+   172→        top-0 left-0
+   173→        h-screen lg:h-full
+   174→        z-50
+   175→        transition-all duration-300 ease-in-out
+   176→        ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+   177→        ${mobileSidebarOpen ? 'w-80' : sidebarOpen ? 'w-80' : 'w-20'}
+   178→        flex flex-col
+   179→      `}>
+   180→        {/* Glassmorphism Background */}
+   181→        <div className="absolute inset-0 bg-gradient-to-b from-[#0d0a1a]/98 via-[#0f0b18]/98 to-[#0d0a1a]/98 backdrop-blur-3xl border-r border-purple-500/20" />
+   182→
+   183→        {/* Animated Glow Border */}
+   184→        <div className="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-purple-500/30 to-transparent" />
+   185→
+   186→        {/* Top Glow */}
+   187→        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-500/5 to-transparent pointer-events-none" />
+   188→
+   189→        {/* Header Section - Logo & Account Selector */}
+   190→        <div className="relative p-4 border-b border-purple-500/20 shrink-0 flex flex-col">
+   191→          <Link href="/" className="flex items-center gap-3 group">
+   192→            <motion.div
+   193→              className="relative flex-shrink-0"
+   194→              whileHover={{ scale: 1.1, rotate: 5 }}
+   195→              transition={{ type: "spring", stiffness: 300 }}
+   196→            >
+   197→              <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl blur-lg opacity-40 group-hover:opacity-60 transition-opacity" />
+   198→              <Image
+   199→                src="/logo.png"
+   200→                alt="LuxTrade Logo"
+   201→                width={40}
+   202→                height={40}
+   203→                className="relative rounded-xl shadow-xl"
+   204→              />
+   205→            </motion.div>
+   206→            {(sidebarOpen || mobileSidebarOpen) && (
+   207→              <motion.div
+   208→                initial={{ opacity: 0, x: -10 }}
+   209→                animate={{ opacity: 1, x: 0 }}
+   210→                exit={{ opacity: 0, x: -10 }}
+   211→                transition={{ duration: 0.3 }}
+   212→                className="overflow-hidden"
+   213→              >
+   214→                <h1 className="text-xl font-bold bg-gradient-to-r from-purple-300 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+   215→                  LuxTrade
+   216→                </h1>
+   217→                <p className="text-xs text-purple-400/60">Trading Journal</p>
+   218→              </motion.div>
+   219→            )}
+   220→          </Link>
+   221→
+   222→          {/* Account Selector with Delete Button */}
+   223→          {(sidebarOpen || mobileSidebarOpen) && (
+   224→            <motion.div
+   225→              initial={{ opacity: 0, y: 10 }}
+   226→              animate={{ opacity: 1, y: 0 }}
+   227→              transition={{ duration: 0.3, delay: 0.1 }}
+   228→              className="mt-4 relative"
+   229→            >
+   230→              {/* Account Selector - Only show if has accounts */}
+   231→              {tradingAccounts.length > 0 && (
+   232→                <>
+   233→                  <div className="flex items-center justify-between mb-2">
+   234→                    <div className="flex items-center gap-2">
+   235→                      <Wallet className="w-4 h-4 text-purple-400" />
+   236→                      <span className="text-xs font-semibold text-gray-400">Trading Account</span>
+   237→                    </div>
+   238→                    {tradingAccounts.length > 1 && (
+   239→                      <span className="text-[10px] text-gray-500">
+   240→                        {tradingAccounts.length} accounts
+   241→                      </span>
+   242→                    )}
+   243→                  </div>
+   244→
+   245→                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+   246→                    <button
+   247→                      onClick={() => {
+   248→                        setSelectedAccountId(null)
+   249→                        toast.success('All Accounts selected')
+   250→                      }}
+   251→                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+   252→                        selectedAccountId === null
+   253→                          ? 'bg-purple-500/20 border border-purple-500/30 text-white'
+   254→                          : 'bg-[#0a0712] border border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+   255→                      }`}
+   256→                    >
+   257→                      <Grid3X3 className={`w-4 h-4 ${selectedAccountId === null ? 'text-purple-400' : 'text-gray-500'}`} />
+   258→                      <span className="flex-1 text-left">All Accounts</span>
+   259→                    </button>
+   260→
+   261→                    {tradingAccounts.map((account: any) => (
+   262→                      <div
+   263→                        key={account.id}
+   264→                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all group ${
+   265→                          selectedAccountId === account.id
+   266→                            ? 'bg-purple-500/20 border border-purple-500/30 text-white'
+   267→                            : 'bg-[#0a0712] border border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+   268→                        }`}
+   269→                      >
+   270→                        <button
+   271→                          onClick={() => {
+   272→                            setSelectedAccountId(account.id)
+   273→                            toast.success(`Switched to ${account.name}`)
+   274→                          }}
+   275→                          className="flex-1 flex items-center gap-2 text-left"
+   276→                        >
+   277→                          <div className={`w-2 h-2 rounded-full ${selectedAccountId === account.id ? 'bg-emerald-400' : 'bg-gray-500'}`} />
+   278→                          <span className="truncate max-w-[120px]">{account.name}</span>
+   279→                          <span className="text-xs text-gray-500">{account.currency}</span>
+   280→                        </button>
+   281→
+   282→                        {/* Delete button - visible for all accounts except when it's the only one */}
+   283→                        {tradingAccounts.length > 1 && (
+   284→                          <button
+   285→                            onClick={() => openDeleteModal(account)}
+   286→                            className="p-1.5 rounded text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-60 hover:opacity-100"
+   287→                            title="Delete Account"
+   288→                          >
+   289→                            <Trash2 className="w-3.5 h-3.5" />
+   290→                          </button>
+   291→                        )}
+   292→                      </div>
+   293→                    ))}
+   294→                  </div>
+   295→                </>
+   296→              )}
+   297→
+   298→              {/* No accounts message */}
+   299→              {tradingAccounts.length === 0 && (
+   300→                <div className="text-center py-3 px-3 bg-white/5 rounded-lg border border-white/10">
+   301→                  <Wallet className="w-5 h-5 text-gray-500 mx-auto mb-1" />
+   302→                  <p className="text-xs text-gray-500">Belum ada trading account</p>
+   303→                </div>
+   304→              )}
+   305→
+   306→              {/* Quick Action Buttons - Add Trade & Add Account */}
+   307→              <div className="mt-3 flex gap-2">
+   308→                <div className="relative flex-1">
+   309→                  <button
+   310→                    onClick={() => setAddAccountOpen(true)}
+   311→                    className="flex w-full py-2.5 px-2 rounded-lg bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 border border-blue-500/30 hover:from-blue-500/30 hover:to-cyan-500/30 transition-all text-[10px] sm:text-xs font-medium items-center justify-center gap-1 group"
+   312→                    title={language === 'id' ? 'Tambah Akun Trading' : 'Add Trading Account'}
+   313→                  >
+   314→                    <Wallet className="w-4 h-4 flex-shrink-0" />
+   315→                    <span className="truncate">{language === 'id' ? 'Add Account' : 'Add Account'}</span>
+   316→                  </button>
+   317→                  <button
+   318→                    onClick={(e) => { e.stopPropagation(); openGuide('addAccount') }}
+   319→                    className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-[8px] text-white hover:bg-blue-600 transition-colors z-10"
+   320→                    title={language === 'id' ? 'Panduan' : 'Guide'}
+   321→                  >
+   322→                    ?
+   323→                  </button>
+   324→                  <ContextGuide
+   325→                    isOpen={activeGuide === 'addAccount'}
+   326→                    onClose={closeGuide}
+   327→                    title={guideData.addAccount.title[language]}
+   328→                    description={guideData.addAccount.description[language]}
+   329→                    tips={guideData.addAccount.tips?.[language]}
+   330→                    language={language}
+   331→                    position="right"
+   332→                  />
+   333→                </div>
+   334→                <div className="relative flex-1">
+   335→                  <button
+   336→                    onClick={() => setAddTradeOpen(true)}
+   337→                    className="flex w-full py-2.5 px-2 rounded-lg bg-gradient-to-r from-purple-500 to-violet-600 text-white hover:from-purple-600 hover:to-violet-700 shadow-lg shadow-purple-500/20 transition-all text-[10px] sm:text-xs font-medium items-center justify-center gap-1 group"
+   338→                    title={language === 'id' ? 'Catat Trade Baru' : 'Add New Trade'}
+   339→                  >
+   340→                    <Plus className="w-4 h-4 flex-shrink-0" />
+   341→                    <span className="truncate">{language === 'id' ? 'Add Trade' : 'Add Trade'}</span>
+   342→                  </button>
+   343→                  <button
+   344→                    onClick={(e) => { e.stopPropagation(); openGuide('addTrade') }}
+   345→                    className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center text-[8px] text-white hover:bg-purple-600 transition-colors z-10"
+   346→                    title={language === 'id' ? 'Panduan' : 'Guide'}
+   347→                  >
+   348→                    ?
+   349→                  </button>
+   350→                  <ContextGuide
+   351→                    isOpen={activeGuide === 'addTrade'}
+   352→                    onClose={closeGuide}
+   353→                    title={guideData.addTrade.title[language]}
+   354→                    description={guideData.addTrade.description[language]}
+   355→                    tips={guideData.addTrade.tips?.[language]}
+   356→                    language={language}
+   357→                    position="right"
+   358→                  />
+   359→                </div>
+   360→              </div>
+   361→            </motion.div>
+   362→          )}
+   363→        </div>
+   364→
+   365→        <nav className="flex-1 p-3 space-y-2 overflow-y-auto overflow-x-hidden relative min-h-0 -webkit-overflow-scrolling touch overscroll-behavior-y-contain">
+   366→          {(['utama', 'alat', 'lanjutan'] as const).map((category) => {
+   367→            const categoryItems = menuItems.filter(item => item.category === category)
+   368→            const catInfo = menuCategories[category]
+   369→
+   370→            return (
+   371→              <div key={category} className="space-y-1">
+   372→                {(sidebarOpen || mobileSidebarOpen) && (
+   373→                  <motion.div
+   374→                    initial={{ opacity: 0, x: -10 }}
+   375→                    animate={{ opacity: 1, x: 0 }}
+   376→                    transition={{ duration: 0.3 }}
+   377→                    className="flex items-center gap-2 px-3 py-1.5 overflow-hidden"
+   378→                  >
+   379→                    <span className={`text-[10px] font-bold tracking-wider ${
+   380→                      category === 'utama'
+   381→                        ? 'text-gray-500'
+   382→                        : category === 'alat'
+   383→                          ? 'text-purple-400'
+   384→                          : 'text-pink-400'
+   385→                    }`}>
+   386→                      {catInfo.label}
+   387→                    </span>
+   388→                    {category !== 'utama' && (
+   389→                      <motion.span
+   390→                        className={`text-[7px] font-black px-1.5 py-0.5 rounded ${
+   391→                          category === 'alat'
+   392→                            ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
+   393→                            : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+   394→                        }`}
+   395→                        whileHover={{ scale: 1.1 }}
+   396→                      >
+   397→                        PRO
+   398→                      </motion.span>
+   399→                    )}
+   400→                    <div className="flex-1 h-px bg-gradient-to-r from-purple-500/30 to-transparent" />
+   401→                  </motion.div>
+   402→                )}
+   403→
+   404→                {categoryItems.map((item: any, index: number) => {
+   405→                  const isLocked = item.proOnly && !isPro
+   406→                  const proType = item.proType || 'purple'
+   407→                  const hasGuide = guideData[item.id] !== undefined
+   408→
+   409→                  return (
+   410→                    <motion.div
+   411→                      key={item.id}
+   412→                      initial={{ opacity: 0, x: -10 }}
+   413→                      animate={{ opacity: 1, x: 0 }}
+   414→                      transition={{ duration: 0.2, delay: index * 0.05 }}
+   415→                    >
+   416→                      <div className="relative">
+   417→                        <button
+   418→                          onClick={() => {
+   419→                            if (item.proOnly && !isPro) {
+   420→                              setPlanSelectionModalOpen(true)
+   421→                            } else {
+   422→                              setActiveTab(item.id)
+   423→                              setMobileSidebarOpen(false)
+   424→                            }
+   425→                            // Add haptic feedback on mobile
+   426→                            if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+   427→                              navigator.vibrate(5)
+   428→                            }
+   429→                          }}
+   430→                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 relative overflow-hidden group ${
+   431→                            activeTab === item.id
+   432→                              ? 'bg-gradient-to-r from-purple-500/20 via-violet-500/15 to-pink-500/10 text-white shadow-lg shadow-purple-500/20'
+   433→                              : isLocked
+   434→                                ? 'text-gray-500/50 hover:text-gray-400'
+   435→                                : 'text-gray-400 hover:text-white hover:bg-white/5 active:bg-white/10'
+   436→                          }`}
+   437→                        >
+   438→                          {/* Active State Glow */}
+   439→                          {activeTab === item.id && (
+   440→                            <motion.div
+   441→                              className="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-violet-500/10 to-pink-500/5"
+   442→                              initial={{ opacity: 0 }}
+   443→                              animate={{ opacity: 1 }}
+   444→                              transition={{ duration: 0.3 }}
+   445→                            />
+   446→                          )}
+   447→
+   448→                          {/* Icon Container */}
+   449→                          <motion.div
+   450→                            className={`relative flex-shrink-0 ${
+   451→                              activeTab === item.id
+   452→                                ? 'text-purple-400'
+   453→                                : isLocked
+   454→                                  ? 'text-gray-600'
+   455→                                  : 'text-gray-500 group-hover:text-purple-400'
+   456→                            }`}
+   457→                            whileHover={{ scale: 1.1, rotate: 5 }}
+   458→                            transition={{ type: "spring", stiffness: 300 }}
+   459→                          >
+   460→                            {activeTab === item.id && (
+   461→                              <motion.div
+   462→                                className="absolute inset-0 bg-purple-500/20 blur-xl rounded-lg"
+   463→                                animate={{
+   464→                                  scale: [1, 1.2, 1],
+   465→                                  opacity: [0.5, 0.8, 0.5]
+   466→                                }}
+   467→                                transition={{
+   468→                                  duration: 2,
+   469→                                  repeat: Infinity,
+   470→                                  ease: "easeInOut"
+   471→                                }}
+   472→                              />
+   473→                            )}
+   474→                            <item.icon className="w-5 h-5 relative z-10" />
+   475→                          </motion.div>
+   476→
+   477→                          {/* Menu Text - SHOW WHEN SIDEBAR OPEN (DESKTOP OR MOBILE) */}
+   478→                          {(sidebarOpen || mobileSidebarOpen) && (
+   479→                            <span className={`text-sm font-medium flex-1 text-left truncate relative z-10 overflow-hidden ${
+   480→                              activeTab === item.id ? 'text-white' : ''
+   481→                            }`}>
+   482→                              {language === 'id' ? item.labelId : item.label}
+   483→                            </span>
+   484→                          )}
+   485→
+   486→                          {/* PRO Badge - SHOW WHEN SIDEBAR OPEN (DESKTOP OR MOBILE) */}
+   487→                          {(sidebarOpen || mobileSidebarOpen) && item.proOnly && (
+   488→                            <motion.span
+   489→                              className="flex items-center gap-1 relative z-10 flex-shrink-0"
+   490→                              whileHover={{ scale: 1.1 }}
+   491→                            >
+   492→                              <Lock className={`w-3 h-3 ${
+   493→                                proType === 'gold' ? 'text-amber-400' : 'text-purple-400'
+   494→                              }`} />
+   495→                              <span className={`text-[7px] font-black px-1 py-0.5 rounded ${
+   496→                                proType === 'gold'
+   497→                                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
+   498→                                  : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+   499→                              }`}>
+   500→                                PRO
+   501→                              </span>
+   502→                            </motion.span>
+   503→                          )}
+   504→                        </button>
+   505→
+   506→                        {/* Guide Icon "?" for important menu items */}
+   507→                        {hasGuide && (sidebarOpen || mobileSidebarOpen) && (
+   508→                          <>
+   509→                            <button
+   510→                              onClick={(e) => { e.stopPropagation(); openGuide(item.id) }}
+   511→                              className="absolute top-2 right-2 w-4 h-4 bg-purple-500/20 hover:bg-purple-500/40 rounded-full flex items-center justify-center text-[8px] text-purple-400 hover:text-white transition-colors z-20"
+   512→                              title={language === 'id' ? 'Panduan' : 'Guide'}
+   513→                            >
+   514→                              ?
+   515→                            </button>
+   516→                            <ContextGuide
+   517→                              isOpen={activeGuide === item.id}
+   518→                              onClose={closeGuide}
+   519→                              title={guideData[item.id].title[language]}
+   520→                              description={guideData[item.id].description[language]}
+   521→                              tips={guideData[item.id].tips?.[language]}
+   522→                              language={language}
+   523→                              position="right"
+   524→                            />
+   525→                          </>
+   526→                        )}
+   527→                      </div>
+   528→                    </motion.div>
+   529→                  )
+   530→                })}
+   531→              </div>
+   532→            )
+   533→          })}
+   534→        </nav>
+   535→
+   536→        {/* Bottom Section */}
+   537→        <div className="relative p-3 border-t border-purple-500/20 space-y-2 shrink-0">
+   538→          {/* Promo Code Claim Button */}
+   539→          {!isPro && (sidebarOpen || mobileSidebarOpen) && (
+   540→            <motion.button
+   541→              onClick={() => {
+   542→                // Open promo code input dialog
+   543→                const promoCode = prompt('Masukkan Kode Promo (3 Bulan Gratis):')
+   544→                if (promoCode) {
+   545→                  // Apply promo code
+   546→                  fetch('/api/promo/apply', {
+   547→                    method: 'POST',
+   548→                    headers: { 'Content-Type': 'application/json' },
+   549→                    body: JSON.stringify({ promoCode: promoCode.trim(), plan: 'PRO' })
+   550→                  })
+   551→                  .then(res => res.json())
+   552→                  .then(data => {
+   553→                    if (data.success) {
+   554→                      toast.success(`🎉 ${data.message}`)
+   555→                      fetchData && fetchData()
+   556→                    } else {
+   557→                      toast.error(data.message || data.error || 'Kode promo tidak valid')
+   558→                    }
+   559→                  })
+   560→                  .catch(() => toast.error('Gagal mengklaim kode promo'))
+   561→                }
+   562→              }}
+   563→              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-green-600/20 to-emerald-600/20 text-green-300 border border-green-500/30 hover:from-green-600/30 hover:to-emerald-600/30 transition-all flex items-center justify-center gap-2 text-sm font-semibold shadow-lg shadow-green-500/10 group"
+   564→              whileHover={{ scale: 1.02 }}
+   565→              whileTap={{ scale: 0.98 }}
+   566→            >
+   567→              <Gift className="w-4 h-4 flex-shrink-0" />
+   568→              <span className="truncate">Claim Promo Code</span>
+   569→            </motion.button>
+   570→          )}
+   571→
+   572→          {!isPro && (sidebarOpen || mobileSidebarOpen) && (
+   573→            <motion.button
+   574→              onClick={() => setPlanSelectionModalOpen(true)}
+   575→              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-purple-600 via-violet-600 to-pink-600 text-sm font-bold text-white shadow-lg shadow-purple-500/30 relative overflow-hidden group"
+   576→              whileHover={{ scale: 1.02 }}
+   577→              whileTap={{ scale: 0.98 }}
+   578→            >
+   579→              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
+   580→              <span className="relative z-10 flex items-center justify-center gap-2">
+   581→                <Zap className="w-4 h-4" />
+   582→                Upgrade to Pro
+   583→              </span>
+   584→            </motion.button>
+   585→          )}
+   586→
+   587→          {isPro && (sidebarOpen || mobileSidebarOpen) && (
+   588→            <motion.div
+   589→              className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-purple-500/20 via-violet-500/10 to-pink-500/20 border border-purple-500/30 shadow-lg shadow-purple-500/20"
+   590→              initial={{ scale: 0.95, opacity: 0 }}
+   591→              animate={{ scale: 1, opacity: 1 }}
+   592→              transition={{ duration: 0.3 }}
+   593→            >
+   594→              <motion.div
+   595→                animate={{ rotate: [0, 360] }}
+   596→                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+   597→              >
+   598→                <Zap className="w-4 h-4 text-purple-400" />
+   599→              </motion.div>
+   600→              <span className="text-sm font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent overflow-hidden whitespace-nowrap">
+   601→                ELITE PRO
+   602→              </span>
+   603→            </motion.div>
+   604→          )}
+   605→
+   606→          <Link href="/settings" className="block relative">
+   607→            <motion.button
+   608→              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-white/5 to-white/10 text-gray-300 border border-white/10 hover:from-white/10 hover:to-white/15 hover:border-white/20 transition-all flex items-center justify-center gap-2 text-sm font-semibold relative overflow-hidden group"
+   609→              whileHover={{ scale: 1.02 }}
+   610→              whileTap={{ scale: 0.98 }}
+   611→            >
+   612→              <motion.div
+   613→                className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+   614→              />
+   615→              <Settings className="w-4 h-4 relative z-10 group-hover:text-purple-400 transition-colors flex-shrink-0" />
+   616→              {(sidebarOpen || mobileSidebarOpen) && <span className="relative z-10 overflow-hidden whitespace-nowrap">Settings</span>}
+   617→            </motion.button>
+   618→          </Link>
+   619→
+   620→          {(sidebarOpen || mobileSidebarOpen) && (
+   621→            <motion.div
+   622→              initial={{ opacity: 0, y: 10 }}
+   623→              animate={{ opacity: 1, y: 0 }}
+   624→              transition={{ duration: 0.3, delay: 0.1 }}
+   625→              className="relative bg-gradient-to-br from-white/5 to-white/[0.02] rounded-xl p-3 border border-white/10 overflow-hidden"
+   626→            >
+   627→              <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-purple-500/5 to-pink-500/5 opacity-0 hover:opacity-100 transition-opacity" />
+   628→              <div className="relative flex items-center gap-3">
+   629→                <motion.div
+   630→                  className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-lg shadow-purple-500/30"
+   631→                  whileHover={{ scale: 1.1, rotate: 5 }}
+   632→                  transition={{ type: "spring", stiffness: 300 }}
+   633→                >
+   634→                  {userInitials}
+   635→                </motion.div>
+   636→                <div className="min-w-0 flex-1 overflow-hidden">
+   637→                  <div className="flex items-center gap-2">
+   638→                    <span className="text-sm font-semibold truncate text-white">
+   639→                      {profile?.full_name || user?.email || 'User'}
+   640→                    </span>
+   641→                    {isPro ? (
+   642→                      <Badge className="bg-gradient-to-r from-purple-500/40 to-pink-500/40 text-white border-purple-500/30 text-[10px] px-1.5 py-0 flex-shrink-0">
+   643→                        PRO
+   644→                      </Badge>
+   645→                    ) : (
+   646→                      <Badge className="bg-white/10 text-gray-400 border-white/10 text-[10px] px-1.5 py-0 flex-shrink-0">
+   647→                        Free
+   648→                      </Badge>
+   649→                    )}
+   650→                  </div>
+   651→                  <Link href="/settings" className="text-xs text-gray-500 hover:text-purple-400 transition-colors">
+   652→                    Settings
+   653→                  </Link>
+   654→                </div>
+   655→              </div>
+   656→            </motion.div>
+   657→          )}
+   658→
+   659→          {isAdmin && (sidebarOpen || mobileSidebarOpen) && (
+   660→            <Link href="/admin-secure" className="block">
+   661→              <motion.button
+   662→                className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-purple-600/20 to-violet-600/20 text-purple-300 border border-purple-500/30 hover:from-purple-600/30 hover:to-violet-600/30 transition-all flex items-center justify-center gap-2 text-sm font-bold shadow-lg shadow-purple-500/10"
+   663→                whileHover={{ scale: 1.02 }}
+   664→                whileTap={{ scale: 0.98 }}
+   665→              >
+   666→                <Shield className="w-4 h-4" />
+   667→                <span className="flex items-center gap-1">
+   668→                  Admin Panel
+   669→                  <Crown className="w-3 h-3 text-purple-400" />
+   670→                </span>
+   671→              </motion.button>
+   672→            </Link>
+   673→          )}
+   674→
+   675→          {isFreeUser && (sidebarOpen || mobileSidebarOpen) && (
+   676→            <motion.div
+   677→              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20"
+   678→              initial={{ opacity: 0, x: -10 }}
+   679→              animate={{ opacity: 1, x: 0 }}
+   680→              transition={{ duration: 0.3 }}
+   681→            >
+   682→              <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+   683→              <span className="text-xs text-amber-300 overflow-hidden whitespace-nowrap">
+   684→                {tradeCount}/{FREE_TRADE_LIMIT} trades used
+   685→              </span>
+   686→            </motion.div>
+   687→          )}
+   688→
+   689→          <motion.button
+   690→            onClick={() => {
+   691→              if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+   692→                setMobileSidebarOpen(false)
+   693→              }
+   694→              setSidebarOpen(!sidebarOpen)
+   695→              // Add haptic feedback on mobile
+   696→              if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+   697→                navigator.vibrate(10)
+   698→              }
+   699→            }}
+   700→            className="relative w-full flex items-center justify-center p-2.5 text-gray-400 hover:text-white transition-colors rounded-xl hover:bg-white/5 active:bg-white/10 group"
+   701→            whileHover={{ scale: 1.05 }}
+   702→            whileTap={{ scale: 0.95 }}
+   703→          >
+   704→            <motion.div
+   705→              animate={{ rotate: sidebarOpen ? 180 : 0 }}
+   706→              transition={{ duration: 0.3, ease: "easeInOut" }}
+   707→            >
+   708→              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+   709→            </motion.div>
+   710→          </motion.button>
+   711→        </div>
+   712→      </aside>
+   713→
+   714→      {/* Delete Account Confirmation Modal */}
+   715→      <Dialog open={deleteAccountOpen} onOpenChange={setDeleteAccountOpen}>
+   716→        <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-md">
+   717→          <DialogHeader>
+   718→            <DialogTitle className="text-xl flex items-center gap-2 text-red-400">
+   719→              <Trash2 className="w-5 h-5" />
+   720→              Hapus Akun Trading
+   721→            </DialogTitle>
+   722→            <DialogDescription className="text-gray-400 mt-2">
+   723→              Apakah Anda yakin ingin menghapus akun trading "{accountToDelete?.name}"?
+   724→            </DialogDescription>
+   725→          </DialogHeader>
+   726→
+   727→          <div className="space-y-3 py-4">
+   728→            {accountToDelete?.is_default && (
+   729→              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
+   730→                <p className="text-sm text-amber-300 flex items-start gap-2">
+   731→                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+   732→                  <span>Ini adalah akun default. Setelah dihapus, akun lain akan otomatis dijadikan default.</span>
+   733→                </p>
+   734→              </div>
+   735→            )}
+   736→
+   737→            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+   738→              <p className="text-sm text-red-300 flex items-start gap-2">
+   739→                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+   740→                <span>Tindakan ini tidak dapat dibatalkan. Semua data trading yang terkait dengan akun ini akan tetap tersimpan.</span>
+   741→              </p>
+   742→            </div>
+   743→
+   744→            <div className="text-sm text-gray-400">
+   745→              <p>Account: <span className="text-white font-medium">{accountToDelete?.name}</span></p>
+   746→              <p>Currency: <span className="text-white font-medium">{accountToDelete?.currency}</span></p>
+   747→              <p>Type: <span className="text-white font-medium">{accountToDelete?.account_type}</span></p>
+   748→              {accountToDelete?.is_default && (
+   749→                <p className="text-amber-400 font-medium">⚠️ Akun Default</p>
+   750→              )}
+   751→            </div>
+   752→          </div>
+   753→
+   754→          <DialogFooter className="gap-2">
+   755→            <Button
+   756→              variant="outline"
+   757→              onClick={() => {
+   758→                setDeleteAccountOpen(false)
+   759→                setAccountToDelete(null)
+   760→              }}
+   761→              className="border-gray-600 text-gray-300 hover:bg-gray-700"
+   762→            >
+   763→              Batal
+   764→            </Button>
+   765→            <Button
+   766→              onClick={handleDeleteAccount}
+   767→              disabled={deleting}
+   768→              className="bg-red-500 hover:bg-red-600 text-white"
+   769→            >
+   770→              {deleting ? (
+   771→                <>
+   772→                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+   773→                  Menghapus...
+   774→                </>
+   775→              ) : (
+   776→                <>
+   777→                  <Trash2 className="w-4 h-4 mr-2" />
+   778→                  Hapus Akun
+   779→                </>
+   780→              )}
+   781→            </Button>
+   782→          </DialogFooter>
+   783→        </DialogContent>
+   784→      </Dialog>
+   785→    </>
+   786→  )
+   787→}
+   788→

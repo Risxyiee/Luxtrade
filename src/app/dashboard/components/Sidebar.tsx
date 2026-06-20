@@ -37,6 +37,7 @@ interface SidebarProps {
   selectedAccountId?: string | null
   setSelectedAccountId?: (accountId: string | null) => void
   fetchData?: () => void
+  refreshProfile?: () => void
   addTradeOpen?: boolean
   setAddTradeOpen?: (open: boolean) => void
   setAddAccountOpen?: (open: boolean) => void
@@ -95,6 +96,7 @@ export default function Sidebar({
   selectedAccountId = null,
   setSelectedAccountId = () => {},
   fetchData = () => {},
+  refreshProfile = () => {},
   addTradeOpen = false,
   setAddTradeOpen = () => {},
   setAddAccountOpen = () => {}
@@ -552,6 +554,7 @@ export default function Sidebar({
                   .then(data => {
                     if (data.success) {
                       toast.success(`🎉 ${data.message}`)
+                      refreshProfile()
                       fetchData && fetchData()
                     } else {
                       toast.error(data.message || data.error || 'Kode promo tidak valid')
