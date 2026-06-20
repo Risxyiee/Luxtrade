@@ -69,6 +69,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) return null;
 
     try {
+      // Use API route with Prisma to bypass RLS (profiles.id is text type, auth.uid() is uuid)
+      const response = await fetch('/api/profile/me');
+      if (response.ok) {
+        const result = await response.json();
+        if (result.profile) {
+          return result.profile as Profile;
+        }
+      }
+
+      // Fallback to direct Supabase query
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
