@@ -140,9 +140,9 @@ function SignUpForm() {
       console.log('✅ User created:', data.user?.id)
       setSuccess(true)
       
-      // Redirect to dashboard after delay
+      // Redirect to login page after delay (user needs to verify email & login first)
       setTimeout(() => {
-        window.location.href = '/dashboard'
+        window.location.href = '/auth/login'
       }, 3000)
 
     } catch (err: unknown) {
@@ -179,13 +179,13 @@ function SignUpForm() {
             </p>
           </div>
           <p className="text-white/40 text-sm mb-6">
-            Kamu akan dialihkan ke dashboard dalam beberapa detik...
+            Silakan verifikasi email, lalu login untuk masuk ke dashboard.
           </p>
           <Button 
-            onClick={() => window.location.href = '/dashboard'}
+            onClick={() => window.location.href = '/auth/login'}
             className="w-full bg-gradient-to-r from-purple-500 to-violet-600 text-white font-semibold"
           >
-            Lanjut ke Dashboard
+            Login Sekarang
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         </div>

@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 // Public routes that don't require authentication
-const publicRoutes = ['/login', '/signup', '/auth/callback', '/api/']
+const publicRoutes = ['/auth/login', '/auth/signup', '/auth/callback', '/login', '/signup', '/api/']
 
 // Protected routes that require authentication
 const protectedRoutes = ['/dashboard', '/trades', '/journal', '/analytics', '/settings']
@@ -60,7 +60,7 @@ export async function middleware(req: NextRequest) {
 
   // If user is NOT logged in and tries to access protected route
   if (!session && isProtectedRoute) {
-    const redirectUrl = new URL('/login', req.url)
+    const redirectUrl = new URL('/auth/login', req.url)
     redirectUrl.searchParams.set('redirectedFrom', pathname)
     return NextResponse.redirect(redirectUrl)
   }
@@ -68,7 +68,7 @@ export async function middleware(req: NextRequest) {
   // If user IS logged in and tries to access public route (except /auth/callback)
   if (session && isPublicRoute && !pathname.includes('/auth/callback')) {
     // Redirect to dashboard instead of home to avoid loop
-    if (pathname === '/login' || pathname === '/signup') {
+    if (pathname === '/login' || pathname === '/signup' || pathname === '/auth/login' || pathname === '/auth/signup') {
       return NextResponse.redirect(new URL('/dashboard', req.url))
     }
   }
