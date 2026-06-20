@@ -73,8 +73,8 @@ export async function POST(request: NextRequest) {
 
     // Create subscription
     const startDate = new Date()
-    const endDate = new Date()
-    endDate.setMonth(endDate.getMonth() + promoCode.durationMonths)
+    const months = promoCode.durationMonths || 3
+    const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + months, startDate.getDate(), 23, 59, 59, 999)
 
     const subscription = await db.userSubscription.create({
       data: {
