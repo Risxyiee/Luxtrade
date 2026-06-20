@@ -1,7 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, getAdminStatus } from '@/lib/supabase-admin-alt'
+import { db } from '@/lib/db'
 
-// GET all users from Supabase Auth
+// Helper: sync subscription data to Prisma profile
+async function syncProfileFromAuth(userId: string, isPro: boolean, subscriptionUntil: string | null) {
+  try {
+    const existingProfile = await db.profile.findUnique({ where: { id: userId } })
+    const data: any = {
+      plan: isPro ? 'PRO' : 'FREE',
+      is_pro: isPro,
+      subscription_until: subscriptionUntil ? new Date(subscriptionUntil) : null,
+      proExpiry: subscriptionUntil ? new Date(subscriptionUntil) : null,
+    }
+    if (existingProfile) {
+      await db.profile.update({ where: { id: userId }, data })
+    } else {
+      // Create profile if it doesn't exist (e.g., new user from admin panel)
+      await db.profile.create({ data: { id: userId, ...data } })
+    }
+    console.log(`✅ [ADMIN API] Synced Prisma profile for ${userId}: is_pro=${isPro}`)
+  } catch (err) {
+    console.warn('⚠️ [ADMIN API] Failed to sync Prisma profile (non-critical):', err)
+  }
+}
+
+// GET all users from Supabase Auth, merged with Prisma profiles (profiles = source of truth)
 export async function GET(request: NextRequest) {
   try {
     console.log('🔍 [ADMIN API] Fetching users from Supabase Auth...')
@@ -35,34 +58,46 @@ export async function GET(request: NextRequest) {
 
     console.log(`✅ [ADMIN API] Found ${users?.length || 0} users in Supabase Auth`)
 
-    // Format users to match admin panel expectations
+    // Fetch ALL profiles from Prisma (source of truth for is_pro, plan, subscription)
+    const profiles = await db.profile.findMany({})
+    const profileMap = new Map(profiles.map(p => [p.id, p]))
+    console.log(`✅ [ADMIN API] Found ${profiles.length} profiles in Prisma`)
+
+    // Format users - Prisma profile data overrides Auth metadata for subscription fields
     const formattedUsers = (users || []).map(user => {
       const metadata = user.user_metadata || {}
       const createdAt = user.created_at ? new Date(user.created_at).toISOString() : new Date().toISOString()
 
+      // Prisma profile is the source of truth for subscription data
+      const profile = profileMap.get(user.id)
+      const isPro = profile?.is_pro ?? metadata.is_pro ?? false
+      const plan = profile?.plan ?? (isPro ? 'PRO' : 'FREE')
+      const subUntil = profile?.subscription_until?.toISOString() ?? metadata.subscription_until ?? null
+      const subStatus = isPro ? 'active' : 'inactive'
+
       return {
         id: user.id,
-        email: user.email || '-',
-        full_name: metadata.full_name || metadata.name || 'No Name',
+        email: user.email || profile?.email || '-',
+        full_name: profile?.full_name || metadata.full_name || metadata.name || 'No Name',
         display_name: metadata.display_name || null,
-        subscription_status: metadata.subscription_status || 'inactive',
-        is_pro: metadata.is_pro || false,
-        subscription_until: metadata.subscription_until || null,
+        plan,
+        subscription_status: subStatus,
+        is_pro: isPro,
+        subscription_until: subUntil,
         my_referral_code: metadata.my_referral_code || null,
         referred_by_code: metadata.referred_by_code || null,
         referred_by: metadata.referred_by || null,
         has_duplicate_device: metadata.has_duplicate_device || false,
         referral_status: metadata.referral_status || null,
         commission_paid: metadata.commission_paid || false,
-        has_ever_been_pro: metadata.has_ever_been_pro || false,
+        has_ever_been_pro: isPro ? true : (metadata.has_ever_been_pro || false),
         device_id: metadata.device_id || null,
         created_at: createdAt,
-        role: metadata.role || 'member',
+        role: profile?.role || metadata.role || 'member',
       }
     })
 
-    console.log(`✅ [ADMIN API] Returning ${formattedUsers.length} formatted users`)
-    console.log('📊 [ADMIN API] First user data:', JSON.stringify(formattedUsers[0] || 'No users', null, 2))
+    console.log(`✅ [ADMIN API] Returning ${formattedUsers.length} formatted users (merged with Prisma profiles)`)
 
     return NextResponse.json({ users: formattedUsers, count: formattedUsers.length })
   } catch (error) {
@@ -215,6 +250,9 @@ export async function PATCH(request: NextRequest) {
         )
       }
 
+      // Also sync revoke to Prisma profile
+      await syncProfileFromAuth(userId, false, null)
+
       console.log('✅ [ADMIN API] PRO revoked for user:', updatedUser.user?.email)
 
       return NextResponse.json({
@@ -260,8 +298,10 @@ export async function PATCH(request: NextRequest) {
         )
       }
 
+      // Also sync to Prisma profile
+      await syncProfileFromAuth(userId, true, subscriptionUntil)
+
       console.log('✅ [ADMIN API] PRO activated for user:', updatedUser.user?.email)
-      console.log('✅ [ADMIN API] Updated user metadata:', JSON.stringify(updatedUser.user?.user_metadata, null, 2))
 
       return NextResponse.json({
         message: 'PRO activated successfully',
@@ -364,6 +404,9 @@ export async function DELETE(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    // Also sync revoke to Prisma profile
+    await syncProfileFromAuth(userId, false, null)
 
     console.log('✅ [ADMIN API] PRO revoked for user:', updatedUser.user?.email)
 

@@ -105,6 +105,7 @@ interface DashboardModalsProps {
   // User & Plan
   user: any
   handleSelectPlan: (plan: any) => void
+  handlePaymentSuccess?: () => void
   proTrialCount: number
   language: 'id' | 'en'
   tradingAccounts?: any[]
@@ -135,6 +136,7 @@ export default function DashboardModals({
   setPaymentModalOpen,
   paywallModalOpen,
   setPaywallModalOpen,
+  handlePaymentSuccess,
   showOnboarding,
   setShowOnboarding,
   addTradeOpen,
@@ -974,6 +976,7 @@ export default function DashboardModals({
         isOpen={planSelectionModalOpen}
         onClose={() => setPlanSelectionModalOpen(false)}
         onSelectPlan={handleSelectPlan}
+        onPaymentSuccess={handlePaymentSuccess}
       />
 
       <PaymentModal
