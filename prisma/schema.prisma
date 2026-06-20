@@ -32,6 +32,7 @@ model Profile {
   weeklyGoals        WeeklyGoal[]
   tradingAccounts   TradingAccount[]
   socialLinks       SocialLink[]
+  paymentOrders     PaymentOrder[]
 
   @@map("profiles")
 }
@@ -285,4 +286,32 @@ model BugReport {
   @@index([userId])
   @@index([status])
   @@map("bug_reports")
+}
+
+model PaymentOrder {
+  id                String    @id @default(uuid())
+  userId            String
+  invoiceNumber     String    @unique
+  amount            Float
+  currency          String    @default("IDR")
+  plan              String
+  durationMonths    Int?
+  status            String    @default("PENDING") // PENDING, SUCCESS, FAILED, EXPIRED
+  paymentMethod     String?
+  paymentChannel    String?
+  dokuTransactionId String?
+  dokuPaymentUrl    String?
+  customerName      String
+  customerEmail     String
+  paidAt            DateTime?
+  expiredAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user              Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([invoiceNumber])
+  @@index([status])
+  @@map("payment_orders")
 }
