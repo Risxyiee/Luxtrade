@@ -1614,3 +1614,18 @@ Stage Summary:
 - `/api/promo/apply` works (confirmed by test-promo success - usedQuota went 0→1)
 - `/api/promo-simple/apply` was the problem endpoint (possibly Vercel deployment issue or runtime conflict)
 - Pushed fix to https://github.com/Risxyiee/Luxtrade.git
+---
+Task ID: fix-sidebar-promo
+Agent: Z.ai Code
+Task: Fix promo code "Claim Promo Code" button in dashboard sidebar
+
+Work Log:
+- Found bug in Sidebar.tsx line 549: was sending `{ code: promoCode }` but API expects `{ promoCode: string, plan: string }`
+- Changed body to `JSON.stringify({ promoCode: promoCode.trim(), plan: 'PRO' })`
+- Also improved error toast to show `data.message || data.error` for better error display
+- Force pushed to GitHub (commit 7421e44)
+
+Stage Summary:
+- Root cause: Sidebar sent wrong field name (`code` instead of `promoCode`) and missing `plan` field
+- This caused /api/promo/apply to return "promoCode and plan are required"
+- Fix: Send `{ promoCode: promoCode.trim(), plan: 'PRO' }` matching what the API expects
