@@ -546,7 +546,7 @@ export default function Sidebar({
                   fetch('/api/promo/apply', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code: promoCode })
+                    body: JSON.stringify({ promoCode: promoCode.trim(), plan: 'PRO' })
                   })
                   .then(res => res.json())
                   .then(data => {
@@ -554,7 +554,7 @@ export default function Sidebar({
                       toast.success(`🎉 ${data.message}`)
                       fetchData && fetchData()
                     } else {
-                      toast.error(data.error || 'Kode promo tidak valid')
+                      toast.error(data.message || data.error || 'Kode promo tidak valid')
                     }
                   })
                   .catch(() => toast.error('Gagal mengklaim kode promo'))
