@@ -1598,3 +1598,19 @@ User Action Required:
 1. Run prisma/migrations/20250616_fix_trade_screenshots_bucket.sql in Supabase
 2. Redeploy to Vercel
 3. Test screenshot upload
+---
+Task ID: fix-promo-upgrade
+Agent: Z.ai Code
+Task: Fix promo code apply on /upgrade page - endpoint mismatch
+
+Work Log:
+- Identified root cause: /upgrade page was calling /api/promo-simple/apply (never worked), while /test-promo was calling /api/promo/apply (proven working)
+- Key difference found: test-promo used `/api/promo/apply`, upgrade used `/api/promo-simple/apply`
+- Fixed /upgrade/page.tsx line 114: changed endpoint from `/api/promo-simple/apply` to `/api/promo/apply`
+- Pushed to GitHub: main branch, commit 842b651
+
+Stage Summary:
+- The fix is simple: use the same API endpoint that's already proven to work
+- `/api/promo/apply` works (confirmed by test-promo success - usedQuota went 0→1)
+- `/api/promo-simple/apply` was the problem endpoint (possibly Vercel deployment issue or runtime conflict)
+- Pushed fix to https://github.com/Risxyiee/Luxtrade.git
