@@ -514,6 +514,23 @@ export default function LuxTradeLanding() {
   const { language, t, formatPrice } = useLanguage()
   const [showPayment, setShowPayment] = useState(false)
   const [showLifetimePaymentModal, setShowLifetimePaymentModal] = useState(false)
+  const [promoRemaining, setPromoRemaining] = useState<number | null>(null)
+  const [promoMax, setPromoMax] = useState<number>(30)
+  const [promoActive, setPromoActive] = useState(true)
+
+  // Fetch promo quota
+  useEffect(() => {
+    fetch('/api/promo-quota?code=TRADERCEPAT')
+      .then(res => res.json())
+      .then(data => {
+        if (data.remainingQuota !== undefined) {
+          setPromoRemaining(data.remainingQuota)
+          setPromoMax(data.maxQuota)
+          setPromoActive(data.isActive)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   // Skrill payment links for English users
   const skrillLinks = {
@@ -1319,7 +1336,12 @@ export default function LuxTradeLanding() {
               {language === 'id' ? 'Kode Promo Eksklusif' : 'Exclusive Promo Code'}
             </h2>
             <p className="text-white/50 mb-8 max-w-2xl mx-auto font-light text-lg">
-              {language === 'id' ? 'Gunakan kode promo di bawah ini untuk mendapatkan akses Premium 3 bulan GRATIS! Kuota terbatas untuk 30 trader pertama.' : 'Use the promo code below to get 3 months of Premium access for FREE! Limited to the first 30 traders.'}
+              {promoActive
+                ? (language === 'id'
+                  ? `Gunakan kode promo di bawah ini untuk mendapatkan akses Premium 3 bulan GRATIS! Sisa ${promoRemaining ?? 30} kuota dari ${promoMax}.`
+                  : `Use the promo code below to get 3 months of Premium access for FREE! ${promoRemaining ?? 30} slots left out of ${promoMax}.`)
+                : (language === 'id' ? 'Kode promo sudah tidak tersedia.' : 'Promo code is no longer available.')
+              }
             </p>
           </motion.div>
 
@@ -1374,9 +1396,9 @@ export default function LuxTradeLanding() {
                     },
                     {
                       icon: Users,
-                      value: '30',
-                      label: language === 'id' ? 'Kuota' : 'Quota',
-                      color: 'cyan'
+                      value: promoActive ? String(promoRemaining ?? '...') : '0',
+                      label: language === 'id' ? 'Sisa Kuota' : 'Remaining',
+                      color: (promoRemaining !== null && promoRemaining <= 5) ? 'red' : 'cyan'
                     }
                   ].map((item, index) => (
                     <div key={index} className="p-4 rounded-xl bg-white/5 border border-white/[0.08]">
