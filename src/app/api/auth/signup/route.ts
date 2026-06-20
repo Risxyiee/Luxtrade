@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
 
       const emailResult = await sendEmailFromTemplate({
         to: email,
-        subject: 'Konfirmasi Email - LuxTrade 👑',
+        subject: 'Verifikasi Akun LuxTrade - Ayo Mulai! 👑',
         templateId: process.env.RESEND_TEMPLATE_CONFIRM || '',
         templateParams: { name, confirmationUrl },
         fallbackHtml,

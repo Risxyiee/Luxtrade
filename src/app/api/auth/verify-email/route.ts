@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
 
     if (!token || typeof token !== 'string' || token.length < 10) {
       return NextResponse.json(
-        { error: 'Token verifikasi tidak valid.' },
+        { error: 'Token verifikasi nggak valid.' },
         { status: 400 }
       )
     }
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     if (!profile) {
       return NextResponse.json(
-        { error: 'Token verifikasi tidak valid atau sudah digunakan.' },
+        { error: 'Link verifikasi nggak valid atau sudah pernah dipakai.' },
         { status: 400 }
       )
     }
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     // Check token expiry
     if (profile.emailVerifyExpAt && new Date() > profile.emailVerifyExpAt) {
       return NextResponse.json(
-        { error: 'Token verifikasi sudah kadaluarsa. Silakan kirim ulang email verifikasi.' },
+        { error: 'Link verifikasi sudah kadaluarsa. Minta kirim ulang dari halaman login ya.' },
         { status: 410 }
       )
     }
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     if (profile.emailVerified) {
       return NextResponse.json({
         success: true,
-        message: 'Email sudah terverifikasi sebelumnya.'
+        message: 'Email kamu sudah pernah diverifikasi sebelumnya.'
       })
     }
 
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Email berhasil diverifikasi! Silakan login.'
+      message: 'Email berhasil diverifikasi! Sekarang kamu bisa login.'
     })
   } catch (error: any) {
     console.error('❌ Verify email error:', error)

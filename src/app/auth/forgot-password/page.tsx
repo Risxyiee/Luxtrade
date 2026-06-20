@@ -66,14 +66,21 @@ export default function ForgotPasswordPage() {
             <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-emerald-400" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Email Terkirim!</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">Email Terkirim! 📬</h2>
             <p className="text-white/60 text-sm mb-4">
-              Kami telah mengirim link reset password ke:
+              Kami sudah kirim link reset password ke:
             </p>
             <p className="text-amber-400 font-semibold text-lg mb-6">{email}</p>
-            <p className="text-white/40 text-xs mb-6">
-              Cek inbox atau folder spam Anda. Link akan kadaluarsa dalam 1 jam.
-            </p>
+            <div className="bg-white/[0.03] rounded-lg p-4 mb-4">
+              <p className="text-white/30 text-xs">
+                📬 <strong className="text-white/50">Cek inbox, spam, atau folder promosi</strong> kamu. Email dari <span className="text-amber-400/70">noreply@luxtradee.web.id</span>
+              </p>
+            </div>
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 mb-6">
+              <p className="text-amber-400/80 text-xs">
+                ⚠️ Link reset password cuma berlaku <strong>1 jam</strong>. Kalau kamu nggak merasa minta reset, langsung aja abaikan email ini.
+              </p>
+            </div>
             <Link href="/auth/login">
               <Button className="w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold">
                 Kembali ke Login

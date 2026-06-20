@@ -29,14 +29,14 @@ export async function POST(request: NextRequest) {
 
     if (!profile) {
       return NextResponse.json(
-        { error: 'Email tidak terdaftar. Silakan daftar terlebih dahulu.' },
+        { error: 'Email nggak ketemu. Belum daftar ya?' },
         { status: 404 }
       )
     }
 
     if (profile.emailVerified) {
       return NextResponse.json(
-        { error: 'Email sudah terverifikasi. Silakan langsung login.' },
+        { error: 'Email kamu sudah terverifikasi. Langsung login aja!' },
         { status: 400 }
       )
     }
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     const emailResult = await sendEmailFromTemplate({
       to: email,
-      subject: 'Kirim Ulang: Konfirmasi Email - LuxTrade 👑',
+      subject: 'Kirim Ulang Verifikasi Akun LuxTrade 👑',
       templateId: process.env.RESEND_TEMPLATE_CONFIRM || '',
       templateParams: {
         name,
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     if (!emailResult.success) {
       console.error('❌ Resend email failed:', emailResult.error)
       return NextResponse.json(
-        { error: 'Gagal mengirim email konfirmasi. Coba lagi nanti.' },
+        { error: 'Gagal mengirim email. Coba lagi nanti ya.' },
         { status: 500 }
       )
     }
@@ -85,12 +85,12 @@ export async function POST(request: NextRequest) {
     console.log(`✅ Resend verification email sent to: ${email}`)
     return NextResponse.json({
       success: true,
-      message: 'Email konfirmasi telah dikirim ulang. Silakan cek inbox/spam Anda.',
+      message: 'Link verifikasi baru sudah dikirim ke email kamu. Cek inbox/spam ya!',
     })
   } catch (error: any) {
     console.error('❌ Resend verification error:', error)
     return NextResponse.json(
-      { error: 'Terjadi kesalahan. Silakan coba lagi.' },
+      { error: 'Terjadi kesalahan server. Coba lagi nanti.' },
       { status: 500 }
     )
   }
