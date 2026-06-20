@@ -10,10 +10,12 @@ import { supabaseAdmin } from '@/lib/supabase'
 export async function POST(request: NextRequest) {
   try {
     const { token } = await request.json()
+    console.log('🔍 Verify email attempt, token length:', token?.length, 'token prefix:', token?.substring(0, 10))
 
     if (!token || typeof token !== 'string' || token.length < 10) {
+      console.warn('⚠️ Invalid token format received')
       return NextResponse.json(
-        { error: 'Token verifikasi nggak valid.' },
+        { error: 'Token verifikasi nggak valid. Format salah.', code: 'INVALID_TOKEN' },
         { status: 400 }
       )
     }
@@ -24,26 +26,49 @@ export async function POST(request: NextRequest) {
     })
 
     if (!profile) {
+      console.warn('⚠️ No profile found with matching token. Token prefix:', token.substring(0, 10))
+      
+      // Check if user exists at all (might have been auto-confirmed or token corrupted)
+      const anyProfile = await db.profile.findFirst({
+        where: {
+          OR: [
+            { emailVerifyToken: { contains: token.substring(0, 20) } },
+            { emailVerified: true }
+          ]
+        },
+        take: 1
+      })
+      
+      if (anyProfile?.emailVerified) {
+        return NextResponse.json({
+          success: true,
+          message: 'Email kamu sudah pernah diverifikasi sebelumnya. Langsung login aja!'
+        })
+      }
+      
       return NextResponse.json(
-        { error: 'Link verifikasi nggak valid atau sudah pernah dipakai.' },
+        { error: 'Link verifikasi nggak valid. Mungkin sudah pernah dipakai atau kedaluarsa. Minta link baru dari halaman login.', code: 'NO_PROFILE' },
         { status: 400 }
       )
     }
 
-    // Check token expiry
-    if (profile.emailVerifyExpAt && new Date() > profile.emailVerifyExpAt) {
-      return NextResponse.json(
-        { error: 'Link verifikasi sudah kadaluarsa. Minta kirim ulang dari halaman login ya.' },
-        { status: 410 }
-      )
-    }
+    console.log(`🔍 Found profile: id=${profile.id}, email=${profile.email}, verified=${profile.emailVerified}, expAt=${profile.emailVerifyExpAt}`)
 
-    // Check if already verified
+    // Check if already verified first
     if (profile.emailVerified) {
       return NextResponse.json({
         success: true,
-        message: 'Email kamu sudah pernah diverifikasi sebelumnya.'
+        message: 'Email kamu sudah pernah diverifikasi sebelumnya. Langsung login aja!'
       })
+    }
+
+    // Check token expiry
+    if (profile.emailVerifyExpAt && new Date() > profile.emailVerifyExpAt) {
+      console.warn(`⚠️ Token expired for user ${profile.id}. ExpAt: ${profile.emailVerifyExpAt}, Now: ${new Date().toISOString()}`)
+      return NextResponse.json(
+        { error: 'Link verifikasi sudah kadaluarsa. Minta kirim ulang dari halaman login ya.', code: 'EXPIRED' },
+        { status: 410 }
+      )
     }
 
     // Mark as verified in Prisma profile
@@ -82,7 +107,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Email berhasil diverifikasi! Sekarang kamu bisa login.'
+      message: 'Email berhasil diverifikasi! Sekarang kamu bisa login.',
+      email: profile.email
     })
   } catch (error: any) {
     console.error('❌ Verify email error:', error)

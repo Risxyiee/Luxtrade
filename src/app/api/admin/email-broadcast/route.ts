@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { sendEmail, getReminderVerificationEmailHtml } from '@/lib/email'
+import { sendEmail, getUnverifiedBulkReminderHtml } from '@/lib/email'
 import crypto from 'crypto'
 
 const ADMIN_EMAILS = ['luxtradee@gmail.com']
@@ -116,8 +116,8 @@ export async function POST(request: NextRequest) {
           })
 
           const confirmationUrl = `${SITE_URL}/auth/verify?token=${newToken}`
-          const reminderSubject = subject || `Hei ${name}, akun kamu belum diverifikasi nih 😅`
-          const html = getReminderVerificationEmailHtml(name, confirmationUrl)
+          const reminderSubject = subject || `${name}, akun LuxTrade kamu belum diverifikasi nih ⏳`
+          const html = getUnverifiedBulkReminderHtml(name, confirmationUrl)
 
           const result = await sendEmail({
             to: userEmail,

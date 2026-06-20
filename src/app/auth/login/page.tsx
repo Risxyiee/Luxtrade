@@ -27,7 +27,7 @@ export default function LoginPage() {
 
   const handleResendVerification = async () => {
     if (!email) {
-      setError('Masukkan email Anda untuk mengirim ulang link konfirmasi')
+      setError('Masukkan email kamu untuk kirim ulang link verifikasi')
       return
     }
 
@@ -45,13 +45,13 @@ export default function LoginPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        setError(data.error || 'Gagal mengirim ulang email konfirmasi')
+        setError(data.error || 'Gagal mengirim ulang email verifikasi. Coba lagi ya.')
         return
       }
 
-      setSuccessMessage(data.message || 'Email konfirmasi telah dikirim ulang. Silakan cek inbox/spam Anda.')
+      setSuccessMessage(data.message || 'Email verifikasi baru sudah dikirim. Cek inbox/spam ya!')
     } catch (err) {
-      setError('Gagal mengirim ulang email konfirmasi. Silakan coba lagi.')
+      setError('Gagal kirim ulang email verifikasi. Coba lagi nanti ya.')
     } finally {
       setIsResending(false)
     }
@@ -63,7 +63,7 @@ export default function LoginPage() {
     setIsLoading(true)
 
     if (!email || !password) {
-      setError('Email dan password harus diisi')
+      setError('Email dan password harus diisi ya')
       setIsLoading(false)
       return
     }
@@ -87,7 +87,7 @@ export default function LoginPage() {
         } else if (errorMsg.includes('user not found')) {
           setError('Akun nggak ketemu. Belum daftar ya?')
         } else {
-          setError(signInError.message || 'Login gagal')
+          setError('Login gagal. Coba lagi ya.')
         }
         setIsLoading(false)
         return
@@ -138,12 +138,12 @@ export default function LoginPage() {
         // This ensures a full page reload and prevents "stuck" states
         window.location.href = '/dashboard'
       } else {
-        setError('Login gagal. Tidak ada session yang dibuat.')
+        setError('Login gagal. Gagal membuat sesi, coba lagi ya.')
         setIsLoading(false)
       }
     } catch (err) {
       console.error('Login error:', err)
-      setError('Koneksi bermasalah. Periksa internet Anda dan coba lagi.')
+      setError('Koneksi bermasalah. Cek internet kamu dan coba lagi ya.')
       setIsLoading(false)
     }
   }
@@ -182,8 +182,8 @@ export default function LoginPage() {
         {/* Login Card */}
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-8 backdrop-blur-sm">
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-white mb-2">Welcome Back</h1>
-            <p className="text-white/40 text-sm">Sign in to your trading journal</p>
+            <h1 className="text-2xl font-bold text-white mb-2">Selamat Datang Kembali 👑</h1>
+            <p className="text-white/40 text-sm">Masuk ke trading journal kamu</p>
           </div>
 
           {/* Error Message */}
@@ -289,11 +289,11 @@ export default function LoginPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Signing in...
+                  Masuk...
                 </>
               ) : (
                 <>
-                  Sign In
+                  Masuk
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </>
               )}
