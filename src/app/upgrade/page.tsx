@@ -101,21 +101,20 @@ function UpgradeForm() {
       return
     }
 
-    if (!promoCode.trim()) {
-      setError('Silakan masukkan kode promo')
+    if (!promoValid || !promoData) {
+      setError('Silakan masukkan kode promo yang valid')
       return
     }
 
     setIsApplying(true)
     setError('')
-    setSuccess(false)
 
     try {
       const res = await fetch('/api/promo/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          promoCode: promoCode.trim(),
+          promoCode: promoCode,
           plan: 'PRO'
         })
       })
@@ -123,12 +122,11 @@ function UpgradeForm() {
       const data = await res.json()
 
       if (!res.ok || !data.success) {
-        setError(data.details || data.message || data.error || 'Gagal menerapkan kode promo')
+        setError(data.message || 'Gagal menerapkan kode promo')
         return
       }
 
       setSuccess(true)
-      setPromoData(data.subscription)
 
       // Redirect to dashboard after delay
       setTimeout(() => {

@@ -1,18 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClientForApi } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
 
 /**
  * Apply promo code to user subscription
  * POST /api/promo/apply
- * Body: { userId: string, promoCode: string, plan: string }
+ * Body: { promoCode: string, plan?: string }
  */
 export async function POST(request: NextRequest) {
   try {
-    const { userId, promoCode: code, plan } = await request.json()
+    const body = await request.json()
+    console.log('🔍 [Promo Apply] Request body:', JSON.stringify(body))
 
-    if (!userId || !code || !plan) {
+    const { promoCode: code, plan } = body
+    console.log('🔍 [Promo Apply] Extracted - code:', code, 'plan:', plan)
+
+    // Get authenticated user from session
+    const { supabase } = createClientForApi(request)
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    console.log('🔍 [Promo Apply] Auth result:', { user, authError })
+
+    if (authError || !user) {
+      console.error('❌ [Promo Apply] Unauthorized:', authError)
       return NextResponse.json(
-        { error: 'userId, promoCode, and plan are required' },
+        { error: 'Unauthorized. Please login first.' },
+        { status: 401 }
+      )
+    }
+
+    const userId = user.id
+    console.log('🔍 [Promo Apply] User ID (UUID):', userId)
+
+    if (!code || !plan) {
+      console.error('❌ [Promo Apply] Missing required fields - code:', code, 'plan:', plan)
+      return NextResponse.json(
+        { error: 'promoCode and plan are required' },
         { status: 400 }
       )
     }
@@ -108,10 +131,13 @@ export async function POST(request: NextRequest) {
     })
 
     // Update user profile to Pro
-    await db.user.update({
+    await db.profile.update({
       where: { id: userId },
       data: {
-        // Add any user-level fields if needed
+        plan: 'PRO',
+        is_pro: true,
+        subscription_until: endDate,
+        proExpiry: endDate
       }
     })
 
@@ -133,10 +159,21 @@ export async function POST(request: NextRequest) {
         remainingQuota
       }
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ [Apply Promo Code] Error:', error)
+    console.error('❌ [Apply Promo Code] Error details:', {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+      meta: error.meta
+    })
     return NextResponse.json(
-      { error: 'Gagal menerapkan kode promo' },
+      {
+        error: 'Gagal menerapkan kode promo',
+        details: error.message,
+        name: error.name,
+        code: error.code || 'UNKNOWN'
+      },
       { status: 500 }
     )
   }
