@@ -142,7 +142,7 @@ function SignUpForm() {
       
       // Redirect to login page after delay (user needs to verify email & login first)
       setTimeout(() => {
-        window.location.href = '/auth/login'
+        router.push('/auth/login')
       }, 3000)
 
     } catch (err: unknown) {
@@ -182,7 +182,7 @@ function SignUpForm() {
             Silakan verifikasi email, lalu login untuk masuk ke dashboard.
           </p>
           <Button 
-            onClick={() => window.location.href = '/auth/login'}
+            onClick={() => router.push('/auth/login')}
             className="w-full bg-gradient-to-r from-purple-500 to-violet-600 text-white font-semibold"
           >
             Login Sekarang
