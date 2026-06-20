@@ -1654,3 +1654,55 @@ Stage Summary:
 - Removed security risks: env variable dumps, no-auth endpoints
 - Removed 37 unnecessary files, -2,465 lines
 - Kept promo-quota as useful utility endpoint
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix promo code claim not updating is_pro in admin panel display
+
+Work Log:
+- Investigated root cause: Admin panel reads from Supabase Auth `user_metadata`, but promo code writes to Prisma `profiles` table — two separate data stores
+- Fixed `/api/admin/users` GET: Now fetches Prisma profiles via `db.profile.findMany()` and merges with Auth users, using Prisma as source of truth for `is_pro`, `plan`, `subscription_until`
+- Fixed `/api/promo/apply`: After updating Prisma profile, also syncs to Supabase Auth `user_metadata` via dynamic import
+- Fixed `/api/admin/users` PATCH (activate/revoke) and DELETE: Added `syncProfileFromAuth()` helper that writes to Prisma profile
+- Fixed `/api/payment/callback` `activateSubscription`: Also syncs to Auth metadata after payment success
+- All sync operations are wrapped in try/catch (non-critical) to prevent blocking main flow
+
+Stage Summary:
+- Root cause: Two parallel data stores (Supabase Auth metadata vs Prisma profiles table) were never synchronized
+- Solution: Made admin panel read from Prisma profiles (source of truth) AND made all write operations (promo apply, admin activate/revoke, payment callback) sync to both stores
+- Files modified: `src/app/api/admin/users/route.ts`, `src/app/api/promo/apply/route.ts`, `src/app/api/payment/callback/route.ts`
+---
+Task ID: 2
+Agent: Main Agent
+Task: Integrate DOKU payment to frontend with luxurious/premium design
+
+Work Log:
+- Rewrote `/src/components/PlanSelectionModal.tsx` with premium design:
+  - 4 plan cards (Free, Elite Pro 1mo, Elite Pro 6mo, Lifetime Ultra) using pricing.ts config
+  - On paid plan click: calls POST /api/payment/create-order with amount/plan/durationMonths
+  - On success: opens PaymentInvoiceModal with invoice details + DOKU paymentUrl
+  - On API failure: falls back to manual bank transfer info
+  - Premium dark theme with gradient borders, shimmer effects, decorative SVG patterns
+  - Payment methods banner (Credit Card, E-Wallet, QRIS, Virtual Account)
+  - Indonesian language throughout
+- Created new `/src/components/PaymentInvoiceModal.tsx`:
+  - Premium invoice card with LuxTrade branding, gradient accents, SVG dot pattern
+  - Invoice number, plan name, duration, status, expiry, total amount
+  - Payment methods display (VA, E-Wallet, Card/QRIS)
+  - "Bayar Sekarang" button that opens DOKU paymentUrl in new tab
+  - Success state after redirect with "Selesaikan Pembayaran di Tab Baru"
+  - Manual fallback: Bank Jago details + Telegram confirmation link
+  - Copy invoice number functionality
+- Fixed `/src/app/dashboard/LuxTradeDashboard.tsx`:
+  - Fixed handleSelectPlan bug (was re-opening modal instead of proceeding)
+  - Added handlePaymentSuccess callback that refreshes profile
+- Updated `/src/app/dashboard/components/DashboardModals.tsx`:
+  - Added handlePaymentSuccess prop to interface
+  - Wired onPaymentSuccess to PlanSelectionModal
+
+Stage Summary:
+- DOKU payment is now fully integrated into the frontend
+- User flow: Select Plan → See Invoice → Click "Bayar Sekarang" → DOKU Payment Page → Callback activates PRO
+- All designs use premium dark theme with gradient effects, decorative patterns, and smooth animations
+- Indonesian language throughout for consistency
+- Fallback to manual bank transfer if DOKU API fails

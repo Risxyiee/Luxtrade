@@ -1,0 +1,815 @@
+     1→'use client'
+     2→
+     3→import { useEffect, useState } from 'react'
+     4→import { useRouter } from 'next/navigation'
+     5→import { useAuth } from '@/lib/auth-context'
+     6→import { 
+     7→  Shield, Users, Crown, Clock, Mail, Calendar, 
+     8→  RefreshCw, LogOut, CheckCircle, XCircle, AlertTriangle,
+     9→  TrendingUp, UserCheck, UserX, ChevronDown, Wallet, Banknote, Sparkles
+    10→} from 'lucide-react'
+    11→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+    12→import { Input } from '@/components/ui/input'
+    13→import { Label } from '@/components/ui/label'
+    14→import { Button } from '@/components/ui/button'
+    15→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    16→import { Badge } from '@/components/ui/badge'
+    17→import { toast } from 'sonner'
+    18→import { motion, AnimatePresence } from 'framer-motion'
+    19→
+    20→// Admin email - hardcoded for security
+    21→const ADMIN_EMAIL = 'luxtradee@gmail.com'
+    22→
+    23→interface AdminUser {
+    24→  id: string
+    25→  email: string
+    26→  full_name: string
+    27→  subscription_status: string
+    28→  is_pro: boolean
+    29→  subscription_until: string | null
+    30→  my_referral_code: string | null
+    31→  referred_by_code: string | null
+    32→  affiliate_balance: number
+    33→  referral_status: string | null
+    34→  has_ever_been_pro: boolean
+    35→  commission_paid: boolean
+    36→  created_at: string
+    37→  // Extra fields
+    38→  referred_by: { email: string; name: string | null } | null
+    39→  referral_code_changes: number
+    40→  has_duplicate_device: boolean
+    41→  device_id: string | null
+    42→}
+    43→
+    44→interface AdminWithdrawal {
+    45→  id: string
+    46→  userId: string
+    47→  email: string
+    48→  fullName: string | null
+    49→  amount: number
+    50→  bankName: string
+    51→  bankAccount: string
+    52→  bankHolder: string
+    53→  status: string
+    54→  adminNote: string | null
+    55→  createdAt: string
+    56→  updatedAt: string
+    57→}
+    58→
+    59→export default function AdminPanel() {
+    60→  const { user, profile, loading, signOut } = useAuth()
+    61→  const router = useRouter()
+    62→  const [users, setUsers] = useState<AdminUser[]>([])
+    63→  const [withdrawals, setWithdrawals] = useState<AdminWithdrawal[]>([])
+    64→  const [isLoading, setIsLoading] = useState(true)
+    65→  const [activating, setActivating] = useState<string | null>(null)
+    66→  const [showDropdown, setShowDropdown] = useState<string | null>(null)
+    67→  const [searchQuery, setSearchQuery] = useState('')
+    68→
+    69→  // Withdrawal modal
+    70→  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false)
+    71→  const [selectedWithdrawal, setSelectedWithdrawal] = useState<AdminWithdrawal | null>(null)
+    72→  const [withdrawAction, setWithdrawAction] = useState<'approve' | 'reject' | null>(null)
+    73→  const [adminNote, setAdminNote] = useState('')
+    74→  const [processingWithdrawal, setProcessingWithdrawal] = useState(false)
+    75→  const [activeTab, setActiveTab] = useState<'users' | 'withdrawals'>('users')
+    76→
+    77→  // Redirect if not admin
+    78→  useEffect(() => {
+    79→    if (!loading && user) {
+    80→      if (user.email !== ADMIN_EMAIL) {
+    81→        toast.error('Access denied. Admin only.')
+    82→        router.push('/dashboard')
+    83→      } else {
+    84→        fetchUsers()
+    85→      }
+    86→    }
+    87→    if (!loading && !user) {
+    88→      router.push('/auth/login')
+    89→    }
+    90→  }, [user, loading, router])
+    91→
+    92→  // Real-time auto-refresh every 10 seconds
+    93→  useEffect(() => {
+    94→    const interval = setInterval(() => {
+    95→      if (!loading && user && user.email === ADMIN_EMAIL) {
+    96→        fetchUsers()
+    97→      }
+    98→    }, 10000)
+    99→
+   100→    return () => clearInterval(interval)
+   101→  }, [user, loading])
+   102→
+   103→  const fetchUsers = async () => {
+   104→    setIsLoading(true)
+   105→    try {
+   106→      // Get session token for admin API auth
+   107→      const { supabase } = await import('@/lib/supabase')
+   108→      const { data: { session } } = await supabase.auth.getSession()
+   109→      const token = session?.access_token || ''
+   110→
+   111→      const [usersRes, withdrawalsRes] = await Promise.all([
+   112→        fetch('/api/admin/users', {
+   113→          headers: { 'Authorization': `Bearer ${token}` }
+   114→        }),
+   115→        fetch(`/api/admin/withdrawals?adminEmail=${encodeURIComponent(user?.email || '')}`),
+   116→      ])
+   117→      const usersData = await usersRes.json()
+   118→      const withdrawalsData = await withdrawalsRes.json()
+   119→      
+   120→      // Users API returns { users, count } directly
+   121→      const usersList = usersData.users || []
+   122→      setUsers(usersList)
+   123→      if (withdrawalsData.success) setWithdrawals(withdrawalsData.withdrawals || [])
+   124→    } catch (error) {
+   125→      console.error('Error fetching data:', error)
+   126→      toast.error('Failed to fetch data')
+   127→    } finally {
+   128→      setIsLoading(false)
+   129→    }
+   130→  }
+   131→
+   132→  const activatePro = async (userId: string, months: number) => {
+   133→    setActivating(userId)
+   134→    setShowDropdown(null)
+   135→
+   136→    try {
+   137→      const response = await fetch('/api/admin/activate-pro', {
+   138→        method: 'POST',
+   139→        headers: { 'Content-Type': 'application/json' },
+   140→        body: JSON.stringify({
+   141→          adminEmail: user?.email,
+   142→          userId,
+   143→          months,
+   144→        }),
+   145→      })
+   146→
+   147→      const data = await response.json()
+   148→
+   149→      if (data.success) {
+   150→        toast.success(`PRO activated for ${months === 0 ? 'lifetime' : months + ' month(s)'}!`)
+   151→        fetchUsers() // Refresh list
+   152→      } else {
+   153→        toast.error(data.error || 'Failed to activate PRO')
+   154→      }
+   155→    } catch (error) {
+   156→      console.error('Error activating PRO:', error)
+   157→      toast.error('Failed to activate PRO')
+   158→    } finally {
+   159→      setActivating(null)
+   160→    }
+   161→  }
+   162→
+   163→  const deactivatePro = async (userId: string) => {
+   164→    if (!confirm('Are you sure you want to deactivate PRO for this user?')) return
+   165→
+   166→    setActivating(userId)
+   167→
+   168→    try {
+   169→      const response = await fetch(`/api/admin/activate-pro?adminEmail=${encodeURIComponent(user?.email || '')}&userId=${userId}`, {
+   170→        method: 'DELETE',
+   171→      })
+   172→
+   173→      const data = await response.json()
+   174→
+   175→      if (data.success) {
+   176→        toast.success('PRO status deactivated')
+   177→        fetchUsers() // Refresh list
+   178→      } else {
+   179→        toast.error(data.error || 'Failed to deactivate PRO')
+   180→      }
+   181→    } catch (error) {
+   182→      console.error('Error deactivating PRO:', error)
+   183→      toast.error('Failed to deactivate PRO')
+   184→    } finally {
+   185→      setActivating(null)
+   186→    }
+   187→  }
+   188→
+   189→  const handleWithdrawalAction = async () => {
+   190→    if (!selectedWithdrawal || !withdrawAction) return
+   191→    setProcessingWithdrawal(true)
+   192→    try {
+   193→      const res = await fetch('/api/admin/withdrawals', {
+   194→        method: 'PATCH',
+   195→        headers: { 'Content-Type': 'application/json' },
+   196→        body: JSON.stringify({
+   197→          adminEmail: user?.email,
+   198→          withdrawalId: selectedWithdrawal.id,
+   199→          status: withdrawAction,
+   200→          adminNote: adminNote || undefined,
+   201→        }),
+   202→      })
+   203→      const data = await res.json()
+   204→      if (data.success) {
+   205→        toast.success(withdrawAction === 'approve' ? 'Penarikan disetujui!' : 'Penarikan ditolak.')
+   206→        setWithdrawModalOpen(false)
+   207→        setSelectedWithdrawal(null)
+   208→        setAdminNote('')
+   209→        setWithdrawAction(null)
+   210→        fetchUsers()
+   211→      } else {
+   212→        toast.error(data.error || 'Gagal')
+   213→      }
+   214→    } catch { toast.error('Terjadi kesalahan') }
+   215→    finally { setProcessingWithdrawal(false) }
+   216→  }
+   217→
+   218→  const openWithdrawalModal = (w: AdminWithdrawal, action: 'approve' | 'reject') => {
+   219→    setSelectedWithdrawal(w)
+   220→    setWithdrawAction(action)
+   221→    setAdminNote('')
+   222→    setWithdrawModalOpen(true)
+   223→  }
+   224→
+   225→  const formatRupiah = (amount: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount)
+   226→
+   227→  const formatDate = (dateString: string | null) => {
+   228→    if (!dateString) return '-'
+   229→    return new Date(dateString).toLocaleDateString('id-ID', {
+   230→      year: 'numeric',
+   231→      month: 'short',
+   232→      day: 'numeric',
+   233→    })
+   234→  }
+   235→
+   236→  const formatDateTime = (dateString: string) => {
+   237→    return new Date(dateString).toLocaleDateString('id-ID', {
+   238→      year: 'numeric',
+   239→      month: 'short',
+   240→      day: 'numeric',
+   241→      hour: '2-digit',
+   242→      minute: '2-digit',
+   243→    })
+   244→  }
+   245→
+   246→  const isExpiringSoon = (expiryDate: string | null) => {
+   247→    if (!expiryDate) return false
+   248→    const days = Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+   249→    return days > 0 && days <= 7
+   250→  }
+   251→
+   252→  const isExpired = (expiryDate: string | null) => {
+   253→    if (!expiryDate) return false
+   254→    return new Date(expiryDate) < new Date()
+   255→  }
+   256→
+   257→  const getDaysRemaining = (expiryDate: string | null) => {
+   258→    if (!expiryDate) return null
+   259→    const days = Math.ceil((new Date(expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+   260→    return days
+   261→  }
+   262→
+   263→  // Stats
+   264→  const totalUsers = users.length
+   265→  const proUsers = users.filter(u => u.is_pro || u.subscription_status === 'active').length
+   266→  const freeUsers = totalUsers - proUsers
+   267→  const totalReferrals = users.filter(u => u.referred_by_code).length
+   268→  const totalAffiliateBalance = users.reduce((sum, u) => sum + (u.affiliate_balance || 0), 0)
+   269→  const pendingWithdrawals = withdrawals.filter(w => w.status === 'pending').length
+   270→  const totalWithdrawals = withdrawals.filter(w => w.status === 'approved').length
+   271→
+   272→  // Filter users based on search
+   273→  const filteredUsers = users.filter(user =>
+   274→    user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+   275→    (user.full_name && user.full_name.toLowerCase().includes(searchQuery.toLowerCase()))
+   276→  )
+   277→
+   278→  if (loading || !user || user.email !== ADMIN_EMAIL) {
+   279→    return (
+   280→      <div className="min-h-screen bg-[#0a0712] flex items-center justify-center">
+   281→        <div className="text-center">
+   282→          <div className="w-12 h-12 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+   283→          <p className="text-gray-400">Verifying admin access...</p>
+   284→        </div>
+   285→      </div>
+   286→    )
+   287→  }
+   288→
+   289→  return (
+   290→    <div className="min-h-screen bg-[#0a0712] text-white">
+   291→      {/* Header */}
+   292→      <header className="border-b border-purple-900/30 bg-[#0f0b18]/80 backdrop-blur-md sticky top-0 z-50">
+   293→        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+   294→          <div className="flex items-center gap-3">
+   295→            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-orange-600 flex items-center justify-center shadow-lg shadow-red-500/30">
+   296→              <Shield className="w-5 h-5 text-white" />
+   297→            </div>
+   298→            <div>
+   299→              <h1 className="font-bold text-lg">Admin Panel</h1>
+   300→              <p className="text-xs text-gray-500">LuxTrade Owner Dashboard</p>
+   301→            </div>
+   302→          </div>
+   303→          
+   304→          <div className="flex items-center gap-3">
+   305→            <Badge variant="outline" className="border-red-500/30 text-red-400">
+   306→              <Shield className="w-3 h-3 mr-1" /> Admin
+   307→            </Badge>
+   308→            <Button
+   309→              variant="ghost"
+   310→              size="sm"
+   311→              onClick={() => router.push('/dashboard')}
+   312→              className="text-gray-400 hover:text-white"
+   313→            >
+   314→              Back to Dashboard
+   315→            </Button>
+   316→            <Button
+   317→              variant="ghost"
+   318→              size="sm"
+   319→              onClick={signOut}
+   320→              className="text-gray-400 hover:text-red-400"
+   321→            >
+   322→              <LogOut className="w-4 h-4" />
+   323→            </Button>
+   324→          </div>
+   325→        </div>
+   326→      </header>
+   327→
+   328→      {/* Main Content */}
+   329→      <main className="max-w-7xl mx-auto px-4 py-6">
+   330→        {/* Stats Cards */}
+   331→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+   332→          <motion.div
+   333→            initial={{ opacity: 0, y: 20 }}
+   334→            animate={{ opacity: 1, y: 0 }}
+   335→            transition={{ delay: 0.1 }}
+   336→          >
+   337→            <Card className="relative overflow-hidden bg-gradient-to-br from-blue-500/10 via-blue-600/5 to-transparent border-blue-500/20 hover:border-blue-500/40 transition-all group">
+   338→              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all" />
+   339→              <CardContent className="p-6 relative">
+   340→                <div className="flex items-start justify-between">
+   341→                  <div className="space-y-2">
+   342→                    <p className="text-sm font-medium text-blue-300/80">Total Users</p>
+   343→                    <p className="text-3xl font-bold text-white">{totalUsers}</p>
+   344→                    <p className="text-xs text-blue-400/60">{proUsers} Active PRO</p>
+   345→                  </div>
+   346→                  <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+   347→                    <Users className="w-6 h-6 text-blue-400" />
+   348→                  </div>
+   349→                </div>
+   350→              </CardContent>
+   351→            </Card>
+   352→          </motion.div>
+   353→
+   354→          <motion.div
+   355→            initial={{ opacity: 0, y: 20 }}
+   356→            animate={{ opacity: 1, y: 0 }}
+   357→            transition={{ delay: 0.2 }}
+   358→          >
+   359→            <Card className="relative overflow-hidden bg-gradient-to-br from-amber-500/10 via-amber-600/5 to-transparent border-amber-500/20 hover:border-amber-500/40 transition-all group">
+   360→              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-all" />
+   361→              <CardContent className="p-6 relative">
+   362→                <div className="flex items-start justify-between">
+   363→                  <div className="space-y-2">
+   364→                    <p className="text-sm font-medium text-amber-300/80">Premium Users</p>
+   365→                    <p className="text-3xl font-bold text-amber-400">{proUsers}</p>
+   366→                    <p className="text-xs text-amber-400/60">{totalUsers > 0 ? Math.round((proUsers / totalUsers) * 100) : 0}% of total</p>
+   367→                  </div>
+   368→                  <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+   369→                    <Crown className="w-6 h-6 text-amber-400" />
+   370→                  </div>
+   371→                </div>
+   372→              </CardContent>
+   373→            </Card>
+   374→          </motion.div>
+   375→
+   376→          <motion.div
+   377→            initial={{ opacity: 0, y: 20 }}
+   378→            animate={{ opacity: 1, y: 0 }}
+   379→            transition={{ delay: 0.3 }}
+   380→          >
+   381→            <Card className="relative overflow-hidden bg-gradient-to-br from-emerald-500/10 via-emerald-600/5 to-transparent border-emerald-500/20 hover:border-emerald-500/40 transition-all group">
+   382→              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all" />
+   383→              <CardContent className="p-6 relative">
+   384→                <div className="flex items-start justify-between">
+   385→                  <div className="space-y-2">
+   386→                    <p className="text-sm font-medium text-emerald-300/80">Total Transaksi</p>
+   387→                    <p className="text-3xl font-bold text-emerald-400">{totalWithdrawals}</p>
+   388→                    <p className="text-xs text-emerald-400/60">Penarikan disetujui</p>
+   389→                  </div>
+   390→                  <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+   391→                    <TrendingUp className="w-6 h-6 text-emerald-400" />
+   392→                  </div>
+   393→                </div>
+   394→              </CardContent>
+   395→            </Card>
+   396→          </motion.div>
+   397→
+   398→          <motion.div
+   399→            initial={{ opacity: 0, y: 20 }}
+   400→            animate={{ opacity: 1, y: 0 }}
+   401→            transition={{ delay: 0.4 }}
+   402→          >
+   403→            <Card className="relative overflow-hidden bg-gradient-to-br from-purple-500/10 via-purple-600/5 to-transparent border-purple-500/20 hover:border-purple-500/40 transition-all group">
+   404→              <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-all" />
+   405→              <CardContent className="p-6 relative">
+   406→                <div className="flex items-start justify-between">
+   407→                  <div className="space-y-2">
+   408→                    <p className="text-sm font-medium text-purple-300/80">Total Referrals</p>
+   409→                    <p className="text-3xl font-bold text-purple-400">{totalReferrals}</p>
+   410→                    <p className="text-xs text-purple-400/60">{pendingWithdrawals} pending</p>
+   411→                  </div>
+   412→                  <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+   413→                    <Wallet className="w-6 h-6 text-purple-400" />
+   414→                  </div>
+   415→                </div>
+   416→              </CardContent>
+   417→            </Card>
+   418→          </motion.div>
+   419→        </div>
+   420→
+   421→        {/* Tab Switcher */}
+   422→        <div className="flex items-center gap-2 mb-6">
+   423→          <button
+   424→            onClick={() => setActiveTab('users')}
+   425→            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'users' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}
+   426→          >
+   427→            <Users className="w-4 h-4" /> Users
+   428→          </button>
+   429→          <button
+   430→            onClick={() => setActiveTab('withdrawals')}
+   431→            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all relative ${activeTab === 'withdrawals' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}
+   432→          >
+   433→            <Wallet className="w-4 h-4" /> Penarikan Saldo
+   434→            {pendingWithdrawals > 0 && (
+   435→              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-[10px] text-white font-bold flex items-center justify-center">
+   436→                {pendingWithdrawals}
+   437→              </span>
+   438→            )}
+   439→          </button>
+   440→        </div>
+   441→
+   442→        {/* Users Table */}
+   443→        {activeTab === 'users' && (
+   444→        <motion.div
+   445→          initial={{ opacity: 0, y: 20 }}
+   446→          animate={{ opacity: 1, y: 0 }}
+   447→          transition={{ delay: 0.5 }}
+   448→        >
+   449→          <Card className="bg-gradient-to-br from-[#0f0b18]/80 via-[#12091a]/80 to-transparent border-purple-900/30 backdrop-blur-sm">
+   450→            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-purple-900/30">
+   451→              <div>
+   452→                <CardTitle className="flex items-center gap-2 text-xl">
+   453→                  <Users className="w-5 h-5 text-purple-400" />
+   454→                  User Management
+   455→                </CardTitle>
+   456→                <p className="text-xs text-gray-500 mt-1">Manage user access and PRO subscriptions</p>
+   457→              </div>
+   458→              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+   459→                <div className="relative flex-1 sm:flex-none">
+   460→                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+   461→                  <Input
+   462→                    type="text"
+   463→                    placeholder="Cari email atau nama..."
+   464→                    value={searchQuery}
+   465→                    onChange={(e) => setSearchQuery(e.target.value)}
+   466→                    className="pl-9 bg-[#0a0712] border-purple-900/30 text-white placeholder:text-gray-600 w-full sm:w-64"
+   467→                  />
+   468→                </div>
+   469→                <Button
+   470→                  variant="outline"
+   471→                  size="sm"
+   472→                  onClick={fetchUsers}
+   473→                  disabled={isLoading}
+   474→                  className="border-purple-500/30 text-purple-400"
+   475→                >
+   476→                  <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+   477→                  Refresh
+   478→                </Button>
+   479→                <Badge className="bg-emerald-500/20 text-emerald-400 text-xs flex items-center gap-1">
+   480→                  Live <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+   481→                </Badge>
+   482→              </div>
+   483→            </CardHeader>
+   484→            <CardContent className="p-0">
+   485→              <div className="overflow-x-auto">
+   486→                <table className="w-full">
+   487→                  <thead>
+   488→                    <tr className="border-b border-purple-900/30 text-left text-xs text-gray-500 uppercase tracking-wider">
+   489→                      <th className="p-4">Email</th>
+   490→                      <th className="p-4">Name</th>
+   491→                      <th className="p-4">Status</th>
+   492→                      <th className="p-4">Expiry</th>
+   493→                      <th className="p-4">Referrals</th>
+   494→                      <th className="p-4">Registered</th>
+   495→                      <th className="p-4 text-right">Actions</th>
+   496→                    </tr>
+   497→                  </thead>
+   498→                  <tbody className="divide-y divide-purple-900/20">
+   499→                    {isLoading ? (
+   500→                      <tr>
+   501→                        <td colSpan={7} className="p-8 text-center">
+   502→                          <div className="flex items-center justify-center">
+   503→                            <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mr-2" />
+   504→                            Loading users...
+   505→                          </div>
+   506→                        </td>
+   507→                      </tr>
+   508→                    ) : filteredUsers.length === 0 ? (
+   509→                      <tr>
+   510→                        <td colSpan={7} className="p-8 text-center text-gray-500">
+   511→                          {searchQuery ? 'No users found matching your search' : 'No users found'}
+   512→                        </td>
+   513→                      </tr>
+   514→                    ) : (
+   515→                      filteredUsers.map((user) => (
+   516→                        <tr
+   517→                          key={user.id}
+   518→                          className="hover:bg-white/5 transition-colors"
+   519→                        >
+   520→                          <td className="p-4">
+   521→                            <div className="flex items-center gap-2">
+   522→                              <Mail className="w-4 h-4 text-gray-500" />
+   523→                              <span className="font-mono text-sm">{user.email}</span>
+   524→                            </div>
+   525→                          </td>
+   526→                          <td className="p-4 text-gray-300">
+   527→                            {user.full_name || '-'}
+   528→                          </td>
+   529→                          <td className="p-4">
+   530→                            {user.is_pro ? (
+   531→                              <div className="flex items-center gap-2">
+   532→                                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+   533→                                  <Crown className="w-3 h-3 mr-1" /> PRO
+   534→                                </Badge>
+   535→                                {isExpiringSoon(user.subscription_until) && (
+   536→                                  <AlertTriangle className="w-4 h-4 text-yellow-500" title="Expiring soon" />
+   537→                                )}
+   538→                                {isExpired(user.subscription_until) && (
+   539→                                  <XCircle className="w-4 h-4 text-red-500" title="Expired" />
+   540→                                )}
+   541→                              </div>
+   542→                            ) : (
+   543→                              <Badge variant="outline" className="border-gray-500/30 text-gray-400">
+   544→                                FREE
+   545→                              </Badge>
+   546→                            )}
+   547→                          </td>
+   548→                          <td className="p-4">
+   549→                            {user.subscription_until ? (
+   550→                              <div className="text-sm">
+   551→                                <p>{formatDate(user.subscription_until)}</p>
+   552→                                {getDaysRemaining(user.subscription_until) !== null && (
+   553→                                  <p className={`text-xs ${
+   554→                                    isExpired(user.subscription_until) ? 'text-red-400' :
+   555→                                    isExpiringSoon(user.subscription_until) ? 'text-yellow-400' :
+   556→                                    'text-gray-500'
+   557→                                  }`}>
+   558→                                    {isExpired(user.subscription_until)
+   559→                                      ? 'Expired'
+   560→                                      : `${getDaysRemaining(user.subscription_until)} days left`}
+   561→                                  </p>
+   562→                                )}
+   563→                              </div>
+   564→                            ) : (
+   565→                              <span className="text-gray-500">-</span>
+   566→                            )}
+   567→                          </td>
+   568→                          <td className="p-4">
+   569→                            <div className="flex items-center gap-1">
+   570→                              <span className="font-semibold">{user.my_referral_code || '-'}</span>
+   571→                            </div>
+   572→                          </td>
+   573→                          <td className="p-4 text-sm text-gray-400">
+   574→                            {formatDateTime(user.created_at)}
+   575→                          </td>
+   576→                          <td className="p-4">
+   577→                            <div className="flex items-center justify-end gap-2">
+   578→                              {user.is_pro ? (
+   579→                                <Button
+   580→                                  variant="outline"
+   581→                                  size="sm"
+   582→                                  onClick={() => deactivatePro(user.id)}
+   583→                                  disabled={activating === user.id}
+   584→                                  className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+   585→                                >
+   586→                                  {activating === user.id ? (
+   587→                                    <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+   588→                                  ) : (
+   589→                                    <>
+   590→                                      <UserX className="w-4 h-4 mr-1" /> Deactivate
+   591→                                    </>
+   592→                                  )}
+   593→                                </Button>
+   594→                              ) : (
+   595→                                <div className="relative">
+   596→                                  <Button
+   597→                                    variant="outline"
+   598→                                    size="sm"
+   599→                                    onClick={() => setShowDropdown(showDropdown === user.id ? null : user.id)}
+   600→                                    disabled={activating === user.id}
+   601→                                    className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+   602→                                  >
+   603→                                    {activating === user.id ? (
+   604→                                      <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+   605→                                    ) : (
+   606→                                      <>
+   607→                                        <Crown className="w-4 h-4 mr-1" /> Activate PRO
+   608→                                        <ChevronDown className="w-4 h-4 ml-1" />
+   609→                                      </>
+   610→                                    )}
+   611→                                  </Button>
+   612→
+   613→                                  <AnimatePresence>
+   614→                                    {showDropdown === user.id && (
+   615→                                      <motion.div
+   616→                                        initial={{ opacity: 0, y: -10 }}
+   617→                                        animate={{ opacity: 1, y: 0 }}
+   618→                                        exit={{ opacity: 0, y: -10 }}
+   619→                                        className="absolute right-0 top-full mt-2 bg-[#1a1225] border border-purple-500/30 rounded-lg shadow-xl overflow-hidden z-10 min-w-[160px]"
+   620→                                      >
+   621→                                        <button
+   622→                                          onClick={() => activatePro(user.id, 1)}
+   623→                                          className="w-full px-4 py-2 text-left text-sm hover:bg-purple-500/10 transition-colors flex items-center gap-2"
+   624→                                        >
+   625→                                          <Clock className="w-4 h-4 text-amber-400" />
+   626→                                          1 Bulan
+   627→                                        </button>
+   628→                                        <button
+   629→                                          onClick={() => activatePro(user.id, 6)}
+   630→                                          className="w-full px-4 py-2 text-left text-sm hover:bg-purple-500/10 transition-colors flex items-center gap-2"
+   631→                                        >
+   632→                                          <Clock className="w-4 h-4 text-emerald-400" />
+   633→                                          6 Bulan
+   634→                                        </button>
+   635→                                        <button
+   636→                                          onClick={() => activatePro(user.id, 0)}
+   637→                                          className="w-full px-4 py-2 text-left text-sm hover:bg-purple-500/10 transition-colors flex items-center gap-2 font-semibold text-purple-300"
+   638→                                        >
+   639→                                          <Sparkles className="w-4 h-4 text-purple-400" />
+   640→                                          Lifetime
+   641→                                        </button>
+   642→                                      </motion.div>
+   643→                                    )}
+   644→                                  </AnimatePresence>
+   645→                                </div>
+   646→                              )}
+   647→                            </div>
+   648→                          </td>
+   649→                        </tr>
+   650→                      ))
+   651→                    )}
+   652→                  </tbody>
+   653→                </table>
+   654→              </div>
+   655→            </CardContent>
+   656→          </Card>
+   657→        </motion.div>
+   658→        )}
+   659→
+   660→        {/* Withdrawals Table */}
+   661→        {activeTab === 'withdrawals' && (
+   662→        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+   663→          <CardHeader className="flex flex-row items-center justify-between border-b border-purple-900/30">
+   664→            <CardTitle className="flex items-center gap-2">
+   665→              <Wallet className="w-5 h-5 text-amber-400" />
+   666→              Penarikan Saldo
+   667→              {pendingWithdrawals > 0 && (
+   668→                <Badge className="bg-red-500/20 text-red-400 border-red-500/30 ml-2">
+   669→                  {pendingWithdrawals} pending
+   670→                </Badge>
+   671→              )}
+   672→            </CardTitle>
+   673→            <div className="flex items-center gap-2">
+   674→              <Button
+   675→                variant="outline"
+   676→                size="sm"
+   677→                onClick={fetchUsers}
+   678→                disabled={isLoading}
+   679→                className="border-purple-500/30 text-purple-400"
+   680→              >
+   681→                <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+   682→                Refresh
+   683→              </Button>
+   684→              <Badge className="bg-emerald-500/20 text-emerald-400 text-xs flex items-center gap-1">
+   685→                Live <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+   686→              </Badge>
+   687→            </div>
+   688→          </CardHeader>
+   689→          <CardContent className="p-0">
+   690→            <div className="overflow-x-auto">
+   691→              <table className="w-full">
+   692→                <thead>
+   693→                  <tr className="border-b border-purple-900/30 text-left text-xs text-gray-500 uppercase tracking-wider">
+   694→                    <th className="p-4">User</th>
+   695→                    <th className="p-4">Amount</th>
+   696→                    <th className="p-4">Bank</th>
+   697→                    <th className="p-4">Account</th>
+   698→                    <th className="p-4">Status</th>
+   699→                    <th className="p-4">Date</th>
+   700→                    <th className="p-4 text-right">Actions</th>
+   701→                  </tr>
+   702→                </thead>
+   703→                <tbody className="divide-y divide-purple-900/20">
+   704→                  {isLoading ? (
+   705→                    <tr>
+   706→                      <td colSpan={7} className="p-8 text-center">
+   707→                        <div className="flex items-center justify-center">
+   708→                          <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mr-2" />
+   709→                          Loading...
+   710→                        </div>
+   711→                      </td>
+   712→                    </tr>
+   713→                  ) : withdrawals.length === 0 ? (
+   714→                    <tr>
+   715→                      <td colSpan={7} className="p-8 text-center text-gray-500">
+   716→                        No withdrawal requests
+   717→                      </td>
+   718→                    </tr>
+   719→                  ) : (
+   720→                    withdrawals.map((w) => (
+   721→                      <tr key={w.id} className="hover:bg-white/5 transition-colors">
+   722→                        <td className="p-4">
+   723→                          <div>
+   724→                            <p className="text-sm font-medium">{w.fullName || w.email}</p>
+   725→                            <p className="text-xs text-gray-500 font-mono">{w.email}</p>
+   726→                          </div>
+   727→                        </td>
+   728→                        <td className="p-4">
+   729→                          <span className="font-semibold text-amber-400">{formatRupiah(w.amount)}</span>
+   730→                        </td>
+   731→                        <td className="p-4 text-sm text-gray-300">{w.bankName}</td>
+   732→                        <td className="p-4 text-sm text-gray-300">
+   733→                          <p>{w.bankAccount}</p>
+   734→                          <p className="text-xs text-gray-500">{w.bankHolder}</p>
+   735→                        </td>
+   736→                        <td className="p-4">
+   737→                          <Badge className={
+   738→                            w.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+   739→                            w.status === 'rejected' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+   740→                            'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+   741→                          }>
+   742→                            {w.status === 'approved' ? 'Disetujui' : w.status === 'rejected' ? 'Ditolak' : 'Pending'}
+   743→                          </Badge>
+   744→                        </td>
+   745→                        <td className="p-4 text-sm text-gray-400">{formatDateTime(w.createdAt)}</td>
+   746→                        <td className="p-4">
+   747→                          <div className="flex items-center justify-end gap-1">
+   748→                            {w.status === 'pending' && (
+   749→                              <>
+   750→                                <Button size="sm" variant="outline" className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10" onClick={() => openWithdrawalModal(w, 'approve')}>
+   751→                                  <CheckCircle className="w-4 h-4" />
+   752→                                </Button>
+   753→                                <Button size="sm" variant="outline" className="border-red-500/30 text-red-400 hover:bg-red-500/10" onClick={() => openWithdrawalModal(w, 'reject')}>
+   754→                                  <XCircle className="w-4 h-4" />
+   755→                                </Button>
+   756→                              </>
+   757→                            )}
+   758→                            {w.adminNote && (
+   759→                              <span className="text-xs text-gray-500 max-w-[100px] truncate" title={w.adminNote}>{w.adminNote}</span>
+   760→                            )}
+   761→                          </div>
+   762→                        </td>
+   763→                      </tr>
+   764→                    ))
+   765→                  )}
+   766→                </tbody>
+   767→              </table>
+   768→            </div>
+   769→          </CardContent>
+   770→        </Card>
+   771→        )}
+   772→
+   773→        {/* Withdrawal Action Modal */}
+   774→        <Dialog open={withdrawModalOpen} onOpenChange={setWithdrawModalOpen}>
+   775→          <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-md">
+   776→            <DialogHeader>
+   777→              <DialogTitle>
+   778→                {withdrawAction === 'approve' ? 'Setujui Penarikan' : 'Tolak Penarikan'}
+   779→              </DialogTitle>
+   780→            </DialogHeader>
+   781→            <div className="space-y-4 py-4">
+   782→              {selectedWithdrawal && (
+   783→                <div className="space-y-2 text-sm">
+   784→                  <p><span className="text-gray-500">User:</span> {selectedWithdrawal.fullName || selectedWithdrawal.email}</p>
+   785→                  <p><span className="text-gray-500">Amount:</span> <span className="text-amber-400 font-semibold">{formatRupiah(selectedWithdrawal.amount)}</span></p>
+   786→                  <p><span className="text-gray-500">Bank:</span> {selectedWithdrawal.bankName} - {selectedWithdrawal.bankAccount}</p>
+   787→                </div>
+   788→              )}
+   789→              <div>
+   790→                <Label>Catatan Admin (opsional)</Label>
+   791→                <Input
+   792→                  value={adminNote}
+   793→                  onChange={(e) => setAdminNote(e.target.value)}
+   794→                  placeholder="Tambahkan catatan..."
+   795→                  className="bg-[#0a0712] border-purple-900/30 mt-1"
+   796→                />
+   797→              </div>
+   798→            </div>
+   799→            <DialogFooter className="gap-2">
+   800→              <Button variant="outline" onClick={() => setWithdrawModalOpen(false)} className="border-purple-900/30">Batal</Button>
+   801→              <Button
+   802→                onClick={handleWithdrawalAction}
+   803→                disabled={processingWithdrawal}
+   804→                className={withdrawAction === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'}
+   805→              >
+   806→                {processingWithdrawal ? 'Memproses...' : withdrawAction === 'approve' ? 'Setujui' : 'Tolak'}
+   807→              </Button>
+   808→            </DialogFooter>
+   809→          </DialogContent>
+   810→        </Dialog>
+   811→      </main>
+   812→    </div>
+   813→  )
+   814→}
+   815→
