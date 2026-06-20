@@ -21,6 +21,9 @@ model Profile {
   full_name         String?
   is_pro            Boolean   @default(false)
   subscription_until DateTime?
+  emailVerified     Boolean   @default(false)
+  emailVerifyToken  String?   @unique
+  emailVerifyExpAt  DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { db } from '@/lib/db'
 import { sendEmailFromTemplate, getConfirmationEmailHtml } from '@/lib/email'
+import crypto from 'crypto'
 
 // Helper function to generate referral code
 function generateReferralCode(): string {
@@ -10,6 +12,11 @@ function generateReferralCode(): string {
     code += chars.charAt(Math.floor(Math.random() * chars.length))
   }
   return code
+}
+
+// Generate secure verification token
+function generateVerifyToken(): string {
+  return crypto.randomBytes(32).toString('hex')
 }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
@@ -58,15 +65,13 @@ export async function POST(request: NextRequest) {
 
     // ============================================
     // Step 1: Create user via ADMIN API (no auto-email!)
-    // supabaseAdmin.auth.admin.createUser() does NOT send confirmation email
-    // This is the key fix - we control email sending ourselves via Resend
     // ============================================
-    console.log('🚀 Creating user via admin API (no auto-email)...')
+    console.log('🚀 Creating user via admin API...')
 
     const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: false, // User needs to confirm email
+      email_confirm: false, // User MUST confirm email
       user_metadata: {
         full_name: fullName,
         is_pro: false,
@@ -88,7 +93,6 @@ export async function POST(request: NextRequest) {
 
       const errorMsg = createError.message || 'Unknown error'
 
-      // Check for duplicate email
       if (errorMsg.toLowerCase().includes('already registered') ||
           errorMsg.toLowerCase().includes('already been registered') ||
           errorMsg.toLowerCase().includes('unique') ||
@@ -101,7 +105,6 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Check for rate limiting
       if (errorMsg.toLowerCase().includes('rate limit') ||
           errorMsg.toLowerCase().includes('too many') ||
           errorMsg.toLowerCase().includes('security')) {
@@ -126,22 +129,25 @@ export async function POST(request: NextRequest) {
     }
 
     const user = userData.user
-    console.log('✅ User created via admin API:', user.id)
-    console.log('✅ User email:', user.email)
-    console.log('✅ Email confirmed?', user.email_confirmed_at) // Should be null
+    console.log('✅ User created:', user.id)
 
     // ============================================
-    // Step 2: Create profile
+    // Step 2: Create profile with verification token
     // ============================================
+    const verifyToken = generateVerifyToken()
+    const verifyExpAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+
     try {
-      const { error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .insert({
+      await db.profile.create({
+        data: {
           id: user.id,
           email: user.email,
           full_name: fullName,
           subscription_status: 'FREE',
           is_pro: false,
+          emailVerified: false,
+          emailVerifyToken: verifyToken,
+          emailVerifyExpAt: verifyExpAt,
           device_id: deviceId || null,
           my_referral_code: myReferralCode,
           referred_by_code: referralCode || null,
@@ -150,98 +156,85 @@ export async function POST(request: NextRequest) {
           streakCount: 0,
           bestStreak: 0,
           achievements: [],
-          created_at: now,
-          updated_at: now
+          created_at: new Date(now),
+          updated_at: new Date(now)
+        }
+      })
+      console.log('✅ Profile created with verification token')
+    } catch (profileErr: any) {
+      // Profile might already exist, try update with token
+      if (profileErr.code === 'P2002') {
+        await db.profile.update({
+          where: { id: user.id },
+          data: {
+            emailVerified: false,
+            emailVerifyToken: verifyToken,
+            emailVerifyExpAt: verifyExpAt,
+          }
         })
-
-      if (profileError) {
-        console.error('⚠️ Profile creation error (non-fatal):', profileError.message)
+        console.log('✅ Profile updated with verification token')
       } else {
-        console.log('✅ Profile created')
+        console.error('⚠️ Profile creation error (non-fatal):', profileErr)
       }
-    } catch (profileErr) {
-      console.error('⚠️ Profile setup error (non-fatal):', profileErr)
     }
 
     // ============================================
-    // Step 3: Generate confirmation link & send via Resend
-    // Use admin.generateLink with redirectTo to avoid Supabase email dependency
+    // Step 3: Send confirmation email via Resend ONLY
+    // No dependency on Supabase email service
     // ============================================
     let emailSent = false
-    try {
-      console.log('📧 Generating confirmation link...')
+    const confirmationUrl = `${SITE_URL}/auth/verify?token=${verifyToken}`
+    const name = fullName || email.split('@')[0]
 
-      // Build confirmation URL manually — Supabase will verify the token on callback
-      // Use generateLink with type 'magiclink' which creates a verified token
-      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'magiclink',
-        email,
-        options: {
-          emailRedirectTo: `${SITE_URL}/auth/callback`,
-        },
+    try {
+      console.log('📧 Sending confirmation email via Resend...')
+      const fallbackHtml = getConfirmationEmailHtml(name, confirmationUrl)
+
+      const emailResult = await sendEmailFromTemplate({
+        to: email,
+        subject: 'Konfirmasi Email - LuxTrade 👑',
+        templateId: process.env.RESEND_TEMPLATE_CONFIRM || '',
+        templateParams: { name, confirmationUrl },
+        fallbackHtml,
       })
 
-      if (linkError) {
-        console.error('⚠️ Supabase generateLink failed (non-fatal):', linkError.message)
-        // Fallback: build confirmation URL using Supabase OTP API
-        console.log('📧 Trying OTP fallback for confirmation link...')
-      }
-
-      // Extract the confirmation URL from whichever method worked
-      const confirmationUrl = linkData?.properties?.action_link
-        || linkData?.action_link
-        || linkData?.verified_redirect_url
-
-      console.log('📧 Confirmation URL:', confirmationUrl ? 'YES' : 'NO - will build manual URL')
-
-      if (confirmationUrl) {
-        // Send via Resend
-        const name = fullName || email.split('@')[0]
-        const fallbackHtml = getConfirmationEmailHtml(name, confirmationUrl)
-
-        console.log('📧 Sending email via Resend...')
-        const emailResult = await sendEmailFromTemplate({
-          to: email,
-          subject: 'Konfirmasi Email - LuxTrade 👑',
-          templateId: process.env.RESEND_TEMPLATE_CONFIRM || '',
-          templateParams: { name, confirmationUrl },
-          fallbackHtml,
-        })
-
-        if (emailResult.success) {
-          console.log('✅ Confirmation email sent via Resend successfully!')
-          emailSent = true
-        } else {
-          console.error('❌ Failed to send via Resend:', JSON.stringify(emailResult.error))
-        }
+      if (emailResult.success) {
+        console.log('✅ Confirmation email sent via Resend!')
+        emailSent = true
       } else {
-        // Supabase link generation failed — auto-confirm the user instead
-        // so they can login immediately without email verification
-        console.log('⚠️ No confirmation URL available, auto-confirming user...')
-        try {
-          await supabaseAdmin.auth.admin.updateUserById(user.id, {
-            email_confirm: true,
-          })
-          console.log('✅ User auto-confirmed (can login immediately)')
-          emailSent = true // Treat as success since user can now login
-        } catch (confirmErr) {
-          console.error('❌ Auto-confirm failed:', confirmErr)
-        }
+        console.error('❌ Resend failed:', JSON.stringify(emailResult.error))
       }
     } catch (emailErr) {
-      console.error('❌ Confirmation email error:', emailErr)
-      // Last resort: auto-confirm
-      try {
-        await supabaseAdmin.auth.admin.updateUserById(user.id, { email_confirm: true })
-        emailSent = true
-      } catch {}
+      console.error('❌ Email send error:', emailErr)
     }
+
+    // Also try to create profile in Supabase profiles table
+    try {
+      await supabaseAdmin.from('profiles').insert({
+        id: user.id,
+        email: user.email,
+        full_name: fullName,
+        subscription_status: 'FREE',
+        is_pro: false,
+        email_verified: false,
+        device_id: deviceId || null,
+        my_referral_code: myReferralCode,
+        referred_by_code: referralCode || null,
+        has_ever_been_pro: false,
+        commission_paid: false,
+        streakCount: 0,
+        bestStreak: 0,
+        achievements: [],
+        created_at: now,
+        updated_at: now
+      })
+    } catch {}
 
     return NextResponse.json({
       success: true,
       message: emailSent
-        ? 'Akun berhasil dibuat! Silakan login di halaman login.'
-        : 'Akun berhasil dibuat, tapi gagal mengirim email konfirmasi. Silakan kirim ulang dari halaman login.',
+        ? 'Akun berhasil dibuat! Cek email untuk verifikasi.'
+        : 'Akun berhasil dibuat, tapi gagal mengirim email verifikasi. Hubungi admin.',
       user: {
         id: user.id,
         email: user.email
