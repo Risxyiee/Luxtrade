@@ -1706,3 +1706,26 @@ Stage Summary:
 - All designs use premium dark theme with gradient effects, decorative patterns, and smooth animations
 - Indonesian language throughout for consistency
 - Fallback to manual bank transfer if DOKU API fails
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix email confirmation to be enforced (no auto-confirm fallback) to prevent bots
+
+Work Log:
+- Reviewed signup route `/src/app/api/auth/signup/route.ts` — already clean, NO auto-confirm fallback code exists
+- Reviewed email lib `/src/lib/email.ts` — Resend is already the primary email sender with fallback HTML
+- Fixed `/src/app/api/auth/check-verified/route.ts` — was allowing login on server errors (line 33: `return { verified: true }`), changed to block login on error (`return { verified: false }`)
+- For users without Prisma profile, now checks `user.email_confirmed_at` from Supabase Auth (blocks if null)
+- Rewrote `/src/app/api/auth/resend-verification/route.ts` — removed dependency on Supabase `generateLink()` (which was broken), now uses Prisma token system (same as signup)
+- Updated `/src/app/auth/signup/page.tsx` — handles `emailSent: false` properly: shows error telling user to contact admin, does NOT auto-redirect to login
+- Added `/auth/verify` and `/auth/forgot-password` to middleware public routes
+- Verified all changes with `bun run lint` (no new errors in modified files)
+
+Stage Summary:
+- Email verification is now FULLY ENFORCED — no auto-confirm bypass anywhere
+- Signup creates user with `email_confirm: false` in Supabase Auth
+- Custom verification token stored in Prisma profile
+- Email sent via Resend with inline HTML fallback (no Supabase generateLink dependency)
+- Login blocked if email not verified (both Prisma check and Supabase email_confirmed_at)
+- Server errors in check-verified now BLOCK login (previously allowed through)
+- Resend verification uses Prisma token (previously used broken Supabase generateLink)

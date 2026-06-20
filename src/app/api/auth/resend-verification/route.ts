@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
 import { sendEmailFromTemplate, getConfirmationEmailHtml } from '@/lib/email'
-import { supabaseAdmin } from '@/lib/supabase'
+import crypto from 'crypto'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 
+/**
+ * POST /api/auth/resend-verification
+ * Body: { email: string }
+ * Generates new token in Prisma, sends email via Resend.
+ * NO dependency on Supabase generateLink.
+ */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { email } = body
+    const { email } = await request.json()
 
     if (!email) {
       return NextResponse.json(
@@ -16,49 +22,50 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!supabaseAdmin) {
+    // Find profile by email in Prisma
+    const profile = await db.profile.findFirst({
+      where: { email: email.toLowerCase() }
+    })
+
+    if (!profile) {
       return NextResponse.json(
-        { error: 'Server not configured' },
-        { status: 500 }
+        { error: 'Email tidak terdaftar. Silakan daftar terlebih dahulu.' },
+        { status: 404 }
       )
     }
 
-    // Step 1: Generate new confirmation link via admin API
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'signup',
-      email,
-      options: {
-        emailRedirectTo: `${SITE_URL}/auth/callback`,
-      },
+    if (profile.emailVerified) {
+      return NextResponse.json(
+        { error: 'Email sudah terverifikasi. Silakan langsung login.' },
+        { status: 400 }
+      )
+    }
+
+    // Generate new verification token
+    const newToken = crypto.randomBytes(32).toString('hex')
+    const newExpAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+
+    // Save token to Prisma profile
+    await db.profile.update({
+      where: { id: profile.id },
+      data: {
+        emailVerifyToken: newToken,
+        emailVerifyExpAt: newExpAt,
+      }
     })
 
-    if (linkError) {
-      console.error('Generate link error:', linkError)
-      if (linkError.message?.includes('not found') || linkError.message?.includes('No user')) {
-        return NextResponse.json(
-          { error: 'Email tidak terdaftar. Silakan daftar terlebih dahulu.' },
-          { status: 404 }
-        )
-      }
-      return NextResponse.json({ error: linkError.message }, { status: 400 })
-    }
+    console.log(`✅ New verification token generated for: ${profile.email}`)
 
-    // Step 2: Send email via Resend (template or inline fallback)
-    const confirmationUrl = linkData.properties?.action_link || linkData.action_link
-    if (!confirmationUrl) {
-      console.error('No confirmation URL generated:', linkData)
-      return NextResponse.json({ error: 'Gagal membuat link konfirmasi' }, { status: 500 })
-    }
+    // Build verification URL (points to our custom verify page)
+    const confirmationUrl = `${SITE_URL}/auth/verify?token=${newToken}`
+    const name = profile.full_name || email.split('@')[0]
 
-    const name = linkData.user?.user_metadata?.full_name ||
-                 linkData.user?.user_metadata?.display_name ||
-                 email.split('@')[0]
-
+    // Send email via Resend (template or inline fallback)
     const fallbackHtml = getConfirmationEmailHtml(name, confirmationUrl)
 
     const emailResult = await sendEmailFromTemplate({
       to: email,
-      subject: 'Konfirmasi Email - LuxTrade 👑',
+      subject: 'Kirim Ulang: Konfirmasi Email - LuxTrade 👑',
       templateId: process.env.RESEND_TEMPLATE_CONFIRM || '',
       templateParams: {
         name,
@@ -68,15 +75,20 @@ export async function POST(request: NextRequest) {
     })
 
     if (!emailResult.success) {
-      console.error('Email error:', emailResult.error)
+      console.error('❌ Resend email failed:', emailResult.error)
+      return NextResponse.json(
+        { error: 'Gagal mengirim email konfirmasi. Coba lagi nanti.' },
+        { status: 500 }
+      )
     }
 
+    console.log(`✅ Resend verification email sent to: ${email}`)
     return NextResponse.json({
       success: true,
-      message: 'Email konfirmasi telah dikirim ulang. Silakan cek inbox Anda.',
+      message: 'Email konfirmasi telah dikirim ulang. Silakan cek inbox/spam Anda.',
     })
-  } catch (error) {
-    console.error('Resend verification error:', error)
+  } catch (error: any) {
+    console.error('❌ Resend verification error:', error)
     return NextResponse.json(
       { error: 'Terjadi kesalahan. Silakan coba lagi.' },
       { status: 500 }
