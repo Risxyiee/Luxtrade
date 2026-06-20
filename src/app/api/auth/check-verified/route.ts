@@ -4,7 +4,8 @@ import { db } from '@/lib/db'
 
 /**
  * GET /api/auth/check-verified
- * Checks if the authenticated user's email is verified
+ * Checks if the authenticated user's email is verified.
+ * IMPORTANT: Email verification is ENFORCED to prevent bots.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -21,15 +22,26 @@ export async function GET(request: NextRequest) {
       select: { emailVerified: true, email: true }
     })
 
-    // If no profile exists yet (e.g., old user), allow through
+    // If no profile exists yet (e.g., old user before verification system), 
+    // check Supabase Auth's built-in email confirmation
     if (!profile) {
-      return NextResponse.json({ verified: true })
+      // Fall back to Supabase's email_confirm field
+      const verified = !!user.email_confirmed_at
+      if (!verified) {
+        console.warn(`⚠️ No profile found for user ${user.id}, Supabase email_confirmed_at is null - blocking login`)
+      }
+      return NextResponse.json({ verified })
     }
 
-    return NextResponse.json({ verified: !!profile.emailVerified })
+    const isVerified = !!profile.emailVerified
+    if (!isVerified) {
+      console.log(`🚫 Email NOT verified for user: ${user.id} (${profile.email}) - blocking login`)
+    }
+    return NextResponse.json({ verified: isVerified })
   } catch (error: any) {
     console.error('❌ Check verified error:', error)
-    // On error, allow through to prevent lockout
-    return NextResponse.json({ verified: true })
+    // On error, BLOCK login to enforce email verification.
+    // This prevents bypassing verification through server errors.
+    return NextResponse.json({ verified: false, error: 'Gagal memeriksa verifikasi email. Coba lagi.' })
   }
 }

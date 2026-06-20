@@ -137,13 +137,22 @@ function SignUpForm() {
       }
 
       // Success!
-      console.log('✅ User created:', data.user?.id)
-      setSuccess(true)
+      console.log('✅ User created:', data.user?.id, 'emailSent:', data.emailSent)
       
-      // Redirect to login page after delay (user needs to verify email & login first)
-      setTimeout(() => {
-        router.push('/auth/login')
-      }, 3000)
+      if (data.emailSent) {
+        // Email sent successfully — show success screen
+        setSuccess(true)
+        setTimeout(() => {
+          router.push('/auth/login')
+        }, 3000)
+      } else {
+        // Account created but email FAILED to send
+        // User must still verify email to prevent bots
+        setError(
+          'Akun dibuat, tapi gagal mengirim email verifikasi. ' +
+          'Silakan hubungi admin LuxTrade atau coba kirim ulang dari halaman login.'
+        )
+      }
 
     } catch (err: unknown) {
       console.error('❌ EXCEPTION:', err)
