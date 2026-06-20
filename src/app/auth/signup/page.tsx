@@ -235,7 +235,7 @@ function SignUpForm() {
       <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-8 backdrop-blur-sm">
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-white mb-2">Buat Akun Gratis</h1>
-          <p className="text-white/40 text-sm">Mulai tracking trading Anda hari ini</p>
+          <p className="text-white/40 text-sm">Mulai catat trading kamu hari ini</p>
         </div>
 
         {/* Error Message */}
@@ -350,10 +350,10 @@ function SignUpForm() {
 
           {/* Terms */}
           <p className="text-xs text-white/40">
-            Dengan mendaftar, Anda menyetujui{' '}
-            <a href="#" className="text-amber-400 hover:text-amber-300">Terms of Service</a>
+            Dengan mendaftar, kamu setuju dengan{' '}
+            <a href="#" className="text-amber-400 hover:text-amber-300">Ketentuan Layanan</a>
             {' '}dan{' '}
-            <a href="#" className="text-amber-400 hover:text-amber-300">Privacy Policy</a>
+            <a href="#" className="text-amber-400 hover:text-amber-300">Kebijakan Privasi</a>
           </p>
 
           {/* Submit Button */}
@@ -365,11 +365,11 @@ function SignUpForm() {
             {isLoading ? (
               <>
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                Creating account...
+                Membuat akun...
               </>
             ) : (
               <>
-                Create Account
+                Daftar Sekarang
                 <ArrowRight className="w-5 h-5 ml-2" />
               </>
             )}
@@ -390,7 +390,7 @@ function SignUpForm() {
         <p className="text-center text-white/40 text-sm">
           Sudah punya akun?{' '}
           <Link href="/auth/login" className="text-amber-400 hover:text-amber-300 font-medium transition-colors">
-            Sign in
+            Login di sini
           </Link>
         </p>
       </div>

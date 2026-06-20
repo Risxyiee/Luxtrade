@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
       await db.profile.create({
         data: {
           id: user.id,
-          email: user.email,
+          email: user.email!.toLowerCase(),
           full_name: fullName,
           subscription_status: 'FREE',
           is_pro: false,
@@ -167,12 +167,13 @@ export async function POST(request: NextRequest) {
         await db.profile.update({
           where: { id: user.id },
           data: {
+            email: user.email!.toLowerCase(),
             emailVerified: false,
             emailVerifyToken: verifyToken,
             emailVerifyExpAt: verifyExpAt,
           }
         })
-        console.log('✅ Profile updated with verification token')
+        console.log('✅ Profile updated with verification token (email:', user.email!.toLowerCase(), ')')
       } else {
         console.error('⚠️ Profile creation error (non-fatal):', profileErr)
       }
@@ -187,7 +188,7 @@ export async function POST(request: NextRequest) {
     const name = fullName || email.split('@')[0]
 
     try {
-      console.log('📧 Sending confirmation email via Resend...')
+      console.log('📧 Sending confirmation email via Resend to:', email, 'URL:', confirmationUrl.substring(0, 80) + '...')
       const fallbackHtml = getConfirmationEmailHtml(name, confirmationUrl)
 
       const emailResult = await sendEmailFromTemplate({
