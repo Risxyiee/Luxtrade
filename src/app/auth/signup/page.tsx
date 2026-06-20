@@ -174,25 +174,31 @@ function SignUpForm() {
           <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-emerald-400" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Pendaftaran Berhasil!</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">Akun Berhasil Dibuat! 🎉</h2>
           <p className="text-white/60 text-sm mb-4">
-            Silakan cek email/spam kamu untuk verifikasi:
+            Kami sudah kirim email verifikasi ke:
           </p>
           <p className="text-amber-400 font-semibold text-lg mb-4">
             {email}
           </p>
 
-          <div className="bg-white/[0.03] rounded-lg p-4 mb-6">
+          <div className="bg-white/[0.03] rounded-lg p-4 mb-4">
             <p className="text-white/30 text-xs">
-              💡 <strong className="text-white/50">Tips:</strong> Tidak menerima email? Cek folder spam atau promosi.
+              📬 <strong className="text-white/50">Cek inbox, spam, atau folder promosi</strong> kamu. Email dari <span className="text-amber-400/70">noreply@luxtradee.web.id</span>
+            </p>
+          </div>
+
+          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-4 mb-6">
+            <p className="text-emerald-400/80 text-sm">
+              ✅ <strong>Langkah selanjutnya:</strong> Buka email, klik tombol "Verifikasi Email Saya", lalu login ke dashboard.
             </p>
           </div>
           <p className="text-white/40 text-sm mb-6">
-            Silakan verifikasi email, lalu login untuk masuk ke dashboard.
+            ⏰ Link verifikasi berlaku 24 jam.
           </p>
           <Button 
             onClick={() => router.push('/auth/login')}
-            className="w-full bg-gradient-to-r from-purple-500 to-violet-600 text-white font-semibold"
+            className="w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold shadow-lg shadow-amber-500/25"
           >
             Login Sekarang
             <ArrowRight className="w-4 h-4 ml-2" />
