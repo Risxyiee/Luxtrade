@@ -280,7 +280,7 @@ model PromoCode {
 model BugReport {
   id                String    @id @default(uuid())
   userId            String
-  description       String    @db.Text
+  description       String
   screenshotUrl     String?
   status            String    @default("PENDING")
   createdAt         DateTime  @default(now())
@@ -317,4 +317,16 @@ model PaymentOrder {
   @@index([invoiceNumber])
   @@index([status])
   @@map("payment_orders")
+}
+
+model EmailBroadcast {
+  id          String   @id @default(uuid())
+  target      String
+  subject     String
+  sentCount   Int      @default(0)
+  failedCount Int      @default(0)
+  sentBy      String?
+  createdAt   DateTime @default(now())
+
+  @@map("email_broadcasts")
 }
