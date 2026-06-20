@@ -11,7 +11,7 @@ import {
   ChevronRight, Star, Zap, Check, Crown,
   Activity, DollarSign, Users, Trophy, ChevronDown,
   MessageCircle, HelpCircle, Bot, Lock, ShieldCheck,
-  Clock, Mail, Zap as Lightning
+  Clock, Mail, Zap as Lightning, X
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -1359,23 +1359,30 @@ export default function LuxTradeLanding() {
                     {language === 'id' ? 'Kode Promo Anda' : 'Your Promo Code'}
                   </p>
                   <motion.div
-                    className="inline-flex items-center gap-4 px-8 py-6 bg-black/40 rounded-2xl border-2 border-amber-500/50 hover:border-amber-500 hover:bg-black/50 transition-all duration-300 cursor-pointer"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    className={`inline-flex items-center gap-4 px-8 py-6 bg-black/40 rounded-2xl border-2 transition-all duration-300 ${promoActive ? 'border-amber-500/50 hover:border-amber-500 hover:bg-black/50 cursor-pointer' : 'border-red-500/30 opacity-50 cursor-not-allowed'}`}
+                    whileHover={promoActive ? { scale: 1.02 } : {}}
+                    whileTap={promoActive ? { scale: 0.98 } : {}}
                     onClick={() => {
+                      if (!promoActive || (promoRemaining !== null && promoRemaining <= 0)) return
                       navigator.clipboard.writeText('TRADERCEPAT')
                       alert(language === 'id' ? 'Kode berhasil disalin!' : 'Code copied to clipboard!')
                     }}
                   >
-                    <span className="text-4xl font-extrabold bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent tracking-wider font-mono">
+                    <span className={`text-4xl font-extrabold bg-gradient-to-r ${promoActive ? 'from-amber-400 to-orange-400' : 'from-red-400 to-red-600'} bg-clip-text text-transparent tracking-wider font-mono ${!promoActive ? 'line-through' : ''}`}>
                       TRADERCEPAT
                     </span>
-                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                      <Check className="w-5 h-5 text-amber-400" />
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${promoActive ? 'bg-amber-500/20' : 'bg-red-500/20'}`}>
+                      {promoActive
+                        ? <Check className="w-5 h-5 text-amber-400" />
+                        : <X className="w-5 h-5 text-red-400" />
+                      }
                     </div>
                   </motion.div>
-                  <p className="text-white/40 text-sm mt-3">
-                    {language === 'id' ? 'Klik untuk menyalin kode' : 'Click to copy code'}
+                  <p className={`text-sm mt-3 ${promoActive ? 'text-white/40' : 'text-red-400'}`}>
+                    {promoActive
+                      ? (language === 'id' ? 'Klik untuk menyalin kode' : 'Click to copy code')
+                      : (language === 'id' ? 'Kuota habis' : 'Sold out')
+                    }
                   </p>
                 </div>
 
