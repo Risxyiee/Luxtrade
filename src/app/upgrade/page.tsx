@@ -111,7 +111,7 @@ function UpgradeForm() {
     setSuccess(false)
 
     try {
-      const res = await fetch('/api/promo-simple/apply', {
+      const res = await fetch('/api/promo/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
