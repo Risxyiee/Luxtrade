@@ -1803,3 +1803,24 @@ Stage Summary:
 - All auth pages are now fully in Indonesian (casual tone)
 - Email templates redesigned with premium gold/amber theme, consistent design system
 - Dev server OOM in sandbox - code verified via review, not runtime testing
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix verify-email failing - $executeRawUnsafe returns Result object for SELECT queries
+
+Work Log:
+- Analyzed production logs: verify-email receives valid token (64 chars, prefix 79248c9800) but fails to find profile
+- Identified root cause: `$executeRawUnsafe` returns a PostgreSQL Result object for SELECT queries, NOT an array of rows
+- Fixed verify-email route: changed `$executeRawUnsafe` to `$queryRawUnsafe` for the SELECT query
+- Added enhanced logging for Supabase fallback errors
+- Added Fallback 2: admin.listUsers() to search user_metadata for the token
+- Fixed signup route: also changed `$executeRawUnsafe` to `$queryRawUnsafe` for existing email check
+- Added token storage in Supabase user_metadata during signup (backup for Fallback 2)
+- Committed and pushed to GitHub (f46c4ca)
+
+Stage Summary:
+- Root cause: `db.$executeRawUnsafe` for SELECT returns `{ rowCount, rows }` Result object, not `rows[]`. Casting to `any[]` still gives the Result wrapper, so `rows?.[0]` is always undefined.
+- Fix: Use `db.$queryRawUnsafe` for SELECT queries (returns actual row array)
+- 3-tier token lookup: 1) Prisma $queryRaw → 2) Supabase profiles table → 3) admin.listUsers metadata search
+- Signup now stores token in user_metadata as backup for Fallback 3
+- Files modified: verify-email/route.ts, signup/route.ts
