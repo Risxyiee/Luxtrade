@@ -82,21 +82,23 @@ export async function POST(request: NextRequest) {
     await ensureDbMigrated()
 
     // Find profile with matching token using raw SQL
+    // IMPORTANT: Use $queryRawUnsafe for SELECT (returns rows[]), NOT $executeRawUnsafe (returns Result object)
     let profile: any = null
     try {
-      const rows = await db.$executeRawUnsafe(`
+      const rows = await db.$queryRawUnsafe<any>(`
         SELECT id, email, email_verified, email_verify_token, email_verify_exp_at, full_name
         FROM profiles WHERE email_verify_token = $1 LIMIT 1
-      `, token) as any[]
-      profile = rows?.[0] || null
+      `, token)
+      profile = Array.isArray(rows) ? rows[0] : null
+      if (!profile) console.warn('⚠️ $queryRaw returned:', typeof rows, JSON.stringify(rows)?.slice(0, 200))
     } catch (dbErr: any) {
-      console.warn('⚠️ Prisma query failed, trying Supabase fallback:', dbErr.message?.slice(0, 60))
+      console.warn('⚠️ Prisma query failed, trying Supabase fallback:', dbErr.message?.slice(0, 120))
     }
 
     if (!profile) {
       console.warn('⚠️ No Prisma profile found. Checking Supabase profiles table...')
 
-      // FALLBACK: Check Supabase profiles table
+      // FALLBACK 1: Check Supabase profiles table via service role
       try {
         const { data: supabaseProfile, error: sbError } = await supabaseAdmin
           .from('profiles')
@@ -104,8 +106,12 @@ export async function POST(request: NextRequest) {
           .eq('email_verify_token', token)
           .single()
 
+        if (sbError) {
+          console.warn('⚠️ Supabase profiles lookup error:', sbError.message, sbError.code)
+        }
+
         if (supabaseProfile && !sbError) {
-          console.log('✅ Found token in Supabase profiles table:', supabaseProfile.id)
+          console.log('✅ Found token in Supabase profiles table:', supabaseProfile.id, 'email:', supabaseProfile.email)
 
           // Check expiry
           if (supabaseProfile.email_verify_exp_at && new Date() > new Date(supabaseProfile.email_verify_exp_at)) {
@@ -140,8 +146,38 @@ export async function POST(request: NextRequest) {
             email: supabaseProfile.email
           })
         }
-      } catch (sbLookupErr) {
-        console.warn('⚠️ Supabase lookup failed:', sbLookupErr)
+      } catch (sbLookupErr: any) {
+        console.warn('⚠️ Supabase lookup failed:', sbLookupErr?.message || sbLookupErr)
+      }
+
+      // FALLBACK 2: Try searching via Supabase admin API (listUsers with metadata filter)
+      try {
+        console.log('🔍 Fallback 2: Searching via admin listUsers...')
+        const { data: { users }, error: listErr } = await supabaseAdmin.auth.admin.listUsers({
+          page: 1, perPage: 1000
+        })
+        if (!listErr && users) {
+          const matchedUser = users.find((u: any) => u.user_metadata?.email_verify_token === token)
+          if (matchedUser) {
+            console.log('✅ Found token in auth.users metadata for:', matchedUser.email)
+            await ensureSupabaseConfirmed(matchedUser.id)
+            // Also update Prisma
+            try {
+              await db.$executeRawUnsafe(`
+                UPDATE profiles SET email_verified = true, email_verify_token = NULL, 
+                  email_verify_exp_at = NULL, updated_at = now()
+                WHERE id = $1
+              `, matchedUser.id)
+            } catch { /* ignore */ }
+            return NextResponse.json({
+              success: true,
+              message: 'Email berhasil diverifikasi! Sekarang kamu bisa login.',
+              email: matchedUser.email
+            })
+          }
+        }
+      } catch (adminErr: any) {
+        console.warn('⚠️ Admin listUsers fallback failed:', adminErr?.message || adminErr)
       }
 
       return NextResponse.json(
