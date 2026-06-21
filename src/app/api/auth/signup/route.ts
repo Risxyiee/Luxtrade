@@ -222,41 +222,63 @@ export async function POST(request: NextRequest) {
       const ep = Array.isArray(existing) ? existing[0] : null
 
       if (ep) {
-        console.log('📧 Email already registered:', emailLower, 'verified:', ep.email_verified)
+        console.log('📧 Email sudah ada di profiles DB:', emailLower, 'verified:', ep.email_verified)
 
-        if (ep.email_verified) {
+        // Cek apakah user masih ada di Supabase Auth
+        let userStillExists = false
+        try {
+          const { data: { users }, error: listErr } = await supabaseAdmin.auth.admin.listUsers({
+            page: 1, perPage: 1000
+          })
+          if (!listErr && users) {
+            userStillExists = users.some((u: any) => u.email?.toLowerCase() === emailLower)
+          }
+        } catch { /* ignore */ }
+
+        if (!userStillExists) {
+          // User sudah dihapus dari Supabase Auth, tapi profil masih di DB
+          // Hapus profil lama supaya bisa signup ulang
+          console.log('🧹 User tidak ada di Auth, hapus profil lama untuk signup ulang:', ep.id)
+          try {
+            await db.$executeRawUnsafe(`DELETE FROM profiles WHERE id = $1`, ep.id)
+            console.log('✅ Profil lama dihapus')
+          } catch (delErr: any) {
+            console.warn('⚠️ Gagal hapus profil lama:', delErr?.message?.slice(0, 80))
+          }
+          // Lanjut ke signup (tidak return di sini)
+        } else if (ep.email_verified) {
           return NextResponse.json(
             { error: 'Email sudah terdaftar dan terverifikasi. Langsung login aja!', code: 'ALREADY_VERIFIED' },
             { status: 409 }
           )
-        }
+        } else {
+          // User ada tapi belum verifikasi — kirim ulang email
+          const newToken = generateVerifyToken()
+          const newExpAt = new Date(Date.now() + VERIFY_EXPIRY_MS)
+          try {
+            await db.$executeRawUnsafe(`
+              UPDATE profiles SET email_verify_token = $1, email_verify_exp_at = $2, updated_at = now()
+              WHERE id = $3
+            `, newToken, newExpAt, ep.id)
+          } catch { /* ignore */ }
 
-        // Resend verification
-        const newToken = generateVerifyToken()
-        const newExpAt = new Date(Date.now() + VERIFY_EXPIRY_MS)
-        try {
-          await db.$executeRawUnsafe(`
-            UPDATE profiles SET email_verify_token = $1, email_verify_exp_at = $2, updated_at = now()
-            WHERE id = $3
-          `, newToken, newExpAt, ep.id)
-        } catch { /* ignore */ }
+          const confirmationUrl = `${SITE_URL}/auth/verify?token=${newToken}`
+          const name = ep.full_name || fullName || emailLower.split('@')[0]
 
-        const confirmationUrl = `${SITE_URL}/auth/verify?token=${newToken}`
-        const name = ep.full_name || fullName || emailLower.split('@')[0]
+          try {
+            const fallbackHtml = getConfirmationEmailHtml(name, confirmationUrl)
+            await sendEmailFromTemplate({
+              to: emailLower, subject: 'Kirim Ulang: Verifikasi Akun LuxTrade 👑',
+              templateId: process.env.RESEND_TEMPLATE_CONFIRM || '',
+              templateParams: { name, confirmationUrl }, fallbackHtml,
+            })
+          } catch { /* ignore */ }
 
-        try {
-          const fallbackHtml = getConfirmationEmailHtml(name, confirmationUrl)
-          await sendEmailFromTemplate({
-            to: emailLower, subject: 'Kirim Ulang: Verifikasi Akun LuxTrade 👑',
-            templateId: process.env.RESEND_TEMPLATE_CONFIRM || '',
-            templateParams: { name, confirmationUrl }, fallbackHtml,
+          return NextResponse.json({
+            success: true, code: 'RESENT_VERIFICATION',
+            message: 'Email sudah terdaftar tapi belum diverifikasi. Kami kirim ulang link verifikasi!',
           })
-        } catch { /* ignore */ }
-
-        return NextResponse.json({
-          success: true, code: 'RESENT_VERIFICATION',
-          message: 'Email sudah terdaftar tapi belum diverifikasi. Kami kirim ulang link verifikasi!',
-        })
+        }
       }
     } catch { /* ignore, proceed to signup */ }
 
