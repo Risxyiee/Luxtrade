@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 1: Generate reset password link via admin API
-    // Include email in redirect URL so the reset page can use admin API fallback
-    const emailEncoded = encodeURIComponent(email.toLowerCase())
+    // Include email in redirect URL so the reset page can use it as admin API fallback
+    const emailEncoded = encodeURIComponent(email)
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email,
