@@ -212,15 +212,16 @@ export async function POST(request: NextRequest) {
 
     // ============================================
     // Step 0: Check if email already registered
+    // Use $queryRawUnsafe for SELECT (returns rows[])
     // ============================================
     try {
-      const existing = await db.$executeRawUnsafe(`
+      const existing = await db.$queryRawUnsafe<any>(`
         SELECT id, email, email_verified, full_name FROM profiles 
         WHERE email = $1 LIMIT 1
-      `, emailLower) as any[]
+      `, emailLower)
+      const ep = Array.isArray(existing) ? existing[0] : null
 
-      if (existing && existing.length > 0) {
-        const ep = existing[0]
+      if (ep) {
         console.log('📧 Email already registered:', emailLower, 'verified:', ep.email_verified)
 
         if (ep.email_verified) {
@@ -318,6 +319,20 @@ export async function POST(request: NextRequest) {
     })
 
     const savedToken = profileResult.token
+
+    // Also store token in Supabase user metadata as backup for verify-email fallback
+    try {
+      await supabaseAdmin.auth.admin.updateUserById(userId, {
+        user_metadata: {
+          ...userData?.user?.user_metadata,
+          email_verify_token: savedToken,
+          email_verify_exp_at: new Date(Date.now() + VERIFY_EXPIRY_MS).toISOString()
+        }
+      })
+      console.log('✅ Token stored in user metadata')
+    } catch (metaErr: any) {
+      console.warn('⚠️ Failed to store token in user metadata:', metaErr?.message?.slice(0, 80))
+    }
 
     // ============================================
     // Step 3: Send confirmation email
