@@ -1,10 +1,10 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, Suspense } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { 
   Crown, Mail, Lock, Eye, EyeOff, ArrowRight, 
   AlertCircle, Loader2, RefreshCw
@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -24,6 +24,8 @@ export default function LoginPage() {
   const [isResending, setIsResending] = useState(false)
   const [showResendButton, setShowResendButton] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectPath = searchParams.get('redirect') || '/dashboard'
 
   const handleResendVerification = async () => {
     if (!email) {
@@ -136,7 +138,7 @@ export default function LoginPage() {
 
         // HARD REDIRECT - Use window.location for immediate navigation
         // This ensures a full page reload and prevents "stuck" states
-        window.location.href = '/dashboard'
+        window.location.href = redirectPath
       } else {
         setError('Login gagal. Gagal membuat sesi, coba lagi ya.')
         setIsLoading(false)
@@ -327,5 +329,17 @@ export default function LoginPage() {
         </div>
       </motion.div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0a0612] flex items-center justify-center p-4">
+        <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }
