@@ -15,13 +15,21 @@ export interface DokuOrderParams {
   customerEmail: string
   plan: string
   durationMonths?: number
-  paymentType?: string  // e.g. 'VIRTUAL_ACCOUNT', 'E_WALLET', 'QRIS', 'CREDIT_CARD'
+  paymentType?: string
 }
 
 export interface DokuOrderResult {
   paymentUrl: string
   orderId: string
   invoiceNumber: string
+}
+
+/**
+ * Format amount for DOKU: "120000.00" (string with 2 decimal places)
+ * DOKU strictly requires 2 decimal places in the amount value.
+ */
+function formatAmount(amount: number): string {
+  return amount.toFixed(2)
 }
 
 /**
@@ -53,7 +61,6 @@ function generateSignature({
   digest: string
   secretKey: string
 }): string {
-  // Build signature components separated by \n
   const component = [
     `Client-Id:${clientId}`,
     `Request-Id:${requestId}`,
@@ -62,15 +69,12 @@ function generateSignature({
     `Digest:${digest}`,
   ].join('\n')
 
-  // HMAC-SHA256 with secret key, encoded as base64
   const hmac = crypto.createHmac('sha256', secretKey).update(component).digest('base64')
-
   return `HMACSHA256=${hmac}`
 }
 
 /**
  * Get current timestamp in ISO 8601 format (UTC)
- * DOKU expects: 2020-08-11T08:45:42Z
  */
 function getTimestamp(): string {
   return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
@@ -78,7 +82,6 @@ function getTimestamp(): string {
 
 /**
  * Create DOKU Checkout Payment Order
- * Docs: https://developers.doku.com/get-started-with-doku-api/signature-component/non-snap/signature-component-from-request-header
  */
 export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrderResult> {
   const { amount, invoiceId, customerName, customerEmail, plan, durationMonths, paymentType } = params
@@ -91,14 +94,15 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
   const timestamp = getTimestamp()
   const requestId = crypto.randomUUID()
 
-  // Jika user pilih metode bayar spesifik, kirim hanya itu ke DOKU
   const paymentMethodTypes = paymentType
     ? [paymentType]
-    : ['VIRTUAL_ACCOUNT', 'E_WALLET', 'QRIS', 'CREDIT_CARD', 'DIRECT_DEBIT', 'ONLINE_TO_OFFLINE']
+    : ['VIRTUAL_ACCOUNT', 'E_WALLET', 'QRIS', 'CREDIT_CARD']
 
-  const planLabel = durationMonths
+  const planLabel = durationMonths && durationMonths < 1200
     ? `LuxTrade ${plan} Plan - ${durationMonths} Bulan`
     : `LuxTrade ${plan} Plan`
+
+  const amountStr = formatAmount(amount)
 
   const requestBody = {
     payment: {
@@ -110,14 +114,14 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
     order: {
       invoice_number: invoiceId,
       amount: {
-        value: String(amount),
+        value: amountStr,
         currency: 'IDR',
       },
       line_items: [
         {
           name: planLabel,
           price: {
-            value: String(amount),
+            value: amountStr,
             currency: 'IDR',
           },
           quantity: 1,
@@ -132,19 +136,11 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
       email: customerEmail,
       phone: '-',
     },
-    environment: {
-      terminal: 'LuxTrade Web',
-    },
-    callback_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://luxtradee.web.id'}/api/payment/callback`,
-    return_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://luxtradee.web.id'}/dashboard`,
   }
 
   const bodyString = JSON.stringify(requestBody)
-
-  // Generate Digest (SHA256 base64 of body)
   const digest = generateDigest(bodyString)
 
-  // Generate Signature (HMAC-SHA256)
   const signature = generateSignature({
     clientId: DOKU_CLIENT_ID,
     requestId,
@@ -160,16 +156,17 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
     'Request-Id': requestId,
     'Request-Timestamp': timestamp,
     'Signature': signature,
+    'Digest': digest,
   }
 
   console.log('🛒 [DOKU] Creating order:', {
     url: `${DOKU_BASE_URL}${path}`,
     path,
     invoiceId,
-    amount,
+    amount: amountStr,
     plan,
     clientId: DOKU_CLIENT_ID.substring(0, 8) + '...',
-    digest: digest.substring(0, 20) + '...',
+    paymentMethodTypes,
   })
 
   try {
@@ -184,14 +181,13 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
     console.log('📦 [DOKU] Response body:', JSON.stringify(result).substring(0, 500))
 
     if (response.ok && result.response) {
-      // DOKU returns payment URL in response.payment.url
       const paymentUrl =
         result.response.payment?.url ||
         result.response.checkout_url ||
         result.response.redirect_url
 
       if (!paymentUrl) {
-        console.error('❌ [DOKU] No payment URL in response:', JSON.stringify(result).substring(0, 1000))
+        console.error('❌ [DOKU] No payment URL in response')
         throw new Error('No payment URL returned from DOKU')
       }
 
@@ -202,11 +198,11 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
       }
     }
 
-    // Handle DOKU error format
+    // Handle error
     const errorMessage =
       (Array.isArray(result.error?.message) ? result.error.message.join(', ') : result.error?.message) ||
       result.message ||
-      `DOKU API error: ${response.status} ${response.statusText}`
+      `DOKU API error: ${response.status}`
 
     console.error('❌ [DOKU] API Error:', errorMessage)
     throw new Error(errorMessage)
@@ -221,7 +217,6 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
 
 /**
  * Verify DOKU webhook/callback signature
- * Recreates the signature from the callback body and compares
  */
 export function verifyDokuCallback(
   signatureHeader: string | null,
@@ -231,21 +226,16 @@ export function verifyDokuCallback(
   if (!signatureHeader || !timestamp || !body) return false
 
   try {
-    // Generate digest from the received body
     const digest = generateDigest(body)
-
-    // Recreate signature (callback uses same format)
-    // For callbacks, Request-Target is usually the callback path
     const expectedSignature = generateSignature({
       clientId: DOKU_CLIENT_ID,
-      requestId: '', // Not always present in callbacks
+      requestId: '',
       timestamp,
       requestTarget: '/api/payment/callback',
       digest,
       secretKey: DOKU_SECRET_KEY,
     })
 
-    // Compare signatures (timing-safe)
     return crypto.timingSafeEqual(
       Buffer.from(signatureHeader, 'utf-8'),
       Buffer.from(expectedSignature, 'utf-8')
@@ -256,7 +246,7 @@ export function verifyDokuCallback(
 }
 
 /**
- * Get DOKU environment info (for debugging)
+ * Get DOKU config info
  */
 export function getDokuConfig() {
   return {
