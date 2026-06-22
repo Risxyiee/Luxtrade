@@ -2112,3 +2112,32 @@ Stage Summary:
 - Telegram link only available in collapsed manual transfer fallback section
 - Min amount validation enforced per method (QRIS: 500, GOPAY: 500, VA: 10000 etc.)
 
+---
+Task ID: 9
+Agent: Z.ai Code
+Task: Fix all payment modals — main button calls SakuraPay gateway, not Telegram
+
+Work Log:
+- Identified 3 payment modals with Telegram as primary action:
+  1. PaymentModal.tsx (used in dashboard)
+  2. PaymentConfirmationModal.tsx (used on landing page for lifetime)
+  3. PaymentInvoiceModal.tsx (already fixed in Task 8)
+- Rewrote PaymentModal.tsx: 
+  - Removed old bank transfer + Telegram flow
+  - Added 2-step SakuraPay gateway flow (category → specific method)
+  - Main button now calls /api/payment/create-order with paymentMethod
+  - Telegram moved to collapsed "Transfer Manual (Cadangan)" section
+- Rewrote PaymentConfirmationModal.tsx:
+  - Same 2-step SakuraPay gateway flow
+  - Main button creates order and opens SakuraPay gateway
+  - Telegram moved to small secondary link in collapsed section
+- Verified: All "Konfirmasi via Telegram" references now only appear inside collapsed fallback sections
+- Verified: All main buttons now show "Bayar Sekarang" and call handlePay() → create-order API
+- No lint errors in any modified files
+
+Stage Summary:
+- ALL 3 payment modals now use SakuraPay gateway as primary payment method
+- Telegram confirmation demoted to collapsed fallback section in all modals
+- User flow: Select category → Select method → Bayar Sekarang → SakuraPay gateway opens
+- Min amount validation enforced per method
+
