@@ -115,6 +115,8 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
     expiresAt: string
     paymentUrl: string
     orderId: string
+    plan: string
+    durationMonths: number
   } | null>(null)
 
   const handlePlanSelect = async (plan: Plan) => {
@@ -126,52 +128,21 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
     setSelectedPlan(plan)
     setIsLoading(plan.id)
 
-    try {
-      const response = await fetch('/api/payment/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: plan.price,
-          plan: plan.id === 'lifetime-ultra' ? 'LIFETIME' : 'PRO',
-          durationMonths: plan.durationMonths,
-        })
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || data.details || 'Gagal membuat pesanan')
-      }
-
-      if (data.paymentUrl) {
-        // Show invoice modal then redirect to payment
-        setInvoiceData({
-          invoiceNumber: data.invoiceNumber,
-          planName: plan.name,
-          duration: plan.duration,
-          amount: data.amount || plan.price,
-          expiresAt: data.expiresAt,
-          paymentUrl: data.paymentUrl,
-          orderId: data.orderId,
-        })
-        setShowInvoice(true)
-      }
-    } catch (error: any) {
-      console.error('Payment order error:', error)
-      // Fall through to show invoice with manual bank transfer option
-      setInvoiceData({
-        invoiceNumber: `LUX-${plan.id}-${Date.now()}`,
-        planName: plan.name,
-        duration: plan.duration,
-        amount: plan.price,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        paymentUrl: '',
-        orderId: '',
-      })
-      setShowInvoice(true)
-    } finally {
-      setIsLoading(null)
-    }
+    // Generate invoice data locally — PaymentInvoiceModal will handle the API call
+    const invoiceNumber = `LUX-${plan.id}-${Date.now()}`
+    setInvoiceData({
+      invoiceNumber,
+      planName: plan.name,
+      duration: plan.duration,
+      amount: plan.price,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      paymentUrl: '',
+      orderId: '',
+      plan: plan.id === 'lifetime-ultra' ? 'LIFETIME' : 'PRO',
+      durationMonths: plan.durationMonths,
+    })
+    setShowInvoice(true)
+    setIsLoading(null)
   }
 
   const handleInvoiceClose = () => {
@@ -417,6 +388,9 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
           amount={invoiceData.amount}
           expiresAt={invoiceData.expiresAt}
           paymentUrl={invoiceData.paymentUrl}
+          orderId={invoiceData.orderId}
+          plan={invoiceData.plan}
+          durationMonths={invoiceData.durationMonths}
           onPayNow={handlePayNow}
         />
       )}
