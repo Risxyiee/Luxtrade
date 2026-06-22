@@ -154,6 +154,11 @@ export default function PaymentInvoiceModal({
   const [payError, setPayError] = useState('')
   const [showManualTransfer, setShowManualTransfer] = useState(false)
 
+  // Confirm payment button state
+  const [confirming, setConfirming] = useState(false)
+  const [confirmMessage, setConfirmMessage] = useState('')
+  const [confirmType, setConfirmType] = useState<'info' | 'success' | 'error'>('info')
+
   // Derived: is this order fully paid?
   const isPaid = orderStatus === 'SUCCESS'
   const isExpired = orderStatus === 'EXPIRED'
@@ -276,6 +281,56 @@ export default function PaymentInvoiceModal({
     navigator.clipboard.writeText(text)
     setCopied(id)
     setTimeout(() => setCopied(null), 2000)
+  }
+
+  // ============================================
+  // CONFIRM PAYMENT HANDLER (Saya Sudah Bayar)
+  // ============================================
+  const handleConfirmPayment = async () => {
+    setConfirming(true)
+    setConfirmMessage('')
+
+    try {
+      const res = await fetch('/api/payment/confirm-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoiceNumber: realInvoiceNumber }),
+      })
+
+      const data = await res.json()
+
+      if (data.success && data.status === 'SUCCESS') {
+        // Payment confirmed!
+        setConfirmType('success')
+        setConfirmMessage('Pembayaran berhasil dikonfirmasi! Mengaktifkan paket...')
+        isPaidRef.current = true
+        setOrderStatus('SUCCESS')
+        setPaidAtDate(data.paidAt || new Date().toISOString())
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current)
+          pollingRef.current = null
+        }
+      } else if (data.status === 'PENDING') {
+        setConfirmType('info')
+        setConfirmMessage(data.hint || data.message || 'Pembayaran belum terdeteksi. Coba lagi dalam 1-2 menit.')
+      } else if (data.status === 'EXPIRED') {
+        setConfirmType('error')
+        setConfirmMessage(data.message || 'Invoice sudah kedaluwarsa.')
+        setOrderStatus('EXPIRED')
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current)
+          pollingRef.current = null
+        }
+      } else {
+        setConfirmType('info')
+        setConfirmMessage(data.message || 'Tidak dapat memeriksa status pembayaran.')
+      }
+    } catch (err: any) {
+      setConfirmType('error')
+      setConfirmMessage('Gagal terhubung ke server. Coba lagi.')
+    } finally {
+      setConfirming(false)
+    }
   }
 
   const handleCategorySelect = (catType: string) => {
@@ -622,7 +677,7 @@ export default function PaymentInvoiceModal({
                     <div className="text-center">
                       <p className="text-lg font-bold text-blue-300">Menunggu Konfirmasi</p>
                       <p className="text-sm text-white/60 mt-1">
-                        Selesaikan pembayaran di tab yang baru dibuka. Status akan otomatis berubah.
+                        Selesaikan pembayaran di tab yang baru dibuka, lalu klik "Saya Sudah Bayar" di bawah.
                       </p>
                     </div>
                     <Badge className="bg-blue-500/20 text-blue-300 text-xs animate-pulse">
@@ -653,6 +708,54 @@ export default function PaymentInvoiceModal({
                       </div>
                     </div>
                   </div>
+
+                  {/* Confirmation feedback message */}
+                  {confirmMessage && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`rounded-2xl p-4 flex items-start gap-3 ${
+                        confirmType === 'success'
+                          ? 'bg-emerald-500/10 border border-emerald-500/25'
+                          : confirmType === 'error'
+                            ? 'bg-red-500/10 border border-red-500/25'
+                            : 'bg-amber-500/10 border border-amber-500/25'
+                      }`}
+                    >
+                      {confirmType === 'success' ? (
+                        <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                      ) : confirmType === 'error' ? (
+                        <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                      ) : (
+                        <Clock className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                      )}
+                      <p className={`text-sm leading-relaxed ${
+                        confirmType === 'success'
+                          ? 'text-emerald-300'
+                          : confirmType === 'error'
+                            ? 'text-red-300'
+                            : 'text-amber-300'
+                      }`}>
+                        {confirmMessage}
+                      </p>
+                    </motion.div>
+                  )}
+
+                  {/* ===== "SAYA SUDAH BAYAR" BUTTON ===== */}
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleConfirmPayment}
+                    disabled={confirming}
+                    className="w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-3 bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-500 hover:from-emerald-400 hover:via-green-400 hover:to-emerald-400 text-white shadow-lg shadow-emerald-500/25 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {confirming ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-5 h-5" />
+                    )}
+                    {confirming ? 'Memeriksa Status Pembayaran...' : 'Saya Sudah Bayar'}
+                  </motion.button>
 
                   {/* Retry open gateway */}
                   {paymentUrl && (
