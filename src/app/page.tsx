@@ -1806,8 +1806,8 @@ export default function LuxTradeLanding() {
       </footer>
 
       {/* Payment Modals */}
-      <PaymentConfirmationModal isOpen={showPayment} onClose={() => setShowPayment(false)} />
-      <PaymentConfirmationModal isOpen={showLifetimePaymentModal} onClose={() => setShowLifetimePaymentModal(false)} />
+      <PaymentConfirmationModal isOpen={showPayment} onClose={() => setShowPayment(false)} planName="Elite Pro" planPrice={49000} />
+      <PaymentConfirmationModal isOpen={showLifetimePaymentModal} onClose={() => setShowLifetimePaymentModal(false)} planName="Lifetime Ultra" planPrice={52000} />
     </div>
   )
 }
