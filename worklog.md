@@ -2005,3 +2005,26 @@ Stage Summary:
 - DOKU fix: amount.value is now integer 52000 (not string "52000.00"), quantity is integer 1
 - Button fix: root cause was onTouchEnd preventDefault blocking onClick on mobile + touchAction:'pan-y' on parent overriding child's touch-action:manipulation
 - Both fixes committed and pushed to GitHub main branch
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Migrate payment gateway from DOKU to SakuraPay
+
+Work Log:
+- Read SakuraPay API docs from https://sakurupiah.id/developers/api-dokumentasi
+- SakuraPay API: form-data POST, Bearer token auth, HMAC-SHA256 signature
+- Signature = HMAC-SHA256(api_id + method + merchant_ref + amount, api_key)
+- Callback uses X-Callback-Signature header, body {trx_id, merchant_ref, status, status_kode}
+- Deleted src/lib/payment/doku.ts
+- Created src/lib/payment/sakura.ts with full integration
+- Rewrote /api/payment/create-order and /api/payment/callback for SakuraPay
+- Updated UpgradeFormClient: 6 payment methods (BCAVA, BNIVA, QRIS, GOPAY, DANA, ShopeePay)
+- Removed all DOKU references from UI text
+- All files pass lint
+- Pushed to GitHub: 5859797
+
+Stage Summary:
+- Payment gateway fully migrated from DOKU to SakuraPay
+- New env vars needed: SAKURA_API_ID, SAKURA_API_KEY, SAKURA_ENV, SAKURA_CALLBACK_URL, SAKURA_RETURN_URL
+- DB schema fields (dokuPaymentUrl, dokuTransactionId) kept as-is to avoid migration
