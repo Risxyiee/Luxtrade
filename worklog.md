@@ -1984,3 +1984,24 @@ Stage Summary:
 - Payment buttons: 4 layers of defense against non-clickable issue
 - Edge runtime: explicit runtime='nodejs' export as final guarantee
 - User needs to wait for Vercel rebuild to see changes in production
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix DOKU "Invalid amount format" + payment buttons not clickable
+
+Work Log:
+- Analyzed uploaded screenshot (IMG_6917.png) via VLM - payment buttons visually correct but not tappable
+- Read doku.ts - found formatAmount() still returning string "52000.00" via toFixed(2), NOT integer
+- Read UpgradeFormClient.tsx - found TWO critical mobile bugs:
+  1. onTouchEnd handler with e.preventDefault() was BLOCKING onClick on mobile browsers
+  2. Container div had touchAction:'pan-y' inline style overriding button's touch-action:manipulation
+- Fixed doku.ts: changed formatAmount() from toFixed(2) to Math.round(), quantity from "1" to 1
+- Fixed UpgradeFormClient.tsx: removed onTouchEnd, removed container touchAction, simplified button markup
+- Lint passes cleanly on both files
+- Pushed to GitHub: e7dafbc
+
+Stage Summary:
+- DOKU fix: amount.value is now integer 52000 (not string "52000.00"), quantity is integer 1
+- Button fix: root cause was onTouchEnd preventDefault blocking onClick on mobile + touchAction:'pan-y' on parent overriding child's touch-action:manipulation
+- Both fixes committed and pushed to GitHub main branch
