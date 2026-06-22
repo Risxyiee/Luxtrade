@@ -8,6 +8,38 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 const BATCH_SIZE = 50
 const CONCURRENT_LIMIT = 5
 
+// GET handler: Send test email to admin
+export async function GET(request: NextRequest) {
+  try {
+    const adminEmail = request.headers.get('x-admin-email')
+    if (!adminEmail || !ADMIN_EMAILS.includes(adminEmail.toLowerCase())) {
+      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 })
+    }
+
+    const subject = request.nextUrl.searchParams.get('subject') || 'Test Email — LuxTrade'
+    const htmlBody = request.nextUrl.searchParams.get('htmlBody') || '<p>Ini email test dari Admin Panel LuxTrade.</p>'
+
+    const personalizedSubject = subject.replace(/\{\{name\}\}/g, 'Admin').replace(/\{\{email\}\}/g, adminEmail)
+    const personalizedHtml = htmlBody.replace(/\{\{name\}\}/g, 'Admin').replace(/\{\{email\}\}/g, adminEmail)
+
+    const result = await sendEmail({
+      to: adminEmail,
+      subject: personalizedSubject,
+      html: personalizedHtml,
+    })
+
+    if (result.success) {
+      return NextResponse.json({ success: true, message: 'Test email terkirim!' })
+    } else {
+      return NextResponse.json({ success: false, error: 'Gagal mengirim test email' }, { status: 500 })
+    }
+  } catch (error: unknown) {
+    console.error('❌ Test email error:', error)
+    const msg = error instanceof Error ? error.message : 'Terjadi kesalahan server'
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Admin check

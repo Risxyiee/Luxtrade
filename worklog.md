@@ -2252,3 +2252,94 @@ Stage Summary:
 - API checks SakuraPay directly — no dependency on webhook callback
 - If SakuraPay confirms payment → order immediately marked SUCCESS + subscription activated
 - Clear feedback messages guide users through the confirmation process
+
+---
+Task ID: 1
+Agent: Z.ai Code
+Task: Redesign ALL email templates from dark theme to clean, professional white/light design
+
+Work Log:
+- Read existing worklog and all email template files to understand current dark theme design
+- Identified 2 static HTML templates (resend-templates/) and 10 template sections in src/lib/email.ts
+- Redesigned `/home/z/my-project/resend-templates/confirm-signup.html`:
+  - Changed body bg from #0a0612 to #f4f4f7
+  - Changed card from dark gradient to #ffffff with #e5e7eb border
+  - Changed all text colors to high-contrast dark (#1a1a2e, #555770, #8b8da0)
+  - Changed CTA button to amber gradient (#f59e0b → #d97706)
+  - Updated fallback link box to #fef3c7 with #b45309 text
+  - Updated dividers to #e5e7eb
+- Redesigned `/home/z/my-project/resend-templates/reset-password.html`:
+  - Same light design system applied
+  - Warning box changed from dark red overlay to #fef2f2 bg with #fecaca border and #dc2626 text
+  - Lock icon bg changed to #fef3c7
+- Redesigned 3 Supabase template constants in email.ts:
+  - SUPABASE_CONFIRM_SIGNUP: Full light redesign with #f4f4f7 bg, #ffffff card, amber accents
+  - SUPABASE_RESET_PASSWORD: Light design with #fef2f2 warning box, #dc2626 danger text
+  - SUPABASE_CHANGE_EMAIL: Light design with #eff6ff info bg for new email display, #fef2f2 security warning
+- Redesigned 7 programmatic template functions in email.ts:
+  - getConfirmationEmailHtml: Amber accent, #fef3c7 features box, "Selamat Datang" greeting
+  - getReminderVerificationEmailHtml: Amber accent, #fef3c7 benefits box, orange-gold urgency
+  - getResetPasswordEmailHtml: Amber accent, #fef2f2/#fecaca warning box with #dc2626 text
+  - getEmailChangeHtml: #eff6ff blue-purple accent for email display, #fef2f2 security warning
+  - getWelcomeEmailHtml: #059669 green success accent, #ecfdf5 features box, green bullet points
+  - getPromotionalEmailHtml: Gold accent, clean wrapper with dynamic body area, #b45309 unsubscribe link
+  - getUnverifiedBulkReminderHtml: Orange urgency accent, #fef3c7 "why verify?" box
+- Consistent design system across all templates:
+  - Body: #f4f4f7, Card: #ffffff, Border: #e5e7eb
+  - Primary text: #1a1a2e, Secondary: #555770, Muted: #8b8da0
+  - Brand accent: #f59e0b, Brand dark: #b45309
+  - CTA buttons: gradient #f59e0b → #d97706, 12px rounded, 16px padding
+  - All fallback links are clickable <a> tags with underlines
+  - Font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif
+- No lint errors introduced in email.ts
+- No changes to export names or function signatures — only HTML/CSS template content changed
+- Dev server restarted successfully
+
+Stage Summary:
+- All 9 email templates (2 static + 3 Supabase + 7 programmatic) redesigned to clean white/light theme
+- High contrast dark text on light backgrounds for maximum readability in all email clients
+- Consistent LuxTrade brand identity with amber/gold CTA buttons
+- Template-specific accent colors preserved (green for welcome, red for security warnings, blue-purple for email change)
+
+---
+Task ID: 1
+Agent: full-stack-developer (subagent)
+Task: Redesign ALL email templates from dark theme to clean, professional light theme
+
+Work Log:
+- Redesigned 2 static HTML templates: `resend-templates/confirm-signup.html`, `resend-templates/reset-password.html`
+- Redesigned 3 Supabase template constants: SUPABASE_CONFIRM_SIGNUP, SUPABASE_RESET_PASSWORD, SUPABASE_CHANGE_EMAIL
+- Redesigned 7 programmatic template functions: getConfirmationEmailHtml, getReminderVerificationEmailHtml, getResetPasswordEmailHtml, getEmailChangeHtml, getWelcomeEmailHtml, getPromotionalEmailHtml, getUnverifiedBulkReminderHtml
+- Applied consistent design system: white card on light gray (#f4f4f7) background, near-black text (#1a1a2e), amber CTA buttons, proper fallback links
+- All templates are mobile-friendly, table-based for email compatibility
+
+Stage Summary:
+- All 12 email templates converted from dark (#09050f) to light (#f4f4f7 + #ffffff) design
+- High contrast dark text on light backgrounds ensures readability in all email clients
+- Consistent LuxTrade branding maintained across all templates
+---
+Task ID: 2
+Agent: main
+Task: Upgrade Admin Email Broadcast page with Rich Text Editor
+
+Work Log:
+- Installed `react-quill-new` package for rich text editing
+- Rewrote `/home/z/my-project/src/app/admin-email/page.tsx` with:
+  - React Quill rich text editor with full toolbar (bold, italic, underline, headings, lists, links, images, colors, alignment)
+  - Visual/HTML toggle to switch between rich editor and raw HTML source
+  - 3 broadcast templates (Promo PRO, Maintenance Notice, New Feature) with pre-filled content
+  - Confirmation dialog before sending (shows target, recipient count, subject)
+  - Send Test Email button (GET endpoint to admin's own email)
+  - Character count and word count display
+  - Estimated delivery time based on recipient count
+  - Dark theme styling for Quill editor (custom CSS overrides)
+  - AnimatePresence for smooth preview/result animations
+- Added GET handler to `/home/z/my-project/src/app/api/admin/email-broadcast/route.ts` for test email sending
+- Build verification passed with no errors
+
+Stage Summary:
+- Admin email broadcast page fully upgraded with rich text editor
+- Template presets for common broadcast types
+- Confirmation dialog prevents accidental sends
+- Test email feature allows admin to preview before mass sending
+- All existing features preserved (target tabs, stats, history, batch sending)

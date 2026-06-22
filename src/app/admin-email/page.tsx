@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
+import dynamic from 'next/dynamic'
 import {
   Mail, Send, Loader2, Users, ShieldCheck, Crown, UserX,
   CheckCircle, XCircle, Clock, AlertTriangle, Eye, EyeOff,
-  ArrowLeft, BarChart3,
+  ArrowLeft, BarChart3, FileText, Megaphone, Settings,
+  Code, Paintbrush, Vibrate, FlaskConical, ChevronDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -15,9 +17,39 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose
+} from '@/components/ui/dialog'
 import { toast } from 'sonner'
 
+const ReactQuill = dynamic(() => import('react-quill-new'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-64 bg-white/[0.03] border border-white/[0.08] rounded-lg flex items-center justify-center">
+      <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
+    </div>
+  ),
+})
+
 const ADMIN_EMAIL = 'luxtradee@gmail.com'
+
+// Quill toolbar modules
+const QUILL_MODULES = {
+  toolbar: [
+    [{ header: [1, 2, 3, false] }],
+    ['bold', 'italic', 'underline', 'strike'],
+    [{ color: [] }, { background: [] }],
+    [{ list: 'ordered' }, { list: 'bullet' }],
+    ['link', 'image'],
+    [{ align: [] }],
+    ['clean'],
+  ],
+}
+
+const QUILL_FORMATS = [
+  'header', 'bold', 'italic', 'underline', 'strike',
+  'color', 'background', 'list', 'link', 'image', 'align',
+]
 
 interface EmailStats {
   total: number
@@ -35,6 +67,71 @@ interface EmailStats {
     createdAt: string
   }[]
 }
+
+interface BroadcastTemplate {
+  value: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  subject: string
+  body: string
+}
+
+const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
+  {
+    value: 'custom',
+    label: 'Custom',
+    icon: FileText,
+    subject: '',
+    body: '',
+  },
+  {
+    value: 'promo-pro',
+    label: 'Promo PRO',
+    icon: Crown,
+    subject: '🔥 Promo Spesial: Upgrade ke PRO LuxTrade Sekarang!',
+    body: `<h2 style="color: #f59e0b; margin-bottom: 16px;">Upgrade ke PRO & Raih Keuntungan Lebih Banyak!</h2>
+<p style="color: #555770; line-height: 1.7; margin-bottom: 16px;">Halo {{name}},</p>
+<p style="color: #555770; line-height: 1.7; margin-bottom: 16px;">Kami punya <strong>penawaran spesial</strong> buat kamu! Upgrade ke akun PRO LuxTrade sekarang dan nikmatin semua fitur premium:</p>
+<ul style="color: #555770; line-height: 2; margin-bottom: 16px; padding-left: 20px;">
+  <li>📊 Analisa AI yang lebih mendalam</li>
+  <li>📈 Unlimited trading journal entries</li>
+  <li>🎯 Personalized trading insights</li>
+  <li>⚡ Priority support</li>
+</ul>
+<p style="color: #555770; line-height: 1.7; margin-bottom: 16px;">Jangan lewatkan kesempatan ini! Promo terbatas hanya untuk pengguna setia LuxTrade.</p>
+<p style="margin-top: 20px;"><a href="https://luxtradee.web.id/dashboard" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; text-decoration: none; border-radius: 12px; font-weight: 700;">Upgrade ke PRO Sekarang →</a></p>`,
+  },
+  {
+    value: 'maintenance',
+    label: 'Maintenance Notice',
+    icon: Settings,
+    subject: '🔧 Pemberitahuan Maintenance LuxTrade',
+    body: `<h2 style="color: #dc2626; margin-bottom: 16px;">Pemeliharaan Sistem Terjadwal</h2>
+<p style="color: #555770; line-height: 1.7; margin-bottom: 16px;">Halo {{name}},</p>
+<p style="color: #555770; line-height: 1.7; margin-bottom: 16px;">Kami akan melakukan <strong>pemeliharaan sistem</strong> pada LuxTrade untuk meningkatkan performa dan keamanan layanan kami.</p>
+<div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+  <p style="color: #92400e; margin: 0;"><strong>⏰ Waktu:</strong> [Tanggal dan jam maintenance]</p>
+  <p style="color: #92400e; margin: 8px 0 0 0;"><strong>⏱️ Estimasi durasi:</strong> [Durasi maintenance]</p>
+</div>
+<p style="color: #555770; line-height: 1.7; margin-bottom: 16px;">Selama maintenance, beberapa fitur mungkin tidak tersedia sementara. Data kamu akan <strong>aman dan terlindungi</strong>.</p>
+<p style="color: #555770; line-height: 1.7;">Terima kasih atas pengertiannya. 🙏</p>`,
+  },
+  {
+    value: 'new-feature',
+    label: 'New Feature',
+    icon: Megaphone,
+    subject: '🚀 Fitur Baru di LuxTrade!',
+    body: `<h2 style="color: #059669; margin-bottom: 16px;">Fitur Baru Telah Hadir!</h2>
+<p style="color: #555770; line-height: 1.7; margin-bottom: 16px;">Halo {{name}},</p>
+<p style="color: #555770; line-height: 1.7; margin-bottom: 16px;">Kami dengan senang hati memperkenalkan <strong>fitur terbaru</strong> di LuxTrade!</p>
+<div style="background: #ecfdf5; border: 1px solid #a7f3d0; padding: 20px; border-radius: 12px; margin-bottom: 16px;">
+  <h3 style="color: #059669; margin: 0 0 12px 0;">✨ [Nama Fitur Baru]</h3>
+  <p style="color: #555770; line-height: 1.7; margin: 0;">[Deskripsi singkat fitur baru dan manfaatnya untuk pengguna]</p>
+</div>
+<p style="color: #555770; line-height: 1.7; margin-bottom: 16px;">Coba fitur baru ini sekarang dan rasakan pengalaman trading yang lebih baik bersama LuxTrade!</p>
+<p style="margin-top: 20px;"><a href="https://luxtradee.web.id/dashboard" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; text-decoration: none; border-radius: 12px; font-weight: 700;">Coba Sekarang →</a></p>`,
+  },
+]
 
 const TARGET_OPTIONS = [
   { value: 'unverified', label: 'Belum Verifikasi', icon: UserX, color: 'text-orange-400', badge: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
@@ -54,7 +151,11 @@ export default function AdminEmailPage() {
   const [htmlBody, setHtmlBody] = useState('')
   const [sending, setSending] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [editorMode, setEditorMode] = useState<'visual' | 'html'>('visual')
+  const [selectedTemplate, setSelectedTemplate] = useState('custom')
   const [result, setResult] = useState<{ sent: number; failed: number; errors: string[] } | null>(null)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [sendingTest, setSendingTest] = useState(false)
 
   // Admin check
   useEffect(() => {
@@ -106,13 +207,29 @@ export default function AdminEmailPage() {
       setSubject('Hei {{name}}, akun kamu belum diverifikasi nih 😅')
       setHtmlBody('')
     } else {
+      if (selectedTemplate === 'custom') {
+        setSubject('')
+        setHtmlBody('')
+      }
+    }
+    setResult(null)
+  }, [selectedTarget, selectedTemplate])
+
+  // Apply template
+  const handleTemplateChange = (templateValue: string) => {
+    setSelectedTemplate(templateValue)
+    const tmpl = BROADCAST_TEMPLATES.find(t => t.value === templateValue)
+    if (tmpl && templateValue !== 'custom') {
+      setSubject(tmpl.subject)
+      setHtmlBody(tmpl.body)
+    } else if (templateValue === 'custom') {
       setSubject('')
       setHtmlBody('')
     }
     setResult(null)
-  }, [selectedTarget])
+  }
 
-  const handleSend = async () => {
+  const handleSendTestEmail = async () => {
     if (!subject.trim()) {
       toast.error('Subject email wajib diisi')
       return
@@ -122,6 +239,45 @@ export default function AdminEmailPage() {
       return
     }
 
+    setSendingTest(true)
+    try {
+      const params = new URLSearchParams({
+        subject: subject,
+        htmlBody: selectedTarget === 'unverified'
+          ? '<p>Ini adalah test email untuk template reminder verifikasi.</p><p>Teks ini hanya untuk preview.</p>'
+          : htmlBody,
+      })
+      const res = await fetch(`/api/admin/email-broadcast?${params.toString()}`, {
+        headers: { 'x-admin-email': ADMIN_EMAIL },
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success('✅ Test email terkirim ke inbox kamu!')
+      } else {
+        toast.error(data.error || 'Gagal mengirim test email')
+      }
+    } catch (err) {
+      console.error('Test email error:', err)
+      toast.error('Terjadi kesalahan saat mengirim test email')
+    } finally {
+      setSendingTest(false)
+    }
+  }
+
+  const handleOpenConfirmDialog = () => {
+    if (!subject.trim()) {
+      toast.error('Subject email wajib diisi')
+      return
+    }
+    if (selectedTarget !== 'unverified' && !htmlBody.trim()) {
+      toast.error('Konten email wajib diisi')
+      return
+    }
+    setShowConfirmDialog(true)
+  }
+
+  const handleSend = async () => {
+    setShowConfirmDialog(false)
     setSending(true)
     setResult(null)
 
@@ -144,7 +300,6 @@ export default function AdminEmailPage() {
       if (res.ok) {
         setResult(data)
         toast.success(`Email terkirim! ${data.sent} berhasil, ${data.failed} gagal`)
-        // Refresh stats
         const statsRes = await fetch('/api/admin/email-stats', {
           headers: { 'x-admin-email': ADMIN_EMAIL },
         })
@@ -173,6 +328,8 @@ export default function AdminEmailPage() {
   if (!isAdmin) return null
 
   const currentTarget = TARGET_OPTIONS.find(t => t.value === selectedTarget)
+  const recipientCount = stats ? (stats[currentTarget?.value as keyof EmailStats] as number) : 0
+  const estimatedMinutes = Math.ceil(recipientCount / (5 * 10)) // ~10 emails/sec with 5 concurrent
 
   return (
     <div className="min-h-screen bg-[#0a0612]">
@@ -227,7 +384,7 @@ export default function AdminEmailPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="lg:col-span-2"
+            className="lg:col-span-2 space-y-4"
           >
             <Card className="bg-[#1a0f2e]/50 border-white/[0.06] backdrop-blur-sm">
               <CardHeader className="pb-4">
@@ -262,22 +419,53 @@ export default function AdminEmailPage() {
                     </TabsList>
                   </Tabs>
 
-                  {/* Show target count */}
+                  {/* Show target count & estimated time */}
                   {stats && currentTarget && (
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-3 text-sm">
                       <Badge variant="outline" className={currentTarget.badge}>
-                        {stats[currentTarget.value as keyof EmailStats] as number} user
+                        {recipientCount} user
                       </Badge>
-                      <span className="text-white/40">akan menerima email ini (maks 50 per batch)</span>
+                      <span className="text-white/40">
+                        akan menerima email ini (maks 50/batch)
+                        {estimatedMinutes > 0 && (
+                          <span className="ml-1">· est. ~{estimatedMinutes} menit</span>
+                        )}
+                      </span>
                     </div>
                   )}
                 </div>
 
+                {/* Template Selection (non-unverified) */}
+                {selectedTarget !== 'unverified' && (
+                  <div className="space-y-2">
+                    <Label className="text-white/70 text-sm font-medium">Template</Label>
+                    <div className="relative">
+                      <select
+                        value={selectedTemplate}
+                        onChange={(e) => handleTemplateChange(e.target.value)}
+                        className="w-full appearance-none bg-white/[0.03] border border-white/[0.08] text-white text-sm rounded-lg px-3 py-2.5 pr-10 focus:outline-none focus:border-amber-500/40 focus:ring-amber-500/20"
+                      >
+                        {BROADCAST_TEMPLATES.map(tmpl => (
+                          <option key={tmpl.value} value={tmpl.value} className="bg-[#1a0f2e] text-white">
+                            {tmpl.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
+                    </div>
+                  </div>
+                )}
+
                 {/* Subject */}
                 <div className="space-y-2">
-                  <Label htmlFor="subject" className="text-white/70 text-sm font-medium">
-                    Subject Email
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="subject" className="text-white/70 text-sm font-medium">
+                      Subject Email
+                    </Label>
+                    <span className="text-[11px] text-white/30">
+                      {subject.length} karakter
+                    </span>
+                  </div>
                   <Input
                     id="subject"
                     value={subject}
@@ -290,51 +478,198 @@ export default function AdminEmailPage() {
                   </p>
                 </div>
 
-                {/* HTML Body (hidden for unverified) */}
+                {/* Rich Text Editor (non-unverified) */}
                 {selectedTarget !== 'unverified' && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="htmlBody" className="text-white/70 text-sm font-medium">
-                        Konten Email (HTML)
+                      <Label className="text-white/70 text-sm font-medium">
+                        Konten Email
                       </Label>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowPreview(!showPreview)}
-                        className="text-white/40 hover:text-white/70 text-xs"
-                      >
-                        {showPreview ? <EyeOff className="w-3.5 h-3.5 mr-1.5" /> : <Eye className="w-3.5 h-3.5 mr-1.5" />}
-                        {showPreview ? 'Tutup Preview' : 'Preview'}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        {/* Editor mode toggle */}
+                        <div className="flex items-center bg-white/[0.03] border border-white/[0.06] rounded-lg p-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setEditorMode('visual')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all ${
+                              editorMode === 'visual'
+                                ? 'bg-white/[0.08] text-white'
+                                : 'text-white/40 hover:text-white/60'
+                            }`}
+                          >
+                            <Paintbrush className="w-3.5 h-3.5" />
+                            Visual
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditorMode('html')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all ${
+                              editorMode === 'html'
+                                ? 'bg-white/[0.08] text-white'
+                                : 'text-white/40 hover:text-white/60'
+                            }`}
+                          >
+                            <Code className="w-3.5 h-3.5" />
+                            HTML
+                          </button>
+                        </div>
+                        {/* Preview toggle */}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowPreview(!showPreview)}
+                          className="text-white/40 hover:text-white/70 text-xs h-8 px-2"
+                        >
+                          {showPreview ? <EyeOff className="w-3.5 h-3.5 mr-1" /> : <Eye className="w-3.5 h-3.5 mr-1" />}
+                          {showPreview ? 'Tutup' : 'Preview'}
+                        </Button>
+                      </div>
                     </div>
-                    <Textarea
-                      id="htmlBody"
-                      value={htmlBody}
-                      onChange={e => setHtmlBody(e.target.value)}
-                      placeholder={`<h1>Halo {{name}}!</h1>\n<p>Ini adalah email broadcast dari LuxTrade...</p>\n<a href="https://luxtradee.web.id">Kunjungi LuxTrade</a>`}
-                      rows={12}
-                      className="bg-white/[0.03] border-white/[0.08] text-white placeholder:text-white/25 focus:border-amber-500/40 focus:ring-amber-500/20 font-mono text-sm"
-                    />
+
+                    {/* Quill Editor (visual mode) */}
+                    {editorMode === 'visual' && (
+                      <div className="email-editor-wrapper rounded-lg overflow-hidden border border-white/[0.08]">
+                        <style jsx global>{`
+                          .email-editor-wrapper .ql-toolbar {
+                            background: rgba(255,255,255,0.03) !important;
+                            border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+                            padding: 8px !important;
+                          }
+                          .email-editor-wrapper .ql-container {
+                            border: none !important;
+                            min-height: 200px;
+                            max-height: 400px;
+                            overflow-y: auto;
+                          }
+                          .email-editor-wrapper .ql-editor {
+                            min-height: 200px;
+                            color: rgba(255,255,255,0.8) !important;
+                            font-size: 14px;
+                            line-height: 1.7;
+                            padding: 16px !important;
+                          }
+                          .email-editor-wrapper .ql-editor.ql-blank::before {
+                            color: rgba(255,255,255,0.25) !important;
+                            font-style: normal !important;
+                          }
+                          .email-editor-wrapper .ql-editor a {
+                            color: #fbbf24 !important;
+                          }
+                          .email-editor-wrapper .ql-snow .ql-stroke {
+                            stroke: rgba(255,255,255,0.4) !important;
+                          }
+                          .email-editor-wrapper .ql-snow .ql-fill {
+                            fill: rgba(255,255,255,0.4) !important;
+                          }
+                          .email-editor-wrapper .ql-snow .ql-picker-label {
+                            color: rgba(255,255,255,0.4) !important;
+                          }
+                          .email-editor-wrapper .ql-snow .ql-picker-options {
+                            background: #1a0f2e !important;
+                            border-color: rgba(255,255,255,0.1) !important;
+                            border-radius: 8px !important;
+                            padding: 4px !important;
+                          }
+                          .email-editor-wrapper .ql-snow .ql-picker-item {
+                            color: rgba(255,255,255,0.6) !important;
+                          }
+                          .email-editor-wrapper .ql-snow .ql-picker-item:hover,
+                          .email-editor-wrapper .ql-snow .ql-picker-item.ql-selected {
+                            color: #fbbf24 !important;
+                          }
+                          .email-editor-wrapper .ql-snow .ql-active .ql-stroke {
+                            stroke: #f59e0b !important;
+                          }
+                          .email-editor-wrapper .ql-snow .ql-active .ql-fill {
+                            fill: #f59e0b !important;
+                          }
+                          .email-editor-wrapper .ql-snow .ql-active {
+                            color: #f59e0b !important;
+                          }
+                          .email-editor-wrapper .ql-toolbar .ql-formats button:hover .ql-stroke {
+                            stroke: #fbbf24 !important;
+                          }
+                          .email-editor-wrapper .ql-toolbar .ql-formats button:hover .ql-fill {
+                            fill: #fbbf24 !important;
+                          }
+                          .email-editor-wrapper .ql-snow .ql-tooltip {
+                            background: #1a0f2e !important;
+                            border-color: rgba(255,255,255,0.1) !important;
+                            border-radius: 8px !important;
+                            color: rgba(255,255,255,0.8) !important;
+                            box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+                          }
+                          .email-editor-wrapper .ql-snow .ql-tooltip input[type=text] {
+                            background: rgba(255,255,255,0.05) !important;
+                            border-color: rgba(255,255,255,0.1) !important;
+                            color: white !important;
+                            border-radius: 4px !important;
+                          }
+                          .email-editor-wrapper .ql-editor img {
+                            max-width: 100% !important;
+                            border-radius: 8px;
+                          }
+                          .email-editor-wrapper .ql-editor h1 { font-size: 1.5em; color: white; }
+                          .email-editor-wrapper .ql-editor h2 { font-size: 1.3em; color: white; }
+                          .email-editor-wrapper .ql-editor h3 { font-size: 1.15em; color: white; }
+                          .email-editor-wrapper ::-webkit-scrollbar { width: 6px; }
+                          .email-editor-wrapper ::-webkit-scrollbar-track { background: transparent; }
+                          .email-editor-wrapper ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+                        `}</style>
+                        <ReactQuill
+                          theme="snow"
+                          value={htmlBody}
+                          onChange={setHtmlBody}
+                          modules={QUILL_MODULES}
+                          formats={QUILL_FORMATS}
+                          placeholder="Tulis konten email broadcast..."
+                        />
+                      </div>
+                    )}
+
+                    {/* Raw HTML Editor */}
+                    {editorMode === 'html' && (
+                      <Textarea
+                        value={htmlBody}
+                        onChange={e => setHtmlBody(e.target.value)}
+                        placeholder={`<h1>Halo {{name}}!</h1>\n<p>Ini adalah email broadcast dari LuxTrade...</p>\n<a href="https://luxtradee.web.id">Kunjungi LuxTrade</a>`}
+                        rows={12}
+                        className="bg-white/[0.03] border-white/[0.08] text-white placeholder:text-white/25 focus:border-amber-500/40 focus:ring-amber-500/20 font-mono text-sm"
+                      />
+                    )}
+
+                    {/* Character count */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-white/30">
+                        {htmlBody.length} karakter · {htmlBody.replace(/<[^>]*>/g, '').split(/\s+/).filter(Boolean).length} kata (tanpa HTML)
+                      </span>
+                    </div>
 
                     {/* Preview */}
-                    {showPreview && htmlBody && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className="border border-white/[0.06] rounded-lg overflow-hidden"
-                      >
-                        <div className="px-4 py-2 bg-white/[0.02] border-b border-white/[0.06]">
-                          <span className="text-xs text-white/40 font-medium">Preview Output</span>
-                        </div>
-                        <div
-                          className="p-4 bg-white/[0.01] text-white/80 text-sm max-h-64 overflow-y-auto prose prose-invert prose-sm max-w-none [&_a]:text-amber-400"
-                          dangerouslySetInnerHTML={{
-                            __html: htmlBody.replace(/\{\{name\}\}/g, 'John').replace(/\{\{email\}\}/g, 'john@example.com'),
-                          }}
-                        />
-                      </motion.div>
-                    )}
+                    <AnimatePresence>
+                      {showPreview && htmlBody && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="border border-white/[0.06] rounded-lg overflow-hidden"
+                        >
+                          <div className="px-4 py-2 bg-white/[0.02] border-b border-white/[0.06] flex items-center justify-between">
+                            <span className="text-xs text-white/40 font-medium">Preview Output</span>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-white/[0.02] border-white/[0.06] text-white/30">
+                              Desktop
+                            </Badge>
+                          </div>
+                          <div
+                            className="p-4 bg-white/[0.01] text-white/80 text-sm max-h-80 overflow-y-auto prose prose-invert prose-sm max-w-none [&_a]:text-amber-400"
+                            dangerouslySetInnerHTML={{
+                              __html: htmlBody.replace(/\{\{name\}\}/g, 'John').replace(/\{\{email\}\}/g, 'john@example.com'),
+                            }}
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 )}
 
@@ -358,69 +693,98 @@ export default function AdminEmailPage() {
                   </motion.div>
                 )}
 
-                {/* Send Button */}
-                <Button
-                  onClick={handleSend}
-                  disabled={sending || !subject.trim() || (selectedTarget !== 'unverified' && !htmlBody.trim())}
-                  className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-semibold py-6 text-base disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {sending ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Sedang Mengirim...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-5 h-5 mr-2" />
-                      Kirim Sekarang
-                    </>
-                  )}
-                </Button>
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {/* Test Email Button */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSendTestEmail}
+                    disabled={sendingTest || sending || !subject.trim()}
+                    className="flex-1 sm:flex-none border-white/[0.08] text-white/70 hover:text-white hover:bg-white/[0.04]"
+                  >
+                    {sendingTest ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <FlaskConical className="w-4 h-4 mr-2" />
+                        Kirim Test Email
+                      </>
+                    )}
+                  </Button>
+
+                  {/* Send Broadcast Button */}
+                  <Button
+                    onClick={handleOpenConfirmDialog}
+                    disabled={sending || !subject.trim() || (selectedTarget !== 'unverified' && !htmlBody.trim())}
+                    className="flex-1 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-semibold py-6 text-base disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {sending ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Sedang Mengirim...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-5 h-5 mr-2" />
+                        Kirim Broadcast
+                      </>
+                    )}
+                  </Button>
+                </div>
 
                 {/* Result */}
-                {result && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="space-y-3"
-                  >
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/[0.06] border border-green-500/20">
-                        <CheckCircle className="w-5 h-5 text-green-400" />
-                        <div>
-                          <p className="text-green-400 font-semibold text-lg">{result.sent}</p>
-                          <p className="text-green-300/50 text-xs">Berhasil Terkirim</p>
+                <AnimatePresence>
+                  {result && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="space-y-3"
+                    >
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/[0.06] border border-green-500/20">
+                          <CheckCircle className="w-5 h-5 text-green-400" />
+                          <div>
+                            <p className="text-green-400 font-semibold text-lg">{result.sent}</p>
+                            <p className="text-green-300/50 text-xs">Berhasil Terkirim</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/[0.06] border border-red-500/20">
+                          <XCircle className="w-5 h-5 text-red-400" />
+                          <div>
+                            <p className="text-red-400 font-semibold text-lg">{result.failed}</p>
+                            <p className="text-red-300/50 text-xs">Gagal Terkirim</p>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/[0.06] border border-red-500/20">
-                        <XCircle className="w-5 h-5 text-red-400" />
-                        <div>
-                          <p className="text-red-400 font-semibold text-lg">{result.failed}</p>
-                          <p className="text-red-300/50 text-xs">Gagal Terkirim</p>
-                        </div>
-                      </div>
-                    </div>
 
-                    {result.errors.length > 0 && (
-                      <div className="border border-white/[0.06] rounded-lg p-3 max-h-40 overflow-y-auto">
-                        <p className="text-xs text-white/40 font-medium mb-2">Detail Error:</p>
-                        {result.errors.map((err, i) => (
-                          <p key={i} className="text-xs text-red-400/70 mb-1">{err}</p>
-                        ))}
-                      </div>
-                    )}
-                  </motion.div>
-                )}
+                      {result.errors.length > 0 && (
+                        <div className="border border-white/[0.06] rounded-lg p-3 max-h-40 overflow-y-auto">
+                          <p className="text-xs text-white/40 font-medium mb-2">Detail Error:</p>
+                          {result.errors.map((err, i) => (
+                            <p key={i} className="text-xs text-red-400/70 mb-1">{err}</p>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </CardContent>
             </Card>
           </motion.div>
 
-          {/* Sidebar: Recent Broadcasts */}
+          {/* Sidebar */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
+            className="space-y-4"
           >
+            {/* Recent Broadcasts */}
             <Card className="bg-[#1a0f2e]/50 border-white/[0.06] backdrop-blur-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-white text-sm flex items-center gap-2">
@@ -475,22 +839,22 @@ export default function AdminEmailPage() {
             </Card>
 
             {/* Info Card */}
-            <Card className="bg-[#1a0f2e]/50 border-white/[0.06] backdrop-blur-sm mt-4">
+            <Card className="bg-[#1a0f2e]/50 border-white/[0.06] backdrop-blur-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-white text-sm">Info Penting</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-start gap-2 text-xs text-white/40">
                   <span className="text-amber-400 mt-0.5">•</span>
-                  <span>Maksimal <strong className="text-white/60">50 email</strong> per batch untuk menghindari rate limit</span>
+                  <span>Maksimal <strong className="text-white/60">50 email</strong> per batch</span>
                 </div>
                 <div className="flex items-start gap-2 text-xs text-white/40">
                   <span className="text-amber-400 mt-0.5">•</span>
-                  <span>Email dikirim secara paralel (maks 5 concurrent)</span>
+                  <span>Dikirim paralel (maks 5 concurrent)</span>
                 </div>
                 <div className="flex items-start gap-2 text-xs text-white/40">
                   <span className="text-amber-400 mt-0.5">•</span>
-                  <span>Untuk unverified: token baru dibuat otomatis berlaku 24 jam</span>
+                  <span>Unverified: token baru otomatis 24 jam</span>
                 </div>
                 <div className="flex items-start gap-2 text-xs text-white/40">
                   <span className="text-amber-400 mt-0.5">•</span>
@@ -505,6 +869,67 @@ export default function AdminEmailPage() {
           </motion.div>
         </div>
       </main>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent className="bg-[#1a0f2e] border-white/[0.08] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Send className="w-5 h-5 text-amber-400" />
+              Konfirmasi Kirim Broadcast
+            </DialogTitle>
+            <DialogDescription className="text-white/50">
+              Pastikan subject dan konten email sudah benar sebelum mengirim.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                <p className="text-[11px] text-white/40 mb-1">Target</p>
+                <p className="text-sm text-white font-medium">{currentTarget?.label}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                <p className="text-[11px] text-white/40 mb-1">Jumlah Penerima</p>
+                <p className="text-sm text-white font-medium">{recipientCount} user</p>
+              </div>
+            </div>
+            <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+              <p className="text-[11px] text-white/40 mb-1">Subject</p>
+              <p className="text-sm text-white/80 truncate">{subject}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-amber-500/[0.06] border border-amber-500/15">
+              <p className="text-xs text-amber-300/70 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                Email akan dikirim ke <strong className="text-amber-300">{recipientCount}</strong> user secara bersamaan. Tindakan ini tidak bisa dibatalkan.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <DialogClose asChild>
+              <Button variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5">
+                Batal
+              </Button>
+            </DialogClose>
+            <Button
+              onClick={handleSend}
+              disabled={sending}
+              className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-semibold"
+            >
+              {sending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Mengirim...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Ya, Kirim Sekarang
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
