@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 // Protected routes that require authentication
-const protectedRoutes = ['/dashboard', '/upgrade', '/admin-subscriptions']
+const protectedRoutes = ['/dashboard', '/admin-subscriptions']
 
 // Public auth routes
 const authRoutes = ['/auth/login', '/auth/signup', '/auth/verify', '/auth/reset-password']
@@ -59,7 +59,6 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     '/dashboard/:path*',
-    '/upgrade/:path*',
     '/admin-subscriptions/:path*',
     '/auth/login',
     '/auth/signup',

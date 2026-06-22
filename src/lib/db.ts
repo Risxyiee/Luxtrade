@@ -3,8 +3,9 @@ import { PrismaClient } from '@prisma/client'
 /**
  * Database connection with URL normalization.
  * - Fixes common Vercel env var corruption (file prefix, doubled protocol)
- * - Passes URL to Prisma AS-IS (no auto port conversion)
- * - User should use the exact URL from Supabase Dashboard → Settings → Database
+ * - Auto-detects Supabase direct connection and converts to pooler
+ * - Handles pgbouncer compatibility (pooler port, pgBouncer mode)
+ * - Graceful fallback for local dev without proper database
  */
 
 function normalizeUrl(raw: string): string {
@@ -32,6 +33,28 @@ function normalizeUrl(raw: string): string {
     url = url.substring(url.indexOf('postgres://'))
   }
 
+  // Auto-detect Supabase direct connection and convert to pooler
+  const isDirectSupabase = url.includes('supabase.co') && (url.includes(':5432') || url.match(/db\.[\w-]+\.supabase\.co/))
+
+  if (isDirectSupabase && url.includes(':5432')) {
+    const match = url.match(/:\/\/([^:]+):([^@]+)@db\.([\w-]+)\.supabase\.co:5432\/(\w+)/)
+    if (match) {
+      const [, user, password, project, database] = match
+      const poolerUrl = `postgresql://${user}.${project}:${password}@aws-0-ap-southeast-1.pooler.supabase.com:6543/${database}?pgbouncer=true`
+
+      console.log('🔄 [DB] Auto-converting Supabase direct → pooler URL')
+      console.log(`🔄 [DB] Old: ${url.replace(/:([^@]+)@/, ':****@').substring(0, 80)}...`)
+      console.log(`🔄 [DB] New: ${poolerUrl.replace(/:([^@]+)@/, ':****@').substring(0, 80)}...`)
+      return poolerUrl
+    }
+  }
+
+  // If user already has pooler URL but missing pgbouncer param, add it
+  if (url.includes('pooler.supabase.com') && !url.includes('pgbouncer')) {
+    const separator = url.includes('?') ? '&' : '?'
+    url = `${url}${separator}pgbouncer=true`
+  }
+
   return url
 }
 
@@ -39,7 +62,17 @@ const getDatabaseUrl = (): string => {
   const raw = process.env.DATABASE_URL
 
   if (!raw) {
+    // In production, database is required
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('DATABASE_URL is required in production')
+    }
+    // Local dev: try to use env var, fall back gracefully
     return 'file:./db/custom.db'
+  }
+
+  // If it's a file: URL (SQLite for local dev), use as-is
+  if (raw.trim().startsWith('file:')) {
+    return raw.trim()
   }
 
   return normalizeUrl(raw)
@@ -50,29 +83,30 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-const dbUrl = getDatabaseUrl()
+try {
+  const dbUrl = getDatabaseUrl()
+  const isPostgres = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://')
 
-export const db =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    datasourceUrl: dbUrl,
-    log: ['error', 'warn'],
-  })
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = new PrismaClient({
+      datasourceUrl: dbUrl,
+      log: isPostgres ? ['error', 'warn'] : [],
+    })
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
-
-// Startup log
-const isPostgres = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://')
-console.log('Database connected to:', process.env.DATABASE_URL ? 'OK' : 'MISSING')
-console.log('🗄️ ============================================')
-console.log(`🗄️ Database Type: ${isPostgres ? 'PostgreSQL' : 'SQLite'}`)
-console.log(`🗄️ Environment: ${process.env.NODE_ENV || 'development'}`)
-
-if (isPostgres) {
-  // Mask password in log
-  const masked = dbUrl.replace(/:([^:@]+)@/, ':****@')
-  console.log(`🗄️ Database URL: ${masked}`)
-} else {
-  console.log(`🗄️ Database Path: ${dbUrl}`)
+    // Startup log
+    console.log('🗄️ ============================================')
+    console.log(`🗄️ Database Type: ${isPostgres ? "PostgreSQL" : "SQLite (local dev)"}`)
+    console.log(`🗄️ Environment: ${process.env.NODE_ENV || 'development'}`)
+    if (isPostgres) {
+      const masked = dbUrl.replace(/:([^:@]+)@/, ':****@')
+      console.log(`🗄️ Database URL: ${masked}`)
+    } else {
+      console.log(`🗄️ Database Path: ${dbUrl}`)
+    }
+    console.log('🗄️ ============================================')
+  }
+} catch (err) {
+  console.error('⚠️ [DB] Failed to initialize database client:', err)
 }
-console.log('🗄️ ============================================')
+
+export const db = globalForPrisma.prisma!

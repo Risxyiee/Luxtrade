@@ -25,11 +25,12 @@ export interface DokuOrderResult {
 }
 
 /**
- * Format amount for DOKU: "120000.00" (string with 2 decimal places)
- * DOKU strictly requires 2 decimal places in the amount value.
+ * Format amount for DOKU Checkout v1.
+ * DOKU Checkout v1 expects integer amount (no decimals, no string).
+ * Previous format with "120000.00" caused "Invalid amount format" errors.
  */
-function formatAmount(amount: number): string {
-  return amount.toFixed(2)
+function formatAmount(amount: number): number {
+  return Math.round(amount)
 }
 
 /**
@@ -102,7 +103,7 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
     ? `LuxTrade ${plan} Plan - ${durationMonths} Bulan`
     : `LuxTrade ${plan} Plan`
 
-  const amountStr = formatAmount(amount)
+  const amountVal = formatAmount(amount)
 
   const requestBody = {
     payment: {
@@ -114,14 +115,14 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
     order: {
       invoice_number: invoiceId,
       amount: {
-        value: amountStr,
+        value: amountVal,
         currency: 'IDR',
       },
       line_items: [
         {
           name: planLabel,
           price: {
-            value: amountStr,
+            value: amountVal,
             currency: 'IDR',
           },
           quantity: 1,
@@ -163,7 +164,7 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
     url: `${DOKU_BASE_URL}${path}`,
     path,
     invoiceId,
-    amount: amountStr,
+    amount: amountVal,
     plan,
     clientId: DOKU_CLIENT_ID.substring(0, 8) + '...',
     paymentMethodTypes,
