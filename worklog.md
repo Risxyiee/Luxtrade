@@ -2176,3 +2176,25 @@ Stage Summary:
 - All payment controls hidden when paid — clean success confirmation UI
 - Callback webhook flow verified: SakuraPay → callback route → DB update → subscription activation
 
+
+---
+Task ID: 8
+Agent: Z.ai Code
+Task: Verify "Bantuan" help block implementation in PaymentInvoiceModal
+
+Work Log:
+- Read PaymentInvoiceModal.tsx and confirmed "Bantuan" help blocks already exist in all 3 states (SUCCESS, WAITING, PENDING)
+- SUCCESS state help block: line 582 - "Paket PRO/Lifetime belum aktif secara otomatis? Jangan khawatir!" with "Chat Admin via Telegram" button
+- WAITING state help block: line 675 - "Ada masalah dengan QRIS atau pembayaran?" with "Chat Admin via Telegram" button  
+- PENDING state help block: line 1057 - "Ada kendala dengan metode pembayaran atau ada pertanyaan?" with "Chat Admin via Telegram" button
+- All blocks use TG_ADMIN_LINK = https://t.me/Risxyiee with pre-filled message including invoice number, plan name, and amount
+- Telegram icon SVG and HeadphonesIcon used consistently
+- Ran bun run lint - no errors related to payment components
+- Ran browser verification - page loads successfully with no errors
+
+Stage Summary:
+- The "Bantuan" help block feature was already implemented from the previous session
+- All 3 invoice states (SUCCESS, WAITING, PENDING) have the help block with Telegram admin chat button
+- No additional changes needed
+- SakuraPay callback endpoint confirmed active
+
