@@ -5,12 +5,17 @@ const SAKURA_API_ID = process.env.SAKURA_API_ID || ''
 const SAKURA_API_KEY = process.env.SAKURA_API_KEY || ''
 const SAKURA_ENV = process.env.SAKURA_ENV || 'sandbox'
 
+// NOTE: SakuraPay's sandbox URL uses "sanbox" (not "sandbox") — this is their actual URL
 const SAKURA_BASE_URL = SAKURA_ENV === 'production'
   ? 'https://sakurupiah.id/api/'
   : 'https://sakurupiah.id/api-sanbox/'
 
 const SAKURA_CALLBACK_URL = process.env.SAKURA_CALLBACK_URL || ''
 const SAKURA_RETURN_URL = process.env.SAKURA_RETURN_URL || ''
+
+// ============================================
+// Types
+// ============================================
 
 export interface SakuraOrderParams {
   amount: number
@@ -25,11 +30,65 @@ export interface SakuraOrderParams {
 
 export interface SakuraOrderResult {
   paymentUrl: string
-  orderId: string
-  invoiceNumber: string
-  qrString?: string // For QRIS payments
-  paymentNo?: number // Virtual account number, etc.
+  orderId: string      // trx_id from SakuraPay
+  invoiceNumber: string // Our merchant_ref
+  qrString?: string    // QRIS string for QR payments
+  paymentNo?: number  // Virtual account number etc.
+  paymentKode?: string // Payment code (e.g. "BCAVA")
+  via?: string         // Payment channel name (e.g. "BCA Virtual-Account")
+  total?: number       // Total amount
+  fee?: number         // Fee amount
+  amountMerchant?: number // Amount after fee
+  expired?: string     // Expiry date/time
 }
+
+export interface SakuraPaymentChannel {
+  kode: string
+  nama: string
+  minimal: string
+  maksimal: string
+  biaya: string
+  percent: string      // "Percent" or "Nominal"
+  tipe: string         // "DIRECT" or "REDIRECT"
+  logo: string
+  status: string       // "Aktif" or "Offline"
+  addition: {
+    tambahan_biaya: string
+    jenis: string
+    default_expired: string
+    settlement: string
+  }
+  guide: {
+    title: string
+    payment_guide: string
+  }
+}
+
+export interface SakuraTransaction {
+  trx_id: string
+  merchant_ref: string
+  payment_kode: string
+  tanggal: string
+  waktu: string
+  amount: string
+  expired: string
+  status: string       // "pending", "berhasil", "expired"
+}
+
+// ============================================
+// Authorization Helper
+// ============================================
+
+function getAuthHeaders(contentType = 'application/x-www-form-urlencoded') {
+  return {
+    'Authorization': `Bearer ${SAKURA_API_KEY}`,
+    'Content-Type': contentType,
+  }
+}
+
+// ============================================
+// Signature
+// ============================================
 
 /**
  * Generate SakuraPay Signature
@@ -54,7 +113,7 @@ export function generateSignature({
 
 /**
  * Verify SakuraPay callback signature
- * Signature = HMAC-SHA256(json_body, api_key)
+ * Signature = HMAC-SHA256(raw_json_body, api_key)
  */
 export function verifyCallbackSignature(
   body: string,
@@ -70,8 +129,61 @@ export function verifyCallbackSignature(
   return expectedSignature === callbackSignature
 }
 
+// ============================================
+// API Calls
+// ============================================
+
+/**
+ * List all payment channels (active + inactive)
+ * POST /api-sanbox/list-payment.php
+ */
+export async function listPaymentChannels(): Promise<SakuraPaymentChannel[]> {
+  const formData = new URLSearchParams()
+  formData.append('api_id', SAKURA_API_ID)
+  formData.append('method', 'list')
+
+  const response = await fetch(`${SAKURA_BASE_URL}list-payment.php`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: formData.toString(),
+  })
+
+  const result = await response.json()
+  if (result.status === '200' && result.data) {
+    return result.data
+  }
+  throw new Error(result.message || 'Failed to list payment channels')
+}
+
+/**
+ * Check merchant balance
+ * POST /api-sanbox/check_balance.php
+ */
+export async function checkSakuraBalance(): Promise<{ balance: string; available: string; merchantName: string }> {
+  const formData = new URLSearchParams()
+  formData.append('api_id', SAKURA_API_ID)
+  formData.append('method', 'balance')
+
+  const response = await fetch(`${SAKURA_BASE_URL}check_balance.php`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: formData.toString(),
+  })
+
+  const result = await response.json()
+  if (result.status === '200' && result.data) {
+    return {
+      balance: result.data.balance,
+      available: result.data.saldo_tersedia,
+      merchantName: result.data.nama_merchant,
+    }
+  }
+  throw new Error(result.message || 'Failed to check balance')
+}
+
 /**
  * Create SakuraPay Invoice (single payment method per request)
+ * POST /api-sanbox/create.php
  */
 export async function createSakuraOrder(params: SakuraOrderParams): Promise<SakuraOrderResult> {
   const { amount, invoiceId, customerName, customerEmail, customerPhone, plan, durationMonths, paymentMethod } = params
@@ -85,7 +197,7 @@ export async function createSakuraOrder(params: SakuraOrderParams): Promise<Saku
     ? `LuxTrade ${plan} Plan - ${durationMonths} Bulan`
     : `LuxTrade ${plan} Plan`
 
-  // Generate signature
+  // Generate signature: HMAC-SHA256(api_id + method + merchant_ref + amount, api_key)
   const signature = generateSignature({
     apiId: SAKURA_API_ID,
     method: paymentMethod,
@@ -94,7 +206,7 @@ export async function createSakuraOrder(params: SakuraOrderParams): Promise<Saku
     apiKey: SAKURA_API_KEY,
   })
 
-  // Build form-data body (SakuraPay uses form-data, not JSON)
+  // Build form-data body — SakuraPay uses application/x-www-form-urlencoded (http_build_query in PHP)
   const formData = new URLSearchParams()
   formData.append('api_id', SAKURA_API_ID)
   formData.append('method', paymentMethod)
@@ -102,18 +214,21 @@ export async function createSakuraOrder(params: SakuraOrderParams): Promise<Saku
   formData.append('email', customerEmail)
   formData.append('phone', customerPhone)
   formData.append('amount', amountStr)
-  formData.append('merchant_fee', '1') // Merchant absorbs the fee
+  formData.append('merchant_fee', '1')  // 1=merchant absorbs fee, 2=customer absorbs fee
   formData.append('merchant_ref', invoiceId)
-  formData.append('expired', '24') // 24 hours
+  formData.append('expired', '24')      // 24 hours expiry
   formData.append('produk[]', planLabel)
   formData.append('qty[]', '1')
   formData.append('harga[]', amountStr)
+
+  // Callback and return URLs (required)
   if (SAKURA_CALLBACK_URL) {
     formData.append('callback_url', SAKURA_CALLBACK_URL)
   }
   if (SAKURA_RETURN_URL) {
     formData.append('return_url', SAKURA_RETURN_URL)
   }
+
   formData.append('signature', signature)
 
   const url = `${SAKURA_BASE_URL}create.php`
@@ -126,21 +241,20 @@ export async function createSakuraOrder(params: SakuraOrderParams): Promise<Saku
     plan,
     apiId: SAKURA_API_ID.substring(0, 8) + '...',
     env: SAKURA_ENV,
+    callbackUrl: SAKURA_CALLBACK_URL || 'NOT SET',
+    returnUrl: SAKURA_RETURN_URL || 'NOT SET',
   })
 
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${SAKURA_API_KEY}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
+      headers: getAuthHeaders(),
       body: formData.toString(),
     })
 
     const result = await response.json()
     console.log('📦 [SakuraPay] Response status:', response.status)
-    console.log('📦 [SakuraPay] Response body:', JSON.stringify(result).substring(0, 500))
+    console.log('📦 [SakuraPay] Response body:', JSON.stringify(result).substring(0, 800))
 
     if (result.status === '200' && result.data && result.data.length > 0) {
       const data = result.data[0]
@@ -157,6 +271,12 @@ export async function createSakuraOrder(params: SakuraOrderParams): Promise<Saku
         invoiceNumber: invoiceId,
         qrString: data.qr || undefined,
         paymentNo: data.payment_no || undefined,
+        paymentKode: data.payment_kode || undefined,
+        via: data.via || undefined,
+        total: data.total || undefined,
+        fee: data.fee || undefined,
+        amountMerchant: data.amount_merchant || undefined,
+        expired: data.expired || undefined,
       }
     }
 
@@ -173,35 +293,69 @@ export async function createSakuraOrder(params: SakuraOrderParams): Promise<Saku
 }
 
 /**
- * Check SakuraPay balance
+ * Check transaction status
+ * POST /api-sanbox/status-transaction.php
  */
-export async function checkSakuraBalance(): Promise<{ balance: string; available: string }> {
+export async function checkTransactionStatus(trxId: string): Promise<{ status: string }> {
   const formData = new URLSearchParams()
   formData.append('api_id', SAKURA_API_ID)
-  formData.append('method', 'balance')
+  formData.append('method', 'status')
+  formData.append('trx_id', trxId)
 
-  const response = await fetch(`${SAKURA_BASE_URL}check_balance.php`, {
+  const response = await fetch(`${SAKURA_BASE_URL}status-transaction.php`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${SAKURA_API_KEY}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+    headers: getAuthHeaders(),
+    body: formData.toString(),
+  })
+
+  const result = await response.json()
+  if (result.status === '200' && result.data && result.data.length > 0) {
+    return { status: result.data[0].status }
+  }
+  throw new Error(result.message || 'Failed to check transaction status')
+}
+
+/**
+ * Get transaction history
+ * POST /api-sanbox/transaction.php
+ */
+export async function getTransactionHistory(filters?: {
+  paymentKode?: string
+  trxId?: string
+  merchantRef?: string
+  status?: string
+  startDate?: string
+  endDate?: string
+}): Promise<SakuraTransaction[]> {
+  const formData = new URLSearchParams()
+  formData.append('api_id', SAKURA_API_ID)
+  formData.append('method', 'transaction')
+  formData.append('mechant', '1') // 1 = only this merchant's transactions
+
+  if (filters?.paymentKode) formData.append('payment_kode', filters.paymentKode)
+  if (filters?.trxId) formData.append('trx_id', filters.trxId)
+  if (filters?.merchantRef) formData.append('merchant_ref', filters.merchantRef)
+  if (filters?.status) formData.append('status', filters.status)
+  if (filters?.startDate) formData.append('tanggal_awal', filters.startDate)
+  if (filters?.endDate) formData.append('tanggal_akhir', filters.endDate)
+
+  const response = await fetch(`${SAKURA_BASE_URL}transaction.php`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
     body: formData.toString(),
   })
 
   const result = await response.json()
   if (result.status === '200' && result.data) {
-    return {
-      balance: result.data.balance,
-      available: result.data.saldo_tersedia,
-    }
+    return result.data
   }
-  throw new Error(result.message || 'Failed to check balance')
+  throw new Error(result.message || 'Failed to get transaction history')
 }
 
-/**
- * Get SakuraPay config info
- */
+// ============================================
+// Config & Helper
+// ============================================
+
 export function getSakuraConfig() {
   return {
     configured: !!SAKURA_API_ID && !!SAKURA_API_KEY,
@@ -215,28 +369,39 @@ export function getSakuraConfig() {
 }
 
 /**
- * SakuraPay payment method codes for reference
+ * SakuraPay payment method codes — based on official documentation
+ * Fees: Percent = % of amount, Nominal = flat fee
  */
 export const SAKURA_PAYMENT_METHODS = {
   // QRIS
-  QRIS: { code: 'QRIS', label: 'QRIS', min: 500, max: 2000000, fee: 0.7, type: 'DIRECT' },
-  QRISMU: { code: 'QRISMU', label: 'QRIS (Multi)', min: 500, max: 5000000, fee: 0.8, type: 'DIRECT' },
+  QRIS:    { code: 'QRIS',    label: 'QRIS',             min: 500,    max: 2000000,  fee: '0.7%',   type: 'DIRECT' },
+  QRIS2:   { code: 'QRIS2',   label: 'QRIS2',            min: 100,    max: 10000000, fee: '0.9%',   type: 'DIRECT' },
+  QRISC:   { code: 'QRISC',   label: 'QRISC',            min: 200,    max: 20000000, fee: '0.7%',   type: 'DIRECT' },
+  QRISMU:  { code: 'QRISMU',  label: 'QRIS Multi',       min: 500,    max: 5000000,  fee: '0.8%',   type: 'DIRECT' },
 
   // E-Wallet
-  GOPAY: { code: 'GOPAY', label: 'GoPay', min: 500, max: 5000000, fee: 3, type: 'REDIRECT' },
-  DANA: { code: 'DANA', label: 'DANA', min: 1000, max: 2000000, fee: 3, type: 'REDIRECT' },
-  OVO: { code: 'OVO', label: 'OVO', min: 1000, max: 2000000, fee: 3, type: 'REDIRECT' },
-  ShopeePay: { code: 'ShopeePay', label: 'ShopeePay', min: 1000, max: 2000000, fee: 3, type: 'REDIRECT' },
-  LinkAja: { code: 'LinkAja', label: 'LinkAja', min: 1000, max: 2000000, fee: 3, type: 'REDIRECT' },
+  GOPAY:     { code: 'GOPAY',     label: 'GoPay',              min: 500,   max: 5000000,  fee: '3%',     type: 'REDIRECT' },
+  DANA:      { code: 'DANA',      label: 'DANA E-Wallet',      min: 1000,  max: 2000000,  fee: '3%',     type: 'REDIRECT' },
+  OVO:       { code: 'OVO',       label: 'OVO E-Wallet',       min: 1000,  max: 2000000,  fee: '3%',     type: 'REDIRECT' },
+  ShopeePay: { code: 'ShopeePay', label: 'ShopeePay',         min: 1000,  max: 2000000,  fee: '3%',     type: 'REDIRECT' },
+  LinkAja:   { code: 'LinkAja',   label: 'LinkAja',           min: 1000,  max: 2000000,  fee: '3%',     type: 'REDIRECT' },
 
   // Virtual Account
-  BCAVA: { code: 'BCAVA', label: 'BCA Virtual Account', min: 10000, max: 15000000, fee: 4900, type: 'DIRECT' },
-  BNIVA: { code: 'BNIVA', label: 'BNI Virtual Account', min: 10000, max: 20000000, fee: 3500, type: 'DIRECT' },
-  BRIVA: { code: 'BRIVA', label: 'BRI Virtual Account', min: 10000, max: 10000000, fee: 3500, type: 'DIRECT' },
-  MANDIRIVA: { code: 'MANDIRIVA', label: 'Mandiri Virtual Account', min: 10000, max: 10000000, fee: 3500, type: 'DIRECT' },
-  PERMATAVA: { code: 'PERMATAVA', label: 'Permata Virtual Account', min: 10000, max: 20000000, fee: 3500, type: 'DIRECT' },
+  BCAVA:     { code: 'BCAVA',     label: 'BCA Virtual-Account',  min: 10000, max: 15000000, fee: 'Rp4.900', type: 'DIRECT' },
+  BNIVA:     { code: 'BNIVA',     label: 'BNI Virtual-Account',  min: 10000, max: 20000000, fee: 'Rp3.500', type: 'DIRECT' },
+  BRIVA:     { code: 'BRIVA',     label: 'BRI Virtual-Account',  min: 10000, max: 10000000, fee: 'Rp3.500', type: 'DIRECT' },
+  MANDIRIVA: { code: 'MANDIRIVA', label: 'Mandiri Virtual-Account', min: 10000, max: 10000000, fee: 'Rp3.500', type: 'DIRECT' },
+  PERMATAVA: { code: 'PERMATAVA', label: 'Permata Virtual-Account', min: 10000, max: 20000000, fee: 'Rp3.500', type: 'DIRECT' },
+  BSIVA:     { code: 'BSIVA',     label: 'BSI Virtual-Account',   min: 10000, max: 20000000, fee: 'Rp3.500', type: 'DIRECT' },
+  DANAMON:   { code: 'DANAMON',   label: 'Danamon Virtual-Account', min: 10000, max: 15000000, fee: 'Rp3.500', type: 'DIRECT' },
+  CIMBVA:    { code: 'CIMBVA',    label: 'CIMB Niaga Virtual-Account', min: 10000, max: 10000000, fee: 'Rp3.500', type: 'DIRECT' },
+  OCBC:      { code: 'OCBC',      label: 'OCBC Virtual-Account',  min: 10000, max: 10000000, fee: 'Rp3.500', type: 'DIRECT' },
+  MUAMALAT:  { code: 'MUAMALAT',  label: 'Muamalat Virtual-Account', min: 10000, max: 15000000, fee: 'Rp3.500', type: 'DIRECT' },
+  SINARMAS:  { code: 'SINARMAS',  label: 'Sinarmas Virtual-Account', min: 10000, max: 10000000, fee: 'Rp3.500', type: 'DIRECT' },
+  BNCVA:     { code: 'BNCVA',     label: 'BNC Virtual-Account',   min: 10000, max: 10000000, fee: 'Rp3.500', type: 'DIRECT' },
+  BAGVA:     { code: 'BAGVA',     label: 'BAG Virtual-Account',   min: 10000, max: 15000000, fee: 'Rp4.200', type: 'DIRECT' },
 
-  // Retail
-  ALFAMART: { code: 'ALFAMART', label: 'Alfamart', min: 10000, max: 5000000, fee: 3000, type: 'DIRECT' },
-  INDOMARET: { code: 'INDOMARET', label: 'Indomaret', min: 10000, max: 2500000, fee: 3000, type: 'DIRECT' },
+  // Retail (Convenience Store)
+  ALFAMART:  { code: 'ALFAMART',  label: 'Alfamart',          min: 10000, max: 5000000,  fee: 'Rp3.000', type: 'DIRECT' },
+  INDOMARET: { code: 'INDOMARET', label: 'Indomaret',         min: 10000, max: 2500000,  fee: 'Rp3.000', type: 'DIRECT' },
 } as const

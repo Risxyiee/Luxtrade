@@ -31,7 +31,13 @@ export async function POST(request: NextRequest) {
 
     console.log('📩 [SakuraPay Callback] Received event:', callbackEvent)
 
-    // Verify signature
+    // Check callback event type — must be payment_status
+    if (callbackEvent !== 'payment_status') {
+      console.error('❌ [SakuraPay Callback] Unrecognized callback event:', callbackEvent)
+      return NextResponse.json({ success: false, message: `Unrecognized callback event: ${callbackEvent}` }, { status: 400 })
+    }
+
+    // Verify signature: HMAC-SHA256(raw_json_body, api_key)
     if (!verifyCallbackSignature(rawBody, callbackSignature)) {
       console.error('❌ [SakuraPay Callback] Invalid signature')
       return NextResponse.json({ success: false, message: 'Invalid signature' }, { status: 400 })
@@ -53,9 +59,11 @@ export async function POST(request: NextRequest) {
       statusKode,
     })
 
-    // Map SakuraPay status to our status
-    const isSuccess = status === 'berhasil' || statusKode === 1
-    const isExpired = status === 'expired' || statusKode === 2
+    // Map SakuraPay status to our internal status
+    // Docs: berhasil + status_kode=1 → SUCCESS, pending + status_kode=0 → PENDING, expired + status_kode=2 → EXPIRED
+    const isSuccess = status === 'berhasil' && statusKode === 1
+    const isExpired = status === 'expired' && statusKode === 2
+    const isPending = status === 'pending' && statusKode === 0
     const ourStatus = isSuccess ? 'SUCCESS' : isExpired ? 'EXPIRED' : 'PENDING'
 
     if (!merchantRef) {

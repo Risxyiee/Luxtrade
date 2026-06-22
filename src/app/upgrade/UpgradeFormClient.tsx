@@ -38,13 +38,18 @@ const PLANS = [
   }
 ]
 
+// Payment methods from SakuraPay API — sorted by popularity
+// Min amounts: QRIS=500, GOPAY=500, DANA=1000, ShopeePay=1000, BCAVA=10000, BNIVA=10000
 const PAYMENT_METHODS = [
-  { id: 'BCAVA', label: 'BCA Virtual Account', icon: Building2, desc: 'Transfer via BCA', color: 'blue' },
-  { id: 'BNIVA', label: 'BNI Virtual Account', icon: Building2, desc: 'Transfer via BNI', color: 'blue' },
-  { id: 'QRIS', label: 'QRIS', icon: QrCode, desc: 'Scan QR dari apps manapun', color: 'emerald' },
-  { id: 'GOPAY', label: 'GoPay', icon: Smartphone, desc: 'Bayar via GoPay / Gojek', color: 'emerald' },
-  { id: 'DANA', label: 'DANA', icon: Smartphone, desc: 'Bayar via DANA e-wallet', color: 'violet' },
-  { id: 'ShopeePay', label: 'ShopeePay', icon: Smartphone, desc: 'Bayar via ShopeePay', color: 'amber' },
+  { id: 'QRIS',     label: 'QRIS',             icon: QrCode,     desc: 'Scan QR dari apps manapun',     color: 'emerald', min: 500 },
+  { id: 'GOPAY',    label: 'GoPay',            icon: Smartphone,  desc: 'Bayar via GoPay / Gojek',       color: 'emerald', min: 500 },
+  { id: 'DANA',     label: 'DANA',             icon: Smartphone,  desc: 'Bayar via DANA e-wallet',       color: 'violet',  min: 1000 },
+  { id: 'ShopeePay', label: 'ShopeePay',       icon: Smartphone,  desc: 'Bayar via ShopeePay',           color: 'amber',   min: 1000 },
+  { id: 'BCAVA',    label: 'BCA Virtual Account', icon: Building2, desc: 'Transfer via BCA',            color: 'blue',    min: 10000 },
+  { id: 'BNIVA',    label: 'BNI Virtual Account', icon: Building2, desc: 'Transfer via BNI',            color: 'blue',    min: 10000 },
+  { id: 'BRIVA',    label: 'BRI Virtual Account', icon: Building2, desc: 'Transfer via BRI',            color: 'blue',    min: 10000 },
+  { id: 'ALFAMART', label: 'Alfamart',         icon: Building2, desc: 'Bayar di gerai Alfamart',      color: 'amber',   min: 10000 },
+  { id: 'INDOMARET', label: 'Indomaret',       icon: Building2, desc: 'Bayar di gerai Indomaret',     color: 'amber',   min: 10000 },
 ]
 
 function formatRupiah(n: number) {
@@ -306,18 +311,25 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
                   const isSelected = selectedPaymentMethod === method.id
                   const c = METHOD_COLORS[method.color] || METHOD_COLORS.blue
                   const MethodIcon = method.icon
+                  // Check if selected plan price is below this method's minimum
+                  const isBelowMin = selectedPlan && selectedPlan.price < method.min
 
                   return (
                     <button
                       type="button"
                       key={method.id}
                       onClick={() => {
+                        if (isBelowMin) {
+                          setError(`Min. pembayaran ${method.label} adalah ${formatRupiah(method.min)}`)
+                          return
+                        }
                         console.log('PAYMENT METHOD SELECTED:', method.id)
                         setSelectedPaymentMethod(method.id)
                         setError('')
                       }}
+                      disabled={isBelowMin}
                       className={`w-full p-4 rounded-xl border-2 transition-colors duration-200 cursor-pointer select-none active:scale-[0.98] text-left ${
-                        isSelected ? c.sel : c.unsel
+                        isSelected ? c.sel : isBelowMin ? 'border-purple-900/20 bg-white/[0.02] opacity-40' : c.unsel
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -341,6 +353,9 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
                         <div className="flex-1 min-w-0">
                           <p className="text-white font-semibold text-sm">{method.label}</p>
                           <p className="text-gray-500 text-xs">{method.desc}</p>
+                          {isBelowMin && (
+                            <p className="text-amber-400 text-[10px] mt-0.5">Min. {formatRupiah(method.min)}</p>
+                          )}
                         </div>
 
                         {/* Check */}
