@@ -440,9 +440,15 @@ export default function AboutPage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-white/40 text-sm font-medium">
-              © 2024 LuxTrade. All rights reserved.
+              © {new Date().getFullYear()} LuxTrade. All rights reserved.
             </p>
             <div className="flex items-center gap-6">
+              <Link
+                href="/disclaimer"
+                className="text-white/40 hover:text-white text-sm font-medium transition-colors"
+              >
+                {isEnglish ? 'Disclaimer' : 'Penyangkalan'}
+              </Link>
               <Link
                 href="/privacy"
                 className="text-white/40 hover:text-white text-sm font-medium transition-colors"
