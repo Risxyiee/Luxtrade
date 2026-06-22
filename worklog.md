@@ -2141,3 +2141,38 @@ Stage Summary:
 - User flow: Select category → Select method → Bayar Sekarang → SakuraPay gateway opens
 - Min amount validation enforced per method
 
+---
+Task ID: 10
+Agent: Z.ai Code
+Task: Update PaymentInvoiceModal to display paid/success status with real-time polling
+
+Work Log:
+- Read PaymentInvoiceModal, callback route, and Prisma schema to understand full flow
+- Created /api/payment/order-status endpoint for frontend polling
+  - GET with invoiceNumber query param
+  - Returns status, paidAt, plan, amount from payment_orders table
+  - Authenticated endpoint
+- Rewrote PaymentInvoiceModal.tsx with 4 distinct states:
+  1. PENDING (default): full payment flow with category/method selection + Bayar Sekarang button
+  2. WAITING (paid but not confirmed): auto-polling banner with spinner, retry gateway button
+  3. SUCCESS (paid confirmed): green gradient UI with:
+     - CheckCircle2 animation, "Lunas & Berhasil" badge
+     - "Tanggal Pembayaran" showing paidAt date
+     - Crown icon with upgrade confirmation message
+     - All payment buttons/methods hidden
+     - "Kembali ke Dashboard" primary button
+  4. EXPIRED: red banner with expired message, create new order button
+- Added real-time polling: every 5 seconds after payment, polls /api/payment/order-status
+  - Uses realInvoiceNumber state (captured from create-order API response)
+  - Stops polling on SUCCESS or EXPIRED
+  - isPaidRef prevents double-processing
+- Verified callback route updates DB: status=SUCCESS, paidAt=new Date()
+- Verified callback activates subscription: updates profile to PRO/Lifetime
+- No lint errors, dev server running clean
+
+Stage Summary:
+- Invoice modal now auto-detects payment success via polling every 5 seconds
+- PAID state: green gradient border, emerald badges, paid date shown, upgrade confirmation
+- All payment controls hidden when paid — clean success confirmation UI
+- Callback webhook flow verified: SakuraPay → callback route → DB update → subscription activation
+
