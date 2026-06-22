@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Check, Crown, Sparkles, Zap, Clock, ArrowRight, Loader2, ShieldCheck, CreditCard, Wallet, QrCode } from 'lucide-react'
+import { X, Check, Crown, Sparkles, Clock, ArrowRight, ShieldCheck } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { PRICING, formatRupiah, type PricingPlan } from '@/lib/pricing'
-import PaymentInvoiceModal from './PaymentInvoiceModal'
+import PaymentConfirmationModal from './PaymentConfirmationModal'
 
 interface Plan {
   id: string
@@ -104,20 +104,8 @@ const plans: Plan[] = [
 
 export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPaymentSuccess }: PlanSelectionModalProps) {
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null)
+  const [showPayment, setShowPayment] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
-  const [isLoading, setIsLoading] = useState<string | null>(null)
-  const [showInvoice, setShowInvoice] = useState(false)
-  const [invoiceData, setInvoiceData] = useState<{
-    invoiceNumber: string
-    planName: string
-    duration: string
-    amount: number
-    expiresAt: string
-    paymentUrl: string
-    orderId: string
-    plan: string
-    durationMonths: number
-  } | null>(null)
 
   const handlePlanSelect = async (plan: Plan) => {
     if (plan.price === 0) {
@@ -125,38 +113,16 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
       return
     }
 
+    // Manual payment flow — show payment confirmation modal directly
     setSelectedPlan(plan)
-    setIsLoading(plan.id)
-
-    // Generate invoice data locally — PaymentInvoiceModal will handle the API call
-    const invoiceNumber = `LUX-${plan.id}-${Date.now()}`
-    setInvoiceData({
-      invoiceNumber,
-      planName: plan.name,
-      duration: plan.duration,
-      amount: plan.price,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      paymentUrl: '',
-      orderId: '',
-      plan: plan.id === 'lifetime-ultra' ? 'LIFETIME' : 'PRO',
-      durationMonths: plan.durationMonths,
-    })
-    setShowInvoice(true)
-    setIsLoading(null)
+    setShowPayment(true)
   }
 
-  const handleInvoiceClose = () => {
-    setShowInvoice(false)
-    setInvoiceData(null)
+  const handlePaymentClose = () => {
+    setShowPayment(false)
     setSelectedPlan(null)
     if (onPaymentSuccess) {
       onPaymentSuccess()
-    }
-  }
-
-  const handlePayNow = () => {
-    if (invoiceData?.paymentUrl) {
-      window.open(invoiceData.paymentUrl, '_blank')
     }
   }
 
@@ -188,8 +154,6 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
 
               {/* Header */}
               <div className="relative bg-gradient-to-r from-purple-600/90 via-pink-500/90 to-purple-600/90 backdrop-blur-xl border-b border-purple-400/20">
-                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIxIiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDUpIi8+PC9zdmc+')] opacity-50" />
-
                 <div className="relative p-6 md:p-8">
                   <div className="flex items-center justify-between">
                     <div>
@@ -213,24 +177,24 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                 </div>
               </div>
 
-              {/* Payment Methods Banner */}
+              {/* Payment Methods Banner — Manual */}
               <div className="px-6 md:px-8 py-4 border-b border-white/5">
                 <div className="flex items-center justify-center gap-6 md:gap-8 text-white/40">
                   <div className="flex items-center gap-2 text-xs md:text-sm">
-                    <CreditCard className="w-4 h-4" />
-                    <span>Kartu</span>
+                    <span className="text-blue-400 font-bold">BCA</span>
+                    <span>Transfer</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs md:text-sm">
-                    <Wallet className="w-4 h-4" />
-                    <span>E-Wallet</span>
+                    <span className="text-emerald-400 font-bold">JAGO</span>
+                    <span>Transfer</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs md:text-sm">
-                    <QrCode className="w-4 h-4" />
-                    <span>QRIS</span>
+                    <span className="text-purple-400 font-bold">QRIS</span>
+                    <span>Scan</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs md:text-sm">
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>Virtual Account</span>
+                    <span className="text-green-400 font-bold">WA</span>
+                    <span>Konfirmasi</span>
                   </div>
                 </div>
               </div>
@@ -260,7 +224,6 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                       }
                     `}
                   >
-                    {/* Popular Badge */}
                     {plan.popular && (
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                         <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold px-3 py-1 shadow-lg shadow-purple-500/30 tracking-wider uppercase">
@@ -278,17 +241,11 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                       </div>
                     )}
 
-                    {/* Plan Name */}
                     <div className="text-center mb-4">
-                      <h3 className="text-lg font-bold text-white mb-1">
-                        {plan.name}
-                      </h3>
-                      <p className="text-white/50 text-xs">
-                        {plan.description}
-                      </p>
+                      <h3 className="text-lg font-bold text-white mb-1">{plan.name}</h3>
+                      <p className="text-white/50 text-xs">{plan.description}</p>
                     </div>
 
-                    {/* Price */}
                     <div className="text-center mb-5">
                       {plan.price === 0 ? (
                         <div className="text-2xl font-bold text-white tracking-tight">FREE</div>
@@ -305,7 +262,6 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                       )}
                     </div>
 
-                    {/* Features */}
                     <div className="space-y-2 mb-6">
                       {plan.features.map((feature, idx) => (
                         <div key={idx} className="flex items-start gap-2 text-xs">
@@ -315,17 +271,11 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                       ))}
                     </div>
 
-                    {/* CTA Button */}
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      disabled={isLoading === plan.id}
                       className={`
-                        w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all
-                        ${isLoading === plan.id
-                          ? 'opacity-70 cursor-wait'
-                          : 'cursor-pointer'
-                        }
+                        w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer
                         ${plan.highlight
                           ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white shadow-lg shadow-amber-500/20'
                           : plan.popular
@@ -336,16 +286,9 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                         }
                       `}
                     >
-                      {isLoading === plan.id ? (
+                      {plan.price === 0 ? 'Mulai Gratis' : (
                         <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Memproses...
-                        </>
-                      ) : plan.price === 0 ? (
-                        'Mulai Gratis'
-                      ) : (
-                        <>
-                          Bayar Sekarang
+                          Bayar Manual
                           <ArrowRight className="w-4 h-4" />
                         </>
                       )}
@@ -359,16 +302,15 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-white/30 text-xs">
                   <div className="flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/60" />
-                    <span>Pembayaran Aman & Terenkripsi</span>
+                    <span>Transfer Bank BCA / Jago / QRIS</span>
                   </div>
                   <span className="hidden sm:inline">•</span>
                   <div className="flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-amber-500/60" />
-                    <span>Aktivasi Instan Setelah Pembayaran</span>
+                    <span>Konfirmasi via WhatsApp</span>
                   </div>
                   <span className="hidden sm:inline">•</span>
                   <div className="flex items-center gap-1.5">
-                    <span>Bisa berhenti kapan saja</span>
+                    <span>Aktivasi manual oleh admin</span>
                   </div>
                 </div>
               </div>
@@ -377,23 +319,13 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
         </motion.div>
       </AnimatePresence>
 
-      {/* Payment Invoice Modal */}
-      {invoiceData && (
-        <PaymentInvoiceModal
-          isOpen={showInvoice}
-          onClose={handleInvoiceClose}
-          invoiceNumber={invoiceData.invoiceNumber}
-          planName={invoiceData.planName}
-          duration={invoiceData.duration}
-          amount={invoiceData.amount}
-          expiresAt={invoiceData.expiresAt}
-          paymentUrl={invoiceData.paymentUrl}
-          orderId={invoiceData.orderId}
-          plan={invoiceData.plan}
-          durationMonths={invoiceData.durationMonths}
-          onPayNow={handlePayNow}
-        />
-      )}
+      {/* Manual Payment Confirmation Modal */}
+      <PaymentConfirmationModal
+        isOpen={showPayment}
+        onClose={handlePaymentClose}
+        planName={selectedPlan?.name}
+        planPrice={selectedPlan?.price}
+      />
     </>
   )
 }
