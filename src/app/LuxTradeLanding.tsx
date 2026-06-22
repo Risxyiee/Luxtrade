@@ -1616,14 +1616,18 @@ export default function LuxTradeLanding() {
           </div>
           <div className="pt-8 border-t border-white/[0.08] flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-white/40 text-sm font-medium">
-              © 2024 LuxTrade. All rights reserved.
+              © {new Date().getFullYear()} LuxTrade. All rights reserved.
             </p>
             <div className="flex gap-6">
-              {['Privacy Policy', 'Terms of Service', 'Cookie Policy'].map((item) => (
-                <a key={item} href="#" className="text-white/40 hover:text-white transition-colors text-sm font-medium">
-                  {item}
-                </a>
-              ))}
+              <Link href="/privacy" className="text-white/40 hover:text-white transition-colors text-sm font-medium">
+                Privacy Policy
+              </Link>
+              <Link href="/terms" className="text-white/40 hover:text-white transition-colors text-sm font-medium">
+                Terms of Service
+              </Link>
+              <Link href="/disclaimer" className="text-white/40 hover:text-white transition-colors text-sm font-medium">
+                Disclaimer
+              </Link>
             </div>
           </div>
         </div>
