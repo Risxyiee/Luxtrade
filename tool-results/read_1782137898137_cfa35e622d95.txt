@@ -1,0 +1,1246 @@
+   100→   100→   100→
+   101→   101→   101→    console.log('✅ Email sent via Resend template:', templateId)
+   102→   102→   102→    return { success: true, data }
+   103→   103→   103→  } catch (error) {
+   104→   104→   104→    console.error('Email template error, falling back to inline HTML:', error)
+   105→   105→   105→    return sendEmail({ to, subject, html: fallbackHtml })
+   106→   106→   106→  }
+   107→   107→   107→}
+   108→   108→   108→
+   109→   109→   109→// ============================================
+   110→   110→   110→// SUPABASE EMAIL TEMPLATES
+   111→   111→   111→// Copy-paste these directly into:
+   112→   112→   112→// Supabase Dashboard → Authentication → Email Templates
+   113→   113→   113→// ============================================
+   114→   114→   114→
+   115→   115→   115→// VARIABLES YANG TERSEDIA DI SUPABASE TEMPLATE:
+   116→   116→   116→// {{ .ConfirmationURL }} - Link konfirmasi/reset
+   117→   117→   117→// {{ .Token }} - Token raw
+   118→   118→   118→// {{ .SiteURL }} - Site URL dari config
+   119→   119→   119→// {{ .Email }} - Email user
+   120→   120→   120→// {{ .NewEmail }} - Email baru (hanya di change email)
+   121→   121→   121→// {{ .RedirectTo }} - Redirect URL
+   122→   122→   122→// {{ .Data.DisplayName }} - Nama user dari metadata
+   123→   123→   123→
+   124→   124→   124→/**
+   125→   125→   125→ * === SUPABASE: Confirm Signup Template ===
+   126→   126→   126→ * Paste ke: Authentication → Email Templates → Confirm signup
+   127→   127→   127→ */
+   128→   128→   128→export const SUPABASE_CONFIRM_SIGNUP = `<!DOCTYPE html>
+   129→   129→   129→<html lang="id">
+   130→   130→   130→<head>
+   131→   131→   131→  <meta charset="UTF-8">
+   132→   132→   132→  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   133→   133→   133→  <title>Konfirmasi Email - LuxTrade</title>
+   134→   134→   134→</head>
+   135→   135→   135→<body style="margin: 0; padding: 0; background-color: #0a0612; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+   136→   136→   136→  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+   137→   137→   137→    <tr>
+   138→   138→   138→      <td style="padding: 40px 20px;">
+   139→   139→   139→        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="margin: 0 auto; background: linear-gradient(135deg, #1a0f2e 0%, #0d0715 100%); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
+   140→   140→   140→          <tr>
+   141→   141→   141→            <td style="padding: 40px 40px 20px 40px; text-align: center;">
+   142→   142→   142→              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+   143→   143→   143→                <tr>
+   144→   144→   144→                  <td style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); border-radius: 12px; padding: 12px 16px;">
+   145→   145→   145→                    <span style="font-size: 24px;">👑</span>
+   146→   146→   146→                  </td>
+   147→   147→   147→                </tr>
+   148→   148→   148→              </table>
+   149→   149→   149→              <h1 style="color: #fbbf24; font-size: 28px; margin: 20px 0 10px 0; font-weight: 700;">LuxTrade</h1>
+   150→   150→   150→              <p style="color: rgba(255,255,255,0.5); font-size: 14px; margin: 0;">Premium Trading Journal</p>
+   151→   151→   151→            </td>
+   152→   152→   152→          </tr>
+   153→   153→   153→          <tr>
+   154→   154→   154→            <td style="padding: 30px 40px;">
+   155→   155→   155→              <h2 style="color: #ffffff; font-size: 22px; margin: 0 0 20px 0; font-weight: 600;">
+   156→   156→   156→                Halo{{if .Data.DisplayName}} {{.Data.DisplayName}}{{end}}! 👋
+   157→   157→   157→              </h2>
+   158→   158→   158→              <p style="color: rgba(255,255,255,0.7); font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+   159→   159→   159→                Terima kasih telah mendaftar di LuxTrade. Untuk memulai perjalanan trading Anda, silakan konfirmasi alamat email Anda:
+   160→   160→   160→              </p>
+   161→   161→   161→              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 30px 0;">
+   162→   162→   162→                <tr>
+   163→   163→   163→                  <td style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); border-radius: 12px; box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);">
+   164→   164→   164→                    <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+   165→   165→   165→                      Konfirmasi Email
+   166→   166→   166→                    </a>
+   167→   167→   167→                  </td>
+   168→   168→   168→                </tr>
+   169→   169→   169→              </table>
+   170→   170→   170→              <p style="color: rgba(255,255,255,0.5); font-size: 14px; line-height: 1.6; margin: 0 0 15px 0;">
+   171→   171→   171→                Atau salin link berikut ke browser Anda:
+   172→   172→   172→              </p>
+   173→   173→   173→              <p style="color: #f59e0b; font-size: 13px; word-break: break-all; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; margin: 0 0 20px 0;">
+   174→   174→   174→                {{ .ConfirmationURL }}
+   175→   175→   175→              </p>
+   176→   176→   176→              <p style="color: rgba(255,255,255,0.5); font-size: 14px; margin: 0;">
+   177→   177→   177→                ⏰ Link ini akan kadaluarsa dalam 24 jam.
+   178→   178→   178→              </p>
+   179→   179→   179→            </td>
+   180→   180→   180→          </tr>
+   181→   181→   181→          <tr>
+   182→   182→   182→            <td style="padding: 0 40px;">
+   183→   183→   183→              <div style="border-top: 1px solid rgba(255,255,255,0.1);"></div>
+   184→   184→   184→            </td>
+   185→   185→   185→          </tr>
+   186→   186→   186→          <tr>
+   187→   187→   187→            <td style="padding: 30px 40px; text-align: center;">
+   188→   188→   188→              <p style="color: rgba(255,255,255,0.4); font-size: 13px; margin: 0 0 10px 0;">
+   189→   189→   189→                Jika Anda tidak merasa mendaftar di LuxTrade, mohon abaikan email ini.
+   190→   190→   190→              </p>
+   191→   191→   191→              <p style="color: rgba(255,255,255,0.3); font-size: 12px; margin: 0;">
+   192→   192→   192→                &copy; 2025 LuxTrade. All rights reserved.
+   193→   193→   193→              </p>
+   194→   194→   194→            </td>
+   195→   195→   195→          </tr>
+   196→   196→   196→        </table>
+   197→   197→   197→      </td>
+   198→   198→   198→    </tr>
+   199→   199→   199→  </table>
+   200→   200→   200→</body>
+   201→   201→   201→</html>`
+   202→   202→   202→
+   203→   203→   203→/**
+   204→   204→   204→ * === SUPABASE: Reset Password Template ===
+   205→   205→   205→ * Paste ke: Authentication → Email Templates → Reset password
+   206→   206→   206→ */
+   207→   207→   207→export const SUPABASE_RESET_PASSWORD = `<!DOCTYPE html>
+   208→   208→   208→<html lang="id">
+   209→   209→   209→<head>
+   210→   210→   210→  <meta charset="UTF-8">
+   211→   211→   211→  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   212→   212→   212→  <title>Reset Password - LuxTrade</title>
+   213→   213→   213→</head>
+   214→   214→   214→<body style="margin: 0; padding: 0; background-color: #0a0612; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+   215→   215→   215→  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+   216→   216→   216→    <tr>
+   217→   217→   217→      <td style="padding: 40px 20px;">
+   218→   218→   218→        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="margin: 0 auto; background: linear-gradient(135deg, #1a0f2e 0%, #0d0715 100%); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
+   219→   219→   219→          <tr>
+   220→   220→   220→            <td style="padding: 40px 40px 20px 40px; text-align: center;">
+   221→   221→   221→              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+   222→   222→   222→                <tr>
+   223→   223→   223→                  <td style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); border-radius: 12px; padding: 12px 16px;">
+   224→   224→   224→                    <span style="font-size: 24px;">👑</span>
+   225→   225→   225→                  </td>
+   226→   226→   226→                </tr>
+   227→   227→   227→              </table>
+   228→   228→   228→              <h1 style="color: #fbbf24; font-size: 28px; margin: 20px 0 10px 0; font-weight: 700;">LuxTrade</h1>
+   229→   229→   229→              <p style="color: rgba(255,255,255,0.5); font-size: 14px; margin: 0;">Premium Trading Journal</p>
+   230→   230→   230→            </td>
+   231→   231→   231→          </tr>
+   232→   232→   232→          <tr>
+   233→   233→   233→            <td style="padding: 10px 40px 0 40px; text-align: center;">
+   234→   234→   234→              <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(245, 158, 11, 0.1); display: inline-flex; align-items: center; justify-content: center;">
+   235→   235→   235→                <span style="font-size: 32px;">🔒</span>
+   236→   236→   236→              </div>
+   237→   237→   237→            </td>
+   238→   238→   238→          </tr>
+   239→   239→   239→          <tr>
+   240→   240→   240→            <td style="padding: 20px 40px 30px 40px;">
+   241→   241→   241→              <h2 style="color: #ffffff; font-size: 22px; margin: 0 0 20px 0; font-weight: 600; text-align: center;">
+   242→   242→   242→                Reset Password
+   243→   243→   243→              </h2>
+   244→   244→   244→              <p style="color: rgba(255,255,255,0.7); font-size: 16px; line-height: 1.6; margin: 0 0 20px 0; text-align: center;">
+   245→   245→   245→                Kami menerima permintaan untuk mengubah password akun LuxTrade Anda. Klik tombol di bawah untuk membuat password baru:
+   246→   246→   246→              </p>
+   247→   247→   247→              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 30px auto;">
+   248→   248→   248→                <tr>
+   249→   249→   249→                  <td style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); border-radius: 12px; box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);">
+   250→   250→   250→                    <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+   251→   251→   251→                      Ubah Password
+   252→   252→   252→                    </a>
+   253→   253→   253→                  </td>
+   254→   254→   254→                </tr>
+   255→   255→   255→              </table>
+   256→   256→   256→              <p style="color: rgba(255,255,255,0.5); font-size: 14px; line-height: 1.6; margin: 0 0 15px 0; text-align: center;">
+   257→   257→   257→                Atau salin link berikut ke browser Anda:
+   258→   258→   258→              </p>
+   259→   259→   259→              <p style="color: #f59e0b; font-size: 13px; word-break: break-all; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; margin: 0 0 20px 0; text-align: center;">
+   260→   260→   260→                {{ .ConfirmationURL }}
+   261→   261→   261→              </p>
+   262→   262→   262→              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 20px 0 0 0;">
+   263→   263→   263→                <tr>
+   264→   264→   264→                  <td style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 10px; padding: 14px 16px;">
+   265→   265→   265→                    <p style="color: rgba(255,255,255,0.6); font-size: 13px; line-height: 1.5; margin: 0;">
+   266→   266→   266→                      ⚠️ <strong style="color: #fca5a5;">Jangan bagikan link ini</strong> dengan siapa pun. Link ini akan kadaluarsa dalam <strong style="color: #fca5a5;">1 jam</strong>. Jika Anda tidak meminta reset password, mohon abaikan email ini — password Anda tidak akan berubah.
+   267→   267→   267→                    </p>
+   268→   268→   268→                  </td>
+   269→   269→   269→                </tr>
+   270→   270→   270→              </table>
+   271→   271→   271→            </td>
+   272→   272→   272→          </tr>
+   273→   273→   273→          <tr>
+   274→   274→   274→            <td style="padding: 0 40px;">
+   275→   275→   275→              <div style="border-top: 1px solid rgba(255,255,255,0.1);"></div>
+   276→   276→   276→            </td>
+   277→   277→   277→          </tr>
+   278→   278→   278→          <tr>
+   279→   279→   279→            <td style="padding: 30px 40px; text-align: center;">
+   280→   280→   280→              <p style="color: rgba(255,255,255,0.4); font-size: 13px; margin: 0 0 10px 0;">
+   281→   281→   281→                Jika Anda tidak meminta reset password, abaikan email ini.
+   282→   282→   282→              </p>
+   283→   283→   283→              <p style="color: rgba(255,255,255,0.3); font-size: 12px; margin: 0;">
+   284→   284→   284→                &copy; 2025 LuxTrade. All rights reserved.
+   285→   285→   285→              </p>
+   286→   286→   286→            </td>
+   287→   287→   287→          </tr>
+   288→   288→   288→        </table>
+   289→   289→   289→      </td>
+   290→   290→   290→    </tr>
+   291→   291→   291→  </table>
+   292→   292→   292→</body>
+   293→   293→   293→</html>`
+   294→   294→   294→
+   295→   295→   295→/**
+   296→   296→   296→ * === SUPABASE: Change Email Template ===
+   297→   297→   297→ * Paste ke: Authentication → Email Templates → Change email address
+   298→   298→   298→ */
+   299→   299→   299→export const SUPABASE_CHANGE_EMAIL = `<!DOCTYPE html>
+   300→   300→   300→<html lang="id">
+   301→   301→   301→<head>
+   302→   302→   302→  <meta charset="UTF-8">
+   303→   303→   303→  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   304→   304→   304→  <title>Konfirmasi Ubah Email - LuxTrade</title>
+   305→   305→   305→</head>
+   306→   306→   306→<body style="margin: 0; padding: 0; background-color: #0a0612; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+   307→   307→   307→  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+   308→   308→   308→    <tr>
+   309→   309→   309→      <td style="padding: 40px 20px;">
+   310→   310→   310→        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="margin: 0 auto; background: linear-gradient(135deg, #1a0f2e 0%, #0d0715 100%); border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
+   311→   311→   311→          <tr>
+   312→   312→   312→            <td style="padding: 40px 40px 20px 40px; text-align: center;">
+   313→   313→   313→              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+   314→   314→   314→                <tr>
+   315→   315→   315→                  <td style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); border-radius: 12px; padding: 12px 16px;">
+   316→   316→   316→                    <span style="font-size: 24px;">👑</span>
+   317→   317→   317→                  </td>
+   318→   318→   318→                </tr>
+   319→   319→   319→              </table>
+   320→   320→   320→              <h1 style="color: #fbbf24; font-size: 28px; margin: 20px 0 10px 0; font-weight: 700;">LuxTrade</h1>
+   321→   321→   321→              <p style="color: rgba(255,255,255,0.5); font-size: 14px; margin: 0;">Premium Trading Journal</p>
+   322→   322→   322→            </td>
+   323→   323→   323→          </tr>
+   324→   324→   324→          <tr>
+   325→   325→   325→            <td style="padding: 30px 40px;">
+   326→   326→   326→              <h2 style="color: #ffffff; font-size: 22px; margin: 0 0 20px 0; font-weight: 600; text-align: center;">
+   327→   327→   327→                Konfirmasi Ubah Email 📧
+   328→   328→   328→              </h2>
+   329→   329→   329→              <p style="color: rgba(255,255,255,0.7); font-size: 16px; line-height: 1.6; margin: 0 0 10px 0; text-align: center;">
+   330→   330→   330→                Anda ingin mengubah email ke:
+   331→   331→   331→              </p>
+   332→   332→   332→              <p style="color: #f59e0b; font-size: 16px; font-weight: 600; text-align: center; margin: 0 0 20px 0;">
+   333→   333→   333→                {{ .NewEmail }}
+   334→   334→   334→              </p>
+   335→   335→   335→              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 20px auto 30px auto;">
+   336→   336→   336→                <tr>
+   337→   337→   337→                  <td style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); border-radius: 12px; box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);">
+   338→   338→   338→                    <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+   339→   339→   339→                      Konfirmasi Ubah Email
+   340→   340→   340→                    </a>
+   341→   341→   341→                  </td>
+   342→   342→   342→                </tr>
+   343→   343→   343→              </table>
+   344→   344→   344→              <p style="color: rgba(255,255,255,0.5); font-size: 14px; margin: 0; text-align: center;">
+   345→   345→   345→                ⏰ Link ini akan kadaluarsa dalam 24 jam.
+   346→   346→   346→              </p>
+   347→   347→   347→            </td>
+   348→   348→   348→          </tr>
+   349→   349→   349→          <tr>
+   350→   350→   350→            <td style="padding: 0 40px;">
+   351→   351→   351→              <div style="border-top: 1px solid rgba(255,255,255,0.1);"></div>
+   352→   352→   352→            </td>
+   353→   353→   353→          </tr>
+   354→   354→   354→          <tr>
+   355→   355→   355→            <td style="padding: 30px 40px; text-align: center;">
+   356→   356→   356→              <p style="color: rgba(255,255,255,0.4); font-size: 13px; margin: 0 0 10px 0;">
+   357→   357→   357→                Jika Anda tidak merasa meminta perubahan ini, mohon abaikan email ini.
+   358→   358→   358→              </p>
+   359→   359→   359→              <p style="color: rgba(255,255,255,0.3); font-size: 12px; margin: 0;">
+   360→   360→   360→                &copy; 2025 LuxTrade. All rights reserved.
+   361→   361→   361→              </p>
+   362→   362→   362→            </td>
+   363→   363→   363→          </tr>
+   364→   364→   364→        </table>
+   365→   365→   365→      </td>
+   366→   366→   366→    </tr>
+   367→   367→   367→  </table>
+   368→   368→   368→</body>
+   369→   369→   369→</html>`
+   370→   370→   370→
+   371→   371→   371→// ============================================
+   372→   372→   372→// PROGRAMMATIC TEMPLATES (untuk sendEmail via Resend langsung)
+   373→   373→   373→// Premium Design System - LuxTrade Brand
+   374→   374→   374→// ============================================
+   375→   375→   375→
+   376→   376→   376→export function getConfirmationEmailHtml(name: string, confirmationUrl: string) {
+   377→   377→   377→  return `
+   378→   378→   378→    <!DOCTYPE html>
+   379→   379→   379→    <html lang="id">
+   380→   380→   380→    <head>
+   381→   381→   381→      <meta charset="UTF-8">
+   382→   382→   382→      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   383→   383→   383→      <title>Verifikasi Akun LuxTrade</title>
+   384→   384→   384→    </head>
+   385→   385→   385→    <body style="margin: 0; padding: 0; background-color: #09050f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+   386→   386→   386→      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="min-height: 100vh;">
+   387→   387→   387→        <tr>
+   388→   388→   388→          <td style="padding: 32px 16px;" align="center" valign="top">
+   389→   389→   389→
+   390→   390→   390→            <!-- Main Card -->
+   391→   391→   391→            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 520px; background: linear-gradient(170deg, #1c1028 0%, #0f0a1a 50%, #09050f 100%); border-radius: 20px; border: 1px solid rgba(251, 191, 36, 0.12); box-shadow: 0 0 60px rgba(245, 158, 11, 0.06), 0 0 120px rgba(0,0,0,0.5); overflow: hidden;">
+   392→   392→   392→              
+   393→   393→   393→              <!-- Top Accent Bar -->
+   394→   394→   394→              <tr>
+   395→   395→   395→                <td style="height: 3px; background: linear-gradient(90deg, transparent 0%, #f59e0b 30%, #fbbf24 50%, #f59e0b 70%, transparent 100%);"></td>
+   396→   396→   396→              </tr>
+   397→   397→   397→
+   398→   398→   398→              <!-- Header -->
+   399→   399→   399→              <tr>
+   400→   400→   400→                <td style="padding: 36px 36px 8px 36px; text-align: center;">
+   401→   401→   401→                  <!-- Logo Badge -->
+   402→   402→   402→                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 16px auto;">
+   403→   403→   403→                    <tr>
+   404→   404→   404→                      <td style="width: 56px; height: 56px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 16px; text-align: center; line-height: 56px; box-shadow: 0 8px 24px rgba(245, 158, 11, 0.25);">
+   405→   405→   405→                        <span style="font-size: 28px;">👑</span>
+   406→   406→   406→                      </td>
+   407→   407→   407→                    </tr>
+   408→   408→   408→                  </table>
+   409→   409→   409→                  <h1 style="color: #fbbf24; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTrade</h1>
+   410→   410→   410→                  <p style="color: rgba(255,255,255,0.35); font-size: 12px; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Premium Trading Journal</p>
+   411→   411→   411→                </td>
+   412→   412→   412→              </tr>
+   413→   413→   413→
+   414→   414→   414→              <!-- Divider -->
+   415→   415→   415→              <tr>
+   416→   416→   416→                <td style="padding: 20px 36px 0 36px;">
+   417→   417→   417→                  <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(251,191,36,0.15) 50%, transparent 100%);"></div>
+   418→   418→   418→                </td>
+   419→   419→   419→              </tr>
+   420→   420→   420→
+   421→   421→   421→              <!-- Content -->
+   422→   422→   422→              <tr>
+   423→   423→   423→                <td style="padding: 28px 36px 32px 36px;">
+   424→   424→   424→                  <h2 style="color: #ffffff; font-size: 20px; margin: 0 0 8px 0; font-weight: 700;">
+   425→   425→   425→                    Selamat Datang, ${name}! ✨
+   426→   426→   426→                  </h2>
+   427→   427→   427→                  <p style="color: rgba(255,255,255,0.65); font-size: 15px; line-height: 1.7; margin: 0 0 24px 0;">
+   428→   428→   428→                    Akun LuxTrade kamu udah jadi! Tinggal satu langkah lagi — klik tombol di bawah buat verifikasi email dan langsung mulai trading.
+   429→   429→   429→                  </p>
+   430→   430→   430→                  
+   431→   431→   431→                  <!-- CTA Button -->
+   432→   432→   432→                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 20px auto;">
+   433→   433→   433→                    <tr>
+   434→   434→   434→                      <td style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%); border-radius: 14px; box-shadow: 0 6px 28px rgba(245, 158, 11, 0.35), inset 0 1px 0 rgba(255,255,255,0.15);">
+   435→   435→   435→                        <a href="${confirmationUrl}" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;">
+   436→   436→   436→                          ✅ Verifikasi Email Saya
+   437→   437→   437→                        </a>
+   438→   438→   438→                      </td>
+   439→   439→   439→                    </tr>
+   440→   440→   440→                  </table>
+   441→   441→   441→
+   442→   442→   442→                  <!-- Fallback Link -->
+   443→   443→   443→                  <p style="color: rgba(255,255,255,0.35); font-size: 12px; line-height: 1.6; margin: 0 0 6px 0; text-align: center;">
+   444→   444→   444→                    Tombol nggak bisa diklik? Salin link ini ke browser kamu:
+   445→   445→   445→                  </p>
+   446→   446→   446→                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 24px 0;">
+   447→   447→   447→                    <tr>
+   448→   448→   448→                      <td style="background: rgba(251, 191, 36, 0.06); border: 1px solid rgba(251, 191, 36, 0.12); border-radius: 10px; padding: 10px 14px;">
+   449→   449→   449→                        <p style="color: #fbbf24; font-size: 11px; word-break: break-all; margin: 0; line-height: 1.5;">
+   450→   450→   450→                          ${confirmationUrl}
+   451→   451→   451→                        </p>
+   452→   452→   452→                      </td>
+   453→   453→   453→                    </tr>
+   454→   454→   454→                  </table>
+   455→   455→   455→
+   456→   456→   456→                  <!-- Features Box -->
+   457→   457→   457→                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
+   458→   458→   458→                    <tr>
+   459→   459→   459→                      <td style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.06) 0%, rgba(245, 158, 11, 0.03) 100%); border: 1px solid rgba(251, 191, 36, 0.1); border-radius: 14px; padding: 18px 20px;">
+   460→   460→   460→                        <p style="color: #fbbf24; font-size: 13px; font-weight: 700; margin: 0 0 12px 0;">
+   461→   461→   461→                          🎁 Yang kamu dapat setelah verifikasi:
+   462→   462→   462→                        </p>
+   463→   463→   463→                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+   464→   464→   464→                          <tr>
+   465→   465→   465→                            <td style="padding: 3px 0; color: rgba(255,255,255,0.6); font-size: 13px;">
+   466→   466→   466→                              <span style="color: #fbbf24; margin-right: 6px;">▸</span> Trading journal & catat semua transaksi
+   467→   467→   467→                            </td>
+   468→   468→   468→                          </tr>
+   469→   469→   469→                          <tr>
+   470→   470→   470→                            <td style="padding: 3px 0; color: rgba(255,255,255,0.6); font-size: 13px;">
+   471→   471→   471→                              <span style="color: #fbbf24; margin-right: 6px;">▸</span> Analisa performa & AI insights
+   472→   472→   472→                            </td>
+   473→   473→   473→                          </tr>
+   474→   474→   474→                          <tr>
+   475→   475→   475→                            <td style="padding: 3px 0; color: rgba(255,255,255,0.6); font-size: 13px;">
+   476→   476→   476→                              <span style="color: #fbbf24; margin-right: 6px;">▸</span> Akses promo upgrade PRO
+   477→   477→   477→                            </td>
+   478→   478→   478→                          </tr>
+   479→   479→   479→                        </table>
+   480→   480→   480→                      </td>
+   481→   481→   481→                    </tr>
+   482→   482→   482→                  </table>
+   483→   483→   483→
+   484→   484→   484→                  <!-- Expiry Notice -->
+   485→   485→   485→                  <p style="color: rgba(255,255,255,0.3); font-size: 12px; line-height: 1.6; margin: 0; text-align: center;">
+   486→   486→   486→                    ⏰ Link ini berlaku <strong style="color: rgba(255,255,255,0.45);">24 jam</strong>. Kalau nggak merasa daftar di LuxTrade, abaikan email ini.
+   487→   487→   487→                  </p>
+   488→   488→   488→                </td>
+   489→   489→   489→              </tr>
+   490→   490→   490→
+   491→   491→   491→              <!-- Footer Divider -->
+   492→   492→   492→              <tr>
+   493→   493→   493→                <td style="padding: 0 36px;">
+   494→   494→   494→                  <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);"></div>
+   495→   495→   495→                </td>
+   496→   496→   496→              </tr>
+   497→   497→   497→
+   498→   498→   498→              <!-- Footer -->
+   499→   499→   499→              <tr>
+   500→   500→   500→                <td style="padding: 24px 36px 32px 36px; text-align: center;">
+   501→   501→   501→                  <p style="color: rgba(255,255,255,0.25); font-size: 11px; margin: 0 0 4px 0;">
+   502→   502→   502→                    © ${new Date().getFullYear()} LuxTrade. All rights reserved.
+   503→   503→   503→                  </p>
+   504→   504→   504→                  <p style="color: rgba(255,255,255,0.2); font-size: 10px; margin: 0;">
+   505→   505→   505→                    Email ini dikirim dari noreply@luxtradee.web.id
+   506→   506→   506→                  </p>
+   507→   507→   507→                </td>
+   508→   508→   508→              </tr>
+   509→   509→   509→
+   510→   510→   510→            </table>
+   511→   511→   511→          </td>
+   512→   512→   512→        </tr>
+   513→   513→   513→      </table>
+   514→   514→   514→    </body>
+   515→   515→   515→    </html>
+   516→   516→   516→  `
+   517→   517→   517→}
+   518→   518→   518→
+   519→   519→   519→// Reminder verification email - Premium Design (orange-gold accent)
+   520→   520→   520→export function getReminderVerificationEmailHtml(name: string, confirmationUrl: string) {
+   521→   521→   521→  return `
+   522→   522→   522→    <!DOCTYPE html>
+   523→   523→   523→    <html lang="id">
+   524→   524→   524→    <head>
+   525→   525→   525→      <meta charset="UTF-8">
+   526→   526→   526→      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   527→   527→   527→      <title>Reminder Verifikasi - LuxTrade</title>
+   528→   528→   528→    </head>
+   529→   529→   529→    <body style="margin: 0; padding: 0; background-color: #09050f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+   530→   530→   530→      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="min-height: 100vh;">
+   531→   531→   531→        <tr>
+   532→   532→   532→          <td style="padding: 32px 16px;" align="center" valign="top">
+   533→   533→   533→
+   534→   534→   534→            <!-- Main Card -->
+   535→   535→   535→            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 520px; background: linear-gradient(170deg, #1c1028 0%, #0f0a1a 50%, #09050f 100%); border-radius: 20px; border: 1px solid rgba(251, 191, 36, 0.12); box-shadow: 0 0 60px rgba(245, 158, 11, 0.06), 0 0 120px rgba(0,0,0,0.5); overflow: hidden;">
+   536→   536→   536→              
+   537→   537→   537→              <!-- Top Accent Bar - Orange-Gold -->
+   538→   538→   538→              <tr>
+   539→   539→   539→                <td style="height: 3px; background: linear-gradient(90deg, transparent, #f97316 30%, #fbbf24 50%, #f97316 70%, transparent);"></td>
+   540→   540→   540→              </tr>
+   541→   541→   541→
+   542→   542→   542→              <!-- Header -->
+   543→   543→   543→              <tr>
+   544→   544→   544→                <td style="padding: 36px 36px 8px 36px; text-align: center;">
+   545→   545→   545→                  <!-- Logo Badge -->
+   546→   546→   546→                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 16px auto;">
+   547→   547→   547→                    <tr>
+   548→   548→   548→                      <td style="width: 56px; height: 56px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 16px; text-align: center; line-height: 56px; box-shadow: 0 8px 24px rgba(245, 158, 11, 0.25);">
+   549→   549→   549→                        <span style="font-size: 28px;">👑</span>
+   550→   550→   550→                      </td>
+   551→   551→   551→                    </tr>
+   552→   552→   552→                  </table>
+   553→   553→   553→                  <h1 style="color: #fbbf24; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTrade</h1>
+   554→   554→   554→                  <p style="color: rgba(255,255,255,0.35); font-size: 12px; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Premium Trading Journal</p>
+   555→   555→   555→                </td>
+   556→   556→   556→              </tr>
+   557→   557→   557→
+   558→   558→   558→              <!-- Divider -->
+   559→   559→   559→              <tr>
+   560→   560→   560→                <td style="padding: 20px 36px 0 36px;">
+   561→   561→   561→                  <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(251,191,36,0.15) 50%, transparent 100%);"></div>
+   562→   562→   562→                </td>
+   563→   563→   563→              </tr>
+   564→   564→   564→
+   565→   565→   565→              <!-- Content -->
+   566→   566→   566→              <tr>
+   567→   567→   567→                <td style="padding: 28px 36px 32px 36px;">
+   568→   568→   568→
+   569→   569→   569→                  <!-- Emoji Icon -->
+   570→   570→   570→                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 16px auto;">
+   571→   571→   571→                    <tr>
+   572→   572→   572→                      <td style="width: 52px; height: 52px; background: rgba(251, 191, 36, 0.1); border-radius: 50%; text-align: center; line-height: 52px;">
+   573→   573→   573→                        <span style="font-size: 26px;">😅</span>
+   574→   574→   574→                      </td>
+   575→   575→   575→                    </tr>
+   576→   576→   576→                  </table>
+   577→   577→   577→
+   578→   578→   578→                  <h2 style="color: #ffffff; font-size: 20px; margin: 0 0 8px 0; font-weight: 700; text-align: center;">
+   579→   579→   579→                    Eits, ${name}! 🙈
+   580→   580→   580→                  </h2>
+   581→   581→   581→                  <p style="color: rgba(255,255,255,0.65); font-size: 15px; line-height: 1.7; margin: 0 0 6px 0; text-align: center;">
+   582→   582→   582→                    Kayaknya kamu lupa verifikasi email nih. Akun LuxTrade kamu masih nunggu buat diaktifin!
+   583→   583→   583→                  </p>
+   584→   584→   584→                  <p style="color: rgba(255,255,255,0.55); font-size: 14px; line-height: 1.7; margin: 0 0 24px 0; text-align: center;">
+   585→   585→   585→                    Tanpa verifikasi, kamu belum bisa login dan mulai catat trading. Yuk langsung aja klik tombol di bawah:
+   586→   586→   586→                  </p>
+   587→   587→   587→
+   588→   588→   588→                  <!-- CTA Button -->
+   589→   589→   589→                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 20px auto;">
+   590→   590→   590→                    <tr>
+   591→   591→   591→                      <td style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%); border-radius: 14px; box-shadow: 0 6px 28px rgba(245, 158, 11, 0.35), inset 0 1px 0 rgba(255,255,255,0.15);">
+   592→   592→   592→                        <a href="${confirmationUrl}" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;">
+   593→   593→   593→                          ✅ Verifikasi Email Sekarang
+   594→   594→   594→                        </a>
+   595→   595→   595→                      </td>
+   596→   596→   596→                    </tr>
+   597→   597→   597→                  </table>
+   598→   598→   598→
+   599→   599→   599→                  <!-- Fallback Link -->
+   600→   600→   600→                  <p style="color: rgba(255,255,255,0.35); font-size: 12px; line-height: 1.6; margin: 0 0 6px 0; text-align: center;">
+   601→   601→   601→                    Tombol nggak bisa diklik? Salin link ini ke browser kamu:
+   602→   602→   602→                  </p>
+   603→   603→   603→                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 24px 0;">
+   604→   604→   604→                    <tr>
+   605→   605→   605→                      <td style="background: rgba(251, 191, 36, 0.06); border: 1px solid rgba(251, 191, 36, 0.12); border-radius: 14px; padding: 10px 14px;">
+   606→   606→   606→                        <p style="color: #fbbf24; font-size: 11px; word-break: break-all; margin: 0; line-height: 1.5; text-align: center;">
+   607→   607→   607→                          ${confirmationUrl}
+   608→   608→   608→                        </p>
+   609→   609→   609→                      </td>
+   610→   610→   610→                    </tr>
+   611→   611→   611→                  </table>
+   612→   612→   612→
+   613→   613→   613→                  <!-- Benefits Box -->
+   614→   614→   614→                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
+   615→   615→   615→                    <tr>
+   616→   616→   616→                      <td style="background: rgba(251, 191, 36, 0.06); border: 1px solid rgba(251, 191, 36, 0.12); border-radius: 14px; padding: 18px 20px;">
+   617→   617→   617→                        <p style="color: #fbbf24; font-size: 13px; font-weight: 700; margin: 0 0 12px 0;">
+   618→   618→   618→                          🎁 Yang kamu dapat setelah verifikasi:
+   619→   619→   619→                        </p>
+   620→   620→   620→                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+   621→   621→   621→                          <tr>
+   622→   622→   622→                            <td style="padding: 3px 0; color: rgba(255,255,255,0.6); font-size: 13px;">
+   623→   623→   623→                              <span style="color: #fbbf24; margin-right: 6px;">▸</span> Login langsung & akses semua fitur
+   624→   624→   624→                            </td>
+   625→   625→   625→                          </tr>
+   626→   626→   626→                          <tr>
+   627→   627→   627→                            <td style="padding: 3px 0; color: rgba(255,255,255,0.6); font-size: 13px;">
+   628→   628→   628→                              <span style="color: #fbbf24; margin-right: 6px;">▸</span> Trading journal & analisa lengkap
+   629→   629→   629→                            </td>
+   630→   630→   630→                          </tr>
+   631→   631→   631→                          <tr>
+   632→   632→   632→                            <td style="padding: 3px 0; color: rgba(255,255,255,0.6); font-size: 13px;">
+   633→   633→   633→                              <span style="color: #fbbf24; margin-right: 6px;">▸</span> Akses promo & upgrade PRO
+   634→   634→   634→                            </td>
+   635→   635→   635→                          </tr>
+   636→   636→   636→                          <tr>
+   637→   637→   637→                            <td style="padding: 3px 0; color: rgba(255,255,255,0.6); font-size: 13px;">
+   638→   638→   638→                              <span style="color: #fbbf24; margin-right: 6px;">▸</span> Gratis 7 hari trial PRO (kalau masih berlaku!)
+   639→   639→   639→                            </td>
+   640→   640→   640→                          </tr>
+   641→   641→   641→                        </table>
+   642→   642→   642→                      </td>
+   643→   643→   643→                    </tr>
+   644→   644→   644→                  </table>
+   645→   645→   645→
+   646→   646→   646→                  <!-- Expiry Warning -->
+   647→   647→   647→                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 16px 0;">
+   648→   648→   648→                    <tr>
+   649→   649→   649→                      <td style="background: rgba(251, 191, 36, 0.06); border: 1px solid rgba(251, 191, 36, 0.12); border-radius: 14px; padding: 14px 18px;">
+   650→   650→   650→                        <p style="color: rgba(255,255,255,0.55); font-size: 13px; line-height: 1.6; margin: 0;">
+   651→   651→   651→                          ⏰ <strong style="color: #fcd34d;">Perhatian:</strong> Link verifikasi ini cuma berlaku <strong style="color: #fcd34d;">24 jam</strong>. Kalau udah expired, kamu bisa request ulang dari halaman login.
+   652→   652→   652→                        </p>
+   653→   653→   653→                      </td>
+   654→   654→   654→                    </tr>
+   655→   655→   655→                  </table>
+   656→   656→   656→
+   657→   657→   657→                  <p style="color: rgba(255,255,255,0.3); font-size: 12px; line-height: 1.6; margin: 0; text-align: center;">
+   658→   658→   658→                    Kalau kamu nggak merasa daftar di LuxTrade, abaikan email ini ya!
+   659→   659→   659→                  </p>
+   660→   660→   660→                </td>
+   661→   661→   661→              </tr>
+   662→   662→   662→
+   663→   663→   663→              <!-- Footer Divider -->
+   664→   664→   664→              <tr>
+   665→   665→   665→                <td style="padding: 0 36px;">
+   666→   666→   666→                  <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);"></div>
+   667→   667→   667→                </td>
+   668→   668→   668→              </tr>
+   669→   669→   669→
+   670→   670→   670→              <!-- Footer -->
+   671→   671→   671→              <tr>
+   672→   672→   672→                <td style="padding: 24px 36px 32px 36px; text-align: center;">
+   673→   673→   673→                  <p style="color: rgba(255,255,255,0.25); font-size: 11px; margin: 0 0 4px 0;">
+   674→   674→   674→                    © ${new Date().getFullYear()} LuxTrade. All rights reserved.
+   675→   675→   675→                  </p>
+   676→   676→   676→                  <p style="color: rgba(255,255,255,0.2); font-size: 10px; margin: 0;">
+   677→   677→   677→                    Email ini dikirim dari noreply@luxtradee.web.id
+   678→   678→   678→                  </p>
+   679→   679→   679→                </td>
+   680→   680→   680→              </tr>
+   681→   681→   681→
+   682→   682→   682→            </table>
+   683→   683→   683→          </td>
+   684→   684→   684→        </tr>
+   685→   685→   685→      </table>
+   686→   686→   686→    </body>
+   687→   687→   687→    </html>
+   688→   688→   688→  `
+   689→   689→   689→}
+   690→   690→   690→
+   691→   691→   691→// Reset password email - Premium Redesigned
+   692→   692→   692→export function getResetPasswordEmailHtml(name: string, resetUrl: string) {
+   693→   693→   693→  return `
+   694→   694→   694→    <!DOCTYPE html>
+   695→   695→   695→    <html lang="id">
+   696→   696→   696→    <head>
+   697→   697→   697→      <meta charset="UTF-8">
+   698→   698→   698→      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   699→   699→   699→      <title>Reset Password - LuxTrade</title>
+   700→   700→   700→    </head>
+   701→   701→   701→    <body style="margin: 0; padding: 0; background-color: #09050f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+   702→   702→   702→      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="min-height: 100vh;">
+   703→   703→   703→        <tr>
+   704→   704→   704→          <td style="padding: 32px 16px;" align="center" valign="top">
+   705→   705→   705→            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 520px; background: linear-gradient(170deg, #1c1028 0%, #0f0a1a 50%, #09050f 100%); border-radius: 20px; border: 1px solid rgba(251, 191, 36, 0.12); box-shadow: 0 0 60px rgba(245, 158, 11, 0.06), 0 0 120px rgba(0,0,0,0.5); overflow: hidden;">
+   706→   706→   706→              <tr>
+   707→   707→   707→                <td style="height: 3px; background: linear-gradient(90deg, transparent 0%, #ef4444 30%, #f97316 50%, #f59e0b 70%, transparent 100%);"></td>
+   708→   708→   708→              </tr>
+   709→   709→   709→              <tr>
+   710→   710→   710→                <td style="padding: 36px 36px 8px 36px; text-align: center;">
+   711→   711→   711→                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 16px auto;">
+   712→   712→   712→                    <tr>
+   713→   713→   713→                      <td style="width: 56px; height: 56px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 16px; text-align: center; line-height: 56px; box-shadow: 0 8px 24px rgba(245, 158, 11, 0.25);">
+   714→   714→   714→                        <span style="font-size: 28px;">👑</span>
+   715→   715→   715→                      </td>
+   716→   716→   716→                    </tr>
+   717→   717→   717→                  </table>
+   718→   718→   718→                  <h1 style="color: #fbbf24; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTrade</h1>
+   719→   719→   719→                  <p style="color: rgba(255,255,255,0.35); font-size: 12px; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Premium Trading Journal</p>
+   720→   720→   720→                </td>
+   721→   721→   721→              </tr>
+   722→   722→   722→              <tr>
+   723→   723→   723→                <td style="padding: 20px 36px 0 36px;">
+   724→   724→   724→                  <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(251,191,36,0.15) 50%, transparent 100%);"></div>
+   725→   725→   725→                </td>
+   726→   726→   726→              </tr>
+   727→   727→   727→              <tr>
+   728→   728→   728→                <td style="padding: 28px 36px 32px 36px;">
+   729→   729→   729→                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 16px auto;">
+   730→   730→   730→                    <tr>
+   731→   731→   731→                      <td style="width: 52px; height: 52px; background: rgba(245, 158, 11, 0.1); border-radius: 50%; text-align: center; line-height: 52px;">
+   732→   732→   732→                        <span style="font-size: 26px;">🔐</span>
+   733→   733→   733→                      </td>
+   734→   734→   734→                    </tr>
+   735→   735→   735→                  </table>
+   736→   736→   736→                  <h2 style="color: #ffffff; font-size: 20px; margin: 0 0 8px 0; font-weight: 700; text-align: center;">
+   737→   737→   737→                    Lupa Password, ${name}?
+   738→   738→   738→                  </h2>
+   739→   739→   739→                  <p style="color: rgba(255,255,255,0.65); font-size: 15px; line-height: 1.7; margin: 0 0 24px 0; text-align: center;">
+   740→   740→   740→                    Kami terima permintaan reset password buat akun kamu. Klik tombol di bawah buat bikin password baru:
+   741→   741→   741→                  </p>
+   742→   742→   742→                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 20px auto;">
+   743→   743→   743→                    <tr>
+   744→   744→   744→                      <td style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%); border-radius: 14px; box-shadow: 0 6px 28px rgba(245, 158, 11, 0.35), inset 0 1px 0 rgba(255,255,255,0.15);">
+   745→   745→   745→                        <a href="${resetUrl}" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;">
+   746→   746→   746→                          🔑 Reset Password Saya
+   747→   747→   747→                        </a>
+   748→   748→   748→                      </td>
+   749→   749→   749→                    </tr>
+   750→   750→   750→                  </table>
+   751→   751→   751→                  <p style="color: rgba(255,255,255,0.35); font-size: 12px; line-height: 1.6; margin: 0 0 6px 0; text-align: center;">
+   752→   752→   752→                    Tombol nggak bisa diklik? Salin link ini ke browser:
+   753→   753→   753→                  </p>
+   754→   754→   754→                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 24px 0;">
+   755→   755→   755→                    <tr>
+   756→   756→   756→                      <td style="background: rgba(251, 191, 36, 0.06); border: 1px solid rgba(251, 191, 36, 0.12); border-radius: 10px; padding: 10px 14px;">
+   757→   757→   757→                        <p style="color: #fbbf24; font-size: 11px; word-break: break-all; margin: 0; line-height: 1.5; text-align: center;">
+   758→   758→   758→                          ${resetUrl}
+   759→   759→   759→                        </p>
+   760→   760→   760→                      </td>
+   761→   761→   761→                    </tr>
+   762→   762→   762→                  </table>
+   763→   763→   763→                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 8px 0;">
+   764→   764→   764→                    <tr>
+   765→   765→   765→                      <td style="background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 14px; padding: 16px 18px;">
+   766→   766→   766→                        <p style="color: rgba(255,255,255,0.6); font-size: 13px; line-height: 1.6; margin: 0;">
+   767→   767→   767→                          ⚠️ <strong style="color: #fca5a5;">Jangan bagikan link ini</strong> ke siapa pun. Link cuma berlaku <strong style="color: #fca5a5;">1 jam</strong>. Kalau kamu nggak merasa minta reset password, langsung aja abaikan — password kamu tetap aman.
+   768→   768→   768→                        </p>
+   769→   769→   769→                      </td>
+   770→   770→   770→                    </tr>
+   771→   771→   771→                  </table>
+   772→   772→   772→                  <p style="color: rgba(255,255,255,0.3); font-size: 12px; line-height: 1.6; margin: 0; text-align: center;">
+   773→   773→   773→                    Kalau kamu merasa ada yang mencoba akses akun, segera ganti password setelah login ya.
+   774→   774→   774→                  </p>
+   775→   775→   775→                </td>
+   776→   776→   776→              </tr>
+   777→   777→   777→              <tr>
+   778→   778→   778→                <td style="padding: 0 36px;">
+   779→   779→   779→                  <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);"></div>
+   780→   780→   780→                </td>
+   781→   781→   781→              </tr>
+   782→   782→   782→              <tr>
+   783→   783→   783→                <td style="padding: 24px 36px 32px 36px; text-align: center;">
+   784→   784→   784→                  <p style="color: rgba(255,255,255,0.25); font-size: 11px; margin: 0 0 4px 0;">
+   785→   785→   785→                    © ${new Date().getFullYear()} LuxTrade. All rights reserved.
+   786→   786→   786→                  </p>
+   787→   787→   787→                  <p style="color: rgba(255,255,255,0.2); font-size: 10px; margin: 0;">
+   788→   788→   788→                    Email ini dikirim dari noreply@luxtradee.web.id
+   789→   789→   789→                  </p>
+   790→   790→   790→                </td>
+   791→   791→   791→              </tr>
+   792→   792→   792→
+   793→   793→   793→            </table>
+   794→   794→   794→          </td>
+   795→   795→   795→        </tr>
+   796→   796→   796→      </table>
+   797→   797→   797→    </body>
+   798→   798→   798→    </html>
+   799→   799→   799→  `
+   800→   800→   800→}
+   801→   801→   801→
+   802→   802→   802→// Email change confirmation - Premium Design (blue-purple-gold accent)
+   803→   803→   803→export function getEmailChangeHtml(name: string, confirmationUrl: string, newEmail: string) {
+   804→   804→   804→  return `
+   805→   805→   805→    <!DOCTYPE html>
+   806→   806→   806→    <html lang="id">
+   807→   807→   807→    <head>
+   808→   808→   808→      <meta charset="UTF-8">
+   809→   809→   809→      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   810→   810→   810→      <title>Konfirmasi Ubah Email - LuxTrade</title>
+   811→   811→   811→    </head>
+   812→   812→   812→    <body style="margin: 0; padding: 0; background-color: #09050f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+   813→   813→   813→      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="min-height: 100vh;">
+   814→   814→   814→        <tr>
+   815→   815→   815→          <td style="padding: 32px 16px;" align="center" valign="top">
+   816→   816→   816→
+   817→   817→   817→            <!-- Main Card -->
+   818→   818→   818→            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 520px; background: linear-gradient(170deg, #1c1028 0%, #0f0a1a 50%, #09050f 100%); border-radius: 20px; border: 1px solid rgba(251, 191, 36, 0.12); box-shadow: 0 0 60px rgba(245, 158, 11, 0.06), 0 0 120px rgba(0,0,0,0.5); overflow: hidden;">
+   819→   819→   819→              
+   820→   820→   820→              <!-- Top Accent Bar - Blue-Purple-Gold -->
+   821→   821→   821→              <tr>
+   822→   822→   822→                <td style="height: 3px; background: linear-gradient(90deg, transparent, #3b82f6 30%, #8b5cf6 50%, #f59e0b 70%, transparent);"></td>
+   823→   823→   823→              </tr>
+   824→   824→   824→
+   825→   825→   825→              <!-- Header -->
+   826→   826→   826→              <tr>
+   827→   827→   827→                <td style="padding: 36px 36px 8px 36px; text-align: center;">
+   828→   828→   828→                  <!-- Logo Badge -->
+   829→   829→   829→                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 16px auto;">
+   830→   830→   830→                    <tr>
+   831→   831→   831→                      <td style="width: 56px; height: 56px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 16px; text-align: center; line-height: 56px; box-shadow: 0 8px 24px rgba(245, 158, 11, 0.25);">
+   832→   832→   832→                        <span style="font-size: 28px;">👑</span>
+   833→   833→   833→                      </td>
+   834→   834→   834→                    </tr>
+   835→   835→   835→                  </table>
+   836→   836→   836→                  <h1 style="color: #fbbf24; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTrade</h1>
+   837→   837→   837→                  <p style="color: rgba(255,255,255,0.35); font-size: 12px; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Premium Trading Journal</p>
+   838→   838→   838→                </td>
+   839→   839→   839→              </tr>
+   840→   840→   840→
+   841→   841→   841→              <!-- Divider -->
+   842→   842→   842→              <tr>
+   843→   843→   843→                <td style="padding: 20px 36px 0 36px;">
+   844→   844→   844→                  <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(251,191,36,0.15) 50%, transparent 100%);"></div>
+   845→   845→   845→                </td>
+   846→   846→   846→              </tr>
+   847→   847→   847→
+   848→   848→   848→              <!-- Content -->
+   849→   849→   849→              <tr>
+   850→   850→   850→                <td style="padding: 28px 36px 32px 36px;">
+   851→   851→   851→
+   852→   852→   852→                  <!-- Emoji Icon -->
+   853→   853→   853→                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 16px auto;">
+   854→   854→   854→                    <tr>
+   855→   855→   855→                      <td style="width: 52px; height: 52px; background: rgba(139, 92, 246, 0.1); border-radius: 50%; text-align: center; line-height: 52px;">
+   856→   856→   856→                        <span style="font-size: 26px;">📧</span>
+   857→   857→   857→                      </td>
+   858→   858→   858→                    </tr>
+   859→   859→   859→                  </table>
+   860→   860→   860→
+   861→   861→   861→                  <h2 style="color: #ffffff; font-size: 20px; margin: 0 0 8px 0; font-weight: 700; text-align: center;">
+   862→   862→   862→                    Ubah Email, ${name}? 🔄
+   863→   863→   863→                  </h2>
+   864→   864→   864→                  <p style="color: rgba(255,255,255,0.65); font-size: 15px; line-height: 1.7; margin: 0 0 16px 0; text-align: center;">
+   865→   865→   865→                    Kita nerima request buat ganti email akun kamu. Kamu mau ubah ke alamat ini:
+   866→   866→   866→                  </p>
+   867→   867→   867→
+   868→   868→   868→                  <!-- New Email Display -->
+   869→   869→   869→                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 24px 0;">
+   870→   870→   870→                    <tr>
+   871→   871→   871→                      <td style="background: rgba(251, 191, 36, 0.06); border: 1px solid rgba(251, 191, 36, 0.12); border-radius: 14px; padding: 14px 18px; text-align: center;">
+   872→   872→   872→                        <p style="color: rgba(255,255,255,0.4); font-size: 11px; margin: 0 0 4px 0; text-transform: uppercase; letter-spacing: 1px;">Email Baru</p>
+   873→   873→   873→                        <p style="color: #fbbf24; font-size: 15px; font-weight: 700; margin: 0; word-break: break-all;">${newEmail}</p>
+   874→   874→   874→                      </td>
+   875→   875→   875→                    </tr>
+   876→   876→   876→                  </table>
+   877→   877→   877→
+   878→   878→   878→                  <!-- CTA Button -->
+   879→   879→   879→                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 20px auto;">
+   880→   880→   880→                    <tr>
+   881→   881→   881→                      <td style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%); border-radius: 14px; box-shadow: 0 6px 28px rgba(245, 158, 11, 0.35), inset 0 1px 0 rgba(255,255,255,0.15);">
+   882→   882→   882→                        <a href="${confirmationUrl}" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;">
+   883→   883→   883→                          ✅ Konfirmasi Ubah Email
+   884→   884→   884→                        </a>
+   885→   885→   885→                      </td>
+   886→   886→   886→                    </tr>
+   887→   887→   887→                  </table>
+   888→   888→   888→
+   889→   889→   889→                  <!-- Fallback Link -->
+   890→   890→   890→                  <p style="color: rgba(255,255,255,0.35); font-size: 12px; line-height: 1.6; margin: 0 0 6px 0; text-align: center;">
+   891→   891→   891→                    Tombol nggak bisa diklik? Salin link ini ke browser kamu:
+   892→   892→   892→                  </p>
+   893→   893→   893→                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 24px 0;">
+   894→   894→   894→                    <tr>
+   895→   895→   895→                      <td style="background: rgba(251, 191, 36, 0.06); border: 1px solid rgba(251, 191, 36, 0.12); border-radius: 14px; padding: 10px 14px;">
+   896→   896→   896→                        <p style="color: #fbbf24; font-size: 11px; word-break: break-all; margin: 0; line-height: 1.5; text-align: center;">
+   897→   897→   897→                          ${confirmationUrl}
+   898→   898→   898→                        </p>
+   899→   899→   899→                      </td>
+   900→   900→   900→                    </tr>
+   901→   901→   901→                  </table>
+   902→   902→   902→
+   903→   903→   903→                  <!-- Security Warning -->
+   904→   904→   904→                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 16px 0;">
+   905→   905→   905→                    <tr>
+   906→   906→   906→                      <td style="background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 14px; padding: 14px 18px;">
+   907→   907→   907→                        <p style="color: rgba(255,255,255,0.55); font-size: 13px; line-height: 1.6; margin: 0;">
+   908→   908→   908→                          🔒 <strong style="color: #fca5a5;">Kalau ini bukan kamu</strong>, jangan klik link di atas. Langsung aja abaikan email ini — email kamu nggak akan berubah.
+   909→   909→   909→                        </p>
+   910→   910→   910→                      </td>
+   911→   911→   911→                    </tr>
+   912→   912→   912→                  </table>
+   913→   913→   913→
+   914→   914→   914→                  <p style="color: rgba(255,255,255,0.3); font-size: 12px; line-height: 1.6; margin: 0; text-align: center;">
+   915→   915→   915→                    ⏰ Link ini berlaku 24 jam aja ya.
+   916→   916→   916→                  </p>
+   917→   917→   917→                </td>
+   918→   918→   918→              </tr>
+   919→   919→   919→
+   920→   920→   920→              <!-- Footer Divider -->
+   921→   921→   921→              <tr>
+   922→   922→   922→                <td style="padding: 0 36px;">
+   923→   923→   923→                  <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);"></div>
+   924→   924→   924→                </td>
+   925→   925→   925→              </tr>
+   926→   926→   926→
+   927→   927→   927→              <!-- Footer -->
+   928→   928→   928→              <tr>
+   929→   929→   929→                <td style="padding: 24px 36px 32px 36px; text-align: center;">
+   930→   930→   930→                  <p style="color: rgba(255,255,255,0.25); font-size: 11px; margin: 0 0 4px 0;">
+   931→   931→   931→                    © ${new Date().getFullYear()} LuxTrade. All rights reserved.
+   932→   932→   932→                  </p>
+   933→   933→   933→                  <p style="color: rgba(255,255,255,0.2); font-size: 10px; margin: 0;">
+   934→   934→   934→                    Email ini dikirim dari noreply@luxtradee.web.id
+   935→   935→   935→                  </p>
+   936→   936→   936→                </td>
+   937→   937→   937→              </tr>
+   938→   938→   938→
+   939→   939→   939→            </table>
+   940→   940→   940→          </td>
+   941→   941→   941→        </tr>
+   942→   942→   942→      </table>
+   943→   943→   943→    </body>
+   944→   944→   944→    </html>
+   945→   945→   945→  `
+   946→   946→   946→}
+   947→   947→   947→
+   948→   948→   948→// Welcome email after confirmation - Premium Design (emerald-gold accent)
+   949→   949→   949→export function getWelcomeEmailHtml(name: string) {
+   950→   950→   950→  return `
+   951→   951→   951→    <!DOCTYPE html>
+   952→   952→   952→    <html lang="id">
+   953→   953→   953→    <head>
+   954→   954→   954→      <meta charset="UTF-8">
+   955→   955→   955→      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   956→   956→   956→      <title>Selamat Datang - LuxTrade</title>
+   957→   957→   957→    </head>
+   958→   958→   958→    <body style="margin: 0; padding: 0; background-color: #09050f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+   959→   959→   959→      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="min-height: 100vh;">
+   960→   960→   960→        <tr>
+   961→   961→   961→          <td style="padding: 32px 16px;" align="center" valign="top">
+   962→   962→   962→
+   963→   963→   963→            <!-- Main Card -->
+   964→   964→   964→            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 520px; background: linear-gradient(170deg, #1c1028 0%, #0f0a1a 50%, #09050f 100%); border-radius: 20px; border: 1px solid rgba(251, 191, 36, 0.12); box-shadow: 0 0 60px rgba(245, 158, 11, 0.06), 0 0 120px rgba(0,0,0,0.5); overflow: hidden;">
+   965→   965→   965→              
+   966→   966→   966→              <!-- Top Accent Bar - Emerald-Gold -->
+   967→   967→   967→              <tr>
+   968→   968→   968→                <td style="height: 3px; background: linear-gradient(90deg, transparent, #10b981 30%, #34d399 50%, #fbbf24 70%, transparent);"></td>
+   969→   969→   969→              </tr>
+   970→   970→   970→
+   971→   971→   971→              <!-- Header -->
+   972→   972→   972→              <tr>
+   973→   973→   973→                <td style="padding: 36px 36px 8px 36px; text-align: center;">
+   974→   974→   974→                  <!-- Logo Badge -->
+   975→   975→   975→                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 16px auto;">
+   976→   976→   976→                    <tr>
+   977→   977→   977→                      <td style="width: 56px; height: 56px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 16px; text-align: center; line-height: 56px; box-shadow: 0 8px 24px rgba(245, 158, 11, 0.25);">
+   978→   978→   978→                        <span style="font-size: 28px;">👑</span>
+   979→   979→   979→                      </td>
+   980→   980→   980→                    </tr>
+   981→   981→   981→                  </table>
+   982→   982→   982→                  <h1 style="color: #fbbf24; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTrade</h1>
+   983→   983→   983→                  <p style="color: rgba(255,255,255,0.35); font-size: 12px; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Premium Trading Journal</p>
+   984→   984→   984→                </td>
+   985→   985→   985→              </tr>
+   986→   986→   986→
+   987→   987→   987→              <!-- Divider -->
+   988→   988→   988→              <tr>
+   989→   989→   989→                <td style="padding: 20px 36px 0 36px;">
+   990→   990→   990→                  <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(251,191,36,0.15) 50%, transparent 100%);"></div>
+   991→   991→   991→                </td>
+   992→   992→   992→              </tr>
+   993→   993→   993→
+   994→   994→   994→              <!-- Content -->
+   995→   995→   995→              <tr>
+   996→   996→   996→                <td style="padding: 28px 36px 32px 36px;">
+   997→   997→   997→
+   998→   998→   998→                  <!-- Success Badge -->
+   999→   999→   999→                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 16px auto;">
+  1000→  1000→  1000→                    <tr>
+  1001→  1001→  1001→                      <td style="width: 52px; height: 52px; background: rgba(16, 185, 129, 0.15); border-radius: 50%; text-align: center; line-height: 52px;">
+  1002→  1002→  1002→                        <span style="font-size: 26px;">🎉</span>
+  1003→  1003→  1003→                      </td>
+  1004→  1004→  1004→                    </tr>
+  1005→  1005→  1005→                  </table>
+  1006→  1006→  1006→
+  1007→  1007→  1007→                  <h2 style="color: #10b981; font-size: 16px; margin: 0 0 4px 0; font-weight: 700; text-align: center;">
+  1008→  1008→  1008→                    ✅ EMAIL TERKONFIRMASI!
+  1009→  1009→  1009→                  </h2>
+  1010→  1010→  1010→                  <h3 style="color: #ffffff; font-size: 22px; margin: 0 0 12px 0; font-weight: 800; text-align: center;">
+  1011→  1011→  1011→                    Selamat Datang, ${name}!
+  1012→  1012→  1012→                  </h3>
+  1013→  1013→  1013→                  <p style="color: rgba(255,255,255,0.65); font-size: 15px; line-height: 1.7; margin: 0 0 24px 0; text-align: center;">
+  1014→  1014→  1014→                    Akun LuxTrade kamu udah aktif! Sekarang kamu bisa mulai catat trading, analisa performa, dan tingkatkan skill trading kamu bareng AI insights kami. Yuk langsung mulai! 🚀
+  1015→  1015→  1015→                  </p>
+  1016→  1016→  1016→
+  1017→  1017→  1017→                  <!-- Features Box -->
+  1018→  1018→  1018→                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 24px 0;">
+  1019→  1019→  1019→                    <tr>
+  1020→  1020→  1020→                      <td style="background: rgba(251, 191, 36, 0.06); border: 1px solid rgba(251, 191, 36, 0.12); border-radius: 14px; padding: 20px 22px;">
+  1021→  1021→  1021→                        <p style="color: #fbbf24; font-size: 13px; font-weight: 700; margin: 0 0 14px 0;">
+  1022→  1022→  1022→                          ⚡ Yang bisa kamu lakukan sekarang:
+  1023→  1023→  1023→                        </p>
+  1024→  1024→  1024→                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+  1025→  1025→  1025→                          <tr>
+  1026→  1026→  1026→                            <td style="padding: 4px 0; color: rgba(255,255,255,0.6); font-size: 13px;">
+  1027→  1027→  1027→                              <span style="color: #fbbf24; margin-right: 6px;">▸</span> <strong style="color: rgba(255,255,255,0.85);">Analisa Performa</strong> — pantau win rate & profit factor
+  1028→  1028→  1028→                            </td>
+  1029→  1029→  1029→                          </tr>
+  1030→  1030→  1030→                          <tr>
+  1031→  1031→  1031→                            <td style="padding: 4px 0; color: rgba(255,255,255,0.6); font-size: 13px;">
+  1032→  1032→  1032→                              <span style="color: #fbbf24; margin-right: 6px;">▸</span> <strong style="color: rgba(255,255,255,0.85);">Trading Journal</strong> — catat setiap transaksi kamu
+  1033→  1033→  1033→                            </td>
+  1034→  1034→  1034→                          </tr>
+  1035→  1035→  1035→                          <tr>
+  1036→  1036→  1036→                            <td style="padding: 4px 0; color: rgba(255,255,255,0.6); font-size: 13px;">
+  1037→  1037→  1037→                              <span style="color: #fbbf24; margin-right: 6px;">▸</span> <strong style="color: rgba(255,255,255,0.85);">AI Insights</strong> — tips personal dari AI buat tingkatkan trading
+  1038→  1038→  1038→                            </td>
+  1039→  1039→  1039→                          </tr>
+  1040→  1040→  1040→                        </table>
+  1041→  1041→  1041→                      </td>
+  1042→  1042→  1042→                    </tr>
+  1043→  1043→  1043→                  </table>
+  1044→  1044→  1044→
+  1045→  1045→  1045→                  <!-- CTA Button -->
+  1046→  1046→  1046→                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+  1047→  1047→  1047→                    <tr>
+  1048→  1048→  1048→                      <td style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%); border-radius: 14px; box-shadow: 0 6px 28px rgba(245, 158, 11, 0.35), inset 0 1px 0 rgba(255,255,255,0.15);">
+  1049→  1049→  1049→                        <a href="${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'}/dashboard" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;">
+  1050→  1050→  1050→                          🚀 Mulai Trading Journal →
+  1051→  1051→  1051→                        </a>
+  1052→  1052→  1052→                      </td>
+  1053→  1053→  1053→                    </tr>
+  1054→  1054→  1054→                  </table>
+  1055→  1055→  1055→                </td>
+  1056→  1056→  1056→              </tr>
+  1057→  1057→  1057→
+  1058→  1058→  1058→              <!-- Footer Divider -->
+  1059→  1059→  1059→              <tr>
+  1060→  1060→  1060→                <td style="padding: 0 36px;">
+  1061→  1061→  1061→                  <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);"></div>
+  1062→  1062→  1062→                </td>
+  1063→  1063→  1063→              </tr>
+  1064→  1064→  1064→
+  1065→  1065→  1065→              <!-- Footer -->
+  1066→  1066→  1066→              <tr>
+  1067→  1067→  1067→                <td style="padding: 24px 36px 32px 36px; text-align: center;">
+  1068→  1068→  1068→                  <p style="color: rgba(255,255,255,0.25); font-size: 11px; margin: 0 0 4px 0;">
+  1069→  1069→  1069→                    © ${new Date().getFullYear()} LuxTrade. All rights reserved.
+  1070→  1070→  1070→                  </p>
+  1071→  1071→  1071→                  <p style="color: rgba(255,255,255,0.2); font-size: 10px; margin: 0;">
+  1072→  1072→  1072→                    Email ini dikirim dari noreply@luxtradee.web.id
+  1073→  1073→  1073→                  </p>
+  1074→  1074→  1074→                </td>
+  1075→  1075→  1075→              </tr>
+  1076→  1076→  1076→
+  1077→  1077→  1077→            </table>
+  1078→  1078→  1078→          </td>
+  1079→  1079→  1079→        </tr>
+  1080→  1080→  1080→      </table>
+  1081→  1081→  1081→    </body>
+  1082→  1082→  1082→    </html>
+  1083→  1083→  1083→  `
+  1084→  1084→  1084→}
+  1085→  1085→  1085→
+  1086→  1086→  1086→// Promotional email wrapper - Premium Design (gold-to-red accent for urgency)
+  1087→  1087→  1087→export function getPromotionalEmailHtml(name: string, subject: string, htmlBody: string) {
+  1088→  1088→  1088→  return `
+  1089→  1089→  1089→    <!DOCTYPE html>
+  1090→  1090→  1090→    <html lang="id">
+  1091→  1091→  1091→    <head>
+  1092→  1092→  1092→      <meta charset="UTF-8">
+  1093→  1093→  1093→      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  1094→  1094→  1094→      <title>${subject} - LuxTrade</title>
+  1095→  1095→  1095→    </head>
+  1096→  1096→  1096→    <body style="margin: 0; padding: 0; background-color: #09050f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  1097→  1097→  1097→      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="min-height: 100vh;">
+  1098→  1098→  1098→        <tr>
+  1099→  1099→  1099→          <td style="padding: 32px 16px;" align="center" valign="top">
+  1100→  1100→  1100→
+  1101→  1101→  1101→            <!-- Main Card -->
+  1102→  1102→  1102→            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 520px; background: linear-gradient(170deg, #1c1028 0%, #0f0a1a 50%, #09050f 100%); border-radius: 20px; border: 1px solid rgba(251, 191, 36, 0.12); box-shadow: 0 0 60px rgba(245, 158, 11, 0.06), 0 0 120px rgba(0,0,0,0.5); overflow: hidden;">
+  1103→  1103→  1103→              
+  1104→  1104→  1104→              <!-- Top Accent Bar - Gold-to-Red -->
+  1105→  1105→  1105→              <tr>
+  1106→  1106→  1106→                <td style="height: 3px; background: linear-gradient(90deg, transparent, #f59e0b 30%, #fbbf24 50%, #ef4444 70%, transparent);"></td>
+  1107→  1107→  1107→              </tr>
+  1108→  1108→  1108→
+  1109→  1109→  1109→              <!-- Header -->
+  1110→  1110→  1110→              <tr>
+  1111→  1111→  1111→                <td style="padding: 36px 36px 8px 36px; text-align: center;">
+  1112→  1112→  1112→                  <!-- Logo Badge -->
+  1113→  1113→  1113→                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 16px auto;">
+  1114→  1114→  1114→                    <tr>
+  1115→  1115→  1115→                      <td style="width: 56px; height: 56px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 16px; text-align: center; line-height: 56px; box-shadow: 0 8px 24px rgba(245, 158, 11, 0.25);">
+  1116→  1116→  1116→                        <span style="font-size: 28px;">👑</span>
+  1117→  1117→  1117→                      </td>
+  1118→  1118→  1118→                    </tr>
+  1119→  1119→  1119→                  </table>
+  1120→  1120→  1120→                  <h1 style="color: #fbbf24; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTrade</h1>
+  1121→  1121→  1121→                  <p style="color: rgba(255,255,255,0.35); font-size: 12px; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Premium Trading Journal</p>
+  1122→  1122→  1122→                </td>
+  1123→  1123→  1123→              </tr>
+  1124→  1124→  1124→
+  1125→  1125→  1125→              <!-- Divider -->
+  1126→  1126→  1126→              <tr>
+  1127→  1127→  1127→                <td style="padding: 20px 36px 0 36px;">
+  1128→  1128→  1128→                  <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(251,191,36,0.15) 50%, transparent 100%);"></div>
+  1129→  1129→  1129→                </td>
+  1130→  1130→  1130→              </tr>
+  1131→  1131→  1131→
+  1132→  1132→  1132→              <!-- Greeting -->
+  1133→  1133→  1133→              <tr>
+  1134→  1134→  1134→                <td style="padding: 28px 36px 0 36px;">
+  1135→  1135→  1135→                  <p style="color: rgba(255,255,255,0.65); font-size: 15px; line-height: 1.7; margin: 0;">
+  1136→  1136→  1136→                    Hai ${name}, ada info penting nih buat kamu! 👇
+  1137→  1137→  1137→                  </p>
+  1138→  1138→  1138→                </td>
+  1139→  1139→  1139→              </tr>
+  1140→  1140→  1140→
+  1141→  1141→  1141→              <!-- Dynamic Content Area -->
+  1142→  1142→  1142→              <tr>
+  1143→  1143→  1143→                <td style="padding: 16px 36px 0 36px;">
+  1144→  1144→  1144→                  ${htmlBody}
+  1145→  1145→  1145→                </td>
+  1146→  1146→  1146→              </tr>
+  1147→  1147→  1147→
+  1148→  1148→  1148→              <!-- Footer Divider -->
+  1149→  1149→  1149→              <tr>
+  1150→  1150→  1150→                <td style="padding: 24px 36px 0 36px;">
+  1151→  1151→  1151→                  <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);"></div>
+  1152→  1152→  1152→                </td>
+  1153→  1153→  1153→              </tr>
+  1154→  1154→  1154→
+  1155→  1155→  1155→              <!-- Footer -->
+  1156→  1156→  1156→              <tr>
+  1157→  1157→  1157→                <td style="padding: 20px 36px 32px 36px; text-align: center;">
+  1158→  1158→  1158→                  <p style="color: rgba(255,255,255,0.25); font-size: 11px; margin: 0 0 4px 0;">
+  1159→  1159→  1159→                    © ${new Date().getFullYear()} LuxTrade. All rights reserved.
+  1160→  1160→  1160→                  </p>
+  1161→  1161→  1161→                  <p style="color: rgba(255,255,255,0.2); font-size: 10px; margin: 0;">
+  1162→  1162→  1162→                    Email ini dikirim dari noreply@luxtradee.web.id
+  1163→  1163→  1163→                  </p>
+  1164→  1164→  1164→                  <p style="color: rgba(255,255,255,0.2); font-size: 10px; margin: 8px 0 0 0;">
+  1165→  1165→  1165→                    <a href="${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'}/settings" style="color: rgba(251, 191, 36, 0.5); text-decoration: underline;">Unsubscribe</a> dari email promosi
+  1166→  1166→  1166→                  </p>
+  1167→  1167→  1167→                </td>
+  1168→  1168→  1168→              </tr>
+  1169→  1169→  1169→
+  1170→  1170→  1170→            </table>
+  1171→  1171→  1171→          </td>
+  1172→  1172→  1172→        </tr>
+  1173→  1173→  1173→      </table>
+  1174→  1174→  1174→    </body>
+  1175→  1175→  1175→    </html>
+  1176→  1176→  1176→  `
+  1177→  1177→  1177→}
+  1178→  1178→  1178→
+  1179→  1179→  1179→// Bulk unverified reminder - Premium Design (orange-gold accent, different tone)
+  1180→  1180→  1180→export function getUnverifiedBulkReminderHtml(name: string, confirmationUrl: string) {
+  1181→  1181→  1181→  return `
+  1182→  1182→  1182→    <!DOCTYPE html>
+  1183→  1183→  1183→    <html lang="id">
+  1184→  1184→  1184→    <head>
+  1185→  1185→  1185→      <meta charset="UTF-8">
+  1186→  1186→  1186→      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  1187→  1187→  1187→      <title>Akun Belum Verifikasi - LuxTrade</title>
+  1188→  1188→  1188→    </head>
+  1189→  1189→  1189→    <body style="margin: 0; padding: 0; background-color: #09050f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  1190→  1190→  1190→      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="min-height: 100vh;">
+  1191→  1191→  1191→        <tr>
+  1192→  1192→  1192→          <td style="padding: 32px 16px;" align="center" valign="top">
+  1193→  1193→  1193→
+  1194→  1194→  1194→            <!-- Main Card -->
+  1195→  1195→  1195→            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 520px; background: linear-gradient(170deg, #1c1028 0%, #0f0a1a 50%, #09050f 100%); border-radius: 20px; border: 1px solid rgba(251, 191, 36, 0.12); box-shadow: 0 0 60px rgba(245, 158, 11, 0.06), 0 0 120px rgba(0,0,0,0.5); overflow: hidden;">
+  1196→  1196→  1196→              
+  1197→  1197→  1197→              <!-- Top Accent Bar - Orange-Gold -->
+  1198→  1198→  1198→              <tr>
+  1199→  1199→  1199→                <td style="height: 3px; background: linear-gradient(90deg, transparent, #f97316 30%, #fbbf24 50%, #f97316 70%, transparent);"></td>
+  1200→  1200→  1200→              </tr>
+  1201→  1201→  1201→
+  1202→  1202→  1202→              <!-- Header -->
+  1203→  1203→  1203→              <tr>
+  1204→  1204→  1204→                <td style="padding: 36px 36px 8px 36px; text-align: center;">
+  1205→  1205→  1205→                  <!-- Logo Badge -->
+  1206→  1206→  1206→                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 16px auto;">
+  1207→  1207→  1207→                    <tr>
+  1208→  1208→  1208→                      <td style="width: 56px; height: 56px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 16px; text-align: center; line-height: 56px; box-shadow: 0 8px 24px rgba(245, 158, 11, 0.25);">
+  1209→  1209→  1209→                        <span style="font-size: 28px;">👑</span>
+  1210→  1210→  1210→                      </td>
+  1211→  1211→  1211→                    </tr>
+  1212→  1212→  1212→                  </table>
+  1213→  1213→  1213→                  <h1 style="color: #fbbf24; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTrade</h1>
+  1214→  1214→  1214→                  <p style="color: rgba(255,255,255,0.35); font-size: 12px; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Premium Trading Journal</p>
+  1215→  1215→  1215→                </td>
+  1216→  1216→  1216→              </tr>
+  1217→  1217→  1217→
+  1218→  1218→  1218→              <!-- Divider -->
+  1219→  1219→  1219→              <tr>
+  1220→  1220→  1220→                <td style="padding: 20px 36px 0 36px;">
+  1221→  1221→  1221→                  <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(251,191,36,0.15) 50%, transparent 100%);"></div>
+  1222→  1222→  1222→                </td>
+  1223→  1223→  1223→              </tr>
+  1224→  1224→  1224→
+  1225→  1225→  1225→              <!-- Content -->
+  1226→  1226→  1226→              <tr>
+  1227→  1227→  1227→                <td style="padding: 28px 36px 32px 36px;">
+  1228→  1228→  1228→
+  1229→  1229→  1229→                  <!-- Emoji Icon -->
+  1230→  1230→  1230→                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 16px auto;">
+  1231→  1231→  1231→                    <tr>
+  1232→  1232→  1232→                      <td style="width: 52px; height: 52px; background: rgba(249, 115, 22, 0.12); border-radius: 50%; text-align: center; line-height: 52px;">
+  1233→  1233→  1233→                        <span style="font-size: 26px;">⏳</span>
+  1234→  1234→  1234→                      </td>
+  1235→  1235→  1235→                    </tr>
+  1236→  1236→  1236→                  </table>
+  1237→  1237→  1237→
+  1238→  1238→  1238→                  <h2 style="color: #ffffff; font-size: 20px; margin: 0 0 8px 0; font-weight: 700; text-align: center;">
+  1239→  1239→  1239→                    ${name}, Akun Kamu Menunggu! 🔔
+  1240→  1240→  1240→                  </h2>
+  1241→  1241→  1241→                  <p style="color: rgba(255,255,255,0.65); font-size: 15px; line-height: 1.7; margin: 0 0 6px 0; text-align: center;">
+  1242→  1242→  1242→                    Kami notice akun kamu masih belum terverifikasi nih. Padahal semua fitur LuxTrade udah siap dipake — tinggal klik tombol verifikasi aja!
+  1243→  1243→  1243→                  </p>
+  1244→  1244→  1244→                  <p style="color: rgba(255,255,255,0.55); font-size: 14px; line-height: 1.7; margin: 0 0 24px 0; text-align: center;">
+  1245→  1245→  1245→                    Gak mau kan ketinggalan fitur keren dari LuxTrade? Buruan verifikasi sekarang:
+  1246→  1246→  1246→                  </p>
+  1247→  1247→  1247→
+  1248→  1248→  1248→                  <!-- CTA Button -->
+  1249→  1249→  1249→                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 20px auto;">
+  1250→  1250→  1250→                    <tr>
+  1251→  1251→  1251→                      <td style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%); border-radius: 14px; box-shadow: 0 6px 28px rgba(245, 158, 11, 0.35), inset 0 1px 0 rgba(255,255,255,0.15);">
+  1252→  1252→  1252→                        <a href="${confirmationUrl}" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;">
+  1253→  1253→  1253→                          ✅ Verifikasi Sekarang
+  1254→  1254→  1254→                        </a>
+  1255→  1255→  1255→                      </td>
+  1256→  1256→  1256→                    </tr>
+  1257→  1257→  1257→                  </table>
+  1258→  1258→  1258→
+  1259→  1259→  1259→                  <!-- Fallback Link -->
+  1260→  1260→  1260→                  <p style="color: rgba(255,255,255,0.35); font-size: 12px; line-height: 1.6; margin: 0 0 6px 0; text-align: center;">
+  1261→  1261→  1261→                    Tombol nggak bisa diklik? Salin link ini ke browser kamu:
+  1262→  1262→  1262→                  </p>
+  1263→  1263→  1263→                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 24px 0;">
+  1264→  1264→  1264→                    <tr>
+  1265→  1265→  1265→                      <td style="background: rgba(251, 191, 36, 0.06); border: 1px solid rgba(251, 191, 36, 0.12); border-radius: 14px; padding: 10px 14px;">
+  1266→  1266→  1266→                        <p style="color: #fbbf24; font-size: 11px; word-break: break-all; margin: 0; line-height: 1.5; text-align: center;">
+  1267→  1267→  1267→                          ${confirmationUrl}
+  1268→  1268→  1268→                        </p>
+  1269→  1269→  1269→                      </td>
+  1270→  1270→  1270→                    </tr>
+  1271→  1271→  1271→                  </table>
+  1272→  1272→  1272→
+  1273→  1273→  1273→                  <!-- Info Box -->
+  1274→  1274→  1274→                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
+  1275→  1275→  1275→                    <tr>
+  1276→  1276→  1276→                      <td style="background: rgba(251, 191, 36, 0.06); border: 1px solid rgba(251, 191, 36, 0.12); border-radius: 14px; padding: 18px 20px;">
+  1277→  1277→  1277→                        <p style="color: #fbbf24; font-size: 13px; font-weight: 700; margin: 0 0 12px 0;">
+  1278→  1278→  1278→                          🎯 Kenapa harus verifikasi?
+  1279→  1279→  1279→                        </p>
+  1280→  1280→  1280→                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+  1281→  1281→  1281→                          <tr>
+  1282→  1282→  1282→                            <td style="padding: 3px 0; color: rgba(255,255,255,0.6); font-size: 13px;">
+  1283→  1283→  1283→                              <span style="color: #fbbf24; margin-right: 6px;">▸</span> Langsung akses semua fitur trading journal
+  1284→  1284→  1284→                            </td>
+  1285→  1285→  1285→                          </tr>
+  1286→  1286→  1286→                          <tr>
+  1287→  1287→  1287→                            <td style="padding: 3px 0; color: rgba(255,255,255,0.6); font-size: 13px;">
+  1288→  1288→  1288→                              <span style="color: #fbbf24; margin-right: 6px;">▸</span> Dapatkan AI insights personal buat trading kamu
+  1289→  1289→  1289→                            </td>
+  1290→  1290→  1290→                          </tr>
+  1291→  1291→  1291→                          <tr>
+  1292→  1292→  1292→                            <td style="padding: 3px 0; color: rgba(255,255,255,0.6); font-size: 13px;">
+  1293→  1293→  1293→                              <span style="color: #fbbf24; margin-right: 6px;">▸</span> Ikutan promo & dapatkan akses PRO eksklusif
+  1294→  1294→  1294→                            </td>
+  1295→  1295→  1295→                          </tr>
+  1296→  1296→  1296→                        </table>
+  1297→  1297→  1297→                      </td>
+  1298→  1298→  1298→                    </tr>
+  1299→  1299→  1299→                  </table>
+  1300→  1300→  1300→
+  1301→  1301→  1301→                  <!-- Expiry Notice -->
+  1302→  1302→  1302→                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 16px 0;">
+  1303→  1303→  1303→                    <tr>
+  1304→  1304→  1304→                      <td style="background: rgba(251, 191, 36, 0.06); border: 1px solid rgba(251, 191, 36, 0.12); border-radius: 14px; padding: 14px 18px;">
+  1305→  1305→  1305→                        <p style="color: rgba(255,255,255,0.55); font-size: 13px; line-height: 1.6; margin: 0;">
+  1306→  1306→  1306→                          ⏰ Link verifikasi ini berlaku <strong style="color: #fcd34d;">24 jam</strong>. Kalau udah expired, kamu bisa request ulang dari halaman login.
+  1307→  1307→  1307→                        </p>
+  1308→  1308→  1308→                      </td>
+  1309→  1309→  1309→                    </tr>
+  1310→  1310→  1310→                  </table>
+  1311→  1311→  1311→
+  1312→  1312→  1312→                  <p style="color: rgba(255,255,255,0.3); font-size: 12px; line-height: 1.6; margin: 0; text-align: center;">
+  1313→  1313→  1313→                    Kalau kamu nggak merasa daftar di LuxTrade, abaikan email ini ya!
+  1314→  1314→  1314→                  </p>
+  1315→  1315→  1315→                </td>
+  1316→  1316→  1316→              </tr>
+  1317→  1317→  1317→
+  1318→  1318→  1318→              <!-- Footer Divider -->
+  1319→  1319→  1319→              <tr>
+  1320→  1320→  1320→                <td style="padding: 0 36px;">
+  1321→  1321→  1321→                  <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);"></div>
+  1322→  1322→  1322→                </td>
+  1323→  1323→  1323→              </tr>
+  1324→  1324→  1324→
+  1325→  1325→  1325→              <!-- Footer -->
+  1326→  1326→  1326→              <tr>
+  1327→  1327→  1327→                <td style="padding: 24px 36px 32px 36px; text-align: center;">
+  1328→  1328→  1328→                  <p style="color: rgba(255,255,255,0.25); font-size: 11px; margin: 0 0 4px 0;">
+  1329→  1329→  1329→                    © ${new Date().getFullYear()} LuxTrade. All rights reserved.
+  1330→  1330→  1330→                  </p>
+  1331→  1331→  1331→                  <p style="color: rgba(255,255,255,0.2); font-size: 10px; margin: 0;">
+  1332→  1332→  1332→                    Email ini dikirim dari noreply@luxtradee.web.id
+  1333→  1333→  1333→                  </p>
+  1334→  1334→  1334→                </td>
+  1335→  1335→  1335→              </tr>
+  1336→  1336→  1336→
+  1337→  1337→  1337→            </table>
+  1338→  1338→  1338→          </td>
+  1339→  1339→  1339→        </tr>
+  1340→  1340→  1340→      </table>
+  1341→  1341→  1341→    </body>
+  1342→  1342→  1342→    </html>
+  1343→  1343→  1343→  `
+  1344→  1344→  1344→}
+  1345→  1345→  1345→
