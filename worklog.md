@@ -2063,3 +2063,30 @@ Stage Summary:
 - Payment flow: list channels → create invoice with signature → redirect to checkout → callback webhook
 - Files modified: sakura.ts, callback/route.ts, UpgradeFormClient.tsx
 - No lint errors in payment-related files
+
+---
+Task ID: 9
+Agent: Z.ai Code
+Task: Redesign PaymentInvoiceModal - interactive payment methods, button states, collapsible manual transfer
+
+Work Log:
+- Read and analyzed PaymentInvoiceModal.tsx (existing invoice modal component)
+- Read PlanSelectionModal.tsx (parent component that triggers invoice modal)
+- Redesigned PaymentInvoiceModal with 3 interactive payment method categories:
+  - QRIS (emerald glow, shows QRIS/QRIS2/QRISC/QRISMU badges)
+  - E-Wallet (violet glow, shows GOPAY/DANA/OVO/ShopeePay/LinkAja badges)
+  - Virtual Account (amber/gold glow, shows BCAVA/BNIVA/BRIVA/MANDIRIVA/PERMATAVA badges)
+- Added selectedMethod state ('VA' | 'EWALLET' | 'QRIS' | null)
+- Selected state: colored border, radial gradient glow, animated checkmark badge
+- 'Bayar Sekarang' button: disabled (opacity-30, cursor-not-allowed) when no method selected
+- Button text dynamically changes: 'Pilih Metode Dulu' → 'Bayar Sekarang — RpXX.XXX'
+- Transfer Manual collapsed by default with AnimatePresence expand/collapse toggle
+- Added copy-to-clipboard for bank account number
+- No lint errors in modified file
+- Pushed to GitHub: commit 23e5ac3
+
+Stage Summary:
+- PaymentInvoiceModal now has interactive payment method selection UI
+- Button disabled state prevents accidental payment without method selection
+- Manual transfer is de-emphasized as emergency fallback
+- File: src/components/PaymentInvoiceModal.tsx (228 lines added, 61 removed)
