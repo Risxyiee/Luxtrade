@@ -335,8 +335,8 @@ function LuxTradeDashboardContent() {
       toast.success('Anda menggunakan paket Free!')
       return
     }
-    // For paid plans, the PlanSelectionModal now handles DOKU payment internally
-    // No need to do anything here — DOKU flow is triggered inside the modal
+    // For paid plans, the PlanSelectionModal now handles payment internally
+    // No need to do anything here — payment flow is triggered inside the modal
   }
 
   const handlePaymentSuccess = () => {

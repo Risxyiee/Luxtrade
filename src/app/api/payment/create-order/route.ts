@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
-import { createDokuOrder, getDokuConfig } from '@/lib/payment/doku'
+import { createSakuraOrder, getSakuraConfig } from '@/lib/payment/sakura'
 import crypto from 'crypto'
 
 export const runtime = 'nodejs'
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 /**
  * POST /api/payment/create-order
- * Body: { amount: number, plan: string, durationMonths?: number }
+ * Body: { amount: number, plan: string, durationMonths?: number, paymentMethod: string }
  * Returns: { paymentUrl, orderId, invoiceNumber }
  */
 export async function POST(request: NextRequest) {
@@ -34,12 +34,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Plan must be PRO or LIFETIME' }, { status: 400 })
     }
 
-    // Check DOKU config
-    const dokuConfig = getDokuConfig()
-    if (!dokuConfig.configured) {
-      console.error('❌ [Payment] DOKU not configured:', dokuConfig)
+    if (!paymentMethod) {
+      return NextResponse.json({ error: 'Payment method is required' }, { status: 400 })
+    }
+
+    // Check SakuraPay config
+    const sakuraConfig = getSakuraConfig()
+    if (!sakuraConfig.configured) {
+      console.error('❌ [Payment] SakuraPay not configured:', sakuraConfig)
       return NextResponse.json(
-        { error: 'Payment gateway not configured', config: dokuConfig },
+        { error: 'Payment gateway not configured', config: sakuraConfig },
         { status: 503 }
       )
     }
@@ -56,12 +60,14 @@ export async function POST(request: NextRequest) {
 
     const customerName = profile?.full_name || user.email?.split('@')[0] || 'Customer'
     const customerEmail = user.email || 'unknown@luxtradee.web.id'
+    const customerPhone = profile?.phone || '08123456789'
 
     console.log('🛒 [Payment] Creating order:', {
       userId: user.id,
       email: customerEmail,
       amount,
       plan,
+      paymentMethod,
       invoiceId,
     })
 
@@ -77,40 +83,42 @@ export async function POST(request: NextRequest) {
           status: 'PENDING',
           customerName,
           customerEmail,
+          paymentMethod: paymentMethod,
           // Order expires in 24 hours
           expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         },
       })
 
-      // Create DOKU payment
-      const dokuResult = await createDokuOrder({
+      // Create SakuraPay payment
+      const sakuraResult = await createSakuraOrder({
         amount,
         invoiceId,
         customerName,
         customerEmail,
+        customerPhone,
         plan,
         durationMonths,
-        paymentType: paymentMethod,
+        paymentMethod,
       })
 
-      // Update order with DOKU details
+      // Update order with SakuraPay details
       await db.paymentOrder.update({
         where: { id: order.id },
         data: {
-          dokuPaymentUrl: dokuResult.paymentUrl,
-          dokuTransactionId: dokuResult.orderId,
+          dokuPaymentUrl: sakuraResult.paymentUrl,
+          dokuTransactionId: sakuraResult.orderId,
         },
       })
 
       console.log('✅ [Payment] Order created:', {
         orderId: order.id,
         invoiceId,
-        paymentUrl: dokuResult.paymentUrl?.substring(0, 50) + '...',
+        paymentUrl: sakuraResult.paymentUrl?.substring(0, 50) + '...',
       })
 
       return NextResponse.json({
         success: true,
-        paymentUrl: dokuResult.paymentUrl,
+        paymentUrl: sakuraResult.paymentUrl,
         orderId: order.id,
         invoiceNumber: invoiceId,
         amount,
@@ -118,24 +126,25 @@ export async function POST(request: NextRequest) {
         expiresAt: order.expiredAt,
       })
     } catch (dbError: any) {
-      // If table doesn't exist yet (not migrated), create DOKU order without DB save
+      // If table doesn't exist yet (not migrated), create SakuraPay order without DB save
       if (dbError.code === 'P2021' || dbError.code === 'P1001' || dbError.message?.includes('does not exist')) {
-        console.warn('⚠️ [Payment] payment_orders table not found, creating DOKU order without DB save')
+        console.warn('⚠️ [Payment] payment_orders table not found, creating SakuraPay order without DB save')
 
-        const dokuResult = await createDokuOrder({
+        const sakuraResult = await createSakuraOrder({
           amount,
           invoiceId,
           customerName,
           customerEmail,
+          customerPhone,
           plan,
           durationMonths,
-          paymentType: paymentMethod,
+          paymentMethod,
         })
 
         return NextResponse.json({
           success: true,
-          paymentUrl: dokuResult.paymentUrl,
-          orderId: dokuResult.orderId,
+          paymentUrl: sakuraResult.paymentUrl,
+          orderId: sakuraResult.orderId,
           invoiceNumber: invoiceId,
           amount,
           plan,
@@ -156,72 +165,8 @@ export async function POST(request: NextRequest) {
 
 /**
  * GET /api/payment/create-order
- * Returns DOKU config status (for debugging)
+ * Returns SakuraPay config status (for debugging)
  */
 export async function GET() {
-  return NextResponse.json(getDokuConfig())
-}
-
-/**
- * POST /api/payment/create-order?action=test
- * Tests DOKU API with minimal request to debug amount format
- */
-export async function PUT(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
-    if (searchParams.get('action') !== 'test') {
-      return NextResponse.json({ error: 'Use ?action=test' }, { status: 400 })
-    }
-
-    const body = await request.json()
-    const { amount } = body || { amount: 52000 }
-
-    // Build minimal request body
-    const testBody = {
-      payment: {
-        payment_method_types: ['VIRTUAL_ACCOUNT'],
-        payment_method_options: { reusability: 'single_use' },
-      },
-      order: {
-        invoice_number: 'TEST-' + Date.now(),
-        amount: { value: amount, currency: 'IDR' },
-        line_items: [{
-          name: 'Test Product',
-          price: { value: amount, currency: 'IDR' },
-          quantity: 1,
-          category: 'Digital Service',
-          merchant_name: 'LuxTrade',
-        }],
-      },
-      customer: {
-        id: 'test-customer',
-        name: 'Test Customer',
-        email: 'test@test.com',
-        phone: '08123456789',
-      },
-    }
-
-    const bodyStr = JSON.stringify(testBody)
-
-    const result = await createDokuOrder({
-      amount,
-      invoiceId: 'TEST-' + Date.now(),
-      customerName: 'Test',
-      customerEmail: 'test@test.com',
-      plan: 'TEST',
-    })
-
-    return NextResponse.json({
-      success: true,
-      testAmount: amount,
-      testAmountType: typeof amount,
-      testBodyPreview: bodyStr.substring(0, 500),
-      result: result,
-    })
-  } catch (error: any) {
-    return NextResponse.json({
-      success: false,
-      error: error.message,
-    }, { status: 500 })
-  }
+  return NextResponse.json(getSakuraConfig())
 }
