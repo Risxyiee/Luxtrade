@@ -1,17 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, Copy, Check, ExternalLink, Clock, ShieldCheck, Receipt,
   Sparkles, ChevronDown, ChevronUp, Loader2, CheckCircle2,
-  Banknote, Smartphone, QrCode, Lock, AlertCircle, CreditCard, Wallet
+  Banknote, Smartphone, QrCode, Lock, AlertCircle, CreditCard,
+  Wallet, Crown, PartyPopper, ArrowRight
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { formatRupiah } from '@/lib/pricing'
 
 // ============================================
-// Payment method categories mapped to SakuraPay method codes
+// Payment method categories mapped to SakuraPay codes
 // ============================================
 const PAYMENT_CATEGORIES: {
   type: string
@@ -94,6 +95,11 @@ const METHOD_MIN_AMOUNTS: Record<string, number> = {
   INDOMARET: 10000,
 }
 
+// ============================================
+// Types
+// ============================================
+type OrderStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'EXPIRED' | 'UNKNOWN'
+
 interface PaymentInvoiceModalProps {
   isOpen: boolean
   onClose: () => void
@@ -102,12 +108,13 @@ interface PaymentInvoiceModalProps {
   duration: string
   amount: number
   expiresAt: string
-  plan: string        // PRO | LIFETIME
+  plan: string           // PRO | LIFETIME
   durationMonths: number
-  // paymentUrl is optional now — modal will create its own order
   paymentUrl?: string
   orderId?: string
   onPayNow?: () => void
+  initialStatus?: OrderStatus
+  paidAt?: string | null
 }
 
 export default function PaymentInvoiceModal({
@@ -122,33 +129,111 @@ export default function PaymentInvoiceModal({
   durationMonths,
   paymentUrl: initialPaymentUrl,
   orderId: initialOrderId,
-  onPayNow
+  onPayNow,
+  initialStatus,
+  paidAt: initialPaidAt,
 }: PaymentInvoiceModalProps) {
   const [copied, setCopied] = useState<string | null>(null)
   const [paying, setPaying] = useState(false)
   const [paid, setPaid] = useState(false)
   const [paymentUrl, setPaymentUrl] = useState(initialPaymentUrl || '')
   const [orderId, setOrderId] = useState(initialOrderId || '')
+  // The real invoice number from API (used for polling), starts with prop value
+  const [realInvoiceNumber, setRealInvoiceNumber] = useState(invoiceNumber)
 
-  // Step 1: Select category (QRIS / E-Wallet / VA)
+  // Status from DB (polling)
+  const [orderStatus, setOrderStatus] = useState<OrderStatus>(initialStatus || 'PENDING')
+  const [paidAtDate, setPaidAtDate] = useState<string | null>(initialPaidAt || null)
+  const [pollCount, setPollCount] = useState(0)
+  const pollingRef = useRef<NodeJS.Timeout | null>(null)
+  const isPaidRef = useRef(false)
+
+  // Payment method selection
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  // Step 2: Select specific method within category
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null)
-  // Error state
   const [payError, setPayError] = useState('')
-  // Manual transfer collapsed
   const [showManualTransfer, setShowManualTransfer] = useState(false)
 
-  // Can pay: method selected and not already paying/paid
-  const canPay = selectedMethod !== null && !paying && !paid
+  // Derived: is this order fully paid?
+  const isPaid = orderStatus === 'SUCCESS'
+  const isExpired = orderStatus === 'EXPIRED'
+  const canPay = selectedMethod !== null && !paying && !paid && !isPaid
 
-  // Get available methods for selected category
+  // ============================================
+  // POLLING: Check order status every 5 seconds after payment
+  // ============================================
+  const pollOrderStatus = useCallback(async () => {
+    if (isPaidRef.current || !realInvoiceNumber) return
+
+    try {
+      const res = await fetch(`/api/payment/order-status?invoiceNumber=${encodeURIComponent(realInvoiceNumber)}`)
+      if (!res.ok) return
+
+      const data = await res.json()
+      if (data.status === 'SUCCESS') {
+        isPaidRef.current = true
+        setOrderStatus('SUCCESS')
+        setPaidAtDate(data.paidAt || new Date().toISOString())
+        // Stop polling on success
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current)
+          pollingRef.current = null
+        }
+      } else if (data.status === 'EXPIRED') {
+        setOrderStatus('EXPIRED')
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current)
+          pollingRef.current = null
+        }
+      }
+    } catch {
+      // Silent fail on polling
+    }
+  }, [realInvoiceNumber])
+
+  // Start polling when user has paid (opened gateway)
+  useEffect(() => {
+    if (paid && !isPaidRef.current) {
+      // Poll every 5 seconds
+      pollingRef.current = setInterval(() => {
+        setPollCount(prev => prev + 1)
+      }, 5000)
+    }
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+    }
+  }, [paid])
+
+  // Actual polling triggered by pollCount changes
+  useEffect(() => {
+    if (paid && !isPaidRef.current && pollCount > 0) {
+      pollOrderStatus()
+    }
+  }, [paid, pollCount, pollOrderStatus])
+
+  // Reset on modal open
+  useEffect(() => {
+    if (isOpen) {
+      isPaidRef.current = false
+      setOrderStatus(initialStatus || 'PENDING')
+      setPaidAtDate(initialPaidAt || null)
+      setPollCount(0)
+      setRealInvoiceNumber(invoiceNumber)
+    }
+  }, [isOpen, initialStatus, initialPaidAt, invoiceNumber])
+
+  // ============================================
+  // Helpers
+  // ============================================
   const getMethodsForCategory = (catType: string) => {
     const cat = PAYMENT_CATEGORIES.find(c => c.type === catType)
     return cat?.methods || []
   }
 
-  // Check if a method is below minimum amount
   const isBelowMin = (methodCode: string) => {
     const min = METHOD_MIN_AMOUNTS[methodCode]
     return min ? amount < min : false
@@ -168,21 +253,33 @@ export default function PaymentInvoiceModal({
     }
   }
 
+  const formatPaidDate = (dateStr: string | null) => {
+    if (!dateStr) return null
+    try {
+      return new Date(dateStr).toLocaleString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch {
+      return null
+    }
+  }
+
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text)
     setCopied(id)
     setTimeout(() => setCopied(null), 2000)
   }
 
-  // When user selects a category, reset the specific method
   const handleCategorySelect = (catType: string) => {
     if (selectedCategory === catType) {
-      // Deselect
       setSelectedCategory(null)
       setSelectedMethod(null)
     } else {
       setSelectedCategory(catType)
-      // Auto-select first valid method in category
       const methods = getMethodsForCategory(catType)
       const validMethod = methods.find(m => !isBelowMin(m.code))
       setSelectedMethod(validMethod?.code || null)
@@ -190,7 +287,6 @@ export default function PaymentInvoiceModal({
     setPayError('')
   }
 
-  // When user selects a specific method within category
   const handleMethodSelect = (methodCode: string) => {
     if (isBelowMin(methodCode)) {
       setPayError(`Min. pembayaran ${methodCode} adalah ${formatRupiah(METHOD_MIN_AMOUNTS[methodCode])}`)
@@ -200,14 +296,15 @@ export default function PaymentInvoiceModal({
     setPayError('')
   }
 
-  // MAIN PAY HANDLER: Create SakuraPay order then redirect to gateway
+  // ============================================
+  // MAIN PAY HANDLER
+  // ============================================
   const handlePay = async () => {
     if (!selectedMethod) return
     setPaying(true)
     setPayError('')
 
     try {
-      // If we already have a paymentUrl, open it directly
       if (paymentUrl) {
         window.open(paymentUrl, '_blank')
         setPaying(false)
@@ -215,7 +312,6 @@ export default function PaymentInvoiceModal({
         return
       }
 
-      // Otherwise, create a new SakuraPay order with the selected method
       const response = await fetch('/api/payment/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -233,11 +329,14 @@ export default function PaymentInvoiceModal({
         throw new Error(data.error || data.details || 'Gagal membuat pesanan')
       }
 
-      // Got paymentUrl — redirect to SakuraPay gateway
       setPaymentUrl(data.paymentUrl)
       setOrderId(data.orderId || '')
+      // Store the real invoice number from API for polling
+      if (data.invoiceNumber) {
+        setRealInvoiceNumber(data.invoiceNumber)
+      }
 
-      // Open payment gateway in new tab
+      // Open SakuraPay gateway
       window.open(data.paymentUrl, '_blank')
       setPaying(false)
       setPaid(true)
@@ -254,6 +353,9 @@ export default function PaymentInvoiceModal({
 
   if (!isOpen) return null
 
+  // ============================================
+  // RENDER
+  // ============================================
   return (
     <AnimatePresence>
       <motion.div
@@ -271,26 +373,62 @@ export default function PaymentInvoiceModal({
           onClick={(e) => e.stopPropagation()}
           className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto"
         >
-          <div className="relative bg-gradient-to-br from-[#0A0612] via-[#1A0F2E] to-[#0D0715] border border-purple-500/20 rounded-3xl overflow-hidden shadow-2xl shadow-purple-900/20">
+          <div className={`
+            relative rounded-3xl overflow-hidden shadow-2xl
+            ${isPaid
+              ? 'border border-emerald-400/30 shadow-emerald-500/20'
+              : 'border border-purple-500/20 shadow-purple-900/20'
+            }
+          `}>
+            {/* Background */}
+            <div className={`
+              absolute inset-0 bg-gradient-to-br
+              ${isPaid
+                ? 'from-[#041a12] via-[#0a2618] to-[#0d1f15]'
+                : 'from-[#0A0612] via-[#1A0F2E] to-[#0D0715]'
+              }
+            `} />
 
-            {/* Decorative */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-80 bg-purple-500/5 rounded-full blur-3xl" />
+            {/* Decorative glow */}
+            {isPaid && (
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-emerald-500/8 rounded-full blur-3xl" />
+            )}
+            {!isPaid && (
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-80 bg-purple-500/5 rounded-full blur-3xl" />
+            )}
 
-            {/* Header */}
-            <div className="relative bg-gradient-to-r from-emerald-600/90 via-teal-500/90 to-emerald-600/90 backdrop-blur-xl border-b border-emerald-400/20">
+            {/* ============================================ */}
+            {/* HEADER                                        */}
+            {/* ============================================ */}
+            <div className={`
+              relative backdrop-blur-xl border-b
+              ${isPaid
+                ? 'bg-gradient-to-r from-emerald-600/90 via-green-500/90 to-emerald-600/90 border-b border-emerald-400/20'
+                : 'bg-gradient-to-r from-emerald-600/90 via-teal-500/90 to-emerald-600/90 border-b border-emerald-400/20'
+              }
+            `}>
               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIxIiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDUpIi8+PC9zdmc+')] opacity-50" />
               <div className="relative p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-white/15">
-                      <Receipt className="w-6 h-6 text-white" />
+                    <div className={`p-2.5 rounded-xl ${isPaid ? 'bg-white/20' : 'bg-white/15'}`}>
+                      {isPaid ? (
+                        <PartyPopper className="w-6 h-6 text-white" />
+                      ) : (
+                        <Receipt className="w-6 h-6 text-white" />
+                      )}
                     </div>
                     <div>
                       <h2 className="text-xl font-bold text-white">
-                        {paid ? 'Pembayaran Diproses' : 'Invoice Pembayaran'}
+                        {isPaid ? 'Pembayaran Berhasil!' : paid ? 'Menunggu Pembayaran...' : 'Invoice Pembayaran'}
                       </h2>
-                      <p className="text-emerald-100/80 text-xs mt-0.5">
-                        {paid ? 'Selesaikan pembayaran di tab baru' : 'Pilih metode & lanjut ke pembayaran'}
+                      <p className={`text-xs mt-0.5 ${isPaid ? 'text-emerald-100/90' : 'text-emerald-100/80'}`}>
+                        {isPaid
+                          ? `${planName} telah diaktifkan`
+                          : paid
+                            ? 'Menunggu konfirmasi pembayaran otomatis...'
+                            : 'Pilih metode & lanjut ke pembayaran'
+                        }
                       </p>
                     </div>
                   </div>
@@ -305,44 +443,56 @@ export default function PaymentInvoiceModal({
             </div>
 
             {/* Invoice Body */}
-            <div className="p-6 space-y-5">
-              {/* Success State */}
-              {paid && (
+            <div className="relative p-6 space-y-5">
+
+              {/* ============================================ */}
+              {/* PAID SUCCESS STATE                            */}
+              {/* ============================================ */}
+              {isPaid && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5 flex flex-col items-center gap-3"
+                  className="space-y-4"
                 >
-                  <CheckCircle2 className="w-12 h-12 text-emerald-400" />
-                  <div className="text-center">
-                    <p className="text-lg font-bold text-emerald-300">Pesanan Dibuat!</p>
-                    <p className="text-sm text-white/60 mt-1">
-                      Selesaikan pembayaran di tab yang baru dibuka
-                    </p>
-                  </div>
-                  <Badge className="bg-emerald-500/20 text-emerald-300 text-xs">
-                    Menunggu Pembayaran
-                  </Badge>
-                </motion.div>
-              )}
-
-              {/* Invoice Card */}
-              {!paid && (
-                <div className="relative bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/10 rounded-2xl overflow-hidden">
-                  <div className="h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-amber-500" />
-
-                  <div className="p-5 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-amber-400" />
-                        <span className="font-bold text-white tracking-tight">LuxTrade</span>
-                      </div>
-                      <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-300 bg-purple-500/10">
-                        INVOICE
-                      </Badge>
+                  {/* Success Banner */}
+                  <div className="bg-gradient-to-r from-emerald-500/15 via-green-500/15 to-emerald-500/15 border border-emerald-400/25 rounded-2xl p-6 flex flex-col items-center gap-3 relative overflow-hidden">
+                    {/* Shimmer effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-pulse" />
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: 'spring', damping: 12, stiffness: 200, delay: 0.1 }}
+                      className="relative w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center shadow-lg shadow-emerald-500/40"
+                    >
+                      <CheckCircle2 className="w-8 h-8 text-white" />
+                    </motion.div>
+                    <div className="relative text-center">
+                      <p className="text-xl font-bold text-emerald-300">Lunas & Berhasil</p>
+                      <p className="text-sm text-white/60 mt-1">
+                        Akun Anda telah otomatis di-upgrade ke {planName}
+                      </p>
                     </div>
+                    <Badge className="relative bg-emerald-500/25 text-emerald-300 text-xs font-semibold px-3">
+                      ✓ Pembayaran Dikonfirmasi
+                    </Badge>
+                  </div>
 
-                    <div className="space-y-3">
+                  {/* Invoice Card — Paid version */}
+                  <div className="bg-gradient-to-br from-emerald-500/[0.06] to-emerald-500/[0.02] border border-emerald-500/20 rounded-2xl overflow-hidden">
+                    <div className="h-1 bg-gradient-to-r from-emerald-500 via-green-400 to-amber-400" />
+                    <div className="p-5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-emerald-400" />
+                          <span className="font-bold text-white tracking-tight">LuxTrade</span>
+                        </div>
+                        <Badge className="bg-emerald-500/20 text-emerald-300 text-[10px]">
+                          LUNAS
+                        </Badge>
+                      </div>
+
+                      <div className="h-px bg-emerald-500/10" />
+
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-white/40">No. Invoice</span>
                         <div className="flex items-center gap-2">
@@ -353,11 +503,12 @@ export default function PaymentInvoiceModal({
                         </div>
                       </div>
 
-                      <div className="h-px bg-white/5" />
-
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-white/40">Paket</span>
-                        <span className="text-white font-medium">{planName}</span>
+                        <span className="text-white font-medium flex items-center gap-1.5">
+                          <Crown className="w-3.5 h-3.5 text-emerald-400" />
+                          {planName}
+                        </span>
                       </div>
 
                       <div className="flex items-center justify-between text-sm">
@@ -365,312 +516,501 @@ export default function PaymentInvoiceModal({
                         <span className="text-white">{duration}</span>
                       </div>
 
+                      {/* PAID DATE — shown when paid */}
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-white/40">Tanggal Pembayaran</span>
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="text-emerald-300 text-xs font-medium">
+                            {formatPaidDate(paidAtDate) || formatPaidDate(new Date().toISOString())}
+                          </span>
+                        </div>
+                      </div>
+
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-white/40">Status</span>
-                        <Badge className="bg-yellow-500/20 text-yellow-300 text-[10px]">
-                          Menunggu Pembayaran
+                        <Badge className="bg-emerald-500/25 text-emerald-300 text-[10px] font-semibold">
+                          ✓ Lunas
                         </Badge>
                       </div>
 
+                      <div className="h-px bg-emerald-500/10" />
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-white/60 font-medium">Total Dibayar</span>
+                        <span className="text-2xl font-bold bg-gradient-to-r from-emerald-300 via-green-300 to-emerald-300 bg-clip-text text-transparent">
+                          {formatRupiah(amount)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Upgrade Confirmation Message */}
+                  <div className="bg-gradient-to-r from-amber-500/10 to-amber-500/5 border border-amber-500/20 rounded-2xl p-4 flex items-start gap-3">
+                    <Crown className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-amber-300">
+                        {planName} Aktif!
+                      </p>
+                      <p className="text-xs text-white/50 mt-1">
+                        Semua fitur premium sudah bisa diakses. Selamat trading!
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Security */}
+                  <div className="flex items-center justify-center gap-1.5 text-white/20 text-[10px]">
+                    <ShieldCheck className="w-3 h-3" />
+                    <span>Dicetak otomatis oleh LuxTrade Payment System</span>
+                  </div>
+
+                  {/* Go to Dashboard Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={onClose}
+                    className="w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-3 bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-500 hover:from-emerald-400 hover:via-green-400 hover:to-emerald-400 text-white shadow-lg shadow-emerald-500/25 cursor-pointer transition-all"
+                  >
+                    <ArrowRight className="w-5 h-5" />
+                    Kembali ke Dashboard
+                  </motion.button>
+                </motion.div>
+              )}
+
+              {/* ============================================ */}
+              {/* WAITING STATE (paid but not confirmed yet)   */}
+              {/* ============================================ */}
+              {!isPaid && !isExpired && paid && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="space-y-4"
+                >
+                  {/* Waiting Banner */}
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-5 flex flex-col items-center gap-3">
+                    <div className="relative">
+                      <Loader2 className="w-10 h-10 text-blue-400 animate-spin" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-lg font-bold text-blue-300">Menunggu Konfirmasi</p>
+                      <p className="text-sm text-white/60 mt-1">
+                        Selesaikan pembayaran di tab yang baru dibuka. Status akan otomatis berubah.
+                      </p>
+                    </div>
+                    <Badge className="bg-blue-500/20 text-blue-300 text-xs animate-pulse">
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      Memeriksa Status...
+                    </Badge>
+                  </div>
+
+                  {/* Compact Invoice Info */}
+                  <div className="bg-white/[0.02] border border-white/10 rounded-2xl overflow-hidden">
+                    <div className="p-4 space-y-3">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-white/40">Berlaku Hingga</span>
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-amber-400/60" />
-                          <span className="text-white/70 text-xs">{formatExpiry(expiresAt)}</span>
+                        <span className="text-white/40">No. Invoice</span>
+                        <code className="text-white font-mono text-xs">{invoiceNumber}</code>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-white/40">Paket</span>
+                        <span className="text-white font-medium">{planName}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-white/40">Total</span>
+                        <span className="text-lg font-bold text-white">{formatRupiah(amount)}</span>
+                      </div>
+                      <div className="h-px bg-white/5" />
+                      <div className="flex items-center gap-2 text-xs text-white/40">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>Invoice berlaku hingga {formatExpiry(expiresAt)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Retry open gateway */}
+                  {paymentUrl && (
+                    <button
+                      onClick={() => window.open(paymentUrl, '_blank')}
+                      className="w-full py-3 rounded-xl text-sm text-blue-300 hover:text-blue-200 hover:bg-blue-500/10 transition-all flex items-center justify-center gap-2"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Buka Ulang Halaman Pembayaran
+                    </button>
+                  )}
+
+                  <button
+                    onClick={onClose}
+                    className="w-full py-3 rounded-xl text-xs text-white/40 hover:text-white/70 hover:bg-white/5 transition-all"
+                  >
+                    Kembali ke Dashboard
+                  </button>
+                </motion.div>
+              )}
+
+              {/* ============================================ */}
+              {/* EXPIRED STATE                                  */}
+              {/* ============================================ */}
+              {!isPaid && isExpired && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="space-y-4"
+                >
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-5 flex flex-col items-center gap-3">
+                    <Clock className="w-10 h-10 text-red-400" />
+                    <div className="text-center">
+                      <p className="text-lg font-bold text-red-300">Invoice Expired</p>
+                      <p className="text-sm text-white/60 mt-1">
+                        Invoice ini sudah melewati batas waktu. Silakan buat pesanan baru.
+                      </p>
+                    </div>
+                    <Badge className="bg-red-500/20 text-red-300 text-xs">
+                      Expired
+                    </Badge>
+                  </div>
+                  <button
+                    onClick={onClose}
+                    className="w-full py-3 rounded-xl text-xs text-white/60 hover:text-white hover:bg-white/5 transition-all border border-white/10"
+                  >
+                    Buat Pesanan Baru
+                  </button>
+                </motion.div>
+              )}
+
+              {/* ============================================ */}
+              {/* PENDING STATE — Full payment flow              */}
+              {/* ============================================ */}
+              {!isPaid && !isExpired && !paid && (
+                <>
+                  {/* Invoice Card */}
+                  <div className="relative bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/10 rounded-2xl overflow-hidden">
+                    <div className="h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-amber-500" />
+                    <div className="p-5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-amber-400" />
+                          <span className="font-bold text-white tracking-tight">LuxTrade</span>
                         </div>
+                        <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-300 bg-purple-500/10">
+                          INVOICE
+                        </Badge>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-white/40">No. Invoice</span>
+                          <div className="flex items-center gap-2">
+                            <code className="text-white font-mono text-xs">{invoiceNumber}</code>
+                            <button onClick={() => handleCopy(invoiceNumber, 'invoice')} className="p-1 rounded hover:bg-white/10 transition-colors">
+                              {copied === 'invoice' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-white/40" />}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="h-px bg-white/5" />
+
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-white/40">Paket</span>
+                          <span className="text-white font-medium">{planName}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-white/40">Durasi</span>
+                          <span className="text-white">{duration}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-white/40">Status</span>
+                          <Badge className="bg-yellow-500/20 text-yellow-300 text-[10px]">
+                            Menunggu Pembayaran
+                          </Badge>
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-white/40">Berlaku Hingga</span>
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-amber-400/60" />
+                            <span className="text-white/70 text-xs">{formatExpiry(expiresAt)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-white/60 font-medium">Total Pembayaran</span>
+                        <span className="text-2xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-amber-300 bg-clip-text text-transparent">
+                          {formatRupiah(amount)}
+                        </span>
                       </div>
                     </div>
 
-                    <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-white/60 font-medium">Total Pembayaran</span>
-                      <span className="text-2xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-amber-300 bg-clip-text text-transparent">
-                        {formatRupiah(amount)}
-                      </span>
+                    <div className="px-5 pb-4">
+                      <div className="flex items-center justify-center gap-1.5 text-white/20 text-[10px]">
+                        <ShieldCheck className="w-3 h-3" />
+                        <span>Dicetak otomatis oleh LuxTrade Payment System</span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="px-5 pb-4">
-                    <div className="flex items-center justify-center gap-1.5 text-white/20 text-[10px]">
-                      <ShieldCheck className="w-3 h-3" />
-                      <span>Dicetak otomatis oleh LuxTrade Payment System</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ===== STEP 1: PAYMENT CATEGORY SELECTION ===== */}
-              {!paid && (
-                <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-4 space-y-3">
-                  <p className="text-xs text-white/50 font-medium flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-purple-400" />
-                    Langkah 1 — Pilih Kategori Pembayaran
-                  </p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {PAYMENT_CATEGORIES.map((cat) => {
-                      const isSelected = selectedCategory === cat.type
-                      const Icon = cat.icon
-                      return (
-                        <button
-                          type="button"
-                          key={cat.type}
-                          onClick={() => handleCategorySelect(cat.type)}
-                          className={`
-                            relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all duration-200
-                            cursor-pointer active:scale-[0.96]
-                            ${isSelected
-                              ? `${cat.color.sel} ${cat.color.glow}`
-                              : `${cat.color.unsel} hover:border-white/20`
-                            }
-                          `}
-                        >
-                          {isSelected && (
-                            <motion.div
-                              layoutId="method-glow"
-                              className="absolute inset-0 rounded-xl opacity-30"
-                              style={{
-                                background: `radial-gradient(ellipse at center, ${
-                                  cat.type === 'QRIS' ? 'rgba(16,185,129,0.3)' :
-                                  cat.type === 'EWALLET' ? 'rgba(139,92,246,0.3)' :
-                                  'rgba(245,158,11,0.3)'
-                                }, transparent 70%)`,
-                              }}
-                              transition={{ type: 'spring', damping: 20 }}
-                            />
-                          )}
-
-                          <div className={`relative p-2 rounded-lg transition-colors ${isSelected ? cat.color.iconBg : 'bg-white/5'}`}>
-                            <Icon className={`w-5 h-5 transition-colors ${isSelected ? 'text-white' : 'text-white/40'}`} />
-                          </div>
-
-                          <span className={`relative text-[11px] font-semibold transition-colors ${
-                            isSelected ? 'text-white' : 'text-white/50'
-                          }`}>
-                            {cat.label}
-                          </span>
-
-                          <div className="relative flex flex-wrap justify-center gap-0.5">
-                            {cat.methods.slice(0, 3).map((m) => (
-                              <span key={m.code} className={`text-[8px] px-1.5 py-0.5 rounded-full transition-colors ${
-                                isSelected ? 'bg-white/15 text-white/70' : 'bg-white/5 text-white/25'
-                              }`}>
-                                {m.label}
-                              </span>
-                            ))}
-                            {cat.methods.length > 3 && (
-                              <span className={`text-[8px] px-1.5 py-0.5 rounded-full transition-colors ${
-                                isSelected ? 'bg-white/15 text-white/70' : 'bg-white/5 text-white/25'
-                              }`}>
-                                +{cat.methods.length - 3}
-                              </span>
+                  {/* ===== STEP 1: CATEGORY SELECTION ===== */}
+                  <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-4 space-y-3">
+                    <p className="text-xs text-white/50 font-medium flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5 text-purple-400" />
+                      Langkah 1 — Pilih Kategori Pembayaran
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {PAYMENT_CATEGORIES.map((cat) => {
+                        const isSelected = selectedCategory === cat.type
+                        const Icon = cat.icon
+                        return (
+                          <button
+                            type="button"
+                            key={cat.type}
+                            onClick={() => handleCategorySelect(cat.type)}
+                            className={`
+                              relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all duration-200
+                              cursor-pointer active:scale-[0.96]
+                              ${isSelected
+                                ? `${cat.color.sel} ${cat.color.glow}`
+                                : `${cat.color.unsel} hover:border-white/20`
+                              }
+                            `}
+                          >
+                            {isSelected && (
+                              <motion.div
+                                layoutId="method-glow"
+                                className="absolute inset-0 rounded-xl opacity-30"
+                                style={{
+                                  background: `radial-gradient(ellipse at center, ${
+                                    cat.type === 'QRIS' ? 'rgba(16,185,129,0.3)' :
+                                    cat.type === 'EWALLET' ? 'rgba(139,92,246,0.3)' :
+                                    'rgba(245,158,11,0.3)'
+                                  }, transparent 70%)`,
+                                }}
+                                transition={{ type: 'spring', damping: 20 }}
+                              />
                             )}
-                          </div>
-
-                          {isSelected && (
-                            <motion.div
-                              initial={{ scale: 0 }}
-                              animate={{ scale: 1 }}
-                              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg"
-                            >
-                              <Check className="w-3 h-3 text-white" />
-                            </motion.div>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* ===== STEP 2: SPECIFIC METHOD SELECTION (show after category selected) ===== */}
-              {!paid && selectedCategory && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="bg-white/[0.02] border border-white/10 rounded-2xl p-4 space-y-3"
-                >
-                  <p className="text-xs text-white/50 font-medium flex items-center gap-1.5">
-                    <CreditCard className="w-3.5 h-3.5 text-purple-400" />
-                    Langkah 2 — Pilih Metode Spesifik
-                  </p>
-                  <div className="space-y-2">
-                    {getMethodsForCategory(selectedCategory).map((method) => {
-                      const isSelected = selectedMethod === method.code
-                      const belowMin = isBelowMin(method.code)
-                      const catData = getSelectedCategoryData()
-                      return (
-                        <button
-                          type="button"
-                          key={method.code}
-                          onClick={() => handleMethodSelect(method.code)}
-                          disabled={belowMin}
-                          className={`
-                            w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all duration-200
-                            cursor-pointer active:scale-[0.98]
-                            ${isSelected
-                              ? `${catData?.color.sel || ''} ${catData?.color.glow || ''}`
-                              : belowMin
-                                ? 'border-white/5 bg-white/[0.01] opacity-35 cursor-not-allowed'
-                                : 'border-white/10 bg-white/[0.02] hover:border-white/20'
-                            }
-                          `}
-                        >
-                          {/* Radio indicator */}
-                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                            isSelected ? 'border-emerald-400 bg-emerald-400/20' : 'border-white/20'
-                          }`}>
-                            {isSelected && <div className="w-2 h-2 rounded-full bg-emerald-400" />}
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <span className={`text-sm font-medium transition-colors ${
-                              isSelected ? 'text-white' : 'text-white/60'
+                            <div className={`relative p-2 rounded-lg transition-colors ${isSelected ? cat.color.iconBg : 'bg-white/5'}`}>
+                              <Icon className={`w-5 h-5 transition-colors ${isSelected ? 'text-white' : 'text-white/40'}`} />
+                            </div>
+                            <span className={`relative text-[11px] font-semibold transition-colors ${
+                              isSelected ? 'text-white' : 'text-white/50'
                             }`}>
-                              {method.label}
+                              {cat.label}
                             </span>
-                            {belowMin && (
-                              <p className="text-amber-400 text-[10px] mt-0.5">Min. {formatRupiah(METHOD_MIN_AMOUNTS[method.code])}</p>
-                            )}
-                          </div>
-
-                          {isSelected && (
-                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                            </motion.div>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Error message */}
-              {!paid && payError && (
-                <motion.div
-                  initial={{ opacity: 0, y: -5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs"
-                >
-                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <span>{payError}</span>
-                </motion.div>
-              )}
-
-              {/* ===== BAYAR SEKARANG BUTTON — always visible, always creates order ===== */}
-              {!paid && (
-                <motion.button
-                  whileHover={canPay ? { scale: 1.01 } : {}}
-                  whileTap={canPay ? { scale: 0.98 } : {}}
-                  onClick={handlePay}
-                  disabled={!canPay}
-                  className={`
-                    w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-3 transition-all text-sm
-                    ${canPay
-                      ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500 hover:from-emerald-400 hover:via-teal-400 hover:to-emerald-400 text-white shadow-lg shadow-emerald-500/25 cursor-pointer'
-                      : 'bg-white/5 text-white/25 border border-white/10 cursor-not-allowed'
-                    }
-                  `}
-                >
-                  {paying ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Membuat Pesanan...
-                    </>
-                  ) : !selectedMethod ? (
-                    <>
-                      <Lock className="w-5 h-5" />
-                      Pilih Metode Pembayaran
-                    </>
-                  ) : (
-                    <>
-                      <ExternalLink className="w-5 h-5" />
-                      Bayar Sekarang — {formatRupiah(amount)}
-                    </>
-                  )}
-                </motion.button>
-              )}
-
-              {/* Payment method info text */}
-              {!paid && selectedMethod && !payError && (
-                <p className="text-[10px] text-center text-white/25">
-                  Anda akan dialihkan ke halaman pembayaran SakuraPay
-                </p>
-              )}
-
-              {/* ===== MANUAL TRANSFER FALLBACK (collapsed by default) ===== */}
-              {!paid && (
-                <div className="rounded-2xl border border-white/5 overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setShowManualTransfer(!showManualTransfer)}
-                    className="w-full flex items-center justify-between px-4 py-3 text-xs text-white/30 hover:text-white/50 hover:bg-white/[0.02] transition-colors"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Banknote className="w-3.5 h-3.5" />
-                      Transfer Manual (Cadangan)
-                    </span>
-                    {showManualTransfer
-                      ? <ChevronUp className="w-3.5 h-3.5" />
-                      : <ChevronDown className="w-3.5 h-3.5" />
-                    }
-                  </button>
-
-                  <AnimatePresence>
-                    {showManualTransfer && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="px-4 pb-4 pt-1">
-                          <div className="bg-white/[0.03] rounded-xl p-4">
-                            <p className="text-[10px] text-white/30 mb-3 text-center">
-                              Gunakan hanya jika pembayaran otomatis gagal
-                            </p>
-                            <div className="text-center space-y-3">
-                              <div>
-                                <p className="text-xs text-white/40">Bank Jago (542)</p>
-                                <div className="flex items-center justify-center gap-2 mt-1">
-                                  <p className="text-lg font-bold text-white font-mono">105668597393</p>
-                                  <button
-                                    onClick={() => handleCopy('105668597393', 'bank')}
-                                    className="p-1 rounded hover:bg-white/10 transition-colors"
-                                  >
-                                    {copied === 'bank' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-white/40" />}
-                                  </button>
-                                </div>
-                                <p className="text-xs text-white/50">a.n. RIZQI AKBAR PRATAMA</p>
-                              </div>
-                              <a
-                                href={`https://t.me/Risxyiee?text=${encodeURIComponent(`Halo admin, saya mau konfirmasi pembayaran LuxTrade paket ${planName} (${formatRupiah(amount)}). Invoice: ${invoiceNumber}`)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500/20 text-blue-300 text-xs font-medium hover:bg-blue-500/30 transition-colors"
+                            <div className="relative flex flex-wrap justify-center gap-0.5">
+                              {cat.methods.slice(0, 3).map((m) => (
+                                <span key={m.code} className={`text-[8px] px-1.5 py-0.5 rounded-full transition-colors ${
+                                  isSelected ? 'bg-white/15 text-white/70' : 'bg-white/5 text-white/25'
+                                }`}>
+                                  {m.label}
+                                </span>
+                              ))}
+                              {cat.methods.length > 3 && (
+                                <span className={`text-[8px] px-1.5 py-0.5 rounded-full transition-colors ${
+                                  isSelected ? 'bg-white/15 text-white/70' : 'bg-white/5 text-white/25'
+                                }`}>
+                                  +{cat.methods.length - 3}
+                                </span>
+                              )}
+                            </div>
+                            {isSelected && (
+                              <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg"
                               >
-                                <Wallet className="w-3.5 h-3.5" />
-                                Konfirmasi via Telegram
-                              </a>
+                                <Check className="w-3 h-3 text-white" />
+                              </motion.div>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* ===== STEP 2: SPECIFIC METHOD ===== */}
+                  {selectedCategory && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="bg-white/[0.02] border border-white/10 rounded-2xl p-4 space-y-3"
+                    >
+                      <p className="text-xs text-white/50 font-medium flex items-center gap-1.5">
+                        <CreditCard className="w-3.5 h-3.5 text-purple-400" />
+                        Langkah 2 — Pilih Metode Spesifik
+                      </p>
+                      <div className="space-y-2">
+                        {getMethodsForCategory(selectedCategory).map((method) => {
+                          const isSelected = selectedMethod === method.code
+                          const belowMin = isBelowMin(method.code)
+                          const catData = getSelectedCategoryData()
+                          return (
+                            <button
+                              type="button"
+                              key={method.code}
+                              onClick={() => handleMethodSelect(method.code)}
+                              disabled={belowMin}
+                              className={`
+                                w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all duration-200
+                                cursor-pointer active:scale-[0.98]
+                                ${isSelected
+                                  ? `${catData?.color.sel || ''} ${catData?.color.glow || ''}`
+                                  : belowMin
+                                    ? 'border-white/5 bg-white/[0.01] opacity-35 cursor-not-allowed'
+                                    : 'border-white/10 bg-white/[0.02] hover:border-white/20'
+                                }
+                              `}
+                            >
+                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                                isSelected ? 'border-emerald-400 bg-emerald-400/20' : 'border-white/20'
+                              }`}>
+                                {isSelected && <div className="w-2 h-2 rounded-full bg-emerald-400" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <span className={`text-sm font-medium transition-colors ${
+                                  isSelected ? 'text-white' : 'text-white/60'
+                                }`}>
+                                  {method.label}
+                                </span>
+                                {belowMin && (
+                                  <p className="text-amber-400 text-[10px] mt-0.5">Min. {formatRupiah(METHOD_MIN_AMOUNTS[method.code])}</p>
+                                )}
+                              </div>
+                              {isSelected && (
+                                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                                </motion.div>
+                              )}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Error */}
+                  {!paid && payError && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs"
+                    >
+                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <span>{payError}</span>
+                    </motion.div>
+                  )}
+
+                  {/* ===== BAYAR SEKARANG BUTTON ===== */}
+                  <motion.button
+                    whileHover={canPay ? { scale: 1.01 } : {}}
+                    whileTap={canPay ? { scale: 0.98 } : {}}
+                    onClick={handlePay}
+                    disabled={!canPay}
+                    className={`
+                      w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-3 transition-all text-sm
+                      ${canPay
+                        ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500 hover:from-emerald-400 hover:via-teal-400 hover:to-emerald-400 text-white shadow-lg shadow-emerald-500/25 cursor-pointer'
+                        : 'bg-white/5 text-white/25 border border-white/10 cursor-not-allowed'
+                      }
+                    `}
+                  >
+                    {paying ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Membuat Pesanan...
+                      </>
+                    ) : !selectedMethod ? (
+                      <>
+                        <Lock className="w-5 h-5" />
+                        Pilih Metode Pembayaran
+                      </>
+                    ) : (
+                      <>
+                        <ExternalLink className="w-5 h-5" />
+                        Bayar Sekarang — {formatRupiah(amount)}
+                      </>
+                    )}
+                  </motion.button>
+
+                  {!paid && selectedMethod && !payError && (
+                    <p className="text-[10px] text-center text-white/25">
+                      Anda akan dialihkan ke halaman pembayaran SakuraPay
+                    </p>
+                  )}
+
+                  {/* ===== MANUAL TRANSFER FALLBACK ===== */}
+                  <div className="rounded-2xl border border-white/5 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setShowManualTransfer(!showManualTransfer)}
+                      className="w-full flex items-center justify-between px-4 py-3 text-xs text-white/30 hover:text-white/50 hover:bg-white/[0.02] transition-colors"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Banknote className="w-3.5 h-3.5" />
+                        Transfer Manual (Cadangan)
+                      </span>
+                      {showManualTransfer
+                        ? <ChevronUp className="w-3.5 h-3.5" />
+                        : <ChevronDown className="w-3.5 h-3.5" />
+                      }
+                    </button>
+
+                    <AnimatePresence>
+                      {showManualTransfer && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-4 pb-4 pt-1">
+                            <div className="bg-white/[0.03] rounded-xl p-4">
+                              <p className="text-[10px] text-white/30 mb-3 text-center">
+                                Gunakan hanya jika pembayaran otomatis gagal
+                              </p>
+                              <div className="text-center space-y-3">
+                                <div>
+                                  <p className="text-xs text-white/40">Bank Jago (542)</p>
+                                  <div className="flex items-center justify-center gap-2 mt-1">
+                                    <p className="text-lg font-bold text-white font-mono">105668597393</p>
+                                    <button
+                                      onClick={() => handleCopy('105668597393', 'bank')}
+                                      className="p-1 rounded hover:bg-white/10 transition-colors"
+                                    >
+                                      {copied === 'bank' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-white/40" />}
+                                    </button>
+                                  </div>
+                                  <p className="text-xs text-white/50">a.n. RIZQI AKBAR PRATAMA</p>
+                                </div>
+                                <a
+                                  href={`https://t.me/Risxyiee?text=${encodeURIComponent(`Halo admin, saya mau konfirmasi pembayaran LuxTrade paket ${planName} (${formatRupiah(amount)}). Invoice: ${invoiceNumber}`)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0088cc]/20 text-[#0088cc] text-xs font-medium hover:bg-[#0088cc]/30 transition-colors"
+                                >
+                                  <Wallet className="w-3.5 h-3.5" />
+                                  Konfirmasi via Telegram
+                                </a>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
 
-              {/* Close / Back */}
-              <button
-                onClick={onClose}
-                className="w-full py-3 rounded-xl text-xs text-white/40 hover:text-white/70 hover:bg-white/5 transition-all"
-              >
-                {paid ? 'Kembali ke Dashboard' : 'Kembali ke Pilih Paket'}
-              </button>
+                  {/* Back */}
+                  <button
+                    onClick={onClose}
+                    className="w-full py-3 rounded-xl text-xs text-white/40 hover:text-white/70 hover:bg-white/5 transition-all"
+                  >
+                    Kembali ke Pilih Paket
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </motion.div>
