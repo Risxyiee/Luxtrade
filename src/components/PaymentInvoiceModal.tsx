@@ -30,10 +30,10 @@ const PAYMENT_CATEGORIES: {
   icon: typeof Banknote
   methods: string[]
   color: {
-    sel: string      // selected state
-    unsel: string     // unselected state
-    glow: string      // glow/shadow when selected
-    iconBg: string    // icon background when selected
+    sel: string
+    unsel: string
+    glow: string
+    iconBg: string
   }
 }[] = [
   {
@@ -89,10 +89,12 @@ export default function PaymentInvoiceModal({
   const [paying, setPaying] = useState(false)
   const [paid, setPaid] = useState(false)
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethodType | null>(null)
-  // Auto-expand manual transfer if no paymentUrl
   const [showManualTransfer, setShowManualTransfer] = useState(!paymentUrl)
 
-  const canPay = paymentUrl && selectedMethod !== null && !paying && !paid
+  // Can use gateway button (requires paymentUrl + selected method)
+  const canPayGateway = !!paymentUrl && selectedMethod !== null && !paying && !paid
+  // Can use manual button (requires selected method, no paymentUrl needed)
+  const canPayManual = !paymentUrl && selectedMethod !== null && !paying && !paid
 
   const formatExpiry = (dateStr: string) => {
     try {
@@ -122,6 +124,13 @@ export default function PaymentInvoiceModal({
       setPaying(false)
       setPaid(true)
     }
+  }
+
+  // Fallback: open Telegram + show manual bank transfer
+  const handleManualPay = () => {
+    const msg = `Halo admin, saya mau konfirmasi pembayaran LuxTrade paket ${planName} (${formatRupiah(amount)}). Invoice: ${invoiceNumber}. Metode: ${selectedMethod || 'Lainnya'}`
+    window.open(`https://t.me/Risxyiee?text=${encodeURIComponent(msg)}`, '_blank')
+    setPaid(true)
   }
 
   if (!isOpen) return null
@@ -162,7 +171,7 @@ export default function PaymentInvoiceModal({
                         {paid ? 'Pembayaran Diproses' : 'Invoice Pembayaran'}
                       </h2>
                       <p className="text-emerald-100/80 text-xs mt-0.5">
-                        {paid ? 'Anda akan dialihkan ke halaman pembayaran' : 'Pilih metode & selesaikan pembayaran'}
+                        {paid ? 'Selesaikan pembayaran Anda' : 'Pilih metode & selesaikan pembayaran'}
                       </p>
                     </div>
                   </div>
@@ -187,9 +196,12 @@ export default function PaymentInvoiceModal({
                 >
                   <CheckCircle2 className="w-12 h-12 text-emerald-400" />
                   <div className="text-center">
-                    <p className="text-lg font-bold text-emerald-300">Pesanan Dibuat!</p>
+                    <p className="text-lg font-bold text-emerald-300">{paymentUrl ? 'Pesanan Dibuat!' : 'Silakan Transfer Manual'}</p>
                     <p className="text-sm text-white/60 mt-1">
-                      Anda akan dialihkan ke halaman pembayaran SakuraPay
+                      {paymentUrl
+                        ? 'Selesaikan pembayaran di tab yang baru dibuka'
+                        : 'Transfer ke rekening berikut lalu konfirmasi via Telegram'
+                      }
                     </p>
                   </div>
                   <Badge className="bg-emerald-500/20 text-emerald-300 text-xs">
@@ -199,91 +211,78 @@ export default function PaymentInvoiceModal({
               )}
 
               {/* Invoice Card */}
-              <div className="relative bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/10 rounded-2xl overflow-hidden">
-                <div className="h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-amber-500" />
+              {!paid && (
+                <div className="relative bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/10 rounded-2xl overflow-hidden">
+                  <div className="h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-amber-500" />
 
-                <div className="p-5 space-y-4">
-                  {/* LuxTrade Header */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-amber-400" />
-                      <span className="font-bold text-white tracking-tight">LuxTrade</span>
-                    </div>
-                    <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-300 bg-purple-500/10">
-                      INVOICE
-                    </Badge>
-                  </div>
-
-                  {/* Invoice Details */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-white/40">No. Invoice</span>
+                  <div className="p-5 space-y-4">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <code className="text-white font-mono text-xs">{invoiceNumber}</code>
-                        <button
-                          onClick={() => handleCopy(invoiceNumber, 'invoice')}
-                          className="p-1 rounded hover:bg-white/10 transition-colors"
-                        >
-                          {copied === 'invoice' ? (
-                            <Check className="w-3 h-3 text-emerald-400" />
-                          ) : (
-                            <Copy className="w-3 h-3 text-white/40" />
-                          )}
-                        </button>
+                        <Sparkles className="w-5 h-5 text-amber-400" />
+                        <span className="font-bold text-white tracking-tight">LuxTrade</span>
                       </div>
-                    </div>
-
-                    <div className="h-px bg-white/5" />
-
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-white/40">Paket</span>
-                      <span className="text-white font-medium">{planName}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-white/40">Durasi</span>
-                      <span className="text-white">{duration}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-white/40">Status</span>
-                      <Badge className={
-                        paid
-                          ? 'bg-amber-500/20 text-amber-300 text-[10px]'
-                          : 'bg-yellow-500/20 text-yellow-300 text-[10px]'
-                      }>
-                        {paid ? 'Menunggu Pembayaran' : 'Menunggu Pembayaran'}
+                      <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-300 bg-purple-500/10">
+                        INVOICE
                       </Badge>
                     </div>
 
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-white/40">Berlaku Hingga</span>
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-amber-400/60" />
-                        <span className="text-white/70 text-xs">{formatExpiry(expiresAt)}</span>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-white/40">No. Invoice</span>
+                        <div className="flex items-center gap-2">
+                          <code className="text-white font-mono text-xs">{invoiceNumber}</code>
+                          <button onClick={() => handleCopy(invoiceNumber, 'invoice')} className="p-1 rounded hover:bg-white/10 transition-colors">
+                            {copied === 'invoice' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-white/40" />}
+                          </button>
+                        </div>
                       </div>
+
+                      <div className="h-px bg-white/5" />
+
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-white/40">Paket</span>
+                        <span className="text-white font-medium">{planName}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-white/40">Durasi</span>
+                        <span className="text-white">{duration}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-white/40">Status</span>
+                        <Badge className="bg-yellow-500/20 text-yellow-300 text-[10px]">
+                          Menunggu Pembayaran
+                        </Badge>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-white/40">Berlaku Hingga</span>
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-amber-400/60" />
+                          <span className="text-white/70 text-xs">{formatExpiry(expiresAt)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-white/60 font-medium">Total Pembayaran</span>
+                      <span className="text-2xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-amber-300 bg-clip-text text-transparent">
+                        {formatRupiah(amount)}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Divider */}
-                  <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-
-                  {/* Total */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-white/60 font-medium">Total Pembayaran</span>
-                    <span className="text-2xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-amber-300 bg-clip-text text-transparent">
-                      {formatRupiah(amount)}
-                    </span>
+                  <div className="px-5 pb-4">
+                    <div className="flex items-center justify-center gap-1.5 text-white/20 text-[10px]">
+                      <ShieldCheck className="w-3 h-3" />
+                      <span>Dicetak otomatis oleh LuxTrade Payment System</span>
+                    </div>
                   </div>
                 </div>
-
-                <div className="px-5 pb-4">
-                  <div className="flex items-center justify-center gap-1.5 text-white/20 text-[10px]">
-                    <ShieldCheck className="w-3 h-3" />
-                    <span>Dicetak otomatis oleh LuxTrade Payment System</span>
-                  </div>
-                </div>
-              </div>
+              )}
 
               {/* ===== INTERACTIVE PAYMENT METHOD SELECTION ===== */}
               {!paid && (
@@ -300,7 +299,10 @@ export default function PaymentInvoiceModal({
                         <button
                           type="button"
                           key={cat.type}
-                          onClick={() => setSelectedMethod(cat.type)}
+                          onClick={() => {
+                            setSelectedMethod(cat.type)
+                            setShowManualTransfer(false)
+                          }}
                           className={`
                             relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all duration-200
                             cursor-pointer active:scale-[0.96]
@@ -310,7 +312,6 @@ export default function PaymentInvoiceModal({
                             }
                           `}
                         >
-                          {/* Glow indicator for selected */}
                           {isSelected && (
                             <motion.div
                               layoutId="method-glow"
@@ -336,7 +337,6 @@ export default function PaymentInvoiceModal({
                             {cat.label}
                           </span>
 
-                          {/* Sub-methods hint */}
                           <div className="relative flex flex-wrap justify-center gap-0.5">
                             {cat.methods.slice(0, 3).map((m) => (
                               <span key={m} className={`text-[8px] px-1.5 py-0.5 rounded-full transition-colors ${
@@ -354,7 +354,6 @@ export default function PaymentInvoiceModal({
                             )}
                           </div>
 
-                          {/* Selected check */}
                           {isSelected && (
                             <motion.div
                               initial={{ scale: 0 }}
@@ -369,7 +368,6 @@ export default function PaymentInvoiceModal({
                     })}
                   </div>
 
-                  {/* Hint text when nothing selected */}
                   {!selectedMethod && (
                     <p className="text-[10px] text-center text-white/30">
                       Ketuk salah satu metode untuk melanjutkan
@@ -379,19 +377,19 @@ export default function PaymentInvoiceModal({
               )}
 
               {/* ===== BAYAR SEKARANG BUTTON ===== */}
-              {paymentUrl && (
+              {!paid && (
                 <motion.button
-                  whileHover={canPay ? { scale: 1.01 } : {}}
-                  whileTap={canPay ? { scale: 0.98 } : {}}
-                  onClick={handlePay}
-                  disabled={!canPay}
+                  whileHover={(canPayGateway || canPayManual) ? { scale: 1.01 } : {}}
+                  whileTap={(canPayGateway || canPayManual) ? { scale: 0.98 } : {}}
+                  onClick={paymentUrl ? handlePay : handleManualPay}
+                  disabled={!canPayGateway && !canPayManual}
                   className={`
                     w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-3 transition-all text-sm
-                    ${paid
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-default'
-                      : canPay
+                    ${canPayGateway || canPayManual
+                      ? paymentUrl
                         ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500 hover:from-emerald-400 hover:via-teal-400 hover:to-emerald-400 text-white shadow-lg shadow-emerald-500/25 cursor-pointer'
-                        : 'bg-white/5 text-white/25 border border-white/10 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-blue-500 via-blue-400 to-cyan-500 hover:from-blue-400 hover:via-blue-300 hover:to-cyan-400 text-white shadow-lg shadow-blue-500/25 cursor-pointer'
+                      : 'bg-white/5 text-white/25 border border-white/10 cursor-not-allowed'
                     }
                   `}
                 >
@@ -400,92 +398,88 @@ export default function PaymentInvoiceModal({
                       <Loader2 className="w-5 h-5 animate-spin" />
                       Mengalihkan...
                     </>
-                  ) : paid ? (
-                    <>
-                      <CheckCircle2 className="w-5 h-5" />
-                      Selesaikan Pembayaran di Tab Baru
-                    </>
                   ) : !selectedMethod ? (
                     <>
                       <Lock className="w-5 h-5" />
                       Bayar {formatRupiah(amount)} — Pilih Metode Dulu
                     </>
-                  ) : (
+                  ) : paymentUrl ? (
                     <>
                       <ExternalLink className="w-5 h-5" />
                       Bayar Sekarang — {formatRupiah(amount)}
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="w-5 h-5" />
+                      Konfirmasi via Telegram — {formatRupiah(amount)}
                     </>
                   )}
                 </motion.button>
               )}
 
-              {/* ===== MANUAL TRANSFER FALLBACK (collapsed by default) ===== */}
-              <div className="rounded-2xl border border-white/5 overflow-hidden">
-                {/* Toggle button */}
-                <button
-                  type="button"
-                  onClick={() => setShowManualTransfer(!showManualTransfer)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-xs text-white/30 hover:text-white/50 hover:bg-white/[0.02] transition-colors"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Banknote className="w-3.5 h-3.5" />
-                    Transfer Manual (Cadangan)
-                  </span>
-                  {showManualTransfer
-                    ? <ChevronUp className="w-3.5 h-3.5" />
-                    : <ChevronDown className="w-3.5 h-3.5" />
-                  }
-                </button>
+              {/* ===== MANUAL TRANSFER FALLBACK (collapsed by default, auto-open if no paymentUrl) ===== */}
+              {!paid && (
+                <div className="rounded-2xl border border-white/5 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setShowManualTransfer(!showManualTransfer)}
+                    className="w-full flex items-center justify-between px-4 py-3 text-xs text-white/30 hover:text-white/50 hover:bg-white/[0.02] transition-colors"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5" />
+                      Transfer Manual {paymentUrl ? '(Cadangan)' : ''}
+                    </span>
+                    {showManualTransfer
+                      ? <ChevronUp className="w-3.5 h-3.5" />
+                      : <ChevronDown className="w-3.5 h-3.5" />
+                    }
+                  </button>
 
-                {/* Expandable content */}
-                <AnimatePresence>
-                  {showManualTransfer && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="px-4 pb-4 pt-1">
-                        <div className="bg-white/[0.03] rounded-xl p-4">
-                          <p className="text-[10px] text-white/30 mb-3 text-center">
-                            Gunakan hanya jika pembayaran otomatis gagal
-                          </p>
-                          <div className="text-center space-y-3">
-                            <div>
-                              <p className="text-xs text-white/40">Bank Jago (542)</p>
-                              <div className="flex items-center justify-center gap-2 mt-1">
-                                <p className="text-lg font-bold text-white font-mono">105668597393</p>
-                                <button
-                                  onClick={() => handleCopy('105668597393', 'bank')}
-                                  className="p-1 rounded hover:bg-white/10 transition-colors"
-                                >
-                                  {copied === 'bank' ? (
-                                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                  ) : (
-                                    <Copy className="w-3.5 h-3.5 text-white/40" />
-                                  )}
-                                </button>
+                  <AnimatePresence>
+                    {showManualTransfer && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-4 pb-4 pt-1">
+                          <div className="bg-white/[0.03] rounded-xl p-4">
+                            <p className="text-[10px] text-white/30 mb-3 text-center">
+                              {paymentUrl ? 'Gunakan hanya jika pembayaran otomatis gagal' : 'Transfer ke rekening berikut'}
+                            </p>
+                            <div className="text-center space-y-3">
+                              <div>
+                                <p className="text-xs text-white/40">Bank Jago (542)</p>
+                                <div className="flex items-center justify-center gap-2 mt-1">
+                                  <p className="text-lg font-bold text-white font-mono">105668597393</p>
+                                  <button
+                                    onClick={() => handleCopy('105668597393', 'bank')}
+                                    className="p-1 rounded hover:bg-white/10 transition-colors"
+                                  >
+                                    {copied === 'bank' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-white/40" />}
+                                  </button>
+                                </div>
+                                <p className="text-xs text-white/50">a.n. RIZQI AKBAR PRATAMA</p>
                               </div>
-                              <p className="text-xs text-white/50">a.n. RIZQI AKBAR PRATAMA</p>
+                              <a
+                                href={`https://t.me/Risxyiee?text=${encodeURIComponent(`Halo admin, saya mau konfirmasi pembayaran LuxTrade paket ${planName} (${formatRupiah(amount)}). Invoice: ${invoiceNumber}`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500/20 text-blue-300 text-xs font-medium hover:bg-blue-500/30 transition-colors"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                Konfirmasi via Telegram
+                              </a>
                             </div>
-                            <a
-                              href={`https://t.me/Risxyiee?text=${encodeURIComponent(`Halo admin, saya mau konfirmasi pembayaran LuxTrade paket ${planName} (${formatRupiah(amount)}). Invoice: ${invoiceNumber}`)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500/20 text-blue-300 text-xs font-medium hover:bg-blue-500/30 transition-colors"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                              Konfirmasi via Telegram
-                            </a>
                           </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
 
               {/* Close / Back */}
               <button
