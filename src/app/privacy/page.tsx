@@ -183,7 +183,7 @@ export default function PrivacyPolicyPage() {
                 Jika Anda memiliki pertanyaan tentang Kebijakan Privasi ini, silakan hubungi kami di:
               </p>
               <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 mt-4">
-                <p className="text-white/70"><strong className="text-amber-400">Email:</strong> support@luxtrade.id</p>
+                <p className="text-white/70"><strong className="text-amber-400">Email:</strong> luxtradee@gmail.com</p>
               </div>
             </section>
           </div>

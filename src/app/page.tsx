@@ -11,7 +11,7 @@ import {
   ChevronRight, Star, Zap, Check, Crown,
   Activity, DollarSign, Users, Trophy, ChevronDown,
   MessageCircle, HelpCircle, Bot, Lock, ShieldCheck,
-  Clock, Mail, Zap as Lightning, X
+  Clock, Mail, Zap as Lightning, X, AlertTriangle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -1080,17 +1080,16 @@ export default function LuxTradeLanding() {
               <span className="text-white">{t('pricing.title')}</span>
             </h2>
 
-            {/* Money-Back Guarantee Badge */}
+            {/* Non-Refundable Notice Badge */}
             <motion.div
               className="flex justify-center mt-8"
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
             >
-              <div className="inline-flex items-center gap-3 px-6 py-3.5 backdrop-blur-xl bg-emerald-500/10 border border-emerald-500/30 rounded-full">
-                <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                <span className="text-emerald-300 font-extrabold">{language === 'id' ? 'Garansi Uang Kembali 7 Hari' : '7-Day Money-Back Guarantee'}</span>
-                <span className="text-emerald-400/60 text-sm font-medium">• {language === 'id' ? 'Tanpa Pertanyaan' : 'No Questions Asked'}</span>
+              <div className="inline-flex items-center gap-3 px-6 py-3.5 backdrop-blur-xl bg-amber-500/10 border border-amber-500/30 rounded-full">
+                <AlertTriangle className="w-5 h-5 text-amber-400" />
+                <span className="text-amber-300 font-extrabold">{language === 'id' ? 'Produk Digital — Non-Refundable' : 'Digital Product — Non-Refundable'}</span>
               </div>
             </motion.div>
 
@@ -1707,8 +1706,12 @@ export default function LuxTradeLanding() {
                 a: language === 'id' ? 'Data Anda dienkripsi end-to-end dan disimpan dengan aman. Kami tidak pernah membagikan informasi trading Anda dengan pihak ketiga. Baca kebijakan privasi kami untuk detail lebih lanjut.' : 'Your data is encrypted end-to-end and stored securely. We never share your trading information with third parties. Read our privacy policy for more details.'
               },
               {
-                q: language === 'id' ? 'Dapatkah saya membatalkan langganan kapan saja?' : 'Can I cancel my subscription anytime?',
-                a: language === 'id' ? 'Ya, Anda dapat membatalkan langganan Elite Pro kapan saja. Akses Anda akan berlanjut sampai akhir periode penagihan.' : 'Yes, you can cancel your Elite Pro subscription at any time. Your access will continue until the end of your billing period.'
+                q: language === 'id' ? 'Apakah pembayaran bisa dikembalikan?' : 'Is payment refundable?',
+                a: language === 'id' ? 'Tidak. LuxTrade adalah produk digital (SaaS) berupa akses perangkat lunak yang diaktifkan secara otomatis setelah pembayaran berhasil. Karena sifat digital yang tidak dapat dikembalikan, pembelian bersifat final dan non-refundable. Pengecualian hanya berlaku untuk pembayaran ganda atau kesalahan teknis dari payment gateway.' : 'No. LuxTrade is a digital product (SaaS) in the form of software access that is activated automatically after successful payment. Due to the nature of digital products, all purchases are final and non-refundable. Exceptions only apply to duplicate payments or technical errors from the payment gateway.'
+              },
+              {
+                q: language === 'id' ? 'Bagaimana jika saya membutuhkan bantuan?' : 'What if I need help?',
+                a: language === 'id' ? 'Tim support kami siap membantu! Hubungi kami melalui email luxtradee@gmail.com atau Telegram @Risxyiee untuk pertanyaan, kendala teknis, atau bantuan lainnya.' : 'Our support team is ready to help! Contact us via email at luxtradee@gmail.com or Telegram @Risxyiee for questions, technical issues, or any other assistance.'
               },
             ].map((faq, index) => (
               <motion.div
