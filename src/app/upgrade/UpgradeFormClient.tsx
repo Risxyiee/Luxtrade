@@ -4,8 +4,7 @@ import React, { useState, useCallback } from 'react'
 import {
   ArrowRight, ArrowLeft, AlertCircle, Loader2,
   CheckCircle, Tag, Sparkles, Shield, Zap, Star,
-  Smartphone, QrCode, Building2,
-  Gift, Lock, Check
+  Gift, Lock, Check, MessageCircle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,32 +37,8 @@ const PLANS = [
   }
 ]
 
-// Payment methods from SakuraPay API — sorted by popularity
-// Min amounts: QRIS=500, GOPAY=500, DANA=1000, ShopeePay=1000, BCAVA=10000, BNIVA=10000
-const PAYMENT_METHODS = [
-  { id: 'QRIS',     label: 'QRIS',             icon: QrCode,     desc: 'Scan QR dari apps manapun',     color: 'emerald', min: 500 },
-  { id: 'GOPAY',    label: 'GoPay',            icon: Smartphone,  desc: 'Bayar via GoPay / Gojek',       color: 'emerald', min: 500 },
-  { id: 'DANA',     label: 'DANA',             icon: Smartphone,  desc: 'Bayar via DANA e-wallet',       color: 'violet',  min: 1000 },
-  { id: 'ShopeePay', label: 'ShopeePay',       icon: Smartphone,  desc: 'Bayar via ShopeePay',           color: 'amber',   min: 1000 },
-  { id: 'BCAVA',    label: 'BCA Virtual Account', icon: Building2, desc: 'Transfer via BCA',            color: 'blue',    min: 10000 },
-  { id: 'BNIVA',    label: 'BNI Virtual Account', icon: Building2, desc: 'Transfer via BNI',            color: 'blue',    min: 10000 },
-  { id: 'BRIVA',    label: 'BRI Virtual Account', icon: Building2, desc: 'Transfer via BRI',            color: 'blue',    min: 10000 },
-  { id: 'ALFAMART', label: 'Alfamart',         icon: Building2, desc: 'Bayar di gerai Alfamart',      color: 'amber',   min: 10000 },
-  { id: 'INDOMARET', label: 'Indomaret',       icon: Building2, desc: 'Bayar di gerai Indomaret',     color: 'amber',   min: 10000 },
-]
-
 function formatRupiah(n: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n)
-}
-
-// ============================================
-// Color configs — NO dynamic template strings
-// ============================================
-const METHOD_COLORS: Record<string, { sel: string; unsel: string; icon: string }> = {
-  blue:    { sel: 'border-blue-500 bg-blue-500/20', unsel: 'border-purple-900/30 bg-white/5', icon: 'bg-blue-500' },
-  violet:  { sel: 'border-violet-500 bg-violet-500/20', unsel: 'border-purple-900/30 bg-white/5', icon: 'bg-violet-500' },
-  emerald: { sel: 'border-emerald-500 bg-emerald-500/20', unsel: 'border-purple-900/30 bg-white/5', icon: 'bg-emerald-500' },
-  amber:   { sel: 'border-amber-500 bg-amber-500/20', unsel: 'border-purple-900/30 bg-white/5', icon: 'bg-amber-500' },
 }
 
 // ============================================
@@ -86,8 +61,6 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
   const totalSteps = 2
   const progress = (currentStep / totalSteps) * 100
   const [selectedPlan, setSelectedPlan] = useState<any>(null)
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null)
-  const [isCreatingPayment, setIsCreatingPayment] = useState(false)
 
   // Promo
   const validatePromo = async (code: string) => {
@@ -134,19 +107,12 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
     }
   }, [currentStep])
 
-  // Pay
-  const handlePay = async () => {
-    if (!selectedPlan || !user || !selectedPaymentMethod) return
-    setIsCreatingPayment(true); setError('')
-    try {
-      const r = await fetch('/api/payment/create-order', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: selectedPlan.price, plan: selectedPlan.plan, durationMonths: selectedPlan.durationMonths, paymentMethod: selectedPaymentMethod })
-      })
-      const d = await r.json()
-      if (d.success && d.paymentUrl) window.location.href = d.paymentUrl
-      else { setError(d.error || 'Gagal membuat pembayaran'); setIsCreatingPayment(false) }
-    } catch (err: any) { setError(err.message || 'Gagal'); setIsCreatingPayment(false) }
+  // Pay — manual transfer via Telegram
+  const handlePay = () => {
+    if (!selectedPlan) return
+    const message = `Halo admin LuxTrade, saya mau konfirmasi pembayaran. 📋\n\nPaket: ${selectedPlan.label}\nNominal: ${formatRupiah(selectedPlan.price)}\n\nIni bukti transfer saya. Mohon aktivasi akun Pro saya. Terima kasih! 🙏`
+    const encodedMessage = encodeURIComponent(message)
+    window.open(`https://t.me/Risxyiee?text=${encodedMessage}`, '_blank')
   }
 
   if (success) return (
@@ -226,7 +192,7 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
                     <button
                       type="button"
                       key={plan.id}
-                      onClick={() => { setSelectedPlan(plan); setSelectedPaymentMethod(null); setError('') }}
+                      onClick={() => { setSelectedPlan(plan); setError('') }}
                       className={`w-full p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none active:scale-[0.98] text-left ${
                         isSelected
                           ? 'border-purple-500 bg-purple-500/20 shadow-lg shadow-purple-500/20'
@@ -303,68 +269,26 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
               </Card>
             )}
 
-            {/* Payment Methods — GUARANTEED CLICKABLE */}
+            {/* Bank Jago Info */}
             <div className="space-y-2">
-              <label className="text-white font-semibold text-sm">Metode Pembayaran</label>
-              <div className="space-y-2.5">
-                {PAYMENT_METHODS.map((method) => {
-                  const isSelected = selectedPaymentMethod === method.id
-                  const c = METHOD_COLORS[method.color] || METHOD_COLORS.blue
-                  const MethodIcon = method.icon
-                  // Check if selected plan price is below this method's minimum
-                  const isBelowMin = selectedPlan && selectedPlan.price < method.min
-
-                  return (
-                    <button
-                      type="button"
-                      key={method.id}
-                      onClick={() => {
-                        if (isBelowMin) {
-                          setError(`Min. pembayaran ${method.label} adalah ${formatRupiah(method.min)}`)
-                          return
-                        }
-                        console.log('PAYMENT METHOD SELECTED:', method.id)
-                        setSelectedPaymentMethod(method.id)
-                        setError('')
-                      }}
-                      disabled={isBelowMin}
-                      className={`w-full p-4 rounded-xl border-2 transition-colors duration-200 cursor-pointer select-none active:scale-[0.98] text-left ${
-                        isSelected ? c.sel : isBelowMin ? 'border-purple-900/20 bg-white/[0.02] opacity-40' : c.unsel
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        {/* Radio indicator */}
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                          isSelected ? 'border-purple-400 bg-purple-400/20' : 'border-purple-900/30'
-                        }`}>
-                          {isSelected && (
-                            <div className="w-2.5 h-2.5 rounded-full bg-purple-400" />
-                          )}
-                        </div>
-
-                        {/* Icon */}
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                          isSelected ? c.icon : 'bg-purple-900/20'
-                        }`}>
-                          <MethodIcon className="w-5 h-5 text-white" />
-                        </div>
-
-                        {/* Label */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-white font-semibold text-sm">{method.label}</p>
-                          <p className="text-gray-500 text-xs">{method.desc}</p>
-                          {isBelowMin && (
-                            <p className="text-amber-400 text-[10px] mt-0.5">Min. {formatRupiah(method.min)}</p>
-                          )}
-                        </div>
-
-                        {/* Check */}
-                        {isSelected && <CheckCircle className="w-5 h-5 text-purple-400 flex-shrink-0" />}
-                      </div>
-                    </button>
-                  )
-                })}
+              <label className="text-white font-semibold text-sm">Transfer ke Rekening</label>
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded">JAGO</span>
+                    <span className="text-white font-bold">105668597393</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { navigator.clipboard.writeText('105668597393') }}
+                    className="text-xs text-emerald-400 hover:text-emerald-300 bg-emerald-500/20 px-2 py-1 rounded"
+                  >
+                    Copy
+                  </button>
+                </div>
+                <p className="text-xs text-white/50">a.n. Rizqi Akbar Pratama — Kode Bank: 542</p>
               </div>
+              <p className="text-amber-300/80 text-xs">Transfer sesuai nominal, lalu klik tombol hijau di bawah untuk konfirmasi ke Telegram admin.</p>
             </div>
 
             {/* Error */}
@@ -378,7 +302,7 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
             {/* Security */}
             <div className="flex items-center gap-2 p-3 bg-purple-500/10 border border-purple-900/30 rounded-lg">
               <Lock className="w-4 h-4 text-purple-400 flex-shrink-0" />
-              <span className="text-gray-400 text-xs">Pembayaran aman & terenkripsi via SakuraPay</span>
+              <span className="text-gray-400 text-xs">Transfer Bank Jago — Konfirmasi manual via Telegram</span>
             </div>
           </div>
         )}
@@ -401,7 +325,7 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
           disabled={
             currentStep === 1
               ? !selectedPlan
-              : isCreatingPayment || !selectedPaymentMethod
+              : !selectedPlan
           }
           className={`flex-1 font-semibold ${
             currentStep === 1
@@ -414,15 +338,10 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
               Lanjut
               <ArrowRight className="w-4 h-4 ml-1" />
             </>
-          ) : isCreatingPayment ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Memproses...
-            </>
           ) : (
             <>
-              <Shield className="w-4 h-4 mr-1" />
-              Bayar {formatRupiah(selectedPlan?.price)}
+              <MessageCircle className="w-4 h-4 mr-1" />
+              Bayar & Konfirmasi via Telegram
               <ArrowRight className="w-4 h-4 ml-1" />
             </>
           )}
