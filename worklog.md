@@ -1884,3 +1884,34 @@ Stage Summary:
 - Database connections auto-routed through Supavisor pooler to prevent EMAXCONNSESSION
 - sync-auth-users no longer leaks connections
 - Commits: 983787d (upgrade fix), 9c60ba8 (db pool fix)
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix upgrade page UI - redesign, fix unclickable payment buttons, fix middleware crash
+
+Work Log:
+- Read and analyzed existing upgrade/page.tsx - found issues with background overlay (absolute inset-0), motion.button potentially blocking touch
+- Read TradeWizardForm.tsx for AnimatePresence reference pattern
+- Found PaymentConfirmationModal missing required planName/planPrice props in page.tsx
+- Found TWO middleware files: root middleware.ts (old, being compiled) and src/middleware.ts (new, NOT compiled by Next.js)
+- Root middleware.ts crashed when NEXT_PUBLIC_SUPABASE_URL not set (sandbox env)
+- Rewrote upgrade/page.tsx with clean design:
+  - Removed background overlay div that could block touch events
+  - Used inline styles instead of Tailwind classes for payment buttons (avoids z-index issues)
+  - Plain div with onClick + role="button" + tabIndex for payment methods
+  - Each payment method has its own color scheme via colorMap
+  - Added expandable feature list when plan is selected
+  - ChevronRight indicator on unselected methods, CheckCircle on selected
+- Fixed root middleware.ts:
+  - Added /upgrade to protected routes
+  - Added env var check to skip auth guard when Supabase not configured
+  - Uses supabaseUrl/supabaseKey variables instead of process.env.XXX!
+- Deleted duplicate src/middleware.ts
+- Fixed PaymentConfirmationModal props in page.tsx (planName="Elite Pro" planPrice=49000, planName="Lifetime Ultra" planPrice=52000)
+- Added dev bypass in upgrade page useEffect when Supabase not configured
+
+Stage Summary:
+- Verified with Agent Browser: all plan buttons clickable, step navigation works, payment methods clickable, E-Wallet selection works, "Bayar Rp65.000" button activates correctly
+- Pushed to GitHub: commit 4cf5379
+- Key files changed: middleware.ts, src/app/upgrade/page.tsx, src/app/page.tsx, src/middleware.ts (deleted)
