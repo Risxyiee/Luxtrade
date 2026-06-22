@@ -1,4 +1,4 @@
-// Production Schema - PostgreSQL
+// Production Schema - PostgreSQL (Supabase)
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,18 +11,26 @@ datasource db {
 model Profile {
   id                String    @id @default(uuid())
   email             String?
-  streakCount       Int       @default(0)
-  lastLoginAt       DateTime?
-  bestStreak        Int       @default(0)
+  streakCount       Int       @default(0)                @map("streak_count")
+  lastLoginAt       DateTime?                            @map("last_login_at")
+  bestStreak        Int       @default(0)                @map("best_streak")
   achievements      Json      @default("[]")
   plan              String    @default("FREE")
-  proExpiry         DateTime?
+  proExpiry         DateTime?                            @map("pro_expiry")
   role              String    @default("USER")
   full_name         String?
-  is_pro            Boolean   @default(false)
-  subscription_until DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  is_pro            Boolean   @default(false)            @map("is_pro")
+  subscription_until DateTime?                            @map("subscription_until")
+  emailVerified     Boolean   @default(false)            @map("email_verified")
+  emailVerifyToken  String?   @unique                    @map("email_verify_token")
+  emailVerifyExpAt  DateTime?                            @map("email_verify_exp_at")
+  createdAt         DateTime  @default(now())           @map("created_at")
+  updatedAt         DateTime  @default(now())           @map("updated_at")
+  deviceId          String?                              @map("device_id")
+  myReferralCode    String?   @unique                    @map("my_referral_code")
+  referredByCode    String?                              @map("referred_by_code")
+  hasEverBeenPro    Boolean   @default(false)            @map("has_ever_been_pro")
+  commissionPaid    Boolean   @default(false)            @map("commission_paid")
 
   submissions       UserSubmission[]
   missionProgresses  MissionProgress[]
@@ -32,39 +40,44 @@ model Profile {
   weeklyGoals        WeeklyGoal[]
   tradingAccounts   TradingAccount[]
   socialLinks       SocialLink[]
+  paymentOrders     PaymentOrder[]
+
+  @@map("profiles")
 }
 
 model UserSubmission {
   id              Int       @id @default(autoincrement())
-  userId          String
-  achievementKey  String
-  proofUrl        String?
+  userId          String    @map("user_id")
+  achievementKey  String    @map("achievement_key")
+  proofUrl        String?   @map("proof_url")
   status          String    @default("PENDING")
-  reviewedBy      String?
-  reviewedAt      DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  reviewedBy      String?   @map("reviewed_by")
+  reviewedAt      DateTime? @map("reviewed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt   @map("updated_at")
 
   user            Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@map("user_submissions")
 }
 
 model MissionProgress {
   id              String    @id @default(uuid())
-  userId          String
-  missionKey      String
+  userId          String    @map("user_id")
+  missionKey      String    @map("mission_key")
   progress        Int       @default(0)
   target          Int       @default(1)
   completed       Boolean   @default(false)
   claimed         Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt   @map("updated_at")
 
   user            Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, missionKey])
+  @@unique([userId, missionKey], name: "userId_missionKey")
   @@index([userId])
+  @@map("mission_progress")
 }
 
 model User {
@@ -79,38 +92,46 @@ model User {
 
   subscriptions     UserSubscription[]
   withdrawals       Withdrawal[]
+
+  @@map("users")
 }
 
 model UserSubscription {
   id                String    @id @default(uuid())
-  userId            String
+  userId            String    @map("user_id")
   plan              String
   status            String    @default("active")
-  startDate         DateTime  @default(now())
-  endDate           DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  startDate         DateTime  @default(now()) @map("start_date")
+  endDate           DateTime? @map("end_date")
+  promoCodeId       String?   @map("promo_code_id")
+  discountPercent   Float     @default(0) @map("discount_percent")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt   @map("updated_at")
 
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promoCode         PromoCode? @relation(fields: [promoCodeId], references: [id])
 
   @@index([userId])
+  @@index([promoCodeId])
+  @@map("user_subscriptions")
 }
 
 model Withdrawal {
   id                String    @id @default(uuid())
-  userId            String
+  userId            String    @map("user_id")
   amount            Float
-  bankName          String
-  bankAccount       String
-  bankHolder        String
+  bankName          String    @map("bank_name")
+  bankAccount       String    @map("bank_account")
+  bankHolder        String    @map("bank_holder")
   status            String    @default("pending")
-  adminNote         String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  adminNote         String?   @map("admin_note")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt   @map("updated_at")
 
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@map("withdrawals")
 }
 
 model Trade {
@@ -144,6 +165,7 @@ model Trade {
 
   @@index([user_id])
   @@index([user_id, close_time])
+  @@map("trades")
 }
 
 model JournalEntry {
@@ -162,6 +184,7 @@ model JournalEntry {
   linkedTrades      Trade[]   @relation("TradeJournal")
 
   @@index([user_id])
+  @@map("journal_entries")
 }
 
 model Tag {
@@ -174,6 +197,7 @@ model Tag {
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
+  @@map("tags")
 }
 
 model WeeklyGoal {
@@ -191,6 +215,7 @@ model WeeklyGoal {
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id, week_start])
+  @@map("weekly_goals")
 }
 
 model TradingAccount {
@@ -213,23 +238,100 @@ model TradingAccount {
   trades            Trade[]
 
   @@index([user_id])
+  @@map("trading_accounts")
 }
 
 model SocialLink {
   id                String    @id @default(uuid())
-  userId            String
+  userId            String    @map("user_id")
   platform          String
   url               String
   username          String?
   status            String    @default("PENDING")
-  reviewedBy        String?
-  reviewedAt        DateTime?
-  rejectionReason   String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  reviewedBy        String?   @map("reviewed_by")
+  reviewedAt        DateTime? @map("reviewed_at")
+  rejectionReason   String?   @map("rejection_reason")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt   @map("updated_at")
 
   user              Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
+  @@map("social_links")
+}
+
+model PromoCode {
+  id                String    @id @default(uuid())
+  code              String    @unique
+  description       String?
+  discountPercent   Float     @map("discount_percent")
+  maxQuota          Int       @map("max_quota")
+  usedQuota         Int       @default(0) @map("used_quota")
+  durationMonths    Int       @map("duration_months")
+  startDate         DateTime  @default(now()) @map("start_date")
+  endDate           DateTime? @map("end_date")
+  isActive          Boolean   @default(true) @map("is_active")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt   @map("updated_at")
+
+  subscriptions     UserSubscription[]
+
+  @@index([code])
+  @@index([isActive, startDate, endDate])
+  @@map("promo_codes")
+}
+
+model BugReport {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  description       String
+  screenshotUrl     String?   @map("screenshot_url")
+  status            String    @default("PENDING")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt   @map("updated_at")
+
+  @@index([userId])
+  @@index([status])
+  @@map("bug_reports")
+}
+
+model PaymentOrder {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  invoiceNumber     String    @unique @map("invoice_number")
+  amount            Float
+  currency          String    @default("IDR")
+  plan              String
+  durationMonths    Int?       @map("duration_months")
+  status            String    @default("PENDING") // PENDING, SUCCESS, FAILED, EXPIRED
+  paymentMethod     String?   @map("payment_method")
+  paymentChannel    String?   @map("payment_channel")
+  dokuTransactionId String?   @map("doku_transaction_id")
+  dokuPaymentUrl    String?   @map("doku_payment_url")
+  customerName      String    @map("customer_name")
+  customerEmail     String    @map("customer_email")
+  paidAt            DateTime? @map("paid_at")
+  expiredAt         DateTime? @map("expired_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt   @map("updated_at")
+
+  user              Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([invoiceNumber])
+  @@index([status])
+  @@map("payment_orders")
+}
+
+model EmailBroadcast {
+  id          String   @id @default(uuid())
+  target      String
+  subject     String
+  sentCount   Int      @default(0) @map("sent_count")
+  failedCount Int      @default(0) @map("failed_count")
+  sentBy      String?  @map("sent_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("email_broadcasts")
 }
