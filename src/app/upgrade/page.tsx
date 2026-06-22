@@ -21,3 +21,6 @@ export default async function UpgradePage() {
 
   return <UpgradeFormClient user={user} />
 }
+
+// Explicitly use Node.js runtime — NEVER edge runtime
+export const runtime = 'nodejs'
