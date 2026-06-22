@@ -89,7 +89,8 @@ export default function PaymentInvoiceModal({
   const [paying, setPaying] = useState(false)
   const [paid, setPaid] = useState(false)
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethodType | null>(null)
-  const [showManualTransfer, setShowManualTransfer] = useState(false)
+  // Auto-expand manual transfer if no paymentUrl
+  const [showManualTransfer, setShowManualTransfer] = useState(!paymentUrl)
 
   const canPay = paymentUrl && selectedMethod !== null && !paying && !paid
 
@@ -285,7 +286,7 @@ export default function PaymentInvoiceModal({
               </div>
 
               {/* ===== INTERACTIVE PAYMENT METHOD SELECTION ===== */}
-              {!paid && paymentUrl && (
+              {!paid && (
                 <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-4 space-y-3">
                   <p className="text-xs text-white/50 font-medium flex items-center gap-1.5">
                     <Lock className="w-3.5 h-3.5 text-purple-400" />
