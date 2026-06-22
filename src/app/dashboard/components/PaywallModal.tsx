@@ -24,7 +24,8 @@ import {
   Gem,
   Award,
   Infinity,
-  Brain
+  Brain,
+  AlertTriangle
 } from 'lucide-react'
 import { useLanguage } from '@/contexts/LanguageContext'
 
@@ -65,7 +66,7 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
       cta: {
         primary: "Upgrade ke Pro Sekarang",
         secondary: "Mungkin Nanti",
-        guarantee: "30 Hari Jaminan Uang Kembali"
+        guarantee: "Produk Digital — Non-Refundable"
       },
       testimonials: [
         { name: "Rizky", role: "Forex Trader", text: "Win rate saya naik dari 45% ke 67% dalam 2 bulan!" },
@@ -94,7 +95,7 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
       cta: {
         primary: "Upgrade to Pro Now",
         secondary: "Maybe Later",
-        guarantee: "30-Day Money Back Guarantee"
+        guarantee: "Digital Product — Non-Refundable"
       },
       testimonials: [
         { name: "Rizky", role: "Forex Trader", text: "My win rate increased from 45% to 67% in 2 months!" },
@@ -249,7 +250,7 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
             {/* Guarantee */}
             <div className="text-center mb-6">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-                <Shield className="h-4 w-4 text-amber-400" />
+                <AlertTriangle className="h-4 w-4 text-amber-400" />
                 <span className="text-sm text-gray-300">
                   {currentContent.cta.guarantee}
                 </span>
