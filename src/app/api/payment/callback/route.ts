@@ -1,126 +1,113 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { verifyDokuCallback } from '@/lib/payment/doku'
+import { verifyCallbackSignature } from '@/lib/payment/sakura'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /**
  * POST /api/payment/callback
- * Webhook from DOKU when payment status changes
- * Body (DOKU format):
+ * Webhook from SakuraPay when payment status changes
+ *
+ * Headers:
+ *   X-Callback-Signature: HMAC-SHA256(json_body, api_key)
+ *   X-Callback-Event: payment_status
+ *   Content-Type: application/json
+ *
+ * Body:
  * {
- *   transaction: { id, status, amount },
- *   order: { invoice_number, amount },
- *   payment: { payment_method, payment_channel },
- *   customer: { id, name, email }
+ *   "trx_id": "SBXFsYv6tlHl-Tm8faWdA5-Jj0jXfb785",
+ *   "merchant_ref": "575yhh-7967686gD",
+ *   "status": "berhasil",       // pending, berhasil, expired
+ *   "status_kode": 1           // 0=pending, 1=berhasil, 2=expired
  * }
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get DOKU headers for verification
-    const signatureHeader = request.headers.get('Signature') || ''
-    const timestamp = request.headers.get('Request-Timestamp') || ''
+    // Get raw body for signature verification
+    const rawBody = await request.text()
+    const callbackSignature = request.headers.get('X-Callback-Signature') || ''
+    const callbackEvent = request.headers.get('X-Callback-Event') || ''
+
+    console.log('📩 [SakuraPay Callback] Received event:', callbackEvent)
+
+    // Verify signature
+    if (!verifyCallbackSignature(rawBody, callbackSignature)) {
+      console.error('❌ [SakuraPay Callback] Invalid signature')
+      return NextResponse.json({ success: false, message: 'Invalid signature' }, { status: 400 })
+    }
 
     // Parse body
-    const body = await request.json()
-    console.log('📩 [DOKU Callback] Received:', JSON.stringify(body).substring(0, 1000))
+    const data = JSON.parse(rawBody)
+    console.log('📩 [SakuraPay Callback] Body:', JSON.stringify(data).substring(0, 500))
 
-    const {
-      transaction,
-      order,
-      payment,
-      customer,
-    } = body || {}
+    const trxId = data.trx_id || ''
+    const merchantRef = data.merchant_ref || ''
+    const status = data.status || '' // "berhasil", "pending", "expired"
+    const statusKode = data.status_kode // 0=pending, 1=berhasil, 2=expired
 
-    const transactionId = transaction?.id || ''
-    const transactionStatus = transaction?.status || ''
-    const invoiceNumber = order?.invoice_number || ''
-    const paymentMethod = payment?.payment_method_type || payment?.payment_method || ''
-    const paymentChannel = payment?.payment_channel || ''
-
-    // Extract amount
-    const amount = parseFloat(order?.amount?.value || transaction?.amount?.value || '0')
-
-    console.log('📩 [DOKU Callback] Parsed:', {
-      transactionId,
-      status: transactionStatus,
-      invoiceNumber,
-      amount,
-      method: paymentMethod,
-      channel: paymentChannel,
+    console.log('📩 [SakuraPay Callback] Parsed:', {
+      trxId,
+      merchantRef,
+      status,
+      statusKode,
     })
 
-    if (!invoiceNumber) {
-      console.error('❌ [DOKU Callback] No invoice number in callback')
-      return NextResponse.json({ error: 'No invoice number' }, { status: 400 })
+    // Map SakuraPay status to our status
+    const isSuccess = status === 'berhasil' || statusKode === 1
+    const isExpired = status === 'expired' || statusKode === 2
+    const ourStatus = isSuccess ? 'SUCCESS' : isExpired ? 'EXPIRED' : 'PENDING'
+
+    if (!merchantRef) {
+      console.error('❌ [SakuraPay Callback] No merchant_ref in callback')
+      return NextResponse.json({ success: false, message: 'No merchant_ref' }, { status: 400 })
     }
 
     // Check if we already processed this transaction
     try {
       const existingOrder = await db.paymentOrder.findUnique({
-        where: { invoiceNumber },
+        where: { invoiceNumber: merchantRef },
       })
 
       if (existingOrder && existingOrder.status === 'SUCCESS') {
-        console.log('✅ [DOKU Callback] Already processed:', invoiceNumber)
-        return NextResponse.json({ message: 'Already processed', status: 'OK' })
+        console.log('✅ [SakuraPay Callback] Already processed:', merchantRef)
+        return NextResponse.json({ success: true, message: 'Already processed' })
       }
 
       if (existingOrder) {
         // Update existing order
         await db.paymentOrder.update({
-          where: { invoiceNumber },
+          where: { invoiceNumber: merchantRef },
           data: {
-            status: transactionStatus === 'SUCCESS' ? 'SUCCESS' : transactionStatus === 'FAILED' ? 'FAILED' : 'PENDING',
-            dokuTransactionId: transactionId || existingOrder.dokuTransactionId,
-            paymentMethod: paymentMethod || null,
-            paymentChannel: paymentChannel || null,
-            paidAt: transactionStatus === 'SUCCESS' ? new Date() : null,
+            status: ourStatus,
+            dokuTransactionId: trxId || existingOrder.dokuTransactionId,
+            paidAt: isSuccess ? new Date() : null,
           },
         })
 
-        // If payment successful, upgrade user to PRO
-        if (transactionStatus === 'SUCCESS' && existingOrder.userId) {
+        // If payment successful, upgrade user
+        if (isSuccess && existingOrder.userId) {
           await activateSubscription(existingOrder.userId, existingOrder.plan, existingOrder.durationMonths)
         }
 
-        console.log(`✅ [DOKU Callback] Order updated: ${invoiceNumber} → ${transactionStatus}`)
+        console.log(`✅ [SakuraPay Callback] Order updated: ${merchantRef} → ${ourStatus}`)
       } else {
-        // Order not found in DB — try to create and activate
-        console.warn('⚠️ [DOKU Callback] Order not found in DB, creating:', invoiceNumber)
-
-        // Extract user info from invoice number: LUX-PLAN-timestamp-random
-        // Or from customer data
-        const userId = customer?.id || ''
-
-        if (userId && transactionStatus === 'SUCCESS') {
-          await activateSubscription(userId, 'PRO', null)
-        }
+        console.warn('⚠️ [SakuraPay Callback] Order not found in DB:', merchantRef)
       }
     } catch (dbError: any) {
       if (dbError.code === 'P2021' || dbError.code === 'P1001' || dbError.message?.includes('does not exist')) {
-        console.warn('⚠️ [DOKU Callback] payment_orders table not found, skipping DB operations')
-
-        // Still try to activate if we have enough info
-        if (transactionStatus === 'SUCCESS' && customer?.id) {
-          try {
-            await activateSubscription(customer.id, 'PRO', null)
-          } catch {
-            console.error('❌ [DOKU Callback] Could not activate subscription')
-          }
-        }
+        console.warn('⚠️ [SakuraPay Callback] payment_orders table not found, skipping DB operations')
       } else {
         throw dbError
       }
     }
 
-    // DOKU expects 200 OK
-    return NextResponse.json({ status: 'OK', message: 'Callback processed' })
+    // SakuraPay expects success response
+    return NextResponse.json({ success: true, message: 'Callback processed' })
   } catch (error: any) {
-    console.error('❌ [DOKU Callback] Error:', error.message)
-    // Still return 200 to prevent DOKU from retrying
-    return NextResponse.json({ status: 'ERROR', message: error.message })
+    console.error('❌ [SakuraPay Callback] Error:', error.message)
+    // Still return 200 to prevent SakuraPay from retrying with errors
+    return NextResponse.json({ success: false, message: error.message })
   }
 }
 
@@ -132,7 +119,7 @@ async function activateSubscription(
   plan: string,
   durationMonths: number | null
 ) {
-  const months = durationMonths || (plan === 'LIFETIME' ? 1200 : 1) // Default 1 month if not specified
+  const months = durationMonths || (plan === 'LIFETIME' ? 1200 : 1)
   const startDate = new Date()
   const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + months, startDate.getDate(), 23, 59, 59, 999)
 
@@ -161,9 +148,9 @@ async function activateSubscription(
     // Subscription might already exist, ignore error
   })
 
-  console.log(`🎉 [DOKU Callback] Activated ${plan} for user ${userId} until ${endDate.toISOString()}`)
+  console.log(`🎉 [SakuraPay Callback] Activated ${plan} for user ${userId} until ${endDate.toISOString()}`)
 
-  // Also sync to Supabase Auth metadata to keep admin panel in sync
+  // Also sync to Supabase Auth metadata
   try {
     const { supabaseAdmin: adminClient } = await import('@/lib/supabase-admin-alt')
     if (adminClient) {
@@ -179,17 +166,17 @@ async function activateSubscription(
           updated_at: new Date().toISOString()
         }
       })
-      console.log('✅ [DOKU Callback] Also synced Auth metadata')
+      console.log('✅ [SakuraPay Callback] Also synced Auth metadata')
     }
   } catch (syncErr) {
-    console.warn('⚠️ [DOKU Callback] Failed to sync Auth metadata (non-critical):', syncErr)
+    console.warn('⚠️ [SakuraPay Callback] Failed to sync Auth metadata (non-critical):', syncErr)
   }
 }
 
 /**
  * GET /api/payment/callback
- * Health check endpoint for DOKU webhook verification
+ * Health check endpoint
  */
 export async function GET() {
-  return NextResponse.json({ status: 'OK', message: 'DOKU callback endpoint is active' })
+  return NextResponse.json({ status: 'OK', message: 'SakuraPay callback endpoint is active' })
 }
