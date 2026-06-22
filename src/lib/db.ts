@@ -1,80 +1,100 @@
 import { PrismaClient } from '@prisma/client'
 
 /**
- * Auto-convert PostgreSQL URL to Supavisor pooler (port 6543)
- * to prevent EMAXCONNSESSION errors on Supabase.
- * Direct port 5432 = max 15 sessions. Pooler 6543 = handles thousands.
+ * Database connection with auto Supavisor pooler support.
+ * - PostgreSQL URLs are auto-converted to pooler port 6543
+ * - Tolerates malformed URLs (e.g. double protocol prefix)
+ * - Falls back to SQLite when DATABASE_URL is not a valid postgres URL
  */
-const getDatabaseUrl = () => {
-  const url = process.env.DATABASE_URL
 
-  if (!url) {
-    console.warn('⚠️ DATABASE_URL not set, using default SQLite path')
-    return 'file:./db/custom.db'
+function normalizeUrl(raw: string): string {
+  // Trim whitespace
+  let url = raw.trim()
+
+  // Fix common Vercel env var corruption:
+  // Sometimes the URL gets a stray "file:./" prepended by a previous deploy
+  // or a "p" gets doubled: "ppostgresql://..."
+  if (url.startsWith('file:./') && url.includes('postgresql://')) {
+    url = url.replace(/^file:\.\/?/, '')
+  }
+  if (url.startsWith('file:') && url.includes('postgresql://')) {
+    url = url.replace(/^file:/, '')
   }
 
-  if (url.startsWith('postgresql://') || url.startsWith('postgres://')) {
-    // Check if already using pooler (port 6543) or has pgbouncer=true
-    if (url.includes(':6543/') || url.includes('pgbouncer=true')) {
-      console.log('🔗 [DB] PostgreSQL connection established (pooler)')
-      return url
-    }
-
-    // Auto-convert direct connection to Supavisor pooler
-    // Replace :5432 with :6543 and add pgbouncer=true + connection_limit
-    const poolerUrl = url
-      .replace(/:(5432|6432)\//, ':6543/')
-      .replace(/pooler\.supabase\.com/, 'pooler.supabase.com')
-    const separator = poolerUrl.includes('?') ? '&' : '?'
-    const finalUrl = `${poolerUrl}${separator}pgbouncer=true&connection_limit=5&pool_timeout=10`
-
-    console.log('🔗 [DB] PostgreSQL — auto-switched to Supavisor pooler (port 6543)')
-    console.log('🔗 [DB] pgbouncer=true, connection_limit=5, pool_timeout=10')
-    return finalUrl
+  // Fix doubled protocol prefix (e.g. "ppostgresql://")
+  if (!url.startsWith('postgresql://') && !url.startsWith('postgres://') && url.includes('postgresql://')) {
+    url = url.substring(url.indexOf('postgresql://'))
   }
-
-  // For SQLite
-  if (!url.startsWith('file:')) {
-    if (url.startsWith('/') || url.startsWith('./')) {
-      return `file:${url}`
-    }
-    return `file:./${url}`
+  if (!url.startsWith('postgresql://') && !url.startsWith('postgres://') && url.includes('postgres://')) {
+    url = url.substring(url.indexOf('postgres://'))
   }
 
   return url
 }
 
-// PrismaClient is attached to the `global` object in development to prevent
-// exhausting your database connection limit.
+const getDatabaseUrl = (): { url: string; isPostgres: boolean } => {
+  const raw = process.env.DATABASE_URL
+
+  if (!raw) {
+    return { url: 'file:./db/custom.db', isPostgres: false }
+  }
+
+  const url = normalizeUrl(raw)
+
+  if (url.startsWith('postgresql://') || url.startsWith('postgres://')) {
+    // Check if already using pooler (port 6543) or has pgbouncer=true
+    if (url.includes(':6543/') || url.includes('pgbouncer=true')) {
+      return { url, isPostgres: true }
+    }
+
+    // Auto-convert direct connection to Supavisor pooler
+    const poolerUrl = url.replace(/:(5432|6432)\//, ':6543/')
+    const separator = poolerUrl.includes('?') ? '&' : '?'
+    const finalUrl = `${poolerUrl}${separator}pgbouncer=true&connection_limit=5&pool_timeout=10`
+
+    return { url: finalUrl, isPostgres: true }
+  }
+
+  // For SQLite
+  if (url.startsWith('file:')) {
+    return { url, isPostgres: false }
+  }
+
+  // If it looks like a relative path
+  if (url.startsWith('/') || url.startsWith('./')) {
+    return { url: `file:${url}`, isPostgres: false }
+  }
+
+  // Unknown format — return as-is and let Prisma validate
+  return { url, isPostgres: false }
+}
+
+// Singleton to prevent exhausting connections across hot reloads
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-const dbUrl = getDatabaseUrl()
-const isPostgres = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://')
+const { url: dbUrl, isPostgres } = getDatabaseUrl()
 
 export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
     datasourceUrl: dbUrl,
-    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error', 'warn'],
+    log: ['error', 'warn'],
   })
 
-// Always store on globalThis to reuse across hot reloads
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
 
-// Log database configuration on startup
-const dbType = isPostgres ? 'PostgreSQL' : 'SQLite'
-
+// Startup log
 console.log('Database connected to:', process.env.DATABASE_URL ? 'OK' : 'MISSING')
 console.log('🗄️ ============================================')
-console.log(`🗄️ Database Type: ${dbType}`)
+console.log(`🗄️ Database Type: ${isPostgres ? 'PostgreSQL' : 'SQLite'}`)
 console.log(`🗄️ Environment: ${process.env.NODE_ENV || 'development'}`)
 
 if (isPostgres) {
-  const maskedUrl = dbUrl.replace(/:[^:]+@/, ':****@')
+  const maskedUrl = dbUrl.replace(/:[^:@]+@/, ':****@')
   console.log(`🗄️ Database URL: ${maskedUrl}`)
-  console.log(`🗄️ Connection Pooling: ✅ Supavisor (pgbouncer=true, connection_limit=5)`)
+  console.log('🗄️ Connection Pooling: ✅ Supavisor (pgbouncer=true, connection_limit=5)')
 } else {
   console.log(`🗄️ Database Path: ${dbUrl}`)
 }
