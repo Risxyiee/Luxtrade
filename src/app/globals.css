@@ -250,3 +250,21 @@
   animation: shimmer 2s infinite;
 }
 
+/* ============================================
+   Mobile Touch Fix — ensure all interactive elements are tappable
+   Prevents 300ms tap delay and ensures touch events pass through
+   ============================================ */
+button, a, [role="button"], [type="button"], [type="submit"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Specifically for payment method selectors on upgrade page */
+.payment-btn-safe {
+  position: relative !important;
+  z-index: 1 !important;
+  touch-action: manipulation !important;
+  pointer-events: auto !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+

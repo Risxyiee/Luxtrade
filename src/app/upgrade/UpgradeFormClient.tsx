@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useState, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useRouter } from 'next/navigation'
+import { AnimatePresence } from 'framer-motion'
 import {
   Crown, ArrowRight, ArrowLeft, AlertCircle, Loader2,
   CheckCircle, Tag, Sparkles, Shield, Zap, Star,
@@ -52,6 +51,16 @@ function formatRupiah(n: number) {
 }
 
 // ============================================
+// Color configs — NO dynamic template strings
+// ============================================
+const METHOD_COLORS: Record<string, { sel: string; unsel: string; icon: string }> = {
+  blue:    { sel: 'border-blue-500 bg-blue-500/20', unsel: 'border-purple-900/30 bg-white/5', icon: 'bg-blue-500' },
+  violet:  { sel: 'border-violet-500 bg-violet-500/20', unsel: 'border-purple-900/30 bg-white/5', icon: 'bg-violet-500' },
+  emerald: { sel: 'border-emerald-500 bg-emerald-500/20', unsel: 'border-purple-900/30 bg-white/5', icon: 'bg-emerald-500' },
+  amber:   { sel: 'border-amber-500 bg-amber-500/20', unsel: 'border-purple-900/30 bg-white/5', icon: 'bg-amber-500' },
+}
+
+// ============================================
 // Client Component
 // ============================================
 interface UpgradeFormClientProps {
@@ -59,7 +68,6 @@ interface UpgradeFormClientProps {
 }
 
 function UpgradeFormClient({ user }: UpgradeFormClientProps) {
-  const router = useRouter()
   const [promoCode, setPromoCode] = useState('')
   const [promoValid, setPromoValid] = useState(false)
   const [promoData, setPromoData] = useState<any>(null)
@@ -136,13 +144,13 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
   }
 
   if (success) return (
-    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-10">
+    <div className="text-center py-10">
       <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 mb-4">
         <Sparkles className="w-8 h-8 text-white" />
       </div>
       <h2 className="text-xl font-bold text-white mb-1">Upgrade Berhasil!</h2>
       <p className="text-emerald-400 text-sm">Mengalihkan ke dashboard...</p>
-    </motion.div>
+    </div>
   )
 
   return (
@@ -161,25 +169,17 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
         <Progress value={progress} className="h-2 bg-purple-900/30" />
       </div>
 
-      {/* ========== STEP CONTENT ========== */}
-      <AnimatePresence mode="wait">
+      {/* ========== STEP CONTENT — NO overflow-hidden, NO max-h clip ========== */}
+      <div style={{ touchAction: 'pan-y', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }} className="max-h-[55vh] lg:max-h-none -mx-1 px-1">
 
         {/* ============ STEP 1: PILIH PAKET ============ */}
         {currentStep === 1 && (
-          <motion.div
-            key="step1"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-4"
-          >
+          <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
             {error && (
-              <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs">
+              <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 <span>{error}</span>
-              </motion.div>
+              </div>
             )}
 
             {/* Promo Code */}
@@ -197,11 +197,10 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
             </div>
 
             {promoValid && promoData && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 text-xs">
+              <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 text-xs">
                 <Gift className="w-4 h-4 flex-shrink-0" />
                 <span>Diskon {promoData.discountPercent}% — {promoData.description}</span>
-              </motion.div>
+              </div>
             )}
 
             {promoValid && (
@@ -222,7 +221,8 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
                       type="button"
                       key={plan.id}
                       onClick={() => { setSelectedPlan(plan); setSelectedPaymentMethod(null); setError('') }}
-                      className={`w-full p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none active:scale-[0.98] text-left ${
+                      style={{ position: 'relative', zIndex: 1, touchAction: 'manipulation' }}
+                      className={`payment-btn-safe w-full p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none active:scale-[0.98] text-left ${
                         isSelected
                           ? 'border-purple-500 bg-purple-500/20 shadow-lg shadow-purple-500/20'
                           : 'border-purple-900/30 bg-white/5 hover:border-purple-500/50'
@@ -255,7 +255,7 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
 
                       {/* Expanded features when selected */}
                       {isSelected && (
-                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-3 pt-3 border-t border-purple-900/30">
+                        <div className="mt-3 pt-3 border-t border-purple-900/30">
                           <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                             {plan.features.map((f, fi) => (
                               <div key={fi} className="flex items-center gap-1.5 text-xs text-gray-300">
@@ -264,26 +264,19 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
                               </div>
                             ))}
                           </div>
-                        </motion.div>
+                        </div>
                       )}
                     </button>
                   )
                 })}
               </div>
             </div>
-          </motion.div>
+          </div>
         )}
 
         {/* ============ STEP 2: METODE BAYAR ============ */}
         {currentStep === 2 && (
-          <motion.div
-            key="step2"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-4"
-          >
+          <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
             {/* Order Summary */}
             {selectedPlan && (
               <Card className="bg-gradient-to-br from-amber-500/10 to-transparent border-amber-500/30">
@@ -305,34 +298,48 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
               </Card>
             )}
 
-            {/* Payment Methods */}
+            {/* Payment Methods — GUARANTEED CLICKABLE */}
             <div className="space-y-2">
               <label className="text-white font-semibold text-sm">Metode Pembayaran</label>
               <div className="space-y-2.5">
                 {PAYMENT_METHODS.map((method) => {
                   const isSelected = selectedPaymentMethod === method.id
-                  const colors: Record<string, { sel: string; unsel: string; icon: string }> = {
-                    blue:    { sel: 'border-blue-500 bg-blue-500/20 shadow-lg shadow-blue-500/20', unsel: 'border-purple-900/30 bg-white/5 hover:border-blue-500/50', icon: 'bg-blue-500' },
-                    violet:  { sel: 'border-violet-500 bg-violet-500/20 shadow-lg shadow-violet-500/20', unsel: 'border-purple-900/30 bg-white/5 hover:border-violet-500/50', icon: 'bg-violet-500' },
-                    emerald: { sel: 'border-emerald-500 bg-emerald-500/20 shadow-lg shadow-emerald-500/20', unsel: 'border-purple-900/30 bg-white/5 hover:border-emerald-500/50', icon: 'bg-emerald-500' },
-                    amber:   { sel: 'border-amber-500 bg-amber-500/20 shadow-lg shadow-amber-500/20', unsel: 'border-purple-900/30 bg-white/5 hover:border-amber-500/50', icon: 'bg-amber-500' },
-                  }
-                  const c = colors[method.color] || colors.blue
+                  const c = METHOD_COLORS[method.color] || METHOD_COLORS.blue
+                  const MethodIcon = method.icon
 
                   return (
                     <button
                       type="button"
                       key={method.id}
-                      onClick={() => { setSelectedPaymentMethod(method.id); setError('') }}
-                      className={`w-full p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none active:scale-[0.98] text-left ${isSelected ? c.sel : c.unsel}`}
+                      onClick={() => {
+                        console.log('TAPPED:', method.id)
+                        setSelectedPaymentMethod(method.id)
+                        setError('')
+                      }}
+                      onTouchEnd={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        console.log('TOUCH END:', method.id)
+                        setSelectedPaymentMethod(method.id)
+                        setError('')
+                      }}
+                      style={{
+                        position: 'relative',
+                        zIndex: 2,
+                        touchAction: 'manipulation',
+                        pointerEvents: 'auto',
+                      }}
+                      className={`payment-btn-safe w-full p-4 rounded-xl border-2 transition-colors duration-200 cursor-pointer select-none active:scale-[0.98] text-left ${
+                        isSelected ? c.sel : c.unsel
+                      }`}
                     >
                       <div className="flex items-center gap-3">
                         {/* Radio indicator */}
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                          isSelected ? 'border-purple-400' : 'border-purple-900/30'
+                          isSelected ? 'border-purple-400 bg-purple-400/20' : 'border-purple-900/30'
                         }`}>
                           {isSelected && (
-                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-2.5 h-2.5 rounded-full bg-purple-400" />
+                            <div className="w-2.5 h-2.5 rounded-full bg-purple-400" />
                           )}
                         </div>
 
@@ -340,7 +347,7 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                           isSelected ? c.icon : 'bg-purple-900/20'
                         }`}>
-                          <method.icon className="w-5 h-5 text-white" />
+                          <MethodIcon className="w-5 h-5 text-white" />
                         </div>
 
                         {/* Label */}
@@ -360,11 +367,10 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
 
             {/* Error */}
             {error && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs">
+              <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 <span>{error}</span>
-              </motion.div>
+              </div>
             )}
 
             {/* Security */}
@@ -372,9 +378,9 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
               <Lock className="w-4 h-4 text-purple-400 flex-shrink-0" />
               <span className="text-gray-400 text-xs">Pembayaran aman & terenkripsi via DOKU</span>
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      </div>
 
       {/* ========== BOTTOM NAV ========== */}
       <div className="flex gap-3 pt-4 border-t border-purple-900/30 shrink-0">
