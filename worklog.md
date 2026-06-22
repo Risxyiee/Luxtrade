@@ -2028,3 +2028,38 @@ Stage Summary:
 - Payment gateway fully migrated from DOKU to SakuraPay
 - New env vars needed: SAKURA_API_ID, SAKURA_API_KEY, SAKURA_ENV, SAKURA_CALLBACK_URL, SAKURA_RETURN_URL
 - DB schema fields (dokuPaymentUrl, dokuTransactionId) kept as-is to avoid migration
+
+---
+Task ID: 8
+Agent: Z.ai Code
+Task: Audit & update SakuraPay integration based on official API documentation
+
+Work Log:
+- Read full SakuraPay API documentation from https://sakurupiah.id/developers/api-dokumentasi
+- Identified all API endpoints: list-payment.php, check_balance.php, create.php, status-transaction.php, transaction.php, callback
+- Verified signature generation: HMAC-SHA256(api_id + method + merchant_ref + amount, api_key)
+- Verified callback signature: HMAC-SHA256(raw_json_body, api_key) via X-Callback-Signature header
+- Confirmed callback event check: X-Callback-Event must be "payment_status"
+- Confirmed status mapping: berhasil+status_kode=1=SUCCESS, pending+status_kode=0=PENDING, expired+status_kode=2=EXPIRED
+- Updated sakura.ts: Added listPaymentChannels(), checkTransactionStatus(), getTransactionHistory(), getAuthHeaders()
+- Updated sakura.ts: Fixed fee data (BCAVA=Rp4.900 not Rp4900, added all 24 payment methods with accurate min/max/fee)
+- Updated sakura.ts: Added comprehensive TypeScript interfaces for API responses
+- Updated callback route: Added X-Callback-Event check before signature verification
+- Updated callback route: Changed status check to use AND condition (berhasil AND status_kode===1)
+- Updated UpgradeFormClient: Added 9 payment methods (QRIS, GOPAY, DANA, ShopeePay, BCAVA, BNIVA, BRIVA, ALFAMART, INDOMARET)
+- Updated UpgradeFormClient: Added min amount validation - methods below minimum are greyed out
+- Tested SakuraPay sandbox APIs successfully:
+  - list-payment.php: 200 OK, returned all payment channels
+  - check_balance.php: 200 OK, returned merchant balance
+  - create.php: 200 OK, created QRIS test invoice with checkout_url
+- Added SakuraPay env vars to .env file
+- Verified API endpoints working via curl:
+  - GET /api/payment/create-order → returns SakuraPay config
+  - GET /api/payment/callback → returns health check
+
+Stage Summary:
+- SakuraPay integration is fully aligned with official API documentation
+- All 3 API endpoints tested successfully with sandbox credentials (SANBOX-55983006 / SANBOX-9S0zH3ry8R5besSDrauIvCWgEkhy)
+- Payment flow: list channels → create invoice with signature → redirect to checkout → callback webhook
+- Files modified: sakura.ts, callback/route.ts, UpgradeFormClient.tsx
+- No lint errors in payment-related files
