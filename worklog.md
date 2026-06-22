@@ -2090,3 +2090,25 @@ Stage Summary:
 - Button disabled state prevents accidental payment without method selection
 - Manual transfer is de-emphasized as emergency fallback
 - File: src/components/PaymentInvoiceModal.tsx (228 lines added, 61 removed)
+---
+Task ID: 8
+Agent: Z.ai Code
+Task: Fix PaymentInvoiceModal — redirect to SakuraPay gateway instead of Telegram confirmation
+
+Work Log:
+- Analyzed current flow: PlanSelectionModal called create-order API WITHOUT paymentMethod → API failed → paymentUrl empty → showed Telegram link
+- Identified root cause: paymentUrl gated by API call that lacked required paymentMethod parameter
+- Rewrote PaymentInvoiceModal.tsx with new 2-step flow:
+  - Step 1: Select payment category (QRIS, E-Wallet, VA) with glow animations
+  - Step 2: Select specific method within category (e.g., GoPay, DANA, BCA)
+  - Bayar Sekarang button: calls /api/payment/create-order WITH selected paymentMethod → opens SakuraPay gateway
+- Updated PlanSelectionModal.tsx: removed premature create-order API call, now passes plan/durationMonths props to modal
+- PaymentInvoiceModal handles create-order API call itself when user clicks pay
+- Manual transfer (Telegram) moved to collapsed fallback section
+
+Stage Summary:
+- Flow now works: Select plan → Select category → Select method → Click Bayar → Create SakuraPay order → Redirect to payment gateway
+- No more Telegram confirmation appearing as primary payment action
+- Telegram link only available in collapsed manual transfer fallback section
+- Min amount validation enforced per method (QRIS: 500, GOPAY: 500, VA: 10000 etc.)
+
