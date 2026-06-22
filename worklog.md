@@ -1838,3 +1838,27 @@ Stage Summary:
 - User bisa referensi kalau suatu hari error lagi
 - File: /home/z/my-project/worklog-verified-email-fix.md
 
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Fix payment gateway - metode bayar bisa diklik + auth guard
+
+Work Log:
+- Halaman upgrade dirombak jadi 2-step wizard dengan animasi slide
+- Step 1: Pilih paket (PRO 1/3/6 bulan, Lifetime) - klik card untuk lanjut
+- Step 2: Pilih metode bayar (VA, E-Wallet, QRIS, KK) - tombol radio interaktif
+- Step indicator (dots) di atas
+- DOKU lib diperbarui terima paymentType parameter
+- API create-order terima paymentMethod dari frontend
+- Middleware auth guard dibuat (src/middleware.ts) untuk /dashboard, /upgrade, /admin-subscriptions
+- Login page dibaca redirect param dari URL
+- Login page wrapped Suspense untuk useSearchParams()
+
+Stage Summary:
+- File: src/app/upgrade/page.tsx (2-step wizard)
+- File: src/middleware.ts (auth guard baru)
+- File: src/app/auth/login/page.tsx (redirect param + Suspense)
+- File: src/lib/payment/doku.ts (paymentType parameter)
+- File: src/app/api/payment/create-order/route.ts (pass paymentMethod)
+- Push: 5f3e81c
