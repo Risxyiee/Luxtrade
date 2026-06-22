@@ -1936,3 +1936,28 @@ Stage Summary:
 - Pushed to GitHub: commit ac6ba72
 - File changed: src/lib/db.ts
 - All 5 test patterns pass normalization ✅
+---
+Task ID: 1
+Agent: Main
+Task: Fix edge runtime warning and all related issues (payment buttons, DOKU amount, DB auth)
+
+Work Log:
+- Identified ROOT CAUSE: `/upgrade` route was in middleware matcher, forcing Edge Runtime on the upgrade page in production (Vercel)
+- Edge Runtime breaks: onClick handlers (payment buttons not clickable), Node.js crypto, Prisma ORM, proper hydration
+- Removed `/upgrade` from middleware matcher and protectedRoutes array
+- Split upgrade page into: Server Component (page.tsx - auth guard) + Client Component (UpgradeFormClient.tsx - interactive form)
+- Server component checks Supabase auth, redirects to login if not authenticated
+- Client component receives user prop, no more client-side Supabase auth call needed
+- Changed payment method cards from `<div role="button">` to native `<button type="button">` for guaranteed clickability
+- Fixed DOKU "Invalid amount format": Changed formatAmount() to return integer (120000) instead of decimal string ("120000.00")
+- Fixed DATABASE_URL auth: Auto-detects Supabase direct connection (port 5432) and converts to pooler URL (port 6543) with pgbouncer=true
+- Fixed template literal syntax error in db.ts that caused server crash
+- Verified upgrade page returns HTTP 200 (was 500 before fix)
+- Pushed to GitHub: commit 4d05076
+
+Stage Summary:
+- Edge runtime warning: FIXED (removed /upgrade from middleware)
+- Payment buttons not clickable: FIXED (removed edge runtime + native buttons)
+- DOKU "Invalid amount format": FIXED (integer amount)
+- DATABASE_URL auth failed: FIXED (auto pooler conversion)
+- All changes pushed to GitHub
