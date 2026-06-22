@@ -144,7 +144,7 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
       }
 
       if (data.paymentUrl) {
-        // Show invoice modal then redirect to DOKU payment
+        // Show invoice modal then redirect to payment
         setInvoiceData({
           invoiceNumber: data.invoiceNumber,
           planName: plan.name,

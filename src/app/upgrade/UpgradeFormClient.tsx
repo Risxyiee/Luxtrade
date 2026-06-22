@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react'
 import {
   ArrowRight, ArrowLeft, AlertCircle, Loader2,
   CheckCircle, Tag, Sparkles, Shield, Zap, Star,
-  CreditCard, Smartphone, QrCode, Building2,
+  Smartphone, QrCode, Building2,
   Gift, Lock, Check
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -39,10 +39,12 @@ const PLANS = [
 ]
 
 const PAYMENT_METHODS = [
-  { id: 'VIRTUAL_ACCOUNT', label: 'Virtual Account', icon: Building2, desc: 'BCA, BNI, BRI, Mandiri', color: 'blue' },
-  { id: 'E_WALLET', label: 'E-Wallet', icon: Smartphone, desc: 'GoPay, OVO, DANA, ShopeePay', color: 'violet' },
+  { id: 'BCAVA', label: 'BCA Virtual Account', icon: Building2, desc: 'Transfer via BCA', color: 'blue' },
+  { id: 'BNIVA', label: 'BNI Virtual Account', icon: Building2, desc: 'Transfer via BNI', color: 'blue' },
   { id: 'QRIS', label: 'QRIS', icon: QrCode, desc: 'Scan QR dari apps manapun', color: 'emerald' },
-  { id: 'CREDIT_CARD', label: 'Kartu Kredit', icon: CreditCard, desc: 'Visa, Mastercard', color: 'amber' },
+  { id: 'GOPAY', label: 'GoPay', icon: Smartphone, desc: 'Bayar via GoPay / Gojek', color: 'emerald' },
+  { id: 'DANA', label: 'DANA', icon: Smartphone, desc: 'Bayar via DANA e-wallet', color: 'violet' },
+  { id: 'ShopeePay', label: 'ShopeePay', icon: Smartphone, desc: 'Bayar via ShopeePay', color: 'amber' },
 ]
 
 function formatRupiah(n: number) {
@@ -361,7 +363,7 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
             {/* Security */}
             <div className="flex items-center gap-2 p-3 bg-purple-500/10 border border-purple-900/30 rounded-lg">
               <Lock className="w-4 h-4 text-purple-400 flex-shrink-0" />
-              <span className="text-gray-400 text-xs">Pembayaran aman & terenkripsi via DOKU</span>
+              <span className="text-gray-400 text-xs">Pembayaran aman & terenkripsi via SakuraPay</span>
             </div>
           </div>
         )}

@@ -129,7 +129,7 @@ export default function PaymentInvoiceModal({
                   <div className="text-center">
                     <p className="text-lg font-bold text-emerald-300">Pesanan Dibuat!</p>
                     <p className="text-sm text-white/60 mt-1">
-                      Anda akan dialihkan ke halaman pembayaran DOKU
+                      Anda akan dialihkan ke halaman pembayaran SakuraPay
                     </p>
                   </div>
                   <Badge className="bg-emerald-500/20 text-emerald-300 text-xs">
@@ -255,7 +255,7 @@ export default function PaymentInvoiceModal({
                   </p>
                   <div className="space-y-1.5 text-xs text-white/60">
                     <p>1. Klik tombol &quot;Bayar Sekarang&quot; di bawah</p>
-                    <p>2. Anda akan dialihkan ke halaman pembayaran DOKU</p>
+                    <p>2. Anda akan dialihkan ke halaman pembayaran SakuraPay</p>
                     <p>3. Pilih metode pembayaran yang Anda inginkan</p>
                     <p>4. Selesaikan pembayaran — fitur PRO akan aktif otomatis</p>
                   </div>
