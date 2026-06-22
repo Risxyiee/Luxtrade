@@ -258,7 +258,7 @@ export default function DisclaimerPage() {
                 Jika Anda memiliki pertanyaan mengenai disclaimer ini, silakan hubungi kami:
               </p>
               <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 mt-4 space-y-2">
-                <p className="text-white/70"><strong className="text-amber-400">Email:</strong> support@luxtrade.id</p>
+                <p className="text-white/70"><strong className="text-amber-400">Email:</strong> luxtradee@gmail.com</p>
                 <p className="text-white/70"><strong className="text-amber-400">Telegram:</strong> <a href="https://t.me/Risxyiee" target="_blank" rel="noopener noreferrer" className="text-[#0088cc] hover:underline">@Risxyiee</a></p>
                 <p className="text-white/70"><strong className="text-amber-400">Website:</strong> <a href="https://luxtradee.web.id" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">luxtradee.web.id</a></p>
               </div>
