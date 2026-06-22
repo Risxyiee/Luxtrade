@@ -161,3 +161,67 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json(getDokuConfig())
 }
+
+/**
+ * POST /api/payment/create-order?action=test
+ * Tests DOKU API with minimal request to debug amount format
+ */
+export async function PUT(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    if (searchParams.get('action') !== 'test') {
+      return NextResponse.json({ error: 'Use ?action=test' }, { status: 400 })
+    }
+
+    const body = await request.json()
+    const { amount } = body || { amount: 52000 }
+
+    // Build minimal request body
+    const testBody = {
+      payment: {
+        payment_method_types: ['VIRTUAL_ACCOUNT'],
+        payment_method_options: { reusability: 'single_use' },
+      },
+      order: {
+        invoice_number: 'TEST-' + Date.now(),
+        amount: { value: amount, currency: 'IDR' },
+        line_items: [{
+          name: 'Test Product',
+          price: { value: amount, currency: 'IDR' },
+          quantity: 1,
+          category: 'Digital Service',
+          merchant_name: 'LuxTrade',
+        }],
+      },
+      customer: {
+        id: 'test-customer',
+        name: 'Test Customer',
+        email: 'test@test.com',
+        phone: '08123456789',
+      },
+    }
+
+    const bodyStr = JSON.stringify(testBody)
+
+    const result = await createDokuOrder({
+      amount,
+      invoiceId: 'TEST-' + Date.now(),
+      customerName: 'Test',
+      customerEmail: 'test@test.com',
+      plan: 'TEST',
+    })
+
+    return NextResponse.json({
+      success: true,
+      testAmount: amount,
+      testAmountType: typeof amount,
+      testBodyPreview: bodyStr.substring(0, 500),
+      result: result,
+    })
+  } catch (error: any) {
+    return NextResponse.json({
+      success: false,
+      error: error.message,
+    }, { status: 500 })
+  }
+}
