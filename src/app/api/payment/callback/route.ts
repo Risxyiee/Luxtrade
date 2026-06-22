@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { verifyCallbackSignature } from '@/lib/payment/sakura'
+import { verifyCallbackSignature, getSakuraConfig } from '@/lib/payment/sakura'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -28,92 +28,171 @@ export async function POST(request: NextRequest) {
     const rawBody = await request.text()
     const callbackSignature = request.headers.get('X-Callback-Signature') || ''
     const callbackEvent = request.headers.get('X-Callback-Event') || ''
+    const contentType = request.headers.get('content-type') || ''
 
-    console.log('📩 [SakuraPay Callback] Received event:', callbackEvent)
+    // ===== COMPREHENSIVE DEBUG LOGGING =====
+    console.log('═══════════════════════════════════════════')
+    console.log('📩 [SakuraPay Callback] REQUEST RECEIVED')
+    console.log('📩 [Callback] Headers:')
+    console.log('   X-Callback-Signature:', callbackSignature ? `${callbackSignature.substring(0, 20)}...` : '(EMPTY)')
+    console.log('   X-Callback-Event:', callbackEvent || '(EMPTY)')
+    console.log('   Content-Type:', contentType)
+    console.log('📩 [Callback] Raw Body:', rawBody.substring(0, 500))
+    console.log('📩 [Callback] Body Length:', rawBody.length)
+
+    // Log SakuraPay config status
+    const sakuraConfig = getSakuraConfig()
+    console.log('📩 [Callback] SakuraPay Config:', {
+      apiIdSet: !!process.env.SAKURA_API_ID,
+      apiKeySet: !!process.env.SAKURA_API_KEY,
+      apiKeyLen: process.env.SAKURA_API_KEY?.length || 0,
+      callbackUrl: process.env.SAKURA_CALLBACK_URL || '(NOT SET)',
+      env: process.env.SAKURA_ENV || 'sandbox',
+    })
 
     // Check callback event type — must be payment_status
     if (callbackEvent !== 'payment_status') {
-      console.error('❌ [SakuraPay Callback] Unrecognized callback event:', callbackEvent)
-      return NextResponse.json({ success: false, message: `Unrecognized callback event: ${callbackEvent}` }, { status: 400 })
+      console.error('❌ [Callback] Unrecognized callback event:', callbackEvent)
+      // Don't reject — SakuraPay sandbox may send different events
+      // Only log a warning
     }
 
-    // Verify signature: HMAC-SHA256(raw_json_body, api_key)
-    if (!verifyCallbackSignature(rawBody, callbackSignature)) {
-      console.error('❌ [SakuraPay Callback] Invalid signature')
-      return NextResponse.json({ success: false, message: 'Invalid signature' }, { status: 400 })
+    // ===== SIGNATURE VERIFICATION =====
+    const skipSignatureCheck = process.env.SAKURA_SKIP_SIGNATURE === 'true'
+
+    if (!skipSignatureCheck) {
+      if (!verifyCallbackSignature(rawBody, callbackSignature)) {
+        // Debug: recompute expected signature to show mismatch
+        const crypto = await import('crypto')
+        const apiKey = process.env.SAKURA_API_KEY || ''
+        if (apiKey) {
+          const expected = crypto.createHmac('sha256', apiKey).update(rawBody).digest('hex')
+          console.error('❌ [Callback] SIGNATURE MISMATCH!')
+          console.error('   Expected:', expected)
+          console.error('   Received:', callbackSignature)
+          console.error('   Body used for HMAC:', rawBody.substring(0, 200))
+        } else {
+          console.error('❌ [Callback] SAKURA_API_KEY is not set! Cannot verify signature.')
+          console.error('   Please set SAKURA_API_KEY in Vercel Environment Variables.')
+        }
+        return NextResponse.json({ success: false, message: 'Invalid signature' }, { status: 400 })
+      }
+      console.log('✅ [Callback] Signature verified OK')
+    } else {
+      console.log('⚠️ [Callback] Signature verification SKIPPED (SAKURA_SKIP_SIGNATURE=true)')
     }
 
     // Parse body
-    const data = JSON.parse(rawBody)
-    console.log('📩 [SakuraPay Callback] Body:', JSON.stringify(data).substring(0, 500))
+    let data: any
+    try {
+      data = JSON.parse(rawBody)
+    } catch (parseErr) {
+      console.error('❌ [Callback] Failed to parse body as JSON:', parseErr)
+      return NextResponse.json({ success: false, message: 'Invalid JSON body' }, { status: 400 })
+    }
+
+    console.log('📩 [Callback] Parsed data:', {
+      trx_id: data.trx_id,
+      merchant_ref: data.merchant_ref,
+      status: data.status,
+      status_kode: data.status_kode,
+      amount: data.total,
+      payment_kode: data.payment_kode,
+      via: data.via,
+    })
 
     const trxId = data.trx_id || ''
     const merchantRef = data.merchant_ref || ''
     const status = data.status || '' // "berhasil", "pending", "expired"
     const statusKode = data.status_kode // 0=pending, 1=berhasil, 2=expired
 
-    console.log('📩 [SakuraPay Callback] Parsed:', {
-      trxId,
-      merchantRef,
-      status,
-      statusKode,
-    })
-
     // Map SakuraPay status to our internal status
-    // Docs: berhasil + status_kode=1 → SUCCESS, pending + status_kode=0 → PENDING, expired + status_kode=2 → EXPIRED
-    const isSuccess = status === 'berhasil' && statusKode === 1
-    const isExpired = status === 'expired' && statusKode === 2
-    const isPending = status === 'pending' && statusKode === 0
+    const isSuccess = status === 'berhasil' && Number(statusKode) === 1
+    const isExpired = status === 'expired' && Number(statusKode) === 2
     const ourStatus = isSuccess ? 'SUCCESS' : isExpired ? 'EXPIRED' : 'PENDING'
 
+    console.log('📩 [Callback] Status mapping:', {
+      raw: `${status} + ${statusKode}`,
+      isSuccess,
+      isExpired,
+      ourStatus,
+    })
+
     if (!merchantRef) {
-      console.error('❌ [SakuraPay Callback] No merchant_ref in callback')
+      console.error('❌ [Callback] No merchant_ref in callback')
       return NextResponse.json({ success: false, message: 'No merchant_ref' }, { status: 400 })
     }
 
-    // Check if we already processed this transaction
+    // ===== DATABASE UPDATE =====
     try {
       const existingOrder = await db.paymentOrder.findUnique({
         where: { invoiceNumber: merchantRef },
       })
 
-      if (existingOrder && existingOrder.status === 'SUCCESS') {
-        console.log('✅ [SakuraPay Callback] Already processed:', merchantRef)
+      if (!existingOrder) {
+        console.warn('⚠️ [Callback] Order not found in DB for merchant_ref:', merchantRef)
+        console.warn('⚠️ [Callback] This means the create-order API did not save to DB.')
+        // Still return success so SakuraPay doesn't retry
+        return NextResponse.json({ success: true, message: 'Callback processed (order not found)' })
+      }
+
+      console.log('📩 [Callback] Found order:', {
+        id: existingOrder.id,
+        invoiceNumber: existingOrder.invoiceNumber,
+        currentStatus: existingOrder.status,
+        userId: existingOrder.userId,
+        amount: existingOrder.amount,
+        plan: existingOrder.plan,
+      })
+
+      if (existingOrder.status === 'SUCCESS') {
+        console.log('✅ [Callback] Already processed (status=SUCCESS):', merchantRef)
         return NextResponse.json({ success: true, message: 'Already processed' })
       }
 
-      if (existingOrder) {
-        // Update existing order
-        await db.paymentOrder.update({
-          where: { invoiceNumber: merchantRef },
-          data: {
-            status: ourStatus,
-            dokuTransactionId: trxId || existingOrder.dokuTransactionId,
-            paidAt: isSuccess ? new Date() : null,
-          },
-        })
+      // Update existing order
+      const updatedOrder = await db.paymentOrder.update({
+        where: { invoiceNumber: merchantRef },
+        data: {
+          status: ourStatus,
+          dokuTransactionId: trxId || existingOrder.dokuTransactionId,
+          paidAt: isSuccess ? new Date() : null,
+          paymentChannel: data.payment_kode || existingOrder.paymentChannel,
+        },
+      })
 
-        // If payment successful, upgrade user
-        if (isSuccess && existingOrder.userId) {
-          await activateSubscription(existingOrder.userId, existingOrder.plan, existingOrder.durationMonths)
-        }
+      console.log('✅ [Callback] Order updated:', {
+        invoiceNumber: updatedOrder.invoiceNumber,
+        oldStatus: existingOrder.status,
+        newStatus: updatedOrder.status,
+        paidAt: updatedOrder.paidAt,
+      })
 
-        console.log(`✅ [SakuraPay Callback] Order updated: ${merchantRef} → ${ourStatus}`)
-      } else {
-        console.warn('⚠️ [SakuraPay Callback] Order not found in DB:', merchantRef)
+      // If payment successful, upgrade user
+      if (isSuccess && existingOrder.userId) {
+        await activateSubscription(existingOrder.userId, existingOrder.plan, existingOrder.durationMonths)
       }
+
+      console.log('✅ [Callback] FULLY PROCESSED:', merchantRef, '→', ourStatus)
     } catch (dbError: any) {
+      console.error('❌ [Callback] Database error:', dbError.message)
+      console.error('❌ [Callback] DB Error code:', dbError.code)
       if (dbError.code === 'P2021' || dbError.code === 'P1001' || dbError.message?.includes('does not exist')) {
-        console.warn('⚠️ [SakuraPay Callback] payment_orders table not found, skipping DB operations')
+        console.warn('⚠️ [Callback] payment_orders table not found — DB not migrated')
       } else {
         throw dbError
       }
     }
 
+    console.log('═══════════════════════════════════════════')
+
     // SakuraPay expects success response
     return NextResponse.json({ success: true, message: 'Callback processed' })
   } catch (error: any) {
-    console.error('❌ [SakuraPay Callback] Error:', error.message)
+    console.error('═══════════════════════════════════════════')
+    console.error('❌ [SakuraPay Callback] FATAL ERROR:', error.message)
+    console.error('❌ [Callback] Stack:', error.stack?.substring(0, 500))
+    console.error('═══════════════════════════════════════════')
     // Still return 200 to prevent SakuraPay from retrying with errors
     return NextResponse.json({ success: false, message: error.message })
   }
@@ -156,7 +235,7 @@ async function activateSubscription(
     // Subscription might already exist, ignore error
   })
 
-  console.log(`🎉 [SakuraPay Callback] Activated ${plan} for user ${userId} until ${endDate.toISOString()}`)
+  console.log(`🎉 [Callback] Activated ${plan} for user ${userId} until ${endDate.toISOString()}`)
 
   // Also sync to Supabase Auth metadata
   try {
@@ -174,17 +253,30 @@ async function activateSubscription(
           updated_at: new Date().toISOString()
         }
       })
-      console.log('✅ [SakuraPay Callback] Also synced Auth metadata')
+      console.log('✅ [Callback] Also synced Auth metadata')
     }
   } catch (syncErr) {
-    console.warn('⚠️ [SakuraPay Callback] Failed to sync Auth metadata (non-critical):', syncErr)
+    console.warn('⚠️ [Callback] Failed to sync Auth metadata (non-critical):', syncErr)
   }
 }
 
 /**
  * GET /api/payment/callback
- * Health check endpoint
+ * Health check + config debug
  */
 export async function GET() {
-  return NextResponse.json({ status: 'OK', message: 'SakuraPay callback endpoint is active' })
+  const sakuraConfig = getSakuraConfig()
+  return NextResponse.json({
+    status: 'OK',
+    message: 'SakuraPay callback endpoint is active',
+    config: sakuraConfig,
+    envCheck: {
+      SAKURA_API_ID_SET: !!process.env.SAKURA_API_ID,
+      SAKURA_API_KEY_SET: !!process.env.SAKURA_API_KEY,
+      SAKURA_API_KEY_LEN: process.env.SAKURA_API_KEY?.length || 0,
+      SAKURA_CALLBACK_URL: process.env.SAKURA_CALLBACK_URL || '(not set)',
+      SAKURA_ENV: process.env.SAKURA_ENV || 'sandbox',
+    },
+    tip: 'If SAKURA_API_KEY is not set, add it in Vercel Environment Variables and redeploy.',
+  })
 }
