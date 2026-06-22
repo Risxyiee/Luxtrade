@@ -5,8 +5,11 @@ const SAKURA_API_ID = process.env.SAKURA_API_ID || ''
 const SAKURA_API_KEY = process.env.SAKURA_API_KEY || ''
 const SAKURA_ENV = process.env.SAKURA_ENV || 'sandbox'
 
+// Production safety flag
+const IS_PRODUCTION = SAKURA_ENV === 'production'
+
 // NOTE: SakuraPay's sandbox URL uses "sanbox" (not "sandbox") — this is their actual URL
-const SAKURA_BASE_URL = SAKURA_ENV === 'production'
+const SAKURA_BASE_URL = IS_PRODUCTION
   ? 'https://sakurupiah.id/api/'
   : 'https://sakurupiah.id/api-sanbox/'
 
@@ -83,6 +86,28 @@ function getAuthHeaders(contentType = 'application/x-www-form-urlencoded') {
   return {
     'Authorization': `Bearer ${SAKURA_API_KEY}`,
     'Content-Type': contentType,
+  }
+}
+
+/**
+ * Validate that credentials are properly set for the current environment.
+ * Throws in production if still using placeholder/sandbox credentials.
+ */
+function validateCredentials(): void {
+  if (!SAKURA_API_ID || !SAKURA_API_KEY) {
+    throw new Error('SakuraPay credentials not configured (SAKURA_API_ID, SAKURA_API_KEY)')
+  }
+
+  if (IS_PRODUCTION) {
+    // In production, API ID/Key should NOT start with SANBOX- or contain placeholder text
+    if (SAKURA_API_ID.startsWith('SANBOX-') || SAKURA_API_ID.includes('PUT_YOUR_')) {
+      console.error('🚨 [SakuraPay] PRODUCTION MODE but using SANBOX/placeholder credentials!')
+      console.error('🚨 [SakuraPay] Transactions will FAIL. Please set production credentials in SAKURA_API_ID / SAKURA_API_KEY')
+      throw new Error(
+        'SakuraPay is in PRODUCTION mode but credentials are sandbox/placeholder values. ' +
+        'Please update SAKURA_API_ID and SAKURA_API_KEY with production values from SakuraPay dashboard.'
+      )
+    }
   }
 }
 
@@ -183,14 +208,12 @@ export async function checkSakuraBalance(): Promise<{ balance: string; available
 
 /**
  * Create SakuraPay Invoice (single payment method per request)
- * POST /api-sanbox/create.php
+ * POST /api/create.php (production) or /api-sanbox/create.php (sandbox)
  */
 export async function createSakuraOrder(params: SakuraOrderParams): Promise<SakuraOrderResult> {
   const { amount, invoiceId, customerName, customerEmail, customerPhone, plan, durationMonths, paymentMethod } = params
 
-  if (!SAKURA_API_ID || !SAKURA_API_KEY) {
-    throw new Error('SakuraPay credentials not configured (SAKURA_API_ID, SAKURA_API_KEY)')
-  }
+  validateCredentials()
 
   const amountStr = String(amount)
   const planLabel = durationMonths && durationMonths < 1200
@@ -233,7 +256,7 @@ export async function createSakuraOrder(params: SakuraOrderParams): Promise<Saku
 
   const url = `${SAKURA_BASE_URL}create.php`
 
-  console.log('🛒 [SakuraPay] Creating order:', {
+  console.log(`${IS_PRODUCTION ? '🛒' : '🧪'} [SakuraPay${IS_PRODUCTION ? ' PROD' : ' SANDBOX'}] Creating order:`, {
     url,
     invoiceId,
     amount: amountStr,
@@ -241,6 +264,7 @@ export async function createSakuraOrder(params: SakuraOrderParams): Promise<Saku
     plan,
     apiId: SAKURA_API_ID.substring(0, 8) + '...',
     env: SAKURA_ENV,
+    isProduction: IS_PRODUCTION,
     callbackUrl: SAKURA_CALLBACK_URL || 'NOT SET',
     returnUrl: SAKURA_RETURN_URL || 'NOT SET',
   })
@@ -294,7 +318,7 @@ export async function createSakuraOrder(params: SakuraOrderParams): Promise<Saku
 
 /**
  * Check transaction status
- * POST /api-sanbox/status-transaction.php
+ * POST /api/status-transaction.php (production) or /api-sanbox/status-transaction.php (sandbox)
  */
 export async function checkTransactionStatus(trxId: string): Promise<{ status: string }> {
   const formData = new URLSearchParams()
@@ -317,7 +341,7 @@ export async function checkTransactionStatus(trxId: string): Promise<{ status: s
 
 /**
  * Get transaction history
- * POST /api-sanbox/transaction.php
+ * POST /api/transaction.php (production) or /api-sanbox/transaction.php (sandbox)
  */
 export async function getTransactionHistory(filters?: {
   paymentKode?: string
@@ -362,10 +386,19 @@ export function getSakuraConfig() {
     apiId: SAKURA_API_ID ? SAKURA_API_ID.substring(0, 8) + '...' : 'NOT SET',
     apiKey: SAKURA_API_KEY ? 'SET (' + SAKURA_API_KEY.length + ' chars)' : 'NOT SET',
     env: SAKURA_ENV,
+    isProduction: IS_PRODUCTION,
     baseUrl: SAKURA_BASE_URL,
     callbackUrl: SAKURA_CALLBACK_URL || 'NOT SET',
     returnUrl: SAKURA_RETURN_URL || 'NOT SET',
+    credentialsValid: IS_PRODUCTION ? !SAKURA_API_ID.startsWith('SANBOX-') && !SAKURA_API_ID.includes('PUT_YOUR_') : true,
   }
+}
+
+/**
+ * Check if SakuraPay is in production mode
+ */
+export function isProductionMode(): boolean {
+  return IS_PRODUCTION
 }
 
 /**
