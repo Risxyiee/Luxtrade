@@ -25,28 +25,60 @@ export interface DokuOrderResult {
 }
 
 /**
- * Generate HMAC-SHA256 signature for DOKU API
- * Signature = HMAC-SHA256("ClientID:Timestamp", SecretKey)
+ * Generate Digest (SHA256 base64 of request body)
+ * DOKU requires: Digest = Base64(SHA256(JSON.stringify(body)))
  */
-function generateSignature(timestamp: string): string {
-  const component = `${DOKU_CLIENT_ID}:${timestamp}`
-  return crypto
-    .createHmac('sha256', DOKU_SECRET_KEY)
-    .update(component)
-    .digest('hex')
-    .toLowerCase()
+function generateDigest(body: string): string {
+  return crypto.createHash('sha256').update(body).digest('base64')
 }
 
 /**
- * Get current timestamp in ISO format
+ * Generate HMAC-SHA256 Signature per DOKU spec
+ * Format:
+ *   Client-Id:xxx\nRequest-Id:xxx\nRequest-Timestamp:xxx\nRequest-Target:/path\nDigest:xxx
+ * Signature = "HMACSHA256=" + Base64(HMAC-SHA256(signatureString, secretKey))
+ */
+function generateSignature({
+  clientId,
+  requestId,
+  timestamp,
+  requestTarget,
+  digest,
+  secretKey,
+}: {
+  clientId: string
+  requestId: string
+  timestamp: string
+  requestTarget: string
+  digest: string
+  secretKey: string
+}): string {
+  // Build signature components separated by \n
+  const component = [
+    `Client-Id:${clientId}`,
+    `Request-Id:${requestId}`,
+    `Request-Timestamp:${timestamp}`,
+    `Request-Target:${requestTarget}`,
+    `Digest:${digest}`,
+  ].join('\n')
+
+  // HMAC-SHA256 with secret key, encoded as base64
+  const hmac = crypto.createHmac('sha256', secretKey).update(component).digest('base64')
+
+  return `HMACSHA256=${hmac}`
+}
+
+/**
+ * Get current timestamp in ISO 8601 format (UTC)
+ * DOKU expects: 2020-08-11T08:45:42Z
  */
 function getTimestamp(): string {
-  return new Date().toISOString()
+  return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
 }
 
 /**
  * Create DOKU Checkout Payment Order
- * Supports: Virtual Account, E-Wallet, QRIS, Credit Card, etc.
+ * Docs: https://developers.doku.com/get-started-with-doku-api/signature-component/non-snap/signature-component-from-request-header
  */
 export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrderResult> {
   const { amount, invoiceId, customerName, customerEmail, plan, durationMonths, paymentType } = params
@@ -55,27 +87,20 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
     throw new Error('DOKU credentials not configured')
   }
 
+  const path = '/checkout/v1/payment'
   const timestamp = getTimestamp()
-  const signature = generateSignature(timestamp)
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'Client-Id': DOKU_CLIENT_ID,
-    'Request-Id': crypto.randomUUID(),
-    'Request-Timestamp': timestamp,
-    'Signature': signature,
-  }
-
-  const planLabel = durationMonths
-    ? `LuxTrade ${plan} Plan - ${durationMonths} Bulan`
-    : `LuxTrade ${plan} Plan`
+  const requestId = crypto.randomUUID()
 
   // Jika user pilih metode bayar spesifik, kirim hanya itu ke DOKU
   const paymentMethodTypes = paymentType
     ? [paymentType]
     : ['VIRTUAL_ACCOUNT', 'E_WALLET', 'QRIS', 'CREDIT_CARD', 'DIRECT_DEBIT', 'ONLINE_TO_OFFLINE']
 
-  const body = {
+  const planLabel = durationMonths
+    ? `LuxTrade ${plan} Plan - ${durationMonths} Bulan`
+    : `LuxTrade ${plan} Plan`
+
+  const requestBody = {
     payment: {
       payment_method_types: paymentMethodTypes,
       payment_method_options: {
@@ -114,19 +139,44 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
     return_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://luxtradee.web.id'}/dashboard`,
   }
 
+  const bodyString = JSON.stringify(requestBody)
+
+  // Generate Digest (SHA256 base64 of body)
+  const digest = generateDigest(bodyString)
+
+  // Generate Signature (HMAC-SHA256)
+  const signature = generateSignature({
+    clientId: DOKU_CLIENT_ID,
+    requestId,
+    timestamp,
+    requestTarget: path,
+    digest,
+    secretKey: DOKU_SECRET_KEY,
+  })
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Client-Id': DOKU_CLIENT_ID,
+    'Request-Id': requestId,
+    'Request-Timestamp': timestamp,
+    'Signature': signature,
+  }
+
   console.log('🛒 [DOKU] Creating order:', {
-    url: `${DOKU_BASE_URL}/checkout/v1/payment`,
+    url: `${DOKU_BASE_URL}${path}`,
+    path,
     invoiceId,
     amount,
     plan,
     clientId: DOKU_CLIENT_ID.substring(0, 8) + '...',
+    digest: digest.substring(0, 20) + '...',
   })
 
   try {
-    const response = await fetch(`${DOKU_BASE_URL}/checkout/v1/payment`, {
+    const response = await fetch(`${DOKU_BASE_URL}${path}`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(body),
+      body: bodyString,
     })
 
     const result = await response.json()
@@ -170,24 +220,37 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
 }
 
 /**
- * Verify DOKU webhook signature
- * Returns true if signature is valid
+ * Verify DOKU webhook/callback signature
+ * Recreates the signature from the callback body and compares
  */
 export function verifyDokuCallback(
   signatureHeader: string | null,
-  timestamp: string
+  timestamp: string,
+  body: string,
 ): boolean {
-  if (!signatureHeader || !timestamp) return false
-
-  const expectedSignature = generateSignature(timestamp)
+  if (!signatureHeader || !timestamp || !body) return false
 
   try {
+    // Generate digest from the received body
+    const digest = generateDigest(body)
+
+    // Recreate signature (callback uses same format)
+    // For callbacks, Request-Target is usually the callback path
+    const expectedSignature = generateSignature({
+      clientId: DOKU_CLIENT_ID,
+      requestId: '', // Not always present in callbacks
+      timestamp,
+      requestTarget: '/api/payment/callback',
+      digest,
+      secretKey: DOKU_SECRET_KEY,
+    })
+
+    // Compare signatures (timing-safe)
     return crypto.timingSafeEqual(
       Buffer.from(signatureHeader, 'utf-8'),
       Buffer.from(expectedSignature, 'utf-8')
     )
   } catch {
-    // Length mismatch → invalid
     return false
   }
 }
@@ -199,6 +262,7 @@ export function getDokuConfig() {
   return {
     configured: !!DOKU_CLIENT_ID && !!DOKU_SECRET_KEY,
     clientId: DOKU_CLIENT_ID ? DOKU_CLIENT_ID.substring(0, 8) + '...' : 'NOT SET',
+    secretKey: DOKU_SECRET_KEY ? 'SET (' + DOKU_SECRET_KEY.length + ' chars)' : 'NOT SET',
     env: DOKU_ENV,
     baseUrl: DOKU_BASE_URL,
   }
