@@ -101,16 +101,48 @@ export default function PrivacyPolicyPage() {
 
             <section>
               <h2 className="text-2xl font-semibold text-white mb-4">5. Berbagi Informasi</h2>
-              <p className="text-white/70 leading-relaxed mb-4">Kami tidak menjual data pribadi Anda. Kami hanya dapat membagikan informasi Anda dengan:</p>
+              <p className="text-white/70 leading-relaxed mb-4">Kami <strong className="text-white">TIDAK menjual data pribadi Anda</strong> kepada pihak ketiga. Kami hanya dapat membagikan informasi Anda dengan:</p>
               <ul className="list-disc list-inside space-y-2 text-white/70">
                 <li>Penyedia layanan yang membantu operasi platform (dengan perjanjian kerahasiaan)</li>
+                <li>Payment gateway (SakuraPay) untuk memproses transaksi pembayaran — hanya data minimal yang diperlukan (nama, email, nominal)</li>
                 <li>Pihak berwenang jika diwajibkan oleh hukum</li>
                 <li>Dengan persetujuan eksplisit Anda</li>
               </ul>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">6. Hak Anda</h2>
+              <h2 className="text-2xl font-semibold text-white mb-4">6. Data Pembayaran</h2>
+              <p className="text-white/70 leading-relaxed mb-4">
+                Untuk pemrosesan pembayaran langganan, kami mengumpulkan dan menyimpan data minimal berikut:
+              </p>
+              <div className="space-y-4">
+                <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
+                  <h3 className="text-lg font-medium text-amber-400 mb-2">Data yang Disimpan</h3>
+                  <ul className="list-disc list-inside space-y-1 text-white/70">
+                    <li>Invoice number (ID unik internal)</li>
+                    <li>Metode pembayaran yang dipilih</li>
+                    <li>Nominal transaksi</li>
+                    <li>Status pembayaran (pending/berhasil/expired)</li>
+                    <li>Timestamp pembayaran</li>
+                  </ul>
+                </div>
+                <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
+                  <h3 className="text-lg font-medium text-amber-400 mb-2">Data yang TIDAK Disimpan</h3>
+                  <ul className="list-disc list-inside space-y-1 text-white/70">
+                    <li>Nomor kartu kredit/debit (kami tidak menerima kartu langsung)</li>
+                    <li>Password atau PIN perbankan</li>
+                    <li>Data autentikasi payment gateway</li>
+                  </ul>
+                </div>
+                <p className="text-white/70 leading-relaxed">
+                  Seluruh pemrosesan pembayaran dilakukan oleh payment gateway resmi (SakuraPay) yang telah
+                  tersertifikasi dan teregulasi. LuxTrade tidak menyimpan kredensial keuangan sensitif Anda.
+                </p>
+              </div>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-semibold text-white mb-4">7. Hak Anda</h2>
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
                   <div className="w-2 h-2 rounded-full bg-emerald-400 mt-2 flex-shrink-0" />
@@ -132,21 +164,21 @@ export default function PrivacyPolicyPage() {
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">7. Cookies</h2>
+              <h2 className="text-2xl font-semibold text-white mb-4">8. Cookies</h2>
               <p className="text-white/70 leading-relaxed">
                 Kami menggunakan cookies untuk autentikasi, preferensi, dan analitik. Anda dapat mengatur browser untuk menolak cookies, namun beberapa fitur mungkin tidak berfungsi dengan baik.
               </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">8. Perubahan Kebijakan</h2>
+              <h2 className="text-2xl font-semibold text-white mb-4">9. Perubahan Kebijakan</h2>
               <p className="text-white/70 leading-relaxed">
                 Kami dapat memperbarui Kebijakan Privasi ini dari waktu ke waktu. Perubahan signifikan akan diberitahukan melalui email atau notifikasi di platform.
               </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-white mb-4">9. Hubungi Kami</h2>
+              <h2 className="text-2xl font-semibold text-white mb-4">10. Hubungi Kami</h2>
               <p className="text-white/70 leading-relaxed">
                 Jika Anda memiliki pertanyaan tentang Kebijakan Privasi ini, silakan hubungi kami di:
               </p>
@@ -163,6 +195,7 @@ export default function PrivacyPolicyPage() {
         <div className="max-w-4xl mx-auto px-4 text-center text-white/40 text-sm">
           <p>© {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
           <div className="flex justify-center gap-6 mt-4">
+            <Link href="/disclaimer" className="hover:text-white transition-colors">Disclaimer</Link>
             <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
           </div>

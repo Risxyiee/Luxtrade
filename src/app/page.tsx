@@ -1787,19 +1787,18 @@ export default function LuxTradeLanding() {
                 <li><a href="/contact" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Contact</a></li>
                 <li><a href="/terms" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Terms</a></li>
                 <li><a href="/privacy" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Privacy</a></li>
+                <li><a href="/disclaimer" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Disclaimer</a></li>
               </ul>
             </div>
           </div>
           <div className="pt-8 border-t border-white/[0.08] flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-white/40 text-sm font-medium">
-              © 2024 LuxTrade. All rights reserved.
+              © {new Date().getFullYear()} LuxTrade. All rights reserved.
             </p>
             <div className="flex gap-6">
-              {['Privacy Policy', 'Terms of Service', 'Cookie Policy'].map((item) => (
-                <a key={item} href="#" className="text-white/40 hover:text-white transition-colors text-sm font-medium">
-                  {item}
-                </a>
-              ))}
+              <a href="/privacy" className="text-white/40 hover:text-white transition-colors text-sm font-medium">Privacy Policy</a>
+              <a href="/terms" className="text-white/40 hover:text-white transition-colors text-sm font-medium">Terms of Service</a>
+              <a href="/disclaimer" className="text-white/40 hover:text-white transition-colors text-sm font-medium">Disclaimer</a>
             </div>
           </div>
         </div>
