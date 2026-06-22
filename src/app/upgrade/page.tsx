@@ -244,63 +244,64 @@ function UpgradeForm() {
                 </Button>
               )}
 
-              {/* Plan Selection — chip style like emotion selector */}
+              {/* Plan Selection — plain div like emotion selector */}
               <div className="space-y-2">
                 <label className="text-white font-semibold text-sm">Pilih Paket</label>
                 <div className="space-y-2.5">
                   {PLANS.map((plan) => {
                     const isSelected = selectedPlan?.id === plan.id
                     return (
-                      <Card
+                      <div
                         key={plan.id}
-                        className={`cursor-pointer transition-all duration-200 ${
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => { setSelectedPlan(plan); setSelectedPaymentMethod(null); setError('') }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedPlan(plan); setSelectedPaymentMethod(null); setError('') } }}
+                        className={`p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none active:scale-[0.98] ${
                           isSelected
                             ? 'border-purple-500 bg-purple-500/20 shadow-lg shadow-purple-500/20'
                             : 'border-purple-900/30 bg-white/5 hover:border-purple-500/50'
                         }`}
-                        onClick={() => { setSelectedPlan(plan); setSelectedPaymentMethod(null); setError('') }}
                       >
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="text-xl flex-shrink-0">{plan.emoji}</div>
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-white font-bold text-sm">{plan.plan}</span>
-                                  <span className="text-gray-400 text-xs">{plan.label}</span>
-                                  {plan.badge === 'PROMO' && (
-                                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-gradient-to-r from-pink-500 to-violet-500 text-white">PROMO</span>
-                                  )}
-                                  {plan.popular && !plan.badge && (
-                                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-gradient-to-r from-amber-500 to-orange-500 text-white">POPULER</span>
-                                  )}
-                                </div>
-                                <p className="text-gray-500 text-xs mt-0.5 truncate">
-                                  {plan.features.slice(0, 2).join(' · ')}
-                                </p>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="text-xl flex-shrink-0">{plan.emoji}</div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-white font-bold text-sm">{plan.plan}</span>
+                                <span className="text-gray-400 text-xs">{plan.label}</span>
+                                {plan.badge === 'PROMO' && (
+                                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-gradient-to-r from-pink-500 to-violet-500 text-white">PROMO</span>
+                                )}
+                                {plan.popular && !plan.badge && (
+                                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-gradient-to-r from-amber-500 to-orange-500 text-white">POPULER</span>
+                                )}
                               </div>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-white font-bold text-base">{formatRupiah(plan.price)}</p>
-                              {plan.savings && <p className="text-emerald-400 text-xs font-medium">Hemat {plan.savings}</p>}
+                              <p className="text-gray-500 text-xs mt-0.5 truncate">
+                                {plan.features.slice(0, 2).join(' · ')}
+                              </p>
                             </div>
                           </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-white font-bold text-base">{formatRupiah(plan.price)}</p>
+                            {plan.savings && <p className="text-emerald-400 text-xs font-medium">Hemat {plan.savings}</p>}
+                          </div>
+                        </div>
 
-                          {/* Expanded features when selected */}
-                          {isSelected && (
-                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-3 pt-3 border-t border-purple-900/30">
-                              <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-                                {plan.features.map((f, fi) => (
-                                  <div key={fi} className="flex items-center gap-1.5 text-xs text-gray-300">
-                                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                    <span>{f}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </motion.div>
-                          )}
-                        </CardContent>
-                      </Card>
+                        {/* Expanded features when selected */}
+                        {isSelected && (
+                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-3 pt-3 border-t border-purple-900/30">
+                            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                              {plan.features.map((f, fi) => (
+                                <div key={fi} className="flex items-center gap-1.5 text-xs text-gray-300">
+                                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                  <span>{f}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </div>
                     )
                   })}
                 </div>
@@ -339,58 +340,56 @@ function UpgradeForm() {
                 </Card>
               )}
 
-              {/* Payment Methods — card style like emotion selector in TradeWizardForm */}
+              {/* Payment Methods — plain div like emotion selector in TradeWizardForm */}
               <div className="space-y-2">
                 <label className="text-white font-semibold text-sm">Metode Pembayaran</label>
-                <div className="grid grid-cols-1 gap-2.5">
+                <div className="space-y-2.5">
                   {PAYMENT_METHODS.map((method) => {
                     const isSelected = selectedPaymentMethod === method.id
-                    const colorMap: Record<string, { selected: string; unselected: string }> = {
-                      blue:    { selected: 'border-blue-500 bg-blue-500/20 shadow-lg shadow-blue-500/20', unselected: 'border-purple-900/30 bg-white/5 hover:border-blue-500/50' },
-                      violet:  { selected: 'border-violet-500 bg-violet-500/20 shadow-lg shadow-violet-500/20', unselected: 'border-purple-900/30 bg-white/5 hover:border-violet-500/50' },
-                      emerald: { selected: 'border-emerald-500 bg-emerald-500/20 shadow-lg shadow-emerald-500/20', unselected: 'border-purple-900/30 bg-white/5 hover:border-emerald-500/50' },
-                      amber:   { selected: 'border-amber-500 bg-amber-500/20 shadow-lg shadow-amber-500/20', unselected: 'border-purple-900/30 bg-white/5 hover:border-amber-500/50' },
+                    const colors: Record<string, { sel: string; unsel: string; icon: string }> = {
+                      blue:    { sel: 'border-blue-500 bg-blue-500/20 shadow-lg shadow-blue-500/20', unsel: 'border-purple-900/30 bg-white/5 hover:border-blue-500/50', icon: 'bg-blue-500' },
+                      violet:  { sel: 'border-violet-500 bg-violet-500/20 shadow-lg shadow-violet-500/20', unsel: 'border-purple-900/30 bg-white/5 hover:border-violet-500/50', icon: 'bg-violet-500' },
+                      emerald: { sel: 'border-emerald-500 bg-emerald-500/20 shadow-lg shadow-emerald-500/20', unsel: 'border-purple-900/30 bg-white/5 hover:border-emerald-500/50', icon: 'bg-emerald-500' },
+                      amber:   { sel: 'border-amber-500 bg-amber-500/20 shadow-lg shadow-amber-500/20', unsel: 'border-purple-900/30 bg-white/5 hover:border-amber-500/50', icon: 'bg-amber-500' },
                     }
-                    const iconBgMap: Record<string, string> = {
-                      blue: 'bg-blue-500', violet: 'bg-violet-500', emerald: 'bg-emerald-500', amber: 'bg-amber-500',
-                    }
-                    const colorStyle = colorMap[method.color] || colorMap.blue
+                    const c = colors[method.color] || colors.blue
 
                     return (
-                      <Card
+                      <div
                         key={method.id}
-                        className={`cursor-pointer transition-all duration-200 ${isSelected ? colorStyle.selected : colorStyle.unselected}`}
+                        role="button"
+                        tabIndex={0}
                         onClick={() => { setSelectedPaymentMethod(method.id); setError('') }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedPaymentMethod(method.id); setError('') } }}
+                        className={`p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none active:scale-[0.98] ${isSelected ? c.sel : c.unsel}`}
                       >
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-3">
-                            {/* Radio indicator */}
-                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                              isSelected ? 'border-purple-400' : 'border-purple-900/30'
-                            }`}>
-                              {isSelected && (
-                                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-2.5 h-2.5 rounded-full bg-purple-400" />
-                              )}
-                            </div>
-
-                            {/* Icon */}
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                              isSelected ? iconBgMap[method.color] || 'bg-purple-500' : 'bg-purple-900/20'
-                            }`}>
-                              <method.icon className="w-5 h-5 text-white" />
-                            </div>
-
-                            {/* Label */}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-white font-semibold text-sm">{method.label}</p>
-                              <p className="text-gray-500 text-xs">{method.desc}</p>
-                            </div>
-
-                            {/* Check */}
-                            {isSelected && <CheckCircle className="w-5 h-5 text-purple-400 flex-shrink-0" />}
+                        <div className="flex items-center gap-3">
+                          {/* Radio indicator */}
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                            isSelected ? 'border-purple-400' : 'border-purple-900/30'
+                          }`}>
+                            {isSelected && (
+                              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-2.5 h-2.5 rounded-full bg-purple-400" />
+                            )}
                           </div>
-                        </CardContent>
-                      </Card>
+
+                          {/* Icon */}
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                            isSelected ? c.icon : 'bg-purple-900/20'
+                          }`}>
+                            <method.icon className="w-5 h-5 text-white" />
+                          </div>
+
+                          {/* Label */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-semibold text-sm">{method.label}</p>
+                            <p className="text-gray-500 text-xs">{method.desc}</p>
+                          </div>
+
+                          {/* Check */}
+                          {isSelected && <CheckCircle className="w-5 h-5 text-purple-400 flex-shrink-0" />}
+                        </div>
+                      </div>
                     )
                   })}
                 </div>
