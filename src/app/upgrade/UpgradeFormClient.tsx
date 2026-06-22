@@ -1,9 +1,8 @@
 'use client'
 
 import React, { useState, useCallback } from 'react'
-import { AnimatePresence } from 'framer-motion'
 import {
-  Crown, ArrowRight, ArrowLeft, AlertCircle, Loader2,
+  ArrowRight, ArrowLeft, AlertCircle, Loader2,
   CheckCircle, Tag, Sparkles, Shield, Zap, Star,
   CreditCard, Smartphone, QrCode, Building2,
   Gift, Lock, Check
@@ -169,8 +168,8 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
         <Progress value={progress} className="h-2 bg-purple-900/30" />
       </div>
 
-      {/* ========== STEP CONTENT — NO overflow-hidden, NO max-h clip ========== */}
-      <div style={{ touchAction: 'pan-y', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }} className="max-h-[55vh] lg:max-h-none -mx-1 px-1">
+      {/* ========== STEP CONTENT — clean, no touch-action override ========== */}
+      <div className="overflow-y-auto max-h-[55vh] lg:max-h-none -mx-1 px-1">
 
         {/* ============ STEP 1: PILIH PAKET ============ */}
         {currentStep === 1 && (
@@ -221,8 +220,7 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
                       type="button"
                       key={plan.id}
                       onClick={() => { setSelectedPlan(plan); setSelectedPaymentMethod(null); setError('') }}
-                      style={{ position: 'relative', zIndex: 1, touchAction: 'manipulation' }}
-                      className={`payment-btn-safe w-full p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none active:scale-[0.98] text-left ${
+                      className={`w-full p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none active:scale-[0.98] text-left ${
                         isSelected
                           ? 'border-purple-500 bg-purple-500/20 shadow-lg shadow-purple-500/20'
                           : 'border-purple-900/30 bg-white/5 hover:border-purple-500/50'
@@ -312,24 +310,11 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
                       type="button"
                       key={method.id}
                       onClick={() => {
-                        console.log('TAPPED:', method.id)
+                        console.log('PAYMENT METHOD SELECTED:', method.id)
                         setSelectedPaymentMethod(method.id)
                         setError('')
                       }}
-                      onTouchEnd={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        console.log('TOUCH END:', method.id)
-                        setSelectedPaymentMethod(method.id)
-                        setError('')
-                      }}
-                      style={{
-                        position: 'relative',
-                        zIndex: 2,
-                        touchAction: 'manipulation',
-                        pointerEvents: 'auto',
-                      }}
-                      className={`payment-btn-safe w-full p-4 rounded-xl border-2 transition-colors duration-200 cursor-pointer select-none active:scale-[0.98] text-left ${
+                      className={`w-full p-4 rounded-xl border-2 transition-colors duration-200 cursor-pointer select-none active:scale-[0.98] text-left ${
                         isSelected ? c.sel : c.unsel
                       }`}
                     >
