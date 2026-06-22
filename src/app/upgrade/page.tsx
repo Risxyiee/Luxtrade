@@ -7,11 +7,11 @@ import {
   Crown, ArrowRight, ArrowLeft, AlertCircle, Loader2,
   CheckCircle, Tag, Sparkles, Shield, Zap, Star,
   CreditCard, Smartphone, QrCode, Building2,
-  Gift, Lock, Wallet, ChevronRight
+  Gift, Lock, Wallet, Check
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { supabase } from '@/lib/supabase'
 
@@ -48,31 +48,12 @@ const PAYMENT_METHODS = [
   { id: 'CREDIT_CARD', label: 'Kartu Kredit', icon: CreditCard, desc: 'Visa, Mastercard', color: 'amber' },
 ]
 
-const colorMap: Record<string, { bg: string; border: string; iconBg: string; text: string; glow: string }> = {
-  blue: {
-    bg: 'bg-blue-500/[0.07]', border: 'border-blue-500/40',
-    iconBg: 'bg-blue-500', text: 'text-blue-400', glow: 'shadow-blue-500/10'
-  },
-  violet: {
-    bg: 'bg-violet-500/[0.07]', border: 'border-violet-500/40',
-    iconBg: 'bg-violet-500', text: 'text-violet-400', glow: 'shadow-violet-500/10'
-  },
-  emerald: {
-    bg: 'bg-emerald-500/[0.07]', border: 'border-emerald-500/40',
-    iconBg: 'bg-emerald-500', text: 'text-emerald-400', glow: 'shadow-emerald-500/10'
-  },
-  amber: {
-    bg: 'bg-amber-500/[0.07]', border: 'border-amber-500/40',
-    iconBg: 'bg-amber-500', text: 'text-amber-400', glow: 'shadow-amber-500/10'
-  },
-}
-
 function formatRupiah(n: number) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n)
 }
 
 // ============================================
-// Main Form
+// Main Form — Exact TradeWizardForm design tokens
 // ============================================
 function UpgradeForm() {
   const router = useRouter()
@@ -98,7 +79,6 @@ function UpgradeForm() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) {
-          // Skip redirect if Supabase is not configured (dev environment)
           if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
             setUser({ id: 'dev-user', email: 'dev@test.com' })
             setLoading(false)
@@ -108,7 +88,6 @@ function UpgradeForm() {
         }
         setUser(user)
       } catch {
-        // Skip redirect if Supabase is not configured
         if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
           setUser({ id: 'dev-user', email: 'dev@test.com' })
         } else {
@@ -182,330 +161,357 @@ function UpgradeForm() {
   const selectedMethod = PAYMENT_METHODS.find(m => m.id === selectedPaymentMethod)
 
   if (loading) return (
-    <div className="w-full max-w-md text-center py-20">
-      <Loader2 className="w-10 h-10 text-amber-500 mx-auto mb-4 animate-spin" />
-      <p className="text-white/50 text-sm">Memuat...</p>
+    <div className="flex items-center justify-center py-16">
+      <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
     </div>
   )
 
   if (success) return (
-    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-md text-center py-10">
-      <div className="bg-gradient-to-br from-emerald-500/10 to-green-500/5 border border-emerald-500/30 rounded-3xl p-10">
-        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }} className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/20"><Sparkles className="w-10 h-10 text-white" /></motion.div>
-        <h2 className="text-2xl font-extrabold text-white mb-2">Upgrade Berhasil!</h2>
-        <p className="text-emerald-400 font-medium text-sm">Mengalihkan ke dashboard...</p>
+    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-10">
+      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 mb-4">
+        <Sparkles className="w-8 h-8 text-white" />
       </div>
+      <h2 className="text-xl font-bold text-white mb-1">Upgrade Berhasil!</h2>
+      <p className="text-emerald-400 text-sm">Mengalihkan ke dashboard...</p>
     </motion.div>
   )
 
   return (
-    <div className="w-full max-w-lg mx-auto">
+    <div className="space-y-6 pb-4">
 
-      {/* ========== HEADER ========== */}
-      <div className="text-center mb-5">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 mb-3">
-          <Crown className="w-3.5 h-3.5 text-amber-400" />
-          <span className="text-[11px] text-amber-300 font-bold tracking-wider">PREMIUM ACCESS</span>
+      {/* ========== PROGRESS BAR — exact TradeWizardForm style ========== */}
+      <div className="space-y-2 shrink-0">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-purple-300 font-medium">
+            Step {currentStep} of {totalSteps}
+          </span>
+          <span className="text-gray-400">
+            {Math.round(progress)}% Complete
+          </span>
         </div>
-        <h1 className="text-xl font-extrabold text-white mb-0.5">
-          Upgrade ke <span className="bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">Premium</span>
-        </h1>
-        <p className="text-white/35 text-xs">
-          {currentStep === 1 ? 'Pilih paket yang cocok buat kamu' : `${selectedPlan?.plan} ${selectedPlan?.label} — pilih metode bayar`}
-        </p>
+        <Progress value={progress} className="h-2 bg-purple-900/30" />
       </div>
 
-      {/* ========== PROGRESS ========== */}
-      <div className="mb-5">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[10px] text-white/25 font-semibold uppercase tracking-wider">Step {currentStep} of {totalSteps}</span>
-          <span className="text-[10px] text-white/25">{Math.round(progress)}%</span>
-        </div>
-        <Progress value={progress} className="h-1.5 bg-white/[0.06]" />
-      </div>
+      {/* ========== STEP CONTENT — scrollable on mobile ========== */}
+      <div className="overflow-y-auto max-h-[55vh] lg:max-h-none -mx-1 px-1">
 
-      {/* ========== ANIMATED STEPS ========== */}
-      <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait">
 
-        {/* ============ STEP 1: PILIH PAKET ============ */}
-        {currentStep === 1 && (
-          <motion.div
-            key="step1"
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -30 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-          >
-            {/* Promo Input */}
-            <div className="mb-4">
+          {/* ============ STEP 1: PILIH PAKET ============ */}
+          {currentStep === 1 && (
+            <motion.div
+              key="step1"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-4"
+            >
+              {/* Promo Code */}
               {error && currentStep === 1 && (
-                <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 p-2.5 mb-2 bg-red-500/10 border border-red-500/25 rounded-xl text-red-400 text-xs"><AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /><span>{error}</span></motion.div>
+                <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{error}</span>
+                </motion.div>
               )}
-              <div className="relative">
-                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-amber-400/60" />
-                <Input type="text" placeholder="Kode promo (opsional)" value={promoCode} onChange={onPromoChange} disabled={isApplying}
-                  className="h-11 bg-white/[0.03] border-white/[0.08] text-white placeholder:text-white/20 focus:border-amber-500/40 pl-9 pr-9 uppercase text-xs rounded-xl" />
-                {isValidating && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-amber-400 animate-spin" />}
-                {promoValid && <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-emerald-400" />}
+
+              <div className="space-y-2">
+                <label className="text-white font-semibold text-sm flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-purple-400" />
+                  Kode Promo (opsional)
+                </label>
+                <div className="relative">
+                  <Input type="text" placeholder="Masukkan kode promo..." value={promoCode} onChange={onPromoChange} disabled={isApplying}
+                    className="bg-[#0a0712] border-purple-900/30 text-white placeholder:text-gray-500 pr-10 uppercase text-sm" />
+                  {isValidating && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-400 animate-spin" />}
+                  {promoValid && <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400" />}
+                </div>
               </div>
+
               {promoValid && promoData && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-1.5 p-2 bg-emerald-500/10 border border-emerald-500/25 rounded-lg text-emerald-400 text-[11px] flex items-center gap-1.5"><Gift className="w-3 h-3" /><span>Diskon {promoData.discountPercent}% — {promoData.description}</span></motion.div>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 text-xs">
+                  <Gift className="w-4 h-4 flex-shrink-0" />
+                  <span>Diskon {promoData.discountPercent}% — {promoData.description}</span>
+                </motion.div>
               )}
+
               {promoValid && (
-                <Button onClick={applyPromo} disabled={isApplying} size="sm" className="w-full h-10 mt-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl">
-                  {isApplying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Sparkles className="w-3 h-3 mr-1" /> Klaim Promo Gratis</>}
+                <Button onClick={applyPromo} disabled={isApplying}
+                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold">
+                  {isApplying ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <><Sparkles className="w-4 h-4 mr-2" />Klaim Promo Gratis</>}
                 </Button>
               )}
-            </div>
 
-            {/* Plan Cards */}
-            <div className="space-y-2.5">
-              {PLANS.map((plan, i) => {
-                const isSelected = selectedPlan?.id === plan.id
-                return (
-                  <button
-                    key={plan.id}
-                    type="button"
-                    onClick={() => { setSelectedPlan(plan); setSelectedPaymentMethod(null); setError('') }}
-                    className="w-full text-left rounded-2xl p-4 border transition-all duration-200 cursor-pointer active:scale-[0.98] select-none"
-                    style={{
-                      background: isSelected ? 'rgba(245,158,11,0.08)' : 'rgba(255,255,255,0.02)',
-                      borderColor: isSelected ? 'rgba(245,158,11,0.4)' : 'rgba(255,255,255,0.06)',
-                      boxShadow: isSelected ? '0 0 20px rgba(245,158,11,0.08)' : 'none',
-                    }}
-                  >
+              {/* Plan Selection — chip style like emotion selector */}
+              <div className="space-y-2">
+                <label className="text-white font-semibold text-sm">Pilih Paket</label>
+                <div className="space-y-2.5">
+                  {PLANS.map((plan) => {
+                    const isSelected = selectedPlan?.id === plan.id
+                    return (
+                      <Card
+                        key={plan.id}
+                        className={`cursor-pointer transition-all duration-200 ${
+                          isSelected
+                            ? 'border-purple-500 bg-purple-500/20 shadow-lg shadow-purple-500/20'
+                            : 'border-purple-900/30 bg-white/5 hover:border-purple-500/50'
+                        }`}
+                        onClick={() => { setSelectedPlan(plan); setSelectedPaymentMethod(null); setError('') }}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="text-xl flex-shrink-0">{plan.emoji}</div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-white font-bold text-sm">{plan.plan}</span>
+                                  <span className="text-gray-400 text-xs">{plan.label}</span>
+                                  {plan.badge === 'PROMO' && (
+                                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-gradient-to-r from-pink-500 to-violet-500 text-white">PROMO</span>
+                                  )}
+                                  {plan.popular && !plan.badge && (
+                                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-gradient-to-r from-amber-500 to-orange-500 text-white">POPULER</span>
+                                  )}
+                                </div>
+                                <p className="text-gray-500 text-xs mt-0.5 truncate">
+                                  {plan.features.slice(0, 2).join(' · ')}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-white font-bold text-base">{formatRupiah(plan.price)}</p>
+                              {plan.savings && <p className="text-emerald-400 text-xs font-medium">Hemat {plan.savings}</p>}
+                            </div>
+                          </div>
+
+                          {/* Expanded features when selected */}
+                          {isSelected && (
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-3 pt-3 border-t border-purple-900/30">
+                              <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                                {plan.features.map((f, fi) => (
+                                  <div key={fi} className="flex items-center gap-1.5 text-xs text-gray-300">
+                                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                    <span>{f}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </motion.div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ============ STEP 2: METODE BAYAR ============ */}
+          {currentStep === 2 && (
+            <motion.div
+              key="step2"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-4"
+            >
+              {/* Order Summary */}
+              {selectedPlan && (
+                <Card className="bg-gradient-to-br from-amber-500/10 to-transparent border-amber-500/30">
+                  <CardContent className="p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                          style={{ background: isSelected ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.04)' }}>
-                          {plan.emoji}
-                        </div>
+                        <div className="text-xl flex-shrink-0">{selectedPlan.emoji}</div>
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-white font-bold text-sm">{plan.plan}</span>
-                            <span className="text-white/35 text-xs">{plan.label}</span>
-                            {plan.badge === 'PROMO' && (
-                              <span className="px-1.5 py-0.5 rounded-md bg-gradient-to-r from-pink-500 to-violet-500 text-white text-[8px] font-bold leading-none">PROMO</span>
-                            )}
-                            {plan.popular && !plan.badge && (
-                              <span className="px-1.5 py-0.5 rounded-md bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[8px] font-bold leading-none">POPULER</span>
-                            )}
-                          </div>
-                          <p className="text-white/25 text-[11px] mt-0.5 truncate">{plan.features.slice(0, 2).join(' · ')}</p>
+                          <p className="text-white font-bold text-sm">{selectedPlan.plan} {selectedPlan.label}</p>
+                          <p className="text-gray-400 text-xs truncate">{selectedPlan.features.slice(0, 2).join(' · ')}</p>
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="text-white font-extrabold text-base leading-tight">{formatRupiah(plan.price)}</p>
-                        {plan.savings && <p className="text-emerald-400 text-[10px] font-semibold mt-0.5">Hemat {plan.savings}</p>}
+                        <p className="text-gray-400 text-[10px] uppercase font-medium">Total</p>
+                        <p className="text-white font-bold text-lg">{formatRupiah(selectedPlan.price)}</p>
                       </div>
                     </div>
-                    {isSelected && (
-                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 pt-3 border-t border-amber-500/15">
-                        <div className="flex flex-wrap gap-x-4 gap-y-1">
-                          {plan.features.map((f, fi) => (
-                            <div key={fi} className="flex items-center gap-1 text-[10px] text-white/40">
-                              <CheckCircle className="w-3 h-3 text-amber-400/60" />
-                              <span>{f}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* Lanjut Button */}
-            <button
-              type="button"
-              onClick={goNext}
-              disabled={!selectedPlan}
-              className="w-full h-12 mt-5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98] disabled:opacity-25 disabled:cursor-not-allowed disabled:active:scale-100"
-              style={selectedPlan ? {
-                background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-                color: 'white',
-                boxShadow: '0 4px 20px rgba(139,92,246,0.3)',
-              } : {
-                background: 'rgba(255,255,255,0.04)',
-                color: 'rgba(255,255,255,0.2)',
-              }}
-            >
-              {selectedPlan ? (
-                <>Lanjut Pilih Metode Bayar <ArrowRight className="w-4 h-4" /></>
-              ) : (
-                'Pilih paket dulu'
+                  </CardContent>
+                </Card>
               )}
-            </button>
-          </motion.div>
-        )}
 
-        {/* ============ STEP 2: METODE BAYAR ============ */}
-        {currentStep === 2 && (
-          <motion.div
-            key="step2"
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -30 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-          >
-            {/* Order Summary */}
-            {selectedPlan && (
-              <div className="rounded-2xl p-4 border mb-4"
-                style={{ background: 'rgba(245,158,11,0.06)', borderColor: 'rgba(245,158,11,0.15)' }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                    style={{ background: 'rgba(245,158,11,0.12)' }}>
-                    {selectedPlan.emoji}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-bold text-sm">{selectedPlan.plan} {selectedPlan.label}</p>
-                    <p className="text-white/30 text-[11px] truncate">{selectedPlan.features.slice(0, 2).join(' · ')}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-[9px] text-white/25 uppercase font-semibold tracking-wider">Total</p>
-                    <p className="text-white font-extrabold text-base">{formatRupiah(selectedPlan.price)}</p>
-                  </div>
+              {/* Payment Methods — card style like emotion selector in TradeWizardForm */}
+              <div className="space-y-2">
+                <label className="text-white font-semibold text-sm">Metode Pembayaran</label>
+                <div className="grid grid-cols-1 gap-2.5">
+                  {PAYMENT_METHODS.map((method) => {
+                    const isSelected = selectedPaymentMethod === method.id
+                    const colorMap: Record<string, { selected: string; unselected: string }> = {
+                      blue:    { selected: 'border-blue-500 bg-blue-500/20 shadow-lg shadow-blue-500/20', unselected: 'border-purple-900/30 bg-white/5 hover:border-blue-500/50' },
+                      violet:  { selected: 'border-violet-500 bg-violet-500/20 shadow-lg shadow-violet-500/20', unselected: 'border-purple-900/30 bg-white/5 hover:border-violet-500/50' },
+                      emerald: { selected: 'border-emerald-500 bg-emerald-500/20 shadow-lg shadow-emerald-500/20', unselected: 'border-purple-900/30 bg-white/5 hover:border-emerald-500/50' },
+                      amber:   { selected: 'border-amber-500 bg-amber-500/20 shadow-lg shadow-amber-500/20', unselected: 'border-purple-900/30 bg-white/5 hover:border-amber-500/50' },
+                    }
+                    const iconBgMap: Record<string, string> = {
+                      blue: 'bg-blue-500', violet: 'bg-violet-500', emerald: 'bg-emerald-500', amber: 'bg-amber-500',
+                    }
+                    const colorStyle = colorMap[method.color] || colorMap.blue
+
+                    return (
+                      <Card
+                        key={method.id}
+                        className={`cursor-pointer transition-all duration-200 ${isSelected ? colorStyle.selected : colorStyle.unselected}`}
+                        onClick={() => { setSelectedPaymentMethod(method.id); setError('') }}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-3">
+                            {/* Radio indicator */}
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                              isSelected ? 'border-purple-400' : 'border-purple-900/30'
+                            }`}>
+                              {isSelected && (
+                                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-2.5 h-2.5 rounded-full bg-purple-400" />
+                              )}
+                            </div>
+
+                            {/* Icon */}
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                              isSelected ? iconBgMap[method.color] || 'bg-purple-500' : 'bg-purple-900/20'
+                            }`}>
+                              <method.icon className="w-5 h-5 text-white" />
+                            </div>
+
+                            {/* Label */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white font-semibold text-sm">{method.label}</p>
+                              <p className="text-gray-500 text-xs">{method.desc}</p>
+                            </div>
+
+                            {/* Check */}
+                            {isSelected && <CheckCircle className="w-5 h-5 text-purple-400 flex-shrink-0" />}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
                 </div>
               </div>
-            )}
 
-            <p className="text-[10px] font-bold text-white/30 uppercase tracking-wider mb-3 px-1">Pilih Metode Pembayaran</p>
-
-            {/* Payment Methods - PLAIN div + onClick, no motion.button, no z-index tricks */}
-            <div className="space-y-2">
-              {PAYMENT_METHODS.map((method) => {
-                const isSel = selectedPaymentMethod === method.id
-                const c = colorMap[method.color]
-                return (
-                  <div
-                    key={method.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => { setSelectedPaymentMethod(method.id); setError('') }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedPaymentMethod(method.id); setError('') } }}
-                    className="w-full flex items-center gap-3.5 p-4 rounded-xl border-2 transition-all duration-150 cursor-pointer select-none"
-                    style={{
-                      background: isSel ? undefined : 'rgba(255,255,255,0.02)',
-                      borderColor: isSel ? undefined : 'rgba(255,255,255,0.06)',
-                      transform: undefined,
-                    }}
-                    {...(isSel ? {
-                      className: `w-full flex items-center gap-3.5 p-4 rounded-xl border-2 transition-all duration-150 cursor-pointer select-none ${c.bg} ${c.border}`,
-                    } : {})}
-                  >
-                    {/* Radio */}
-                    <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors"
-                      style={{ borderColor: isSel ? '#34d399' : 'rgba(255,255,255,0.12)' }}>
-                      {isSel && (
-                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                      )}
-                    </div>
-
-                    {/* Icon */}
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
-                      style={{ background: isSel ? c.iconBg : 'rgba(255,255,255,0.04)' }}>
-                      <method.icon className="w-5 h-5" style={{ color: isSel ? 'white' : 'rgba(255,255,255,0.35)' }} />
-                    </div>
-
-                    {/* Label */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold" style={{ color: isSel ? 'white' : 'rgba(255,255,255,0.65)' }}>{method.label}</p>
-                      <p className="text-[11px]" style={{ color: isSel ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)' }}>{method.desc}</p>
-                    </div>
-
-                    {/* Chevron / Check */}
-                    <div className="flex-shrink-0 ml-1">
-                      {isSel ? (
-                        <CheckCircle className="w-5 h-5 text-emerald-400" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-white/15" />
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Error */}
-            {error && currentStep === 2 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 p-2.5 mt-3 bg-red-500/10 border border-red-500/25 rounded-xl text-red-400 text-xs"><AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /><span>{error}</span></motion.div>
-            )}
-
-            {/* Pay Button */}
-            <button
-              type="button"
-              onClick={handlePay}
-              disabled={isCreatingPayment || !selectedPaymentMethod}
-              className="w-full h-12 mt-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-[0.98] disabled:opacity-25 disabled:cursor-not-allowed disabled:active:scale-100"
-              style={selectedPaymentMethod ? {
-                background: 'linear-gradient(135deg, #10b981, #059669)',
-                color: 'white',
-                boxShadow: '0 4px 20px rgba(16,185,129,0.3)',
-              } : {
-                background: 'rgba(255,255,255,0.04)',
-                color: 'rgba(255,255,255,0.2)',
-              }}
-            >
-              {isCreatingPayment ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Menghubungkan ke DOKU...</>
-              ) : selectedPaymentMethod ? (
-                <><Shield className="w-4 h-4" />Bayar {formatRupiah(selectedPlan.price)}</>
-              ) : (
-                'Pilih metode bayar dulu'
+              {/* Error */}
+              {error && currentStep === 2 && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{error}</span>
+                </motion.div>
               )}
-            </button>
 
-            {/* Back */}
-            <button
-              type="button"
-              onClick={goBack}
-              className="w-full flex items-center justify-center gap-2 text-white/25 hover:text-white/40 transition-colors text-xs py-3 cursor-pointer active:scale-[0.98]"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" /> Kembali ganti paket
-            </button>
+              {/* Security */}
+              <div className="flex items-center gap-2 p-3 bg-purple-500/10 border border-purple-900/30 rounded-lg">
+                <Lock className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                <span className="text-gray-400 text-xs">Pembayaran aman & terenkripsi via DOKU</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
-            {/* Security Badge */}
-            <div className="flex items-center justify-center gap-1.5 text-white/15 text-[10px] pt-1">
-              <Lock className="w-3 h-3" />
-              <span>Aman & terenkripsi via DOKU</span>
-            </div>
-          </motion.div>
+      {/* ========== BOTTOM NAV — exact TradeWizardForm fixed bottom style ========== */}
+      <div className="flex gap-3 pt-4 border-t border-purple-900/30 shrink-0">
+        {currentStep === 2 && (
+          <Button
+            variant="outline"
+            onClick={goBack}
+            className="border-purple-900/30 flex-1 text-gray-300 hover:bg-purple-500/10 hover:text-white"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Kembali
+          </Button>
         )}
-      </AnimatePresence>
+        <Button
+          onClick={currentStep === 1 ? goNext : handlePay}
+          disabled={
+            currentStep === 1
+              ? !selectedPlan
+              : isCreatingPayment || !selectedPaymentMethod
+          }
+          className={`flex-1 font-semibold ${
+            currentStep === 1
+              ? 'bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white disabled:opacity-30'
+              : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white disabled:opacity-30'
+          }`}
+        >
+          {currentStep === 1 ? (
+            <>
+              Lanjut
+              <ArrowRight className="w-4 h-4 ml-1" />
+            </>
+          ) : isCreatingPayment ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Memproses...
+            </>
+          ) : (
+            <>
+              <Shield className="w-4 h-4 mr-1" />
+              Bayar {formatRupiah(selectedPlan?.price)}
+              <ArrowRight className="w-4 h-4 ml-1" />
+            </>
+          )}
+        </Button>
+      </div>
 
       {/* Trust badges */}
-      <div className="flex items-center justify-center gap-3 mt-6">
+      <div className="flex items-center justify-center gap-4 pt-2">
         {[
           { icon: Shield, text: 'Aman' },
           { icon: Zap, text: 'Instan' },
           { icon: Star, text: '24/7' },
           { icon: Lock, text: 'Enkripsi' },
         ].map((b, i) => (
-          <div key={i} className="flex items-center gap-1 text-white/15">
-            <b.icon className="w-3 h-3" />
-            <span className="text-[9px] font-medium">{b.text}</span>
+          <div key={i} className="flex items-center gap-1.5 text-gray-500">
+            <b.icon className="w-3.5 h-3.5" />
+            <span className="text-xs font-medium">{b.text}</span>
           </div>
         ))}
-      </div>
-
-      {/* Back to dashboard */}
-      <div className="text-center mt-4 pb-4">
-        <button onClick={() => router.push('/dashboard')} className="text-white/15 text-xs hover:text-white/30 transition-colors cursor-pointer">← Dashboard</button>
       </div>
     </div>
   )
 }
 
 // ============================================
-// Page Wrapper
+// Page
 // ============================================
 export default function UpgradePage() {
+  const router = useRouter()
+
   return (
-    <main className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: 'linear-gradient(180deg, #0a0612 0%, #110a1f 50%, #0a0612 100%)' }}>
-      <div className="w-full">
-        <UpgradeForm />
+    <main className="min-h-screen bg-[#0a0712] flex items-center justify-center p-4">
+      <div className="w-full max-w-lg space-y-4">
+        {/* Header */}
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/30 mb-3">
+            <Crown className="w-4 h-4 text-purple-400" />
+            <span className="text-xs text-purple-300 font-semibold tracking-wider">PREMIUM ACCESS</span>
+          </div>
+          <h1 className="text-xl font-bold text-white">
+            Upgrade ke <span className="bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent">Premium</span>
+          </h1>
+          <p className="text-gray-500 text-sm mt-1">Pilih paket dan metode pembayaran</p>
+        </div>
+
+        {/* Form Card */}
+        <Card className="bg-[#0a0712] border-purple-900/30">
+          <CardContent className="p-5">
+            <UpgradeForm />
+          </CardContent>
+        </Card>
+
+        {/* Back to dashboard */}
+        <div className="text-center">
+          <button onClick={() => router.push('/dashboard')} className="text-gray-500 text-xs hover:text-gray-300 transition-colors">
+            ← Kembali ke Dashboard
+          </button>
+        </div>
       </div>
     </main>
   )
