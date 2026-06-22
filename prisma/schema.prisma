@@ -47,14 +47,14 @@ model Profile {
 
 model UserSubmission {
   id              Int       @id @default(autoincrement())
-  userId          String
-  achievementKey  String
-  proofUrl        String?
+  userId          String    @map("user_id")
+  achievementKey  String    @map("achievement_key")
+  proofUrl        String?   @map("proof_url")
   status          String    @default("PENDING")
-  reviewedBy      String?
-  reviewedAt      DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  reviewedBy      String?   @map("reviewed_by")
+  reviewedAt      DateTime? @map("reviewed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt   @map("updated_at")
 
   user            Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -64,14 +64,14 @@ model UserSubmission {
 
 model MissionProgress {
   id              String    @id @default(uuid())
-  userId          String
-  missionKey      String
+  userId          String    @map("user_id")
+  missionKey      String    @map("mission_key")
   progress        Int       @default(0)
   target          Int       @default(1)
   completed       Boolean   @default(false)
   claimed         Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt   @map("updated_at")
 
   user            Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -98,15 +98,15 @@ model User {
 
 model UserSubscription {
   id                String    @id @default(uuid())
-  userId            String
+  userId            String    @map("user_id")
   plan              String
   status            String    @default("active")
-  startDate         DateTime  @default(now())
-  endDate           DateTime?
-  promoCodeId       String?
-  discountPercent   Float     @default(0)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  startDate         DateTime  @default(now()) @map("start_date")
+  endDate           DateTime? @map("end_date")
+  promoCodeId       String?   @map("promo_code_id")
+  discountPercent   Float     @default(0) @map("discount_percent")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt   @map("updated_at")
 
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   promoCode         PromoCode? @relation(fields: [promoCodeId], references: [id])
@@ -118,15 +118,15 @@ model UserSubscription {
 
 model Withdrawal {
   id                String    @id @default(uuid())
-  userId            String
+  userId            String    @map("user_id")
   amount            Float
-  bankName          String
-  bankAccount       String
-  bankHolder        String
+  bankName          String    @map("bank_name")
+  bankAccount       String    @map("bank_account")
+  bankHolder        String    @map("bank_holder")
   status            String    @default("pending")
-  adminNote         String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  adminNote         String?   @map("admin_note")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt   @map("updated_at")
 
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -243,16 +243,16 @@ model TradingAccount {
 
 model SocialLink {
   id                String    @id @default(uuid())
-  userId            String
+  userId            String    @map("user_id")
   platform          String
   url               String
   username          String?
   status            String    @default("PENDING")
-  reviewedBy        String?
-  reviewedAt        DateTime?
-  rejectionReason   String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  reviewedBy        String?   @map("reviewed_by")
+  reviewedAt        DateTime? @map("reviewed_at")
+  rejectionReason   String?   @map("rejection_reason")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt   @map("updated_at")
 
   user              Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -265,15 +265,15 @@ model PromoCode {
   id                String    @id @default(uuid())
   code              String    @unique
   description       String?
-  discountPercent   Float
-  maxQuota          Int
-  usedQuota         Int       @default(0)
-  durationMonths    Int
-  startDate         DateTime  @default(now())
-  endDate           DateTime?
-  isActive          Boolean   @default(true)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  discountPercent   Float     @map("discount_percent")
+  maxQuota          Int       @map("max_quota")
+  usedQuota         Int       @default(0) @map("used_quota")
+  durationMonths    Int       @map("duration_months")
+  startDate         DateTime  @default(now()) @map("start_date")
+  endDate           DateTime? @map("end_date")
+  isActive          Boolean   @default(true) @map("is_active")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt   @map("updated_at")
 
   subscriptions     UserSubscription[]
 
@@ -284,12 +284,12 @@ model PromoCode {
 
 model BugReport {
   id                String    @id @default(uuid())
-  userId            String
+  userId            String    @map("user_id")
   description       String
-  screenshotUrl     String?
+  screenshotUrl     String?   @map("screenshot_url")
   status            String    @default("PENDING")
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt   @map("updated_at")
 
   @@index([userId])
   @@index([status])
@@ -298,23 +298,23 @@ model BugReport {
 
 model PaymentOrder {
   id                String    @id @default(uuid())
-  userId            String
-  invoiceNumber     String    @unique
+  userId            String    @map("user_id")
+  invoiceNumber     String    @unique @map("invoice_number")
   amount            Float
   currency          String    @default("IDR")
   plan              String
-  durationMonths    Int?
+  durationMonths    Int?       @map("duration_months")
   status            String    @default("PENDING") // PENDING, SUCCESS, FAILED, EXPIRED
-  paymentMethod     String?
-  paymentChannel    String?
-  dokuTransactionId String?
-  dokuPaymentUrl    String?
-  customerName      String
-  customerEmail     String
-  paidAt            DateTime?
-  expiredAt         DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  paymentMethod     String?   @map("payment_method")
+  paymentChannel    String?   @map("payment_channel")
+  dokuTransactionId String?   @map("doku_transaction_id")
+  dokuPaymentUrl    String?   @map("doku_payment_url")
+  customerName      String    @map("customer_name")
+  customerEmail     String    @map("customer_email")
+  paidAt            DateTime? @map("paid_at")
+  expiredAt         DateTime? @map("expired_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt   @map("updated_at")
 
   user              Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -328,10 +328,10 @@ model EmailBroadcast {
   id          String   @id @default(uuid())
   target      String
   subject     String
-  sentCount   Int      @default(0)
-  failedCount Int      @default(0)
-  sentBy      String?
-  createdAt   DateTime @default(now())
+  sentCount   Int      @default(0) @map("sent_count")
+  failedCount Int      @default(0) @map("failed_count")
+  sentBy      String?  @map("sent_by")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("email_broadcasts")
 }

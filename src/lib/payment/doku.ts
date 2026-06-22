@@ -154,7 +154,7 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
 
     // Handle DOKU error format
     const errorMessage =
-      result.error?.message?.join(', ') ||
+      (Array.isArray(result.error?.message) ? result.error.message.join(', ') : result.error?.message) ||
       result.message ||
       `DOKU API error: ${response.status} ${response.statusText}`
 
