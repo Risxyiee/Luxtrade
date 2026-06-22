@@ -181,19 +181,11 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
               <div className="px-6 md:px-8 py-4 border-b border-white/5">
                 <div className="flex items-center justify-center gap-6 md:gap-8 text-white/40">
                   <div className="flex items-center gap-2 text-xs md:text-sm">
-                    <span className="text-blue-400 font-bold">BCA</span>
-                    <span>Transfer</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs md:text-sm">
                     <span className="text-emerald-400 font-bold">JAGO</span>
                     <span>Transfer</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs md:text-sm">
-                    <span className="text-purple-400 font-bold">QRIS</span>
-                    <span>Scan</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs md:text-sm">
-                    <span className="text-green-400 font-bold">WA</span>
+                    <span className="text-blue-400 font-bold">TG</span>
                     <span>Konfirmasi</span>
                   </div>
                 </div>
@@ -302,7 +294,7 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-white/30 text-xs">
                   <div className="flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/60" />
-                    <span>Transfer Bank BCA / Jago / QRIS</span>
+                    <span>Transfer Bank Jago</span>
                   </div>
                   <span className="hidden sm:inline">•</span>
                   <div className="flex items-center gap-1.5">
