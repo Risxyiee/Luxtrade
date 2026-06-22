@@ -26,11 +26,11 @@ export interface DokuOrderResult {
 
 /**
  * Format amount for DOKU Checkout v1.
- * DOKU expects amount as STRING: "52000.00" (2 decimal places, string type).
- * Docs say "without decimal" but API rejects integer — must be string.
+ * DOKU requires amount.value as INTEGER (no decimals, no quotes).
+ * Example: 52000 (not "52000.00", not 52000.00)
  */
-function formatAmount(amount: number): string {
-  return amount.toFixed(2)
+function formatAmount(amount: number): number {
+  return Math.round(amount)
 }
 
 /**
@@ -125,7 +125,7 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
             value: amountVal,
             currency: 'IDR',
           },
-          quantity: '1',
+          quantity: 1,
           category: 'Digital Service',
           merchant_name: 'LuxTrade',
         },
@@ -166,6 +166,7 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
     invoiceId,
     amount: amountVal,
     amountType: typeof amountVal,
+    amountValue: `"${amountVal}" (JSON serializes to ${JSON.stringify(amountVal)})`,
     plan,
     clientId: DOKU_CLIENT_ID.substring(0, 8) + '...',
     paymentMethodTypes,
