@@ -5,30 +5,19 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, Copy, Check, ExternalLink, Clock, ShieldCheck, Receipt,
   Sparkles, ChevronDown, ChevronUp, Loader2, CheckCircle2,
-  Banknote, Smartphone, QrCode, Lock
+  Banknote, Smartphone, QrCode, Lock, AlertCircle, CreditCard, Wallet
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { formatRupiah } from '@/lib/pricing'
 
-type PaymentMethodType = 'VA' | 'EWALLET' | 'QRIS'
-
-interface PaymentInvoiceModalProps {
-  isOpen: boolean
-  onClose: () => void
-  invoiceNumber: string
-  planName: string
-  duration: string
-  amount: number
-  expiresAt: string
-  paymentUrl: string
-  onPayNow?: () => void
-}
-
+// ============================================
+// Payment method categories mapped to SakuraPay method codes
+// ============================================
 const PAYMENT_CATEGORIES: {
-  type: PaymentMethodType
+  type: string
   label: string
   icon: typeof Banknote
-  methods: string[]
+  methods: { code: string; label: string }[]
   color: {
     sel: string
     unsel: string
@@ -40,7 +29,9 @@ const PAYMENT_CATEGORIES: {
     type: 'QRIS',
     label: 'QRIS',
     icon: QrCode,
-    methods: ['QRIS', 'QRIS2', 'QRISC', 'QRISMU'],
+    methods: [
+      { code: 'QRIS', label: 'QRIS' },
+    ],
     color: {
       sel: 'border-emerald-400 bg-emerald-500/15',
       unsel: 'border-white/10 bg-white/[0.03]',
@@ -52,7 +43,13 @@ const PAYMENT_CATEGORIES: {
     type: 'EWALLET',
     label: 'E-Wallet',
     icon: Smartphone,
-    methods: ['GOPAY', 'DANA', 'OVO', 'ShopeePay', 'LinkAja'],
+    methods: [
+      { code: 'GOPAY', label: 'GoPay' },
+      { code: 'DANA', label: 'DANA' },
+      { code: 'OVO', label: 'OVO' },
+      { code: 'SHOPEEPAY', label: 'ShopeePay' },
+      { code: 'LINKAJA', label: 'LinkAja' },
+    ],
     color: {
       sel: 'border-violet-400 bg-violet-500/15',
       unsel: 'border-white/10 bg-white/[0.03]',
@@ -64,7 +61,13 @@ const PAYMENT_CATEGORIES: {
     type: 'VA',
     label: 'Virtual Account',
     icon: Banknote,
-    methods: ['BCAVA', 'BNIVA', 'BRIVA', 'MANDIRIVA', 'PERMATAVA'],
+    methods: [
+      { code: 'BCAVA', label: 'BCA' },
+      { code: 'BNIVA', label: 'BNI' },
+      { code: 'BRIVA', label: 'BRI' },
+      { code: 'PERMATAVA', label: 'Permata' },
+      { code: 'MUAMALATVA', label: 'Muamalat' },
+    ],
     color: {
       sel: 'border-amber-400 bg-amber-500/15',
       unsel: 'border-white/10 bg-white/[0.03]',
@@ -74,6 +77,39 @@ const PAYMENT_CATEGORIES: {
   },
 ]
 
+// Min amounts from SakuraPay docs (in IDR)
+const METHOD_MIN_AMOUNTS: Record<string, number> = {
+  QRIS: 500,
+  GOPAY: 500,
+  DANA: 1000,
+  OVO: 1000,
+  SHOPEEPAY: 1000,
+  LINKAJA: 1000,
+  BCAVA: 10000,
+  BNIVA: 10000,
+  BRIVA: 10000,
+  PERMATAVA: 10000,
+  MUAMALATVA: 10000,
+  ALFAMART: 10000,
+  INDOMARET: 10000,
+}
+
+interface PaymentInvoiceModalProps {
+  isOpen: boolean
+  onClose: () => void
+  invoiceNumber: string
+  planName: string
+  duration: string
+  amount: number
+  expiresAt: string
+  plan: string        // PRO | LIFETIME
+  durationMonths: number
+  // paymentUrl is optional now — modal will create its own order
+  paymentUrl?: string
+  orderId?: string
+  onPayNow?: () => void
+}
+
 export default function PaymentInvoiceModal({
   isOpen,
   onClose,
@@ -82,19 +118,41 @@ export default function PaymentInvoiceModal({
   duration,
   amount,
   expiresAt,
-  paymentUrl,
+  plan,
+  durationMonths,
+  paymentUrl: initialPaymentUrl,
+  orderId: initialOrderId,
   onPayNow
 }: PaymentInvoiceModalProps) {
   const [copied, setCopied] = useState<string | null>(null)
   const [paying, setPaying] = useState(false)
   const [paid, setPaid] = useState(false)
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethodType | null>(null)
-  const [showManualTransfer, setShowManualTransfer] = useState(!paymentUrl)
+  const [paymentUrl, setPaymentUrl] = useState(initialPaymentUrl || '')
+  const [orderId, setOrderId] = useState(initialOrderId || '')
 
-  // Can use gateway button (requires paymentUrl + selected method)
-  const canPayGateway = !!paymentUrl && selectedMethod !== null && !paying && !paid
-  // Can use manual button (requires selected method, no paymentUrl needed)
-  const canPayManual = !paymentUrl && selectedMethod !== null && !paying && !paid
+  // Step 1: Select category (QRIS / E-Wallet / VA)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  // Step 2: Select specific method within category
+  const [selectedMethod, setSelectedMethod] = useState<string | null>(null)
+  // Error state
+  const [payError, setPayError] = useState('')
+  // Manual transfer collapsed
+  const [showManualTransfer, setShowManualTransfer] = useState(false)
+
+  // Can pay: method selected and not already paying/paid
+  const canPay = selectedMethod !== null && !paying && !paid
+
+  // Get available methods for selected category
+  const getMethodsForCategory = (catType: string) => {
+    const cat = PAYMENT_CATEGORIES.find(c => c.type === catType)
+    return cat?.methods || []
+  }
+
+  // Check if a method is below minimum amount
+  const isBelowMin = (methodCode: string) => {
+    const min = METHOD_MIN_AMOUNTS[methodCode]
+    return min ? amount < min : false
+  }
 
   const formatExpiry = (dateStr: string) => {
     try {
@@ -116,21 +174,82 @@ export default function PaymentInvoiceModal({
     setTimeout(() => setCopied(null), 2000)
   }
 
+  // When user selects a category, reset the specific method
+  const handleCategorySelect = (catType: string) => {
+    if (selectedCategory === catType) {
+      // Deselect
+      setSelectedCategory(null)
+      setSelectedMethod(null)
+    } else {
+      setSelectedCategory(catType)
+      // Auto-select first valid method in category
+      const methods = getMethodsForCategory(catType)
+      const validMethod = methods.find(m => !isBelowMin(m.code))
+      setSelectedMethod(validMethod?.code || null)
+    }
+    setPayError('')
+  }
+
+  // When user selects a specific method within category
+  const handleMethodSelect = (methodCode: string) => {
+    if (isBelowMin(methodCode)) {
+      setPayError(`Min. pembayaran ${methodCode} adalah ${formatRupiah(METHOD_MIN_AMOUNTS[methodCode])}`)
+      return
+    }
+    setSelectedMethod(methodCode)
+    setPayError('')
+  }
+
+  // MAIN PAY HANDLER: Create SakuraPay order then redirect to gateway
   const handlePay = async () => {
-    if (paymentUrl) {
-      setPaying(true)
-      await new Promise(r => setTimeout(r, 500))
-      window.open(paymentUrl, '_blank')
+    if (!selectedMethod) return
+    setPaying(true)
+    setPayError('')
+
+    try {
+      // If we already have a paymentUrl, open it directly
+      if (paymentUrl) {
+        window.open(paymentUrl, '_blank')
+        setPaying(false)
+        setPaid(true)
+        return
+      }
+
+      // Otherwise, create a new SakuraPay order with the selected method
+      const response = await fetch('/api/payment/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount,
+          plan,
+          durationMonths,
+          paymentMethod: selectedMethod,
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.paymentUrl) {
+        throw new Error(data.error || data.details || 'Gagal membuat pesanan')
+      }
+
+      // Got paymentUrl — redirect to SakuraPay gateway
+      setPaymentUrl(data.paymentUrl)
+      setOrderId(data.orderId || '')
+
+      // Open payment gateway in new tab
+      window.open(data.paymentUrl, '_blank')
       setPaying(false)
       setPaid(true)
+    } catch (error: any) {
+      console.error('Payment error:', error)
+      setPaying(false)
+      setPayError(error.message || 'Gagal membuat pembayaran. Silakan coba lagi atau gunakan Transfer Manual.')
     }
   }
 
-  // Fallback: open Telegram + show manual bank transfer
-  const handleManualPay = () => {
-    const msg = `Halo admin, saya mau konfirmasi pembayaran LuxTrade paket ${planName} (${formatRupiah(amount)}). Invoice: ${invoiceNumber}. Metode: ${selectedMethod || 'Lainnya'}`
-    window.open(`https://t.me/Risxyiee?text=${encodeURIComponent(msg)}`, '_blank')
-    setPaid(true)
+  const getSelectedCategoryData = () => {
+    return PAYMENT_CATEGORIES.find(c => c.type === selectedCategory)
   }
 
   if (!isOpen) return null
@@ -171,7 +290,7 @@ export default function PaymentInvoiceModal({
                         {paid ? 'Pembayaran Diproses' : 'Invoice Pembayaran'}
                       </h2>
                       <p className="text-emerald-100/80 text-xs mt-0.5">
-                        {paid ? 'Selesaikan pembayaran Anda' : 'Pilih metode & selesaikan pembayaran'}
+                        {paid ? 'Selesaikan pembayaran di tab baru' : 'Pilih metode & lanjut ke pembayaran'}
                       </p>
                     </div>
                   </div>
@@ -196,12 +315,9 @@ export default function PaymentInvoiceModal({
                 >
                   <CheckCircle2 className="w-12 h-12 text-emerald-400" />
                   <div className="text-center">
-                    <p className="text-lg font-bold text-emerald-300">{paymentUrl ? 'Pesanan Dibuat!' : 'Silakan Transfer Manual'}</p>
+                    <p className="text-lg font-bold text-emerald-300">Pesanan Dibuat!</p>
                     <p className="text-sm text-white/60 mt-1">
-                      {paymentUrl
-                        ? 'Selesaikan pembayaran di tab yang baru dibuka'
-                        : 'Transfer ke rekening berikut lalu konfirmasi via Telegram'
-                      }
+                      Selesaikan pembayaran di tab yang baru dibuka
                     </p>
                   </div>
                   <Badge className="bg-emerald-500/20 text-emerald-300 text-xs">
@@ -284,25 +400,22 @@ export default function PaymentInvoiceModal({
                 </div>
               )}
 
-              {/* ===== INTERACTIVE PAYMENT METHOD SELECTION ===== */}
+              {/* ===== STEP 1: PAYMENT CATEGORY SELECTION ===== */}
               {!paid && (
                 <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-4 space-y-3">
                   <p className="text-xs text-white/50 font-medium flex items-center gap-1.5">
                     <Lock className="w-3.5 h-3.5 text-purple-400" />
-                    Pilih Kategori Metode Pembayaran
+                    Langkah 1 — Pilih Kategori Pembayaran
                   </p>
                   <div className="grid grid-cols-3 gap-2">
                     {PAYMENT_CATEGORIES.map((cat) => {
-                      const isSelected = selectedMethod === cat.type
+                      const isSelected = selectedCategory === cat.type
                       const Icon = cat.icon
                       return (
                         <button
                           type="button"
                           key={cat.type}
-                          onClick={() => {
-                            setSelectedMethod(cat.type)
-                            setShowManualTransfer(false)
-                          }}
+                          onClick={() => handleCategorySelect(cat.type)}
                           className={`
                             relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all duration-200
                             cursor-pointer active:scale-[0.96]
@@ -339,10 +452,10 @@ export default function PaymentInvoiceModal({
 
                           <div className="relative flex flex-wrap justify-center gap-0.5">
                             {cat.methods.slice(0, 3).map((m) => (
-                              <span key={m} className={`text-[8px] px-1.5 py-0.5 rounded-full transition-colors ${
+                              <span key={m.code} className={`text-[8px] px-1.5 py-0.5 rounded-full transition-colors ${
                                 isSelected ? 'bg-white/15 text-white/70' : 'bg-white/5 text-white/25'
                               }`}>
-                                {m}
+                                {m.label}
                               </span>
                             ))}
                             {cat.methods.length > 3 && (
@@ -367,28 +480,96 @@ export default function PaymentInvoiceModal({
                       )
                     })}
                   </div>
-
-                  {!selectedMethod && (
-                    <p className="text-[10px] text-center text-white/30">
-                      Ketuk salah satu metode untuk melanjutkan
-                    </p>
-                  )}
                 </div>
               )}
 
-              {/* ===== BAYAR SEKARANG BUTTON ===== */}
+              {/* ===== STEP 2: SPECIFIC METHOD SELECTION (show after category selected) ===== */}
+              {!paid && selectedCategory && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="bg-white/[0.02] border border-white/10 rounded-2xl p-4 space-y-3"
+                >
+                  <p className="text-xs text-white/50 font-medium flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5 text-purple-400" />
+                    Langkah 2 — Pilih Metode Spesifik
+                  </p>
+                  <div className="space-y-2">
+                    {getMethodsForCategory(selectedCategory).map((method) => {
+                      const isSelected = selectedMethod === method.code
+                      const belowMin = isBelowMin(method.code)
+                      const catData = getSelectedCategoryData()
+                      return (
+                        <button
+                          type="button"
+                          key={method.code}
+                          onClick={() => handleMethodSelect(method.code)}
+                          disabled={belowMin}
+                          className={`
+                            w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all duration-200
+                            cursor-pointer active:scale-[0.98]
+                            ${isSelected
+                              ? `${catData?.color.sel || ''} ${catData?.color.glow || ''}`
+                              : belowMin
+                                ? 'border-white/5 bg-white/[0.01] opacity-35 cursor-not-allowed'
+                                : 'border-white/10 bg-white/[0.02] hover:border-white/20'
+                            }
+                          `}
+                        >
+                          {/* Radio indicator */}
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                            isSelected ? 'border-emerald-400 bg-emerald-400/20' : 'border-white/20'
+                          }`}>
+                            {isSelected && <div className="w-2 h-2 rounded-full bg-emerald-400" />}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <span className={`text-sm font-medium transition-colors ${
+                              isSelected ? 'text-white' : 'text-white/60'
+                            }`}>
+                              {method.label}
+                            </span>
+                            {belowMin && (
+                              <p className="text-amber-400 text-[10px] mt-0.5">Min. {formatRupiah(METHOD_MIN_AMOUNTS[method.code])}</p>
+                            )}
+                          </div>
+
+                          {isSelected && (
+                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                            </motion.div>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Error message */}
+              {!paid && payError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs"
+                >
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>{payError}</span>
+                </motion.div>
+              )}
+
+              {/* ===== BAYAR SEKARANG BUTTON — always visible, always creates order ===== */}
               {!paid && (
                 <motion.button
-                  whileHover={(canPayGateway || canPayManual) ? { scale: 1.01 } : {}}
-                  whileTap={(canPayGateway || canPayManual) ? { scale: 0.98 } : {}}
-                  onClick={paymentUrl ? handlePay : handleManualPay}
-                  disabled={!canPayGateway && !canPayManual}
+                  whileHover={canPay ? { scale: 1.01 } : {}}
+                  whileTap={canPay ? { scale: 0.98 } : {}}
+                  onClick={handlePay}
+                  disabled={!canPay}
                   className={`
                     w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-3 transition-all text-sm
-                    ${canPayGateway || canPayManual
-                      ? paymentUrl
-                        ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500 hover:from-emerald-400 hover:via-teal-400 hover:to-emerald-400 text-white shadow-lg shadow-emerald-500/25 cursor-pointer'
-                        : 'bg-gradient-to-r from-blue-500 via-blue-400 to-cyan-500 hover:from-blue-400 hover:via-blue-300 hover:to-cyan-400 text-white shadow-lg shadow-blue-500/25 cursor-pointer'
+                    ${canPay
+                      ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500 hover:from-emerald-400 hover:via-teal-400 hover:to-emerald-400 text-white shadow-lg shadow-emerald-500/25 cursor-pointer'
                       : 'bg-white/5 text-white/25 border border-white/10 cursor-not-allowed'
                     }
                   `}
@@ -396,28 +577,30 @@ export default function PaymentInvoiceModal({
                   {paying ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Mengalihkan...
+                      Membuat Pesanan...
                     </>
                   ) : !selectedMethod ? (
                     <>
                       <Lock className="w-5 h-5" />
-                      Bayar {formatRupiah(amount)} — Pilih Metode Dulu
-                    </>
-                  ) : paymentUrl ? (
-                    <>
-                      <ExternalLink className="w-5 h-5" />
-                      Bayar Sekarang — {formatRupiah(amount)}
+                      Pilih Metode Pembayaran
                     </>
                   ) : (
                     <>
                       <ExternalLink className="w-5 h-5" />
-                      Konfirmasi via Telegram — {formatRupiah(amount)}
+                      Bayar Sekarang — {formatRupiah(amount)}
                     </>
                   )}
                 </motion.button>
               )}
 
-              {/* ===== MANUAL TRANSFER FALLBACK (collapsed by default, auto-open if no paymentUrl) ===== */}
+              {/* Payment method info text */}
+              {!paid && selectedMethod && !payError && (
+                <p className="text-[10px] text-center text-white/25">
+                  Anda akan dialihkan ke halaman pembayaran SakuraPay
+                </p>
+              )}
+
+              {/* ===== MANUAL TRANSFER FALLBACK (collapsed by default) ===== */}
               {!paid && (
                 <div className="rounded-2xl border border-white/5 overflow-hidden">
                   <button
@@ -427,7 +610,7 @@ export default function PaymentInvoiceModal({
                   >
                     <span className="flex items-center gap-1.5">
                       <Banknote className="w-3.5 h-3.5" />
-                      Transfer Manual {paymentUrl ? '(Cadangan)' : ''}
+                      Transfer Manual (Cadangan)
                     </span>
                     {showManualTransfer
                       ? <ChevronUp className="w-3.5 h-3.5" />
@@ -447,7 +630,7 @@ export default function PaymentInvoiceModal({
                         <div className="px-4 pb-4 pt-1">
                           <div className="bg-white/[0.03] rounded-xl p-4">
                             <p className="text-[10px] text-white/30 mb-3 text-center">
-                              {paymentUrl ? 'Gunakan hanya jika pembayaran otomatis gagal' : 'Transfer ke rekening berikut'}
+                              Gunakan hanya jika pembayaran otomatis gagal
                             </p>
                             <div className="text-center space-y-3">
                               <div>
@@ -469,7 +652,7 @@ export default function PaymentInvoiceModal({
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500/20 text-blue-300 text-xs font-medium hover:bg-blue-500/30 transition-colors"
                               >
-                                <ExternalLink className="w-3.5 h-3.5" />
+                                <Wallet className="w-3.5 h-3.5" />
                                 Konfirmasi via Telegram
                               </a>
                             </div>
