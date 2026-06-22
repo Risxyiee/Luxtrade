@@ -49,6 +49,15 @@ export default function TermsOfServicePage() {
           <h1 className="text-4xl font-bold mb-2">Terms of Service</h1>
           <p className="text-white/40 mb-8">Terakhir diperbarui: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
 
+          {/* CRITICAL NOTICE */}
+          <div className="bg-gradient-to-r from-red-500/10 via-amber-500/10 to-red-500/10 border border-red-500/25 rounded-2xl p-5 mb-8">
+            <p className="text-white/80 leading-relaxed text-sm">
+              <strong className="text-red-300">Penting:</strong> LuxTrade adalah platform perangkat lunak (SaaS) untuk analisis data trading. 
+              Kami <strong>BUKAN broker, BUKAN pialang berjangka, dan BUKAN pengelola dana</strong>. 
+              Selengkapnya baca halaman <Link href="/disclaimer" className="text-amber-400 underline hover:text-amber-300">Disclaimer</Link>.
+            </p>
+          </div>
+
           <div className="prose prose-invert max-w-none space-y-8">
             <section>
               <h2 className="text-2xl font-semibold text-white mb-4">1. Penerimaan Ketentuan</h2>
@@ -60,7 +69,10 @@ export default function TermsOfServicePage() {
             <section>
               <h2 className="text-2xl font-semibold text-white mb-4">2. Deskripsi Layanan</h2>
               <p className="text-white/70 leading-relaxed">
-                LuxTrade adalah platform trading journal yang membantu trader mencatat, menganalisis, dan memperbaiki performa trading mereka. Layanan mencakup:
+                LuxTrade adalah platform Software-as-a-Service (SaaS) berupa dashboard analisis data
+                untuk membantu trader ritel mencatat, memantau, dan mengevaluasi performa trading mereka.
+                Layanan ini BUKAN merupakan platform trading, broker, pialang, atau pengelola investasi.
+                Layanan mencakup:
               </p>
               <ul className="list-disc list-inside space-y-2 text-white/70 mt-4">
                 <li>Pencatatan dan manajemen data trading</li>
@@ -110,12 +122,21 @@ export default function TermsOfServicePage() {
                   <p className="text-white/70">Fitur dasar tersedia gratis dengan batasan jumlah trades per bulan.</p>
                 </div>
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
-                  <h3 className="text-lg font-medium text-amber-400 mb-2">Paket Pro (Rp 49.000/bulan)</h3>
-                  <p className="text-white/70">Akses penuh ke semua fitur premium tanpa batasan.</p>
+                  <h3 className="text-lg font-medium text-amber-400 mb-2">Paket Pro & Lifetime</h3>
+                  <p className="text-white/70">Akses penuh ke semua fitur premium tanpa batasan. Pembayaran dilakukan melalui payment gateway resmi yang terintegrasi (SakuraPay) dengan metode QRIS, E-Wallet, atau Virtual Account.</p>
                 </div>
-                <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
-                  <h3 className="text-lg font-medium text-amber-400 mb-2">Garansi Uang Kembali</h3>
-                  <p className="text-white/70">7 hari garansi uang kembali tanpa pertanyaan untuk paket Pro.</p>
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-5">
+                  <h3 className="text-lg font-medium text-red-400 mb-2">Produk Digital — Non-Refundable</h3>
+                  <p className="text-white/70 leading-relaxed">
+                    <strong className="text-red-300">Pembelian paket langganan LuxTrade bersifat FINAL dan TIDAK DAPAT dikembalikan (non-refundable).</strong>{' '}
+                    Layanan kami adalah produk digital berupa akses perangkat lunak yang diaktifkan secara otomatis setelah pembayaran berhasil.
+                    Karena sifat digital yang tidak dapat dikembalikan, kami tidak memberikan pengembalian dana (refund) setelah
+                    fitur premium diakses dan digunakan.
+                  </p>
+                  <p className="text-white/60 text-sm mt-3">
+                    Pengecualian: Pengembalian dana hanya dapat diproses jika terjadi pembayaran ganda (double charge)
+                    atau kesalahan teknis dari pihak payment gateway yang terverifikasi.
+                  </p>
                 </div>
               </div>
             </section>
@@ -131,7 +152,11 @@ export default function TermsOfServicePage() {
               <h2 className="text-2xl font-semibold text-white mb-4">7. Batasan Tanggung Jawab</h2>
               <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-5">
                 <p className="text-white/70 leading-relaxed">
-                  <strong className="text-red-400">Penting:</strong> LuxTrade adalah tools jurnal trading, BUKAN platform trading atau saran investasi. Keputusan trading sepenuhnya tanggung jawab Anda. Kami tidak bertanggung jawab atas kerugian finansial yang mungkin terjadi dari aktivitas trading Anda.
+                  <strong className="text-red-400">Penting:</strong> LuxTrade adalah platform perangkat lunak (SaaS), BUKAN
+                  platform trading, broker, pialang, atau saran investasi. Keputusan trading sepenuhnya
+                  tanggung jawab pengguna. Kami tidak bertanggung jawab atas kerugian finansial yang
+                  mungkin terjadi dari aktivitas trading pengguna. Selengkapnya baca halaman{' '}
+                  <Link href="/disclaimer" className="text-amber-400 underline hover:text-amber-300">Disclaimer</Link>.
                 </p>
               </div>
             </section>
@@ -182,6 +207,7 @@ export default function TermsOfServicePage() {
         <div className="max-w-4xl mx-auto px-4 text-center text-white/40 text-sm">
           <p>© {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
           <div className="flex justify-center gap-6 mt-4">
+            <Link href="/disclaimer" className="hover:text-white transition-colors">Disclaimer</Link>
             <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
           </div>

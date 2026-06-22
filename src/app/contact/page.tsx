@@ -328,7 +328,7 @@ export default function ContactPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center">
             <p className="text-white/40 text-sm font-medium">
-              © 2024 LuxTrade. All rights reserved.
+              © {new Date().getFullYear()} LuxTrade. All rights reserved.
             </p>
           </div>
         </div>
