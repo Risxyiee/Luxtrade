@@ -12,17 +12,6 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
   const { pathname } = req.nextUrl
 
-  // Skip middleware for API routes, static files, and auth callbacks
-  if (
-    pathname.startsWith('/api/') ||
-    pathname.startsWith('/_next/') ||
-    pathname.startsWith('/static/') ||
-    pathname.includes('.') ||
-    pathname === '/favicon.ico'
-  ) {
-    return res
-  }
-
   // Skip auth guard if Supabase env vars are missing (local dev without .env)
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -69,6 +58,12 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/dashboard/:path*',
+    '/upgrade/:path*',
+    '/admin-subscriptions/:path*',
+    '/auth/login',
+    '/auth/signup',
+    '/auth/verify',
+    '/auth/reset-password',
   ],
 }
