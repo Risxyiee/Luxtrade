@@ -2224,3 +2224,31 @@ Stage Summary:
 - Payment confirmation now works reliably via dual mechanism: webhook callback + active SakuraPay polling
 - Even if SakuraPay callback never arrives, the frontend polling (every 5s) will detect payment success directly from SakuraPay API
 - Sandbox mode signature verification auto-skipped to prevent false rejections
+
+---
+Task ID: 10
+Agent: Z.ai Code
+Task: Add "Saya Sudah Bayar" button for manual payment confirmation
+
+Work Log:
+- Created POST /api/payment/confirm-payment API route
+  - Checks SakuraPay directly via checkTransactionStatus(trx_id) and getTransactionHistory(merchant_ref)
+  - If SakuraPay says 'berhasil' → updates DB to SUCCESS + activates subscription + syncs Auth metadata
+  - If 'pending' → returns hint message for user to try again
+  - If 'expired' → updates DB to EXPIRED
+  - Includes activateSubscription() function for subscription activation
+- Updated PaymentInvoiceModal WAITING state:
+  - Added confirming/confirmMessage/confirmType state variables
+  - Added handleConfirmPayment() async handler
+  - Added prominent green "Saya Sudah Bayar" button as primary CTA
+  - Added color-coded feedback alerts (emerald for success, amber for pending, red for error)
+  - Updated waiting banner text: "Selesaikan pembayaran... lalu klik 'Saya Sudah Bayar' di bawah"
+  - Button shows loading spinner while checking
+- No lint errors in changed files
+- Pushed to GitHub: commit 3967ca0
+
+Stage Summary:
+- Users can now manually confirm payment by clicking "Saya Sudah Bayar" button
+- API checks SakuraPay directly — no dependency on webhook callback
+- If SakuraPay confirms payment → order immediately marked SUCCESS + subscription activated
+- Clear feedback messages guide users through the confirmation process
