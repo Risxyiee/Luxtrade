@@ -6,7 +6,7 @@ import {
   X, Copy, Check, ExternalLink, Clock, ShieldCheck, Receipt,
   Sparkles, ChevronDown, ChevronUp, Loader2, CheckCircle2,
   Banknote, Smartphone, QrCode, Lock, AlertCircle, CreditCard,
-  Wallet, Crown, PartyPopper, ArrowRight
+  Wallet, Crown, PartyPopper, ArrowRight, MessageCircle, HeadphonesIcon
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { formatRupiah } from '@/lib/pricing'
@@ -229,6 +229,10 @@ export default function PaymentInvoiceModal({
   // ============================================
   // Helpers
   // ============================================
+  // Telegram admin link
+  const TG_ADMIN_LINK = 'https://t.me/Risxyiee'
+  const tgMessage = encodeURIComponent(`Halo admin LuxTrade, saya butuh bantuan terkait pembayaran. Invoice: ${invoiceNumber}. Paket: ${planName} (${formatRupiah(amount)}). Terima kasih.`)
+
   const getMethodsForCategory = (catType: string) => {
     const cat = PAYMENT_CATEGORIES.find(c => c.type === catType)
     return cat?.methods || []
@@ -574,6 +578,30 @@ export default function PaymentInvoiceModal({
                     <ArrowRight className="w-5 h-5" />
                     Kembali ke Dashboard
                   </motion.button>
+
+                  {/* ===== HELP BLOCK — SUCCESS state ===== */}
+                  <div className="mt-1 bg-white/[0.03] border border-white/10 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <HeadphonesIcon className="w-4 h-4 text-amber-400" />
+                      <p className="text-xs font-medium text-white/60">Butuh Bantuan?</p>
+                    </div>
+                    <p className="text-[11px] text-white/40 leading-relaxed">
+                      Paket PRO/Lifetime belum aktif secara otomatis? Jangan khawatir! Hubungi admin untuk aktivasi manual.
+                    </p>
+                    <motion.a
+                      href={`${TG_ADMIN_LINK}?text=${tgMessage}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#0088cc]/15 border border-[#0088cc]/25 text-[#0088cc] text-sm font-medium hover:bg-[#0088cc]/25 cursor-pointer transition-colors"
+                    >
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0h-.056zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.492-1.302.48-.428-.012-1.252-.242-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.015 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                      </svg>
+                      Chat Admin via Telegram
+                    </motion.a>
+                  </div>
                 </motion.div>
               )}
 
@@ -643,6 +671,30 @@ export default function PaymentInvoiceModal({
                   >
                     Kembali ke Dashboard
                   </button>
+
+                  {/* ===== HELP BLOCK — WAITING state ===== */}
+                  <div className="mt-1 bg-white/[0.03] border border-white/10 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <HeadphonesIcon className="w-4 h-4 text-amber-400" />
+                      <p className="text-xs font-medium text-white/60">Butuh Bantuan?</p>
+                    </div>
+                    <p className="text-[11px] text-white/40 leading-relaxed">
+                      Ada masalah dengan QRIS atau pembayaran? Hubungi admin langsung untuk bantuan cepat.
+                    </p>
+                    <motion.a
+                      href={`${TG_ADMIN_LINK}?text=${tgMessage}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#0088cc]/15 border border-[#0088cc]/25 text-[#0088cc] text-sm font-medium hover:bg-[#0088cc]/25 cursor-pointer transition-colors"
+                    >
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0h-.056zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.492-1.302.48-.428-.012-1.252-.242-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.015 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                      </svg>
+                      Chat Admin via Telegram
+                    </motion.a>
+                  </div>
                 </motion.div>
               )}
 
@@ -1000,6 +1052,30 @@ export default function PaymentInvoiceModal({
                         </motion.div>
                       )}
                     </AnimatePresence>
+                  </div>
+
+                  {/* ===== HELP BLOCK — PENDING state ===== */}
+                  <div className="mt-1 bg-white/[0.03] border border-white/10 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <HeadphonesIcon className="w-4 h-4 text-amber-400" />
+                      <p className="text-xs font-medium text-white/60">Butuh Bantuan?</p>
+                    </div>
+                    <p className="text-[11px] text-white/40 leading-relaxed">
+                      Ada kendala dengan metode pembayaran atau ada pertanyaan? Hubungi admin langsung.
+                    </p>
+                    <motion.a
+                      href={`${TG_ADMIN_LINK}?text=${tgMessage}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#0088cc]/15 border border-[#0088cc]/25 text-[#0088cc] text-sm font-medium hover:bg-[#0088cc]/25 cursor-pointer transition-colors"
+                    >
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0h-.056zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.492-1.302.48-.428-.012-1.252-.242-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.015 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                      </svg>
+                      Chat Admin via Telegram
+                    </motion.a>
                   </div>
 
                   {/* Back */}
