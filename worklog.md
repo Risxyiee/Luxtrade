@@ -1915,3 +1915,24 @@ Stage Summary:
 - Verified with Agent Browser: all plan buttons clickable, step navigation works, payment methods clickable, E-Wallet selection works, "Bayar Rp65.000" button activates correctly
 - Pushed to GitHub: commit 4cf5379
 - Key files changed: middleware.ts, src/app/upgrade/page.tsx, src/app/page.tsx, src/middleware.ts (deleted)
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix DATABASE_URL corruption in production causing Prisma connection failure
+
+Work Log:
+- Analyzed production logs showing: `Database Path: file:./ppostgresql://postgres.klxkdrfsfcoankbaoejn:...`
+- Root cause: DATABASE_URL in Vercel has doubled protocol prefix 'ppostgresql://' 
+- Old code's getDatabaseUrl() didn't handle this: startsWith('postgresql://') failed → fell into SQLite path → prepended 'file:./' → resulted in 'file:./ppostgresql://...'
+- Prisma rejected this as invalid datasource URL
+- Created normalizeUrl() function that:
+  - Strips 'file:./' or 'file:' prefix when URL contains 'postgresql://'
+  - Extracts 'postgresql://' substring when URL has doubled prefix like 'ppostgresql://'
+  - Handles 'postgres://' short form too
+- Verified with all corruption patterns: normal, double-p, file-prefix, both combined, short protocol
+
+Stage Summary:
+- Pushed to GitHub: commit ac6ba72
+- File changed: src/lib/db.ts
+- All 5 test patterns pass normalization ✅
