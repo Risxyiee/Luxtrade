@@ -15,6 +15,7 @@ export interface DokuOrderParams {
   customerEmail: string
   plan: string
   durationMonths?: number
+  paymentType?: string  // e.g. 'VIRTUAL_ACCOUNT', 'E_WALLET', 'QRIS', 'CREDIT_CARD'
 }
 
 export interface DokuOrderResult {
@@ -48,7 +49,7 @@ function getTimestamp(): string {
  * Supports: Virtual Account, E-Wallet, QRIS, Credit Card, etc.
  */
 export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrderResult> {
-  const { amount, invoiceId, customerName, customerEmail, plan, durationMonths } = params
+  const { amount, invoiceId, customerName, customerEmail, plan, durationMonths, paymentType } = params
 
   if (!DOKU_CLIENT_ID || !DOKU_SECRET_KEY) {
     throw new Error('DOKU credentials not configured')
@@ -69,16 +70,14 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
     ? `LuxTrade ${plan} Plan - ${durationMonths} Bulan`
     : `LuxTrade ${plan} Plan`
 
+  // Jika user pilih metode bayar spesifik, kirim hanya itu ke DOKU
+  const paymentMethodTypes = paymentType
+    ? [paymentType]
+    : ['VIRTUAL_ACCOUNT', 'E_WALLET', 'QRIS', 'CREDIT_CARD', 'DIRECT_DEBIT', 'ONLINE_TO_OFFLINE']
+
   const body = {
     payment: {
-      payment_method_types: [
-        'VIRTUAL_ACCOUNT',
-        'E_WALLET',
-        'QRIS',
-        'CREDIT_CARD',
-        'DIRECT_DEBIT',
-        'ONLINE_TO_OFFLINE',
-      ],
+      payment_method_types: paymentMethodTypes,
       payment_method_options: {
         reusability: 'single_use',
       },

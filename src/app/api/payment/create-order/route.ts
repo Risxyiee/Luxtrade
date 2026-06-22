@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
-    const { amount, plan, durationMonths } = body
+    const { amount, plan, durationMonths, paymentMethod } = body
 
     if (!amount || amount < 1) {
       return NextResponse.json({ error: 'Amount is required and must be > 0' }, { status: 400 })
@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
         customerEmail,
         plan,
         durationMonths,
+        paymentType: paymentMethod,
       })
 
       // Update order with DOKU details
@@ -128,6 +129,7 @@ export async function POST(request: NextRequest) {
           customerEmail,
           plan,
           durationMonths,
+          paymentType: paymentMethod,
         })
 
         return NextResponse.json({

@@ -7,7 +7,7 @@ import {
   Crown, ArrowRight, ArrowLeft, AlertCircle, Loader2,
   CheckCircle, Tag, Sparkles, Shield, Zap, Star,
   CreditCard, Smartphone, QrCode, Building2, ChevronDown,
-  Receipt, Gift, TrendingUp, Lock, Clock, Eye
+  Receipt, Gift, Lock, Clock, Wallet
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -62,10 +62,10 @@ const PLANS = [
 ]
 
 const PAYMENT_METHODS = [
-  { id: 'va', label: 'Virtual Account', icon: Building2, desc: 'BCA, BNI, BRI, Mandiri' },
-  { id: 'ewallet', label: 'E-Wallet', icon: Smartphone, desc: 'GoPay, OVO, DANA, ShopeePay' },
-  { id: 'qris', label: 'QRIS', icon: QrCode, desc: 'Scan QR dari apps manapun' },
-  { id: 'cc', label: 'Kartu Kredit', icon: CreditCard, desc: 'Visa, Mastercard' },
+  { id: 'VIRTUAL_ACCOUNT', label: 'Virtual Account', icon: Building2, desc: 'BCA, BNI, BRI, Mandiri', color: 'from-blue-500/20 to-blue-600/10 border-blue-500/30 text-blue-400' },
+  { id: 'E_WALLET', label: 'E-Wallet', icon: Smartphone, desc: 'GoPay, OVO, DANA, ShopeePay', color: 'from-purple-500/20 to-purple-600/10 border-purple-500/30 text-purple-400' },
+  { id: 'QRIS', label: 'QRIS', icon: QrCode, desc: 'Scan QR dari apps manapun', color: 'from-emerald-500/20 to-emerald-600/10 border-emerald-500/30 text-emerald-400' },
+  { id: 'CREDIT_CARD', label: 'Kartu Kredit', icon: CreditCard, desc: 'Visa, Mastercard', color: 'from-amber-500/20 to-amber-600/10 border-amber-500/30 text-amber-400' },
 ]
 
 function formatRupiah(amount: number): string {
@@ -86,9 +86,9 @@ function UpgradeForm() {
   const [success, setSuccess] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [selectedPlan, setSelectedPlan] = useState<any>(null)
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null)
   const [showPayment, setShowPayment] = useState(false)
   const [isCreatingPayment, setIsCreatingPayment] = useState(false)
-  const [paymentData, setPaymentData] = useState<any>(null)
 
   useEffect(() => {
     const getUser = async () => {
@@ -147,13 +147,18 @@ function UpgradeForm() {
 
   const handleSelectPlan = (plan: any) => {
     setSelectedPlan(plan)
-    setShowPayment(false)
-    setPaymentData(null)
+    setSelectedPaymentMethod(null)
+    setShowPayment(true)
+    setError('')
+  }
+
+  const handleSelectPaymentMethod = (methodId: string) => {
+    setSelectedPaymentMethod(methodId)
     setError('')
   }
 
   const handlePayWithDOKU = async () => {
-    if (!selectedPlan || !user) return
+    if (!selectedPlan || !user || !selectedPaymentMethod) return
     setIsCreatingPayment(true); setError('')
     try {
       const res = await fetch('/api/payment/create-order', {
@@ -162,11 +167,11 @@ function UpgradeForm() {
           amount: selectedPlan.price,
           plan: selectedPlan.plan,
           durationMonths: selectedPlan.durationMonths,
+          paymentMethod: selectedPaymentMethod,
         })
       })
       const data = await res.json()
       if (data.success && data.paymentUrl) {
-        // Redirect to DOKU payment page
         window.location.href = data.paymentUrl
       } else {
         setError(data.error || 'Gagal membuat pembayaran')
@@ -203,10 +208,12 @@ function UpgradeForm() {
 
   // Payment confirmation page
   if (showPayment && selectedPlan) {
+    const selectedMethod = PAYMENT_METHODS.find(m => m.id === selectedPaymentMethod)
+
     return (
       <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} className="w-full max-w-lg">
         {/* Header */}
-        <button onClick={() => { setShowPayment(false); setError('') }}
+        <button onClick={() => { setShowPayment(false); setSelectedPaymentMethod(null); setError('') }}
           className="flex items-center gap-2 text-white/50 hover:text-white/80 mb-6 transition-colors">
           <ArrowLeft className="w-4 h-4" />
           <span className="text-sm">Kembali ke pilihan paket</span>
@@ -231,7 +238,7 @@ function UpgradeForm() {
           </div>
 
           {/* Invoice Body */}
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-5">
             {/* Order Summary */}
             <div className="space-y-3">
               <h4 className="text-xs font-semibold text-white/40 uppercase tracking-wider">Detail Pesanan</h4>
@@ -272,19 +279,54 @@ function UpgradeForm() {
               </div>
             </div>
 
-            {/* Payment Methods */}
+            {/* Payment Methods - INTERAKTIF */}
             <div className="space-y-3">
-              <h4 className="text-xs font-semibold text-white/40 uppercase tracking-wider">Metode Pembayaran</h4>
-              <div className="grid grid-cols-2 gap-2">
-                {PAYMENT_METHODS.map((method) => (
-                  <div key={method.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                    <method.icon className="w-5 h-5 text-white/50" />
-                    <div>
-                      <p className="text-white text-xs font-medium">{method.label}</p>
-                      <p className="text-white/30 text-[10px]">{method.desc}</p>
-                    </div>
-                  </div>
-                ))}
+              <h4 className="text-xs font-semibold text-white/40 uppercase tracking-wider">
+                Pilih Metode Pembayaran
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {PAYMENT_METHODS.map((method) => {
+                  const isSelected = selectedPaymentMethod === method.id
+                  return (
+                    <motion.button
+                      key={method.id}
+                      type="button"
+                      onClick={() => handleSelectPaymentMethod(method.id)}
+                      whileTap={{ scale: 0.97 }}
+                      className={`relative flex items-center gap-3 p-4 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
+                        isSelected
+                          ? `bg-gradient-to-br ${method.color} shadow-lg`
+                          : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06] hover:border-white/15'
+                      }`}
+                    >
+                      {/* Selected indicator */}
+                      {isSelected && (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="absolute top-2 right-2 w-5 h-5 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center"
+                        >
+                          <CheckCircle className="w-3 h-3 text-white" />
+                        </motion.div>
+                      )}
+
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        isSelected ? 'bg-white/20' : 'bg-white/[0.05]'
+                      }`}>
+                        <method.icon className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-white/50'}`} />
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className={`text-sm font-semibold ${isSelected ? 'text-white' : 'text-white/80'}`}>
+                          {method.label}
+                        </p>
+                        <p className={`text-[11px] leading-tight ${isSelected ? 'text-white/70' : 'text-white/35'}`}>
+                          {method.desc}
+                        </p>
+                      </div>
+                    </motion.button>
+                  )
+                })}
               </div>
             </div>
 
@@ -300,19 +342,28 @@ function UpgradeForm() {
             {/* Pay Button */}
             <Button
               onClick={handlePayWithDOKU}
-              disabled={isCreatingPayment}
-              className="w-full h-14 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:via-orange-600 hover:to-amber-700 text-white font-bold text-lg shadow-xl shadow-amber-500/20 disabled:opacity-50"
+              disabled={isCreatingPayment || !selectedPaymentMethod}
+              className={`w-full h-14 font-bold text-lg shadow-xl transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed ${
+                selectedPaymentMethod
+                  ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:via-orange-600 hover:to-amber-700 text-white shadow-amber-500/20'
+                  : 'bg-white/[0.05] text-white/40'
+              }`}
             >
               {isCreatingPayment ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                   Membuat pembayaran...
                 </>
-              ) : (
+              ) : selectedPaymentMethod ? (
                 <>
                   <Shield className="w-5 h-5 mr-2" />
-                  Bayar {formatRupiah(selectedPlan.price)}
+                  Bayar {formatRupiah(selectedPlan.price)} via {selectedMethod?.label}
                   <ArrowRight className="w-5 h-5 ml-2" />
+                </>
+              ) : (
+                <>
+                  <Wallet className="w-5 h-5 mr-2" />
+                  Pilih metode pembayaran dulu
                 </>
               )}
             </Button>
