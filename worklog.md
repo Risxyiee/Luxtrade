@@ -1862,3 +1862,25 @@ Stage Summary:
 - File: src/lib/payment/doku.ts (paymentType parameter)
 - File: src/app/api/payment/create-order/route.ts (pass paymentMethod)
 - Push: 5f3e81c
+
+---
+Task ID: upgrade-fix-v3 + db-pool-fix
+Agent: Z.ai Code
+Task: Fix payment methods not clickable + fix EMAXCONNSESSION database pool exhaustion
+
+Work Log:
+- Analyzed upgrade/page.tsx: found swipe container (drag=x + overflow-hidden) clips step 2 content, drag=x blocks touch events on mobile
+- Analyzed TradeWizardForm.tsx: uses AnimatePresence mode="wait" (show/hide), not drag gesture
+- Rewrote upgrade/page.tsx: replaced swipeable container with AnimatePresence like TradeWizardForm
+- Payment methods changed from motion.button to plain button for reliable mobile clicks
+- Background changed from fixed inset-0 -z-10 to pointer-events-none absolute
+- Added active:scale-[0.98] for mobile touch feedback
+- Fixed lib/db.ts: auto-convert port 5432 -> 6543 (Supavisor pooler), added pgbouncer=true, connection_limit=5, pool_timeout=10
+- Fixed sync-auth-users: removed fresh PrismaClient (was creating new connection per request), now uses shared db singleton
+- Used datasourceUrl (modern Prisma API) instead of datasources.db.url
+
+Stage Summary:
+- Payment methods should now be clickable on mobile (no more drag/overlay blocking)
+- Database connections auto-routed through Supavisor pooler to prevent EMAXCONNSESSION
+- sync-auth-users no longer leaks connections
+- Commits: 983787d (upgrade fix), 9c60ba8 (db pool fix)
