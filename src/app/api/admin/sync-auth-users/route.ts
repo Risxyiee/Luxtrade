@@ -1,27 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { db } from '@/lib/db'
-import { PrismaClient } from '@prisma/client'
 
 // Sync logic - shared by GET and POST
+// Uses the shared singleton `db` from @/lib/db (auto-pooled, no connection leak)
 async function performSync() {
   try {
     console.log('🔄 Starting sync of Supabase Auth users to Prisma...')
-    console.log('🔗 DATABASE_URL:', process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 50) + '...' : 'NOT SET')
-    console.log('Environment check:', {
-      NODE_ENV: process.env.NODE_ENV,
-      SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'NOT SET',
-      SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET',
-      DATABASE_URL: process.env.DATABASE_URL ? 'SET (Length: ' + process.env.DATABASE_URL.length + ')' : 'NOT SET',
-      DATABASE_URL_STARTS_WITH: process.env.DATABASE_URL?.startsWith('postgres') ? 'postgres://...' : 'OTHER',
-      DATABASE_URL_IS_FILE: process.env.DATABASE_URL?.includes('file:') || false,
-    })
 
     // Check if supabaseAdmin is available
     if (!supabaseAdmin) {
       console.error('❌ supabaseAdmin client is not available. Make sure SUPABASE_SERVICE_ROLE_KEY is configured.')
-      console.error('   Check if SUPABASE_SERVICE_ROLE_KEY is set in Vercel Environment Variables')
-      console.error('   Expected variable name exactly: SUPABASE_SERVICE_ROLE_KEY')
       return {
         error: 'SUPABASE_SERVICE_ROLE_KEY not configured',
         message: 'Please set SUPABASE_SERVICE_ROLE_KEY in Vercel Environment Variables',
@@ -72,8 +61,6 @@ async function performSync() {
       authUsers.users.map(async (authUser) => {
         try {
           console.log(`\n📋 Processing user: ${authUser.email}`)
-          console.log(`   UID: ${authUser.id}`)
-          console.log(`   Display Name: ${authUser.user_metadata?.display_name || authUser.user_metadata?.name || 'N/A'}`)
 
           // Check if user already exists in Prisma by UUID
           const existingUser = await db.user.findUnique({
@@ -81,19 +68,17 @@ async function performSync() {
           })
 
           if (existingUser) {
-            console.log(`   ⏭️ User already exists in Prisma, skipping Prisma sync`)
+            console.log(`   ⏭️ User already exists in Prisma, skipping`)
           } else {
-            // Extract display name from metadata
             const displayName = authUser.user_metadata?.display_name ||
                               authUser.user_metadata?.name ||
                               authUser.user_metadata?.full_name ||
                               null
 
-            // Create new user in Prisma with SAME UUID
             console.log(`   ➕ Creating user in Prisma...`)
-            const newUser = await db.user.create({
+            await db.user.create({
               data: {
-                id: authUser.id, // Use same UUID as Supabase Auth UID
+                id: authUser.id,
                 email: authUser.email!,
                 name: displayName
               }
@@ -106,9 +91,6 @@ async function performSync() {
           // ============================================
           // SYNC TO SUPABASE PROFILES TABLE
           // ============================================
-          console.log(`   🔍 Checking Supabase profiles table...`)
-
-          // Check if profile exists in Supabase
           const { data: existingProfile, error: profileCheckError } = await supabaseAdmin
             .from('profiles')
             .select('id')
@@ -122,7 +104,6 @@ async function performSync() {
           if (existingProfile) {
             console.log(`   ✅ Profile already exists in Supabase`)
           } else {
-            // Create profile in Supabase
             console.log(`   ➕ Creating profile in Supabase...`)
             const fullName = authUser.user_metadata?.display_name ||
                            authUser.user_metadata?.name ||
@@ -155,7 +136,6 @@ async function performSync() {
 
             if (profileCreateError) {
               console.error(`   ❌ Error creating profile:`, profileCreateError)
-              // Non-blocking error - continue
             } else {
               console.log(`   ✅ Profile created in Supabase successfully`)
               profileSyncedCount++
@@ -171,7 +151,6 @@ async function performSync() {
         } catch (error) {
           console.error(`   ❌ Error syncing user ${authUser.email}:`, error)
 
-          // Check if it's a unique constraint error (user already exists)
           if ((error as any)?.code === 'P2002' || (error as any)?.code === 'P2003') {
             console.log(`   ⏭️ User already exists (duplicate), skipping`)
             skippedCount++
@@ -192,10 +171,8 @@ async function performSync() {
       })
     )
 
-    // Get final user count from Prisma
+    // Get final counts
     const allPrismaUsers = await db.user.findMany()
-
-    // Get final profile count from Supabase
     const { count: profileCount } = await supabaseAdmin
       .from('profiles')
       .select('*', { count: 'exact', head: true })
@@ -221,7 +198,6 @@ async function performSync() {
     }
   } catch (error) {
     console.error('❌ Unexpected error in sync:', error)
-    console.error('Full error details:', JSON.stringify(error, null, 2))
     return {
       error: 'Sync failed',
       details: JSON.stringify(error, null, 2),
@@ -235,106 +211,19 @@ async function performSync() {
 // GET to sync all Supabase Auth users to Prisma (PUBLIC ACCESS - no auth required)
 export async function GET(request: NextRequest) {
   console.log('📥 GET /api/admin/sync-auth-users')
-
-  // Log DATABASE_URL for debugging
-  console.log('🔗 DATABASE_URL (Full Check):')
-  console.log('   - Exists:', !!process.env.DATABASE_URL)
-  console.log('   - Length:', process.env.DATABASE_URL?.length || 0)
-  console.log('   - Starts with postgres:', process.env.DATABASE_URL?.startsWith('postgres') || false)
-  console.log('   - Contains file:', process.env.DATABASE_URL?.includes('file:') || false)
-  console.log('   - First 50 chars:', process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 50) + '...' : 'NOT SET')
-
-  // Force fresh Prisma client
-  const freshDb = new PrismaClient({
-    log: ['query', 'error', 'warn'],
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL
-      }
-    }
-  })
-
-  // Test database connection
-  try {
-    console.log('🔍 Testing database connection...')
-    const testResult = await freshDb.$queryRaw`SELECT 1 as test`
-    console.log('✅ Database connection successful:', testResult)
-  } catch (dbError) {
-    console.error('❌ Database connection FAILED:', dbError)
-    console.error('Error details:', JSON.stringify(dbError, null, 2))
-    return NextResponse.json({
-      error: 'Database connection failed',
-      details: JSON.stringify(dbError, null, 2),
-      errorType: (dbError as any)?.constructor?.name || 'Unknown',
-      errorCode: (dbError as any)?.code || 'NO_CODE',
-      errorMessage: (dbError as any)?.message || String(dbError),
-      databaseUrl: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 50) + '...' : 'NOT SET',
-      databaseUrlExists: !!process.env.DATABASE_URL,
-      databaseUrlIsPostgres: process.env.DATABASE_URL?.startsWith('postgres') || false,
-      databaseUrlIsFile: process.env.DATABASE_URL?.includes('file:') || false
-    }, { status: 500 })
-  }
-
-  // Replace db with fresh instance
-  Object.assign(db, freshDb)
-
   const result = await performSync()
-
   if (result.error) {
     return NextResponse.json(result, { status: 500 })
   }
-
   return NextResponse.json(result)
 }
 
 // POST to sync all Supabase Auth users to Prisma (for Admin Panel)
 export async function POST(request: NextRequest) {
   console.log('📥 POST /api/admin/sync-auth-users')
-
-  // Log DATABASE_URL for debugging
-  console.log('🔗 DATABASE_URL (Full Check):')
-  console.log('   - Exists:', !!process.env.DATABASE_URL)
-  console.log('   - Length:', process.env.DATABASE_URL?.length || 0)
-  console.log('   - Starts with postgres:', process.env.DATABASE_URL?.startsWith('postgres') || false)
-  console.log('   - Contains file:', process.env.DATABASE_URL?.includes('file:') || false)
-  console.log('   - First 50 chars:', process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 50) + '...' : 'NOT SET')
-
-  // Force fresh Prisma client
-  const freshDb = new PrismaClient({
-    log: ['query', 'error', 'warn'],
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL
-      }
-    }
-  })
-
-  // Test database connection
-  try {
-    console.log('🔍 Testing database connection...')
-    const testResult = await freshDb.$queryRaw`SELECT 1 as test`
-    console.log('✅ Database connection successful:', testResult)
-  } catch (dbError) {
-    console.error('❌ Database connection FAILED:', dbError)
-    console.error('Error details:', JSON.stringify(dbError, null, 2))
-    return NextResponse.json({
-      error: 'Database connection failed',
-      details: JSON.stringify(dbError, null, 2),
-      errorType: (dbError as any)?.constructor?.name || 'Unknown',
-      errorCode: (dbError as any)?.code || 'NO_CODE',
-      errorMessage: (dbError as any)?.message || String(dbError),
-      databaseUrl: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 50) + '...' : 'NOT SET',
-      databaseUrlExists: !!process.env.DATABASE_URL,
-      databaseUrlIsPostgres: process.env.DATABASE_URL?.startsWith('postgres') || false,
-      databaseUrlIsFile: process.env.DATABASE_URL?.includes('file:') || false
-    }, { status: 500 })
-  }
-
   const result = await performSync()
-
   if (result.error) {
     return NextResponse.json(result, { status: 500 })
   }
-
   return NextResponse.json(result)
 }
