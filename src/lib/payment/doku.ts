@@ -26,11 +26,11 @@ export interface DokuOrderResult {
 
 /**
  * Format amount for DOKU Checkout v1.
- * DOKU Checkout v1 expects integer amount (no decimals, no string).
- * Previous format with "120000.00" caused "Invalid amount format" errors.
+ * DOKU expects amount as STRING: "52000.00" (2 decimal places, string type).
+ * Docs say "without decimal" but API rejects integer — must be string.
  */
-function formatAmount(amount: number): number {
-  return Math.round(amount)
+function formatAmount(amount: number): string {
+  return amount.toFixed(2)
 }
 
 /**
@@ -125,7 +125,7 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
             value: amountVal,
             currency: 'IDR',
           },
-          quantity: 1,
+          quantity: '1',
           category: 'Digital Service',
           merchant_name: 'LuxTrade',
         },
@@ -135,7 +135,7 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
       id: invoiceId,
       name: customerName,
       email: customerEmail,
-      phone: '-',
+      phone: '08123456789',
     },
   }
 
@@ -165,10 +165,12 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
     path,
     invoiceId,
     amount: amountVal,
+    amountType: typeof amountVal,
     plan,
     clientId: DOKU_CLIENT_ID.substring(0, 8) + '...',
     paymentMethodTypes,
   })
+  console.log('🛒 [DOKU] Request body JSON:', bodyString.substring(0, 500))
 
   try {
     const response = await fetch(`${DOKU_BASE_URL}${path}`, {
@@ -180,6 +182,7 @@ export async function createDokuOrder(params: DokuOrderParams): Promise<DokuOrde
     const result = await response.json()
     console.log('📦 [DOKU] Response status:', response.status)
     console.log('📦 [DOKU] Response body:', JSON.stringify(result).substring(0, 500))
+    console.log('📦 [DOKU] Sent bodyString:', bodyString.substring(0, 500))
 
     if (response.ok && result.response) {
       const paymentUrl =
