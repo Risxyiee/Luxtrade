@@ -2365,3 +2365,25 @@ Stage Summary:
 - `/api/admin/users` GET handler now falls back to Prisma profiles when Supabase Auth unavailable
 - Admin page shows meaningful error messages (banner + toast) instead of silent empty list
 - TRADERCEPAT promo broadcast: user needs to (1) activate promo via reset API, (2) use admin-email page with "Verifikasi + Promo PRO" template
+
+---
+Task ID: 9
+Agent: Z.ai Code
+Task: Fix missing email_broadcasts table causing 0 users + add auto-migration
+
+Work Log:
+- Production log showed: `The table public.email_broadcasts does not exist` (Prisma P2021)
+- Root cause: Prisma schema has EmailBroadcast model but table was never migrated to Supabase
+- Added `ensureSchema()` function to `db.ts` — auto-creates all missing tables on first DB access
+- Tables auto-created: email_broadcasts, promo_codes, user_subscriptions, payment_orders, bug_reports, withdrawals, social_links
+- Also auto-adds missing columns to profiles table and creates indexes
+- Uses CREATE TABLE IF NOT EXISTS + ADD COLUMN IF NOT EXISTS (safe, idempotent)
+- Runs once per process lifetime (singleton `_autoMigrated` flag)
+- Added `ensureSchema()` calls to: /api/admin/users, /api/admin/email-stats, /api/admin/email-broadcast
+- email-stats already had try/catch for emailBroadcast (from previous session), now also auto-creates table first
+- db-sync API endpoint already existed but was never called — ensureSchema() makes it unnecessary
+
+Stage Summary:
+- Auto-migration ensures tables exist on first API call — no manual db-sync needed
+- 3 API routes now call ensureSchema() before querying
+- email_broadcasts table will be auto-created on next deployment

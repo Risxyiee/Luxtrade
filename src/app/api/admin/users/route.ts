@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, getAdminStatus } from '@/lib/supabase-admin-alt'
-import { db, isDatabaseAvailable, getDatabaseUnavailableReason } from '@/lib/db'
+import { db, isDatabaseAvailable, getDatabaseUnavailableReason, ensureSchema } from '@/lib/db'
 
 // Helper: sync subscription data to Prisma profile
 async function syncProfileFromAuth(userId: string, isPro: boolean, subscriptionUntil: string | null) {
@@ -54,6 +54,9 @@ function formatProfileAsUser(profile: any) {
 // GET all users — tries Supabase Auth first, falls back to Prisma profiles
 export async function GET(request: NextRequest) {
   try {
+    // Auto-migrate: ensure all tables exist before querying
+    await ensureSchema()
+
     console.log('🔍 [ADMIN API] Fetching users...')
     console.log('📊 [ADMIN API] Supabase Admin:', JSON.stringify(getAdminStatus()))
     console.log('📊 [ADMIN API] DB available:', isDatabaseAvailable())
