@@ -85,6 +85,14 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
     body: '',
   },
   {
+    value: 'verify-promo',
+    label: 'Verifikasi + Promo PRO',
+    icon: Crown,
+    subject: '🎁 Verifikasi Akun & Dapat PRO Gratis 3 Bulan — LuxTrade',
+    body: '', // Empty — uses server-side promo template
+    promoCode: true,
+  },
+  {
     value: 'promo-pro',
     label: 'Promo PRO',
     icon: Crown,
@@ -156,6 +164,7 @@ export default function AdminEmailPage() {
   const [result, setResult] = useState<{ sent: number; failed: number; errors: string[] } | null>(null)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [sendingTest, setSendingTest] = useState(false)
+  const [promoCode, setPromoCode] = useState('')
 
   // Admin check
   useEffect(() => {
@@ -206,10 +215,12 @@ export default function AdminEmailPage() {
     if (selectedTarget === 'unverified') {
       setSubject('Hei {{name}}, akun kamu belum diverifikasi nih 😅')
       setHtmlBody('')
+      setPromoCode('')
     } else {
       if (selectedTemplate === 'custom') {
         setSubject('')
         setHtmlBody('')
+        setPromoCode('')
       }
     }
     setResult(null)
@@ -222,9 +233,15 @@ export default function AdminEmailPage() {
     if (tmpl && templateValue !== 'custom') {
       setSubject(tmpl.subject)
       setHtmlBody(tmpl.body)
+      // Auto-set target and promo code for verify-promo template
+      if (tmpl.value === 'verify-promo') {
+        setSelectedTarget('unverified')
+        setPromoCode('TRADERCEPAT')
+      }
     } else if (templateValue === 'custom') {
       setSubject('')
       setHtmlBody('')
+      setPromoCode('')
     }
     setResult(null)
   }
@@ -292,6 +309,7 @@ export default function AdminEmailPage() {
           target: selectedTarget,
           subject,
           htmlBody,
+          ...(promoCode ? { promoCode } : {}),
         }),
       })
 
@@ -435,7 +453,7 @@ export default function AdminEmailPage() {
                   )}
                 </div>
 
-                {/* Template Selection (non-unverified) */}
+                {/* Template Selection (non-unverified targets) */}
                 {selectedTarget !== 'unverified' && (
                   <div className="space-y-2">
                     <Label className="text-white/70 text-sm font-medium">Template</Label>
@@ -673,8 +691,38 @@ export default function AdminEmailPage() {
                   </div>
                 )}
 
-                {/* Built-in Template Notice for Unverified */}
+                {/* Promo Code Input — only for unverified target */}
                 {selectedTarget === 'unverified' && (
+                  <div className="space-y-2">
+                    <Label className="text-white/70 text-sm font-medium">
+                      Kode Promo (opsional — untuk template Verifikasi + Promo PRO)
+                    </Label>
+                    <Input
+                      value={promoCode}
+                      onChange={e => setPromoCode(e.target.value.toUpperCase())}
+                      placeholder="Contoh: TRADERCEPAT"
+                      className="bg-white/[0.03] border-white/[0.08] text-white placeholder:text-white/25 focus:border-amber-500/40 focus:ring-amber-500/20 font-mono tracking-wider"
+                    />
+                    {promoCode && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="border border-green-500/20 rounded-lg bg-green-500/[0.04] p-3"
+                      >
+                        <div className="flex items-start gap-2">
+                          <Crown className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
+                          <div className="text-xs text-green-300/70">
+                            <p className="font-medium text-green-300/80 mb-1">Template Verifikasi + Promo PRO</p>
+                            <p>Email akan berisi link verifikasi + kode promo <strong className="text-green-300">{promoCode}</strong> untuk akses PRO gratis. Pastikan promo sudah aktif di database.</p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+                )}
+
+                {/* Built-in Template Notice for Unverified */}
+                {selectedTarget === 'unverified' && !promoCode && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -685,8 +733,9 @@ export default function AdminEmailPage() {
                       <div className="text-sm text-amber-200/70">
                         <p className="font-medium text-amber-300/80 mb-1">Template Otomatis</p>
                         <p>
-                          Untuk target &quot;Belum Verifikasi&quot;, sistem akan otomatis mengirim email reminder dengan
-                          link verifikasi baru yang berlaku 24 jam. Kamu cukup atur subject-nya saja.
+                          Tanpa kode promo: sistem mengirim email reminder biasa.
+                          <strong>Isi kode promo</strong> (misal: TRADERCEPAT) untuk mengirim email verifikasi
+                          + tawaran PRO gratis sekaligus.
                         </p>
                       </div>
                     </div>
