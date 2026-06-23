@@ -7,7 +7,7 @@ import {
   Shield, ArrowLeft, Users, Crown, Mail, Calendar,
   Loader2, Check, X, RefreshCw, Search, AlertCircle,
   Clock, Ban, CheckCircle, XCircle, Share2, Wallet,
-  AlertTriangle, Copy, Bug,
+  AlertTriangle, Copy, Bug, Info,
   BarChart3, Eye, Monitor, Smartphone, Tablet,
   Globe, TrendingUp, TrendingDown, Activity,
   FileText, ExternalLink, UserPen, Send
@@ -486,11 +486,17 @@ export default function AdminPanel() {
     checkAuth()
   }, [router])
 
+  // Track data source for notice display
+  const [dataSource, setDataSource] = useState<string | null>(null)
+  const [dataNotice, setDataNotice] = useState<string | null>(null)
+  const [fetchError, setFetchError] = useState<string | null>(null)
+
   // Fetch users
-  const fetchUsers = async () => {
+  const fetchUsers = async (showErrorToast = false) => {
     if (!isAdminUser) return
 
     setLoading(true)
+    setFetchError(null)
     try {
       const res = await fetch('/api/admin/users', {
         credentials: 'include'
@@ -500,13 +506,23 @@ export default function AdminPanel() {
 
       if (res.ok) {
         setUsers(data.users || [])
+        setDataSource(data.source || null)
+        setDataNotice(data.notice || null)
       } else {
-        console.error('Admin fetch error:', data.error)
+        console.error('Admin fetch error:', data.error, data.details)
         setUsers([])
+        setFetchError(data.details || data.error || 'Gagal memuat data user')
+        if (showErrorToast) {
+          toast.error(data.details || data.error || 'Gagal memuat data user', { duration: 8000 })
+        }
       }
     } catch (error) {
       console.error('Error fetching users:', error)
       setUsers([])
+      setFetchError('Network error - gagal terhubung ke server')
+      if (showErrorToast) {
+        toast.error('Network error - gagal terhubung ke server')
+      }
     } finally {
       setLoading(false)
     }
@@ -514,7 +530,7 @@ export default function AdminPanel() {
 
   useEffect(() => {
     if (isAdminUser) {
-      fetchUsers()
+      fetchUsers(true) // Show toast on first load error
     }
   }, [isAdminUser])
 
@@ -844,6 +860,23 @@ export default function AdminPanel() {
                 </Card>
               </div>
 
+              {/* Notice / Error Banner */}
+              {dataNotice && !fetchError && (
+                <div className="mb-4 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm flex items-start gap-2">
+                  <Info className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span>{dataNotice}</span>
+                </div>
+              )}
+              {fetchError && (
+                <div className="mb-4 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-sm flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium">Gagal memuat data user</p>
+                    <p className="text-red-400/80 mt-1 text-xs break-all">{fetchError}</p>
+                  </div>
+                </div>
+              )}
+
               {/* User Management Table */}
               <Card className="bg-[#1a0f2e]/50 border-purple-500/20 backdrop-blur-sm">
                 <CardHeader>
@@ -851,6 +884,9 @@ export default function AdminPanel() {
                     <CardTitle className="text-white flex items-center gap-2">
                       <Users className="w-5 h-5" />
                       User Management
+                      {dataSource === 'prisma' && (
+                        <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-normal">DB Mode</span>
+                      )}
                     </CardTitle>
                     <div className="relative">
                       <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
