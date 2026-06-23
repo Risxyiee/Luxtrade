@@ -339,7 +339,7 @@ export default function AdminEmailPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/dashboard/admin')}
             className="text-white/60 hover:text-white hover:bg-white/5"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />

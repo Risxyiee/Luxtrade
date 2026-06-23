@@ -7,7 +7,7 @@ import { motion } from 'framer-motion'
 import { Menu, X, BarChart3, Activity, Calendar, BookOpen, Eye,
   Newspaper, CalendarDays, Trophy, Target, Grid3X3, PieChart,
   Brain, FileText, Flame, Heart, Settings, Shield, Crown,
-  Zap, AlertCircle, Lock, LogOut, Wallet, ChevronDown, Trash2, MoreHorizontal, Loader2, Plus, HelpCircle, Gift
+  Zap, AlertCircle, Lock, LogOut, Wallet, ChevronDown, Trash2, MoreHorizontal, Loader2, Plus, HelpCircle, Gift, Send
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
@@ -670,6 +670,19 @@ export default function Sidebar({
                   Admin Panel
                   <Crown className="w-3 h-3 text-purple-400" />
                 </span>
+              </motion.button>
+            </Link>
+          )}
+
+          {isAdmin && (sidebarOpen || mobileSidebarOpen) && (
+            <Link href="/admin-email" className="block mt-2">
+              <motion.button
+                className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-600/20 to-orange-600/20 text-amber-300 border border-amber-500/30 hover:from-amber-600/30 hover:to-orange-600/30 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Send className="w-4 h-4" />
+                <span>Email Broadcast</span>
               </motion.button>
             </Link>
           )}
