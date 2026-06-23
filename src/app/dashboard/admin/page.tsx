@@ -887,6 +887,9 @@ export default function AdminPanel() {
                       {dataSource === 'prisma' && (
                         <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-normal">DB Mode</span>
                       )}
+                      {dataSource === 'prisma+supabase' && (
+                        <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-normal">Full Sync</span>
+                      )}
                     </CardTitle>
                     <div className="relative">
                       <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
