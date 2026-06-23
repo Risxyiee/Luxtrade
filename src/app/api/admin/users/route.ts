@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, getAdminStatus } from '@/lib/supabase-admin-alt'
-import { db } from '@/lib/db'
+import { db, isDatabaseAvailable, getDatabaseUnavailableReason } from '@/lib/db'
 
 // Helper: sync subscription data to Prisma profile
 async function syncProfileFromAuth(userId: string, isPro: boolean, subscriptionUntil: string | null) {
@@ -24,100 +24,154 @@ async function syncProfileFromAuth(userId: string, isPro: boolean, subscriptionU
   }
 }
 
-// GET all users from Supabase Auth, merged with Prisma profiles (profiles = source of truth)
+// Helper: format a Prisma profile into the standard user object
+function formatProfileAsUser(profile: any) {
+  const isPro = profile.is_pro ?? false
+  return {
+    id: profile.id,
+    email: profile.email || '-',
+    full_name: profile.full_name || 'No Name',
+    display_name: null,
+    plan: profile.plan || (isPro ? 'PRO' : 'FREE'),
+    subscription_status: isPro ? 'active' : 'inactive',
+    is_pro: isPro,
+    subscription_until: profile.subscription_until?.toISOString() ?? profile.proExpiry?.toISOString() ?? null,
+    my_referral_code: profile.myReferralCode || null,
+    referred_by_code: profile.referredByCode || null,
+    referred_by: null,
+    has_duplicate_device: false,
+    referral_status: null,
+    commission_paid: profile.commissionPaid || false,
+    has_ever_been_pro: isPro ? true : (profile.hasEverBeenPro || false),
+    device_id: profile.deviceId || null,
+    created_at: profile.createdAt?.toISOString() || new Date().toISOString(),
+    role: profile.role || 'member',
+    // Extra fields from Prisma profile (useful for admin)
+    emailVerified: profile.emailVerified ?? false,
+  }
+}
+
+// GET all users — tries Supabase Auth first, falls back to Prisma profiles
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 [ADMIN API] Fetching users from Supabase Auth...')
-    console.log('📊 [ADMIN API] Admin status:', JSON.stringify(getAdminStatus()))
+    console.log('🔍 [ADMIN API] Fetching users...')
+    console.log('📊 [ADMIN API] Supabase Admin:', JSON.stringify(getAdminStatus()))
+    console.log('📊 [ADMIN API] DB available:', isDatabaseAvailable())
 
-    // Check if supabaseAdmin is available
-    if (!supabaseAdmin) {
-      const status = getAdminStatus()
-      console.error('❌ [ADMIN API] supabaseAdmin is not configured')
-      console.error('❌ [ADMIN API] Status:', JSON.stringify(status))
+    // ── Strategy 1: Supabase Auth (primary) ──
+    if (supabaseAdmin) {
+      try {
+        const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers()
+
+        if (!error && users && users.length > 0) {
+          console.log(`✅ [ADMIN API] Found ${users.length} users in Supabase Auth`)
+
+          // Try to enrich with Prisma profiles (non-critical)
+          let profileMap = new Map<string, any>()
+          try {
+            if (isDatabaseAvailable()) {
+              const profiles = await db.profile.findMany({})
+              profileMap = new Map(profiles.map(p => [p.id, p]))
+              console.log(`✅ [ADMIN API] Enriched with ${profiles.length} Prisma profiles`)
+            }
+          } catch (profileErr) {
+            console.warn('⚠️ [ADMIN API] Could not fetch Prisma profiles (non-critical):', profileErr)
+          }
+
+          // Format users - Prisma profile data overrides Auth metadata
+          const formattedUsers = users.map(user => {
+            const metadata = user.user_metadata || {}
+            const createdAt = user.created_at ? new Date(user.created_at).toISOString() : new Date().toISOString()
+            const profile = profileMap.get(user.id)
+            const isPro = profile?.is_pro ?? metadata.is_pro ?? false
+            const plan = profile?.plan ?? (isPro ? 'PRO' : 'FREE')
+            const subUntil = profile?.subscription_until?.toISOString() ?? metadata.subscription_until ?? null
+
+            return {
+              id: user.id,
+              email: user.email || profile?.email || '-',
+              full_name: profile?.full_name || metadata.full_name || metadata.name || 'No Name',
+              display_name: metadata.display_name || null,
+              plan,
+              subscription_status: isPro ? 'active' : 'inactive',
+              is_pro: isPro,
+              subscription_until: subUntil,
+              my_referral_code: metadata.my_referral_code || profile?.myReferralCode || null,
+              referred_by_code: metadata.referred_by_code || profile?.referredByCode || null,
+              referred_by: metadata.referred_by || null,
+              has_duplicate_device: metadata.has_duplicate_device || false,
+              referral_status: metadata.referral_status || null,
+              commission_paid: metadata.commission_paid || profile?.commissionPaid || false,
+              has_ever_been_pro: isPro ? true : (metadata.has_ever_been_pro || profile?.hasEverBeenPro || false),
+              device_id: metadata.device_id || profile?.deviceId || null,
+              created_at: createdAt,
+              role: profile?.role || metadata.role || 'member',
+              emailVerified: profile?.emailVerified ?? (user.email_confirmed_at != null) ?? false,
+            }
+          })
+
+          console.log(`✅ [ADMIN API] Returning ${formattedUsers.length} users (Supabase Auth + Prisma merge)`)
+          return NextResponse.json({ users: formattedUsers, count: formattedUsers.length, source: 'supabase' })
+        }
+
+        if (error) {
+          console.warn('⚠️ [ADMIN API] Supabase Auth error, falling back to Prisma:', error.message)
+        } else if (users?.length === 0) {
+          console.warn('⚠️ [ADMIN API] Supabase Auth returned 0 users, falling back to Prisma')
+        }
+      } catch (supabaseErr) {
+        console.warn('⚠️ [ADMIN API] Supabase Auth call failed, falling back to Prisma:', supabaseErr)
+      }
+    } else {
+      console.warn('⚠️ [ADMIN API] Supabase Admin not configured, falling back to Prisma profiles')
+    }
+
+    // ── Strategy 2: Prisma profiles (fallback) ──
+    if (!isDatabaseAvailable()) {
+      const reason = getDatabaseUnavailableReason()
+      console.error('❌ [ADMIN API] Database also unavailable:', reason)
       return NextResponse.json(
         {
-          error: 'Admin configuration error',
-          details: 'SUPABASE_SERVICE_ROLE_KEY is not configured. Please set it in environment variables.',
-          debug: status
+          error: 'Gagal memuat data user',
+          details: `Supabase Auth: ${!supabaseAdmin ? 'Tidak terkonfigurasi (SUPABASE_SERVICE_ROLE_KEY belum diset)' : 'Error'}. Database: ${reason}. Pastikan SUPABASE_SERVICE_ROLE_KEY dan DATABASE_URL sudah benar di Environment Variables.`,
+          hint: 'Tambahkan SUPABASE_SERVICE_ROLE_KEY di Vercel > Project Settings > Environment Variables'
         },
         { status: 500 }
       )
     }
 
-    // Get all users from Supabase Auth (requires service role)
-    const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers()
+    try {
+      const profiles = await db.profile.findMany({
+        orderBy: { createdAt: 'desc' },
+      })
 
-    if (error) {
-      console.error('❌ [ADMIN API] Supabase error:', error)
+      console.log(`✅ [ADMIN API] Found ${profiles.length} profiles in Prisma (fallback mode)`)
+
+      const formattedUsers = profiles.map(formatProfileAsUser)
+
+      return NextResponse.json({
+        users: formattedUsers,
+        count: formattedUsers.length,
+        source: 'prisma',
+        notice: 'Data diambil dari database (Supabase Auth tidak tersedia). Beberapa field mungkin terbatas.'
+      })
+    } catch (dbErr) {
+      console.error('❌ [ADMIN API] Prisma fallback also failed:', dbErr)
       return NextResponse.json(
-        { error: 'Failed to fetch users from Supabase', details: error.message },
+        {
+          error: 'Gagal memuat data user',
+          details: `Supabase Auth tidak tersedia dan database query gagal: ${dbErr instanceof Error ? dbErr.message : String(dbErr)}`,
+          hint: 'Pastikan SUPABASE_SERVICE_ROLE_KEY dan DATABASE_URL sudah benar.'
+        },
         { status: 500 }
       )
     }
-
-    console.log(`✅ [ADMIN API] Found ${users?.length || 0} users in Supabase Auth`)
-
-    // Fetch ALL profiles from Prisma (source of truth for is_pro, plan, subscription)
-    const profiles = await db.profile.findMany({})
-    const profileMap = new Map(profiles.map(p => [p.id, p]))
-    console.log(`✅ [ADMIN API] Found ${profiles.length} profiles in Prisma`)
-
-    // Format users - Prisma profile data overrides Auth metadata for subscription fields
-    const formattedUsers = (users || []).map(user => {
-      const metadata = user.user_metadata || {}
-      const createdAt = user.created_at ? new Date(user.created_at).toISOString() : new Date().toISOString()
-
-      // Prisma profile is the source of truth for subscription data
-      const profile = profileMap.get(user.id)
-      const isPro = profile?.is_pro ?? metadata.is_pro ?? false
-      const plan = profile?.plan ?? (isPro ? 'PRO' : 'FREE')
-      const subUntil = profile?.subscription_until?.toISOString() ?? metadata.subscription_until ?? null
-      const subStatus = isPro ? 'active' : 'inactive'
-
-      return {
-        id: user.id,
-        email: user.email || profile?.email || '-',
-        full_name: profile?.full_name || metadata.full_name || metadata.name || 'No Name',
-        display_name: metadata.display_name || null,
-        plan,
-        subscription_status: subStatus,
-        is_pro: isPro,
-        subscription_until: subUntil,
-        my_referral_code: metadata.my_referral_code || null,
-        referred_by_code: metadata.referred_by_code || null,
-        referred_by: metadata.referred_by || null,
-        has_duplicate_device: metadata.has_duplicate_device || false,
-        referral_status: metadata.referral_status || null,
-        commission_paid: metadata.commission_paid || false,
-        has_ever_been_pro: isPro ? true : (metadata.has_ever_been_pro || false),
-        device_id: metadata.device_id || null,
-        created_at: createdAt,
-        role: profile?.role || metadata.role || 'member',
-      }
-    })
-
-    console.log(`✅ [ADMIN API] Returning ${formattedUsers.length} formatted users (merged with Prisma profiles)`)
-
-    return NextResponse.json({ users: formattedUsers, count: formattedUsers.length })
   } catch (error) {
-    console.error('❌ [ADMIN API] ERROR fetching users:', error)
-    console.error('❌ [ADMIN API] Error stack:', error instanceof Error ? error.stack : 'No stack trace')
-
-    const errorDetails = {
-      message: error instanceof Error ? error.message : String(error),
-      name: error instanceof Error ? error.name : 'UnknownError',
-      code: (error as any)?.code,
-      meta: (error as any)?.meta,
-    }
-
-    console.error('❌ [ADMIN API] Error details:', JSON.stringify(errorDetails, null, 2))
-
+    console.error('❌ [ADMIN API] UNEXPECTED ERROR:', error)
     return NextResponse.json(
       {
-        error: 'Failed to fetch users',
-        details: errorDetails.message,
-        debug: errorDetails
+        error: 'Gagal memuat data user',
+        details: error instanceof Error ? error.message : String(error)
       },
       { status: 500 }
     )

@@ -2343,3 +2343,25 @@ Stage Summary:
 - Confirmation dialog prevents accidental sends
 - Test email feature allows admin to preview before mass sending
 - All existing features preserved (target tabs, stats, history, batch sending)
+
+---
+Task ID: 8
+Agent: Z.ai Code
+Task: Fix empty user list in admin panel + verify TRADERCEPAT broadcast template
+
+Work Log:
+- Investigated why admin panel shows 0 users despite 20 users in database
+- Found root cause: `DATABASE_URL` in .env is `file:` (SQLite) but Prisma schema requires PostgreSQL, so db.ts marks DB as unavailable
+- `SUPABASE_SERVICE_ROLE_KEY` not in .env, so Supabase Admin client is null
+- API `/api/admin/users` had hard dependency on Supabase Auth — returned 500 immediately if unavailable
+- Rewrote GET handler with fallback strategy: Try Supabase Auth first → fallback to Prisma profiles
+- Added `formatProfileAsUser()` helper for consistent user object format
+- Added `isDatabaseAvailable()` and `getDatabaseUnavailableReason()` imports from db.ts
+- Updated admin frontend: added error banner (red), notice banner (amber), data source badge
+- Frontend now shows toast on first-load error instead of silently setting empty array
+- Verified TRADERCEPAT broadcast flow already works: `getVerificationPromoEmailHtml()` exists, API supports `promoCode` param, admin page has "Verifikasi + Promo PRO" template preset
+
+Stage Summary:
+- `/api/admin/users` GET handler now falls back to Prisma profiles when Supabase Auth unavailable
+- Admin page shows meaningful error messages (banner + toast) instead of silent empty list
+- TRADERCEPAT promo broadcast: user needs to (1) activate promo via reset API, (2) use admin-email page with "Verifikasi + Promo PRO" template
