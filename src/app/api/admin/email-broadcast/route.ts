@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, ensureSchema } from '@/lib/db'
 import { sendEmail, getUnverifiedBulkReminderHtml, getVerificationPromoEmailHtml } from '@/lib/email'
 import crypto from 'crypto'
 
@@ -50,6 +50,9 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const { target, subject, htmlBody, customText, promoCode } = body
+
+    // Auto-migrate: ensure email_broadcasts table exists
+    await ensureSchema()
 
     // Validate required fields
     if (!target || !subject) {
@@ -198,16 +201,20 @@ export async function POST(request: NextRequest) {
       await Promise.all(batch.map((p, j) => sendBatch(p, i + j + 1)))
     }
 
-    // Save broadcast record
-    await db.emailBroadcast.create({
-      data: {
-        target,
-        subject,
-        sentCount: sent,
-        failedCount: failed,
-        sentBy: adminEmail,
-      },
-    })
+    // Save broadcast record (non-critical — don't fail the whole broadcast if table missing)
+    try {
+      await db.emailBroadcast.create({
+        data: {
+          target,
+          subject,
+          sentCount: sent,
+          failedCount: failed,
+          sentBy: adminEmail,
+        },
+      })
+    } catch (saveErr: any) {
+      console.warn('⚠️ [BROADCAST] Could not save broadcast record (table may not exist):', saveErr?.message)
+    }
 
     return NextResponse.json({
       sent,

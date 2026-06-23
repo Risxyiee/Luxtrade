@@ -165,6 +165,8 @@ export default function AdminEmailPage() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [sendingTest, setSendingTest] = useState(false)
   const [promoCode, setPromoCode] = useState('')
+  const [dbSyncing, setDbSyncing] = useState(false)
+  const [dbNotice, setDbNotice] = useState<string | null>(null)
 
   // Admin check
   useEffect(() => {
@@ -202,6 +204,11 @@ export default function AdminEmailPage() {
         if (res.ok) {
           const data = await res.json()
           setStats(data)
+          if (data.notice) {
+            setDbNotice(data.notice)
+          } else {
+            setDbNotice(null)
+          }
         }
       } catch (err) {
         console.error('Failed to fetch stats:', err)
@@ -209,6 +216,36 @@ export default function AdminEmailPage() {
     }
     fetchStats()
   }, [isAdmin])
+
+  // Sync database tables
+  const syncDatabase = async () => {
+    setDbSyncing(true)
+    try {
+      const res = await fetch('/api/admin/db-sync', {
+        method: 'POST',
+        headers: { 'x-admin-email': ADMIN_EMAIL },
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success(data.message || 'Database sync berhasil!')
+        setDbNotice(null)
+        // Re-fetch stats after sync
+        const statsRes = await fetch('/api/admin/email-stats', {
+          headers: { 'x-admin-email': ADMIN_EMAIL },
+        })
+        if (statsRes.ok) {
+          const statsData = await statsRes.json()
+          setStats(statsData)
+        }
+      } else {
+        toast.error(data.error || 'Gagal sync database', { duration: 5000 })
+      }
+    } catch (err) {
+      toast.error('Gagal menghubungi server', { duration: 5000 })
+    } finally {
+      setDbSyncing(false)
+    }
+  }
 
   // Update default subject when target changes
   useEffect(() => {
