@@ -10,7 +10,7 @@ import {
   AlertTriangle, Copy, Bug,
   BarChart3, Eye, Monitor, Smartphone, Tablet,
   Globe, TrendingUp, TrendingDown, Activity,
-  FileText, ExternalLink, UserPen
+  FileText, ExternalLink, UserPen, Send
 } from 'lucide-react'
 import { ManualUpdateUser } from '@/components/ManualUpdateUser'
 import { Button } from '@/components/ui/button'
@@ -787,6 +787,15 @@ export default function AdminPanel() {
             <UserPen className="w-4 h-4 mr-2" />
             Manual Update
           </Button>
+          <Link href="/admin-email">
+            <Button
+              variant="outline"
+              className="border-amber-500/30 text-white/50 hover:text-white hover:bg-amber-500/10"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              Email Broadcast
+            </Button>
+          </Link>
         </div>
 
         <AnimatePresence mode="wait">
