@@ -7,7 +7,7 @@ import {
   Shield, ArrowLeft, Users, Crown, Mail, Calendar,
   Loader2, Check, X, RefreshCw, Search, AlertCircle,
   Clock, Ban, CheckCircle, XCircle, Share2, Wallet,
-  AlertTriangle, Copy, Bug, Info,
+  AlertTriangle, Copy, Bug, Info, DatabaseBackup,
   BarChart3, Eye, Monitor, Smartphone, Tablet,
   Globe, TrendingUp, TrendingDown, Activity,
   FileText, ExternalLink, UserPen, Send
@@ -528,6 +528,30 @@ export default function AdminPanel() {
     }
   }
 
+  // Sync users from Supabase Auth → DB
+  const [syncing, setSyncing] = useState(false)
+  const syncUsers = async () => {
+    if (syncing) return
+    setSyncing(true)
+    try {
+      const res = await fetch('/api/admin/sync-users', {
+        method: 'POST',
+        headers: { 'x-admin-email': 'luxtradee@gmail.com' },
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success(data.message, { duration: 6000 })
+        fetchUsers() // refresh user list
+      } else {
+        toast.error(data.error || 'Gagal sinkronisasi', { duration: 6000 })
+      }
+    } catch (err) {
+      toast.error('Network error saat sinkronisasi')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   useEffect(() => {
     if (isAdminUser) {
       fetchUsers(true) // Show toast on first load error
@@ -728,6 +752,17 @@ export default function AdminPanel() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                onClick={syncUsers}
+                disabled={syncing}
+                variant="outline"
+                size="sm"
+                className="border-emerald-500/30 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"
+                title="Sinkronkan user dari Supabase Auth ke Database"
+              >
+                <DatabaseBackup className={`w-4 h-4 mr-2 ${syncing ? 'animate-pulse' : ''}`} />
+                {syncing ? 'Syncing...' : 'Sync Users'}
+              </Button>
               <Button
                 onClick={activeTab === 'users' ? fetchUsers : () => {}}
                 variant="outline"
