@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, ensureSchema } from '@/lib/db'
 
 /**
  * Validate promo code
@@ -8,6 +8,7 @@ import { db } from '@/lib/db'
  */
 export async function POST(request: NextRequest) {
   try {
+    await ensureSchema()
     const { code } = await request.json()
 
     if (!code) {
@@ -95,6 +96,7 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
+    await ensureSchema()
     const promoCodes = await db.promoCode.findMany({
       orderBy: { createdAt: 'desc' }
     })
