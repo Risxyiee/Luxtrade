@@ -6,7 +6,9 @@ import crypto from 'crypto'
 const ADMIN_EMAILS = ['luxtradee@gmail.com']
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 const BATCH_SIZE = 50
-const CONCURRENT_LIMIT = 5
+// Resend free tier: max 2 requests/second.
+// Sending sequentially with 600ms delay = ~1.67 req/s — safely under the limit.
+const EMAIL_DELAY_MS = 600
 
 // GET handler: Send test email to admin
 export async function GET(request: NextRequest) {
@@ -33,10 +35,8 @@ export async function GET(request: NextRequest) {
     } else {
       return NextResponse.json({ success: false, error: 'Gagal mengirim test email' }, { status: 500 })
     }
-  } catch (error: unknown) {
-    console.error('❌ Test email error:', error)
-    const msg = error instanceof Error ? error.message : 'Terjadi kesalahan server'
-    return NextResponse.json({ error: msg }, { status: 500 })
+  } catch (_error: unknown) {
+    return NextResponse.json({ error: 'Gagal mengirim test email' }, { status: 500 })
   }
 }
 
@@ -80,11 +80,11 @@ export async function POST(request: NextRequest) {
               } catch (_e) { /* skip duplicates */ }
             }
           }
-          if (created > 0) console.log(`✅ [BROADCAST] Auto-synced ${created} new users before broadcast`)
+          if (created > 0) { /* auto-synced new users */ }
         }
       }
-    } catch (syncErr) {
-      console.warn('⚠️ [BROADCAST] Auto-sync failed (non-critical, continuing):', syncErr)
+    } catch (_syncErr) {
+      // Auto-sync failed — non-critical, continue with broadcast
     }
 
     // Validate required fields
@@ -227,10 +227,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Process with concurrency limit
-    for (let i = 0; i < profiles.length; i += CONCURRENT_LIMIT) {
-      const batch = profiles.slice(i, i + CONCURRENT_LIMIT)
-      await Promise.all(batch.map((p, j) => sendBatch(p, i + j + 1)))
+    // Process sequentially with delay to respect Resend rate limit (2 req/s)
+    for (let i = 0; i < profiles.length; i++) {
+      await sendBatch(profiles[i], i + 1)
+      if (i < profiles.length - 1) {
+        await new Promise(r => setTimeout(r, EMAIL_DELAY_MS))
+      }
     }
 
     // Save broadcast record (non-critical — don't fail the whole broadcast if table missing)
@@ -244,8 +246,8 @@ export async function POST(request: NextRequest) {
           sentBy: adminEmail,
         },
       })
-    } catch (saveErr: any) {
-      console.warn('⚠️ [BROADCAST] Could not save broadcast record (table may not exist):', saveErr?.message)
+    } catch (_saveErr: any) {
+      // Could not save broadcast record — non-critical
     }
 
     return NextResponse.json({
@@ -253,9 +255,7 @@ export async function POST(request: NextRequest) {
       failed,
       errors,
     })
-  } catch (error: unknown) {
-    console.error('❌ Email broadcast error:', error)
-    const msg = error instanceof Error ? error.message : 'Terjadi kesalahan server'
-    return NextResponse.json({ error: msg }, { status: 500 })
+  } catch (_error: unknown) {
+    return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 }
