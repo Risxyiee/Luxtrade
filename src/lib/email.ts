@@ -10,7 +10,6 @@ export interface EmailOptions {
 async function getResendClient() {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) {
-    console.warn('⚠️ RESEND_API_KEY not configured - email sending disabled')
     return null
   }
   // Dynamic import to avoid build-time evaluation
@@ -22,7 +21,6 @@ export async function sendEmail({ to, subject, html }: EmailOptions) {
   const resend = await getResendClient()
 
   if (!resend) {
-    console.warn('⚠️ Email not sent - RESEND_API_KEY not configured')
     return { success: false, error: 'Email service not configured' }
   }
 
@@ -35,14 +33,13 @@ export async function sendEmail({ to, subject, html }: EmailOptions) {
     })
 
     if (error) {
-      console.error('Resend error:', error)
+      // Silently return failure — no error logs to avoid Vercel log spam
       return { success: false, error }
     }
 
     return { success: true, data }
-  } catch (error) {
-    console.error('Email send error:', error)
-    return { success: false, error }
+  } catch (_error) {
+    return { success: false, error: _error }
   }
 }
 
@@ -72,13 +69,11 @@ export async function sendEmailFromTemplate({
   const resend = await getResendClient()
 
   if (!resend) {
-    console.warn('⚠️ Email not sent - RESEND_API_KEY not configured')
     return { success: false, error: 'Email service not configured' }
   }
 
   // Jika template ID belum diset, fallback ke inline HTML
   if (!templateId || templateId.startsWith('your_')) {
-    console.log('📧 No template ID set, using inline HTML fallback')
     return sendEmail({ to, subject, html: fallbackHtml })
   }
 
@@ -92,16 +87,12 @@ export async function sendEmailFromTemplate({
     })
 
     if (error) {
-      console.error('Resend template error:', error)
       // Fallback ke inline HTML jika template gagal
-      console.log('📧 Template send failed, falling back to inline HTML')
       return sendEmail({ to, subject, html: fallbackHtml })
     }
 
-    console.log('✅ Email sent via Resend template:', templateId)
     return { success: true, data }
-  } catch (error) {
-    console.error('Email template error, falling back to inline HTML:', error)
+  } catch (_error) {
     return sendEmail({ to, subject, html: fallbackHtml })
   }
 }
