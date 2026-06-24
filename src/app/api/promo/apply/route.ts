@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
-import { db } from '@/lib/db'
+import { db, ensureSchema } from '@/lib/db'
 
 /**
  * Apply promo code to user subscription
@@ -9,6 +9,7 @@ import { db } from '@/lib/db'
  */
 export async function POST(request: NextRequest) {
   try {
+    await ensureSchema()
     const body = await request.json()
     console.log('🔍 [Promo Apply] Request body:', JSON.stringify(body))
 
