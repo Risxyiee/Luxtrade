@@ -2343,3 +2343,19 @@ Stage Summary:
 - Confirmation dialog prevents accidental sends
 - Test email feature allows admin to preview before mass sending
 - All existing features preserved (target tabs, stats, history, batch sending)
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix build error, ensureSchema all tables, user list fallback
+
+Work Log:
+- Added missing `getVerificationPromoEmailHtml()` function to `src/lib/email.ts` (was causing Turbopack build failure)
+- Rewrote `ensureSchema()` in `src/lib/db.ts` to add ALTER TABLE statements for ALL tables (promo_codes, email_broadcasts, user_subscriptions, payment_orders, bug_reports, withdrawals, social_links) — not just profiles
+- Added comprehensive indexes for all tables
+- Made admin users API resilient: Prisma findMany in try/catch, raw SQL fallback, Supabase Auth fallback if profiles empty
+- All changes committed and pushed to GitHub (985333c)
+
+Stage Summary:
+- Build error fixed: `getVerificationPromoEmailHtml` now exported from email.ts
+- Promo code `discount_percent` column will be auto-added by ensureSchema on next deploy
+- User list: will show all 20 users from Prisma profiles, with 3-tier fallback (Prisma → raw SQL → Supabase Auth)
