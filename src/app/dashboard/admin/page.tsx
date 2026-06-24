@@ -777,17 +777,6 @@ export default function AdminPanel() {
             </div>
             <div className="flex items-center gap-2">
               <Button
-                onClick={activatePromo}
-                disabled={activatingPromo}
-                variant="outline"
-                size="sm"
-                className="border-amber-500/40 text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 disabled:opacity-50"
-                title="Aktifkan promo TRADERCEPAT (100%, 3 bulan, 30 orang)"
-              >
-                <Tag className={`w-4 h-4 mr-2 ${activatingPromo ? 'animate-pulse' : ''}`} />
-                {activatingPromo ? 'Mengaktifkan...' : 'Aktifkan TRADERCEPAT'}
-              </Button>
-              <Button
                 onClick={syncUsers}
                 disabled={syncing}
                 variant="outline"
@@ -961,14 +950,28 @@ export default function AdminPanel() {
                         <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-normal">Full Sync</span>
                       )}
                     </CardTitle>
-                    <div className="relative">
-                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-                      <Input
-                        placeholder="Search users..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="bg-[#0d0820] border-purple-500/20 pl-9 w-full sm:w-64 focus:border-purple-500/50"
-                      />
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <Button
+                        onClick={activatePromo}
+                        disabled={activatingPromo}
+                        variant="outline"
+                        size="sm"
+                        className="border-amber-500/40 text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 disabled:opacity-50 shrink-0"
+                        title="Aktifkan promo TRADERCEPAT (100%, 3 bulan, 30 orang)"
+                      >
+                        <Tag className={`w-3.5 h-3.5 sm:mr-2 ${activatingPromo ? 'animate-pulse' : ''}`} />
+                        <span className="hidden sm:inline">{activatingPromo ? 'Mengaktifkan...' : 'Aktifkan TRADERCEPAT'}</span>
+                        <span className="sm:hidden">Promo</span>
+                      </Button>
+                      <div className="relative flex-1 sm:flex-none">
+                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+                        <Input
+                          placeholder="Search users..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="bg-[#0d0820] border-purple-500/20 pl-9 w-full sm:w-64 focus:border-purple-500/50"
+                        />
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
