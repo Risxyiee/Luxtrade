@@ -116,12 +116,83 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const profiles = await db.profile.findMany({
-      orderBy: { createdAt: 'desc' },
-    })
-    console.log(`✅ [ADMIN API] Found ${profiles.length} profiles in Prisma`)
+    // ── Step 1b: Fetch Prisma profiles — wrapped in try/catch for column mismatch resilience ──
+    let profiles: any[] = []
+    try {
+      profiles = await db.profile.findMany({
+        orderBy: { createdAt: 'desc' },
+      })
+      console.log(`✅ [ADMIN API] Found ${profiles.length} profiles in Prisma`)
+    } catch (prismaErr: any) {
+      console.error('⚠️ [ADMIN API] Prisma profile.findMany failed (may need migration):', prismaErr?.message?.substring(0, 200))
+      // Don't throw — fall through to Supabase Auth below
+    }
 
-    // ── Step 2: Try to enrich with Supabase Auth data ──
+    // If Prisma returned 0 profiles, try a raw query as a last resort
+    if (profiles.length === 0) {
+      try {
+        const rawProfiles = await db.$queryRaw`SELECT id, email, full_name, is_pro, plan, created_at FROM profiles ORDER BY created_at DESC`
+        if (Array.isArray(rawProfiles) && rawProfiles.length > 0) {
+          profiles = rawProfiles
+          console.log(`✅ [ADMIN API] Fallback raw query found ${profiles.length} profiles`)
+        }
+      } catch (rawErr: any) {
+        console.warn('⚠️ [ADMIN API] Raw query fallback also failed:', rawErr?.message?.substring(0, 200))
+      }
+    }
+
+    // ── Step 3: If Prisma returned nothing, fall back to Supabase Auth as data source ──
+    if (profiles.length === 0 && supabaseAdmin) {
+      try {
+        const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers()
+        if (!error && users?.length) {
+          const formattedUsers = users.map(user => {
+            const metadata = user.user_metadata || {}
+            return {
+              id: user.id,
+              email: user.email || '-',
+              full_name: metadata.full_name || metadata.name || 'No Name',
+              display_name: metadata.display_name || null,
+              plan: metadata.is_pro ? 'PRO' : 'FREE',
+              subscription_status: metadata.is_pro ? 'active' : 'inactive',
+              is_pro: metadata.is_pro ?? false,
+              subscription_until: metadata.subscription_until ?? null,
+              my_referral_code: metadata.my_referral_code || null,
+              referred_by_code: metadata.referred_by_code || null,
+              referred_by: metadata.referred_by || null,
+              has_duplicate_device: metadata.has_duplicate_device || false,
+              referral_status: metadata.referral_status || null,
+              commission_paid: metadata.commission_paid || false,
+              has_ever_been_pro: metadata.has_ever_been_pro || false,
+              device_id: metadata.device_id || null,
+              created_at: user.created_at || new Date().toISOString(),
+              role: metadata.role || 'member',
+              emailVerified: user.email_confirmed_at != null,
+            }
+          })
+          console.log(`✅ [ADMIN API] Prisma empty — falling back to ${formattedUsers.length} Supabase Auth users`)
+          return NextResponse.json({
+            users: formattedUsers,
+            count: formattedUsers.length,
+            source: 'supabase-only',
+            notice: 'Data dari Supabase Auth. Tabel profiles masih kosong atau gagal diakses.'
+          })
+        }
+      } catch (_e) { /* ignore */ }
+    }
+
+    // If still empty after all attempts
+    if (profiles.length === 0) {
+      console.warn('⚠️ [ADMIN API] No users found from any source')
+      return NextResponse.json({
+        users: [],
+        count: 0,
+        source: 'none',
+        notice: 'Tidak ada user ditemukan dari database maupun Supabase Auth.'
+      })
+    }
+
+    // ── Step 4: Try to enrich with Supabase Auth data ──
     let authUserMap = new Map<string, any>() // id -> { email, email_confirmed_at, user_metadata, created_at }
     let authEnriched = false
 
@@ -142,7 +213,7 @@ export async function GET(request: NextRequest) {
       console.warn('⚠️ [ADMIN API] Supabase Admin not configured — using Prisma profiles only')
     }
 
-    // ── Step 3: Merge — every profile is included, enriched with Auth data where available ──
+    // ── Step 5: Merge — every profile is included, enriched with Auth data where available ──
     const formattedUsers = profiles.map(profile => {
       const authUser = authUserMap.get(profile.id)
       const metadata = authUser?.user_metadata || {}

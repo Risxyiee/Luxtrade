@@ -292,15 +292,104 @@ export async function ensureSchema(): Promise<void> {
     );`,
   ]
 
-  const profileColumns = [
+  // ALTER TABLE statements for ALL tables — handles the case where table exists
+  // from an older schema but is missing newer columns
+  const allAlterColumns = [
+    // ── profiles ──
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "streak_count" INTEGER NOT NULL DEFAULT 0;`,
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "last_login_at" TIMESTAMP(3);`,
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "best_streak" INTEGER NOT NULL DEFAULT 0;`,
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "achievements" JSONB NOT NULL DEFAULT '[]';`,
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "plan" TEXT NOT NULL DEFAULT 'FREE';`,
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "pro_expiry" TIMESTAMP(3);`,
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "role" TEXT NOT NULL DEFAULT 'USER';`,
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "full_name" TEXT;`,
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "is_pro" BOOLEAN NOT NULL DEFAULT false;`,
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "subscription_until" TIMESTAMP(3);`,
     `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "email_verified" BOOLEAN NOT NULL DEFAULT false;`,
     `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "email_verify_token" TEXT;`,
     `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "email_verify_exp_at" TIMESTAMP(3);`,
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
+    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "device_id" TEXT;`,
     `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "my_referral_code" TEXT;`,
     `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "referred_by_code" TEXT;`,
     `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "has_ever_been_pro" BOOLEAN NOT NULL DEFAULT false;`,
     `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "commission_paid" BOOLEAN NOT NULL DEFAULT false;`,
-    `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "device_id" TEXT;`,
+
+    // ── promo_codes ──
+    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "description" TEXT;`,
+    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "discount_percent" DOUBLE PRECISION NOT NULL DEFAULT 0;`,
+    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "max_quota" INTEGER NOT NULL DEFAULT 0;`,
+    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "used_quota" INTEGER NOT NULL DEFAULT 0;`,
+    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "duration_months" INTEGER NOT NULL DEFAULT 0;`,
+    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "start_date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
+    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "end_date" TIMESTAMP(3);`,
+    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "is_active" BOOLEAN NOT NULL DEFAULT true;`,
+    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
+    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
+
+    // ── email_broadcasts ──
+    `ALTER TABLE "email_broadcasts" ADD COLUMN IF NOT EXISTS "sent_count" INTEGER NOT NULL DEFAULT 0;`,
+    `ALTER TABLE "email_broadcasts" ADD COLUMN IF NOT EXISTS "failed_count" INTEGER NOT NULL DEFAULT 0;`,
+    `ALTER TABLE "email_broadcasts" ADD COLUMN IF NOT EXISTS "sent_by" TEXT;`,
+    `ALTER TABLE "email_broadcasts" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
+
+    // ── user_subscriptions ──
+    `ALTER TABLE "user_subscriptions" ADD COLUMN IF NOT EXISTS "plan" TEXT NOT NULL DEFAULT 'FREE';`,
+    `ALTER TABLE "user_subscriptions" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active';`,
+    `ALTER TABLE "user_subscriptions" ADD COLUMN IF NOT EXISTS "start_date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
+    `ALTER TABLE "user_subscriptions" ADD COLUMN IF NOT EXISTS "end_date" TIMESTAMP(3);`,
+    `ALTER TABLE "user_subscriptions" ADD COLUMN IF NOT EXISTS "promo_code_id" TEXT;`,
+    `ALTER TABLE "user_subscriptions" ADD COLUMN IF NOT EXISTS "discount_percent" DOUBLE PRECISION NOT NULL DEFAULT 0;`,
+    `ALTER TABLE "user_subscriptions" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
+    `ALTER TABLE "user_subscriptions" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
+
+    // ── payment_orders ──
+    `ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "invoice_number" TEXT NOT NULL DEFAULT '';`,
+    `ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "amount" DOUBLE PRECISION NOT NULL DEFAULT 0;`,
+    `ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'IDR';`,
+    `ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "plan" TEXT NOT NULL DEFAULT '';`,
+    `ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "duration_months" INTEGER;`,
+    `ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'PENDING';`,
+    `ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "payment_method" TEXT;`,
+    `ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "payment_channel" TEXT;`,
+    `ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "doku_transaction_id" TEXT;`,
+    `ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "doku_payment_url" TEXT;`,
+    `ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "customer_name" TEXT NOT NULL DEFAULT '';`,
+    `ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "customer_email" TEXT NOT NULL DEFAULT '';`,
+    `ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "paid_at" TIMESTAMP(3);`,
+    `ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "expired_at" TIMESTAMP(3);`,
+    `ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
+    `ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
+
+    // ── bug_reports ──
+    `ALTER TABLE "bug_reports" ADD COLUMN IF NOT EXISTS "description" TEXT NOT NULL DEFAULT '';`,
+    `ALTER TABLE "bug_reports" ADD COLUMN IF NOT EXISTS "screenshot_url" TEXT;`,
+    `ALTER TABLE "bug_reports" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'PENDING';`,
+    `ALTER TABLE "bug_reports" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
+    `ALTER TABLE "bug_reports" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
+
+    // ── withdrawals ──
+    `ALTER TABLE "withdrawals" ADD COLUMN IF NOT EXISTS "amount" DOUBLE PRECISION NOT NULL DEFAULT 0;`,
+    `ALTER TABLE "withdrawals" ADD COLUMN IF NOT EXISTS "bank_name" TEXT NOT NULL DEFAULT '';`,
+    `ALTER TABLE "withdrawals" ADD COLUMN IF NOT EXISTS "bank_account" TEXT NOT NULL DEFAULT '';`,
+    `ALTER TABLE "withdrawals" ADD COLUMN IF NOT EXISTS "bank_holder" TEXT NOT NULL DEFAULT '';`,
+    `ALTER TABLE "withdrawals" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'pending';`,
+    `ALTER TABLE "withdrawals" ADD COLUMN IF NOT EXISTS "admin_note" TEXT;`,
+    `ALTER TABLE "withdrawals" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
+    `ALTER TABLE "withdrawals" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
+
+    // ── social_links ──
+    `ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "platform" TEXT NOT NULL DEFAULT '';`,
+    `ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "url" TEXT NOT NULL DEFAULT '';`,
+    `ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "username" TEXT;`,
+    `ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'PENDING';`,
+    `ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "reviewed_by" TEXT;`,
+    `ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "reviewed_at" TIMESTAMP(3);`,
+    `ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "rejection_reason" TEXT;`,
+    `ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
+    `ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
   ]
 
   const indexes = [
@@ -309,6 +398,15 @@ export async function ensureSchema(): Promise<void> {
     `CREATE UNIQUE INDEX IF NOT EXISTS "promo_codes_code_key" ON "promo_codes"("code");`,
     `CREATE INDEX IF NOT EXISTS "promo_codes_is_active_start_date_end_date_idx" ON "promo_codes"("is_active", "start_date", "end_date");`,
     `CREATE UNIQUE INDEX IF NOT EXISTS "payment_orders_invoice_number_key" ON "payment_orders"("invoice_number");`,
+    `CREATE INDEX IF NOT EXISTS "payment_orders_user_id_idx" ON "payment_orders"("user_id");`,
+    `CREATE INDEX IF NOT EXISTS "payment_orders_status_idx" ON "payment_orders"("status");`,
+    `CREATE INDEX IF NOT EXISTS "user_subscriptions_user_id_idx" ON "user_subscriptions"("user_id");`,
+    `CREATE INDEX IF NOT EXISTS "user_subscriptions_promo_code_id_idx" ON "user_subscriptions"("promo_code_id");`,
+    `CREATE INDEX IF NOT EXISTS "withdrawals_user_id_idx" ON "withdrawals"("user_id");`,
+    `CREATE INDEX IF NOT EXISTS "social_links_user_id_idx" ON "social_links"("user_id");`,
+    `CREATE INDEX IF NOT EXISTS "social_links_status_idx" ON "social_links"("status");`,
+    `CREATE INDEX IF NOT EXISTS "bug_reports_user_id_idx" ON "bug_reports"("user_id");`,
+    `CREATE INDEX IF NOT EXISTS "bug_reports_status_idx" ON "bug_reports"("status");`,
   ]
 
   try {
@@ -318,7 +416,7 @@ export async function ensureSchema(): Promise<void> {
         if (!e?.message?.includes('already exists')) console.warn('⚠️ [DB] Table create:', e.message?.substring(0, 100))
       }
     }
-    for (const sql of profileColumns) {
+    for (const sql of allAlterColumns) {
       try { await _rawPrisma.$executeRawUnsafe(sql) } catch (_e) { /* already exists = ok */ }
     }
     for (const sql of indexes) {
