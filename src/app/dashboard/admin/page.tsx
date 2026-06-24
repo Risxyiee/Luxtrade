@@ -884,10 +884,10 @@ export default function AdminPanel() {
                     <CardTitle className="text-white flex items-center gap-2">
                       <Users className="w-5 h-5" />
                       User Management
-                      {dataSource === 'prisma' && (
-                        <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-normal">DB Mode</span>
+                      {dataSource === 'supabase-only' && (
+                        <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-normal">Auth</span>
                       )}
-                      {dataSource === 'prisma+supabase' && (
+                      {dataSource === 'supabase+prisma' && (
                         <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-normal">Full Sync</span>
                       )}
                     </CardTitle>
