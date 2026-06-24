@@ -422,6 +422,28 @@ export async function ensureSchema(): Promise<void> {
     for (const sql of indexes) {
       try { await _rawPrisma.$executeRawUnsafe(sql) } catch (_e) { /* already exists = ok */ }
     }
+
+    // Auto-activate TRADERCEPAT promo code (100%, 3 months, 30 quota)
+    try {
+      await _rawPrisma.$executeRawUnsafe(`
+        INSERT INTO promo_codes (id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, is_active, created_at, updated_at)
+        VALUES (
+          gen_random_uuid()::text,
+          'TRADERCEPAT',
+          'Diskon 100% — 3 Bulan PRO Gratis! Khusus 30 trader pertama.',
+          100, 30, 0, 3, NOW(), true, NOW(), NOW()
+        )
+        ON CONFLICT (code) DO UPDATE SET
+          discount_percent = 100,
+          max_quota = 30,
+          used_quota = 0,
+          duration_months = 3,
+          is_active = true,
+          end_date = NULL,
+          updated_at = NOW();
+      `)
+    } catch (_e) { /* promo activation non-critical */ }
+
     console.log('✅ [DB] Auto-migration complete')
   } catch (err) {
     console.error('⚠️ [DB] Auto-migration had issues (non-critical):', err)
