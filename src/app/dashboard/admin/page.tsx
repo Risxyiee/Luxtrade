@@ -10,7 +10,7 @@ import {
   AlertTriangle, Copy, Bug, Info, DatabaseBackup,
   BarChart3, Eye, Monitor, Smartphone, Tablet,
   Globe, TrendingUp, TrendingDown, Activity,
-  FileText, ExternalLink, UserPen, Send
+  FileText, ExternalLink, UserPen, Send, Tag
 } from 'lucide-react'
 import { ManualUpdateUser } from '@/components/ManualUpdateUser'
 import { Button } from '@/components/ui/button'
@@ -528,6 +528,30 @@ export default function AdminPanel() {
     }
   }
 
+  // Activate TRADERCEPAT promo
+  const [activatingPromo, setActivatingPromo] = useState(false)
+  const activatePromo = async () => {
+    if (activatingPromo) return
+    setActivatingPromo(true)
+    try {
+      const res = await fetch('/api/admin/promo/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-email': 'luxtradee@gmail.com' },
+        body: JSON.stringify({ code: 'TRADERCEPAT' }),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success(data.message, { duration: 5000 })
+      } else {
+        toast.error(data.message || 'Gagal mengaktifkan promo')
+      }
+    } catch (_err) {
+      toast.error('Network error')
+    } finally {
+      setActivatingPromo(false)
+    }
+  }
+
   // Sync users from Supabase Auth → DB
   const [syncing, setSyncing] = useState(false)
   const syncUsers = async () => {
@@ -752,6 +776,17 @@ export default function AdminPanel() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                onClick={activatePromo}
+                disabled={activatingPromo}
+                variant="outline"
+                size="sm"
+                className="border-amber-500/40 text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 disabled:opacity-50"
+                title="Aktifkan promo TRADERCEPAT (100%, 3 bulan, 30 orang)"
+              >
+                <Tag className={`w-4 h-4 mr-2 ${activatingPromo ? 'animate-pulse' : ''}`} />
+                {activatingPromo ? 'Mengaktifkan...' : 'Aktifkan TRADERCEPAT'}
+              </Button>
               <Button
                 onClick={syncUsers}
                 disabled={syncing}

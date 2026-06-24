@@ -2359,3 +2359,26 @@ Stage Summary:
 - Build error fixed: `getVerificationPromoEmailHtml` now exported from email.ts
 - Promo code `discount_percent` column will be auto-added by ensureSchema on next deploy
 - User list: will show all 20 users from Prisma profiles, with 3-tier fallback (Prisma → raw SQL → Supabase Auth)
+---
+Task ID: 1
+Agent: Z.ai Code
+Task: Aktifkan kode promo TRADERCEPAT (100% diskon, 3 bulan PRO gratis, 30 orang) tanpa error log di Vercel
+
+Work Log:
+- Created `/api/admin/promo/activate/route.ts` — clean API endpoint
+  - Uses Supabase admin client directly (no Prisma import chain = no Turbopack module resolution errors)
+  - Upserts promo: creates if not exists, updates to correct values if exists
+  - Settings: discount_percent=100, max_quota=30, used_quota=0, duration_months=3, is_active=true, end_date=null
+  - Zero console.error/console.log statements — returns clean JSON only
+  - Admin auth via x-admin-email header (luxtradee@gmail.com)
+- Added "Aktifkan TRADERCEPAT" button to Admin Panel header (amber color, Tag icon)
+  - Shows loading state "Mengaktifkan..." during API call
+  - Toast success/error feedback
+- Verified dev.log: zero error logs, zero ❌ symbols
+- Verified browser: zero console errors, page renders 200
+
+Stage Summary:
+- File created: `src/app/api/admin/promo/activate/route.ts`
+- File modified: `src/app/dashboard/admin/page.tsx` (added Tag import, activatePromo function, button)
+- On Vercel (where SUPABASE_SERVICE_ROLE_KEY is set): button will upsert promo_codes table, activate TRADERCEPAT
+- Specs: 100% discount, 3 months PRO, quota 30 users, no end date
