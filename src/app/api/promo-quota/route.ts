@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db, isDatabaseAvailable } from '@/lib/db'
+import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
 
 /**
  * GET /api/promo-quota?code=TRADERCEPAT
@@ -10,6 +10,8 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
+    await ensureSchema()
+
     if (!isDatabaseAvailable()) {
       // Return safe defaults when database is not available (local dev)
       return NextResponse.json({
