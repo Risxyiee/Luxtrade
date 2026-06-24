@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, ensureSchema } from '@/lib/db'
+import { db, ensureSchema, isDatabaseAvailable } from '@/lib/db'
 import { sendEmail, getUnverifiedBulkReminderHtml, getVerificationPromoEmailHtml } from '@/lib/email'
 import crypto from 'crypto'
 
@@ -54,6 +54,39 @@ export async function POST(request: NextRequest) {
     // Auto-migrate: ensure email_broadcasts table exists
     await ensureSchema()
 
+    // Auto-sync users from Supabase Auth → profiles DB before broadcast
+    // This ensures all Auth users exist in the DB for targeting
+    try {
+      const { supabaseAdmin: sa } = await import('@/lib/supabase-admin-alt')
+      if (sa && isDatabaseAvailable()) {
+        const { data: { users } } = await sa.auth.admin.listUsers({ perPage: 500 })
+        if (users && users.length > 0) {
+          const existingIds = new Set(
+            (await db.profile.findMany({ select: { id: true } })).map((p: any) => p.id)
+          )
+          let created = 0
+          for (const u of users) {
+            if (!existingIds.has(u.id)) {
+              try {
+                await db.profile.create({
+                  data: {
+                    id: u.id,
+                    email: u.email,
+                    full_name: u.user_metadata?.full_name || u.user_metadata?.name || null,
+                    emailVerified: u.email_confirmed_at != null,
+                  },
+                })
+                created++
+              } catch (_e) { /* skip duplicates */ }
+            }
+          }
+          if (created > 0) console.log(`✅ [BROADCAST] Auto-synced ${created} new users before broadcast`)
+        }
+      }
+    } catch (syncErr) {
+      console.warn('⚠️ [BROADCAST] Auto-sync failed (non-critical, continuing):', syncErr)
+    }
+
     // Validate required fields
     if (!target || !subject) {
       return NextResponse.json(
@@ -103,7 +136,7 @@ export async function POST(request: NextRequest) {
         break
     }
 
-    // Fetch profiles (limit batch size)
+    // Fetch ALL matching profiles (no limit — broadcast to everyone)
     const profiles = await db.profile.findMany({
       where: whereClause,
       select: {
@@ -111,7 +144,6 @@ export async function POST(request: NextRequest) {
         email: true,
         full_name: true,
       },
-      take: BATCH_SIZE,
     })
 
     if (profiles.length === 0) {

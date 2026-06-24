@@ -8,7 +8,7 @@ import {
   Mail, Send, Loader2, Users, ShieldCheck, Crown, UserX,
   CheckCircle, XCircle, Clock, AlertTriangle, Eye, EyeOff,
   ArrowLeft, BarChart3, FileText, Megaphone, Settings,
-  Code, Paintbrush, Vibrate, FlaskConical, ChevronDown,
+  Code, Paintbrush, Vibrate, FlaskConical, ChevronDown, DatabaseBackup,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -156,6 +156,34 @@ export default function AdminEmailPage() {
   const [result, setResult] = useState<{ sent: number; failed: number; errors: string[] } | null>(null)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [sendingTest, setSendingTest] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+
+  // Sync users from Auth → DB then refresh stats
+  const syncAndRefresh = async () => {
+    if (syncing) return
+    setSyncing(true)
+    try {
+      const res = await fetch('/api/admin/sync-users', {
+        method: 'POST',
+        headers: { 'x-admin-email': ADMIN_EMAIL },
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success(data.message, { duration: 6000 })
+        // Refresh stats
+        const statsRes = await fetch('/api/admin/email-stats', {
+          headers: { 'x-admin-email': ADMIN_EMAIL },
+        })
+        if (statsRes.ok) setStats(await statsRes.json())
+      } else {
+        toast.error(data.error || 'Gagal sinkronisasi', { duration: 6000 })
+      }
+    } catch {
+      toast.error('Network error saat sinkronisasi')
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   // Admin check
   useEffect(() => {
@@ -354,6 +382,19 @@ export default function AdminEmailPage() {
               <h1 className="text-lg font-semibold text-white">Email Broadcast</h1>
               <p className="text-xs text-white/40">Kirim email massal ke user LuxTrade</p>
             </div>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              onClick={syncAndRefresh}
+              disabled={syncing}
+              variant="outline"
+              size="sm"
+              className="border-emerald-500/30 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"
+              title="Sinkronkan user dari Auth ke DB sebelum broadcast"
+            >
+              <DatabaseBackup className={`w-4 h-4 mr-2 ${syncing ? 'animate-pulse' : ''}`} />
+              {syncing ? 'Syncing...' : 'Sync Users'}
+            </Button>
           </div>
         </div>
       </header>
