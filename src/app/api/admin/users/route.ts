@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, getAdminStatus } from '@/lib/supabase-admin-alt'
-import { db, isDatabaseAvailable, getDatabaseUnavailableReason, ensureSchema } from '@/lib/db'
+import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
 
 // Helper: sync subscription data to Prisma profile
 async function syncProfileFromAuth(userId: string, isPro: boolean, subscriptionUntil: string | null) {
@@ -15,7 +15,6 @@ async function syncProfileFromAuth(userId: string, isPro: boolean, subscriptionU
     if (existingProfile) {
       await db.profile.update({ where: { id: userId }, data })
     } else {
-      // Create profile if it doesn't exist (e.g., new user from admin panel)
       await db.profile.create({ data: { id: userId, ...data } })
     }
     console.log(`✅ [ADMIN API] Synced Prisma profile for ${userId}: is_pro=${isPro}`)
@@ -24,138 +23,139 @@ async function syncProfileFromAuth(userId: string, isPro: boolean, subscriptionU
   }
 }
 
-// Helper: format a Prisma profile into the standard user object
-function formatProfileAsUser(profile: any) {
-  const isPro = profile.is_pro ?? false
-  return {
-    id: profile.id,
-    email: profile.email || '-',
-    full_name: profile.full_name || 'No Name',
-    display_name: null,
-    plan: profile.plan || (isPro ? 'PRO' : 'FREE'),
-    subscription_status: isPro ? 'active' : 'inactive',
-    is_pro: isPro,
-    subscription_until: profile.subscription_until?.toISOString() ?? profile.proExpiry?.toISOString() ?? null,
-    my_referral_code: profile.myReferralCode || null,
-    referred_by_code: profile.referredByCode || null,
-    referred_by: null,
-    has_duplicate_device: false,
-    referral_status: null,
-    commission_paid: profile.commissionPaid || false,
-    has_ever_been_pro: isPro ? true : (profile.hasEverBeenPro || false),
-    device_id: profile.deviceId || null,
-    created_at: profile.createdAt?.toISOString() || new Date().toISOString(),
-    role: profile.role || 'member',
-    // Extra fields from Prisma profile (useful for admin)
-    emailVerified: profile.emailVerified ?? false,
-  }
-}
-
-// GET all users — Supabase Auth as PRIMARY source, enriched with Prisma profile data
+// GET all users — Prisma profiles PRIMARY (no user lost), Supabase Auth for enrichment only
 export async function GET(request: NextRequest) {
   try {
     console.log('🔍 [ADMIN API] Fetching users...')
-    console.log('📊 [ADMIN API] Supabase Admin:', JSON.stringify(getAdminStatus()))
     console.log('📊 [ADMIN API] DB available:', isDatabaseAvailable())
+    console.log('📊 [ADMIN API] Supabase Admin:', JSON.stringify(getAdminStatus()))
 
-    // ── Step 1: Fetch ALL users from Supabase Auth (PRIMARY source — has all 20 users) ──
-    if (!supabaseAdmin) {
-      return NextResponse.json(
-        { error: 'Supabase Admin tidak tersedia', hint: 'Pastikan SUPABASE_SERVICE_ROLE_KEY sudah di-set.' },
-        { status: 500 }
-      )
-    }
-
-    let authUsers: any[] = []
-    let authError: string | null = null
-
-    try {
-      const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers()
-      if (error) {
-        authError = error.message
-        console.error('❌ [ADMIN API] Supabase Auth listUsers error:', error.message)
-      } else if (users) {
-        authUsers = users
-        console.log(`✅ [ADMIN API] Fetched ${authUsers.length} users from Supabase Auth`)
-      }
-    } catch (err: any) {
-      authError = err?.message || 'Unknown error'
-      console.error('❌ [ADMIN API] Supabase Auth call failed:', err)
-    }
-
-    if (authUsers.length === 0) {
-      return NextResponse.json(
-        { error: 'Tidak ada user ditemukan di Supabase Auth', details: authError },
-        { status: 500 }
-      )
-    }
-
-    // ── Step 2: Try to enrich with Prisma profile data (non-critical) ──
-    let profileMap = new Map<string, any>() // id -> profile data
-    let profileEnriched = false
+    // ── Step 1: Fetch ALL profiles from Prisma DB (PRIMARY source of truth) ──
+    let profiles: any[] = []
 
     if (isDatabaseAvailable()) {
       try {
         await ensureSchema()
-        const profiles = await db.profile.findMany()
-        if (profiles.length > 0) {
-          profileMap = new Map(profiles.map((p: any) => [p.id, p]))
-          profileEnriched = true
-          console.log(`✅ [ADMIN API] Enriched with ${profiles.length} Prisma profiles`)
+
+        // Try Prisma ORM first
+        try {
+          profiles = await db.profile.findMany({ orderBy: { createdAt: 'desc' } })
+          console.log(`✅ [ADMIN API] Prisma findMany: ${profiles.length} profiles`)
+        } catch (_prismaErr) {
+          // ORM failed (missing column?) — fallback to raw SQL
+          console.warn('⚠️ [ADMIN API] Prisma findMany failed, trying raw SQL...')
+          try {
+            const raw = await db.$queryRaw`SELECT * FROM profiles ORDER BY created_at DESC`
+            if (Array.isArray(raw) && raw.length > 0) {
+              profiles = raw
+              console.log(`✅ [ADMIN API] Raw SQL: ${profiles.length} profiles`)
+            }
+          } catch (_rawErr) {
+            console.warn('⚠️ [ADMIN API] Raw SQL also failed')
+          }
         }
       } catch (dbErr: any) {
-        console.warn('⚠️ [ADMIN API] Prisma enrichment failed (non-critical):', dbErr?.message?.substring(0, 200))
+        console.error('❌ [ADMIN API] DB error:', dbErr?.message?.substring(0, 200))
       }
-    } else {
-      console.log('📊 [ADMIN API] DB not available — using Supabase Auth data only')
     }
 
-    // ── Step 3: Build final user list — Auth as base, Prisma for enrichment ──
-    const formattedUsers = authUsers.map(user => {
-      const metadata = user.user_metadata || {}
-      const profile = profileMap.get(user.id)
+    // ── Step 2: Fetch Supabase Auth for enrichment (non-critical) ──
+    let authUserMap = new Map<string, any>()
+    let authEnriched = false
 
-      const isPro = profile?.is_pro ?? metadata.is_pro ?? false
-      const plan = profile?.plan ?? (isPro ? 'PRO' : 'FREE')
+    if (supabaseAdmin) {
+      try {
+        const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers()
+        if (!error && users) {
+          authUserMap = new Map(users.map(u => [u.id, u]))
+          authEnriched = true
+          console.log(`✅ [ADMIN API] Supabase Auth: ${users.length} users for enrichment`)
+        } else if (error) {
+          console.warn('⚠️ [ADMIN API] Auth error (non-critical):', error.message)
+        }
+      } catch (err) {
+        console.warn('⚠️ [ADMIN API] Auth call failed (non-critical):', err)
+      }
+    }
+
+    // ── Step 3: Build user list from Prisma profiles, enriched with Auth ──
+    const profileIds = new Set(profiles.map((p: any) => p.id))
+
+    const formattedUsers = profiles.map(profile => {
+      const authUser = authUserMap.get(profile.id)
+      const metadata = authUser?.user_metadata || {}
+
+      const isPro = profile.is_pro ?? metadata.is_pro ?? false
+      const plan = profile.plan ?? (isPro ? 'PRO' : 'FREE')
 
       return {
-        id: user.id,
-        email: user.email || profile?.email || '-',
-        full_name: profile?.full_name || metadata.full_name || metadata.name || 'No Name',
+        id: profile.id,
+        email: profile.email || authUser?.email || metadata.email || '-',
+        full_name: profile.full_name || metadata.full_name || metadata.name || 'No Name',
         display_name: metadata.display_name || null,
         plan,
         subscription_status: isPro ? 'active' : 'inactive',
         is_pro: isPro,
-        subscription_until: profile?.subscription_until?.toISOString() ?? profile?.proExpiry?.toISOString() ?? metadata.subscription_until ?? null,
-        my_referral_code: profile?.myReferralCode || metadata.my_referral_code || null,
-        referred_by_code: profile?.referredByCode || metadata.referred_by_code || null,
+        subscription_until: profile.subscription_until?.toISOString() ?? profile.proExpiry?.toISOString() ?? metadata.subscription_until ?? null,
+        my_referral_code: profile.myReferralCode || metadata.my_referral_code || null,
+        referred_by_code: profile.referredByCode || metadata.referred_by_code || null,
         referred_by: metadata.referred_by || null,
         has_duplicate_device: metadata.has_duplicate_device || false,
         referral_status: metadata.referral_status || null,
-        commission_paid: profile?.commissionPaid ?? metadata.commission_paid ?? false,
-        has_ever_been_pro: isPro ? true : (profile?.hasEverBeenPro ?? metadata.has_ever_been_pro ?? false),
-        device_id: profile?.deviceId || metadata.device_id || null,
-        created_at: user.created_at || profile?.createdAt?.toISOString() || new Date().toISOString(),
-        role: profile?.role || metadata.role || 'member',
-        emailVerified: profile?.emailVerified ?? (user.email_confirmed_at != null) ?? false,
-        // Auth-specific fields (useful for admin)
-        last_sign_in_at: user.last_sign_in_at || null,
-        phone: user.phone || null,
-        // Indicate if this user has a matching profile
-        has_profile: !!profile,
+        commission_paid: profile.commissionPaid ?? metadata.commission_paid ?? false,
+        has_ever_been_pro: isPro ? true : (profile.hasEverBeenPro ?? metadata.has_ever_been_pro ?? false),
+        device_id: profile.deviceId || metadata.device_id || null,
+        created_at: profile.createdAt?.toISOString() || authUser?.created_at || new Date().toISOString(),
+        role: profile.role || metadata.role || 'member',
+        emailVerified: profile.emailVerified ?? (authUser?.email_confirmed_at != null) ?? false,
+        last_sign_in_at: authUser?.last_sign_in_at || null,
+        has_auth: !!authUser,
       }
     })
 
-    console.log(`✅ [ADMIN API] Returning ${formattedUsers.length} users (Auth base${profileEnriched ? ' + Prisma enrich' : ''})`)
+    // ── Step 4: Append Auth-only users (in Auth but NOT in Prisma) so nobody is lost ──
+    const authOnlyUsers = Array.from(authUserMap.values())
+      .filter((u: any) => !profileIds.has(u.id))
+      .map((user: any) => {
+        const metadata = user.user_metadata || {}
+        return {
+          id: user.id,
+          email: user.email || '-',
+          full_name: metadata.full_name || metadata.name || 'No Name',
+          display_name: metadata.display_name || null,
+          plan: metadata.is_pro ? 'PRO' : 'FREE',
+          subscription_status: metadata.is_pro ? 'active' : 'inactive',
+          is_pro: metadata.is_pro ?? false,
+          subscription_until: metadata.subscription_until ?? null,
+          my_referral_code: metadata.my_referral_code || null,
+          referred_by_code: metadata.referred_by_code || null,
+          referred_by: metadata.referred_by || null,
+          has_duplicate_device: metadata.has_duplicate_device || false,
+          referral_status: metadata.referral_status || null,
+          commission_paid: metadata.commission_paid ?? false,
+          has_ever_been_pro: metadata.has_ever_been_pro ?? false,
+          device_id: metadata.device_id || null,
+          created_at: user.created_at || new Date().toISOString(),
+          role: metadata.role || 'member',
+          emailVerified: user.email_confirmed_at != null,
+          last_sign_in_at: user.last_sign_in_at || null,
+          has_auth: true,
+        }
+      })
+
+    const allUsers = [...formattedUsers, ...authOnlyUsers]
+
+    console.log(`✅ [ADMIN API] Total: ${allUsers.length} users (${formattedUsers.length} DB + ${authOnlyUsers.length} Auth-only)`)
 
     return NextResponse.json({
-      users: formattedUsers,
-      count: formattedUsers.length,
-      source: profileEnriched ? 'supabase+prisma' : 'supabase-only',
-      auth_count: authUsers.length,
-      profile_count: profileMap.size,
-      ...(profileEnriched && profileMap.size < authUsers.length
-        ? { notice: `${authUsers.length - profileMap.size} user belum punya profile di database.` }
+      users: allUsers,
+      count: allUsers.length,
+      source: authEnriched ? 'prisma+auth' : 'prisma-only',
+      profile_count: profiles.length,
+      auth_count: authUserMap.size,
+      auth_only_count: authOnlyUsers.length,
+      ...(authOnlyUsers.length > 0
+        ? { notice: `${authOnlyUsers.length} user ada di Auth tapi belum punya profile di database.` }
         : {}),
     })
   } catch (error) {
