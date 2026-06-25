@@ -1,0 +1,502 @@
+  1213→                <motion.div
+  1214→                  whileHover={{ scale: 1.02 }}
+  1215→                  whileTap={{ scale: 0.98 }}
+  1216→                >
+  1217→                  <Button
+  1218→                    onClick={handleProUpgrade}
+  1219→                    className="w-full h-12 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-xl"
+  1220→                  >
+  1221→                    {t('pricing.cta.upgrade')}
+  1222→                  </Button>
+  1223→                </motion.div>
+  1224→              </motion.div>
+  1225→            </motion.div>
+  1226→
+  1227→            {/* Lifetime Ultra - Rp 52.000 / $5 */}
+  1228→            <LifetimeUltraCard onButtonClick={handleLifetimeUpgrade} language={language} t={t} />
+  1229→          </div>
+  1230→          
+  1231→          {/* Comparison Table */}
+  1232→          <motion.div 
+  1233→            className="mt-16 overflow-x-auto"
+  1234→            initial={{ opacity: 0, y: 20 }}
+  1235→            whileInView={{ opacity: 1, y: 0 }}
+  1236→            viewport={{ once: true }}
+  1237→          >
+  1238→            <div className="min-w-[500px] backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] rounded-2xl overflow-hidden">
+  1239→              <table className="w-full">
+  1240→                <thead>
+  1241→                  <tr className="border-b border-white/[0.08]">
+  1242→                    <th className="p-5 text-left text-white/40 font-bold text-sm uppercase tracking-wide">{language === 'id' ? 'Fitur' : 'Features'}</th>
+  1243→                    <th className="p-5 text-center text-white/40 font-bold text-sm uppercase tracking-wide">{t('pricing.free.title')}</th>
+  1244→                    <th className="p-5 text-center text-purple-400 font-extrabold text-sm uppercase tracking-wide">{t('pricing.pro.title')}</th>
+  1245→                    <th className="p-5 text-center text-amber-400 font-extrabold text-sm uppercase tracking-wide">{t('pricing.lifetime.title')}</th>
+  1246→                  </tr>
+  1247→                </thead>
+  1248→                <tbody className="divide-y divide-white/[0.05]">
+  1249→                  {[
+  1250→                    { 
+  1251→                      feature: language === 'id' ? 'Jurnal Transaksi / Bulan' : 'Trade Journals / Month', 
+  1252→                      free: '10', 
+  1253→                      pro: 'UNLIMITED', 
+  1254→                      ultra: 'UNLIMITED' 
+  1255→                    },
+  1256→                    { 
+  1257→                      feature: language === 'id' ? 'Grafik Performa & Statistik' : 'Performance Charts & Stats', 
+  1258→                      free: language === 'id' ? 'Standar' : 'Standard', 
+  1259→                      pro: language === 'id' ? 'Mendalam' : 'In-Depth', 
+  1260→                      ultra: language === 'id' ? 'Mendalam' : 'In-Depth' 
+  1261→                    },
+  1262→                    { 
+  1263→                      feature: language === 'id' ? 'Analisis AI Pintar' : 'Smart AI Analysis', 
+  1264→                      free: '3x Trial', 
+  1265→                      pro: '✓ Full', 
+  1266→                      ultra: '✓ Full' 
+  1267→                    },
+  1268→                    { 
+  1269→                      feature: language === 'id' ? 'Kalkulator Risiko Trading' : 'Trading Risk Calculator', 
+  1270→                      free: language === 'id' ? 'Pemula' : 'Basic', 
+  1271→                      pro: 'Advanced', 
+  1272→                      ultra: 'Advanced' 
+  1273→                    },
+  1274→                    { 
+  1275→                      feature: 'Ekspor Data (Excel/PDF)', 
+  1276→                      free: '—', 
+  1277→                      pro: '✓', 
+  1278→                      ultra: '✓' 
+  1279→                    },
+  1280→                    {
+  1281→                      feature: 'VIP Telegram Support',
+  1282→                      free: '—',
+  1283→                      pro: '✓',
+  1284→                      ultra: language === 'id' ? '✓ Grup Privat' : '✓ Private Group'
+  1285→                    },
+  1286→                  ].map((row, index) => (
+  1287→                    <tr key={index} className="hover:bg-white/[0.03] transition-colors">
+  1288→                      <td className="p-5 text-white/70 font-medium">{row.feature}</td>
+  1289→                      <td className="p-5 text-center text-white/40">{row.free}</td>
+  1290→                      <td className="p-5 text-center text-emerald-400 font-bold">{row.pro}</td>
+  1291→                      <td className="p-5 text-center text-amber-400 font-bold">{row.ultra}</td>
+  1292→                    </tr>
+  1293→                  ))}
+  1294→                </tbody>
+  1295→              </table>
+  1296→            </div>
+  1297→          </motion.div>
+  1298→          
+  1299→          {/* Onboarding Flow */}
+  1300→          <motion.div 
+  1301→            className="mt-20 text-center"
+  1302→            initial={{ opacity: 0, y: 20 }}
+  1303→            whileInView={{ opacity: 1, y: 0 }}
+  1304→            viewport={{ once: true }}
+  1305→          >
+  1306→            <p className="text-white/40 mb-10 font-light text-lg">{language === 'id' ? 'Mulai dalam kurang dari 2 menit' : 'Get started in less than 2 minutes'}</p>
+  1307→            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12">
+  1308→              {[
+  1309→                { step: '1', title: language === 'id' ? 'Daftar' : 'Sign Up', time: language === 'id' ? '30 detik' : '30 seconds', icon: Users },
+  1310→                { step: '2', title: 'Import trade', time: language === 'id' ? '1 menit' : '1 minute', icon: BarChart3 },
+  1311→                { step: '3', title: language === 'id' ? 'Lihat analisis' : 'View analysis', time: language === 'id' ? 'Langsung' : 'Instant', icon: LineChart },
+  1312→              ].map((item, index) => (
+  1313→                <React.Fragment key={index}>
+  1314→                  <motion.div 
+  1315→                    className="flex flex-col items-center p-6 backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] rounded-2xl hover:bg-white/[0.06] hover:border-purple-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] transition-all duration-300"
+  1316→                    whileHover={{ scale: 1.05, y: -4 }}
+  1317→                  >
+  1318→                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 flex items-center justify-center mb-4">
+  1319→                      <item.icon className="w-6 h-6 text-purple-400" />
+  1320→                    </div>
+  1321→                    <span className="text-white font-extrabold">{item.title}</span>
+  1322→                    <span className="text-white/40 text-sm font-medium">{item.time}</span>
+  1323→                  </motion.div>
+  1324→                  {index < 2 && <ArrowRight className="w-6 h-6 text-white/20 hidden sm:block" />}
+  1325→                </React.Fragment>
+  1326→              ))}
+  1327→            </div>
+  1328→          </motion.div>
+  1329→        </div>
+  1330→      </section>
+  1331→
+  1332→      {/* Promo Code Section - Special Offer */}
+  1333→      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-amber-900/10 to-transparent">
+  1334→        <div className="max-w-4xl mx-auto">
+  1335→          <motion.div
+  1336→            className="text-center mb-12"
+  1337→            initial={{ opacity: 0, y: 20 }}
+  1338→            whileInView={{ opacity: 1, y: 0 }}
+  1339→            viewport={{ once: true }}
+  1340→          >
+  1341→            <motion.div
+  1342→              className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-amber-500/10 border border-amber-500/30 mb-6"
+  1343→              animate={{
+  1344→                boxShadow: ['0 0 0 0 rgba(251, 191, 36, 0.7)', '0 0 0 10px rgba(251, 191, 36, 0)', '0 0 0 0 rgba(251, 191, 36, 0.7)']
+  1345→              }}
+  1346→              transition={{ duration: 2, repeat: Infinity }}
+  1347→            >
+  1348→              <Sparkles className="w-4.5 h-4.5 text-amber-400" />
+  1349→              <span className="text-sm text-amber-300 font-semibold">{language === 'id' ? 'PROMO SPESIAL' : 'SPECIAL PROMO'}</span>
+  1350→            </motion.div>
+  1351→            <h2 className="text-3xl sm:text-4xl font-extrabold mb-6 text-white">
+  1352→              {language === 'id' ? 'Kode Promo Eksklusif' : 'Exclusive Promo Code'}
+  1353→            </h2>
+  1354→            <p className="text-white/50 mb-8 max-w-2xl mx-auto font-light text-lg">
+  1355→              {promoActive
+  1356→                ? (language === 'id'
+  1357→                  ? `Gunakan kode promo di bawah ini untuk mendapatkan akses Premium 3 bulan GRATIS! Sisa ${promoRemaining ?? 30} kuota dari ${promoMax}.`
+  1358→                  : `Use the promo code below to get 3 months of Premium access for FREE! ${promoRemaining ?? 30} slots left out of ${promoMax}.`)
+  1359→                : (language === 'id' ? 'Kode promo sudah tidak tersedia.' : 'Promo code is no longer available.')
+  1360→              }
+  1361→            </p>
+  1362→          </motion.div>
+  1363→
+  1364→          <motion.div
+  1365→            initial={{ opacity: 0, y: 30 }}
+  1366→            whileInView={{ opacity: 1, y: 0 }}
+  1367→            viewport={{ once: true }}
+  1368→            transition={{ delay: 0.2 }}
+  1369→          >
+  1370→            <div className="backdrop-blur-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-2 border-amber-500/30 rounded-3xl p-8 hover:shadow-[0_0_50px_rgba(251,191,36,0.3)] transition-all duration-300">
+  1371→              <div className="text-center">
+  1372→                {/* Promo Code Box */}
+  1373→                <div className="mb-8">
+  1374→                  <p className="text-amber-300/70 text-sm font-semibold mb-4 uppercase tracking-wider">
+  1375→                    {language === 'id' ? 'Kode Promo Anda' : 'Your Promo Code'}
+  1376→                  </p>
+  1377→                  <motion.div
+  1378→                    className={`inline-flex items-center gap-4 px-8 py-6 bg-black/40 rounded-2xl border-2 transition-all duration-300 ${promoActive ? 'border-amber-500/50 hover:border-amber-500 hover:bg-black/50 cursor-pointer' : 'border-red-500/30 opacity-50 cursor-not-allowed'}`}
+  1379→                    whileHover={promoActive ? { scale: 1.02 } : {}}
+  1380→                    whileTap={promoActive ? { scale: 0.98 } : {}}
+  1381→                    onClick={() => {
+  1382→                      if (!promoActive || (promoRemaining !== null && promoRemaining <= 0)) return
+  1383→                      navigator.clipboard.writeText('TRADERCEPAT')
+  1384→                      alert(language === 'id' ? 'Kode berhasil disalin!' : 'Code copied to clipboard!')
+  1385→                    }}
+  1386→                  >
+  1387→                    <span className={`text-4xl font-extrabold bg-gradient-to-r ${promoActive ? 'from-amber-400 to-orange-400' : 'from-red-400 to-red-600'} bg-clip-text text-transparent tracking-wider font-mono ${!promoActive ? 'line-through' : ''}`}>
+  1388→                      TRADERCEPAT
+  1389→                    </span>
+  1390→                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${promoActive ? 'bg-amber-500/20' : 'bg-red-500/20'}`}>
+  1391→                      {promoActive
+  1392→                        ? <Check className="w-5 h-5 text-amber-400" />
+  1393→                        : <X className="w-5 h-5 text-red-400" />
+  1394→                      }
+  1395→                    </div>
+  1396→                  </motion.div>
+  1397→                  <p className={`text-sm mt-3 ${promoActive ? 'text-white/40' : 'text-red-400'}`}>
+  1398→                    {promoActive
+  1399→                      ? (language === 'id' ? 'Klik untuk menyalin kode' : 'Click to copy code')
+  1400→                      : (language === 'id' ? 'Kuota habis' : 'Sold out')
+  1401→                    }
+  1402→                  </p>
+  1403→                </div>
+  1404→
+  1405→                {/* Promo Details Grid */}
+  1406→                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+  1407→                  {[
+  1408→                    {
+  1409→                      icon: Crown,
+  1410→                      value: '100%',
+  1411→                      label: language === 'id' ? 'Diskon' : 'Discount',
+  1412→                      color: 'amber'
+  1413→                    },
+  1414→                    {
+  1415→                      icon: Clock,
+  1416→                      value: '3',
+  1417→                      label: language === 'id' ? 'Bulan' : 'Months',
+  1418→                      color: 'purple'
+  1419→                    },
+  1420→                    {
+  1421→                      icon: Users,
+  1422→                      value: promoActive ? String(promoRemaining ?? '...') : '0',
+  1423→                      label: language === 'id' ? 'Sisa Kuota' : 'Remaining',
+  1424→                      color: (promoRemaining !== null && promoRemaining <= 5) ? 'red' : 'cyan'
+  1425→                    }
+  1426→                  ].map((item, index) => (
+  1427→                    <div key={index} className="p-4 rounded-xl bg-white/5 border border-white/[0.08]">
+  1428→                      <item.icon className={`w-8 h-8 text-${item.color}-400 mx-auto mb-3`} />
+  1429→                      <div className="text-3xl font-extrabold text-white mb-1">{item.value}</div>
+  1430→                      <div className="text-xs text-white/50 font-medium uppercase tracking-wide">{item.label}</div>
+  1431→                    </div>
+  1432→                  ))}
+  1433→                </div>
+  1434→
+  1435→                {/* How to Use Steps */}
+  1436→                <div className="text-left max-w-2xl mx-auto">
+  1437→                  <p className="text-amber-300/70 text-sm font-semibold mb-4 uppercase tracking-wider">
+  1438→                    {language === 'id' ? 'Cara Menggunakan' : 'How to Use'}
+  1439→                  </p>
+  1440→                  <div className="space-y-4">
+  1441→                    {[
+  1442→                      {
+  1443→                        step: '1',
+  1444→                        text: language === 'id' ? 'Daftar akun LuxTrade di halaman pendaftaran' : 'Sign up for a LuxTrade account on the registration page'
+  1445→                      },
+  1446→                      {
+  1447→                        step: '2',
+  1448→                        text: language === 'id' ? 'Login ke dashboard dan buka halaman /upgrade' : 'Login to dashboard and go to the /upgrade page'
+  1449→                      },
+  1450→                      {
+  1451→                        step: '3',
+  1452→                        text: language === 'id' ? 'Input kode promo "TRADERCEPAT" dan klik "Terapkan Kode Promo"' : 'Enter promo code "TRADERCEPAT" and click "Apply Promo Code"'
+  1453→                      },
+  1454→                      {
+  1455→                        step: '4',
+  1456→                        text: language === 'id' ? 'Selamat! Anda mendapatkan akses Premium selama 3 bulan GRATIS' : 'Congratulations! You get 3 months of Premium access for FREE'
+  1457→                      }
+  1458→                    ].map((item, index) => (
+  1459→                      <motion.div
+  1460→                        key={index}
+  1461→                        initial={{ opacity: 0, x: -20 }}
+  1462→                        whileInView={{ opacity: 1, x: 0 }}
+  1463→                        viewport={{ once: true }}
+  1464→                        transition={{ delay: 0.3 + index * 0.1 }}
+  1465→                        className="flex items-start gap-4"
+  1466→                      >
+  1467→                        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center font-extrabold text-white text-sm">
+  1468→                          {item.step}
+  1469→                        </div>
+  1470→                        <div className="flex-1 pt-1">
+  1471→                          <p className="text-white/70 text-sm font-medium">{item.text}</p>
+  1472→                        </div>
+  1473→                      </motion.div>
+  1474→                    ))}
+  1475→                  </div>
+  1476→                </div>
+  1477→
+  1478→                {/* CTA Button */}
+  1479→                <motion.div
+  1480→                  className="mt-10"
+  1481→                  whileHover={{ scale: 1.02 }}
+  1482→                  whileTap={{ scale: 0.98 }}
+  1483→                >
+  1484→                  <Link href="/upgrade">
+  1485→                    <Button className="h-14 px-10 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-extrabold text-base shadow-lg shadow-amber-500/30 hover:shadow-[0_0_40px_rgba(251,191,36,0.5)] transition-all duration-300 backdrop-blur-xl">
+  1486→                      {language === 'id' ? '🚀 Gunakan Promo Code Sekarang' : '🚀 Use Promo Code Now'}
+  1487→                      <ArrowRight className="w-5 h-5 ml-2" />
+  1488→                    </Button>
+  1489→                  </Link>
+  1490→                </motion.div>
+  1491→
+  1492→                {/* Urgency Note */}
+  1493→                <p className="text-white/30 text-xs mt-6 font-medium">
+  1494→                  {language === 'id' ? '⚡ Berlaku sampai kuota 30 habis. Segera gunakan sebelum kehabisan!' : '⚡ Valid until 30 quota is exhausted. Use it now before it runs out!'}
+  1495→                </p>
+  1496→              </div>
+  1497→            </div>
+  1498→          </motion.div>
+  1499→        </div>
+  1500→      </section>
+  1501→
+  1502→      {/* Newsletter Section - Premium */}
+  1503→      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-cyan-900/10 to-transparent">
+  1504→        <div className="max-w-2xl mx-auto text-center">
+  1505→          <motion.div
+  1506→            initial={{ opacity: 0, y: 20 }}
+  1507→            whileInView={{ opacity: 1, y: 0 }}
+  1508→            viewport={{ once: true }}
+  1509→          >
+  1510→            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-cyan-500/10 border border-cyan-500/30 mb-6">
+  1511→              <Mail className="w-4.5 h-4.5 text-cyan-400" />
+  1512→              <span className="text-sm text-cyan-300 font-semibold">{language === 'id' ? 'Wawasan Mingguan' : 'Weekly Insights'}</span>
+  1513→            </div>
+  1514→            <h2 className="text-3xl sm:text-4xl font-extrabold mb-6 text-white">
+  1515→              {language === 'id' ? 'Dapatkan Tips Trading Setiap Minggu' : 'Get Trading Tips Every Week'}
+  1516→            </h2>
+  1517→            <p className="text-white/50 mb-8 max-w-md mx-auto font-light text-lg">
+  1518→              {language === 'id' ? 'Bergabung dengan trader yang menerima tips trading mingguan, wawasan psikologi, dan update fitur terbaru.' : 'Join traders receiving weekly trading tips, psychology insights, and latest feature updates.'}
+  1519→            </p>
+  1520→            <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto" onSubmit={(e) => e.preventDefault()}>
+  1521→              <input 
+  1522→                type="email" 
+  1523→                placeholder={language === 'id' ? 'Masukkan email Anda' : 'Enter your email'}
+  1524→                className="flex-1 px-5 py-4 rounded-xl backdrop-blur-xl bg-white/5 border border-white/[0.08] text-white placeholder:text-white/30 focus:outline-none focus:border-cyan-500/50 focus:shadow-[0_0_20px_rgba(6,182,212,0.2)] transition-all font-medium"
+  1525→              />
+  1526→              <motion.div
+  1527→                whileHover={{ scale: 1.02 }}
+  1528→                whileTap={{ scale: 0.98 }}
+  1529→              >
+  1530→                <Button 
+  1531→                  type="submit"
+  1532→                  className="h-14 px-8 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-extrabold rounded-xl shadow-lg shadow-cyan-500/30 hover:shadow-[0_0_40px_rgba(6,182,212,0.5)] transition-all duration-300 backdrop-blur-xl"
+  1533→                >
+  1534→                  {language === 'id' ? 'Langganan' : 'Subscribe'}
+  1535→                </Button>
+  1536→              </motion.div>
+  1537→            </form>
+  1538→            <p className="text-white/30 text-xs mt-4 font-medium">{language === 'id' ? 'Tidak ada spam. Berhenti langganan kapan saja.' : 'No spam. Unsubscribe anytime.'}</p>
+  1539→          </motion.div>
+  1540→        </div>
+  1541→      </section>
+  1542→
+  1543→      {/* Roadmap Section - Premium */}
+  1544→      <section id="roadmap" className="py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/10 to-transparent">
+  1545→        <div className="max-w-5xl mx-auto">
+  1546→          <motion.div 
+  1547→            className="text-center mb-16"
+  1548→            initial={{ opacity: 0, y: 20 }}
+  1549→            whileInView={{ opacity: 1, y: 0 }}
+  1550→            viewport={{ once: true }}
+  1551→          >
+  1552→            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-purple-500/10 border border-purple-500/30 mb-6">
+  1553→              <Zap className="w-4.5 h-4.5 text-purple-400" />
+  1554→              <span className="text-sm text-purple-300 font-semibold">{language === 'id' ? 'Yang Sedang Dibangun' : 'Currently in the Works'}</span>
+  1555→            </div>
+  1556→            <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
+  1557→              <span className="text-white">{language === 'id' ? 'Masih Banyak' : 'Still Plenty'}</span>
+  1558→              <span className="bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent"> {language === 'id' ? 'yang Mau Dikembangin' : 'to Build'}</span>
+  1559→            </h2>
+  1560→            <p className="text-white/40 max-w-xl mx-auto font-light text-lg">
+  1561→              {language === 'id' ? 'LuxTrade masih baru dan terus berkembang. Ini beberapa fitur yang sudah di garap.' : 'LuxTrade is still young and growing. Here\'s what\'s already being worked on.'}
+  1562→            </p>
+  1563→          </motion.div>
+  1564→
+  1565→          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+  1566→            {/* Sedang Dikerjakan */}
+  1567→            <motion.div
+  1568→              initial={{ opacity: 0, x: -20 }}
+  1569→              whileInView={{ opacity: 1, x: 0 }}
+  1570→              viewport={{ once: true }}
+  1571→              transition={{ delay: 0.1 }}
+  1572→            >
+  1573→              <Card className="h-full backdrop-blur-xl bg-gradient-to-br from-[#1a0f2e]/50 to-[#0d0715]/50 border-purple-500/20 border border-white/[0.08] hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-shadow duration-500">
+  1574→                <CardContent className="p-6">
+  1575→                  <div className="flex items-center gap-4 mb-6">
+  1576→                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center">
+  1577→                      <Activity className="w-6 h-6 text-cyan-400" />
+  1578→                    </div>
+  1579→                    <div>
+  1580→                      <h3 className="font-extrabold text-white text-lg">{language === 'id' ? 'Sedang Dikerjakan' : 'In Progress'}</h3>
+  1581→                      <p className="text-xs text-cyan-400 font-bold tracking-wide">{language === 'id' ? 'AKTIF DIKEMBANGKAN' : 'ACTIVE DEVELOPMENT'}</p>
+  1582→                    </div>
+  1583→                  </div>
+  1584→                  <ul className="space-y-4">
+  1585→                    {[
+  1586→                      { icon: '💱', title: language === 'id' ? 'Harga Forex Real-time' : 'Real-time Forex Prices', desc: language === 'id' ? 'Harga pasar langsung di dashboard kamu' : 'Live market prices in your dashboard' },
+  1587→                      { icon: '📄', title: language === 'id' ? 'Export PDF' : 'Export to PDF', desc: language === 'id' ? 'Download laporan trading kamu langsung' : 'Download your trading reports instantly' },
+  1588→                      { icon: '🔔', title: language === 'id' ? 'Notifikasi Harga' : 'Price Alerts', desc: language === 'id' ? 'Dapet notif pas harga nyentuh target kamu' : 'Get notified when price hits your target' },
+  1589→                    ].map((item, index) => (
+  1590→                      <motion.li 
+  1591→                        key={index}
+  1592→                        className="flex items-start gap-4 p-4 rounded-xl backdrop-blur-sm bg-white/[0.02] border border-white/[0.05] hover:border-cyan-500/20 hover:bg-white/[0.04] transition-all duration-300"
+  1593→                        initial={{ opacity: 0, y: 10 }}
+  1594→                        whileInView={{ opacity: 1, y: 0 }}
+  1595→                        viewport={{ once: true }}
+  1596→                        transition={{ delay: 0.1 + index * 0.05 }}
+  1597→                      >
+  1598→                        <span className="text-2xl">{item.icon}</span>
+  1599→                        <div>
+  1600→                          <p className="font-extrabold text-white text-sm">{item.title}</p>
+  1601→                          <p className="text-xs text-white/40 mt-1 font-medium">{item.desc}</p>
+  1602→                        </div>
+  1603→                      </motion.li>
+  1604→                    ))}
+  1605→                  </ul>
+  1606→                </CardContent>
+  1607→              </Card>
+  1608→            </motion.div>
+  1609→
+  1610→            {/* Dalam Perencanaan */}
+  1611→            <motion.div
+  1612→              initial={{ opacity: 0, x: 20 }}
+  1613→              whileInView={{ opacity: 1, x: 0 }}
+  1614→              viewport={{ once: true }}
+  1615→              transition={{ delay: 0.2 }}
+  1616→            >
+  1617→              <Card className="h-full backdrop-blur-xl bg-gradient-to-br from-[#1a0f2e]/50 to-[#0d0715]/50 border-violet-500/20 border border-white/[0.08] hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-shadow duration-500">
+  1618→                <CardContent className="p-6">
+  1619→                  <div className="flex items-center gap-4 mb-6">
+  1620→                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/30 flex items-center justify-center">
+  1621→                      <Lightning className="w-6 h-6 text-violet-400" />
+  1622→                    </div>
+  1623→                    <div>
+  1624→                      <h3 className="font-extrabold text-white text-lg">{language === 'id' ? 'Dalam Perencanaan' : 'Planned'}</h3>
+  1625→                      <p className="text-xs text-violet-400 font-bold tracking-wide">{language === 'id' ? 'MASIH DIRANCANG' : 'IN DESIGN'}</p>
+  1626→                    </div>
+  1627→                  </div>
+  1628→                  <ul className="space-y-4">
+  1629→                    {[
+  1630→                      { icon: '📊', title: language === 'id' ? 'Integrasi Chart TradingView' : 'TradingView Charts', desc: language === 'id' ? 'Chart lengkap langsung di dalam LuxTrade' : 'Full charts embedded inside LuxTrade' },
+  1631→                      { icon: '📥', title: language === 'id' ? 'Import MT4/MT5 Lebih Baik' : 'Better MT4/MT5 Import', desc: language === 'id' ? 'Parsing lebih akurat, support lebih banyak format' : 'More accurate parsing, more format support' },
+  1632→                      { icon: '💳', title: language === 'id' ? 'Payment Gateway Baru' : 'New Payment Gateway', desc: language === 'id' ? 'Aktivasi instan setelah bayar, tanpa konfirmasi manual' : 'Instant activation after payment, no manual confirmation' },
+  1633→                    ].map((item, index) => (
+  1634→                      <motion.li 
+  1635→                        key={index}
+  1636→                        className="flex items-start gap-4 p-4 rounded-xl backdrop-blur-sm bg-white/[0.02] border border-white/[0.05] hover:border-violet-500/20 hover:bg-white/[0.04] transition-all duration-300"
+  1637→                        initial={{ opacity: 0, y: 10 }}
+  1638→                        whileInView={{ opacity: 1, y: 0 }}
+  1639→                        viewport={{ once: true }}
+  1640→                        transition={{ delay: 0.2 + index * 0.05 }}
+  1641→                      >
+  1642→                        <span className="text-2xl">{item.icon}</span>
+  1643→                        <div>
+  1644→                          <p className="font-extrabold text-white text-sm">{item.title}</p>
+  1645→                          <p className="text-xs text-white/40 mt-1 font-medium">{item.desc}</p>
+  1646→                        </div>
+  1647→                      </motion.li>
+  1648→                    ))}
+  1649→                  </ul>
+  1650→                </CardContent>
+  1651→              </Card>
+  1652→            </motion.div>
+  1653→          </div>
+  1654→
+  1655→          {/* Already Available Features */}
+  1656→          <motion.div
+  1657→            className="mt-12"
+  1658→            initial={{ opacity: 0, y: 20 }}
+  1659→            whileInView={{ opacity: 1, y: 0 }}
+  1660→            viewport={{ once: true }}
+  1661→          >
+  1662→            <div className="p-6 rounded-2xl backdrop-blur-xl bg-emerald-500/10 border border-emerald-500/20">
+  1663→              <div className="flex items-center gap-3 mb-4">
+  1664→                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+  1665→                  <Check className="w-5 h-5 text-emerald-400" />
+  1666→                </div>
+  1667→                <h3 className="font-extrabold text-white text-lg">{language === 'id' ? 'Sudah Tersedia Sekarang' : 'Already Available'}</h3>
+  1668→              </div>
+  1669→              <div className="flex flex-wrap gap-2">
+  1670→                {(language === 'id' ? [
+  1671→                  '✓ Jurnal Trading', '✓ Analitik Performa', '✓ Analisis AI', '✓ Tracking P/L',
+  1672→                  '✓ Equity Curve', '✓ Sistem Achievement', '✓ Streak Tracking', '✓ Export CSV',
+  1673→                  '✓ Multi-Platform', '✓ Responsive Mobile'
+  1674→                ] : [
+  1675→                  '✓ Trade Journal', '✓ Performance Analytics', '✓ AI Analysis', '✓ P/L Tracking',
+  1676→                  '✓ Equity Curve', '✓ Achievement System', '✓ Streak Tracking', '✓ CSV Export',
+  1677→                  '✓ Multi-Platform', '✓ Mobile Responsive'
+  1678→                ]).map((feature, i) => (
+  1679→                  <span 
+  1680→                    key={i} 
+  1681→                    className="px-3 py-1.5 rounded-lg backdrop-blur-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-bold"
+  1682→                  >
+  1683→                    {feature}
+  1684→                  </span>
+  1685→                ))}
+  1686→              </div>
+  1687→            </div>
+  1688→          </motion.div>
+  1689→        </div>
+  1690→      </section>
+  1691→
+  1692→      {/* FAQ Section - Premium Glassmorphism */}
+  1693→      <section id="faq" className="py-24 px-4 sm:px-6 lg:px-8">
+  1694→        <div className="max-w-3xl mx-auto">
+  1695→          <motion.div 
+  1696→            className="text-center mb-16"
+  1697→            initial={{ opacity: 0, y: 20 }}
+  1698→            whileInView={{ opacity: 1, y: 0 }}
+  1699→            viewport={{ once: true }}
+  1700→          >
+  1701→            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-cyan-500/10 border border-cyan-500/30 mb-6">
+  1702→              <HelpCircle className="w-4.5 h-4.5 text-cyan-400" />
+  1703→              <span className="text-sm text-cyan-300 font-semibold">{language === 'id' ? 'Tanya Jawab' : 'FAQ'}</span>
+  1704→            </div>
+  1705→            <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
+  1706→              <span className="text-white">{language === 'id' ? 'Pertanyaan yang' : 'Frequently Asked'}</span>
+  1707→              <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent"> {language === 'id' ? 'Sering Diajukan' : 'Questions'}</span>
+  1708→            </h2>
+  1709→          </motion.div>
+  1710→
+  1711→          <div className="space-y-4">
+  1712→            {[
+
+[showing lines 1213-1712 of 1839; use offset=1713 with limit to continue reading]

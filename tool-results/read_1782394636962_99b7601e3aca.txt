@@ -1,0 +1,502 @@
+   545→
+   546→  // Skrill payment links for English users
+   547→  const skrillLinks = {
+   548→    pro: 'https://skrill.me/rq/RIZQI%20AKBAR/3/USD?key=vXcr_5kNitZJFVBnkmK0sakLnjB',
+   549→    lifetime: 'https://skrill.me/rq/RIZQI%20AKBAR/5/USD?key=EI71vCJNy64rGTOWNzhHPcWiTXS'
+   550→  }
+   551→
+   552→  const handleProUpgrade = () => {
+   553→    if (language === 'en') {
+   554→      window.open(skrillLinks.pro, '_blank')
+   555→    } else {
+   556→      setShowPayment(true)
+   557→    }
+   558→  }
+   559→
+   560→  const handleLifetimeUpgrade = () => {
+   561→    if (language === 'en') {
+   562→      window.open(skrillLinks.lifetime, '_blank')
+   563→    } else {
+   564→      setShowLifetimePaymentModal(true)
+   565→    }
+   566→  }
+   567→
+   568→  // Platform trust metrics
+   569→  const stats = [
+   570→    { value: language === 'id' ? '10+' : '10+', label: language === 'id' ? 'Tipe Analitik' : 'Analytics Types', icon: BarChart3 },
+   571→    { value: '24/7', label: language === 'id' ? 'Akses Dashboard' : 'Dashboard Access', icon: Activity },
+   572→    { value: 'AI', label: language === 'id' ? 'Analisis Cerdas' : 'Smart Analysis', icon: Brain },
+   573→    { value: 'E2E', label: language === 'id' ? 'Enkripsi Data' : 'Data Encryption', icon: Lock },
+   574→  ]
+   575→
+   576→  const features = [
+   577→    {
+   578→      icon: BarChart3,
+   579→      title: 'Analitik Performa',
+   580→      description: 'Win rate, profit factor, performa bulanan — semua divisualisasi biar kamu tahu seberapa konsisten kamu sebenarnya.',
+   581→      gradient: 'from-purple-500 to-violet-600'
+   582→    },
+   583→    {
+   584→      icon: BookOpen,
+   585→      title: 'Jurnal Trading',
+   586→      description: 'Catat entry, exit, emosi, dan alasan di balik setiap trade. Review-nya nanti biar kamu nggak ngulangin kesalahan yang sama.',
+   587→      gradient: 'from-purple-500 to-violet-600'
+   588→    },
+   589→    {
+   590→      icon: Brain,
+   591→      title: 'AI Deteksi Pola',
+   592→      description: 'AI menganalisis histori trade kamu dan nunjukin pola kerugian yang kamu sendiri nggak sadar sudah berulang puluhan kali.',
+   593→      gradient: 'from-cyan-500 to-blue-600'
+   594→    },
+   595→    {
+   596→      icon: Eye,
+   597→      title: 'Watchlist Cerdas',
+   598→      description: 'Pantau pair yang kamu incar, catat setup yang muncul, dan jangan sampai kehilangan momen karena lupa.',
+   599→      gradient: 'from-emerald-500 to-teal-600'
+   600→    },
+   601→    {
+   602→      icon: LineChart,
+   603→      title: 'Equity Curve',
+   604→      description: 'Grafik equity curve real-time. Kalau garisnya turun terus, itu tandanya ada yang salah dengan strategi kamu.',
+   605→      gradient: 'from-rose-500 to-pink-600'
+   606→    },
+   607→    {
+   608→      icon: Shield,
+   609→      title: 'Data Kamu, Aman',
+   610→      description: 'Data trading kamu dienkripsi. Kami nggak jual, nggak share, dan nggak ada yang bisa akses selain kamu.',
+   611→      gradient: 'from-indigo-500 to-purple-600'
+   612→    }
+   613→  ]
+   614→
+   615→  const testimonials = [
+   616→    {
+   617→      name: language === 'id' ? 'Rizqi Akbar' : 'Rizqi Akbar',
+   618→      role: language === 'id' ? 'Founder, LuxTrade' : 'Founder, LuxTrade',
+   619→      content: language === 'id'
+   620→        ? 'Saya bikin LuxTrade karena frustrasi dengan trading journal yang ada. Tidak ada yang benar-benar dibuat untuk trader Indonesia — jadi saya bangun sendiri. Fokus kami: analisis AI yang beneran membantu, bukan sekadar angka.'
+   621→        : 'I built LuxTrade because I was frustrated with existing trading journals. None were truly built for serious traders — so I built my own. Our focus: AI analysis that actually helps you improve, not just numbers.',
+   622→      avatar: 'RA',
+   623→      rating: 5
+   624→    },
+   625→    {
+   626→      name: language === 'id' ? 'Komunitas Trader' : 'Trader Community',
+   627→      role: language === 'id' ? 'Early Adopter' : 'Early Adopter',
+   628→      content: language === 'id'
+   629→        ? 'Platform-nya ringan, cepat, dan fitur AI insight-nya benar-benar nolong detect pattern trading yang saya sendiri nggak sadar. Support-nya juga responsif banget.'
+   630→        : 'The platform is lightweight, fast, and the AI insight feature really helps detect trading patterns I wasn\'t even aware of. Support is also very responsive.',
+   631→      avatar: 'KT',
+   632→      rating: 5
+   633→    },
+   634→    {
+   635→      name: language === 'id' ? 'Pengguna PRO' : 'PRO User',
+   636→      role: language === 'id' ? 'Forex & Gold Trader' : 'Forex & Gold Trader',
+   637→      content: language === 'id'
+   638→        ? 'Equity curve chart + mistake tracker combo-nya game changer. Buat pertama kali saya bisa lihat pola kerugian saya secara visual dan benar-benar memperbaiki strategi.'
+   639→        : 'The equity curve chart + mistake tracker combo is a game changer. For the first time I can visually see my losing patterns and actually improve my strategy.',
+   640→      avatar: 'PP',
+   641→      rating: 5
+   642→    }
+   643→  ]
+   644→
+   645→  const fadeInUp = {
+   646→    hidden: { opacity: 0, y: 30 },
+   647→    visible: { opacity: 1, y: 0 }
+   648→  }
+   649→
+   650→  const staggerContainer = {
+   651→    hidden: { opacity: 0 },
+   652→    visible: {
+   653→      opacity: 1,
+   654→      transition: { staggerChildren: 0.1 }
+   655→    }
+   656→  }
+   657→
+   658→  return (
+   659→    <div className="min-h-screen bg-[#0f051d] text-white overflow-x-hidden">
+   660→      {/* Partikel Background - Tailwind Murni */}
+   661→      <div className="fixed inset-0 pointer-events-none overflow-hidden z-10">
+   662→        {/* Partikel KIRI (left: 2% - 25%) */}
+   663→        <div className="absolute w-3 h-3 bg-purple-500/40 rounded-full animate-ping" style={{ top: '5%', left: '3%', animationDuration: '3s' }} />
+   664→        <div className="absolute w-2 h-2 bg-purple-400/50 rounded-full animate-pulse" style={{ top: '12%', left: '8%', animationDuration: '4s' }} />
+   665→        <div className="absolute w-4 h-4 bg-blue-500/30 rounded-full animate-ping" style={{ top: '8%', left: '15%', animationDuration: '3.5s' }} />
+   666→        <div className="absolute w-2 h-2 bg-purple-300/60 rounded-full animate-pulse" style={{ top: '18%', left: '20%', animationDuration: '2.5s' }} />
+   667→        <div className="absolute w-3 h-3 bg-purple-500/35 rounded-full animate-ping" style={{ top: '25%', left: '5%', animationDuration: '4.5s' }} />
+   668→        <div className="absolute w-2 h-2 bg-blue-400/40 rounded-full animate-pulse" style={{ top: '35%', left: '12%', animationDuration: '3s' }} />
+   669→        <div className="absolute w-4 h-4 bg-purple-500/35 rounded-full animate-ping" style={{ top: '30%', left: '22%', animationDuration: '4.5s' }} />
+   670→        <div className="absolute w-2 h-2 bg-purple-300/50 rounded-full animate-pulse" style={{ top: '40%', left: '18%', animationDuration: '3s' }} />
+   671→        <div className="absolute w-3 h-3 bg-blue-400/40 rounded-full animate-ping" style={{ top: '50%', left: '8%', animationDuration: '3.5s' }} />
+   672→        <div className="absolute w-2 h-2 bg-purple-500/45 rounded-full animate-pulse" style={{ top: '58%', left: '15%', animationDuration: '4s' }} />
+   673→        <div className="absolute w-3 h-3 bg-purple-500/40 rounded-full animate-ping" style={{ top: '70%', left: '10%', animationDuration: '4.2s' }} />
+   674→        <div className="absolute w-2 h-2 bg-blue-400/45 rounded-full animate-pulse" style={{ top: '78%', left: '20%', animationDuration: '3.5s' }} />
+   675→        <div className="absolute w-4 h-4 bg-purple-400/35 rounded-full animate-ping" style={{ top: '72%', left: '6%', animationDuration: '4.5s' }} />
+   676→        <div className="absolute w-2 h-2 bg-purple-500/45 rounded-full animate-pulse" style={{ top: '88%', left: '3%', animationDuration: '4s' }} />
+   677→        <div className="absolute w-2 h-2 bg-blue-400/40 rounded-full animate-ping" style={{ top: '92%', left: '12%', animationDuration: '3.5s' }} />
+   678→
+   679→        {/* Partikel KANAN (left: 75% - 95%) */}
+   680→        <div className="absolute w-2 h-2 bg-purple-500/50 rounded-full animate-pulse" style={{ top: '20%', left: '78%', animationDuration: '4.2s' }} />
+   681→        <div className="absolute w-4 h-4 bg-blue-500/35 rounded-full animate-ping" style={{ top: '7%', left: '88%', animationDuration: '3.2s' }} />
+   682→        <div className="absolute w-2 h-2 bg-purple-300/55 rounded-full animate-pulse" style={{ top: '14%', left: '92%', animationDuration: '2.8s' }} />
+   683→        <div className="absolute w-2 h-2 bg-blue-500/40 rounded-full animate-pulse" style={{ top: '42%', left: '82%', animationDuration: '3.2s' }} />
+   684→        <div className="absolute w-4 h-4 bg-purple-300/50 rounded-full animate-ping" style={{ top: '26%', left: '90%', animationDuration: '2.8s' }} />
+   685→        <div className="absolute w-2 h-2 bg-purple-400/45 rounded-full animate-pulse" style={{ top: '36%', left: '95%', animationDuration: '4s' }} />
+   686→        <div className="absolute w-3 h-3 bg-purple-500/45 rounded-full animate-ping" style={{ top: '62%', left: '78%', animationDuration: '4.2s' }} />
+   687→        <div className="absolute w-2 h-2 bg-blue-400/35 rounded-full animate-pulse" style={{ top: '50%', left: '85%', animationDuration: '4.5s' }} />
+   688→        <div className="absolute w-4 h-4 bg-purple-400/40 rounded-full animate-ping" style={{ top: '58%', left: '90%', animationDuration: '3s' }} />
+   689→        <div className="absolute w-2 h-2 bg-purple-300/50 rounded-full animate-pulse" style={{ top: '48%', left: '92%', animationDuration: '2.8s' }} />
+   690→        <div className="absolute w-3 h-3 bg-blue-500/45 rounded-full animate-pulse" style={{ top: '56%', left: '97%', animationDuration: '4s' }} />
+   691→        <div className="absolute w-2 h-2 bg-purple-300/45 rounded-full animate-pulse" style={{ top: '85%', left: '80%', animationDuration: '3.8s' }} />
+   692→        <div className="absolute w-4 h-4 bg-purple-400/40 rounded-full animate-ping" style={{ top: '72%', left: '88%', animationDuration: '4.5s' }} />
+   693→        <div className="absolute w-2 h-2 bg-blue-500/35 rounded-full animate-pulse" style={{ top: '82%', left: '93%', animationDuration: '3s' }} />
+   694→        <div className="absolute w-3 h-3 bg-purple-300/50 rounded-full animate-ping" style={{ top: '75%', left: '95%', animationDuration: '2.8s' }} />
+   695→        <div className="absolute w-3 h-3 bg-purple-500/45 rounded-full animate-pulse" style={{ top: '96%', left: '85%', animationDuration: '3.8s' }} />
+   696→        <div className="absolute w-2 h-2 bg-blue-400/35 rounded-full animate-pulse" style={{ top: '91%', left: '90%', animationDuration: '4.5s' }} />
+   697→        <div className="absolute w-4 h-4 bg-purple-400/40 rounded-full animate-pulse" style={{ top: '95%', left: '80%', animationDuration: '3s' }} />
+   698→      </div>
+   699→
+   700→      {/* Navigation - Premium Glassmorphism */}
+   701→      <nav className="fixed top-0 left-0 right-0 z-50">
+   702→        <div className="backdrop-blur-xl bg-[#0f051d]/80 border-b border-white/[0.08]">
+   703→          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+   704→            <div className="flex items-center justify-between h-16">
+   705→              <div className="flex items-center gap-3">
+   706→                <div className="relative">
+   707→                  <Image 
+   708→                    src="/logo.png" 
+   709→                    alt="LuxTrade Logo" 
+   710→                    width={40} 
+   711→                    height={40}
+   712→                    className="rounded-xl shadow-lg"
+   713→                  />
+   714→                  <motion.div 
+   715→                    className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[#0f051d]"
+   716→                    animate={{ 
+   717→                      boxShadow: ['0 0 0 0 rgba(16, 185, 129, 0.7)', '0 0 0 8px rgba(16, 185, 129, 0)', '0 0 0 0 rgba(16, 185, 129, 0.7)']
+   718→                    }}
+   719→                    transition={{ duration: 2, repeat: Infinity }}
+   720→                  />
+   721→                </div>
+   722→                <div>
+   723→                  <span className="text-xl font-extrabold bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
+   724→                    LuxTrade
+   725→                  </span>
+   726→                  <span className="hidden sm:inline text-[10px] text-purple-400/70 ml-2 tracking-[0.2em] font-bold">PREMIUM</span>
+   727→                </div>
+   728→              </div>
+   729→              
+   730→              <div className="hidden md:flex items-center gap-8">
+   731→                {[{ key: 'features', label: t('nav.features') }, { key: 'demo', label: t('hero.cta.secondary') }, { key: 'pricing', label: t('nav.pricing') }, { key: 'faq', label: 'FAQ' }].map((item) => (
+   732→                  <a 
+   733→                    key={item.key}
+   734→                    href={`#${item.key}`}
+   735→                    className="text-sm text-white/60 hover:text-white hover:text-purple-300 transition-all duration-300 font-medium relative group"
+   736→                  >
+   737→                    {item.label}
+   738→                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 group-hover:w-full transition-all duration-300" />
+   739→                  </a>
+   740→                ))}
+   741→              </div>
+   742→              
+   743→              <div className="flex items-center gap-3">
+   744→                <LanguageSwitcher />
+   745→                <Link href="/auth/login">
+   746→                  <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-all duration-300 font-semibold backdrop-blur-sm">
+   747→                    {t('nav.login')}
+   748→                  </Button>
+   749→                </Link>
+   750→                <Link href="/auth/signup">
+   751→                  <motion.div
+   752→                    whileHover={{ scale: 1.05 }}
+   753→                    whileTap={{ scale: 0.98 }}
+   754→                  >
+   755→                    <Button className="h-10 px-6 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-sm">
+   756→                      {t('nav.signup')}
+   757→                      <ArrowRight className="w-4 h-4 ml-2" />
+   758→                    </Button>
+   759→                  </motion.div>
+   760→                </Link>
+   761→              </div>
+   762→            </div>
+   763→          </div>
+   764→        </div>
+   765→      </nav>
+   766→
+   767→      {/* Hero Section - Premium */}
+   768→      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+   769→        <div className="max-w-7xl mx-auto">
+   770→          <motion.div 
+   771→            className="text-center"
+   772→            initial="hidden"
+   773→            animate="visible"
+   774→            variants={staggerContainer}
+   775→          >
+   776→            {/* Badge */}
+   777→            <motion.div variants={fadeInUp} className="flex justify-center mb-8">
+   778→              <motion.div 
+   779→                className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-purple-500/10 border border-purple-500/30 hover:border-purple-500/50 transition-all duration-300 cursor-default"
+   780→                whileHover={{ scale: 1.02 }}
+   781→              >
+   782→                <motion.div
+   783→                  animate={{ 
+   784→                    boxShadow: ['0 0 0 0 rgba(139, 92, 246, 0.7)', '0 0 0 10px rgba(139, 92, 246, 0)', '0 0 0 0 rgba(139, 92, 246, 0.7)']
+   785→                  }}
+   786→                  transition={{ duration: 2, repeat: Infinity }}
+   787→                >
+   788→                  <Sparkles className="w-4.5 h-4.5 text-purple-400" />
+   789→                </motion.div>
+   790→                <span className="text-sm text-purple-300 font-semibold">{t('hero.subtitle').split('.')[0]}</span>
+   791→              </motion.div>
+   792→            </motion.div>
+   793→            
+   794→            {/* Main Headline - Lexend Extra Bold with gradient from white to purple-400 */}
+   795→            <motion.h1
+   796→              variants={fadeInUp}
+   797→              className="text-5xl sm:text-6xl lg:text-7xl font-extrabold mb-8 leading-tight tracking-tight font-lexend"
+   798→              style={{ letterSpacing: '-0.02em' }}
+   799→            >
+   800→              <span className="bg-gradient-to-r from-white to-purple-400 bg-clip-text text-transparent">
+   801→                {t('hero.title')}
+   802→              </span>
+   803→            </motion.h1>
+   804→            
+   805→            <motion.p 
+   806→              variants={fadeInUp}
+   807→              className="text-xl sm:text-2xl text-white/60 max-w-3xl mx-auto mb-12 leading-relaxed font-light"
+   808→            >
+   809→              {t('hero.subtitle')}
+   810→            </motion.p>
+   811→            
+   812→            {/* CTA Buttons - Neon Glow Effect with hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] */}
+   813→            <motion.div
+   814→              variants={fadeInUp}
+   815→              className="flex flex-col sm:flex-row items-center justify-center gap-5 mb-20"
+   816→            >
+   817→              <Link href="/auth/signup">
+   818→                <motion.div
+   819→                  whileHover={{ scale: 1.05 }}
+   820→                  whileTap={{ scale: 0.98 }}
+   821→                >
+   822→                  <Button size="lg" className="h-16 px-10 text-xl bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-2xl shadow-purple-500/40 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-xl border border-purple-400/20">
+   823→                    {t('hero.cta.primary')}
+   824→                    <ArrowRight className="w-6 h-6 ml-3" />
+   825→                  </Button>
+   826→                </motion.div>
+   827→              </Link>
+   828→              <a href="#demo">
+   829→                <motion.div
+   830→                  whileHover={{ scale: 1.05 }}
+   831→                  whileTap={{ scale: 0.98 }}
+   832→                >
+   833→                  <Button variant="outline" size="lg" className="h-16 px-10 text-xl border-2 border-white/10 hover:border-white/20 text-white hover:bg-white/5 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] backdrop-blur-xl font-semibold transition-all duration-300">
+   834→                    <Play className="w-6 h-6 mr-3" />
+   835→                    {t('hero.cta.secondary')}
+   836→                  </Button>
+   837→                </motion.div>
+   838→              </a>
+   839→            </motion.div>
+   840→
+   841→            {/* Stats - Premium Glassmorphism Cards */}
+   842→            <motion.div 
+   843→              variants={fadeInUp}
+   844→              className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mb-24"
+   845→            >
+   846→              {stats.map((stat, index) => (
+   847→                <motion.div
+   848→                  key={index}
+   849→                  className="p-5 rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-purple-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] transition-all duration-300 group"
+   850→                  whileHover={{ scale: 1.02, y: -2 }}
+   851→                >
+   852→                  <stat.icon className="w-5 h-5 text-purple-400/70 mb-3 mx-auto group-hover:text-purple-400 transition-colors" />
+   853→                  <div className="text-3xl font-extrabold text-white mb-1">{stat.value}</div>
+   854→                  <div className="text-xs text-white/50 font-medium uppercase tracking-wide">{stat.label}</div>
+   855→                </motion.div>
+   856→              ))}
+   857→            </motion.div>
+   858→          </motion.div>
+   859→
+   860→          {/* Live Equity Widget */}
+   861→          <motion.div 
+   862→            className="max-w-2xl mx-auto"
+   863→            initial={{ opacity: 0, y: 40 }}
+   864→            animate={{ opacity: 1, y: 0 }}
+   865→            transition={{ duration: 0.8, delay: 0.4 }}
+   866→          >
+   867→            <EquityWidget />
+   868→          </motion.div>
+   869→        </div>
+   870→      </section>
+   871→
+   872→      {/* Features Section - Premium Glassmorphism */}
+   873→      <section id="features" className="py-24 px-4 sm:px-6 lg:px-8">
+   874→        <div className="max-w-7xl mx-auto">
+   875→          <motion.div 
+   876→            className="text-center mb-20"
+   877→            initial={{ opacity: 0, y: 20 }}
+   878→            whileInView={{ opacity: 1, y: 0 }}
+   879→            viewport={{ once: true }}
+   880→          >
+   881→            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-purple-500/10 border border-purple-500/30 mb-6">
+   882→              <Zap className="w-4.5 h-4.5 text-purple-400" />
+   883→              <span className="text-sm text-purple-300 font-semibold">{t('features.title')}</span>
+   884→            </div>
+   885→            <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
+   886→              <span className="text-white">{t('features.subtitle').split('for')[0]}</span>
+   887→              <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">{t('features.subtitle').includes('for') ? 'for' : ''} {t('features.subtitle').split('for')[1] || ''}</span>
+   888→            </h2>
+   889→            <p className="text-xl text-white/50 max-w-2xl mx-auto font-light">
+   890→              {t('features.subtitle')}
+   891→            </p>
+   892→          </motion.div>
+   893→
+   894→          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+   895→            {features.map((feature, index) => (
+   896→              <motion.div
+   897→                key={index}
+   898→                initial={{ opacity: 0, y: 30 }}
+   899→                whileInView={{ opacity: 1, y: 0 }}
+   900→                viewport={{ once: true }}
+   901→                transition={{ delay: index * 0.1 }}
+   902→                className="group"
+   903→              >
+   904→                <motion.div
+   905→                  className="h-full p-6 rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-purple-500/30 hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-all duration-300"
+   906→                  whileHover={{ scale: 1.02, y: -4 }}
+   907→                >
+   908→                  <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-lg`}>
+   909→                    <feature.icon className="w-7 h-7 text-white" />
+   910→                  </div>
+   911→                  <h3 className="text-xl font-extrabold text-white mb-3">{feature.title}</h3>
+   912→                  <p className="text-white/50 text-base leading-relaxed">{feature.description}</p>
+   913→                </motion.div>
+   914→              </motion.div>
+   915→            ))}
+   916→          </div>
+   917→        </div>
+   918→      </section>
+   919→
+   920→      {/* Dashboard Screenshots Carousel */}
+   921→      <section id="demo" className="py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/10 to-transparent">
+   922→        <div className="max-w-6xl mx-auto">
+   923→          <motion.div
+   924→            className="text-center mb-12"
+   925→            initial={{ opacity: 0, y: 20 }}
+   926→            whileInView={{ opacity: 1, y: 0 }}
+   927→            viewport={{ once: true }}
+   928→          >
+   929→            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-emerald-500/10 border border-emerald-500/30 mb-6">
+   930→              <Activity className="w-4.5 h-4.5 text-emerald-400" />
+   931→              <span className="text-sm text-emerald-300 font-semibold">{t('hero.cta.secondary')}</span>
+   932→            </div>
+   933→            <h2 className="text-4xl sm:text-5xl font-extrabold mb-4">
+   934→              <span className="text-white">{language === 'id' ? 'Begini Tampilan' : 'This Is What'}</span>
+   935→              <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent"> {language === 'id' ? 'Dashboard-nya' : 'It Looks Like'}</span>
+   936→            </h2>
+   937→            <p className="text-white/40 max-w-md mx-auto font-light text-lg">
+   938→              {language === 'id' ? 'Bukan mockup — ini screenshot asli dari LuxTrade.' : 'Not a mockup — these are real screenshots from LuxTrade.'}
+   939→            </p>
+   940→          </motion.div>
+   941→
+   942→          {/* Swipeable Carousel */}
+   943→          <div
+   944→            className="relative"
+   945→            onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX }}
+   946→            onTouchEnd={(e) => {
+   947→              const diff = touchStartX.current - e.changedTouches[0].clientX
+   948→              if (Math.abs(diff) > 50) {
+   949→                if (diff > 0 && carouselIndex < screenshots.length - 1) {
+   950→                  setCarouselIndex(carouselIndex + 1)
+   951→                } else if (diff < 0 && carouselIndex > 0) {
+   952→                  setCarouselIndex(carouselIndex - 1)
+   953→                }
+   954→              }
+   955→            }}
+   956→          >
+   957→            {/* Carousel Container */}
+   958→            <div className="overflow-hidden rounded-2xl border border-white/[0.08]">
+   959→              <motion.div
+   960→                className="flex"
+   961→                animate={{ x: `-${carouselIndex * 100}%` }}
+   962→                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+   963→              >
+   964→                {screenshots.map((src, i) => (
+   965→                  <div key={i} className="w-full flex-shrink-0">
+   966→                    <div className="relative bg-[#0d0715] flex items-center justify-center p-2 sm:p-4">
+   967→                      <Image
+   968→                        src={src}
+   969→                        alt={language === 'id' ? `Tampilan LuxTrade ${i + 1}` : `LuxTrade Screenshot ${i + 1}`}
+   970→                        width={1200}
+   971→                        height={800}
+   972→                        className="w-full h-auto rounded-xl"
+   973→                        priority={i === 0}
+   974→                      />
+   975→                    </div>
+   976→                  </div>
+   977→                ))}
+   978→              </motion.div>
+   979→            </div>
+   980→
+   981→            {/* Navigation Arrows */}
+   982→            <button
+   983→              onClick={() => setCarouselIndex(Math.max(0, carouselIndex - 1))}
+   984→              disabled={carouselIndex === 0}
+   985→              className={`absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full backdrop-blur-xl bg-black/40 border border-white/[0.1] flex items-center justify-center transition-all duration-300 hover:bg-black/60 hover:border-purple-500/40 ${carouselIndex === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+   986→            >
+   987→              <ChevronRight className="w-5 h-5 text-white rotate-180" />
+   988→            </button>
+   989→            <button
+   990→              onClick={() => setCarouselIndex(Math.min(screenshots.length - 1, carouselIndex + 1))}
+   991→              disabled={carouselIndex === screenshots.length - 1}
+   992→              className={`absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full backdrop-blur-xl bg-black/40 border border-white/[0.1] flex items-center justify-center transition-all duration-300 hover:bg-black/60 hover:border-purple-500/40 ${carouselIndex === screenshots.length - 1 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+   993→            >
+   994→              <ChevronRight className="w-5 h-5 text-white" />
+   995→            </button>
+   996→
+   997→            {/* Dots Indicator */}
+   998→            <div className="flex items-center justify-center gap-2 mt-6">
+   999→              {screenshots.map((_, i) => (
+  1000→                <button
+  1001→                  key={i}
+  1002→                  onClick={() => setCarouselIndex(i)}
+  1003→                  className={`transition-all duration-300 rounded-full ${
+  1004→                    i === carouselIndex
+  1005→                      ? 'w-8 h-2.5 bg-gradient-to-r from-purple-500 to-cyan-500'
+  1006→                      : 'w-2.5 h-2.5 bg-white/20 hover:bg-white/40'
+  1007→                  }`}
+  1008→                />
+  1009→              ))}
+  1010→            </div>
+  1011→          </div>
+  1012→
+  1013→          <div className="text-center mt-10">
+  1014→            <Link href="/dashboard">
+  1015→              <motion.div
+  1016→                whileHover={{ scale: 1.05 }}
+  1017→                whileTap={{ scale: 0.98 }}
+  1018→              >
+  1019→                <Button className="h-14 px-8 text-lg bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700 text-white font-extrabold shadow-lg shadow-emerald-500/30 hover:shadow-[0_0_40px_rgba(16,185,129,0.5)] transition-all duration-300 backdrop-blur-xl">
+  1020→                  {language === 'id' ? 'Coba Dashboard Sekarang' : 'Try Dashboard Now'}
+  1021→                  <ArrowRight className="w-5 h-5 ml-2" />
+  1022→                </Button>
+  1023→              </motion.div>
+  1024→            </Link>
+  1025→          </div>
+  1026→        </div>
+  1027→      </section>
+  1028→
+  1029→      {/* Testimonials - Premium Glassmorphism */}
+  1030→      <section id="testimonials" className="py-24 px-4 sm:px-6 lg:px-8">
+  1031→        <div className="max-w-7xl mx-auto">
+  1032→          <motion.div 
+  1033→            className="text-center mb-20"
+  1034→            initial={{ opacity: 0, y: 20 }}
+  1035→            whileInView={{ opacity: 1, y: 0 }}
+  1036→            viewport={{ once: true }}
+  1037→          >
+  1038→            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-pink-500/10 border border-pink-500/30 mb-6">
+  1039→              <Trophy className="w-4.5 h-4.5 text-pink-400" />
+  1040→              <span className="text-sm text-pink-300 font-semibold">Trusted by Traders</span>
+  1041→            </div>
+  1042→            <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
+  1043→              <span className="text-white">What Traders</span>
+  1044→              <span className="bg-gradient-to-r from-pink-400 to-rose-400 bg-clip-text text-transparent"> Are Saying</span>
+
+[showing lines 545-1044 of 1839; use offset=1045 with limit to continue reading]
