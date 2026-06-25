@@ -565,38 +565,38 @@ export default function LuxTradeLanding() {
   const features = [
     {
       icon: BarChart3,
-      title: 'Performance Analytics',
-      description: 'Track win rate, profit factor, and monthly performance with interactive charts.',
+      title: 'Analitik Performa',
+      description: 'Win rate, profit factor, performa bulanan — semua divisualisasi biar kamu tahu seberapa konsisten kamu sebenarnya.',
       gradient: 'from-purple-500 to-violet-600'
     },
     {
       icon: BookOpen,
-      title: 'Trading Journal',
-      description: 'Document trades, emotions, and market conditions to refine your edge.',
+      title: 'Jurnal Trading',
+      description: 'Catat entry, exit, emosi, dan alasan di balik setiap trade. Review-nya nanti biar kamu nggak ngulangin kesalahan yang sama.',
       gradient: 'from-purple-500 to-violet-600'
     },
     {
       icon: Brain,
-      title: 'AI Market Insights',
-      description: 'Get personalized trading tips powered by advanced AI analysis.',
+      title: 'AI Deteksi Pola',
+      description: 'AI menganalisis histori trade kamu dan nunjukin pola kerugian yang kamu sendiri nggak sadar sudah berulang puluhan kali.',
       gradient: 'from-cyan-500 to-blue-600'
     },
     {
       icon: Eye,
-      title: 'Smart Watchlist',
-      description: 'Track opportunities with price alerts and detailed notes.',
+      title: 'Watchlist Cerdas',
+      description: 'Pantau pair yang kamu incar, catat setup yang muncul, dan jangan sampai kehilangan momen karena lupa.',
       gradient: 'from-emerald-500 to-teal-600'
     },
     {
       icon: LineChart,
-      title: 'P/L Tracking',
-      description: 'Automatic profit/loss calculations for every position.',
+      title: 'Equity Curve',
+      description: 'Grafik equity curve real-time. Kalau garisnya turun terus, itu tandanya ada yang salah dengan strategi kamu.',
       gradient: 'from-rose-500 to-pink-600'
     },
     {
       icon: Shield,
-      title: 'Bank-Grade Security',
-      description: 'Your trading data is encrypted and never shared.',
+      title: 'Data Kamu, Aman',
+      description: 'Data trading kamu dienkripsi. Kami nggak jual, nggak share, dan nggak ada yang bisa akses selain kamu.',
       gradient: 'from-indigo-500 to-purple-600'
     }
   ]
@@ -897,8 +897,8 @@ export default function LuxTradeLanding() {
                   <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-lg`}>
                     <feature.icon className="w-7 h-7 text-white" />
                   </div>
-                  <h3 className="text-xl font-extrabold text-white mb-3">{language === 'id' ? feature.title : t(`features.${feature.gradient.includes('purple') ? 'journal' : feature.gradient.includes('cyan') ? 'ai' : feature.gradient.includes('emerald') ? 'insights' : 'risk'}.title`)}</h3>
-                  <p className="text-white/50 text-base leading-relaxed">{language === 'id' ? feature.description : t(`features.${feature.gradient.includes('purple') ? 'journal' : feature.gradient.includes('cyan') ? 'ai' : feature.gradient.includes('emerald') ? 'insights' : 'risk'}.desc`)}</p>
+                  <h3 className="text-xl font-extrabold text-white mb-3">{feature.title}</h3>
+                  <p className="text-white/50 text-base leading-relaxed">{feature.description}</p>
                 </motion.div>
               </motion.div>
             ))}
@@ -1572,9 +1572,9 @@ export default function LuxTradeLanding() {
                   </div>
                   <ul className="space-y-4">
                     {[
-                      { icon: '💱', title: 'Real-time Forex Prices API', desc: 'Live market prices directly in your dashboard' },
-                      { icon: '📄', title: 'Export to PDF', desc: 'Download your trading reports instantly' },
-                      { icon: '🔔', title: 'Price Alerts System', desc: 'Get notified when price hits your target' },
+                      { icon: '💱', title: language === 'id' ? 'Harga Forex Real-time' : 'Real-time Forex Prices', desc: language === 'id' ? 'Harga pasar langsung di dashboard kamu' : 'Live market prices in your dashboard' },
+                      { icon: '📄', title: language === 'id' ? 'Export PDF' : 'Export to PDF', desc: language === 'id' ? 'Download laporan trading kamu langsung' : 'Download your trading reports instantly' },
+                      { icon: '🔔', title: language === 'id' ? 'Notifikasi Harga' : 'Price Alerts', desc: language === 'id' ? 'Dapet notif pas harga nyentuh target kamu' : 'Get notified when price hits your target' },
                     ].map((item, index) => (
                       <motion.li 
                         key={index}
@@ -1610,15 +1610,15 @@ export default function LuxTradeLanding() {
                       <Lightning className="w-6 h-6 text-violet-400" />
                     </div>
                     <div>
-                      <h3 className="font-extrabold text-white text-lg">Bulan Ini</h3>
+                      <h3 className="font-extrabold text-white text-lg">{language === 'id' ? 'Bulan Ini' : 'This Month'}</h3>
                       <p className="text-xs text-violet-400 font-bold tracking-wide">IN DEVELOPMENT</p>
                     </div>
                   </div>
                   <ul className="space-y-4">
                     {[
-                      { icon: '📊', title: 'TradingView Chart Integration', desc: 'Advanced charting with TradingView widgets' },
-                      { icon: '📥', title: 'MT4/MT5 Import Improvement', desc: 'Better parsing and more formats supported' },
-                      { icon: '💳', title: 'Payment Gateway (Midtrans)', desc: 'Instant activation with automatic payment' },
+                      { icon: '📊', title: language === 'id' ? 'Integrasi Chart TradingView' : 'TradingView Charts', desc: language === 'id' ? 'Chart lengkap langsung di dalam LuxTrade' : 'Full charts embedded inside LuxTrade' },
+                      { icon: '📥', title: language === 'id' ? 'Import MT4/MT5 Lebih Baik' : 'Better MT4/MT5 Import', desc: language === 'id' ? 'Parsing lebih akurat, support lebih banyak format' : 'More accurate parsing, more format support' },
+                      { icon: '💳', title: language === 'id' ? 'Payment Gateway Baru' : 'New Payment Gateway', desc: language === 'id' ? 'Aktivasi instan setelah bayar, tanpa konfirmasi manual' : 'Instant activation after payment, no manual confirmation' },
                     ].map((item, index) => (
                       <motion.li 
                         key={index}
@@ -1653,14 +1653,18 @@ export default function LuxTradeLanding() {
                 <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
                   <Check className="w-5 h-5 text-emerald-400" />
                 </div>
-                <h3 className="font-extrabold text-white text-lg">Already Available</h3>
+                <h3 className="font-extrabold text-white text-lg">{language === 'id' ? 'Sudah Tersedia Sekarang' : 'Already Available'}</h3>
               </div>
               <div className="flex flex-wrap gap-2">
-                {[
-                  '✓ Trading Journal', '✓ Performance Analytics', '✓ AI Insights', '✓ P/L Tracking',
-                  '✓ Equity Charts', '✓ Achievement System', '✓ Streak Tracking', '✓ CSV Export',
-                  '✓ Multi-Platform Support', '✓ Mobile Responsive'
-                ].map((feature, i) => (
+                {(language === 'id' ? [
+                  '✓ Jurnal Trading', '✓ Analitik Performa', '✓ Analisis AI', '✓ Tracking P/L',
+                  '✓ Equity Curve', '✓ Sistem Achievement', '✓ Streak Tracking', '✓ Export CSV',
+                  '✓ Multi-Platform', '✓ Responsive Mobile'
+                ] : [
+                  '✓ Trade Journal', '✓ Performance Analytics', '✓ AI Analysis', '✓ P/L Tracking',
+                  '✓ Equity Curve', '✓ Achievement System', '✓ Streak Tracking', '✓ CSV Export',
+                  '✓ Multi-Platform', '✓ Mobile Responsive'
+                ]).map((feature, i) => (
                   <span 
                     key={i} 
                     className="px-3 py-1.5 rounded-lg backdrop-blur-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-bold"
@@ -1696,28 +1700,28 @@ export default function LuxTradeLanding() {
           <div className="space-y-4">
             {[
               {
-                q: language === 'id' ? 'Apakah LuxTrade gratis digunakan?' : 'Is LuxTrade free to use?',
-                a: language === 'id' ? 'Ya! LuxTrade menawarkan paket gratis yang murah hati yang memungkinkan hingga 5 transaksi per bulan dengan analitik dasar. Anda dapat upgrade ke Elite Pro untuk transaksi tidak terbatas dan fitur lanjutan.' : 'Yes! LuxTrade offers a generous free plan that allows up to 5 trades per month with basic analytics. You can upgrade to Elite Pro for unlimited trades and advanced features.'
+                q: language === 'id' ? 'LuxTrade gratis nggak?' : 'Is LuxTrade free?',
+                a: language === 'id' ? 'Ada paket gratis — cukup buat catat 10 trade per bulan sama analitik dasar. Kalau kamu serius trading dan butuh fitur lengkap tanpa batas, upgrade ke Elite Pro.' : 'There\'s a free plan — enough to log 10 trades per month with basic analytics. If you\'re serious about trading and need unlimited features, upgrade to Elite Pro.'
               },
               {
-                q: language === 'id' ? 'Bagaimana cara kerja analisis AI?' : 'How does the AI analysis work?',
-                a: language === 'id' ? 'AI kami menganalisis pola trading Anda, mengidentifikasi kekuatan dan kelemahan, dan memberikan wawasan personal untuk membantu meningkatkan performa trading Anda dari waktu ke waktu.' : 'Our AI analyzes your trading patterns, identifies strengths and weaknesses, and provides personalized insights to help improve your trading performance over time.'
+                q: language === 'id' ? 'AI-nya ngapain sih?' : 'What does the AI actually do?',
+                a: language === 'id' ? 'AI menganalisis histori trade kamu — dia bisa detect pola kesalahan yang berulang (misalnya selalu loss di session London, atau FOMO entry tanpa setup). Bukan ramalan harga, tapi refleksi berbasis data kamu sendiri.' : 'AI analyzes your trade history — it can detect repeating mistake patterns (like always losing in the London session, or FOMO entries without a setup). Not price predictions — data-driven reflection of your own trades.'
               },
               {
-                q: language === 'id' ? 'Dapatkah saya mengimpor transaksi yang ada?' : 'Can I import my existing trades?',
-                a: language === 'id' ? 'Tentu saja! Anda dapat mengimpor transaksi dari file CSV yang diekspor dari sebagian besar platform trading. Kami mendukung MT4, MT5, cTrader, dan banyak lagi.' : 'Absolutely! You can import trades from CSV files exported from most trading platforms. We support MT4, MT5, cTrader, and many more.'
+                q: language === 'id' ? 'Bisa import dari MT4/MT5?' : 'Can I import from MT4/MT5?',
+                a: language === 'id' ? 'Bisa. Import via CSV dari MT4, MT5, cTrader, dan platform lain yang support export CSV. Tinggal upload file-nya, langsung masuk ke jurnal.' : 'Yes. Import via CSV from MT4, MT5, cTrader, and any platform that supports CSV export. Just upload the file and it goes straight into your journal.'
               },
               {
-                q: language === 'id' ? 'Apakah data trading saya aman?' : 'Is my trading data secure?',
-                a: language === 'id' ? 'Data Anda dienkripsi end-to-end dan disimpan dengan aman. Kami tidak pernah membagikan informasi trading Anda dengan pihak ketiga. Baca kebijakan privasi kami untuk detail lebih lanjut.' : 'Your data is encrypted end-to-end and stored securely. We never share your trading information with third parties. Read our privacy policy for more details.'
+                q: language === 'id' ? 'Data trading saya aman?' : 'Is my trading data secure?',
+                a: language === 'id' ? 'Data dienkripsi dan disimpan aman. Kami nggak jual data ke pihak ketiga, nggak ada iklan, dan cuma kamu yang bisa akses data trading kamu. Baca kebijakan privasi kami untuk detail lengkap.' : 'Data is encrypted and securely stored. We don\'t sell data to third parties, there are no ads, and only you can access your trading data. Read our privacy policy for full details.'
               },
               {
-                q: language === 'id' ? 'Apakah pembayaran bisa dikembalikan?' : 'Is payment refundable?',
-                a: language === 'id' ? 'Tidak. LuxTrade adalah produk digital (SaaS) berupa akses perangkat lunak yang diaktifkan secara otomatis setelah pembayaran berhasil. Karena sifat digital yang tidak dapat dikembalikan, pembelian bersifat final dan non-refundable. Pengecualian hanya berlaku untuk pembayaran ganda atau kesalahan teknis dari payment gateway.' : 'No. LuxTrade is a digital product (SaaS) in the form of software access that is activated automatically after successful payment. Due to the nature of digital products, all purchases are final and non-refundable. Exceptions only apply to duplicate payments or technical errors from the payment gateway.'
+                q: language === 'id' ? 'Kalau mau refund gimana?' : 'What about refunds?',
+                a: language === 'id' ? 'LuxTrade itu produk digital (SaaS) — sekali bayar, akses langsung aktif. Karena sifatnya digital, semua pembelian bersifat final dan non-refundable. Kecuali kalau ada double charge atau eror dari payment gateway.' : 'LuxTrade is a digital product (SaaS) — once you pay, access activates immediately. Because it\'s digital, all purchases are final and non-refundable. Except in cases of double charges or payment gateway errors.'
               },
               {
-                q: language === 'id' ? 'Bagaimana jika saya membutuhkan bantuan?' : 'What if I need help?',
-                a: language === 'id' ? 'Tim support kami siap membantu! Hubungi kami melalui email luxtradee@gmail.com atau Telegram @Risxyiee untuk pertanyaan, kendala teknis, atau bantuan lainnya.' : 'Our support team is ready to help! Contact us via email at luxtradee@gmail.com or Telegram @Risxyiee for questions, technical issues, or any other assistance.'
+                q: language === 'id' ? 'Butuh bantuan, hubungi siapa?' : 'Need help, who do I contact?',
+                a: language === 'id' ? 'Langsung aja DM Telegram @Risxyiee atau email luxtradee@gmail.com. Biasanya balasnya cepat — karena ini project kecil, bukan perusahaan besar pakai CS robot.' : 'Just DM Telegram @Risxyiee or email luxtradee@gmail.com. Response is usually fast — this is a small project, not a big company with robot customer service.'
               },
             ].map((faq, index) => (
               <motion.div
@@ -1760,7 +1764,7 @@ export default function LuxTradeLanding() {
                 </div>
               </div>
               <p className="text-white/50 mb-6 max-w-sm font-light text-lg">
-                {language === 'id' ? 'Jurnal trading premium untuk trader serius. Lacak, analisis, dan tingkatkan dengan wawasan bertenaga AI.' : 'The premium trading journal for serious traders. Track, analyze, and improve with AI-powered insights.'}
+                {language === 'id' ? 'Trading journal untuk trader Indonesia. Catat trade kamu, lihat pola kesalahan, dan perbaiki strategi — bukan cuma lihat profit loss.' : 'A trading journal for traders. Log your trades, see your mistake patterns, and fix your strategy — not just stare at P/L.'}
               </p>
               <div className="flex gap-4">
                 {[
