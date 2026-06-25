@@ -424,6 +424,7 @@ export async function ensureSchema(): Promise<void> {
     }
 
     // Auto-activate TRADERCEPAT promo code (100%, 3 months, 30 quota)
+    // INSERT only — does NOT reset used_quota on conflict (prevents quota drain on cold starts)
     try {
       await _rawPrisma.$executeRawUnsafe(`
         INSERT INTO promo_codes (id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, is_active, created_at, updated_at)
@@ -436,13 +437,26 @@ export async function ensureSchema(): Promise<void> {
         ON CONFLICT (code) DO UPDATE SET
           discount_percent = 100,
           max_quota = 30,
-          used_quota = 0,
           duration_months = 3,
           is_active = true,
           end_date = NULL,
           updated_at = NOW();
       `)
     } catch (_e) { /* promo activation non-critical */ }
+
+    // One-time fix: if used_quota somehow exceeded max_quota (race condition from old code),
+    // reset used_quota to the count of actual active subscriptions for this promo
+    try {
+      await _rawPrisma.$executeRawUnsafe(`
+        UPDATE promo_codes
+        SET used_quota = (
+          SELECT COUNT(*) FROM user_subscriptions
+          WHERE user_subscriptions.promo_code_id = promo_codes.id
+            AND user_subscriptions.status = 'active'
+        )
+        WHERE code = 'TRADERCEPAT' AND used_quota >= max_quota;
+      `)
+    } catch (_e) { /* non-critical safety net */ }
 
     console.log('✅ [DB] Auto-migration complete')
   } catch (err) {
