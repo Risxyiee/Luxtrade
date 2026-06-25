@@ -2424,3 +2424,23 @@ Stage Summary:
 - Fix: All promo endpoints now use atomic raw SQL for quota management
 - `ensureSchema` no longer resets used_quota on conflict (preserves real count)
 - Safety net: auto-corrects corrupted quota by recounting actual active subscriptions
+
+---
+Task ID: 8
+Agent: Z.ai Code
+Task: Remove time-based deadlines from roadmap section per user request
+
+Work Log:
+- Read roadmap section in /home/z/my-project/src/app/page.tsx (lines 1532-1679)
+- Identified time-based labels: "Minggu Depan" / "Next Week" and "Bulan Ini" / "This Month"
+- Replaced with generic labels: "Sedang Dikerjakan" / "In Progress" and "Dalam Perencanaan" / "Planned"
+- Changed badge: "COMING SOON" → "AKTIF DIKEMBANGKAN" / "ACTIVE DEVELOPMENT", "IN DEVELOPMENT" → "MASIH DIRANCANG" / "IN DESIGN"
+- Rewrote section header: "Peta Jalan Produk" → "Yang Sedang Dibangun", "Yang Akan Datang" → "Masih Banyak yang Mau Dikembangin"
+- Updated subtitle text to be more natural: "LuxTrade masih baru dan terus berkembang. Ini beberapa fitur yang sudah di garap."
+- Replaced Clock icon with Zap for section badge, kept Clock for other usage in the file
+- Verified no lint errors introduced
+
+Stage Summary:
+- Roadmap no longer contains any time-based deadlines (minggu depan, bulan ini, etc.)
+- Uses status-based categories instead (In Progress, Planned) — appropriate for a new product
+- Text sounds more authentic and informal in Bahasa Indonesia

@@ -1539,20 +1539,20 @@ export default function LuxTradeLanding() {
             viewport={{ once: true }}
           >
             <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-purple-500/10 border border-purple-500/30 mb-6">
-              <Clock className="w-4.5 h-4.5 text-purple-400" />
-              <span className="text-sm text-purple-300 font-semibold">{language === 'id' ? 'Peta Jalan Produk' : 'Product Roadmap'}</span>
+              <Zap className="w-4.5 h-4.5 text-purple-400" />
+              <span className="text-sm text-purple-300 font-semibold">{language === 'id' ? 'Yang Sedang Dibangun' : 'Currently in the Works'}</span>
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
-              <span className="text-white">{language === 'id' ? 'Yang' : 'What'}&apos;s</span>
-              <span className="bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent"> {language === 'id' ? 'Akan Datang' : 'Coming Next'}</span>
+              <span className="text-white">{language === 'id' ? 'Masih Banyak' : 'Still Plenty'}</span>
+              <span className="bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent"> {language === 'id' ? 'yang Mau Dikembangin' : 'to Build'}</span>
             </h2>
             <p className="text-white/40 max-w-xl mx-auto font-light text-lg">
-              {language === 'id' ? 'Kami terus meningkatkan LuxTrade. Inilah yang sedang kami kerjakan.' : 'We&apos;re constantly improving LuxTrade. Here&apos;s what we&apos;re working on.'}
+              {language === 'id' ? 'LuxTrade masih baru dan terus berkembang. Ini beberapa fitur yang sudah di garap.' : 'LuxTrade is still young and growing. Here\'s what\'s already being worked on.'}
             </p>
           </motion.div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Minggu Depan */}
+            {/* Sedang Dikerjakan */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -1563,11 +1563,11 @@ export default function LuxTradeLanding() {
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4 mb-6">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center">
-                      <Clock className="w-6 h-6 text-cyan-400" />
+                      <Activity className="w-6 h-6 text-cyan-400" />
                     </div>
                     <div>
-                      <h3 className="font-extrabold text-white text-lg">{language === 'id' ? 'Minggu Depan' : 'Next Week'}</h3>
-                      <p className="text-xs text-cyan-400 font-bold tracking-wide">COMING SOON</p>
+                      <h3 className="font-extrabold text-white text-lg">{language === 'id' ? 'Sedang Dikerjakan' : 'In Progress'}</h3>
+                      <p className="text-xs text-cyan-400 font-bold tracking-wide">{language === 'id' ? 'AKTIF DIKEMBANGKAN' : 'ACTIVE DEVELOPMENT'}</p>
                     </div>
                   </div>
                   <ul className="space-y-4">
@@ -1596,7 +1596,7 @@ export default function LuxTradeLanding() {
               </Card>
             </motion.div>
 
-            {/* Bulan Ini */}
+            {/* Dalam Perencanaan */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -1610,8 +1610,8 @@ export default function LuxTradeLanding() {
                       <Lightning className="w-6 h-6 text-violet-400" />
                     </div>
                     <div>
-                      <h3 className="font-extrabold text-white text-lg">{language === 'id' ? 'Bulan Ini' : 'This Month'}</h3>
-                      <p className="text-xs text-violet-400 font-bold tracking-wide">IN DEVELOPMENT</p>
+                      <h3 className="font-extrabold text-white text-lg">{language === 'id' ? 'Dalam Perencanaan' : 'Planned'}</h3>
+                      <p className="text-xs text-violet-400 font-bold tracking-wide">{language === 'id' ? 'MASIH DIRANCANG' : 'IN DESIGN'}</p>
                     </div>
                   </div>
                   <ul className="space-y-4">
