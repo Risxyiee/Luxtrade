@@ -2400,3 +2400,27 @@ Stage Summary:
 - Broadcast now sends 1 email every 600ms (safe for 2/sec limit)
 - Zero error/warning logs from Resend — no more Vercel log spam
 - 20 users broadcast will take ~12 seconds (20 × 600ms) — fully within Vercel function timeout
+
+---
+Task ID: 1
+Agent: main
+Task: Fix "kode promo habis" — promo code showing as exhausted despite having 30 quota
+
+Work Log:
+- Investigated root cause: Prisma ORM used in apply/validate endpoints reads cached/stale `used_quota` values
+- Old `ensureSchema()` was resetting `used_quota = 0` on every cold start, causing quota to be meaningless
+- Race condition: multiple concurrent users reading same `used_quota` before any increments
+- Rewrote `/api/promo/apply/route.ts` — atomic SQL `UPDATE ... WHERE used_quota < max_quota RETURNING` prevents race conditions
+- Rewrote `/api/promo/validate/route.ts` — raw SQL for real-time quota read (no ORM cache)
+- Rewrote `/api/promo/reset/route.ts` — raw SQL, removed console.error
+- Rewrote `/api/promo/create/route.ts` — raw SQL, removed console.error
+- Fixed `/api/admin/promo/activate/route.ts` — removed `used_quota = 0` from ON CONFLICT
+- Fixed `ensureSchema()` in `db.ts` — removed `used_quota = 0` from ON CONFLICT
+- Added safety net in ensureSchema: if `used_quota >= max_quota`, recount from actual subscriptions
+- All console.error/log/warn removed from all promo endpoints
+
+Stage Summary:
+- Root cause: Prisma ORM race condition + blanket quota reset on cold starts
+- Fix: All promo endpoints now use atomic raw SQL for quota management
+- `ensureSchema` no longer resets used_quota on conflict (preserves real count)
+- Safety net: auto-corrects corrupted quota by recounting actual active subscriptions
