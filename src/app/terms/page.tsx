@@ -12,7 +12,7 @@ export default function TermsOfServicePage() {
     <div className="min-h-screen bg-[#0a0612] text-white">
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0612] via-[#110a1f] to-[#0a0612]" />
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-amber-500/5 rounded-full blur-[150px]" />
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[150px]" />
       </div>
 
       {/* Header */}
@@ -26,7 +26,7 @@ export default function TermsOfServicePage() {
               height={36}
               className="rounded-lg"
             />
-            <span className="text-lg font-bold bg-gradient-to-r from-amber-200 to-amber-400 bg-clip-text text-transparent">
+            <span className="text-lg font-bold bg-gradient-to-r from-purple-200 to-purple-400 bg-clip-text text-transparent">
               LuxTrade
             </span>
           </Link>
@@ -50,11 +50,11 @@ export default function TermsOfServicePage() {
           <p className="text-white/40 mb-8">Terakhir diperbarui: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
 
           {/* CRITICAL NOTICE */}
-          <div className="bg-gradient-to-r from-red-500/10 via-amber-500/10 to-red-500/10 border border-red-500/25 rounded-2xl p-5 mb-8">
+          <div className="bg-gradient-to-r from-red-500/10 via-purple-500/10 to-red-500/10 border border-red-500/25 rounded-2xl p-5 mb-8">
             <p className="text-white/80 leading-relaxed text-sm">
               <strong className="text-red-300">Penting:</strong> LuxTrade adalah platform perangkat lunak (SaaS) untuk analisis data trading. 
               Kami <strong>BUKAN broker, BUKAN pialang berjangka, dan BUKAN pengelola dana</strong>. 
-              Selengkapnya baca halaman <Link href="/disclaimer" className="text-amber-400 underline hover:text-amber-300">Disclaimer</Link>.
+              Selengkapnya baca halaman <Link href="/disclaimer" className="text-purple-400 underline hover:text-purple-300">Disclaimer</Link>.
             </p>
           </div>
 
@@ -87,15 +87,15 @@ export default function TermsOfServicePage() {
               <h2 className="text-2xl font-semibold text-white mb-4">3. Akun Pengguna</h2>
               <div className="space-y-4">
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
-                  <h3 className="text-lg font-medium text-amber-400 mb-2">Registrasi</h3>
+                  <h3 className="text-lg font-medium text-purple-400 mb-2">Registrasi</h3>
                   <p className="text-white/70">Anda harus memberikan informasi yang akurat dan lengkap saat mendaftar. Anda bertanggung jawab menjaga kerahasiaan password akun Anda.</p>
                 </div>
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
-                  <h3 className="text-lg font-medium text-amber-400 mb-2">Keamanan Akun</h3>
+                  <h3 className="text-lg font-medium text-purple-400 mb-2">Keamanan Akun</h3>
                   <p className="text-white/70">Anda bertanggung jawab atas semua aktivitas yang terjadi di akun Anda. Segera laporkan jika mencurigai penggunaan tidak sah.</p>
                 </div>
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
-                  <h3 className="text-lg font-medium text-amber-400 mb-2">Penghapusan Akun</h3>
+                  <h3 className="text-lg font-medium text-purple-400 mb-2">Penghapusan Akun</h3>
                   <p className="text-white/70">Anda dapat menghapus akun kapan saja. Penghapusan akun akan menghasilkan penghapusan semua data Anda.</p>
                 </div>
               </div>
@@ -118,11 +118,11 @@ export default function TermsOfServicePage() {
               <h2 className="text-2xl font-semibold text-white mb-4">5. Langganan dan Pembayaran</h2>
               <div className="space-y-4">
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
-                  <h3 className="text-lg font-medium text-amber-400 mb-2">Paket Gratis</h3>
+                  <h3 className="text-lg font-medium text-purple-400 mb-2">Paket Gratis</h3>
                   <p className="text-white/70">Fitur dasar tersedia gratis dengan batasan jumlah trades per bulan.</p>
                 </div>
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
-                  <h3 className="text-lg font-medium text-amber-400 mb-2">Paket Pro & Lifetime</h3>
+                  <h3 className="text-lg font-medium text-purple-400 mb-2">Paket Pro & Lifetime</h3>
                   <p className="text-white/70">Akses penuh ke semua fitur premium tanpa batasan. Pembayaran dilakukan melalui payment gateway resmi yang terintegrasi (SakuraPay) dengan metode QRIS, E-Wallet, atau Virtual Account.</p>
                 </div>
                 <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-5">
@@ -156,7 +156,7 @@ export default function TermsOfServicePage() {
                   platform trading, broker, pialang, atau saran investasi. Keputusan trading sepenuhnya
                   tanggung jawab pengguna. Kami tidak bertanggung jawab atas kerugian finansial yang
                   mungkin terjadi dari aktivitas trading pengguna. Selengkapnya baca halaman{' '}
-                  <Link href="/disclaimer" className="text-amber-400 underline hover:text-amber-300">Disclaimer</Link>.
+                  <Link href="/disclaimer" className="text-purple-400 underline hover:text-purple-300">Disclaimer</Link>.
                 </p>
               </div>
             </section>
@@ -195,7 +195,7 @@ export default function TermsOfServicePage() {
                 Jika Anda memiliki pertanyaan tentang Ketentuan Layanan ini, silakan hubungi kami di:
               </p>
               <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 mt-4">
-                <p className="text-white/70"><strong className="text-amber-400">Email:</strong> luxtradee@gmail.com</p>
+                <p className="text-white/70"><strong className="text-purple-400">Email:</strong> luxtradee@gmail.com</p>
               </div>
             </section>
           </div>
