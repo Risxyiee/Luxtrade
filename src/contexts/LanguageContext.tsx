@@ -103,8 +103,8 @@ const translations = {
     'features.insights.desc': 'Equity curve, win rate per session, dan statistik yang bermakna — bukan angka kosong',
 
     // Pricing
-    'pricing.title': 'Harga Santai, Fitur Serius',
-    'pricing.subtitle': 'Gratis untuk mulai. Murah untuk serius.',
+    'pricing.title': 'Investasi Kecil, Perubahan Besar di Akun Kamu',
+    'pricing.subtitle': 'Satu bulan Elite Pro cuma Rp 25.000 — kurang dari satu loss yang seharusnya bisa kamu hindari kalau jurnalnya rapi.',
     'pricing.free.title': 'GRATIS',
     'pricing.free.price': 'Rp 0 / Selamanya',
     'pricing.free.desc': 'Untuk pemula yang ingin mulai',
@@ -177,8 +177,8 @@ const translations = {
     'features.insights.desc': 'Equity curve, win rate per session, and stats that actually mean something',
 
     // Pricing
-    'pricing.title': 'Chill Pricing, Serious Tools',
-    'pricing.subtitle': 'Free to start. Affordable to go all in.',
+    'pricing.title': 'Small Investment, Real Impact on Your Trading',
+    'pricing.subtitle': 'One month of Elite Pro costs less than a single avoidable loss — the kind you catch when your journal actually works.',
     'pricing.free.title': 'FREE',
     'pricing.free.price': '$0 / Forever',
     'pricing.free.desc': 'For beginners who want to start',
