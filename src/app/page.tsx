@@ -517,6 +517,17 @@ export default function LuxTradeLanding() {
   const [promoRemaining, setPromoRemaining] = useState<number | null>(null)
   const [promoMax, setPromoMax] = useState<number>(30)
   const [promoActive, setPromoActive] = useState(true)
+  const [carouselIndex, setCarouselIndex] = useState(0)
+  const touchStartX = useRef(0)
+
+  const screenshots = [
+    '/screenshots/01.jpeg',
+    '/screenshots/02.jpeg',
+    '/screenshots/03.jpeg',
+    '/screenshots/04.jpeg',
+    '/screenshots/05.jpeg',
+    '/screenshots/06.jpeg',
+  ]
 
   // Fetch promo quota
   useEffect(() => {
@@ -906,11 +917,11 @@ export default function LuxTradeLanding() {
         </div>
       </section>
 
-      {/* Live Demo Section - Premium */}
+      {/* Dashboard Screenshots Carousel */}
       <section id="demo" className="py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/10 to-transparent">
-        <div className="max-w-7xl mx-auto">
-          <motion.div 
-            className="text-center mb-16"
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            className="text-center mb-12"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -919,86 +930,86 @@ export default function LuxTradeLanding() {
               <Activity className="w-4.5 h-4.5 text-emerald-400" />
               <span className="text-sm text-emerald-300 font-semibold">{t('hero.cta.secondary')}</span>
             </div>
-            <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
-              <span className="text-white">{t('hero.cta.secondary')}</span>
-              <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent"> In Action</span>
+            <h2 className="text-4xl sm:text-5xl font-extrabold mb-4">
+              <span className="text-white">{language === 'id' ? 'Begini Tampilan' : 'This Is What'}</span>
+              <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent"> {language === 'id' ? 'Dashboard-nya' : 'It Looks Like'}</span>
             </h2>
+            <p className="text-white/40 max-w-md mx-auto font-light text-lg">
+              {language === 'id' ? 'Bukan mockup — ini screenshot asli dari LuxTrade.' : 'Not a mockup — these are real screenshots from LuxTrade.'}
+            </p>
           </motion.div>
 
-          {/* Dashboard Preview - Premium */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            className="rounded-3xl backdrop-blur-xl border border-white/[0.08] bg-gradient-to-br from-[#1a0f2e]/50 to-[#0d0715]/50 p-1.5 shadow-2xl shadow-purple-500/20 hover:shadow-[0_0_60px_rgba(139,92,246,0.3)] transition-shadow duration-500"
+          {/* Swipeable Carousel */}
+          <div
+            className="relative"
+            onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX }}
+            onTouchEnd={(e) => {
+              const diff = touchStartX.current - e.changedTouches[0].clientX
+              if (Math.abs(diff) > 50) {
+                if (diff > 0 && carouselIndex < screenshots.length - 1) {
+                  setCarouselIndex(carouselIndex + 1)
+                } else if (diff < 0 && carouselIndex > 0) {
+                  setCarouselIndex(carouselIndex - 1)
+                }
+              }
+            }}
           >
-            <div className="rounded-2xl overflow-hidden">
-              {/* Mock Dashboard Header */}
-              <div className="flex items-center gap-2.5 px-5 py-4 bg-white/[0.03] border-b border-white/[0.08]">
-                <div className="flex gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500/60 hover:bg-red-500 transition-colors" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-500/60 hover:bg-yellow-500 transition-colors" />
-                  <div className="w-3 h-3 rounded-full bg-green-500/60 hover:bg-green-500 transition-colors" />
-                </div>
-                <div className="flex-1 text-center">
-                  <span className="text-xs text-white/30 font-medium tracking-wide">LuxTrade Dashboard</span>
-                </div>
-              </div>
-              
-              {/* Mock Content */}
-              <div className="p-6 space-y-5">
-                {/* Stats Row */}
-                <div className="grid grid-cols-4 gap-4">
-                  {[
-                    { label: 'Total P/L', value: '+$1,247', color: 'emerald', delay: 0 },
-                    { label: 'Win Rate', value: '68%', color: 'purple', delay: 0.5 },
-                    { label: 'Open', value: '3', color: 'cyan', delay: 1 },
-                    { label: 'Profit Factor', value: '2.14', color: 'purple', delay: 1.5 },
-                  ].map((stat, i) => (
-                    <motion.div 
-                      key={i}
-                      className={`p-4 rounded-xl backdrop-blur-sm bg-gradient-to-br from-${stat.color}-500/20 to-transparent border border-white/[0.08]`}
-                      animate={{ scale: [1, 1.03, 1] }}
-                      transition={{ duration: 2, repeat: Infinity, delay: stat.delay }}
-                    >
-                      <div className="text-[11px] text-white/40 mb-1.5 font-semibold uppercase tracking-wide">{stat.label}</div>
-                      <div className={`text-xl font-extrabold text-${stat.color}-400`}>{stat.value}</div>
-                    </motion.div>
-                  ))}
-                </div>
-                
-                {/* Mini Chart */}
-                <div className="h-32 rounded-xl backdrop-blur-sm bg-gradient-to-br from-purple-500/10 to-transparent border border-white/[0.08] p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm text-white/40 font-semibold">Equity Curve</span>
-                    <motion.div 
-                      className="flex items-center gap-1.5"
-                      animate={{ opacity: [0.5, 1, 0.5] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    >
-                      <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                      <span className="text-xs text-emerald-400 font-bold">+12.4%</span>
-                    </motion.div>
-                  </div>
-                  <div className="flex items-end gap-1 h-20">
-                    {[40, 55, 45, 60, 50, 70, 65, 80, 75, 90, 85, 95, 88, 92, 100, 95, 98, 105, 100, 110].map((h, i) => (
-                      <motion.div 
-                        key={i}
-                        className="flex-1 bg-gradient-to-t from-purple-500 to-blue-500 rounded-t"
-                        style={{ height: `${h}%` }}
-                        animate={{ opacity: [0.5, 1, 0.5] }}
-                        transition={{ duration: 1, delay: i * 0.05, repeat: Infinity }}
+            {/* Carousel Container */}
+            <div className="overflow-hidden rounded-2xl border border-white/[0.08]">
+              <motion.div
+                className="flex"
+                animate={{ x: `-${carouselIndex * 100}%` }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              >
+                {screenshots.map((src, i) => (
+                  <div key={i} className="w-full flex-shrink-0">
+                    <div className="relative bg-[#0d0715] flex items-center justify-center p-2 sm:p-4">
+                      <Image
+                        src={src}
+                        alt={language === 'id' ? `Tampilan LuxTrade ${i + 1}` : `LuxTrade Screenshot ${i + 1}`}
+                        width={1200}
+                        height={800}
+                        className="w-full h-auto rounded-xl"
+                        priority={i === 0}
                       />
-                    ))}
+                    </div>
                   </div>
-                </div>
-                
-                {/* Animated Forex Trades Ticker */}
-                <AnimatedForexTrades />
-              </div>
+                ))}
+              </motion.div>
             </div>
-          </motion.div>
-          
+
+            {/* Navigation Arrows */}
+            <button
+              onClick={() => setCarouselIndex(Math.max(0, carouselIndex - 1))}
+              disabled={carouselIndex === 0}
+              className={`absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full backdrop-blur-xl bg-black/40 border border-white/[0.1] flex items-center justify-center transition-all duration-300 hover:bg-black/60 hover:border-purple-500/40 ${carouselIndex === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+            >
+              <ChevronRight className="w-5 h-5 text-white rotate-180" />
+            </button>
+            <button
+              onClick={() => setCarouselIndex(Math.min(screenshots.length - 1, carouselIndex + 1))}
+              disabled={carouselIndex === screenshots.length - 1}
+              className={`absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full backdrop-blur-xl bg-black/40 border border-white/[0.1] flex items-center justify-center transition-all duration-300 hover:bg-black/60 hover:border-purple-500/40 ${carouselIndex === screenshots.length - 1 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+            >
+              <ChevronRight className="w-5 h-5 text-white" />
+            </button>
+
+            {/* Dots Indicator */}
+            <div className="flex items-center justify-center gap-2 mt-6">
+              {screenshots.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCarouselIndex(i)}
+                  className={`transition-all duration-300 rounded-full ${
+                    i === carouselIndex
+                      ? 'w-8 h-2.5 bg-gradient-to-r from-purple-500 to-cyan-500'
+                      : 'w-2.5 h-2.5 bg-white/20 hover:bg-white/40'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+
           <div className="text-center mt-10">
             <Link href="/dashboard">
               <motion.div
@@ -1006,7 +1017,7 @@ export default function LuxTradeLanding() {
                 whileTap={{ scale: 0.98 }}
               >
                 <Button className="h-14 px-8 text-lg bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700 text-white font-extrabold shadow-lg shadow-emerald-500/30 hover:shadow-[0_0_40px_rgba(16,185,129,0.5)] transition-all duration-300 backdrop-blur-xl">
-                  Try Dashboard Now
+                  {language === 'id' ? 'Coba Dashboard Sekarang' : 'Try Dashboard Now'}
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </motion.div>
