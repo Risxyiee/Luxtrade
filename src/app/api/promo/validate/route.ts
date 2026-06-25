@@ -5,6 +5,9 @@ import { db, ensureSchema } from '@/lib/db'
  * Validate promo code
  * POST /api/promo/validate
  * Body: { code: string }
+ *
+ * Uses raw SQL to read real-time quota values directly from DB.
+ * Avoids Prisma ORM caching which could return stale used_quota.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -21,68 +24,75 @@ export async function POST(request: NextRequest) {
     // Normalize code to uppercase
     const normalizedCode = code.trim().toUpperCase()
 
-    // Find promo code in database
-    const promoCode = await db.promoCode.findUnique({
-      where: { code: normalizedCode }
-    })
+    // Query promo code directly from DB (no ORM caching)
+    const results: any[] = await db.$queryRawUnsafe(`
+      SELECT code, description, discount_percent, max_quota, used_quota, duration_months,
+             start_date, end_date, is_active
+      FROM promo_codes
+      WHERE code = $1
+      LIMIT 1;
+    `, normalizedCode)
 
-    // Check if promo code exists
-    if (!promoCode) {
+    if (!results || results.length === 0) {
       return NextResponse.json({
         valid: false,
         message: 'Kode promo tidak valid'
       })
     }
 
-    // Check if promo code is active
-    if (!promoCode.isActive) {
+    const promo = results[0]
+
+    // Check if active
+    if (!promo.is_active) {
       return NextResponse.json({
         valid: false,
         message: 'Kode promo tidak aktif'
       })
     }
 
-    // Check if promo code has expired
+    // Check if expired
     const now = new Date()
-    if (promoCode.endDate && now > promoCode.endDate) {
+    if (promo.end_date && now > new Date(promo.end_date)) {
       return NextResponse.json({
         valid: false,
         message: 'Kode promo sudah kadaluarsa'
       })
     }
 
-    // Check if promo code has started
-    if (now < promoCode.startDate) {
+    // Check if not yet started
+    if (new Date(promo.start_date) > now) {
       return NextResponse.json({
         valid: false,
         message: 'Kode promo belum aktif'
       })
     }
 
-    // Check if quota is available
-    if (promoCode.usedQuota >= promoCode.maxQuota) {
+    // Check quota availability
+    const usedQuota = Number(promo.used_quota)
+    const maxQuota = Number(promo.max_quota)
+
+    if (usedQuota >= maxQuota) {
       return NextResponse.json({
         valid: false,
         message: 'Kuota kode promo sudah habis'
       })
     }
 
-    // All checks passed - promo code is valid
-    const remainingQuota = promoCode.maxQuota - promoCode.usedQuota
+    // All checks passed — promo code is valid
+    const remainingQuota = maxQuota - usedQuota
 
     return NextResponse.json({
       valid: true,
       promoCode: {
-        code: promoCode.code,
-        description: promoCode.description,
-        discountPercent: promoCode.discountPercent,
-        durationMonths: promoCode.durationMonths,
+        code: promo.code,
+        description: promo.description,
+        discountPercent: Number(promo.discount_percent),
+        durationMonths: Number(promo.duration_months),
         remainingQuota,
-        totalQuota: promoCode.maxQuota
+        totalQuota: maxQuota
       }
     })
   } catch (error) {
-    console.error('❌ [Validate Promo Code] Error:', error)
     return NextResponse.json(
       { error: 'Gagal memvalidasi kode promo' },
       { status: 500 }
@@ -97,27 +107,29 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     await ensureSchema()
-    const promoCodes = await db.promoCode.findMany({
-      orderBy: { createdAt: 'desc' }
-    })
+    const results: any[] = await db.$queryRawUnsafe(`
+      SELECT id, code, description, discount_percent, max_quota, used_quota,
+             duration_months, start_date, end_date, is_active, created_at
+      FROM promo_codes
+      ORDER BY created_at DESC;
+    `)
 
-    return NextResponse.json({
-      promoCodes: promoCodes.map(pc => ({
-        id: pc.id,
-        code: pc.code,
-        description: pc.description,
-        discountPercent: pc.discountPercent,
-        maxQuota: pc.maxQuota,
-        usedQuota: pc.usedQuota,
-        remainingQuota: pc.maxQuota - pc.usedQuota,
-        durationMonths: pc.durationMonths,
-        isActive: pc.isActive,
-        startDate: pc.startDate,
-        endDate: pc.endDate
-      }))
-    })
+    const promoCodes = (results || []).map((pc: any) => ({
+      id: pc.id,
+      code: pc.code,
+      description: pc.description,
+      discountPercent: Number(pc.discount_percent),
+      maxQuota: Number(pc.max_quota),
+      usedQuota: Number(pc.used_quota),
+      remainingQuota: Number(pc.max_quota) - Number(pc.used_quota),
+      durationMonths: Number(pc.duration_months),
+      isActive: pc.is_active,
+      startDate: pc.start_date,
+      endDate: pc.end_date
+    }))
+
+    return NextResponse.json({ promoCodes })
   } catch (error) {
-    console.error('❌ [Get Promo Codes] Error:', error)
     return NextResponse.json(
       { error: 'Gagal mengambil daftar kode promo' },
       { status: 500 }

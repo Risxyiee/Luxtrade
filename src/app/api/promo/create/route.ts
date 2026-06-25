@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureSchema } from '@/lib/db'
+import { randomUUID } from 'crypto'
 
 /**
  * Create new promo code (Admin only)
@@ -32,11 +33,11 @@ export async function POST(request: NextRequest) {
     const normalizedCode = code.trim().toUpperCase()
 
     // Check if promo code already exists
-    const existingPromo = await db.promoCode.findUnique({
-      where: { code: normalizedCode }
-    })
+    const existing: any[] = await db.$queryRawUnsafe(`
+      SELECT id FROM promo_codes WHERE code = $1 LIMIT 1;
+    `, normalizedCode)
 
-    if (existingPromo) {
+    if (existing && existing.length > 0) {
       return NextResponse.json({
         success: false,
         message: 'Kode promo sudah ada'
@@ -44,39 +45,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Create promo code
-    const promoCode = await db.promoCode.create({
-      data: {
-        code: normalizedCode,
-        description: description || null,
-        discountPercent: parseFloat(discountPercent),
-        maxQuota: parseInt(maxQuota),
-        usedQuota: 0,
-        durationMonths: parseInt(durationMonths),
-        startDate: startDate ? new Date(startDate) : new Date(),
-        endDate: endDate ? new Date(endDate) : null,
-        isActive: true
-      }
-    })
+    await db.$executeRawUnsafe(`
+      INSERT INTO promo_codes (id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, end_date, is_active, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, 0, $6, $7, $8, true, NOW(), NOW());
+    `, randomUUID(), normalizedCode, description || null, parseFloat(discountPercent), parseInt(maxQuota), parseInt(durationMonths), startDate ? new Date(startDate) : new Date(), endDate ? new Date(endDate) : null)
 
     return NextResponse.json({
       success: true,
-      message: 'Kode promo berhasil dibuat',
-      promoCode: {
-        id: promoCode.id,
-        code: promoCode.code,
-        description: promoCode.description,
-        discountPercent: promoCode.discountPercent,
-        maxQuota: promoCode.maxQuota,
-        usedQuota: promoCode.usedQuota,
-        remainingQuota: promoCode.maxQuota - promoCode.usedQuota,
-        durationMonths: promoCode.durationMonths,
-        isActive: promoCode.isActive,
-        startDate: promoCode.startDate,
-        endDate: promoCode.endDate
-      }
+      message: 'Kode promo berhasil dibuat'
     })
   } catch (error) {
-    console.error('❌ [Create Promo Code] Error:', error)
     return NextResponse.json(
       { error: 'Gagal membuat kode promo' },
       { status: 500 }
