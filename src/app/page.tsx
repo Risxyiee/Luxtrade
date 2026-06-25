@@ -9,7 +9,7 @@ import {
   Eye, Brain, Sparkles, ArrowRight, Play,
   LineChart, PieChart, Target, Shield,
   ChevronRight, Star, Zap, Check, Crown,
-  Activity, DollarSign, Users, Trophy, ChevronDown,
+  Activity, Users, Trophy, ChevronDown,
   MessageCircle, HelpCircle, Bot, Lock, ShieldCheck,
   Clock, Mail, Zap as Lightning, X, AlertTriangle
 } from 'lucide-react'
@@ -554,12 +554,12 @@ export default function LuxTradeLanding() {
     }
   }
 
-  // Realistic stats for a new trading platform
+  // Platform trust metrics
   const stats = [
-    { value: '52', label: 'Active Traders', icon: Users },
-    { value: '$1,247', label: 'Total P/L Tracked', icon: DollarSign },
-    { value: '187', label: 'Trades Logged', icon: Activity },
-    { value: '4.9', label: 'User Rating', icon: Star },
+    { value: language === 'id' ? '10+' : '10+', label: language === 'id' ? 'Tipe Analitik' : 'Analytics Types', icon: BarChart3 },
+    { value: '24/7', label: language === 'id' ? 'Akses Dashboard' : 'Dashboard Access', icon: Activity },
+    { value: 'AI', label: language === 'id' ? 'Analisis Cerdas' : 'Smart Analysis', icon: Brain },
+    { value: 'E2E', label: language === 'id' ? 'Enkripsi Data' : 'Data Encryption', icon: Lock },
   ]
 
   const features = [
@@ -603,24 +603,30 @@ export default function LuxTradeLanding() {
 
   const testimonials = [
     {
-      name: 'David Chen',
-      role: 'Forex Trader',
-      content: 'Finally a trading journal that actually helps me improve. The AI insights are spot-on.',
-      avatar: 'DC',
+      name: language === 'id' ? 'Rizqi Akbar' : 'Rizqi Akbar',
+      role: language === 'id' ? 'Founder, LuxTrade' : 'Founder, LuxTrade',
+      content: language === 'id'
+        ? 'Saya bikin LuxTrade karena frustrasi dengan trading journal yang ada. Tidak ada yang benar-benar dibuat untuk trader Indonesia — jadi saya bangun sendiri. Fokus kami: analisis AI yang beneran membantu, bukan sekadar angka.'
+        : 'I built LuxTrade because I was frustrated with existing trading journals. None were truly built for serious traders — so I built my own. Our focus: AI analysis that actually helps you improve, not just numbers.',
+      avatar: 'RA',
       rating: 5
     },
     {
-      name: 'Sarah Williams',
-      role: 'Swing Trader',
-      content: 'Clean interface, powerful analytics. Helped me identify my overtrading habit.',
-      avatar: 'SW',
+      name: language === 'id' ? 'Komunitas Trader' : 'Trader Community',
+      role: language === 'id' ? 'Early Adopter' : 'Early Adopter',
+      content: language === 'id'
+        ? 'Platform-nya ringan, cepat, dan fitur AI insight-nya benar-benar nolong detect pattern trading yang saya sendiri nggak sadar. Support-nya juga responsif banget.'
+        : 'The platform is lightweight, fast, and the AI insight feature really helps detect trading patterns I wasn\'t even aware of. Support is also very responsive.',
+      avatar: 'KT',
       rating: 5
     },
     {
-      name: 'Marcus Johnson',
-      role: 'Day Trader',
-      content: 'The equity curve visualization alone is worth it. Highly recommended!',
-      avatar: 'MJ',
+      name: language === 'id' ? 'Pengguna PRO' : 'PRO User',
+      role: language === 'id' ? 'Forex & Gold Trader' : 'Forex & Gold Trader',
+      content: language === 'id'
+        ? 'Equity curve chart + mistake tracker combo-nya game changer. Buat pertama kali saya bisa lihat pola kerugian saya secara visual dan benar-benar memperbaiki strategi.'
+        : 'The equity curve chart + mistake tracker combo is a game changer. For the first time I can visually see my losing patterns and actually improve my strategy.',
+      avatar: 'PP',
       rating: 5
     }
   ]
@@ -1498,7 +1504,7 @@ export default function LuxTradeLanding() {
               {language === 'id' ? 'Dapatkan Tips Trading Setiap Minggu' : 'Get Trading Tips Every Week'}
             </h2>
             <p className="text-white/50 mb-8 max-w-md mx-auto font-light text-lg">
-              {language === 'id' ? 'Bergabung dengan 500+ trader yang menerima tips trading mingguan, wawasan psikologi, dan analisis pasar.' : 'Join 500+ traders receiving weekly trading tips, psychology insights, and market analysis.'}
+              {language === 'id' ? 'Bergabung dengan trader yang menerima tips trading mingguan, wawasan psikologi, dan update fitur terbaru.' : 'Join traders receiving weekly trading tips, psychology insights, and latest feature updates.'}
             </p>
             <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto" onSubmit={(e) => e.preventDefault()}>
               <input 
@@ -1776,21 +1782,23 @@ export default function LuxTradeLanding() {
               </div>
             </div>
             <div>
-              <h4 className="font-extrabold text-white mb-4">Produk</h4>
+              <h4 className="font-extrabold text-white mb-4">{language === 'id' ? 'Produk' : 'Product'}</h4>
               <ul className="space-y-3">
-                <li><a href="#features" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Fitur</a></li>
-                <li><a href="#pricing" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Harga</a></li>
+                <li><a href="#features" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">{language === 'id' ? 'Fitur' : 'Features'}</a></li>
+                <li><a href="#pricing" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">{language === 'id' ? 'Harga' : 'Pricing'}</a></li>
                 <li><a href="/blog" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Blog</a></li>
+                <li><a href="/disclaimer" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Disclaimer</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-extrabold text-white mb-4">Company</h4>
+              <h4 className="font-extrabold text-white mb-4">{language === 'id' ? 'Perusahaan' : 'Company'}</h4>
               <ul className="space-y-3">
-                <li><a href="/about" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">About</a></li>
-                <li><a href="/contact" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Contact</a></li>
-                <li><a href="/terms" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Terms</a></li>
+                <li><a href="/about" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">{language === 'id' ? 'Tentang' : 'About'}</a></li>
+                <li><a href="/contact" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">{language === 'id' ? 'Kontak' : 'Contact'}</a></li>
+                <li><a href="/terms" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">{language === 'id' ? 'Ketentuan' : 'Terms'}</a></li>
                 <li><a href="/privacy" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Privacy</a></li>
                 <li><a href="/disclaimer" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Disclaimer</a></li>
+                <li><a href="/affiliate" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">{language === 'id' ? 'Afiliasi' : 'Affiliate'}</a></li>
               </ul>
             </div>
           </div>

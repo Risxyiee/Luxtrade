@@ -12,7 +12,7 @@ export default function DisclaimerPage() {
     <div className="min-h-screen bg-[#0a0612] text-white">
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0612] via-[#110a1f] to-[#0a0612]" />
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-amber-500/5 rounded-full blur-[150px]" />
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[150px]" />
       </div>
 
       {/* Header */}
@@ -26,7 +26,7 @@ export default function DisclaimerPage() {
               height={36}
               className="rounded-lg"
             />
-            <span className="text-lg font-bold bg-gradient-to-r from-amber-200 to-amber-400 bg-clip-text text-transparent">
+            <span className="text-lg font-bold bg-gradient-to-r from-purple-200 to-purple-400 bg-clip-text text-transparent">
               LuxTrade
             </span>
           </Link>
@@ -47,13 +47,13 @@ export default function DisclaimerPage() {
           transition={{ duration: 0.5 }}
         >
           <div className="flex items-center gap-3 mb-2">
-            <AlertTriangle className="w-8 h-8 text-amber-400" />
+            <AlertTriangle className="w-8 h-8 text-red-400" />
             <h1 className="text-4xl font-bold">Disclaimer</h1>
           </div>
           <p className="text-white/40 mb-8">Terakhir diperbarui: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
 
           {/* CRITICAL DISCLAIMER BANNER */}
-          <div className="bg-gradient-to-r from-red-500/10 via-amber-500/10 to-red-500/10 border border-red-500/25 rounded-2xl p-6 mb-8">
+          <div className="bg-gradient-to-r from-red-500/10 via-red-500/10 to-red-500/10 border border-red-500/25 rounded-2xl p-6 mb-8">
             <div className="flex items-start gap-4">
               <div className="p-3 rounded-xl bg-red-500/20 flex-shrink-0">
                 <AlertTriangle className="w-6 h-6 text-red-400" />
@@ -80,7 +80,7 @@ export default function DisclaimerPage() {
               </div>
               <div className="space-y-4">
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
-                  <h3 className="text-lg font-medium text-amber-400 mb-2">Apa Itu LuxTrade?</h3>
+                  <h3 className="text-lg font-medium text-purple-400 mb-2">Apa Itu LuxTrade?</h3>
                   <p className="text-white/70 leading-relaxed">
                     LuxTrade adalah platform SaaS (Software-as-a-Service) yang menyediakan dashboard dan perangkat 
                     analisis data untuk membantu trader ritel dalam mencatat, memantau, dan mengevaluasi performa 
@@ -89,7 +89,7 @@ export default function DisclaimerPage() {
                   </p>
                 </div>
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
-                  <h3 className="text-lg font-medium text-amber-400 mb-2">Yang Tidak Kami Lakukan</h3>
+                  <h3 className="text-lg font-medium text-purple-400 mb-2">Yang Tidak Kami Lakukan</h3>
                   <ul className="space-y-3 text-white/70">
                     <li className="flex items-start gap-3">
                       <span className="text-red-400 mt-1.5">✕</span>
@@ -123,12 +123,12 @@ export default function DisclaimerPage() {
             {/* Section 2 */}
             <section>
               <div className="flex items-center gap-3 mb-4">
-                <AlertTriangle className="w-6 h-6 text-amber-400" />
+                <AlertTriangle className="w-6 h-6 text-purple-400" />
                 <h2 className="text-2xl font-semibold text-white">2. Risiko Perdagangan (Trading)</h2>
               </div>
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-5">
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-5">
                 <p className="text-white/80 leading-relaxed">
-                  <strong className="text-amber-300">Perdagangan valas (forex), saham, kripto, dan instrumen 
+                  <strong className="text-red-300">Perdagangan valas (forex), saham, kripto, dan instrumen 
                   keuangan lainnya memiliki risiko tinggi.</strong> Nilai investasi dapat naik maupun turun dan 
                   pengguna mungkin mengalami kerugian melebihi modal awal yang diinvestasikan. 
                   Performa masa lalu <strong>BUKAN</strong> merupakan indikator pasti dari hasil di masa mendatang.
@@ -258,9 +258,9 @@ export default function DisclaimerPage() {
                 Jika Anda memiliki pertanyaan mengenai disclaimer ini, silakan hubungi kami:
               </p>
               <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 mt-4 space-y-2">
-                <p className="text-white/70"><strong className="text-amber-400">Email:</strong> luxtradee@gmail.com</p>
-                <p className="text-white/70"><strong className="text-amber-400">Telegram:</strong> <a href="https://t.me/Risxyiee" target="_blank" rel="noopener noreferrer" className="text-[#0088cc] hover:underline">@Risxyiee</a></p>
-                <p className="text-white/70"><strong className="text-amber-400">Website:</strong> <a href="https://luxtradee.web.id" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">luxtradee.web.id</a></p>
+                <p className="text-white/70"><strong className="text-purple-400">Email:</strong> luxtradee@gmail.com</p>
+                <p className="text-white/70"><strong className="text-purple-400">Telegram:</strong> <a href="https://t.me/Risxyiee" target="_blank" rel="noopener noreferrer" className="text-[#0088cc] hover:underline">@Risxyiee</a></p>
+                <p className="text-white/70"><strong className="text-purple-400">Website:</strong> <a href="https://luxtradee.web.id" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">luxtradee.web.id</a></p>
               </div>
             </section>
           </div>
