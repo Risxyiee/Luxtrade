@@ -1144,13 +1144,25 @@ export default function LuxTradeLanding() {
               <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto" onSubmit={(e) => {
                 e.preventDefault()
                 if (newsletterEmail) {
-                  window.location.href = `/auth/signup?email=${encodeURIComponent(newsletterEmail)}&source=newsletter`
+                  setNewsletterSubmitted(true)
+                  setNewsletterEmail('')
                 }
               }}>
-                <input type="email" value={newsletterEmail} onChange={(e) => setNewsletterEmail(e.target.value)} placeholder={language === 'id' ? 'Masukkan email Anda' : 'Enter your email'} className="flex-1 px-5 py-4 rounded-2xl bg-white/5 border border-white/[0.08] text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 transition-all font-medium" />
-                <button type="submit" className="h-14 px-8 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold rounded-2xl shadow-lg shadow-purple-500/30 transition-all active:scale-95">
-                  {language === 'id' ? 'Langganan' : 'Subscribe'}
-                </button>
+                {newsletterSubmitted ? (
+                  <div className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
+                    <Check className="w-5 h-5 text-emerald-400" />
+                    <span className="text-emerald-400 font-medium">
+                      {language === 'id' ? 'Berhasil berlangganan! Cek inbox email Anda.' : 'Successfully subscribed! Check your inbox.'}
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <input type="email" required value={newsletterEmail} onChange={(e) => setNewsletterEmail(e.target.value)} placeholder={language === 'id' ? 'Masukkan email Anda' : 'Enter your email'} className="flex-1 px-5 py-4 rounded-2xl bg-white/5 border border-white/[0.08] text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 transition-all font-medium" />
+                    <button type="submit" className="h-14 px-8 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold rounded-2xl shadow-lg shadow-purple-500/30 transition-all active:scale-95">
+                      {language === 'id' ? 'Langganan' : 'Subscribe'}
+                    </button>
+                  </>
+                )}
               </form>
               <p className="text-white/30 text-xs mt-4">{language === 'id' ? 'Tidak ada spam. Berhenti langganan kapan saja.' : 'No spam. Unsubscribe anytime.'}</p>
             </motion.div>
