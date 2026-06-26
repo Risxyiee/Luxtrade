@@ -84,20 +84,35 @@ export async function PATCH(
     const body = await req.json()
     const updates: Record<string, any> = {}
 
-    if (body.metaapi_account_id !== undefined) {
-      updates.metaapi_account_id = body.metaapi_account_id
+    if (body.name !== undefined) {
+      updates.name = body.name
     }
-    if (body.status !== undefined) {
-      updates.status = body.status
+    if (body.broker !== undefined) {
+      updates.broker = body.broker
+    }
+    if (body.account_type !== undefined) {
+      updates.account_type = body.account_type
+    }
+    if (body.account_number !== undefined) {
+      updates.account_number = body.account_number
+    }
+    if (body.initial_balance !== undefined) {
+      updates.initial_balance = Number(body.initial_balance)
+    }
+    if (body.current_balance !== undefined) {
+      updates.current_balance = Number(body.current_balance)
+    }
+    if (body.leverage !== undefined) {
+      updates.leverage = Number(body.leverage)
+    }
+    if (body.currency !== undefined) {
+      updates.currency = body.currency
     }
     if (body.is_default !== undefined) {
       updates.is_default = body.is_default
     }
-    if (body.name !== undefined) {
-      updates.name = body.name
-    }
-    if (body.current_balance !== undefined) {
-      updates.current_balance = body.current_balance
+    if (body.is_active !== undefined) {
+      updates.is_active = body.is_active
     }
 
     const account = await db.tradingAccount.updateMany({

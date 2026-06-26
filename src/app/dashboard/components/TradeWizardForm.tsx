@@ -137,7 +137,7 @@ export default function TradeWizardForm({
       uploadFormData.append('file', file)
 
       // Upload to Supabase Storage via API
-      const response = await fetch('/api/upload/screenshot', {
+      const response = await fetch('/api/trade-upload', {
         method: 'POST',
         credentials: 'include',
         body: uploadFormData,
