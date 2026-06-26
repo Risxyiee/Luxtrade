@@ -485,12 +485,6 @@ export default function LuxTradeLanding() {
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-white/80"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
                 <LanguageSwitcher />
-                <Link href="/auth/login"><Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 transition-all font-semibold hidden sm:inline-flex">{t('nav.login')}</Button></Link>
-                <Link href="/auth/signup">
-                  <Button className="h-10 px-5 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 transition-all">
-                    {t('nav.signup')} <ArrowRight className="w-4 h-4 ml-1.5" />
-                  </Button>
-                </Link>
               </div>
             </div>
           </div>
@@ -510,11 +504,11 @@ export default function LuxTradeLanding() {
               onClick={() => setSidebarOpen(false)}
             />
             <motion.div
-              initial={{ x: '-100%' }}
+              initial={{ x: '100%' }}
               animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
+              exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="fixed top-0 left-0 bottom-0 z-[80] w-[280px] bg-[#0d0814]/95 backdrop-blur-xl border-r border-white/[0.08] flex flex-col"
+              className="fixed top-0 right-0 bottom-0 z-[80] w-[280px] bg-[#0d0814]/95 backdrop-blur-xl border-l border-white/[0.08] flex flex-col"
             >
               {/* Sidebar Header */}
               <div className="flex items-center justify-between px-5 h-14 border-b border-white/[0.08]">
@@ -525,6 +519,20 @@ export default function LuxTradeLanding() {
                 <button onClick={() => setSidebarOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors" aria-label="Close">
                   <X className="w-4 h-4 text-white/60" />
                 </button>
+              </div>
+
+              {/* Login / Signup Buttons */}
+              <div className="px-3 py-4 border-b border-white/[0.08] flex flex-col gap-2">
+                <Link href="/auth/login" onClick={() => setSidebarOpen(false)}>
+                  <button className="w-full h-10 rounded-xl border border-white/[0.1] text-sm font-semibold text-white/80 hover:text-white hover:bg-white/[0.05] transition-all">
+                    {t('nav.login')}
+                  </button>
+                </Link>
+                <Link href="/auth/signup" onClick={() => setSidebarOpen(false)}>
+                  <button className="w-full h-10 rounded-xl bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-sm font-extrabold text-white shadow-lg shadow-purple-500/30 transition-all">
+                    {t('nav.signup')} <ArrowRight className="w-3.5 h-3.5 ml-1 inline" />
+                  </button>
+                </Link>
               </div>
 
               {/* Sidebar Nav Links */}
@@ -840,10 +848,10 @@ export default function LuxTradeLanding() {
           </div>
         </section>
 
-        {/* Screenshot Carousel */}
+        {/* Screenshot Carousel - Natural Look */}
         <section id="demo" className="py-16 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-5xl mx-auto">
-            <div className="flex flex-col items-center mb-12">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex flex-col items-center mb-10">
               <div className="flex items-center h-9 w-max bg-[#2a1b3d]/90 backdrop-blur-sm border border-white/10 rounded-xl mb-6">
                 <div className="w-4 h-full" />
                 <div className="flex items-center gap-2 text-sm font-medium text-white/90">
@@ -863,24 +871,45 @@ export default function LuxTradeLanding() {
                 }
               }}
             >
-              <div className="overflow-hidden rounded-2xl border border-white/[0.08]">
+              {/* Fake browser chrome frame */}
+              <div className="relative rounded-t-2xl bg-[#1a1028] border border-white/[0.08] border-b-0 overflow-hidden">
+                {/* Title bar */}
+                <div className="flex items-center gap-3 px-4 sm:px-5 py-3 bg-[#12091e] border-b border-white/[0.06]">
+                  <div className="flex gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-500/80" />
+                    <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
+                    <div className="w-3 h-3 rounded-full bg-green-500/80" />
+                  </div>
+                  <div className="flex-1 max-w-md mx-auto">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.04] rounded-lg border border-white/[0.06]">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/30"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                      <span className="text-xs text-white/30 font-medium">app.luxtrade.id/dashboard</span>
+                    </div>
+                  </div>
+                  <div className="w-[52px]" />
+                </div>
+              </div>
+              {/* Screenshot area */}
+              <div className="relative overflow-hidden rounded-b-2xl border border-white/[0.08] border-t-0 bg-[#0d0715]">
                 <motion.div className="flex" animate={{ x: `-${carouselIndex * 100}%` }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}>
                   {screenshots.map((src, i) => (
                     <div key={i} className="w-full flex-shrink-0">
-                      <div className="relative bg-[#0d0715] flex items-center justify-center p-2 sm:p-4">
-                        <Image src={src} alt={language === 'id' ? `Tampilan LuxTrade ${i + 1}` : `LuxTrade Screenshot ${i + 1}`} width={1200} height={800} className="w-full h-auto rounded-xl" priority={i === 0} />
+                      <div className="relative">
+                        <Image src={src} alt={language === 'id' ? `Tampilan LuxTrade ${i + 1}` : `LuxTrade Screenshot ${i + 1}`} width={1400} height={900} className="w-full h-auto block" priority={i === 0} />
                       </div>
                     </div>
                   ))}
                 </motion.div>
+                {/* Nav arrows */}
+                <button onClick={() => setCarouselIndex(Math.max(0, carouselIndex - 1))} disabled={carouselIndex === 0} className={`absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 border border-white/[0.1] flex items-center justify-center transition-all hover:bg-black/70 backdrop-blur-sm ${carouselIndex === 0 ? 'opacity-0 pointer-events-none' : 'opacity-80'}`}>
+                  <ChevronRight className="w-5 h-5 text-white rotate-180" />
+                </button>
+                <button onClick={() => setCarouselIndex(Math.min(screenshots.length - 1, carouselIndex + 1))} disabled={carouselIndex === screenshots.length - 1} className={`absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 border border-white/[0.1] flex items-center justify-center transition-all hover:bg-black/70 backdrop-blur-sm ${carouselIndex === screenshots.length - 1 ? 'opacity-0 pointer-events-none' : 'opacity-80'}`}>
+                  <ChevronRight className="w-5 h-5 text-white" />
+                </button>
               </div>
-              <button onClick={() => setCarouselIndex(Math.max(0, carouselIndex - 1))} disabled={carouselIndex === 0} className={`absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full backdrop-blur-xl bg-black/40 border border-white/[0.1] flex items-center justify-center transition-all hover:bg-black/60 hover:border-purple-500/40 ${carouselIndex === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                <ChevronRight className="w-5 h-5 text-white rotate-180" />
-              </button>
-              <button onClick={() => setCarouselIndex(Math.min(screenshots.length - 1, carouselIndex + 1))} disabled={carouselIndex === screenshots.length - 1} className={`absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full backdrop-blur-xl bg-black/40 border border-white/[0.1] flex items-center justify-center transition-all hover:bg-black/60 hover:border-purple-500/40 ${carouselIndex === screenshots.length - 1 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                <ChevronRight className="w-5 h-5 text-white" />
-              </button>
-              <div className="flex items-center justify-center gap-2 mt-6">
+              {/* Dots */}
+              <div className="flex items-center justify-center gap-2 mt-5">
                 {screenshots.map((_, i) => (
                   <button key={i} onClick={() => setCarouselIndex(i)} className={`transition-all duration-300 rounded-full ${i === carouselIndex ? 'w-8 h-2.5 bg-gradient-to-r from-purple-500 to-cyan-500' : 'w-2.5 h-2.5 bg-white/20 hover:bg-white/40'}`} />
                 ))}
