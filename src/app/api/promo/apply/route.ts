@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       // If we get here, it's a quota issue
       return NextResponse.json({
         success: false,
-        message: 'Kuota kode promo sudah habis'
+        message: 'Kuota kode promo sudah habis. Hubungi admin @Risxyiee di Telegram untuk request reset.'
       })
     }
 
@@ -164,6 +164,18 @@ export async function POST(request: NextRequest) {
     }
 
     const remainingQuota = Number(promo.max_quota) - Number(promo.used_quota)
+
+    // Auto-deactivate promo when quota is fully used
+    if (remainingQuota <= 0) {
+      try {
+        await db.$executeRawUnsafe(`
+          UPDATE promo_codes SET is_active = false, updated_at = NOW() WHERE id = $1;
+        `, promo.id)
+        console.log(`🔒 [promo/apply] Promo ${promo.code} auto-deactivated — quota penuh (${promo.used_quota}/${promo.max_quota})`)
+      } catch {
+        // non-critical
+      }
+    }
 
     return NextResponse.json({
       success: true,
