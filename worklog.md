@@ -2444,3 +2444,53 @@ Stage Summary:
 - Roadmap no longer contains any time-based deadlines (minggu depan, bulan ini, etc.)
 - Uses status-based categories instead (In Progress, Planned) — appropriate for a new product
 - Text sounds more authentic and informal in Bahasa Indonesia
+---
+Task ID: 8
+Agent: Z.ai Code
+Task: Revamp promo system - create code, auto-upgrade PRO 3 months, quota tracking, auto-downgrade, landing page update
+
+Work Log:
+- Updated ensureSchema() in /src/lib/db.ts: ON CONFLICT for TRADERCEPAT now resets used_quota=0, max_quota=30, is_active=true
+- Created /src/app/api/promo/claim/route.ts: New endpoint for users to claim promo code → auto-upgrade to PRO for N months
+- Created /src/app/api/cron/downgrade-expired-pro/route.ts: Cron endpoint to find and downgrade expired PRO users back to FREE
+- Updated /src/app/api/profile/me/route.ts: Added real-time auto-downgrade check when profile loads (if pro_expiry < now, downgrade immediately)
+- Updated /src/app/api/promo-quota/route.ts: Better offline fallback (returns default active state), added Math.max for remaining quota
+- Updated /src/app/api/promo/apply/route.ts: Added isDatabaseAvailable check, default plan to PRO, quotaFull flag on error, has_ever_been_pro flag, Indonesian messages
+- Updated landing page /src/app/page.tsx:
+  - Promo section: complete redesign with glow effect, title, description, quota progress bar, "Kuota Habis" / "Sold Out" state
+  - LifetimeUltraCard: now accepts promoRemaining prop and uses real quota data instead of fake static data
+  - Progress bar shows used/total with animated fill
+- Removed equity curve requirement (user said "ga ada kok" - doesn't exist)
+
+Stage Summary:
+- Promo system flow: Code TRADERCEPAT (30 quota, 3 months PRO) → User enters in dashboard → Auto-upgraded to PRO → After 3 months → Auto-downgraded to FREE
+- Landing page shows real-time remaining quota with progress bar
+- When quota full (30 used), promo shows "Kuota Habis" state with red styling
+- Auto-downgrade happens: (1) on profile load (real-time check), (2) via cron endpoint /api/cron/downgrade-expired-pro
+- All promo APIs default to PRO plan, no need to specify plan param
+---
+Task ID: 1
+Agent: Z.ai Code
+Task: Rebuild promo system — kode promo, auto claim PRO 3 bulan, auto downgrade, landing page quota display
+
+Work Log:
+- Read full codebase: schema, all promo APIs, db.ts, profile/me, landing page, DashboardTab
+- Fixed ensureSchema: changed ON CONFLICT to reset used_quota=0, max_quota=30 (was GREATEST which never reset)
+- Created /api/promo/claim/route.ts: atomic SQL claim flow → auto PRO 3 months
+  - Auth check → atomic quota increment → duplicate check → set profile PRO → create subscription → auto-deactivate when full
+- Created /api/cron/downgrade-expired-pro/route.ts: finds PRO users with expired pro_expiry, downgrades to FREE, expires subscriptions
+- Updated /api/profile/me/route.ts: added real-time auto-downgrade check on every profile load (expired PRO → immediate FREE)
+- Updated /api/promo-quota/route.ts: offline mode returns isActive:true, maxQuota:30, remainingQuota:30 (not 0/offline)
+- Updated landing page (src/app/page.tsx):
+  - Promo section: added progress bar, "Sisa slot X/30", "Kuota Habis" state, glow effect, responsive design
+  - LifetimeUltraCard: now uses real promoRemaining from promo-quota API (was hardcoded)
+  - Removed unused slotsInfo state, passed promoRemaining prop down
+- Verified: page compiles to 127KB, no lint errors in changed files, promo-quota returns correct data
+
+Stage Summary:
+- Kode promo TRADERCEPAT aktif otomatis via ensureSchema (used_quota reset ke 0)
+- User claim → otomatis PRO 3 bulan, kuota 30 orang
+- Saat 30 kuota habis → promo otomatis non-aktif, landing page tampil "Kuota Habis"
+- Profile/me cek expiry setiap load → auto downgrade ke FREE
+- Cron endpoint tersedia untuk batch downgrade
+- Landing page menampilkan progress bar sisa slot real-time
