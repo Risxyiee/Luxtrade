@@ -114,15 +114,15 @@ export async function GET(request: NextRequest) {
       : 0
     const sharpeRatio = variance > 0 ? (avgReturn / Math.sqrt(variance)) * Math.sqrt(252) : 0
 
-    // Equity Curve
+    // Equity Curve (chronological order - oldest to newest)
     const equityCurve = []
     cumulative = 10000
 
-    sortedByTime.reverse().forEach(trade => {
+    sortedByTime.forEach(trade => {
       cumulative += trade.profit_loss
       equityCurve.push({
         date: new Date(trade.close_time).toLocaleDateString(),
-        equity: cumulative
+        equity: Math.round(cumulative * 100) / 100
       })
     })
 
