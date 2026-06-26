@@ -354,6 +354,8 @@ export default function LuxTradeLanding() {
   const [showPayment, setShowPayment] = useState(false)
   const [showLifetimePaymentModal, setShowLifetimePaymentModal] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [newsletterEmail, setNewsletterEmail] = useState('')
+  const [newsletterSubmitted, setNewsletterSubmitted] = useState(false)
   const [promoRemaining, setPromoRemaining] = useState<number | null>(null)
   const [promoMax, setPromoMax] = useState<number>(30)
   const [promoActive, setPromoActive] = useState(true)
@@ -1139,8 +1141,13 @@ export default function LuxTradeLanding() {
               <p className="text-white/50 mb-8 max-w-md mx-auto text-base">
                 {language === 'id' ? 'Bergabung dengan trader yang menerima tips trading mingguan, wawasan psikologi, dan update fitur terbaru.' : 'Join traders receiving weekly trading tips, psychology insights, and latest feature updates.'}
               </p>
-              <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto" onSubmit={(e) => e.preventDefault()}>
-                <input type="email" placeholder={language === 'id' ? 'Masukkan email Anda' : 'Enter your email'} className="flex-1 px-5 py-4 rounded-2xl bg-white/5 border border-white/[0.08] text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 transition-all font-medium" />
+              <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto" onSubmit={(e) => {
+                e.preventDefault()
+                if (newsletterEmail) {
+                  window.location.href = `/auth/signup?email=${encodeURIComponent(newsletterEmail)}&source=newsletter`
+                }
+              }}>
+                <input type="email" value={newsletterEmail} onChange={(e) => setNewsletterEmail(e.target.value)} placeholder={language === 'id' ? 'Masukkan email Anda' : 'Enter your email'} className="flex-1 px-5 py-4 rounded-2xl bg-white/5 border border-white/[0.08] text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 transition-all font-medium" />
                 <button type="submit" className="h-14 px-8 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold rounded-2xl shadow-lg shadow-purple-500/30 transition-all active:scale-95">
                   {language === 'id' ? 'Langganan' : 'Subscribe'}
                 </button>

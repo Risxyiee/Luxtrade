@@ -64,3 +64,4 @@ upload/*.gif
 # Skills directory
 /skills/.env
 .env.production-template
+tool-results/
