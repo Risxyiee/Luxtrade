@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
-import { db, ensureSchema } from '@/lib/db'
+import { db, ensureSchema, isDatabaseAvailable } from '@/lib/db'
 import { randomUUID } from 'crypto'
 
 /**
@@ -8,15 +8,24 @@ import { randomUUID } from 'crypto'
  * POST /api/promo/apply
  * Body: { promoCode: string, plan?: string }
  *
- * KEY FIX: Uses atomic SQL to check + increment quota in one query.
- * Prevents race condition where multiple concurrent requests all read
- * the same used_quota value before any of them increment it.
+ * If plan is not provided, defaults to 'PRO' (the promo gives PRO access).
+ * Uses atomic SQL to check + increment quota in one query.
  */
 export async function POST(request: NextRequest) {
   try {
+    if (!isDatabaseAvailable()) {
+      return NextResponse.json(
+        { error: 'Layanan tidak tersedia saat ini' },
+        { status: 503 }
+      )
+    }
+
     await ensureSchema()
     const body = await request.json()
-    const { promoCode: code, plan } = body
+    const { promoCode: code, plan: planParam } = body
+
+    // Default to PRO if plan not specified
+    const plan = planParam || 'PRO'
 
     // Get authenticated user from session
     const { supabase } = createClientForApi(request)
@@ -24,16 +33,16 @@ export async function POST(request: NextRequest) {
 
     if (authError || !user) {
       return NextResponse.json(
-        { error: 'Unauthorized. Please login first.' },
+        { error: 'Silakan login terlebih dahulu' },
         { status: 401 }
       )
     }
 
     const userId = user.id
 
-    if (!code || !plan) {
+    if (!code) {
       return NextResponse.json(
-        { error: 'promoCode and plan are required' },
+        { error: 'Kode promo wajib diisi' },
         { status: 400 }
       )
     }
@@ -74,7 +83,8 @@ export async function POST(request: NextRequest) {
       if (!p.is_active) {
         return NextResponse.json({
           success: false,
-          message: 'Kode promo tidak aktif'
+          quotaFull: true,
+          message: 'Kode promo sudah habis atau tidak aktif'
         })
       }
 
@@ -95,7 +105,8 @@ export async function POST(request: NextRequest) {
       // If we get here, it's a quota issue
       return NextResponse.json({
         success: false,
-        message: 'Kuota kode promo sudah habis'
+        quotaFull: true,
+        message: 'Kuota promo sudah habis! Semua 30 slot sudah terpakai.'
       })
     }
 
@@ -138,6 +149,7 @@ export async function POST(request: NextRequest) {
         is_pro = true,
         subscription_until = $1,
         pro_expiry = $1,
+        has_ever_been_pro = true,
         updated_at = NOW()
       WHERE id = $2;
     `, endDate, userId)
@@ -165,9 +177,21 @@ export async function POST(request: NextRequest) {
 
     const remainingQuota = Number(promo.max_quota) - Number(promo.used_quota)
 
+    // Auto-deactivate promo when quota is fully used
+    if (remainingQuota <= 0) {
+      try {
+        await db.$executeRawUnsafe(`
+          UPDATE promo_codes SET is_active = false, updated_at = NOW() WHERE id = $1;
+        `, promo.id)
+        console.log(`🔒 [promo/apply] Promo ${promo.code} auto-deactivated — quota penuh (${promo.used_quota}/${promo.max_quota})`)
+      } catch {
+        // non-critical
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Kode promo berhasil diterapkan! Anda mendapatkan akses ${plan} selama ${months} bulan.`,
+      message: `Selamat! Anda mendapatkan akses ${plan} gratis selama ${months} bulan! 🎉`,
       subscription: {
         id: subscriptionId,
         plan,
