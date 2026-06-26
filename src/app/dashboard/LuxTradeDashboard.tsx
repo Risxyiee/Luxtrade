@@ -438,7 +438,8 @@ function LuxTradeDashboardContent() {
 
       if (analyticsRes.ok) {
         const data = await analyticsRes.json()
-        setAnalytics(data.analytics)
+        // API returns flat analytics fields directly
+        setAnalytics(data)
       }
 
       if (journalRes.ok) {

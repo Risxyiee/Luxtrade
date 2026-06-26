@@ -10,7 +10,8 @@ import {
   AlertTriangle, Copy, Bug, Info, DatabaseBackup,
   BarChart3, Eye, Monitor, Smartphone, Tablet,
   Globe, TrendingUp, TrendingDown, Activity,
-  FileText, ExternalLink, UserPen, Send, Tag
+  FileText, ExternalLink, UserPen, Send, Tag,
+  Zap, RotateCcw
 } from 'lucide-react'
 import { ManualUpdateUser } from '@/components/ManualUpdateUser'
 import { Button } from '@/components/ui/button'
@@ -530,6 +531,25 @@ export default function AdminPanel() {
 
   // Activate TRADERCEPAT promo
   const [activatingPromo, setActivatingPromo] = useState(false)
+  const [promoStatus, setPromoStatus] = useState<{remaining: number; max: number; active: boolean; used: number} | null>(null)
+
+  const fetchPromoStatus = async () => {
+    try {
+      const res = await fetch('/api/promo-quota?code=TRADERCEPAT')
+      const data = await res.json()
+      if (data.code) {
+        setPromoStatus({
+          remaining: data.remainingQuota ?? 0,
+          max: data.maxQuota ?? 30,
+          active: data.isActive ?? false,
+          used: data.usedQuota ?? 0,
+        })
+      }
+    } catch {}
+  }
+
+  useEffect(() => { fetchPromoStatus() }, [])
+
   const activatePromo = async () => {
     if (activatingPromo) return
     setActivatingPromo(true)
@@ -542,6 +562,7 @@ export default function AdminPanel() {
       const data = await res.json()
       if (res.ok && data.success) {
         toast.success(data.message, { duration: 5000 })
+        fetchPromoStatus()
       } else {
         toast.error(data.message || 'Gagal mengaktifkan promo')
       }
@@ -936,6 +957,64 @@ export default function AdminPanel() {
                 </div>
               )}
 
+              {/* Promo Management Card */}
+              <Card className="bg-gradient-to-r from-amber-500/10 via-[#1a0f2e]/50 to-amber-500/10 border-amber-500/30 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-amber-400" />
+                    Promo TRADERCEPAT
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex-1 space-y-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/30 border border-white/10">
+                          <span className="text-xs text-white/50">Kode:</span>
+                          <code className="text-amber-300 font-bold text-sm tracking-wider">TRADERCEPAT</code>
+                          <button onClick={() => { navigator.clipboard.writeText('TRADERCEPAT'); toast.success('Kode disalin!') }} className="text-white/40 hover:text-white transition-colors">
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <Badge variant={promoStatus?.active ? 'default' : 'destructive'} className={promoStatus?.active ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-red-500/20 text-red-300 border-red-500/30'}>
+                          {promoStatus?.active ? '● Aktif' : '● Nonaktif'}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3 max-w-sm">
+                        <div className="text-center p-2 rounded-lg bg-black/20">
+                          <p className="text-lg font-bold text-amber-300">{promoStatus?.used ?? '-'}</p>
+                          <p className="text-[10px] text-white/40 uppercase tracking-wider">Terpakai</p>
+                        </div>
+                        <div className="text-center p-2 rounded-lg bg-black/20">
+                          <p className="text-lg font-bold text-emerald-300">{promoStatus?.remaining ?? '-'}</p>
+                          <p className="text-[10px] text-white/40 uppercase tracking-wider">Sisa</p>
+                        </div>
+                        <div className="text-center p-2 rounded-lg bg-black/20">
+                          <p className="text-lg font-bold text-white/80">{promoStatus?.max ?? 30}</p>
+                          <p className="text-[10px] text-white/40 uppercase tracking-wider">Total</p>
+                        </div>
+                      </div>
+                      {promoStatus && promoStatus.remaining <= 0 && (
+                        <p className="text-xs text-red-400 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" /> Kuota habis — klik tombol reset di kanan untuk mengaktifkan ulang
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      onClick={activatePromo}
+                      disabled={activatingPromo}
+                      className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold px-6 py-3 shrink-0 disabled:opacity-50"
+                    >
+                      {activatingPromo ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Resetting...</>
+                      ) : (
+                        <><RotateCcw className="w-4 h-4 mr-2" /> Aktifkan / Reset Kuota</>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* User Management Table */}
               <Card className="bg-[#1a0f2e]/50 border-purple-500/20 backdrop-blur-sm">
                 <CardHeader>
@@ -950,20 +1029,7 @@ export default function AdminPanel() {
                         <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-normal">Full Sync</span>
                       )}
                     </CardTitle>
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                      <Button
-                        onClick={activatePromo}
-                        disabled={activatingPromo}
-                        variant="outline"
-                        size="sm"
-                        className="border-amber-500/40 text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 disabled:opacity-50 shrink-0"
-                        title="Aktifkan promo TRADERCEPAT (100%, 3 bulan, 30 orang)"
-                      >
-                        <Tag className={`w-3.5 h-3.5 sm:mr-2 ${activatingPromo ? 'animate-pulse' : ''}`} />
-                        <span className="hidden sm:inline">{activatingPromo ? 'Mengaktifkan...' : 'Aktifkan TRADERCEPAT'}</span>
-                        <span className="sm:hidden">Promo</span>
-                      </Button>
-                      <div className="relative flex-1 sm:flex-none">
+                    <div className="relative flex-1 sm:flex-none">
                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
                         <Input
                           placeholder="Search users..."
@@ -972,7 +1038,6 @@ export default function AdminPanel() {
                           className="bg-[#0d0820] border-purple-500/20 pl-9 w-full sm:w-64 focus:border-purple-500/50"
                         />
                       </div>
-                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>

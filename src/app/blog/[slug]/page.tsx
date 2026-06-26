@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
-  ArrowLeft, Calendar, Clock, BookOpen, Share2,
+  ArrowLeft, ArrowRight, Calendar, Clock, BookOpen, Share2,
   Bookmark, TrendingUp, CheckCircle, AlertCircle,
   Lightbulb, Target, Shield, Brain
 } from 'lucide-react'

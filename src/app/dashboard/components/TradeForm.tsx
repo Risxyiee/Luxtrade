@@ -109,9 +109,9 @@ function TradeForm({
     setAnalyzingScreenshot(true)
     try {
       const formData = new FormData()
-      formData.append('image', file)
+      formData.append('file', file)
 
-      const res = await fetch('/api/analyze-screenshot', {
+      const res = await fetch('/api/trade-upload', {
         method: 'POST',
         body: formData,
       })
@@ -119,20 +119,13 @@ function TradeForm({
       const data = await res.json()
 
       if (res.ok && data.success) {
-        // Auto-fill form with extracted data
-        if (data.data.symbol) onFormChange('symbol', data.data.symbol)
-        if (data.data.type) onTypeChange(data.data.type)
-        if (data.data.lot_size) onFormChange('lot_size', data.data.lot_size.toString())
-        if (data.data.open_price) onFormChange('open_price', data.data.open_price.toString())
-        if (data.data.close_price) onFormChange('close_price', data.data.close_price.toString())
-        if (data.data.profit_loss) onFormChange('profit_loss', data.data.profit_loss.toString())
-        if (data.data.stop_loss) onFormChange('stop_loss', data.data.stop_loss.toString())
-        if (data.data.take_profit) onFormChange('take_profit', data.data.take_profit.toString())
-        if (data.image_url) onFormChange('image_url', data.image_url)
-
-        toast.success('✨ Screenshot analyzed! Form auto-filled with trading data.')
+        // Upload successful — store the image URL for the trade
+        if (data.url) {
+          onFormChange('image_url', data.url)
+        }
+        toast.success('📷 Screenshot uploaded successfully!')
       } else {
-        toast.error(data.error || 'Failed to analyze screenshot')
+        toast.error(data.error || 'Failed to upload screenshot')
       }
     } catch (error) {
       console.error('❌ [TradeForm] Screenshot analysis error:', error)
