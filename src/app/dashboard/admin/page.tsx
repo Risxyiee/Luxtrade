@@ -957,10 +957,10 @@ export default function AdminPanel() {
                         variant="outline"
                         size="sm"
                         className="border-amber-500/40 text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 disabled:opacity-50 shrink-0"
-                        title="Aktifkan promo TRADERCEPAT (100%, 3 bulan, 30 orang)"
+                        title="Aktifkan/Reset promo TRADERCEPAT (100%, 3 bulan, 30 orang — reset kuota)"
                       >
                         <Tag className={`w-3.5 h-3.5 sm:mr-2 ${activatingPromo ? 'animate-pulse' : ''}`} />
-                        <span className="hidden sm:inline">{activatingPromo ? 'Mengaktifkan...' : 'Aktifkan TRADERCEPAT'}</span>
+                        <span className="hidden sm:inline">{activatingPromo ? 'Mengaktifkan...' : 'Aktifkan/Reset TRADERCEPAT'}</span>
                         <span className="sm:hidden">Promo</span>
                       </Button>
                       <div className="relative flex-1 sm:flex-none">
