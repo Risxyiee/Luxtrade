@@ -2444,3 +2444,25 @@ Stage Summary:
 - Roadmap no longer contains any time-based deadlines (minggu depan, bulan ini, etc.)
 - Uses status-based categories instead (In Progress, Planned) — appropriate for a new product
 - Text sounds more authentic and informal in Bahasa Indonesia
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix 4 bugs (promo quota, trade photo upload, watchlist, newsletter) and add equity curve to dashboard
+
+Work Log:
+- Investigated promo code logic: Found /api/admin/promo/activate was NOT resetting used_quota=0 on re-activate, causing "kuota habis" permanently after 30 uses
+- Fixed /api/admin/promo/activate/route.ts: Added `used_quota = 0` to ON CONFLICT UPDATE clause
+- Fixed trade photo upload: TradeForm.tsx was sending FormData field as 'image' to non-existent /api/analyze-screenshot, changed to 'file' pointing to /api/trade-upload
+- Fixed watchlist: Was using Supabase client to query non-existent 'watchlist' table. Added WatchlistItem Prisma model, rewrote /api/watchlist/route.ts to use PostgreSQL
+- Fixed newsletter: Was redirecting to /auth/signup on submit. Changed to show inline success message with Check icon
+- Verified equity curve already exists in DashboardTab with AreaChart (recharts), shows when 2+ trades exist
+- Updated admin button label to 'Aktifkan/Reset TRADERCEPAT'
+- Added DB availability check in promo reset endpoint
+- Pushed all changes to GitHub (d26be70)
+
+Stage Summary:
+- Promo fix: Admin needs to click "Aktifkan/Reset TRADERCEPAT" in admin panel to reset quota to 0
+- Watchlist fix: Requires `bun run db:push` on production to create watchlist table
+- Trade photo: Now uploads to Supabase Storage and stores URL as image_url
+- Newsletter: Shows success message inline, no redirect
+- All 7 files committed and pushed to main
