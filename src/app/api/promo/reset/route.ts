@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
 
 /**
  * Reset promo code quota (Admin only)
@@ -22,9 +22,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Kode promo wajib diisi' }, { status: 400 })
     }
 
+    if (!isDatabaseAvailable()) {
+      return NextResponse.json({ error: 'Database tidak tersedia' }, { status: 503 })
+    }
+
+    await ensureSchema()
+
     const normalizedCode = code.trim().toUpperCase()
 
-    const result: any[] = await db.$queryRawUnsafe(`
+    const result: any[] = await (db as any).$queryRawUnsafe(`
       INSERT INTO promo_codes (id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, is_active, created_at, updated_at)
       VALUES (gen_random_uuid()::text, $1, $2, 30, $3, 0, 1, NOW(), $4, NOW(), NOW())
       ON CONFLICT (code) DO UPDATE SET
