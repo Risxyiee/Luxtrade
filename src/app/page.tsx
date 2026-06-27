@@ -281,16 +281,15 @@ function AnimatedForexTrades() {
   )
 }
 
-function LifetimeUltraCard({ onButtonClick, language, t }: { onButtonClick: () => void, language: 'id' | 'en', t: (key: string) => string }) {
-  const [slotsInfo, setSlotsInfo] = useState<any>(null)
+function LifetimeUltraCard({ onButtonClick, language, t, promoRemaining }: { onButtonClick: () => void, language: 'id' | 'en', t: (key: string) => string, promoRemaining: number | null }) {
   const [loading, setLoading] = useState(true)
-  const [isSoldOut, setIsSoldOut] = useState(false)
 
   useEffect(() => {
-    const slotsData = { totalSlots: 30, usedSlots: 0, availableSlots: 30, isSoldOut: false }
-    const timer = setTimeout(() => { setSlotsInfo(slotsData); setLoading(false) }, 0)
+    const timer = setTimeout(() => { setLoading(false) }, 0)
     return () => clearTimeout(timer)
   }, [])
+
+  const isSoldOut = promoRemaining !== null && promoRemaining <= 0
 
   if (loading) {
     return (
@@ -305,13 +304,13 @@ function LifetimeUltraCard({ onButtonClick, language, t }: { onButtonClick: () =
   return (
     <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }}>
       <div className={`h-full relative bg-[#2a1b3d]/40 backdrop-blur-sm border ${isSoldOut ? 'border-red-500/30' : 'border-amber-500/30'} rounded-3xl p-8 pt-10 hover:bg-[#2a1b3d]/60 transition-colors`}>
-        {slotsInfo?.isSoldOut && (
+        {isSoldOut && (
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-red-500 text-xs font-bold text-white backdrop-blur-sm animate-pulse">SOLD OUT</div>
         )}
-        {!slotsInfo?.isSoldOut && (
+        {!isSoldOut && (
           <motion.div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-xs font-bold text-white flex items-center gap-1.5 backdrop-blur-sm border border-amber-400/30" animate={{ boxShadow: ['0 0 0 0 rgba(251, 191, 36, 0.4)', '0 0 20px 5px rgba(251, 191, 36, 0.2)', '0 0 0 0 rgba(251, 191, 36, 0)'] }} transition={{ duration: 2, repeat: Infinity }}>
             <Sparkles className="w-3.5 h-3.5" />
-            {t('pricing.lifetime.promo').replace('30', slotsInfo.availableSlots.toString())}
+            {t('pricing.lifetime.promo').replace('30', (promoRemaining ?? 30).toString())}
           </motion.div>
         )}
         <div className="flex items-center justify-center mb-6">
@@ -323,9 +322,9 @@ function LifetimeUltraCard({ onButtonClick, language, t }: { onButtonClick: () =
         <div className="text-3xl font-extrabold text-white text-center mb-2">
           {t('pricing.lifetime.price').split(' /')[0]}
         </div>
-        {slotsInfo && !slotsInfo.isSoldOut && (
+        {!isSoldOut && (
           <div className="text-center mb-6">
-            <span className="text-xs font-bold text-amber-300">{t('pricing.lifetime.promo').replace('30', slotsInfo.availableSlots.toString())}</span>
+            <span className="text-xs font-bold text-amber-300">{t('pricing.lifetime.promo').replace('30', (promoRemaining ?? 30).toString())}</span>
           </div>
         )}
         <div className="flex flex-col gap-3.5 mb-8">
@@ -356,7 +355,7 @@ export default function LuxTradeLanding() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [promoRemaining, setPromoRemaining] = useState<number | null>(null)
   const [promoMax, setPromoMax] = useState<number>(30)
-  const [promoActive, setPromoActive] = useState(true)
+  const [promoActive, setPromoActive] = useState<boolean | null>(null)
   const [carouselIndex, setCarouselIndex] = useState(0)
   const touchStartX = useRef(0)
 
@@ -367,18 +366,15 @@ export default function LuxTradeLanding() {
 
   useEffect(() => {
     fetch('/api/promo-quota?code=TRADERCEPAT')
-      .then(res => res.json())
+      .then(res => res.ok ? res.json() : null)
       .then(data => {
-        if (data.remainingQuota !== undefined && data.maxQuota > 0) {
+        if (data && data.maxQuota > 0) {
           setPromoRemaining(data.remainingQuota)
           setPromoMax(data.maxQuota)
           setPromoActive(data.isActive)
         }
-        // If maxQuota is 0 or error/offline response, keep defaults (30/30/active)
       })
-      .catch(() => {
-        // On fetch error, keep defaults
-      })
+      .catch(() => {})
   }, [])
 
   const skrillLinks = {
@@ -795,7 +791,7 @@ export default function LuxTradeLanding() {
 
               {/* Lifetime Ultra */}
               <div className="flex-1 min-w-[280px]">
-                <LifetimeUltraCard onButtonClick={handleLifetimeUpgrade} language={language} t={t} />
+                <LifetimeUltraCard onButtonClick={handleLifetimeUpgrade} language={language} t={t} promoRemaining={promoRemaining} />
               </div>
             </div>
 
@@ -813,30 +809,84 @@ export default function LuxTradeLanding() {
         <section className="py-16 px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto">
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-              <div className="bg-[#2a1b3d]/40 backdrop-blur-sm border border-amber-500/20 rounded-3xl p-8 hover:bg-[#2a1b3d]/60 transition-colors">
-                <div className="text-center">
-                  <p className="text-amber-300/70 text-sm font-semibold mb-4 uppercase tracking-wider">{language === 'id' ? 'Kode Promo' : 'Promo Code'}</p>
+              <div className={`relative overflow-hidden bg-[#2a1b3d]/40 backdrop-blur-sm border rounded-3xl p-8 sm:p-10 transition-colors ${promoActive !== false && (promoRemaining === null || promoRemaining > 0) ? 'border-amber-500/20' : 'border-red-500/20'}`}>
+                {(promoActive !== false && (promoRemaining === null || promoRemaining > 0)) && (
+                  <div className="absolute -top-20 -right-20 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl" />
+                )}
+
+                <div className="text-center relative z-10">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/10 rounded-full mb-5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <p className="text-amber-300/90 text-xs font-semibold uppercase tracking-wider">
+                      {promoActive === false || (promoRemaining !== null && promoRemaining <= 0)
+                        ? (language === 'id' ? 'Kuota Habis' : 'Sold Out')
+                        : (language === 'id' ? 'Promo Spesial' : 'Special Promo')}
+                    </p>
+                  </div>
+
+                  <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
+                    {promoActive === false || (promoRemaining !== null && promoRemaining <= 0)
+                      ? (language === 'id' ? 'Promo Sudah Berakhir' : 'Promo Has Ended')
+                      : (language === 'id' ? '3 Bulan PRO Gratis!' : '3 Months PRO Free!')}
+                  </h3>
+                  <p className="text-white/50 text-sm mb-6">
+                    {promoActive === false || (promoRemaining !== null && promoRemaining <= 0)
+                      ? (language === 'id' ? 'Semua 30 slot promo sudah terpakai' : 'All 30 promo slots have been taken')
+                      : (language === 'id' ? 'Masukkan kode di dashboard untuk klaim langsung' : 'Enter code in dashboard to claim instantly')}
+                  </p>
+
                   <motion.div
-                    className={`inline-flex items-center gap-4 px-8 py-5 bg-black/40 rounded-2xl border-2 transition-all ${promoActive ? 'border-amber-500/50 hover:border-amber-500 cursor-pointer' : 'border-red-500/30 opacity-50 cursor-not-allowed'}`}
-                    whileHover={promoActive ? { scale: 1.02 } : {}}
-                    whileTap={promoActive ? { scale: 0.98 } : {}}
+                    className={`inline-flex items-center gap-3 sm:gap-4 px-6 sm:px-8 py-4 sm:py-5 bg-black/40 rounded-2xl border-2 transition-all ${promoActive !== false && (promoRemaining === null || promoRemaining > 0) ? 'border-amber-500/50 hover:border-amber-500 cursor-pointer' : 'border-red-500/20 opacity-50 cursor-not-allowed'}`}
+                    whileHover={promoActive !== false && (promoRemaining === null || promoRemaining > 0) ? { scale: 1.02 } : {}}
+                    whileTap={promoActive !== false && (promoRemaining === null || promoRemaining > 0) ? { scale: 0.98 } : {}}
                     onClick={() => {
-                      if (!promoActive || (promoRemaining !== null && promoRemaining <= 0)) return
+                      if (promoActive === false || (promoRemaining !== null && promoRemaining <= 0)) return
                       navigator.clipboard.writeText('TRADERCEPAT')
                       alert(language === 'id' ? 'Kode berhasil disalin!' : 'Code copied!')
                     }}
                   >
-                    <span className={`text-3xl font-extrabold bg-gradient-to-r ${promoActive ? 'from-amber-400 to-orange-400' : 'from-red-400 to-red-600'} bg-clip-text text-transparent tracking-wider font-mono ${!promoActive ? 'line-through' : ''}`}>
+                    <span className={`text-2xl sm:text-3xl font-extrabold bg-gradient-to-r ${promoActive !== false && (promoRemaining === null || promoRemaining > 0) ? 'from-amber-400 to-orange-400' : 'from-red-400/60 to-red-600/60'} bg-clip-text text-transparent tracking-wider font-mono ${promoActive === false || (promoRemaining !== null && promoRemaining <= 0) ? 'line-through' : ''}`}>
                       TRADERCEPAT
                     </span>
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${promoActive ? 'bg-amber-500/20' : 'bg-red-500/20'}`}>
-                      {promoActive ? <Check className="w-5 h-5 text-amber-400" /> : <X className="w-5 h-5 text-red-400" />}
+                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center shrink-0 ${promoActive !== false && (promoRemaining === null || promoRemaining > 0) ? 'bg-amber-500/20' : 'bg-red-500/20'}`}>
+                      {promoActive !== false && (promoRemaining === null || promoRemaining > 0)
+                        ? <Check className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
+                        : <X className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />}
                     </div>
                   </motion.div>
-                  <p className="text-white/30 text-xs mt-3">{promoActive ? (language === 'id' ? 'Klik untuk menyalin • 3 bulan PRO gratis' : 'Click to copy • 3 months PRO free') : (language === 'id' ? 'Kuota habis' : 'Sold out')}</p>
-                  {promoActive && promoRemaining !== null && (
-                    <p className="text-white/40 text-xs mt-1">{language === 'id' ? `Sisa ${promoRemaining} dari ${promoMax} slot` : `${promoRemaining} of ${promoMax} slots left`}</p>
+
+                  {promoActive !== false && (promoRemaining === null || promoRemaining > 0) && (
+                    <p className="text-white/30 text-xs mt-3">
+                      {language === 'id' ? 'Klik untuk menyalin' : 'Click to copy'}
+                    </p>
                   )}
+
+                  {/* Quota Progress Bar */}
+                  <div className="mt-6 max-w-sm mx-auto">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-white/40 text-xs font-medium">
+                        {language === 'id' ? 'Sisa slot' : 'Slots remaining'}
+                      </span>
+                      <span className={`text-xs font-bold ${promoActive !== false && (promoRemaining === null || promoRemaining > 0) ? 'text-amber-400' : 'text-red-400'}`}>
+                        {promoRemaining !== null ? `${promoRemaining} / ${promoMax}` : '...'}
+                      </span>
+                    </div>
+                    <div className="h-2.5 bg-white/5 rounded-full overflow-hidden">
+                      <motion.div
+                        className={`h-full rounded-full transition-colors ${promoActive !== false && (promoRemaining === null || promoRemaining > 0) ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-red-500/60'}`}
+                        initial={{ width: 0 }}
+                        animate={{ width: promoRemaining !== null ? `${((promoMax - promoRemaining) / promoMax) * 100}%` : '0%' }}
+                        transition={{ duration: 1, ease: 'easeOut' }}
+                      />
+                    </div>
+                    <p className="text-white/25 text-[11px] mt-2">
+                      {promoRemaining !== null
+                        ? (language === 'id'
+                          ? `${promoMax - promoRemaining} orang sudah klaim`
+                          : `${promoMax - promoRemaining} traders claimed`)
+                        : (language === 'id' ? 'Memuat kuota...' : 'Loading quota...')}
+                    </p>
+                  </div>
                 </div>
               </div>
             </motion.div>
