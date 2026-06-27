@@ -33,6 +33,17 @@ export async function GET(request: Request) {
 
     await ensureSchema()
 
+    // EMERGENCY: Fix corrupted promo_codes if ensureSchema's singleton skipped it
+    try {
+      await db.$queryRawUnsafe(`SELECT user_id FROM public.promo_codes LIMIT 0;`)
+      console.log(`🚨 [promo-quota:${logId}] EMERGENCY: promo_codes corrupted, force-dropping...`)
+      await db.$executeRawUnsafe(`DROP TABLE IF EXISTS public.promo_codes CASCADE;`)
+      await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "promo_codes" ("id" TEXT NOT NULL, "code" TEXT NOT NULL, "description" TEXT, "discount_percent" DOUBLE PRECISION NOT NULL, "max_quota" INTEGER NOT NULL, "used_quota" INTEGER NOT NULL DEFAULT 0, "duration_months" INTEGER NOT NULL, "start_date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "end_date" TIMESTAMP(3), "is_active" BOOLEAN NOT NULL DEFAULT true, "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "promo_codes_pkey" PRIMARY KEY ("id"));`)
+      await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "promo_codes_code_key" ON "promo_codes"("code");`)
+      await db.$executeRawUnsafe(`INSERT INTO promo_codes (id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, is_active, created_at, updated_at) VALUES (gen_random_uuid()::text, 'TRADERCEPAT', 'Diskon 100% — 3 Bulan PRO Gratis!', 100, 30, 0, 3, NOW(), true, NOW(), NOW()) ON CONFLICT (code) DO NOTHING;`)
+      console.log(`✅ [promo-quota:${logId}] EMERGENCY repair done`)
+    } catch (_probeErr) { /* table clean or doesn't exist yet */ }
+
     const { searchParams } = new URL(request.url)
     const code = (searchParams.get('code') || 'TRADERCEPAT').toUpperCase()
 

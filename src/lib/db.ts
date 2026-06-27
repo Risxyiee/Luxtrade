@@ -420,21 +420,37 @@ export async function ensureSchema(): Promise<void> {
     `CREATE INDEX IF NOT EXISTS "watchlist_user_id_idx" ON "watchlist"("user_id");`,
   ]
 
-  // Fix: if promo_codes table has wrong columns from old schema, drop and recreate
-    // pgbouncer doesn't support DO $$ blocks, so we use a 2-step approach:
-    // 1. Count columns — if wrong, drop. 2. Recreate.
-    const fixTables: string[] = []
+  // Fix: if promo_codes table has wrong columns from old schema (e.g. has "user_id"),
+  // drop and recreate. The old schema had 21 columns including user_id, plan, etc.
+  // We use TWO detection methods for reliability:
+  // 1. Try to SELECT user_id from promo_codes — if it succeeds, table is corrupted
+  // 2. Check information_schema as fallback
+  const fixTables: string[] = []
 
     try {
-      // Check how many columns promo_codes has (should be 12)
-      const colCount: any[] = await _rawPrisma.$queryRawUnsafe(`
-        SELECT COUNT(*)::int as cnt FROM information_schema.columns WHERE table_name = 'promo_codes';
-      `)
-      const count = colCount?.[0]?.cnt ?? 0
-
-      if (count > 0 && count !== 12) {
-        console.log(`⚠️ [DB] promo_codes has ${count} columns (expected 12), dropping and recreating...`)
-        fixTables.push(`DROP TABLE IF EXISTS promo_codes CASCADE;`)
+      // Method 1: Direct probe — try to query the bad column
+      // If "user_id" exists on promo_codes, this succeeds → table is corrupted
+      try {
+        await _rawPrisma.$queryRawUnsafe(`SELECT user_id FROM public.promo_codes LIMIT 0;`)
+        // If we get here without error, "user_id" EXISTS on promo_codes → corrupted!
+        console.log(`⚠️ [DB] promo_codes has "user_id" column (probed successfully) — DROPPING corrupted table...`)
+        fixTables.push(`DROP TABLE IF EXISTS public.promo_codes CASCADE;`)
+      } catch (probeErr: any) {
+        // Expected: "column user_id does not exist" — table is CLEAN, no fix needed
+        if (probeErr?.message?.includes('user_id')) {
+          console.log(`✅ [DB] promo_codes clean (no user_id column)`)
+        } else {
+          // Unexpected error — table might not exist yet, try info_schema fallback
+          console.log(`ℹ️ [DB] promo_codes probe got unexpected error: ${probeErr?.message?.substring(0, 80)}`)
+          const badCol: any[] = await _rawPrisma.$queryRawUnsafe(`
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'promo_codes' AND column_name = 'user_id';
+          `)
+          if (badCol && badCol.length > 0) {
+            console.log(`⚠️ [DB] promo_codes has "user_id" column (info_schema) — DROPPING corrupted table...`)
+            fixTables.push(`DROP TABLE IF EXISTS public.promo_codes CASCADE;`)
+          }
+        }
       }
     } catch (_e) { /* table doesn't exist yet, will be created below */ }
 
