@@ -204,34 +204,6 @@ export async function ensureSchema(): Promise<void> {
       "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "email_broadcasts_pkey" PRIMARY KEY ("id")
     );`,
-    `CREATE TABLE IF NOT EXISTS "promo_codes" (
-      "id" TEXT NOT NULL,
-      "code" TEXT NOT NULL,
-      "description" TEXT,
-      "discount_percent" DOUBLE PRECISION NOT NULL,
-      "max_quota" INTEGER NOT NULL,
-      "used_quota" INTEGER NOT NULL DEFAULT 0,
-      "duration_months" INTEGER NOT NULL,
-      "start_date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "end_date" TIMESTAMP(3),
-      "is_active" BOOLEAN NOT NULL DEFAULT true,
-      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      CONSTRAINT "promo_codes_pkey" PRIMARY KEY ("id")
-    );`,
-    `CREATE TABLE IF NOT EXISTS "user_subscriptions" (
-      "id" TEXT NOT NULL,
-      "user_id" TEXT NOT NULL,
-      "plan" TEXT NOT NULL,
-      "status" TEXT NOT NULL DEFAULT 'active',
-      "start_date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "end_date" TIMESTAMP(3),
-      "promo_code_id" TEXT,
-      "discount_percent" DOUBLE PRECISION NOT NULL DEFAULT 0,
-      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      CONSTRAINT "user_subscriptions_pkey" PRIMARY KEY ("id")
-    );`,
     `CREATE TABLE IF NOT EXISTS "payment_orders" (
       "id" TEXT NOT NULL,
       "user_id" TEXT NOT NULL,
@@ -327,33 +299,11 @@ export async function ensureSchema(): Promise<void> {
     `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "has_ever_been_pro" BOOLEAN NOT NULL DEFAULT false;`,
     `ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "commission_paid" BOOLEAN NOT NULL DEFAULT false;`,
 
-    // ── promo_codes ──
-    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "description" TEXT;`,
-    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "discount_percent" DOUBLE PRECISION NOT NULL DEFAULT 0;`,
-    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "max_quota" INTEGER NOT NULL DEFAULT 0;`,
-    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "used_quota" INTEGER NOT NULL DEFAULT 0;`,
-    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "duration_months" INTEGER NOT NULL DEFAULT 0;`,
-    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "start_date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
-    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "end_date" TIMESTAMP(3);`,
-    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "is_active" BOOLEAN NOT NULL DEFAULT true;`,
-    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
-    `ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
-
     // ── email_broadcasts ──
     `ALTER TABLE "email_broadcasts" ADD COLUMN IF NOT EXISTS "sent_count" INTEGER NOT NULL DEFAULT 0;`,
     `ALTER TABLE "email_broadcasts" ADD COLUMN IF NOT EXISTS "failed_count" INTEGER NOT NULL DEFAULT 0;`,
     `ALTER TABLE "email_broadcasts" ADD COLUMN IF NOT EXISTS "sent_by" TEXT;`,
     `ALTER TABLE "email_broadcasts" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
-
-    // ── user_subscriptions ──
-    `ALTER TABLE "user_subscriptions" ADD COLUMN IF NOT EXISTS "plan" TEXT NOT NULL DEFAULT 'FREE';`,
-    `ALTER TABLE "user_subscriptions" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active';`,
-    `ALTER TABLE "user_subscriptions" ADD COLUMN IF NOT EXISTS "start_date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
-    `ALTER TABLE "user_subscriptions" ADD COLUMN IF NOT EXISTS "end_date" TIMESTAMP(3);`,
-    `ALTER TABLE "user_subscriptions" ADD COLUMN IF NOT EXISTS "promo_code_id" TEXT;`,
-    `ALTER TABLE "user_subscriptions" ADD COLUMN IF NOT EXISTS "discount_percent" DOUBLE PRECISION NOT NULL DEFAULT 0;`,
-    `ALTER TABLE "user_subscriptions" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
-    `ALTER TABLE "user_subscriptions" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;`,
 
     // ── payment_orders ──
     `ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "invoice_number" TEXT NOT NULL DEFAULT '';`,
@@ -431,8 +381,25 @@ export async function ensureSchema(): Promise<void> {
   //   - TRADERCEPAT is re-seeded below with ON CONFLICT DO NOTHING
   //   - used_quota is synced from real user_subscriptions count
   //   - The table has no FK constraints from other tables
+  // NOTE: user_subscriptions can also be corrupted, so we DROP+CREATE it too.
+  //   Existing subscription data is lost, but promo claim is idempotent —
+  //   users can re-claim. This is a one-time fix for the migration mess.
   const fixTables: string[] = [
+    `DROP TABLE IF EXISTS public.user_subscriptions CASCADE;`,
     `DROP TABLE IF EXISTS public.promo_codes CASCADE;`,
+    `CREATE TABLE "user_subscriptions" (
+      "id" TEXT NOT NULL,
+      "user_id" TEXT NOT NULL,
+      "plan" TEXT NOT NULL,
+      "status" TEXT NOT NULL DEFAULT 'active',
+      "start_date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "end_date" TIMESTAMP(3),
+      "promo_code_id" TEXT,
+      "discount_percent" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "user_subscriptions_pkey" PRIMARY KEY ("id")
+    );`,
     `CREATE TABLE "promo_codes" (
       "id" TEXT NOT NULL,
       "code" TEXT NOT NULL,
