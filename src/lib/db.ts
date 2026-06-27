@@ -420,60 +420,35 @@ export async function ensureSchema(): Promise<void> {
     `CREATE INDEX IF NOT EXISTS "watchlist_user_id_idx" ON "watchlist"("user_id");`,
   ]
 
-  // Fix: if promo_codes table has wrong columns from old schema (e.g. has "user_id"),
-  // drop and recreate. The old schema had 21 columns including user_id, plan, etc.
-  // We use TWO detection methods for reliability:
-  // 1. Try to SELECT user_id from promo_codes — if it succeeds, table is corrupted
-  // 2. Check information_schema as fallback
-  const fixTables: string[] = []
-
-    try {
-      // Method 1: Direct probe — try to query the bad column
-      // If "user_id" exists on promo_codes, this succeeds → table is corrupted
-      try {
-        await _rawPrisma.$queryRawUnsafe(`SELECT user_id FROM public.promo_codes LIMIT 0;`)
-        // If we get here without error, "user_id" EXISTS on promo_codes → corrupted!
-        console.log(`⚠️ [DB] promo_codes has "user_id" column (probed successfully) — DROPPING corrupted table...`)
-        fixTables.push(`DROP TABLE IF EXISTS public.promo_codes CASCADE;`)
-      } catch (probeErr: any) {
-        // Expected: "column user_id does not exist" — table is CLEAN, no fix needed
-        if (probeErr?.message?.includes('user_id')) {
-          console.log(`✅ [DB] promo_codes clean (no user_id column)`)
-        } else {
-          // Unexpected error — table might not exist yet, try info_schema fallback
-          console.log(`ℹ️ [DB] promo_codes probe got unexpected error: ${probeErr?.message?.substring(0, 80)}`)
-          const badCol: any[] = await _rawPrisma.$queryRawUnsafe(`
-            SELECT column_name FROM information_schema.columns
-            WHERE table_name = 'promo_codes' AND column_name = 'user_id';
-          `)
-          if (badCol && badCol.length > 0) {
-            console.log(`⚠️ [DB] promo_codes has "user_id" column (info_schema) — DROPPING corrupted table...`)
-            fixTables.push(`DROP TABLE IF EXISTS public.promo_codes CASCADE;`)
-          }
-        }
-      }
-    } catch (_e) { /* table doesn't exist yet, will be created below */ }
-
-    if (fixTables.length === 0) {
-      // No fix needed, but still ensure table exists with correct schema
-    }
-    fixTables.push(
-      `CREATE TABLE IF NOT EXISTS "promo_codes" (
-        "id" TEXT NOT NULL,
-        "code" TEXT NOT NULL,
-        "description" TEXT,
-        "discount_percent" DOUBLE PRECISION NOT NULL,
-        "max_quota" INTEGER NOT NULL,
-        "used_quota" INTEGER NOT NULL DEFAULT 0,
-        "duration_months" INTEGER NOT NULL,
-        "start_date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "end_date" TIMESTAMP(3),
-        "is_active" BOOLEAN NOT NULL DEFAULT true,
-        "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT "promo_codes_pkey" PRIMARY KEY ("id")
-      );`
-    )
+  // ── ALWAYS drop and recreate promo_codes to guarantee clean schema ──
+  // Rationale: The old corrupted table had a "user_id" column. Previous attempts
+  // to detect corruption (column count, probe query) all failed because:
+  //   1. information_schema column count is unreliable with pgbouncer
+  //   2. Probe query "SELECT user_id FROM promo_codes" causes Prisma/pgbouncer
+  //      to cache the error and return it for ALL subsequent queries on the
+  //      same connection — even after DROP+CREATE
+  // Solution: Just always DROP+CREATE. It's safe because:
+  //   - TRADERCEPAT is re-seeded below with ON CONFLICT DO NOTHING
+  //   - used_quota is synced from real user_subscriptions count
+  //   - The table has no FK constraints from other tables
+  const fixTables: string[] = [
+    `DROP TABLE IF EXISTS public.promo_codes CASCADE;`,
+    `CREATE TABLE "promo_codes" (
+      "id" TEXT NOT NULL,
+      "code" TEXT NOT NULL,
+      "description" TEXT,
+      "discount_percent" DOUBLE PRECISION NOT NULL,
+      "max_quota" INTEGER NOT NULL,
+      "used_quota" INTEGER NOT NULL DEFAULT 0,
+      "duration_months" INTEGER NOT NULL,
+      "start_date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "end_date" TIMESTAMP(3),
+      "is_active" BOOLEAN NOT NULL DEFAULT true,
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "promo_codes_pkey" PRIMARY KEY ("id")
+    );`,
+  ]
 
   try {
     console.log('🔄 [DB] Running auto-migration (ensureSchema)...')
