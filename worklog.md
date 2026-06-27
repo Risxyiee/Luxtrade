@@ -2494,3 +2494,23 @@ Stage Summary:
 - Profile/me cek expiry setiap load → auto downgrade ke FREE
 - Cron endpoint tersedia untuk batch downgrade
 - Landing page menampilkan progress bar sisa slot real-time
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix promo code claim showing "habis" when nobody has used it
+
+Work Log:
+- Investigated the claim flow: Sidebar.tsx and UpgradeFormClient.tsx both call `/api/promo/apply` (not `/api/promo/claim`)
+- Read `/api/promo/apply/route.ts` — found the error message "Kuota kode promo sudah habis. Hubungi admin @Risxyiee di Telegram" at line 98, matching user's report
+- Root cause: `used_quota` in the database was corrupted (non-zero value) from old schema, making the atomic UPDATE fail (`used_quota < max_quota` was false)
+- The `ensureSchema` ON CONFLICT clause was resetting `is_active = true` but NOT force-fixing `used_quota` to the real subscription count in all cases
+
+Fixes applied (3-layer self-healing):
+1. **db.ts ensureSchema**: Separated INSERT (ON CONFLICT DO NOTHING) from UPDATE. Now always force-resets all promo fields, syncs used_quota from real subscription count, and has a reverse-check to re-activate if quota is available
+2. **promo/apply route**: Added self-healing logic — when atomic UPDATE fails, it checks real subscription COUNT vs stored used_quota. If mismatch, auto-fixes and retries the claim. Also handles the case where promo is `is_active = false` but quota is actually available
+3. **promo-quota route**: Added self-healing on every public read — verifies used_quota matches real count and fixes is_active state if inconsistent. This ensures the landing page always shows correct data
+
+Stage Summary:
+- Pushed to GitHub as commit 7639ca6
+- All three endpoints now self-heal corrupted promo data automatically
+- No matter what the DB state is, the system will detect and fix quota mismatches
