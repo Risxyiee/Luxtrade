@@ -424,8 +424,9 @@ export async function ensureSchema(): Promise<void> {
     }
 
     // Auto-activate TRADERCEPAT promo code (100%, 3 months, 30 quota)
-    // On conflict: hanya update field non-kritis, jangan turunkan max_quota
+    // On conflict: keep promo active, fix max_quota, sync used_quota to real subscription count
     try {
+      // First ensure the promo row exists and is active
       await _rawPrisma.$executeRawUnsafe(`
         INSERT INTO promo_codes (id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, is_active, created_at, updated_at)
         VALUES (
@@ -436,26 +437,32 @@ export async function ensureSchema(): Promise<void> {
         )
         ON CONFLICT (code) DO UPDATE SET
           discount_percent = 100,
-          max_quota = GREATEST(promo_codes.max_quota, 30),
+          max_quota = 30,
           duration_months = 3,
           is_active = true,
           end_date = NULL,
           updated_at = NOW();
       `)
-    } catch (_e) { /* promo activation non-critical */ }
 
-    // Safety net: if used_quota exceeds max_quota, cap it to actual active promo subscriptions
-    try {
+      // Sync used_quota to actual active subscription count (accurate real data)
       await _rawPrisma.$executeRawUnsafe(`
         UPDATE promo_codes
         SET used_quota = (
           SELECT COUNT(*) FROM user_subscriptions
           WHERE user_subscriptions.promo_code_id = promo_codes.id
             AND user_subscriptions.status = 'active'
-        )
-        WHERE code = 'TRADERCEPAT' AND used_quota > max_quota;
+        ),
+        updated_at = NOW()
+        WHERE code = 'TRADERCEPAT';
       `)
-    } catch (_e) { /* non-critical safety net */ }
+
+      // Auto-deactivate if quota full
+      await _rawPrisma.$executeRawUnsafe(`
+        UPDATE promo_codes
+        SET is_active = false, updated_at = NOW()
+        WHERE code = 'TRADERCEPAT' AND used_quota >= max_quota AND is_active = true;
+      `)
+    } catch (_e) { /* promo activation non-critical */ }
 
     console.log('✅ [DB] Auto-migration complete')
   } catch (err) {
