@@ -420,17 +420,28 @@ export async function ensureSchema(): Promise<void> {
     `CREATE INDEX IF NOT EXISTS "watchlist_user_id_idx" ON "watchlist"("user_id");`,
   ]
 
-  // Fix: if promo_codes table has extra columns from old schema, drop and recreate
-    const fixTables = [
-      // Drop promo_codes if it has wrong columns, then recreate clean
-      `DO $$
-      BEGIN
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'promo_codes' AND column_name = 'user_id') THEN
-          DROP TABLE IF EXISTS promo_codes CASCADE;
-          RAISE NOTICE 'Dropped corrupted promo_codes table';
-        END IF;
-      END $$;`,
-      // Recreate promo_codes clean
+  // Fix: if promo_codes table has wrong columns from old schema, drop and recreate
+    // pgbouncer doesn't support DO $$ blocks, so we use a 2-step approach:
+    // 1. Count columns — if wrong, drop. 2. Recreate.
+    const fixTables: string[] = []
+
+    try {
+      // Check how many columns promo_codes has (should be 12)
+      const colCount: any[] = await _rawPrisma.$queryRawUnsafe(`
+        SELECT COUNT(*)::int as cnt FROM information_schema.columns WHERE table_name = 'promo_codes';
+      `)
+      const count = colCount?.[0]?.cnt ?? 0
+
+      if (count > 0 && count !== 12) {
+        console.log(`⚠️ [DB] promo_codes has ${count} columns (expected 12), dropping and recreating...`)
+        fixTables.push(`DROP TABLE IF EXISTS promo_codes CASCADE;`)
+      }
+    } catch (_e) { /* table doesn't exist yet, will be created below */ }
+
+    if (fixTables.length === 0) {
+      // No fix needed, but still ensure table exists with correct schema
+    }
+    fixTables.push(
       `CREATE TABLE IF NOT EXISTS "promo_codes" (
         "id" TEXT NOT NULL,
         "code" TEXT NOT NULL,
@@ -445,8 +456,8 @@ export async function ensureSchema(): Promise<void> {
         "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "promo_codes_pkey" PRIMARY KEY ("id")
-      );`,
-    ]
+      );`
+    )
 
   try {
     console.log('🔄 [DB] Running auto-migration (ensureSchema)...')
