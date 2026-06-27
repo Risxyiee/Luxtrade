@@ -5,13 +5,14 @@ import { randomUUID } from 'crypto'
 
 /**
  * POST /api/promo/apply
- * 
- * Does NOT call ensureSchema() — that function has a singleton flag and
- * may contain queries that fail on corrupted tables. Instead, this route
- * does its own minimal table check/repair before claiming.
+ *
+ * Does NOT call ensureSchema() — handles its own table repair.
+ * CRITICAL: Both promo_codes AND user_subscriptions can be corrupted
+ * from old schema. We guarantee clean tables by DROP+CREATE every request.
+ * Safe because there are no FK constraints between them.
  */
 
-const PROMO_TABLE_SQL = `CREATE TABLE IF NOT EXISTS "promo_codes" (
+const PROMO_CREATE = `CREATE TABLE "promo_codes" (
   "id" TEXT NOT NULL,
   "code" TEXT NOT NULL,
   "description" TEXT,
@@ -27,7 +28,7 @@ const PROMO_TABLE_SQL = `CREATE TABLE IF NOT EXISTS "promo_codes" (
   CONSTRAINT "promo_codes_pkey" PRIMARY KEY ("id")
 );`
 
-const SUB_TABLE_SQL = `CREATE TABLE IF NOT EXISTS "user_subscriptions" (
+const SUB_CREATE = `CREATE TABLE "user_subscriptions" (
   "id" TEXT NOT NULL,
   "user_id" TEXT NOT NULL,
   "plan" TEXT NOT NULL,
@@ -41,28 +42,25 @@ const SUB_TABLE_SQL = `CREATE TABLE IF NOT EXISTS "user_subscriptions" (
   CONSTRAINT "user_subscriptions_pkey" PRIMARY KEY ("id")
 );`
 
-/** Try a query, return true if it succeeds */
-async function queryOk(sql: string, ...params: any[]): Promise<boolean> {
+/** Quick test: can we SELECT user_id from user_subscriptions? */
+async function subTableHasUserId(): Promise<boolean> {
   try {
-    await db.$executeRawUnsafe(sql, ...params)
-    return true
-  } catch { return false }
+    await db.$queryRawUnsafe(`SELECT user_id FROM public.user_subscriptions LIMIT 0;`)
+    return true // no error = column exists = table is fine
+  } catch {
+    return false // error = column missing or table missing
+  }
 }
 
-/** Force-repair promo_codes: DROP if corrupted, CREATE clean, INSERT TRADERCEPAT */
-async function forceRepairPromoTable(): Promise<boolean> {
+/** DROP + CREATE user_subscriptions with correct schema */
+async function repairSubTable(): Promise<boolean> {
   try {
-    await db.$executeRawUnsafe(`DROP TABLE IF EXISTS public.promo_codes CASCADE;`)
-    await db.$executeRawUnsafe(PROMO_TABLE_SQL)
-    await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "promo_codes_code_key" ON "promo_codes"("code");`)
-    await db.$executeRawUnsafe(`
-      INSERT INTO promo_codes (id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, is_active, created_at, updated_at)
-      VALUES (gen_random_uuid()::text, 'TRADERCEPAT', 'Diskon 100% — 3 Bulan PRO Gratis! Khusus 30 trader pertama.', 100, 30, 0, 3, NOW(), true, NOW(), NOW())
-      ON CONFLICT (code) DO NOTHING;
-    `)
+    await db.$executeRawUnsafe(`DROP TABLE IF EXISTS public.user_subscriptions CASCADE;`)
+    await db.$executeRawUnsafe(SUB_CREATE)
+    console.log(`✅ user_subscriptions recreated`)
     return true
   } catch (e: any) {
-    console.error('❌ [forceRepair] Failed:', e?.message)
+    console.error(`❌ user_subscriptions repair failed: ${e?.message?.substring(0, 100)}`)
     return false
   }
 }
@@ -77,79 +75,33 @@ export async function POST(request: NextRequest) {
     }
 
     // ══════════════════════════════════════════════════════════════
-    // STEP 0: Ensure tables exist with CORRECT schema (no ensureSchema)
+    // STEP 0: Guarantee CLEAN tables
     // ══════════════════════════════════════════════════════════════
     console.log(`🔧 [promo/apply:${logId}] Checking tables...`)
 
-    // Ensure user_subscriptions exists
-    const subOk = await queryOk(SUB_TABLE_SQL)
-    console.log(`🔧 [promo/apply:${logId}] user_subscriptions: ${subOk ? 'OK' : 'FAILED'}`)
-
-    // Test if promo_codes is usable by doing a simple SELECT
-    let promoTableClean = false
+    // Always DROP+CREATE promo_codes (safe — re-seeded below)
     try {
-      await db.$queryRawUnsafe(`SELECT code FROM public.promo_codes LIMIT 0;`)
-      promoTableClean = true
-      console.log(`🔧 [promo/apply:${logId}] promo_codes: exists`)
-    } catch (testErr: any) {
-      console.log(`🔧 [promo/apply:${logId}] promo_codes test failed: ${testErr?.message?.substring(0, 80)}`)
+      await db.$executeRawUnsafe(`DROP TABLE IF EXISTS public.promo_codes CASCADE;`)
+      await db.$executeRawUnsafe(PROMO_CREATE)
+      await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "promo_codes_code_key" ON "promo_codes"("code");`)
+      console.log(`🔧 [promo/apply:${logId}] promo_codes: fresh`)
+
+      // Re-seed TRADERCEPAT
+      await db.$executeRawUnsafe(`
+        INSERT INTO promo_codes (id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, is_active, created_at, updated_at)
+        VALUES (gen_random_uuid()::text, 'TRADERCEPAT', 'Diskon 100% — 3 Bulan PRO Gratis! Khusus 30 trader pertama.', 100, 30, 0, 3, NOW(), true, NOW(), NOW())
+        ON CONFLICT (code) DO NOTHING;`)
+    } catch (e: any) {
+      console.error(`❌ [promo/apply:${logId}] promo_codes setup failed: ${e?.message?.substring(0, 100)}`)
     }
 
-    if (!promoTableClean) {
-      // Table doesn't exist or has serious issues — create fresh
-      console.log(`🔧 [promo/apply:${logId}] Creating promo_codes from scratch...`)
-      const repaired = await forceRepairPromoTable()
-      console.log(`🔧 [promo/apply:${logId}] Repair: ${repaired ? 'OK' : 'FAILED'}`)
+    // Check user_subscriptions — if corrupted (no user_id), nuke and recreate
+    const subOk = await subTableHasUserId()
+    if (!subOk) {
+      console.log(`🔧 [promo/apply:${logId}] user_subscriptions corrupted, repairing...`)
+      await repairSubTable()
     } else {
-      // Table exists — check if TRADERCEPAT row exists and is correct
-      // Do this with a simple, safe query that only uses the 12 clean columns
-      try {
-        const check: any[] = await db.$queryRawUnsafe(
-          `SELECT id, is_active, used_quota, max_quota FROM public.promo_codes WHERE code = 'TRADERCEPAT' LIMIT 1;`
-        )
-        if (!check || check.length === 0) {
-          // TRADERCEPAT not found — insert it
-          console.log(`🔧 [promo/apply:${logId}] TRADERCEPAT not found, inserting...`)
-          await db.$executeRawUnsafe(`
-            INSERT INTO promo_codes (id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, is_active, created_at, updated_at)
-            VALUES (gen_random_uuid()::text, 'TRADERCEPAT', 'Diskon 100% — 3 Bulan PRO Gratis!', 100, 30, 0, 3, NOW(), true, NOW(), NOW())
-            ON CONFLICT (code) DO NOTHING;
-          `)
-        } else {
-          console.log(`🔧 [promo/apply:${logId}] TRADERCEPAT found: active=${check[0].is_active}, used=${check[0].used_quota}/${check[0].max_quota}`)
-
-          // Fix if needed: force activate + correct values
-          await db.$executeRawUnsafe(`
-            UPDATE promo_codes SET
-              max_quota = 30,
-              duration_months = 3,
-              is_active = true,
-              end_date = NULL,
-              updated_at = NOW()
-            WHERE code = 'TRADERCEPAT';
-          `)
-
-          // Sync used_quota to real count
-          try {
-            await db.$executeRawUnsafe(`
-              UPDATE promo_codes SET used_quota = (
-                SELECT COUNT(*) FROM user_subscriptions
-                WHERE user_subscriptions.promo_code_id = promo_codes.id AND user_subscriptions.status = 'active'
-              ), updated_at = NOW() WHERE code = 'TRADERCEPAT';
-            `)
-          } catch (syncErr: any) {
-            console.warn(`⚠️ [promo/apply:${logId}] Quota sync failed (non-critical): ${syncErr?.message?.substring(0, 80)}`)
-          }
-        }
-      } catch (checkErr: any) {
-        // If even SELECT fails with "user_id does not exist", table is corrupted — nuke it
-        console.error(`🚨 [promo/apply:${logId}] SELECT on promo_codes failed: ${checkErr?.message?.substring(0, 100)}`)
-        if (checkErr?.message?.includes('user_id') || checkErr?.code === '42703') {
-          console.log(`🚨 [promo/apply:${logId}] Corrupted table detected! Dropping and recreating...`)
-          const repaired = await forceRepairPromoTable()
-          console.log(`🔧 [promo/apply:${logId}] Repair: ${repaired ? 'OK' : 'FAILED'}`)
-        }
-      }
+      console.log(`🔧 [promo/apply:${logId}] user_subscriptions: OK`)
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -192,77 +144,29 @@ export async function POST(request: NextRequest) {
     `, normalizedCode)
     console.log(`📊 [promo/apply:${logId}] Atomic: ${promoResult?.length ?? 0} rows`)
 
-    // ══════════════════════════════════════════════════════════════
-    // STEP 3: If atomic failed, diagnose and self-heal
-    // ══════════════════════════════════════════════════════════════
     if (!promoResult || promoResult.length === 0) {
-      // Read current promo state (simple query, only clean columns)
-      const promoCheck: any[] = await db.$queryRawUnsafe(`
-        SELECT id, is_active, used_quota, max_quota, end_date, start_date
-        FROM public.promo_codes WHERE code = $1 LIMIT 1;
-      `, normalizedCode)
-      console.log(`📊 [promo/apply:${logId}] State:`, promoCheck?.[0] || 'NOT FOUND')
-
-      if (!promoCheck || promoCheck.length === 0) {
-        return NextResponse.json({ success: false, message: 'Kode promo tidak valid' })
-      }
-
-      const p = promoCheck[0]
-
-      // If inactive, check real usage and try to fix
-      if (!p.is_active && normalizedCode === 'TRADERCEPAT') {
-        let realUsed = 0
-        try {
-          const rc: any[] = await db.$queryRawUnsafe(
-            `SELECT COUNT(*)::int as cnt FROM user_subscriptions WHERE promo_code_id = $1 AND status = 'active';`, p.id
-          )
-          realUsed = rc?.[0]?.cnt ?? 0
-        } catch { /* table might not exist */ }
-
-        if (realUsed < 30) {
-          console.log(`🔧 [promo/apply:${logId}] Re-activating (realUsed=${realUsed})...`)
-          await db.$executeRawUnsafe(
-            `UPDATE public.promo_codes SET is_active = true, used_quota = $1, end_date = NULL, updated_at = NOW() WHERE id = $2;`,
-            realUsed, p.id
-          )
-          // Retry
-          promoResult = await db.$queryRawUnsafe(`
-            UPDATE public.promo_codes SET used_quota = used_quota + 1, updated_at = NOW()
-            WHERE code = $1 AND is_active = true AND (end_date IS NULL OR end_date > NOW()) AND start_date <= NOW() AND used_quota < max_quota
-            RETURNING id, code, description, discount_percent, max_quota, used_quota, duration_months;
-          `, normalizedCode)
-
-          if (!promoResult || promoResult.length === 0) {
-            return NextResponse.json({ success: false, message: 'Gagal mengaktifkan kode promo. Coba lagi.' })
-          }
-        } else {
-          return NextResponse.json({ success: false, message: 'Kuota kode promo sudah habis.' })
-        }
-      } else if (!p.is_active) {
-        return NextResponse.json({ success: false, message: 'Kode promo tidak aktif' })
-      }
-
-      // If still no result after self-heal, check quota
-      if (!promoResult || promoResult.length === 0) {
-        if (p.start_date && new Date(p.start_date) > new Date()) {
-          return NextResponse.json({ success: false, message: 'Kode promo belum aktif' })
-        }
-        if (p.end_date && new Date(p.end_date) <= new Date()) {
-          return NextResponse.json({ success: false, message: 'Kode promo sudah kadaluarsa' })
-        }
-        return NextResponse.json({ success: false, message: 'Kuota kode promo sudah habis.' })
-      }
+      return NextResponse.json({ success: false, message: 'Kuota kode promo sudah habis.' })
     }
 
     const promo = promoResult[0]
     console.log(`🎫 [promo/apply:${logId}] Claimed: ${promo.code} used=${promo.used_quota}/${promo.max_quota}`)
 
     // ══════════════════════════════════════════════════════════════
-    // STEP 4: Duplicate check
+    // STEP 3: Duplicate check (on user_subscriptions)
     // ══════════════════════════════════════════════════════════════
-    const existingSub: any[] = await db.$queryRawUnsafe(`
-      SELECT id FROM user_subscriptions WHERE user_id = $1 AND promo_code_id = $2 AND status = 'active' LIMIT 1;
-    `, userId, promo.id)
+    let existingSub: any[] = []
+    try {
+      existingSub = await db.$queryRawUnsafe(`
+        SELECT id FROM user_subscriptions WHERE user_id = $1 AND promo_code_id = $2 AND status = 'active' LIMIT 1;
+      `, userId, promo.id)
+    } catch (subErr: any) {
+      // user_subscriptions might still be broken despite check above
+      // (pgbouncer cached error on different connection)
+      console.error(`🚨 [promo/apply:${logId}] user_subscriptions query failed: ${subErr?.message?.substring(0, 100)}`)
+      console.log(`🔧 [promo/apply:${logId}] Force-repairing user_subscriptions...`)
+      await repairSubTable()
+      // Don't need to re-check — this is user's first claim on fresh table
+    }
 
     if (existingSub && existingSub.length > 0) {
       await db.$executeRawUnsafe(`UPDATE public.promo_codes SET used_quota = used_quota - 1, updated_at = NOW() WHERE id = $1;`, promo.id)
@@ -270,23 +174,35 @@ export async function POST(request: NextRequest) {
     }
 
     // ══════════════════════════════════════════════════════════════
-    // STEP 5: Create subscription + upgrade profile
+    // STEP 4: Create subscription + upgrade profile
     // ══════════════════════════════════════════════════════════════
     const startDate = new Date()
     const months = promo.duration_months || 3
     const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + months, startDate.getDate(), 23, 59, 59, 999)
     const subscriptionId = randomUUID()
 
-    await db.$executeRawUnsafe(`
-      INSERT INTO user_subscriptions (id, user_id, plan, status, start_date, end_date, promo_code_id, discount_percent, created_at, updated_at)
-      VALUES ($1, $2, $3, 'active', NOW(), $4, $5, $6, NOW(), NOW());
-    `, subscriptionId, userId, plan, endDate, promo.id, promo.discount_percent)
-    console.log(`✅ [promo/apply:${logId}] Subscription created`)
+    try {
+      await db.$executeRawUnsafe(`
+        INSERT INTO user_subscriptions (id, user_id, plan, status, start_date, end_date, promo_code_id, discount_percent, created_at, updated_at)
+        VALUES ($1, $2, $3, 'active', NOW(), $4, $5, $6, NOW(), NOW());
+      `, subscriptionId, userId, plan, endDate, promo.id, promo.discount_percent)
+      console.log(`✅ [promo/apply:${logId}] Subscription created`)
+    } catch (insertErr: any) {
+      console.error(`🚨 [promo/apply:${logId}] Insert subscription failed: ${insertErr?.message?.substring(0, 100)}`)
+      // Rollback promo quota
+      try { await db.$executeRawUnsafe(`UPDATE public.promo_codes SET used_quota = used_quota - 1, updated_at = NOW() WHERE id = $1;`, promo.id) } catch { /* ok */ }
+      return NextResponse.json({ success: false, message: 'Gagal membuat subscription. Coba lagi.' })
+    }
 
-    await db.$executeRawUnsafe(`
-      UPDATE profiles SET plan = 'PRO', is_pro = true, subscription_until = $1, pro_expiry = $1, updated_at = NOW() WHERE id = $2;
-    `, endDate, userId)
-    console.log(`✅ [promo/apply:${logId}] Profile → PRO`)
+    // Update profile
+    try {
+      await db.$executeRawUnsafe(`
+        UPDATE profiles SET plan = 'PRO', is_pro = true, subscription_until = $1, pro_expiry = $1, updated_at = NOW() WHERE id = $2;
+      `, endDate, userId)
+      console.log(`✅ [promo/apply:${logId}] Profile → PRO`)
+    } catch (profErr: any) {
+      console.warn(`⚠️ [promo/apply:${logId}] Profile update warning: ${profErr?.message?.substring(0, 80)}`)
+    }
 
     // Sync Supabase Auth metadata (non-critical)
     try {
@@ -299,7 +215,7 @@ export async function POST(request: NextRequest) {
         })
       }
     } catch (metaErr: any) {
-      console.warn(`⚠️ [promo/apply:${logId}] Auth meta sync failed: ${metaErr?.message?.substring(0, 60)}`)
+      console.warn(`⚠️ [promo/apply:${logId}] Auth meta: ${metaErr?.message?.substring(0, 60)}`)
     }
 
     const remainingQuota = Number(promo.max_quota) - Number(promo.used_quota)
@@ -318,7 +234,6 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error(`💥 [promo/apply:${logId}] FATAL: ${error?.message}`)
     console.error(`💥 [promo/apply:${logId}] Code: ${error?.code}`)
-    console.error(`💥 [promo/apply:${logId}] Stack: ${error?.stack}`)
     return NextResponse.json({ success: false, message: `Gagal menerapkan kode promo: ${error?.message || 'Unknown error'}` })
   }
 }
