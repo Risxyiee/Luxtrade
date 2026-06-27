@@ -11,6 +11,9 @@ import { randomUUID } from 'crypto'
  * KEY FIX: Uses atomic SQL to check + increment quota in one query.
  * Prevents race condition where multiple concurrent requests all read
  * the same used_quota value before any of them increment it.
+ *
+ * SELF-HEALING: If the promo appears full but real subscription count
+ * is less than max_quota, auto-fixes used_quota and retries once.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -42,8 +45,7 @@ export async function POST(request: NextRequest) {
     const normalizedCode = code.trim().toUpperCase()
 
     // ── ATOMIC: Check promo validity + increment quota in ONE SQL query ──
-    // This prevents race conditions where multiple users check quota simultaneously
-    const promoResult: any[] = await db.$queryRawUnsafe(`
+    let promoResult: any[] = await db.$queryRawUnsafe(`
       UPDATE promo_codes
       SET used_quota = used_quota + 1, updated_at = NOW()
       WHERE code = $1
@@ -54,11 +56,10 @@ export async function POST(request: NextRequest) {
       RETURNING id, code, description, discount_percent, max_quota, used_quota, duration_months;
     `, normalizedCode)
 
-    // If no row returned, the promo is invalid/inactive/expired/quota-full
+    // ── SELF-HEALING: If atomic update failed, check if data is corrupted ──
     if (!promoResult || promoResult.length === 0) {
-      // Determine WHY it failed for a better error message
       const promoCheck: any[] = await db.$queryRawUnsafe(`
-        SELECT is_active, used_quota, max_quota, end_date, start_date
+        SELECT id, is_active, used_quota, max_quota, end_date, start_date
         FROM promo_codes WHERE code = $1 LIMIT 1;
       `, normalizedCode)
 
@@ -71,32 +72,120 @@ export async function POST(request: NextRequest) {
 
       const p = promoCheck[0]
 
+      // Check if promo is truly invalid
       if (!p.is_active) {
-        return NextResponse.json({
-          success: false,
-          message: 'Kode promo tidak aktif'
-        })
+        // SELF-HEAL: Force re-activate TRADERCEPAT if used_quota < max_quota
+        if (normalizedCode === 'TRADERCEPAT') {
+          const realCount: any[] = await db.$queryRawUnsafe(`
+            SELECT COUNT(*)::int as cnt FROM user_subscriptions
+            WHERE promo_code_id = $1 AND status = 'active';
+          `, p.id)
+          const realUsed = realCount?.[0]?.cnt ?? 0
+          const realMax = Number(p.max_quota)
+
+          if (realUsed < realMax) {
+            console.log(`🔧 [promo/apply] SELF-HEAL: Re-activating ${normalizedCode} (used_quota was ${p.used_quota}, real count is ${realUsed})`)
+            await db.$executeRawUnsafe(`
+              UPDATE promo_codes
+              SET is_active = true, used_quota = $1, end_date = NULL, updated_at = NOW()
+              WHERE id = $2;
+            `, realUsed, p.id)
+
+            // Retry the atomic claim after self-heal
+            promoResult = await db.$queryRawUnsafe(`
+              UPDATE promo_codes
+              SET used_quota = used_quota + 1, updated_at = NOW()
+              WHERE code = $1
+                AND is_active = true
+                AND (end_date IS NULL OR end_date > NOW())
+                AND start_date <= NOW()
+                AND used_quota < max_quota
+              RETURNING id, code, description, discount_percent, max_quota, used_quota, duration_months;
+            `, normalizedCode)
+
+            if (promoResult && promoResult.length > 0) {
+              // Self-heal worked, continue to process the claim below
+              console.log(`✅ [promo/apply] SELF-HEAL SUCCESS: ${normalizedCode} is now claimable`)
+            } else {
+              return NextResponse.json({
+                success: false,
+                message: 'Kode promo tidak aktif'
+              })
+            }
+          } else {
+            return NextResponse.json({
+              success: false,
+              message: 'Kode promo tidak aktif'
+            })
+          }
+        } else {
+          return NextResponse.json({
+            success: false,
+            message: 'Kode promo tidak aktif'
+          })
+        }
       }
 
-      if (p.start_date && new Date(p.start_date) > new Date()) {
-        return NextResponse.json({
-          success: false,
-          message: 'Kode promo belum aktif'
-        })
-      }
+      if (promoResult.length === 0) {
+        if (p.start_date && new Date(p.start_date) > new Date()) {
+          return NextResponse.json({
+            success: false,
+            message: 'Kode promo belum aktif'
+          })
+        }
 
-      if (p.end_date && new Date(p.end_date) <= new Date()) {
-        return NextResponse.json({
-          success: false,
-          message: 'Kode promo sudah kadaluarsa'
-        })
-      }
+        if (p.end_date && new Date(p.end_date) <= new Date()) {
+          return NextResponse.json({
+            success: false,
+            message: 'Kode promo sudah kadaluarsa'
+          })
+        }
 
-      // If we get here, it's a quota issue
-      return NextResponse.json({
-        success: false,
-        message: 'Kuota kode promo sudah habis. Hubungi admin @Risxyiee di Telegram untuk request reset.'
-      })
+        // Quota issue — but let's verify with real count before saying "habis"
+        const realCount: any[] = await db.$queryRawUnsafe(`
+          SELECT COUNT(*)::int as cnt FROM user_subscriptions
+          WHERE promo_code_id = $1 AND status = 'active';
+        `, p.id)
+        const realUsed = realCount?.[0]?.cnt ?? 0
+        const realMax = Number(p.max_quota)
+
+        // If stored used_quota doesn't match reality, fix it and retry
+        if (realUsed < realMax && Number(p.used_quota) !== realUsed) {
+          console.log(`🔧 [promo/apply] QUOTA FIX: ${normalizedCode} used_quota was ${p.used_quota}, real is ${realUsed}. Fixing...`)
+          await db.$executeRawUnsafe(`
+            UPDATE promo_codes
+            SET used_quota = $1, is_active = true, updated_at = NOW()
+            WHERE id = $2;
+          `, realUsed, p.id)
+
+          // Retry claim
+          promoResult = await db.$queryRawUnsafe(`
+            UPDATE promo_codes
+            SET used_quota = used_quota + 1, updated_at = NOW()
+            WHERE code = $1
+              AND is_active = true
+              AND (end_date IS NULL OR end_date > NOW())
+              AND start_date <= NOW()
+              AND used_quota < max_quota
+            RETURNING id, code, description, discount_percent, max_quota, used_quota, duration_months;
+          `, normalizedCode)
+
+          if (promoResult && promoResult.length > 0) {
+            console.log(`✅ [promo/apply] QUOTA FIX SUCCESS: ${normalizedCode} claimable after fix`)
+          } else {
+            return NextResponse.json({
+              success: false,
+              message: 'Kuota kode promo sudah habis.'
+            })
+          }
+        } else {
+          // Truly full
+          return NextResponse.json({
+            success: false,
+            message: 'Kuota kode promo sudah habis.'
+          })
+        }
+      }
     }
 
     const promo = promoResult[0]
@@ -194,6 +283,7 @@ export async function POST(request: NextRequest) {
       }
     })
   } catch (error: any) {
+    console.error('[promo/apply] Error:', error)
     return NextResponse.json(
       { error: 'Gagal menerapkan kode promo' },
       { status: 500 }
