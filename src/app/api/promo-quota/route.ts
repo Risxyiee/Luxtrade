@@ -3,26 +3,25 @@ import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
 
 /**
  * GET /api/promo-quota?code=TRADERCEPAT
- * Returns remaining quota for a promo code (public, no auth needed)
- * Uses raw SQL to avoid Prisma caching stale values
+ * Returns remaining quota for a promo code (public, no auth needed).
+ * Always reads real data from DB — no fake defaults in production.
  */
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const DEFAULTS = {
-  code: 'TRADERCEPAT',
-  maxQuota: 30,
-  usedQuota: 0,
-  remainingQuota: 30,
-  discountPercent: 100,
-  durationMonths: 3,
-  isActive: true
-}
-
 export async function GET(request: Request) {
   try {
+    // Only use defaults when truly offline (local dev without DB)
     if (!isDatabaseAvailable()) {
-      return NextResponse.json(DEFAULTS)
+      return NextResponse.json({
+        code: 'TRADERCEPAT',
+        maxQuota: 30,
+        usedQuota: 0,
+        remainingQuota: 30,
+        discountPercent: 100,
+        durationMonths: 3,
+        isActive: true
+      })
     }
 
     await ensureSchema()
@@ -37,18 +36,12 @@ export async function GET(request: Request) {
     )
 
     if (!rows || rows.length === 0) {
-      // Promo not in DB yet — return defaults
-      return NextResponse.json(DEFAULTS)
+      return NextResponse.json({ error: 'Promo code not found' }, { status: 404 })
     }
 
     const promo = rows[0]
     const usedQuota = Number(promo.used_quota)
     const maxQuota = Number(promo.max_quota)
-
-    // If maxQuota is 0 or corrupted, return defaults
-    if (maxQuota <= 0) {
-      return NextResponse.json(DEFAULTS)
-    }
 
     return NextResponse.json({
       code: promo.code,
@@ -61,7 +54,6 @@ export async function GET(request: Request) {
     })
   } catch (error: any) {
     console.error('[promo-quota] Error:', error.message)
-    // On any error, return safe defaults so landing page still shows promo
-    return NextResponse.json(DEFAULTS)
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
