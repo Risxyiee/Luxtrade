@@ -534,7 +534,20 @@ export async function ensureSchema(): Promise<void> {
         SET is_active = false, updated_at = NOW()
         WHERE code = 'TRADERCEPAT' AND used_quota >= max_quota AND is_active = true;
       `)
-    } catch (_e) { /* promo activation non-critical */ }
+    } catch (promoErr: any) {
+      console.error('⚠️ [DB] Promo setup error:', promoErr?.message)
+    }
+
+    // Log promo state after setup
+    try {
+      const promoState: any[] = await _rawPrisma.$queryRawUnsafe(`
+        SELECT code, is_active, used_quota, max_quota, end_date FROM promo_codes WHERE code = 'TRADERCEPAT';
+      `)
+      if (promoState?.length > 0) {
+        const s = promoState[0]
+        console.log(`📋 [DB] TRADERCEPAT state: active=${s.is_active}, used=${s.used_quota}/${s.max_quota}, end_date=${s.end_date}`)
+      }
+    } catch { /* non-critical */ }
 
     console.log('✅ [DB] Auto-migration complete')
   } catch (err) {
