@@ -290,6 +290,16 @@ export async function ensureSchema(): Promise<void> {
       "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "social_links_pkey" PRIMARY KEY ("id")
     );`,
+    `CREATE TABLE IF NOT EXISTS "watchlist" (
+      "id" TEXT NOT NULL,
+      "user_id" TEXT NOT NULL,
+      "symbol" TEXT NOT NULL,
+      "name" TEXT,
+      "target_price" DOUBLE PRECISION,
+      "notes" TEXT,
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "watchlist_pkey" PRIMARY KEY ("id")
+    );`,
   ]
 
   // ALTER TABLE statements for ALL tables — handles the case where table exists
@@ -407,10 +417,44 @@ export async function ensureSchema(): Promise<void> {
     `CREATE INDEX IF NOT EXISTS "social_links_status_idx" ON "social_links"("status");`,
     `CREATE INDEX IF NOT EXISTS "bug_reports_user_id_idx" ON "bug_reports"("user_id");`,
     `CREATE INDEX IF NOT EXISTS "bug_reports_status_idx" ON "bug_reports"("status");`,
+    `CREATE INDEX IF NOT EXISTS "watchlist_user_id_idx" ON "watchlist"("user_id");`,
   ]
+
+  // Fix: if promo_codes table has extra columns from old schema, drop and recreate
+    const fixTables = [
+      // Drop promo_codes if it has wrong columns, then recreate clean
+      `DO $$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'promo_codes' AND column_name = 'user_id') THEN
+          DROP TABLE IF EXISTS promo_codes CASCADE;
+          RAISE NOTICE 'Dropped corrupted promo_codes table';
+        END IF;
+      END $$;`,
+      // Recreate promo_codes clean
+      `CREATE TABLE IF NOT EXISTS "promo_codes" (
+        "id" TEXT NOT NULL,
+        "code" TEXT NOT NULL,
+        "description" TEXT,
+        "discount_percent" DOUBLE PRECISION NOT NULL,
+        "max_quota" INTEGER NOT NULL,
+        "used_quota" INTEGER NOT NULL DEFAULT 0,
+        "duration_months" INTEGER NOT NULL,
+        "start_date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "end_date" TIMESTAMP(3),
+        "is_active" BOOLEAN NOT NULL DEFAULT true,
+        "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "promo_codes_pkey" PRIMARY KEY ("id")
+      );`,
+    ]
 
   try {
     console.log('🔄 [DB] Running auto-migration (ensureSchema)...')
+    for (const sql of fixTables) {
+      try { await _rawPrisma.$executeRawUnsafe(sql) } catch (e: any) {
+        console.warn('⚠️ [DB] Fix table:', e.message?.substring(0, 120))
+      }
+    }
     for (const sql of tables) {
       try { await _rawPrisma.$executeRawUnsafe(sql) } catch (e: any) {
         if (!e?.message?.includes('already exists')) console.warn('⚠️ [DB] Table create:', e.message?.substring(0, 100))
