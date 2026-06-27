@@ -369,13 +369,16 @@ export default function LuxTradeLanding() {
     fetch('/api/promo-quota?code=TRADERCEPAT')
       .then(res => res.json())
       .then(data => {
-        if (data.remainingQuota !== undefined) {
+        if (data.remainingQuota !== undefined && data.maxQuota > 0) {
           setPromoRemaining(data.remainingQuota)
           setPromoMax(data.maxQuota)
           setPromoActive(data.isActive)
         }
+        // If maxQuota is 0 or error/offline response, keep defaults (30/30/active)
       })
-      .catch(() => {})
+      .catch(() => {
+        // On fetch error, keep defaults
+      })
   }, [])
 
   const skrillLinks = {
