@@ -141,6 +141,8 @@ export default function DashboardModals({
   paywallModalOpen,
   setPaywallModalOpen,
   handlePaymentSuccess,
+  paymentConfirmationPlanName,
+  paymentConfirmationPlanPrice,
   showOnboarding,
   setShowOnboarding,
   onAddFirstTrade,
