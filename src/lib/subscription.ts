@@ -15,7 +15,7 @@ export interface UserSubscription {
 export function isProUser(subscription: UserSubscription | null | undefined): boolean {
   if (!subscription) return false
   if (!subscription.is_pro) return false
-  if (subscription.subscription_status !== 'active') return false
+  if (subscription.subscription_status !== 'active' && subscription.subscription_status !== 'trial') return false
 
   // Check if subscription is not expired
   if (!subscription.subscription_until) return false
@@ -64,6 +64,9 @@ export function hasEverBeenPro(subscription: UserSubscription | null | undefined
 export function getSubscriptionStatusText(subscription: UserSubscription | null | undefined): string {
   if (isProUser(subscription)) {
     const days = getProDaysRemaining(subscription)
+    if (subscription?.subscription_status === 'trial') {
+      return days > 0 ? `Trial PRO (${days} hari tersisa)` : 'Trial berakhir'
+    }
     return days > 0 ? `PRO (${days} hari tersisa)` : 'PRO (kedaluwarsa)'
   }
 
