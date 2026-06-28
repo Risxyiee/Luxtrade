@@ -2514,3 +2514,27 @@ Stage Summary:
 - Pushed to GitHub as commit 7639ca6
 - All three endpoints now self-heal corrupted promo data automatically
 - No matter what the DB state is, the system will detect and fix quota mismatches
+---
+Task ID: 1
+Agent: Main
+Task: Legal pages + QRIS payment + Telegram confirmation + push GitHub
+
+Work Log:
+- Updated LegalPagesModal: added phone (085712054394), address (Kebumen, Jawa Tengah), website (luxtrade.id)
+- Updated Terms section 9 contact info with phone and address
+- Updated Contact section with 4 cards: Email, Telegram, Phone/WhatsApp, Address, Website, Operating Hours
+- Replaced PaymentConfirmationModal: removed Bank Jago account number, added QRIS image (/qris-luxtrade.jpeg), NMID info, Telegram confirmation button
+- Updated PlanSelectionModal banner: "QRIS Pembayaran" + "TG Konfirmasi" instead of "JAGO Transfer" + "TG Konfirmasi"
+- Updated PlanSelectionModal footer: "Pembayaran QRIS" + "Konfirmasi via Telegram"
+- Removed old PaymentModal (SakuraPay) import from LuxTradeDashboard.tsx
+- Added paymentModalOpen/setPaymentModalOpen to DashboardModals interface
+- Removed unused imports (ChevronDown, Button) from LegalPagesModal
+- Copied QRIS image to public/qris-luxtrade.jpeg
+- Build succeeded (npx next build)
+- Pushed to GitHub: commit 28e579e
+
+Stage Summary:
+- Payment flow: QRIS static image + Telegram confirmation (no more Bank Jago/SakuraPay)
+- Legal pages: Terms, Refund Policy, FAQ, Contact — all with real business info
+- Contact: Email (luxtrade.official@gmail.com), Phone (+62 857-1205-4394), Address (Kebumen, Jawa Tengah)
+- Dev server OOM in sandbox (limited RAM), but production build passes
