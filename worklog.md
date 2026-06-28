@@ -2538,3 +2538,22 @@ Stage Summary:
 - Legal pages: Terms, Refund Policy, FAQ, Contact — all with real business info
 - Contact: Email (luxtrade.official@gmail.com), Phone (+62 857-1205-4394), Address (Kebumen, Jawa Tengah)
 - Dev server OOM in sandbox (limited RAM), but production build passes
+
+---
+Task ID: 8
+Agent: Z.ai Code
+Task: Remove duplicate footer links, broker names, dead sidebar links
+
+Work Log:
+- Verified footer already had FAQ & Refund Policy only in "Produk" column (not duplicated)
+- Removed `const platforms = ['MetaTrader 4', 'MetaTrader 5', 'TradingView', 'cTrader', 'NinjaTrader', 'DXtrade']` — unused variable with broker names
+- Removed unused `@keyframes infinite-scroll` and `.animate-infinite-scroll` CSS (was for broker marquee that no longer exists)
+- Fixed sidebar "Perusahaan" section: replaced 5 dead route links (`/about`, `/contact`, `/terms`, `/privacy`, `/disclaimer`) with modal buttons using `openLegalPage()`
+- Fixed sidebar "Produk" section: removed dead `/blog` link
+- Lint clean, build passes, pushed to GitHub (commit 85f5b20)
+
+Stage Summary:
+- Footer: no more duplicate links. FAQ + Refund Policy in "Produk", Ketentuan + Kontak in "Perusahaan"
+- No broker names anywhere on landing page (LuxTrade is not a broker)
+- Sidebar now uses legal modal instead of dead routes
+- Committed and pushed to main
