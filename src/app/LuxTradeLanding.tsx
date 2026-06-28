@@ -394,44 +394,11 @@ function AnimatedForexTrades() {
 
 // Lifetime Ultra Card Component - Premium
 function LifetimeUltraCard({ onButtonClick, language, t }: { onButtonClick: () => void, language: 'id' | 'en', t: (key: string) => string }) {
-  const [slotsInfo, setSlotsInfo] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [isSoldOut, setIsSoldOut] = useState(false)
-
-  useEffect(() => {
-    setSlotsInfo({
-      totalSlots: 30,
-      usedSlots: 0,
-      availableSlots: 30,
-      isSoldOut: false
-    })
-    setLoading(false)
-  }, [])
-
-  if (loading) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ delay: 0.3 }}
-      >
-        <Card className="h-full backdrop-blur-xl bg-white/[0.03] border border-white/[0.08]">
-          <CardContent className="p-6 pt-8">
-            <div className="animate-pulse">
-              <div className="h-6 bg-white/10 rounded mb-4 w-1/2" />
-              <div className="h-8 bg-white/10 rounded mb-2 w-3/4" />
-              <div className="h-4 bg-white/10 rounded mb-6 w-1/3" />
-              <div className="space-y-3">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} className="h-4 bg-white/10 rounded" />
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-    )
+  const slotsInfo = {
+    totalSlots: 30,
+    usedSlots: 0,
+    availableSlots: 30,
+    isSoldOut: false
   }
 
   return (
@@ -442,7 +409,7 @@ function LifetimeUltraCard({ onButtonClick, language, t }: { onButtonClick: () =
       transition={{ delay: 0.3 }}
     >
       <Card className={`h-full relative backdrop-blur-xl ${
-        isSoldOut
+        slotsInfo.isSoldOut
           ? 'bg-gradient-to-b from-red-500/10 to-transparent border-red-500/30'
           : 'bg-gradient-to-b from-amber-500/10 to-transparent border-amber-500/30'
       } border border-white/[0.08] hover:shadow-[0_0_40px_rgba(251,191,36,0.2)] transition-shadow duration-500`}>
@@ -510,20 +477,9 @@ export default function LuxTradeLanding() {
   const { language, t, formatPrice } = useLanguage()
   const [showPayment, setShowPayment] = useState(false)
   const [showLifetimePaymentModal, setShowLifetimePaymentModal] = useState(false)
-  const [hasMounted, setHasMounted] = useState(false)
-
-  useEffect(() => {
-    setHasMounted(true)
-  }, [])
 
   // Don't render until mounted to avoid SSR issues with useLanguage
-  if (!hasMounted) {
-    return (
-      <div className="min-h-screen bg-[#0f051d] flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
-      </div>
-    )
-  }
+  // (hasMounted is always true since this is 'use client')
 
   // Skrill payment links for English users
   const skrillLinks = {

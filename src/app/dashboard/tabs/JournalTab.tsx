@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { motion, AnimatePresence } from 'framer-motion'
+import { safeParseTags } from '@/lib/parseUtils'
 
 // ==================== INTERFACES ====================
 
@@ -531,7 +532,7 @@ function JournalTab({
       ) : viewMode === 'list' ? (
         <div className="grid gap-4">
           {entries.map((entry) => {
-            const tags = entry.tags ? JSON.parse(entry.tags) : []
+            const tags = safeParseTags(entry.tags)
             return (
             <Card
               key={entry.id}

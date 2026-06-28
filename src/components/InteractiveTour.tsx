@@ -143,10 +143,12 @@ export default function InteractiveTour({ isOpen, onClose, onComplete, language 
 
   useEffect(() => {
     if (isOpen) {
-      setRun(true)
-      setShowCompletion(false)
+      requestAnimationFrame(() => {
+        setRun(true)
+        setShowCompletion(false)
+      })
     } else {
-      setRun(false)
+      requestAnimationFrame(() => setRun(false))
     }
   }, [isOpen])
 
