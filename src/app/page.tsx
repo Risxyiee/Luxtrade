@@ -8,7 +8,7 @@ import {
   TrendingUp, TrendingDown, BarChart3, BookOpen,
   Eye, Brain, Sparkles, ArrowRight, Play,
   ChevronRight, Star, Zap, Check, Crown,
-  Activity, Trophy,
+  Activity,
   HelpCircle, Lock,
   Clock, Mail, Zap as Lightning, X, AlertTriangle
 } from 'lucide-react'
@@ -428,12 +428,6 @@ export default function LuxTradeLanding() {
     { icon: Eye, title: 'Watchlist Cerdas', description: language === 'id' ? 'Pantau pair yang kamu incar, catat setup yang muncul, dan jangan sampai kehilangan momen karena lupa.' : 'Watch the pairs you\'re targeting, log setups that appear, and don\'t miss moments because you forgot.', gradient: 'from-emerald-500 to-teal-600' },
   ]
 
-  const testimonials = [
-    { name: 'Rizqi Akbar', role: language === 'id' ? 'Founder, LuxTrade' : 'Founder, LuxTrade', content: language === 'id' ? 'Saya bikin LuxTrade karena frustrasi dengan trading journal yang ada. Tidak ada yang benar-benar dibuat untuk trader Indonesia — jadi saya bangun sendiri. Fokus kami: analisis AI yang beneran membantu, bukan sekadar angka.' : 'I built LuxTrade because I was frustrated with existing trading journals. None were truly built for serious traders — so I built my own. Our focus: AI analysis that actually helps you improve, not just numbers.', avatar: 'RA', rating: 5 },
-    { name: language === 'id' ? 'Komunitas Trader' : 'Trader Community', role: 'Early Adopter', content: language === 'id' ? 'Platform-nya ringan, cepat, dan fitur AI insight-nya benar-benar nolong detect pattern trading yang saya sendiri nggak sadar. Support-nya juga responsif banget.' : 'The platform is lightweight, fast, and the AI insight feature really helps detect trading patterns I wasn\'t even aware of. Support is also very responsive.', avatar: 'KT', rating: 5 },
-    { name: language === 'id' ? 'Pengguna PRO' : 'PRO User', role: 'Forex & Gold Trader', content: language === 'id' ? 'Equity curve chart + mistake tracker combo-nya game changer. Buat pertama kali saya bisa lihat pola kerugian saya secara visual dan benar-benar memperbaiki strategi.' : 'The equity curve chart + mistake tracker combo is a game changer. For the first time I can visually see my losing patterns and actually improve my strategy.', avatar: 'PP', rating: 5 },
-  ]
-
   const platforms = ['MetaTrader 4', 'MetaTrader 5', 'TradingView', 'cTrader', 'NinjaTrader', 'DXtrade']
 
   return (
@@ -696,6 +690,7 @@ export default function LuxTradeLanding() {
               <div className="w-full max-w-md space-y-4">
                 <EquityWidget />
                 <AnimatedForexTrades />
+                <p className="text-center text-white/25 text-xs">{language === 'id' ? 'Data simulasi untuk demo' : 'Simulated data for demo'}</p>
               </div>
             </div>
           </div>
@@ -1010,45 +1005,6 @@ export default function LuxTradeLanding() {
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Testimonials */}
-        <section className="py-20 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col items-center mb-12">
-              <div className="flex items-center h-9 w-max bg-[#2a1b3d]/90 backdrop-blur-sm border border-white/10 rounded-xl mb-6">
-                <div className="w-4 h-full" />
-                <div className="flex items-center gap-2 text-sm font-medium text-white/90">
-                  <Trophy className="w-4 h-4 text-purple-400" />
-                  {language === 'id' ? 'Kata Mereka' : 'What They Say'}
-                </div>
-                <div className="w-4 h-full" />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {testimonials.map((testimonial, index) => (
-                <motion.div key={index} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.1 }}>
-                  <div className="h-full p-6 bg-[#2a1b3d]/40 backdrop-blur-sm border border-white/10 rounded-2xl hover:bg-[#2a1b3d]/60 hover:border-purple-500/30 transition-colors">
-                    <div className="flex gap-1 mb-4">
-                      {[...Array(testimonial.rating)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-purple-400 text-purple-400" />
-                      ))}
-                    </div>
-                    <p className="text-white/60 mb-5 text-sm leading-relaxed">&ldquo;{testimonial.content}&rdquo;</p>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-violet-500 flex items-center justify-center text-white font-bold text-xs shadow-lg">
-                        {testimonial.avatar}
-                      </div>
-                      <div>
-                        <div className="font-bold text-white text-sm">{testimonial.name}</div>
-                        <div className="text-xs text-white/40 font-medium">{testimonial.role}</div>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
             </div>
           </div>
         </section>
