@@ -62,6 +62,60 @@ async function ensureDbMigrated() {
 }
 
 /**
+ * Activate 7-day PRO trial for a newly verified user.
+ * Skips if the user has already had PRO before (has_ever_been_pro = true).
+ */
+async function activateTrialIfNeeded(userId: string, email: string) {
+  try {
+    // Check if user already had PRO — skip trial
+    const rows = await db.$queryRawUnsafe<any>(`
+      SELECT has_ever_been_pro FROM profiles WHERE id = $1 LIMIT 1
+    `, userId)
+    const profile = Array.isArray(rows) ? rows[0] : null
+    
+    if (profile?.has_ever_been_pro) {
+      console.log('⏭️ User already had PRO, skipping trial')
+      return
+    }
+
+    const trialEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    
+    await db.$executeRawUnsafe(`
+      UPDATE profiles SET 
+        is_pro = true, 
+        subscription_status = 'trial',
+        subscription_until = $1,
+        has_ever_been_pro = true,
+        updated_at = now()
+      WHERE id = $2
+    `, trialEnd.toISOString(), userId)
+
+    // Also update Supabase Auth metadata
+    await supabaseAdmin.auth.admin.updateUserById(userId, {
+      user_metadata: {
+        is_pro: true,
+        subscription_status: 'trial',
+        subscription_until: trialEnd.toISOString(),
+        has_ever_been_pro: true,
+      }
+    })
+
+    // Also update Supabase profiles table
+    await supabaseAdmin.from('profiles').update({
+      is_pro: true,
+      subscription_status: 'trial',
+      subscription_until: trialEnd.toISOString(),
+      has_ever_been_pro: true,
+      updated_at: new Date().toISOString()
+    }).eq('id', userId)
+
+    console.log('🎁 7-day PRO trial activated for:', email)
+  } catch (err) {
+    console.warn('⚠️ Failed to activate trial:', err)
+  }
+}
+
+/**
  * POST /api/auth/verify-email
  * Body: { token: string }
  * Verifies email confirmation token, confirms user in Supabase Auth
@@ -130,6 +184,9 @@ export async function POST(request: NextRequest) {
           // Confirm in Supabase Auth
           await ensureSupabaseConfirmed(supabaseProfile.id)
 
+          // Activate 7-day PRO trial
+          await activateTrialIfNeeded(supabaseProfile.id, supabaseProfile.email)
+
           // Also update Prisma if possible
           try {
             await db.$executeRawUnsafe(`
@@ -142,7 +199,7 @@ export async function POST(request: NextRequest) {
           console.log('✅ Email verified via Supabase fallback for:', supabaseProfile.email)
           return NextResponse.json({
             success: true,
-            message: 'Email berhasil diverifikasi! Sekarang kamu bisa login.',
+            message: 'Email berhasil diverifikasi! Kamu mendapat 7 hari PRO gratis! 🎉',
             email: supabaseProfile.email
           })
         }
@@ -161,6 +218,10 @@ export async function POST(request: NextRequest) {
           if (matchedUser) {
             console.log('✅ Found token in auth.users metadata for:', matchedUser.email)
             await ensureSupabaseConfirmed(matchedUser.id)
+
+            // Activate 7-day PRO trial
+            await activateTrialIfNeeded(matchedUser.id, matchedUser.email)
+
             // Also update Prisma
             try {
               await db.$executeRawUnsafe(`
@@ -171,7 +232,7 @@ export async function POST(request: NextRequest) {
             } catch { /* ignore */ }
             return NextResponse.json({
               success: true,
-              message: 'Email berhasil diverifikasi! Sekarang kamu bisa login.',
+              message: 'Email berhasil diverifikasi! Kamu mendapat 7 hari PRO gratis! 🎉',
               email: matchedUser.email
             })
           }
@@ -214,6 +275,9 @@ export async function POST(request: NextRequest) {
     // Confirm in Supabase Auth
     await ensureSupabaseConfirmed(profile.id)
 
+    // Activate 7-day PRO trial
+    await activateTrialIfNeeded(profile.id, profile.email)
+
     // Update Supabase profiles table
     try {
       await supabaseAdmin.from('profiles')
@@ -225,7 +289,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Email berhasil diverifikasi! Sekarang kamu bisa login.',
+      message: 'Email berhasil diverifikasi! Kamu mendapat 7 hari PRO gratis! 🎉',
       email: profile.email
     })
   } catch (error: any) {
