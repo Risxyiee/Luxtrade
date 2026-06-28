@@ -151,14 +151,13 @@ export default function LuxtradeChart() {
       chartRef.current = chart
       seriesRef.current = candlestickSeries
 
-      // Handle resize
-      const handleResize = () => {
+      // Handle resize with ResizeObserver (auto-cleans on disconnect)
+      const resizeObserver = new ResizeObserver(() => {
         if (chartRef.current && container) {
           chartRef.current.applyOptions({ width: container.clientWidth, height: 500 })
         }
-      }
-
-      window.addEventListener('resize', handleResize)
+      })
+      resizeObserver.observe(container)
 
       // Fetch initial data
       fetchData()
@@ -167,7 +166,7 @@ export default function LuxtradeChart() {
     }
 
     return () => {
-      window.removeEventListener('resize', () => {})
+      resizeObserver.disconnect()
       if (chart) {
         chart.remove()
         chart = null

@@ -119,44 +119,6 @@ const menuItems = [
 // ==================== MAIN COMPONENT ====================
 
 export default function LuxTradeDashboard() {
-  // CSR Force - Prevent hydration issues by only rendering after mount
-  const [hasMounted, setHasMounted] = useState(false)
-
-  // Force CSR - Only render after component has mounted on client
-  useEffect(() => {
-    try {
-      console.log('🔵 [DIAGNOSTIC] useEffect mounting - START')
-      // Use setTimeout to avoid direct setState in effect
-      setTimeout(() => {
-        setHasMounted(true)
-        console.log('🟢 [DIAGNOSTIC] CLIENT_MOUNTED - setHasMounted(true) called')
-      }, 0)
-    } catch (error) {
-      console.error('🔴 [DIAGNOSTIC] Error setting hasMounted:', error)
-      // Force set to true even if there's an error to prevent black screen
-      setTimeout(() => {
-        setHasMounted(true)
-        console.log('🟡 [DIAGNOSTIC] CLIENT_MOUNTED - fallback timeout triggered')
-      }, 100)
-    }
-  }, [])
-
-  // Show loading screen while mounting - prevents hydration issues
-  if (!hasMounted) {
-    console.log('🟠 [DIAGNOSTIC] hasMounted is FALSE, showing boot screen')
-    return (
-      <div className="min-h-screen bg-[#0a0712] flex items-center justify-center" suppressHydrationWarning={true}>
-        <div className="text-center">
-          <Loader2 className="w-10 h-10 text-purple-500 animate-spin mx-auto mb-4" />
-          <p className="text-white/60 text-sm">Loading dashboard...</p>
-        </div>
-      </div>
-    )
-  }
-
-  console.log('✅ [DIAGNOSTIC] hasMounted is TRUE, rendering LuxTradeDashboardContent')
-
-  // Render content component only after mounting
   return <LuxTradeDashboardContent />
 }
 
@@ -458,7 +420,7 @@ function LuxTradeDashboardContent() {
 
         // If user has no accounts, create a default one
         if (accounts.length === 0) {
-          console.log('📝 No trading accounts found, creating default...')
+          // No trading accounts found, creating default
           const ensureRes = await fetch('/api/trading-accounts/ensure-default', {
             method: 'POST',
             headers: {
@@ -469,7 +431,7 @@ function LuxTradeDashboardContent() {
           if (ensureRes.ok) {
             const ensureData = await ensureRes.json()
             accounts = [ensureData.account]
-            console.log('✅ Default account created')
+          // Default account created
           }
         }
 
@@ -494,12 +456,7 @@ function LuxTradeDashboardContent() {
   }, [])
 
   useEffect(() => {
-    console.log('🔵 [DIAGNOSTIC] Auth useEffect - START')
-    console.log('🟠 [DIAGNOSTIC] AUTH_STATE:', { user, authLoading })
-
-    // Give auth some time to load
     const timeoutId = setTimeout(() => {
-      console.log('⚠️ [DIAGNOSTIC] Auth timeout - No user after loading')
       if (!user && !authLoading) {
         // No user after loading complete, redirect to login
         window.location.href = '/auth/login'
@@ -508,9 +465,7 @@ function LuxTradeDashboardContent() {
 
     if (!authLoading) {
       setAuthChecked(true)
-      console.log('✅ [DIAGNOSTIC] Auth loading complete')
       if (user) {
-        console.log('✅ [DIAGNOSTIC] User found, fetching data')
         fetchData()
       }
     }
@@ -726,7 +681,6 @@ function LuxTradeDashboardContent() {
 
   // Show auth loading state
   if ((authLoading || !authChecked)) {
-    console.log('🟠 [DIAGNOSTIC] Auth loading/waiting, showing loading screen', { authLoading, authChecked })
     return (
       <div className="min-h-screen bg-[#0a0712] flex items-center justify-center" suppressHydrationWarning={true}>
         <div className="text-center">
@@ -736,8 +690,6 @@ function LuxTradeDashboardContent() {
       </div>
     )
   }
-
-  console.log('✅ [DIAGNOSTIC] Auth checks passed, rendering main content')
 
   return (
     <ContextGuideProvider>

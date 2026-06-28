@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, X, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/auth-context'
-import { useEffect, useState } from 'react'
 
 interface WelcomeModalProps {
   isOpen: boolean
@@ -15,17 +14,7 @@ interface WelcomeModalProps {
 
 export default function WelcomeModal({ isOpen, onClose, onStartTour, language = 'id' }: WelcomeModalProps) {
   const { user, profile } = useAuth()
-  const [username, setUsername] = useState<string>('')
-
-  useEffect(() => {
-    if (profile?.username) {
-      setUsername(profile.username)
-    } else if (user?.email) {
-      // Extract username from email
-      const emailUsername = user.email.split('@')[0]
-      setUsername(emailUsername.charAt(0).toUpperCase() + emailUsername.slice(1))
-    }
-  }, [profile, user])
+  const username = profile?.username || (user?.email ? user.email.split('@')[0].charAt(0).toUpperCase() + user.email.split('@')[0].slice(1) : '')
 
   if (!isOpen) return null
 

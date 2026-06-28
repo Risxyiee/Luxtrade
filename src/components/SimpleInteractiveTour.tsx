@@ -83,8 +83,10 @@ export default function SimpleInteractiveTour({
 
   useEffect(() => {
     if (isOpen) {
-      setCurrentStep(0)
-      setShowCompletion(false)
+      requestAnimationFrame(() => {
+        setCurrentStep(0)
+        setShowCompletion(false)
+      })
     }
   }, [isOpen])
 
