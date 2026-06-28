@@ -1208,6 +1208,7 @@ export default function LuxTradeLanding() {
               <ul className="space-y-3">
                 <li><a href="#features" className="text-white/50 hover:text-purple-300 transition-colors text-sm">{language === 'id' ? 'Fitur' : 'Features'}</a></li>
                 <li><a href="#pricing" className="text-white/50 hover:text-purple-300 transition-colors text-sm">{language === 'id' ? 'Harga' : 'Pricing'}</a></li>
+                <li><button onClick={() => openLegalPage('faq')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">FAQ</button></li>
               </ul>
             </div>
             <div>
@@ -1215,18 +1216,12 @@ export default function LuxTradeLanding() {
               <ul className="space-y-3">
                 <li><button onClick={() => openLegalPage('terms')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">{language === 'id' ? 'Ketentuan' : 'Terms'}</button></li>
                 <li><button onClick={() => openLegalPage('refund')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">Refund Policy</button></li>
-                <li><button onClick={() => openLegalPage('faq')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">FAQ</button></li>
                 <li><button onClick={() => openLegalPage('contact')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">{language === 'id' ? 'Kontak' : 'Contact'}</button></li>
               </ul>
             </div>
           </div>
-          <div className="pt-8 border-t border-white/[0.08] flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="pt-8 border-t border-white/[0.08]">
             <p className="text-white/40 text-sm">© {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
-            <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
-              <button onClick={() => openLegalPage('terms')} className="text-white/40 hover:text-white transition-colors text-sm cursor-pointer">{language === 'id' ? 'Syarat & Ketentuan' : 'Terms of Service'}</button>
-              <button onClick={() => openLegalPage('refund')} className="text-white/40 hover:text-white transition-colors text-sm cursor-pointer">Refund Policy</button>
-              <button onClick={() => openLegalPage('contact')} className="text-white/40 hover:text-white transition-colors text-sm cursor-pointer">{language === 'id' ? 'Kontak' : 'Contact'}</button>
-            </div>
           </div>
         </div>
       </footer>
