@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/supabase'
+import { safeParseTags } from '@/lib/parseUtils'
 
 // ==================== INTERFACES ====================
 
@@ -75,7 +76,7 @@ function TradesTab({
 
     const headers = ['Symbol','Type','Setup Type','Entry','Exit','Lot Size','P/L','Duration','R:R Ratio','Tags','Session','Open Time','Close Time','Notes','Journal Link']
     const rows = filteredTrades.map(t => {
-      const tags = t.tags ? JSON.parse(t.tags) : []
+      const tags = safeParseTags(t.tags)
       return [
         t.symbol,
         t.type,
@@ -218,7 +219,7 @@ function TradesTab({
                 ) : (
                   filteredTrades.map((trade) => {
                     // Parse tags from JSON string
-                    const tags = trade.tags ? JSON.parse(trade.tags) : []
+                    const tags = safeParseTags(trade.tags)
                     
                     // Calculate duration in readable format
                     const getDurationDisplay = (minutes: number | null | undefined) => {

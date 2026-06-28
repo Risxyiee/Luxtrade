@@ -1020,7 +1020,7 @@ export default function DashboardModals({
         onOpenChange={setAddAccountOpen}
         onSuccess={() => {
           // Refresh data after adding account
-          fetchData && fetchData()
+          if (fetchData) fetchData()
         }}
       />
 
