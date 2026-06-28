@@ -104,7 +104,7 @@ export default function PrivacyPolicyPage() {
               <p className="text-white/70 leading-relaxed mb-4">Kami <strong className="text-white">TIDAK menjual data pribadi Anda</strong> kepada pihak ketiga. Kami hanya dapat membagikan informasi Anda dengan:</p>
               <ul className="list-disc list-inside space-y-2 text-white/70">
                 <li>Penyedia layanan yang membantu operasi platform (dengan perjanjian kerahasiaan)</li>
-                <li>Payment gateway (SakuraPay) untuk memproses transaksi pembayaran — hanya data minimal yang diperlukan (nama, email, nominal)</li>
+                <li>Penyedia layanan pembayaran QRIS untuk memproses transaksi pembayaran — hanya data minimal yang diperlukan</li>
                 <li>Pihak berwenang jika diwajibkan oleh hukum</li>
                 <li>Dengan persetujuan eksplisit Anda</li>
               </ul>
@@ -135,8 +135,7 @@ export default function PrivacyPolicyPage() {
                   </ul>
                 </div>
                 <p className="text-white/70 leading-relaxed">
-                  Seluruh pemrosesan pembayaran dilakukan oleh payment gateway resmi (SakuraPay) yang telah
-                  tersertifikasi dan teregulasi. LuxTrade tidak menyimpan kredensial keuangan sensitif Anda.
+                  Seluruh pemrosesan pembayaran dilakukan melalui QRIS yang tersertifikasi oleh Bank Indonesia. LuxTrade tidak menyimpan kredensial keuangan sensitif Anda.
                 </p>
               </div>
             </section>
@@ -182,8 +181,11 @@ export default function PrivacyPolicyPage() {
               <p className="text-white/70 leading-relaxed">
                 Jika Anda memiliki pertanyaan tentang Kebijakan Privasi ini, silakan hubungi kami di:
               </p>
-              <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 mt-4">
+              <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 mt-4 space-y-2">
+                <p className="text-white/70"><strong className="text-purple-400">Nama Usaha:</strong> LuxTrade</p>
                 <p className="text-white/70"><strong className="text-purple-400">Email:</strong> luxtradee@gmail.com</p>
+                <p className="text-white/70"><strong className="text-purple-400">Telepon:</strong> +62 812-3456-7890</p>
+                <p className="text-white/70"><strong className="text-purple-400">Alamat Usaha:</strong> Jakarta, Indonesia</p>
               </div>
             </section>
           </div>
@@ -194,10 +196,13 @@ export default function PrivacyPolicyPage() {
       <footer className="border-t border-white/5 py-8 mt-12">
         <div className="max-w-4xl mx-auto px-4 text-center text-white/40 text-sm">
           <p>© {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
-          <div className="flex justify-center gap-6 mt-4">
+          <div className="flex justify-center gap-4 mt-4 flex-wrap">
             <Link href="/disclaimer" className="hover:text-white transition-colors">Disclaimer</Link>
             <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+            <Link href="/refund-policy" className="hover:text-white transition-colors">Refund Policy</Link>
+            <Link href="/faq" className="hover:text-white transition-colors">FAQ</Link>
+            <Link href="/contact" className="hover:text-white transition-colors">Kontak</Link>
           </div>
         </div>
       </footer>

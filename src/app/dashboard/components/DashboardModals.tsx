@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Upload, Share2, Edit, Trash2, Calendar, Clock, Camera, FileText, Sparkles, Loader2, Plus, Wallet } from 'lucide-react'
 import { motion } from 'framer-motion'
 import PNLShareCard from '@/components/PNLShareCard'
-import PaymentModal from '@/components/PaymentModal'
+import PaymentConfirmationModal from '@/components/PaymentConfirmationModal'
 import PlanSelectionModal from '@/components/PlanSelectionModal'
 import PaywallModal from '@/components/PaywallModal'
 import WelcomeOnboarding from '@/components/WelcomeOnboarding'
@@ -43,6 +43,8 @@ interface DashboardModalsProps {
   setPlanSelectionModalOpen: (open: boolean) => void
   paymentModalOpen: boolean
   setPaymentModalOpen: (open: boolean) => void
+  paymentConfirmationPlanName?: string
+  paymentConfirmationPlanPrice?: number
   paywallModalOpen: boolean
   setPaywallModalOpen: (open: boolean) => void
   showOnboarding: boolean
@@ -979,11 +981,11 @@ export default function DashboardModals({
         onPaymentSuccess={handlePaymentSuccess}
       />
 
-      <PaymentModal
+      <PaymentConfirmationModal
         isOpen={paymentModalOpen}
         onClose={() => setPaymentModalOpen(false)}
-        userId={user?.id}
-        email={user?.email}
+        planName={paymentConfirmationPlanName}
+        planPrice={paymentConfirmationPlanPrice}
       />
 
       {/* Add Trade Modal */}

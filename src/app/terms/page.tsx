@@ -123,7 +123,7 @@ export default function TermsOfServicePage() {
                 </div>
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
                   <h3 className="text-lg font-medium text-purple-400 mb-2">Paket Pro & Lifetime</h3>
-                  <p className="text-white/70">Akses penuh ke semua fitur premium tanpa batasan. Pembayaran dilakukan melalui payment gateway resmi yang terintegrasi (SakuraPay) dengan metode QRIS, E-Wallet, atau Virtual Account.</p>
+                  <p className="text-white/70">Akses penuh ke semua fitur premium tanpa batasan. Pembayaran dilakukan melalui QRIS (Quick Response Code Indonesian Standard) yang dapat diakses melalui e-wallet atau mobile banking manapun.</p>
                 </div>
                 <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-5">
                   <h3 className="text-lg font-medium text-red-400 mb-2">Produk Digital — Non-Refundable</h3>
@@ -194,8 +194,12 @@ export default function TermsOfServicePage() {
               <p className="text-white/70 leading-relaxed">
                 Jika Anda memiliki pertanyaan tentang Ketentuan Layanan ini, silakan hubungi kami di:
               </p>
-              <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 mt-4">
+              <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 mt-4 space-y-2">
+                <p className="text-white/70"><strong className="text-purple-400">Nama Usaha:</strong> LuxTrade</p>
                 <p className="text-white/70"><strong className="text-purple-400">Email:</strong> luxtradee@gmail.com</p>
+                <p className="text-white/70"><strong className="text-purple-400">Telepon:</strong> +62 812-3456-7890</p>
+                <p className="text-white/70"><strong className="text-purple-400">Alamat Usaha:</strong> Jakarta, Indonesia</p>
+                <p className="text-white/70"><strong className="text-purple-400">Website:</strong> luxtradee.web.id</p>
               </div>
             </section>
           </div>
@@ -206,10 +210,13 @@ export default function TermsOfServicePage() {
       <footer className="border-t border-white/5 py-8 mt-12">
         <div className="max-w-4xl mx-auto px-4 text-center text-white/40 text-sm">
           <p>© {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
-          <div className="flex justify-center gap-6 mt-4">
+          <div className="flex justify-center gap-4 mt-4 flex-wrap">
             <Link href="/disclaimer" className="hover:text-white transition-colors">Disclaimer</Link>
             <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+            <Link href="/refund-policy" className="hover:text-white transition-colors">Refund Policy</Link>
+            <Link href="/faq" className="hover:text-white transition-colors">FAQ</Link>
+            <Link href="/contact" className="hover:text-white transition-colors">Kontak</Link>
           </div>
         </div>
       </footer>
