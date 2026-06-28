@@ -2,22 +2,31 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ChevronRight, CheckCircle, Rocket, BarChart3, BookOpen, Brain, Target, Crown } from 'lucide-react'
+import { X, ChevronRight, ChevronLeft, Rocket, BarChart3, BookOpen, Brain, Plus, Database, Loader2, Sparkles, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface WelcomeOnboardingProps {
   isOpen: boolean
   onClose: () => void
+  onAddFirstTrade: () => void
+  onLoadSampleData: () => void
   onUpgrade?: () => void
   language?: 'id' | 'en'
 }
 
-const steps = {
-  id: [
+interface Step {
+  icon: React.ReactNode
+  title: string
+  description: string
+  color: string
+}
+
+const getSteps = (lang: 'id' | 'en'): Step[] => {
+  if (lang === 'id') return [
     {
       icon: <Rocket className="w-8 h-8" />,
-      title: 'Selamat Datang di LuxTrade! 🎉',
-      description: 'Platform trading journal premium untuk melacak, menganalisis, dan meningkatkan performa trading Anda.',
+      title: 'Selamat Datang di LuxTrade!',
+      description: 'Trading journal premium untuk melacak, menganalisis, dan meningkatkan performa trading kamu.',
       color: 'from-purple-500 to-violet-600',
     },
     {
@@ -33,18 +42,18 @@ const steps = {
       color: 'from-blue-500 to-cyan-600',
     },
     {
-      icon: <Crown className="w-8 h-8" />,
-      title: 'Pilih Paket Terbaik',
-      description: 'GRATIS: 10 jurnal/bulan + 3x trial AI | ELITE PRO Rp 25.000/bulan: UNLIMITED + AI penuh | LIFETIME Rp 52.000: Akses selamanya!',
+      icon: <Sparkles className="w-8 h-8" />,
+      title: 'Ayo Mulai!',
+      description: 'Dashboard kamu masih kosong. Tambahkan trade pertama kamu, atau muat data contoh untuk melihat bagaimana LuxTrade bekerja.',
       color: 'from-amber-500 to-orange-600',
-      cta: true,
     },
-  ],
-  en: [
+  ]
+
+  return [
     {
       icon: <Rocket className="w-8 h-8" />,
-      title: 'Welcome to LuxTrade! 🎉',
-      description: 'Premium trading journal platform to track, analyze, and improve your trading performance.',
+      title: 'Welcome to LuxTrade!',
+      description: 'Premium trading journal to track, analyze, and improve your trading performance.',
       color: 'from-purple-500 to-violet-600',
     },
     {
@@ -60,39 +69,65 @@ const steps = {
       color: 'from-blue-500 to-cyan-600',
     },
     {
-      icon: <Crown className="w-8 h-8" />,
-      title: 'Choose Your Plan',
-      description: 'FREE: 10 journals/month + 3x AI trial | ELITE PRO Rp 25.000/mo: UNLIMITED + full AI | LIFETIME Rp 52.000: Forever access!',
+      icon: <Sparkles className="w-8 h-8" />,
+      title: "Let's Get Started!",
+      description: "Your dashboard is empty. Add your first trade, or load sample data to see how LuxTrade works.",
       color: 'from-amber-500 to-orange-600',
-      cta: true,
     },
-  ],
+  ]
 }
 
-export default function WelcomeOnboarding({ isOpen, onClose, onUpgrade, language = 'id' }: WelcomeOnboardingProps) {
+export default function WelcomeOnboarding({
+  isOpen,
+  onClose,
+  onAddFirstTrade,
+  onLoadSampleData,
+  onUpgrade,
+  language = 'id',
+}: WelcomeOnboardingProps) {
   const [currentStep, setCurrentStep] = useState(0)
-  const localizedSteps = steps[language]
-  const step = localizedSteps[currentStep]
-  const isLastStep = currentStep === localizedSteps.length - 1
+  const [loadingSample, setLoadingSample] = useState(false)
+  const [sampleDone, setSampleDone] = useState(false)
+
+  const steps = getSteps(language)
+  const step = steps[currentStep]
+  const isLastStep = currentStep === steps.length - 1
+
+  const finish = () => {
+    localStorage.setItem('luxtrade_onboarding_done', 'true')
+    onClose()
+  }
 
   const handleNext = () => {
     if (isLastStep) {
-      onClose()
-      localStorage.setItem('luxtrade_onboarding_done', 'true')
+      finish()
     } else {
       setCurrentStep(prev => prev + 1)
     }
   }
 
-  const handleSkip = () => {
-    onClose()
-    localStorage.setItem('luxtrade_onboarding_done', 'true')
+  const handlePrev = () => {
+    if (currentStep > 0) setCurrentStep(prev => prev - 1)
   }
 
-  const handleUpgrade = () => {
-    localStorage.setItem('luxtrade_onboarding_done', 'true')
-    onClose()
-    onUpgrade?.()
+  const handleSkip = () => finish()
+
+  const handleAddFirstTrade = () => {
+    finish()
+    setTimeout(() => onAddFirstTrade(), 300)
+  }
+
+  const handleLoadSample = async () => {
+    setLoadingSample(true)
+    try {
+      await onLoadSampleData()
+      setSampleDone(true)
+      setTimeout(() => {
+        finish()
+      }, 1200)
+    } catch {
+      setLoadingSample(false)
+    }
   }
 
   if (!isOpen) return null
@@ -137,7 +172,7 @@ export default function WelcomeOnboarding({ isOpen, onClose, onUpgrade, language
           <div className="relative p-8 pt-12 text-center">
             {/* Icon */}
             <motion.div
-              key={currentStep}
+              key={`icon-${currentStep}`}
               initial={{ scale: 0, rotate: -10 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: 'spring', damping: 15, stiffness: 200 }}
@@ -148,7 +183,7 @@ export default function WelcomeOnboarding({ isOpen, onClose, onUpgrade, language
 
             {/* Step indicator */}
             <div className="flex items-center justify-center gap-2 mb-6">
-              {localizedSteps.map((_, i) => (
+              {steps.map((_, i) => (
                 <div
                   key={i}
                   className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -165,44 +200,87 @@ export default function WelcomeOnboarding({ isOpen, onClose, onUpgrade, language
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
             >
-              <h2 className="text-2xl font-bold text-white mb-3">
-                {step.title}
-              </h2>
-              <p className="text-gray-400 leading-relaxed">
-                {step.description}
-              </p>
+              <h2 className="text-2xl font-bold text-white mb-3">{step.title}</h2>
+              <p className="text-gray-400 leading-relaxed">{step.description}</p>
             </motion.div>
 
             {/* Action Buttons */}
             <div className="mt-8 flex flex-col gap-3">
-              {step.cta && onUpgrade ? (
-                <Button
-                  onClick={handleUpgrade}
-                  className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 h-12 text-base font-semibold"
-                >
-                  <Crown className="w-5 h-5 mr-2" />
-                  {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleNext}
-                  className={`w-full bg-gradient-to-r ${step.color} h-12 text-base font-semibold`}
-                >
-                  {isLastStep
-                    ? (language === 'id' ? 'Mulai Trading!' : 'Start Trading!')
-                    : (language === 'id' ? 'Selanjutnya' : 'Next')
-                  }
-                  <ChevronRight className="w-5 h-5 ml-1" />
-                </Button>
-              )}
+              {isLastStep ? (
+                /* ======== LAST STEP: Add First Trade / Load Sample ======== */
+                sampleDone ? (
+                  <div className="flex items-center justify-center gap-2 text-emerald-400 font-semibold py-3">
+                    <Check className="w-5 h-5" />
+                    {language === 'id' ? 'Data contoh berhasil dimuat!' : 'Sample data loaded!'}
+                  </div>
+                ) : (
+                  <>
+                    <Button
+                      onClick={handleAddFirstTrade}
+                      className="w-full bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 h-12 text-base font-semibold"
+                    >
+                      <Plus className="w-5 h-5 mr-2" />
+                      {language === 'id' ? 'Tambah Trade Pertama' : 'Add Your First Trade'}
+                    </Button>
 
-              {!isLastStep && (
-                <button
-                  onClick={handleSkip}
-                  className="text-sm text-gray-500 hover:text-gray-300 transition-colors py-2"
-                >
-                  {language === 'id' ? 'Lewati' : 'Skip'}
-                </button>
+                    <Button
+                      onClick={handleLoadSample}
+                      disabled={loadingSample}
+                      variant="outline"
+                      className="w-full h-12 text-base font-semibold border-white/10 text-white/70 hover:bg-white/5 hover:text-white disabled:opacity-50"
+                    >
+                      {loadingSample ? (
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      ) : (
+                        <Database className="w-5 h-5 mr-2" />
+                      )}
+                      {loadingSample
+                        ? (language === 'id' ? 'Memuat data...' : 'Loading data...')
+                        : (language === 'id' ? 'Muat Data Contoh' : 'Load Sample Data')
+                      }
+                    </Button>
+
+                    {onUpgrade && (
+                      <button
+                        onClick={() => { finish(); onUpgrade() }}
+                        className="text-sm text-amber-400 hover:text-amber-300 transition-colors py-1 font-medium"
+                      >
+                        {language === 'id' ? 'Atau upgrade ke PRO' : 'Or upgrade to PRO'} →
+                      </button>
+                    )}
+                  </>
+                )
+              ) : (
+                /* ======== TOUR STEPS ======== */
+                <>
+                  <Button
+                    onClick={handleNext}
+                    className={`w-full bg-gradient-to-r ${step.color} h-12 text-base font-semibold`}
+                  >
+                    {currentStep === 0
+                      ? (language === 'id' ? 'Mulai Tour' : 'Start Tour')
+                      : (language === 'id' ? 'Selanjutnya' : 'Next')
+                    }
+                    <ChevronRight className="w-5 h-5 ml-1" />
+                  </Button>
+
+                  {currentStep > 0 && (
+                    <button
+                      onClick={handlePrev}
+                      className="text-sm text-gray-500 hover:text-gray-300 transition-colors py-2 flex items-center justify-center gap-1"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                      {language === 'id' ? 'Kembali' : 'Back'}
+                    </button>
+                  )}
+
+                  <button
+                    onClick={handleSkip}
+                    className="text-sm text-gray-600 hover:text-gray-400 transition-colors py-1"
+                  >
+                    {language === 'id' ? 'Lewati tour' : 'Skip tour'}
+                  </button>
+                </>
               )}
             </div>
           </div>

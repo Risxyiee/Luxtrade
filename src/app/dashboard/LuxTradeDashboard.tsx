@@ -809,6 +809,13 @@ function LuxTradeDashboardContent() {
         setPaywallModalOpen={setPaywallModalOpen}
         showOnboarding={showOnboarding}
         setShowOnboarding={setShowOnboarding}
+        onAddFirstTrade={() => setAddTradeOpen(true)}
+        onLoadSampleData={async () => {
+          const res = await fetch('/api/sample-data', { method: 'POST' })
+          if (res.ok) {
+            fetchData()
+          }
+        }}
         addTradeOpen={addTradeOpen}
         setAddTradeOpen={setAddTradeOpen}
         addAccountOpen={isAddAccountOpen}

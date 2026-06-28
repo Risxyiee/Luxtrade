@@ -1203,15 +1203,15 @@ export default function LuxTradeLanding() {
               <ul className="space-y-3">
                 <li><a href="#features" className="text-white/50 hover:text-purple-300 transition-colors text-sm">{language === 'id' ? 'Fitur' : 'Features'}</a></li>
                 <li><a href="#pricing" className="text-white/50 hover:text-purple-300 transition-colors text-sm">{language === 'id' ? 'Harga' : 'Pricing'}</a></li>
-                <li><button onClick={() => openLegalPage('faq')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">FAQ</button></li>
-                <li><button onClick={() => openLegalPage('refund')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">Refund Policy</button></li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold text-white mb-4">{language === 'id' ? 'Perusahaan' : 'Company'}</h4>
               <ul className="space-y-3">
-                <li><button onClick={() => openLegalPage('terms')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">{language === 'id' ? 'Ketentuan' : 'Terms'}</button></li>
                 <li><button onClick={() => openLegalPage('contact')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">{language === 'id' ? 'Kontak' : 'Contact'}</button></li>
+                <li><button onClick={() => openLegalPage('terms')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">{language === 'id' ? 'Ketentuan' : 'Terms'}</button></li>
+                <li><button onClick={() => openLegalPage('faq')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">FAQ</button></li>
+                <li><button onClick={() => openLegalPage('refund')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">Refund Policy</button></li>
               </ul>
             </div>
           </div>
