@@ -49,6 +49,8 @@ interface DashboardModalsProps {
   setPaywallModalOpen: (open: boolean) => void
   showOnboarding: boolean
   setShowOnboarding: (show: boolean) => void
+  onAddFirstTrade: () => void
+  onLoadSampleData: () => void
   addTradeOpen: boolean
   setAddTradeOpen: (open: boolean) => void
   addAccountOpen: boolean
@@ -141,6 +143,8 @@ export default function DashboardModals({
   handlePaymentSuccess,
   showOnboarding,
   setShowOnboarding,
+  onAddFirstTrade,
+  onLoadSampleData,
   addTradeOpen,
   setAddTradeOpen,
   addAccountOpen,
@@ -1037,13 +1041,14 @@ export default function DashboardModals({
         remainingTrials={proTrialCount}
       /> */}
 
-      {/* Welcome Onboarding - DISABLED PER USER REQUEST */}
-      {/* <WelcomeOnboarding
+      <WelcomeOnboarding
         isOpen={showOnboarding}
         onClose={() => setShowOnboarding(false)}
+        onAddFirstTrade={onAddFirstTrade}
+        onLoadSampleData={onLoadSampleData}
         onUpgrade={() => setPlanSelectionModalOpen(true)}
         language={language}
-      /> */}
+      />
     </>
   )
 }
