@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import PaymentConfirmationModal from '@/components/PaymentConfirmationModal'
+import LegalPagesModal, { type LegalPageTab } from '@/components/LegalPagesModal'
 import { useLanguage } from '@/contexts/LanguageContext'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 
@@ -352,6 +353,13 @@ export default function LuxTradeLanding() {
   const { language, t, formatPrice } = useLanguage()
   const [showPayment, setShowPayment] = useState(false)
   const [showLifetimePaymentModal, setShowLifetimePaymentModal] = useState(false)
+  const [showLegalModal, setShowLegalModal] = useState(false)
+  const [legalModalTab, setLegalModalTab] = useState<LegalPageTab>('terms')
+
+  const openLegalPage = (tab: LegalPageTab) => {
+    setLegalModalTab(tab)
+    setShowLegalModal(true)
+  }
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [promoRemaining, setPromoRemaining] = useState<number | null>(null)
   const [promoMax, setPromoMax] = useState<number>(30)
@@ -1200,27 +1208,27 @@ export default function LuxTradeLanding() {
               <ul className="space-y-3">
                 <li><a href="#features" className="text-white/50 hover:text-purple-300 transition-colors text-sm">{language === 'id' ? 'Fitur' : 'Features'}</a></li>
                 <li><a href="#pricing" className="text-white/50 hover:text-purple-300 transition-colors text-sm">{language === 'id' ? 'Harga' : 'Pricing'}</a></li>
-                <li><a href="/blog" className="text-white/50 hover:text-purple-300 transition-colors text-sm">Blog</a></li>
-                <li><a href="/disclaimer" className="text-white/50 hover:text-purple-300 transition-colors text-sm">Disclaimer</a></li>
+                <li><button onClick={() => openLegalPage('faq')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">FAQ</button></li>
+                <li><button onClick={() => openLegalPage('refund')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">Refund Policy</button></li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold text-white mb-4">{language === 'id' ? 'Perusahaan' : 'Company'}</h4>
               <ul className="space-y-3">
-                <li><a href="/about" className="text-white/50 hover:text-purple-300 transition-colors text-sm">{language === 'id' ? 'Tentang' : 'About'}</a></li>
-                <li><a href="/contact" className="text-white/50 hover:text-purple-300 transition-colors text-sm">{language === 'id' ? 'Kontak' : 'Contact'}</a></li>
-                <li><a href="/terms" className="text-white/50 hover:text-purple-300 transition-colors text-sm">{language === 'id' ? 'Ketentuan' : 'Terms'}</a></li>
-                <li><a href="/privacy" className="text-white/50 hover:text-purple-300 transition-colors text-sm">Privacy</a></li>
-                <li><a href="/disclaimer" className="text-white/50 hover:text-purple-300 transition-colors text-sm">Disclaimer</a></li>
+                <li><button onClick={() => openLegalPage('contact')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">{language === 'id' ? 'Kontak' : 'Contact'}</button></li>
+                <li><button onClick={() => openLegalPage('terms')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">{language === 'id' ? 'Ketentuan' : 'Terms'}</button></li>
+                <li><button onClick={() => openLegalPage('refund')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">Refund Policy</button></li>
+                <li><button onClick={() => openLegalPage('faq')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">FAQ</button></li>
               </ul>
             </div>
           </div>
           <div className="pt-8 border-t border-white/[0.08] flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-white/40 text-sm">© {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
-            <div className="flex gap-6">
-              <a href="/privacy" className="text-white/40 hover:text-white transition-colors text-sm">Privacy Policy</a>
-              <a href="/terms" className="text-white/40 hover:text-white transition-colors text-sm">Terms of Service</a>
-              <a href="/disclaimer" className="text-white/40 hover:text-white transition-colors text-sm">Disclaimer</a>
+            <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
+              <button onClick={() => openLegalPage('terms')} className="text-white/40 hover:text-white transition-colors text-sm cursor-pointer">{language === 'id' ? 'Syarat & Ketentuan' : 'Terms of Service'}</button>
+              <button onClick={() => openLegalPage('refund')} className="text-white/40 hover:text-white transition-colors text-sm cursor-pointer">Refund Policy</button>
+              <button onClick={() => openLegalPage('faq')} className="text-white/40 hover:text-white transition-colors text-sm cursor-pointer">FAQ</button>
+              <button onClick={() => openLegalPage('contact')} className="text-white/40 hover:text-white transition-colors text-sm cursor-pointer">{language === 'id' ? 'Kontak' : 'Contact'}</button>
             </div>
           </div>
         </div>
@@ -1228,6 +1236,7 @@ export default function LuxTradeLanding() {
 
       <PaymentConfirmationModal isOpen={showPayment} onClose={() => setShowPayment(false)} planName="Elite Pro" planPrice={49000} />
       <PaymentConfirmationModal isOpen={showLifetimePaymentModal} onClose={() => setShowLifetimePaymentModal(false)} planName="Lifetime Ultra" planPrice={52000} />
+      <LegalPagesModal isOpen={showLegalModal} onClose={() => setShowLegalModal(false)} initialTab={legalModalTab} />
 
       <style jsx global>{`
         @keyframes infinite-scroll {

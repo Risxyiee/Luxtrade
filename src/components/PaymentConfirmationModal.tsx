@@ -1,8 +1,7 @@
 'use client'
 
-import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Copy, Check, MessageCircle, Building2 } from 'lucide-react'
+import { X, Check, MessageCircle, QrCode, Shield, ExternalLink } from 'lucide-react'
 
 interface PaymentConfirmationModalProps {
   isOpen: boolean
@@ -17,20 +16,12 @@ export default function PaymentConfirmationModal({
   planName,
   planPrice
 }: PaymentConfirmationModalProps) {
-  const [copied, setCopied] = useState(false)
-
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
       minimumFractionDigits: 0
     }).format(price)
-  }
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText('105668597393')
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
   }
 
   const handleTelegramClick = () => {
@@ -57,7 +48,7 @@ export default function PaymentConfirmationModal({
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
           onClick={(e) => e.stopPropagation()}
-          className="relative w-full max-w-md"
+          className="relative w-full max-w-md max-h-[90vh] overflow-y-auto"
         >
           {/* Main Card */}
           <div className="relative bg-gradient-to-br from-[#0A0612] via-[#1A0F2E] to-[#0D0715] border border-purple-500/30 rounded-3xl overflow-hidden">
@@ -67,11 +58,11 @@ export default function PaymentConfirmationModal({
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                      <Building2 className="w-6 h-6 text-emerald-200" />
-                      Konfirmasi Pembayaran
+                      <QrCode className="w-6 h-6 text-emerald-200" />
+                      Pembayaran QRIS
                     </h2>
                     <p className="text-emerald-100 text-sm mt-1">
-                      Transfer untuk mengaktifkan {planName}
+                      Scan QRIS untuk mengaktifkan {planName}
                     </p>
                   </div>
                   <button
@@ -85,7 +76,7 @@ export default function PaymentConfirmationModal({
             </div>
 
             {/* Content */}
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-5">
 
               {/* Plan Summary */}
               {planName && (
@@ -107,79 +98,83 @@ export default function PaymentConfirmationModal({
                 </div>
               )}
 
-              {/* Bank Jago */}
-              <div className="bg-white/[0.02] border border-emerald-500/20 rounded-2xl p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-lg font-bold text-white flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                        <span className="text-[10px] font-black text-emerald-400">JAGO</span>
-                      </div>
-                      Bank Jago
-                    </p>
+              {/* QRIS QR Code */}
+              <div className="bg-white/[0.03] border border-emerald-500/20 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                    <QrCode className="w-5 h-5 text-emerald-400" />
                   </div>
-                  <div className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-sm font-semibold">
-                    Kode Bank: 542
+                  <div>
+                    <p className="text-base font-bold text-white">Scan QRIS</p>
+                    <p className="text-xs text-white/50">Gunakan e-wallet atau mobile banking</p>
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-white/10">
-                  <p className="text-xs text-white/40 mb-2">Nomor Rekening</p>
-                  <div className="flex items-center gap-3">
-                    <p className="text-2xl font-bold text-white font-mono tracking-wide">
-                      105668597393
-                    </p>
-                    <button
-                      onClick={handleCopy}
-                      className={`p-2 rounded-lg transition-all ${
-                        copied
-                          ? 'bg-emerald-500/20 text-emerald-400'
-                          : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'
-                      }`}
-                    >
-                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    </button>
+                {/* QR Image */}
+                <div className="bg-white rounded-2xl p-4 flex items-center justify-center">
+                  <img
+                    src="/qris-luxtrade.jpeg"
+                    alt="QRIS LuxTrade"
+                    className="w-full max-w-[240px] h-auto rounded-lg"
+                  />
+                </div>
+
+                {/* NMID Info */}
+                <div className="flex items-center justify-between pt-1">
+                  <div>
+                    <p className="text-[10px] text-white/30 uppercase tracking-wider">Merchant</p>
+                    <p className="text-sm font-semibold text-white/80">Luxtrade</p>
                   </div>
-                  <p className="text-sm text-white/60 mt-1">a.n. Rizqi Akbar Pratama</p>
+                  <div className="text-right">
+                    <p className="text-[10px] text-white/30 uppercase tracking-wider">NMID</p>
+                    <p className="text-sm font-mono text-white/60">ID1026539975908</p>
+                  </div>
                 </div>
               </div>
 
               {/* Instructions */}
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-5">
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
                 <h3 className="text-sm font-semibold text-amber-300 mb-3 flex items-center gap-2">
                   <Check className="w-4 h-4" />
-                  Instruksi Pembayaran
+                  Cara Pembayaran
                 </h3>
                 <div className="space-y-2 text-sm text-white/70">
                   <p className="flex items-start gap-2">
                     <span className="text-amber-400 font-bold mt-0.5">1.</span>
-                    <span>Transfer sesuai nominal di atas ke Bank Jago (542)</span>
+                    <span>Scan QRIS di atas pakai e-wallet / m-banking kamu</span>
                   </p>
                   <p className="flex items-start gap-2">
                     <span className="text-amber-400 font-bold mt-0.5">2.</span>
-                    <span>Klik tombol copy untuk menyalin nomor rekening</span>
+                    <span>Masukkan nominal <strong className="text-amber-200">{planPrice ? formatPrice(planPrice) : 'sesuai paket'}</strong></span>
                   </p>
                   <p className="flex items-start gap-2">
                     <span className="text-amber-400 font-bold mt-0.5">3.</span>
-                    <span className="font-semibold text-amber-200">Klik tombol biru di bawah → kirim bukti transfer ke Telegram admin</span>
+                    <span className="font-semibold text-amber-200">Setelah bayar, klik tombol biru di bawah untuk konfirmasi ke Telegram admin</span>
                   </p>
                   <p className="flex items-start gap-2">
                     <span className="text-amber-400 font-bold mt-0.5">4.</span>
-                    <span>Akun Pro akan diaktivasi manual setelah verifikasi</span>
+                    <span>Kirim bukti bayar di Telegram — akun Pro diaktivasi manual</span>
                   </p>
                 </div>
               </div>
 
-              {/* Telegram Button */}
+              {/* Telegram Confirm Button */}
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleTelegramClick}
-                className="w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-3 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/25 transition-all"
+                className="w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-3 bg-gradient-to-r from-[#0088cc] to-[#00a0e3] hover:from-[#0077b5] hover:to-[#0090cc] text-white shadow-lg shadow-[#0088cc]/25 transition-all"
               >
                 <MessageCircle className="w-5 h-5" />
-                Sudah Transfer? Konfirmasi ke Telegram
+                Sudah Bayar? Konfirmasi ke Telegram
+                <ExternalLink className="w-4 h-4 opacity-70" />
               </motion.button>
+
+              {/* Security Note */}
+              <div className="flex items-center justify-center gap-2 text-xs text-white/30">
+                <Shield className="w-3 h-3" />
+                Pembayaran aman via QRIS — Konfirmasi privat via Telegram
+              </div>
 
               {/* Cancel */}
               <button

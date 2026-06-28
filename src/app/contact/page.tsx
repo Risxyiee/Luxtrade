@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Mail, Send, ArrowRight, MessageCircle, Instagram } from 'lucide-react'
+import { Mail, Send, ArrowRight, MessageCircle, Instagram, Phone, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -271,7 +271,7 @@ export default function ContactPage() {
               <h2 className="text-2xl font-extrabold text-white mb-6">
                 {isEnglish ? 'Other Ways to Connect' : 'Cara Lain untuk Terhubung'}
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 {/* Direct Email */}
                 <a
                   href="mailto:luxtradee@gmail.com"
@@ -317,6 +317,31 @@ export default function ContactPage() {
                     <p className="text-white/60 text-sm">@luxtrade.web</p>
                   </div>
                 </a>
+
+                {/* Phone */}
+                <a
+                  href="tel:+6281234567890"
+                  className="group flex flex-col items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-emerald-500/30 hover:bg-white/10 transition-all duration-300"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <Phone className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-white font-semibold mb-1">Telepon</p>
+                    <p className="text-white/60 text-sm">+62 812-3456-7890</p>
+                  </div>
+                </a>
+
+                {/* Business Address */}
+                <div className="group flex flex-col items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
+                    <MapPin className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-white font-semibold mb-1">Alamat Usaha</p>
+                    <p className="text-white/60 text-sm">Jakarta, Indonesia</p>
+                  </div>
+                </div>
               </div>
             </Card>
           </motion.div>
@@ -324,12 +349,18 @@ export default function ContactPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-white/[0.08] py-16 px-4 sm:px-6 lg:px-8 mt-auto">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center">
-            <p className="text-white/40 text-sm font-medium">
-              © {new Date().getFullYear()} LuxTrade. All rights reserved.
-            </p>
+      <footer className="border-t border-white/[0.08] py-8 px-4 sm:px-6 lg:px-8 mt-auto">
+        <div className="max-w-7xl mx-auto text-center">
+          <p className="text-white/40 text-sm font-medium">
+            © {new Date().getFullYear()} LuxTrade. All rights reserved.
+          </p>
+          <div className="flex justify-center gap-4 mt-4 flex-wrap">
+            <Link href="/disclaimer" className="text-white/40 hover:text-white text-sm transition-colors">Disclaimer</Link>
+            <Link href="/privacy" className="text-white/40 hover:text-white text-sm transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="text-white/40 hover:text-white text-sm transition-colors">Terms of Service</Link>
+            <Link href="/refund-policy" className="text-white/40 hover:text-white text-sm transition-colors">Refund Policy</Link>
+            <Link href="/faq" className="text-white/40 hover:text-white text-sm transition-colors">FAQ</Link>
+            <Link href="/contact" className="text-white/40 hover:text-white text-sm transition-colors">Kontak</Link>
           </div>
         </div>
       </footer>

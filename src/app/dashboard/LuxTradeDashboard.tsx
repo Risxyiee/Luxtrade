@@ -29,7 +29,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/lib/auth-context'
 import { useLanguage } from '@/contexts/LanguageContext'
-import PaymentModal from '@/components/PaymentModal'
 import PlanSelectionModal from '@/components/PlanSelectionModal'
 import PNLShareCard from '@/components/PNLShareCard'
 import TradingScore from '@/components/TradingScore'
