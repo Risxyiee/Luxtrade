@@ -2557,3 +2557,31 @@ Stage Summary:
 - No broker names anywhere on landing page (LuxTrade is not a broker)
 - Sidebar now uses legal modal instead of dead routes
 - Committed and pushed to main
+
+---
+Task ID: 9
+Agent: Z.ai Code
+Task: Onboarding tour + first-trade prompt + sample data API
+
+Work Log:
+- Verified footer already aligned with sidebar (FAQ + Refund Policy in Perusahaan column)
+- Rewrote WelcomeOnboarding.tsx completely:
+  - 4-step interactive tour (Welcome → Record Trades → AI Insights → Let's Get Started)
+  - Step 4 offers 3 actions: "Add Your First Trade" / "Load Sample Data" / "Upgrade to PRO"
+  - Back button on steps 2-3, Skip tour button on all steps
+  - Sample data loading state with spinner
+  - Success confirmation before closing
+- Created /api/sample-data/route.ts:
+  - POST endpoint that inserts 15 realistic demo trades
+  - Trades spread across 15 days with various pairs (EUR/USD, GBP/USD, XAU/USD, etc.)
+  - Each trade has session, emotion, setup_type, risk_reward_ratio, duration
+  - Only works on empty accounts (returns 400 if user already has trades)
+- Uncommented WelcomeOnboarding in DashboardModals.tsx
+- Added onAddFirstTrade and onLoadSampleData props to DashboardModals
+- Wired up in LuxTradeDashboard.tsx: onAddFirstTrade opens trade form, onLoadSampleData calls API + fetchData
+- Lint clean, build passes, pushed (e3ed0fb)
+
+Stage Summary:
+- New user flow: Signup → Dashboard (empty) → Onboarding modal (1.5s delay) → 4-step tour → Add trade / Load sample data
+- 15 sample trades with realistic data for demo purposes
+- Footer & sidebar both have FAQ + Refund Policy under "Perusahaan"
