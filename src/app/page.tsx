@@ -436,7 +436,7 @@ export default function LuxTradeLanding() {
     { icon: Eye, title: 'Watchlist Cerdas', description: language === 'id' ? 'Pantau pair yang kamu incar, catat setup yang muncul, dan jangan sampai kehilangan momen karena lupa.' : 'Watch the pairs you\'re targeting, log setups that appear, and don\'t miss moments because you forgot.', gradient: 'from-emerald-500 to-teal-600' },
   ]
 
-  const platforms = ['MetaTrader 4', 'MetaTrader 5', 'TradingView', 'cTrader', 'NinjaTrader', 'DXtrade']
+
 
   return (
     <div className="min-h-screen bg-[#0f051d] text-white overflow-x-hidden flex flex-col">
@@ -562,7 +562,6 @@ export default function LuxTradeLanding() {
                     { href: '#pricing', label: language === 'id' ? 'Harga' : 'Pricing' },
                     { href: '#demo', label: t('hero.cta.secondary') },
                     { href: '#faq', label: 'FAQ' },
-                    { href: '/blog', label: 'Blog' },
                   ].map((link) => (
                     <a
                       key={link.href}
@@ -580,23 +579,34 @@ export default function LuxTradeLanding() {
                   <p className="px-3 mb-3 text-[10px] font-bold tracking-[0.2em] text-purple-400/70 uppercase">
                     {language === 'id' ? 'Perusahaan' : 'Company'}
                   </p>
-                  {[
-                    { href: '/about', label: language === 'id' ? 'Tentang' : 'About' },
-                    { href: '/contact', label: language === 'id' ? 'Kontak' : 'Contact' },
-                    { href: '/terms', label: language === 'id' ? 'Ketentuan' : 'Terms' },
-                    { href: '/privacy', label: 'Privacy' },
-                    { href: '/disclaimer', label: 'Disclaimer' },
-                  ].map((link) => (
-                    <a
-                      key={link.href}
-                      href={link.href}
-                      onClick={() => setSidebarOpen(false)}
-                      className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-white/70 hover:text-white hover:bg-white/[0.05] transition-all group"
-                    >
-                      <span>{link.label}</span>
-                      <ChevronRight className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 transition-colors" />
-                    </a>
-                  ))}
+                  <a
+                    onClick={() => { openLegalPage('contact'); setSidebarOpen(false) }}
+                    className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-white/70 hover:text-white hover:bg-white/[0.05] transition-all group cursor-pointer"
+                  >
+                    <span>{language === 'id' ? 'Kontak' : 'Contact'}</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 transition-colors" />
+                  </a>
+                  <a
+                    onClick={() => { openLegalPage('terms'); setSidebarOpen(false) }}
+                    className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-white/70 hover:text-white hover:bg-white/[0.05] transition-all group cursor-pointer"
+                  >
+                    <span>{language === 'id' ? 'Ketentuan' : 'Terms'}</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 transition-colors" />
+                  </a>
+                  <a
+                    onClick={() => { openLegalPage('faq'); setSidebarOpen(false) }}
+                    className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-white/70 hover:text-white hover:bg-white/[0.05] transition-all group cursor-pointer"
+                  >
+                    <span>FAQ</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 transition-colors" />
+                  </a>
+                  <a
+                    onClick={() => { openLegalPage('refund'); setSidebarOpen(false) }}
+                    className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-white/70 hover:text-white hover:bg-white/[0.05] transition-all group cursor-pointer"
+                  >
+                    <span>Refund Policy</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 transition-colors" />
+                  </a>
                 </div>
 
                 {/* Sidebar Social */}
@@ -1000,22 +1010,7 @@ export default function LuxTradeLanding() {
           </div>
         </section>
 
-        {/* Platform Ticker */}
-        <section className="w-full py-12 flex flex-col items-center overflow-hidden group">
-          <div className="max-w-7xl w-full relative">
-            <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-[#0f051d] to-transparent z-10 pointer-events-none" />
-            <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-[#0f051d] to-transparent z-10 pointer-events-none" />
-            <div className="flex w-full overflow-hidden">
-              <div className="flex whitespace-nowrap animate-infinite-scroll group-hover:[animation-play-state:paused] items-center gap-3">
-                {[...platforms, ...platforms].map((name, i) => (
-                  <div key={i} className="flex items-center justify-center shrink-0 px-6 h-14 bg-[#2a1b3d]/60 border border-white/10 rounded-2xl hover:bg-[#2a1b3d] hover:border-purple-500/30 transition-all duration-300">
-                    <span className="text-sm font-bold text-white/70">{name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
+
 
         {/* FAQ */}
         <section id="faq" className="py-20 px-4 sm:px-6 lg:px-8">
@@ -1209,13 +1204,13 @@ export default function LuxTradeLanding() {
                 <li><a href="#features" className="text-white/50 hover:text-purple-300 transition-colors text-sm">{language === 'id' ? 'Fitur' : 'Features'}</a></li>
                 <li><a href="#pricing" className="text-white/50 hover:text-purple-300 transition-colors text-sm">{language === 'id' ? 'Harga' : 'Pricing'}</a></li>
                 <li><button onClick={() => openLegalPage('faq')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">FAQ</button></li>
+                <li><button onClick={() => openLegalPage('refund')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">Refund Policy</button></li>
               </ul>
             </div>
             <div>
               <h4 className="font-bold text-white mb-4">{language === 'id' ? 'Perusahaan' : 'Company'}</h4>
               <ul className="space-y-3">
                 <li><button onClick={() => openLegalPage('terms')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">{language === 'id' ? 'Ketentuan' : 'Terms'}</button></li>
-                <li><button onClick={() => openLegalPage('refund')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">Refund Policy</button></li>
                 <li><button onClick={() => openLegalPage('contact')} className="text-white/50 hover:text-purple-300 transition-colors text-sm cursor-pointer">{language === 'id' ? 'Kontak' : 'Contact'}</button></li>
               </ul>
             </div>
@@ -1229,16 +1224,6 @@ export default function LuxTradeLanding() {
       <PaymentConfirmationModal isOpen={showPayment} onClose={() => setShowPayment(false)} planName="Elite Pro" planPrice={49000} />
       <PaymentConfirmationModal isOpen={showLifetimePaymentModal} onClose={() => setShowLifetimePaymentModal(false)} planName="Lifetime Ultra" planPrice={52000} />
       <LegalPagesModal isOpen={showLegalModal} onClose={() => setShowLegalModal(false)} initialTab={legalModalTab} />
-
-      <style jsx global>{`
-        @keyframes infinite-scroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .animate-infinite-scroll {
-          animation: infinite-scroll 20s linear infinite;
-        }
-      `}</style>
     </div>
   )
 }
