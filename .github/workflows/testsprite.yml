@@ -1,0 +1,66 @@
+name: TestSprite - Visual Testing
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'URL to test (default: luxtradee.web.id)'
+        required: false
+        default: 'https://luxtradee.web.id'
+
+jobs:
+  testsprite:
+    name: Run TestSprite
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install TestSprite MCP
+        run: npm install -g @testsprite/testsprite-mcp@latest
+
+      - name: Run TestSprite Tests
+        env:
+          TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
+          TEST_URL: ${{ github.event.inputs.url || 'https://luxtradee.web.id' }}
+        run: |
+          echo "========================================"
+          echo "🔍 TestSprite - LuxTrade Website Testing"
+          echo "========================================"
+          echo "URL: $TEST_URL"
+          echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo ""
+
+          npx @testsprite/testsprite-mcp@latest \
+            --url "$TEST_URL" \
+            --api-key "$TESTSPRITE_API_KEY" \
+            --reporter json \
+            --output testsprite-results.json 2>&1 || true
+
+          echo ""
+          echo "========================================"
+          echo "📋 Test Results Summary"
+          echo "========================================"
+
+          if [ -f testsprite-results.json ]; then
+            cat testsprite-results.json
+          else
+            echo "TestSprite completed. Check TestSprite dashboard for detailed results."
+          fi
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testsprite-results-${{ github.sha }}
+          path: testsprite-results.json
+          retention-days: 30
