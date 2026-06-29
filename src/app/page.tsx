@@ -594,13 +594,6 @@ export default function LuxTradeLanding() {
                     <ChevronRight className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 transition-colors" />
                   </a>
                   <a
-                    onClick={() => { openLegalPage('faq'); setSidebarOpen(false) }}
-                    className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-white/70 hover:text-white hover:bg-white/[0.05] transition-all group cursor-pointer"
-                  >
-                    <span>FAQ</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 transition-colors" />
-                  </a>
-                  <a
                     onClick={() => { openLegalPage('refund'); setSidebarOpen(false) }}
                     className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-white/70 hover:text-white hover:bg-white/[0.05] transition-all group cursor-pointer"
                   >
