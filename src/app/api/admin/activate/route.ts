@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         case 'MONTHLY':
           planName = 'Elite Pro'
           durationMonths = 1
-          price = 49000
+          price = 25000
           break
         case 'YEARLY':
           planName = 'Elite Pro'
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
         endDate,
         isActive: true,
         paymentStatus: 'completed',
-        amountPaid: planType === 'MONTHLY' ? 49000 : planType === 'YEARLY' ? 588000 : 100000,
+        amountPaid: planType === 'MONTHLY' ? 25000 : planType === 'YEARLY' ? 588000 : 100000,
         paymentMethod: 'manual',
         adminNote: `Activated by admin via Quick Activate (${planType})`
       }

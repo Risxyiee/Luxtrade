@@ -320,7 +320,7 @@ export default function ContactPage() {
 
                 {/* Phone */}
                 <a
-                  href="tel:+6281234567890"
+                  href="tel:+6285712054394"
                   className="group flex flex-col items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-emerald-500/30 hover:bg-white/10 transition-all duration-300"
                 >
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
@@ -328,7 +328,7 @@ export default function ContactPage() {
                   </div>
                   <div className="text-center">
                     <p className="text-white font-semibold mb-1">Telepon</p>
-                    <p className="text-white/60 text-sm">+62 812-3456-7890</p>
+                    <p className="text-white/60 text-sm">+62 857-1205-4394</p>
                   </div>
                 </a>
 

@@ -1536,40 +1536,28 @@ export default function LuxTradeLanding() {
                 {language === 'id' ? 'Jurnal trading premium untuk trader serius. Lacak, analisis, dan tingkatkan dengan wawasan bertenaga AI.' : 'The premium trading journal for serious traders. Track, analyze, and improve with AI-powered insights.'}
               </p>
               <div className="flex gap-4">
-                {['Twitter', 'Discord', 'Telegram'].map((social) => (
-                  <motion.a
-                    key={social}
-                    href="#"
-                    className="w-10 h-10 rounded-xl backdrop-blur-sm bg-white/5 border border-white/[0.08] flex items-center justify-center hover:bg-white/10 hover:border-purple-500/30 transition-all duration-300"
-                    whileHover={{ scale: 1.1, y: -2 }}
-                  >
-                    <span className="text-xs font-bold text-white/60">{social[0]}</span>
-                  </motion.a>
-                ))}
+                <motion.a
+                href="https://t.me/Risxyiee" target="_blank" rel="noopener noreferrer"
+                className="w-10 h-10 rounded-xl backdrop-blur-sm bg-white/5 border border-white/[0.08] flex items-center justify-center hover:bg-white/10 hover:border-purple-500/30 transition-all duration-300"
+                whileHover={{ scale: 1.1, y: -2 }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="text-white/60"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+              </motion.a>
               </div>
             </div>
             <div>
               <h4 className="font-extrabold text-white mb-4">Produk</h4>
               <ul className="space-y-3">
-                {['Fitur', 'Harga', 'Peta Jalan', 'Catatan Perubahan'].map((item) => (
-                  <li key={item}>
-                    <a href="#" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">
-                      {item}
-                    </a>
-                  </li>
-                ))}
+                <li><a href="#features" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Fitur</a></li>
+                <li><a href="#pricing" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Harga</a></li>
+                <li><a href="#roadmap" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Peta Jalan</a></li>
               </ul>
             </div>
             <div>
               <h4 className="font-extrabold text-white mb-4">Company</h4>
               <ul className="space-y-3">
-                {['About', 'Blog', 'Careers', 'Contact'].map((item) => (
-                  <li key={item}>
-                    <a href="#" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">
-                      {item}
-                    </a>
-                  </li>
-                ))}
+                <li><Link href="/contact" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Contact</Link></li>
+                <li><Link href="/terms" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Ketentuan</Link></li>
               </ul>
             </div>
           </div>
@@ -1593,7 +1581,7 @@ export default function LuxTradeLanding() {
       </footer>
 
       {/* Payment Modals */}
-      <PaymentConfirmationModal isOpen={showPayment} onClose={() => setShowPayment(false)} planName="Elite Pro" planPrice={49000} />
+      <PaymentConfirmationModal isOpen={showPayment} onClose={() => setShowPayment(false)} planName="Elite Pro" planPrice={25000} />
       <PaymentConfirmationModal isOpen={showLifetimePaymentModal} onClose={() => setShowLifetimePaymentModal(false)} planName="Lifetime Ultra" planPrice={52000} />
     </div>
   )

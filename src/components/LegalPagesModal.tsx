@@ -274,7 +274,7 @@ function TermsContent() {
         </Paragraph>
         <div className="space-y-1.5 mt-1">
           <p className="text-white/80 text-sm">
-            Email: <a href="mailto:luxtrade.official@gmail.com" className="text-[#8a2be2] hover:underline">luxtrade.official@gmail.com</a>
+            Email: <a href="mailto:luxtradee@gmail.com" className="text-[#8a2be2] hover:underline">luxtradee@gmail.com</a>
           </p>
           <p className="text-white/80 text-sm">
             Telepon: <a href="tel:+6285712054394" className="text-[#8a2be2] hover:underline">+62 857-1205-4394</a>
@@ -339,7 +339,7 @@ function RefundContent() {
           <li><strong className="text-white/80">Pembayaran gagal namun dana terpotong</strong> — Status pembayaran gagal tetapi saldo berkurang.</li>
         </ul>
         <Paragraph>
-          Segera hubungi tim admin LuxTrade melalui Telegram <span className="text-[#8a2be2] font-semibold">@Risxyiee</span> atau email <a href="mailto:luxtrade.official@gmail.com" className="text-[#8a2be2] hover:underline">luxtrade.official@gmail.com</a> dengan menyertakan bukti pembayaran (screenshot).
+          Segera hubungi tim admin LuxTrade melalui Telegram <span className="text-[#8a2be2] font-semibold">@Risxyiee</span> atau email <a href="mailto:luxtradee@gmail.com" className="text-[#8a2be2] hover:underline">luxtradee@gmail.com</a> dengan menyertakan bukti pembayaran (screenshot).
         </Paragraph>
       </Section>
 
@@ -366,7 +366,7 @@ function RefundContent() {
             <div>
               <p className="text-white/80 text-sm font-semibold">Hubungi admin via Telegram atau Email</p>
               <p className="text-white/50 text-xs mt-0.5">
-                Telegram: <span className="text-[#8a2be2]">@Risxyiee</span> atau Email: <a href="mailto:luxtrade.official@gmail.com" className="text-[#8a2be2] hover:underline">luxtrade.official@gmail.com</a>
+                Telegram: <span className="text-[#8a2be2]">@Risxyiee</span> atau Email: <a href="mailto:luxtradee@gmail.com" className="text-[#8a2be2] hover:underline">luxtradee@gmail.com</a>
               </p>
             </div>
           </div>
@@ -464,7 +464,7 @@ function FAQContent() {
             Telegram @Risxyiee
           </a>
           <a
-            href="mailto:luxtrade.official@gmail.com"
+            href="mailto:luxtradee@gmail.com"
             className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 border border-white/[0.08] hover:bg-white/10 text-white text-sm font-semibold transition-all"
           >
             <Mail className="w-4 h-4" />
@@ -490,7 +490,7 @@ function ContactContent() {
       <div className="grid gap-4 sm:grid-cols-2 mb-8">
         {/* Email */}
         <a
-          href="mailto:luxtrade.official@gmail.com"
+          href="mailto:luxtradee@gmail.com"
           className="group flex items-start gap-4 p-5 bg-white/[0.02] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-[#8a2be2]/30 transition-all"
         >
           <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#8a2be2]/10 border border-[#8a2be2]/20 flex items-center justify-center group-hover:bg-[#8a2be2]/20 transition-all">
@@ -498,7 +498,7 @@ function ContactContent() {
           </div>
           <div>
             <h4 className="font-semibold text-white text-sm mb-1">Email</h4>
-            <p className="text-[#8a2be2] text-sm break-all">luxtrade.official@gmail.com</p>
+            <p className="text-[#8a2be2] text-sm break-all">luxtradee@gmail.com</p>
             <p className="text-white/40 text-xs mt-1">Respon dalam 1x24 jam</p>
           </div>
         </a>
