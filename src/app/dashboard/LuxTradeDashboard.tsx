@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import dynamicImport from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import {
@@ -472,14 +472,20 @@ function LuxTradeDashboardContent() {
     return () => clearTimeout(timeoutId)
   }, [authLoading, user, fetchData])
 
-  // Check onboarding for first-time users
+  // Check onboarding for first-time users (after auth + initial fetch)
+  const authCheckedRef = useRef(false)
   useEffect(() => {
+    if (authCheckedRef.current) return
+    if (authLoading || !user) return
+    if (loading) return // wait for first fetch to finish
+    authCheckedRef.current = true
+
     const onboardingDone = localStorage.getItem('luxtrade_onboarding_done')
     if (!onboardingDone && trades.length === 0) {
       const timer = setTimeout(() => setShowOnboarding(true), 1500)
       return () => clearTimeout(timer)
     }
-  }, [trades.length])
+  }, [authLoading, user, loading, trades.length])
 
   // ==================== CREATE ALL HANDLERS ====================
   
