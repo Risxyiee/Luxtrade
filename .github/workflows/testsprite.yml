@@ -23,12 +23,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
-      - name: Install TestSprite MCP
-        run: npm install -g @testsprite/testsprite-mcp@latest
-
-      - name: Run TestSprite Tests
+      - name: Run TestSprite
         env:
           TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
           TEST_URL: ${{ github.event.inputs.url || 'https://luxtradee.web.id' }}
@@ -40,22 +37,19 @@ jobs:
           echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           echo ""
 
-          npx @testsprite/testsprite-mcp@latest \
-            --url "$TEST_URL" \
-            --api-key "$TESTSPRITE_API_KEY" \
-            --reporter json \
-            --output testsprite-results.json 2>&1 || true
+          npm install -g @anthropic-ai/claude-code@latest 2>/dev/null || true
+
+          echo '{"mcpServers":{"TestSprite":{"command":"npx","args":["-y","@testsprite/testsprite-mcp@latest"],"env":{"API_KEY":"'"$TESTSPRITE_API_KEY"'"}}}}' > mcp_config.json
+
+          npx -y @anthropic-ai/claude-code@latest \
+            -p "Use the TestSprite MCP tool to run a full visual test on $TEST_URL. Report all errors, broken elements, and visual issues found." \
+            --mcp-config mcp_config.json \
+            --output-format json 2>&1 | tee testsprite-results.json || true
 
           echo ""
           echo "========================================"
-          echo "📋 Test Results Summary"
+          echo "📋 Done"
           echo "========================================"
-
-          if [ -f testsprite-results.json ]; then
-            cat testsprite-results.json
-          else
-            echo "TestSprite completed. Check TestSprite dashboard for detailed results."
-          fi
 
       - name: Upload Test Results
         if: always()
