@@ -197,7 +197,7 @@ export default function TermsOfServicePage() {
               <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 mt-4 space-y-2">
                 <p className="text-white/70"><strong className="text-purple-400">Nama Usaha:</strong> LuxTrade</p>
                 <p className="text-white/70"><strong className="text-purple-400">Email:</strong> luxtradee@gmail.com</p>
-                <p className="text-white/70"><strong className="text-purple-400">Telepon:</strong> +62 812-3456-7890</p>
+                <p className="text-white/70"><strong className="text-purple-400">Telepon:</strong> +62 857-1205-4394</p>
                 <p className="text-white/70"><strong className="text-purple-400">Alamat Usaha:</strong> Jakarta, Indonesia</p>
                 <p className="text-white/70"><strong className="text-purple-400">Website:</strong> luxtradee.web.id</p>
               </div>

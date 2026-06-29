@@ -74,6 +74,7 @@ function SignUpForm() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [needsSetup, setNeedsSetup] = useState(false)
+  const [ageConfirmed, setAgeConfirmed] = useState(false)
 
   // ============================================
   // Generate device ID
@@ -348,18 +349,32 @@ function SignUpForm() {
             )}
           </div>
 
+          {/* Age Verification */}
+          <label className="flex items-start gap-2.5 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={ageConfirmed}
+              onChange={(e) => setAgeConfirmed(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 text-amber-500 focus:ring-amber-500/30 accent-amber-500"
+              required
+            />
+            <span className="text-xs text-white/40 leading-relaxed">
+              Saya menyatakan bahwa saya berusia minimal 17 tahun dan memahami risiko yang terkait dengan aktivitas trading.
+            </span>
+          </label>
+
           {/* Terms */}
           <p className="text-xs text-white/40">
             Dengan mendaftar, kamu setuju dengan{' '}
-            <a href="#" className="text-amber-400 hover:text-amber-300">Ketentuan Layanan</a>
+            <a href="/terms" className="text-amber-400 hover:text-amber-300">Ketentuan Layanan</a>
             {' '}dan{' '}
-            <a href="#" className="text-amber-400 hover:text-amber-300">Kebijakan Privasi</a>
+            <a href="/privacy" className="text-amber-400 hover:text-amber-300">Kebijakan Privasi</a>
           </p>
 
           {/* Submit Button */}
           <Button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || !ageConfirmed}
             className="w-full h-12 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold shadow-lg shadow-amber-500/25 disabled:opacity-50"
           >
             {isLoading ? (

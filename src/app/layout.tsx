@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
+import CookieConsent from '@/components/CookieConsent';
 import GlobalErrorBoundary from "@/components/GlobalErrorBoundary";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { Analytics } from '@vercel/analytics/react';
@@ -30,17 +31,17 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "LuxTrade - Trading Journal",
-  description: "Professional trading journal with AI-powered insights. Track your trades, analyze performance, and improve your trading strategy.",
-  keywords: ["Trading", "Journal", "Stocks", "Investment", "Portfolio", "Analytics", "AI"],
-  authors: [{ name: "LuxTrade Team" }],
-  icons: {
-    icon: "/logo.png",
-  },
+  title: "LuxTrade - Trading Journal Premium Indonesia",
+  description: "Platform trading journal premium untuk trader Indonesia. Catat trade, analisis performa dengan AI, dan tingkatkan strategi trading kamu.",
+  keywords: ["trading journal", "jurnal trading", "trading Indonesia", "analisis trading", "AI trading", "forex journal", "forex Indonesia", "catat trade", "luxtrade"],
+  authors: [{ name: "LuxTrade" }],
+  icons: { icon: "/logo.png" },
   openGraph: {
-    title: "LuxTrade - Trading Journal",
-    description: "Professional trading journal with AI-powered insights",
+    title: "LuxTrade - Trading Journal Premium Indonesia",
+    description: "Platform trading journal premium untuk trader Indonesia. Catat trade, analisis performa dengan AI, dan tingkatkan strategi trading kamu.",
     type: "website",
+    siteName: "LuxTrade",
+    locale: "id_ID",
   },
 };
 
@@ -50,13 +51,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="id" className="dark" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${lexend.variable} ${inter.variable} antialiased font-sans`}
       >
         <GlobalErrorBoundary>
           <LanguageProvider>
             <Providers>
+              <CookieConsent />
               {children}
             </Providers>
           </LanguageProvider>
