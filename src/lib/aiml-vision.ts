@@ -1,19 +1,19 @@
 /**
- * AIML API — GLM-OCR Vision Integration
- * Docs: https://docs.aimlapi.com/api-references/vision-models/ocr-optical-character-recognition/zhipu/glm-ocr
+ * Vision AI Integration — Zyloo Claude Opus 4.7 (Primary)
+ * Fallback chain: Zyloo Claude Opus (vision) → Zyloo Claude Opus (text) → Basic template
  *
- * Uses GLM-4V-OCR model for high-accuracy trading screenshot extraction.
- * Returns structured JSON from trading platform screenshots (MT4/MT5).
+ * Uses Claude Opus 4.7 via Zyloo for:
+ * - Trading screenshot OCR/extraction (vision)
+ * - Journal content generation (vision or text)
  */
 
 import sharp from 'sharp'
 
-const AIML_API_URL = 'https://api.aimlapi.com/v2/glm-ocr'
 const ZYLOO_API_URL = 'https://api.zyloo.io/v1/chat/completions'
 
-// ==================== ZYLOO FALLBACK (Text-only, for journal generation) ====================
+// ==================== TYPES ====================
 
-interface AimlVisionOptions {
+interface VisionOptions {
   timeout?: number
   maxRetries?: number
 }
@@ -23,15 +23,17 @@ interface VisionResult {
   raw?: any
 }
 
+// ==================== ZYLOO CLAUDE OPUS (PRIMARY) ====================
+
 /**
- * Call Zyloo API (Claude Opus 4.7) as a text-only fallback.
- * Used when AIML GLM-OCR fails for journal generation tasks.
+ * Call Zyloo API (Claude Opus 4.7) — supports both vision (image + text) and text-only.
+ * Claude Opus natively supports multimodal input.
  */
-export async function analyzeTextWithZyloo(
-  prompt: string,
-  options: { timeout?: number; maxRetries?: number } = {}
-): Promise<{ text: string; raw?: any }> {
-  const { timeout = 60000, maxRetries = 2 } = options
+async function callZyloo(
+  messages: any[],
+  options: VisionOptions = {}
+): Promise<VisionResult> {
+  const { timeout = 90000, maxRetries = 2 } = options
 
   const apiKey = process.env.ZYLOO_API_KEY
   if (!apiKey) {
@@ -50,11 +52,9 @@ export async function analyzeTextWithZyloo(
         },
         body: JSON.stringify({
           model: 'zyloo/claude-opus-4-7',
-          messages: [
-            { role: 'user', content: prompt },
-          ],
-          max_tokens: 2048,
-          temperature: 0.3,
+          messages,
+          max_tokens: 4096,
+          temperature: 0.1,
         }),
         signal: AbortSignal.timeout(timeout),
       })
@@ -64,7 +64,9 @@ export async function analyzeTextWithZyloo(
         console.error(`❌ [Zyloo] Error ${response.status}:`, errText)
 
         if (response.status === 429 && attempt < maxRetries - 1) {
-          await new Promise(r => setTimeout(r, 3000 * (attempt + 1)))
+          const wait = 3000 * (attempt + 1)
+          console.log(`⏳ [Zyloo] Rate limited, waiting ${wait}ms...`)
+          await new Promise(r => setTimeout(r, wait))
           continue
         }
 
@@ -83,7 +85,7 @@ export async function analyzeTextWithZyloo(
     } catch (error: any) {
       if (error.name === 'AbortError' || error.name === 'TimeoutError') {
         if (attempt < maxRetries - 1) {
-          await new Promise(r => setTimeout(r, 2000))
+          await new Promise(r => setTimeout(r, 3000))
           continue
         }
         throw new Error('Zyloo API timeout.')
@@ -100,48 +102,14 @@ export async function analyzeTextWithZyloo(
 }
 
 /**
- * Unified analysis: tries AIML GLM-OCR first (vision), falls back to Zyloo (text-only).
- * For image-based tasks, use analyzeImageWithAiml directly.
- */
-export async function analyzeWithFallback(
-  imageBuffer: Buffer,
-  imagePrompt: string,
-  textFallbackPrompt: string,
-  options: AimlVisionOptions = {}
-): Promise<VisionResult> {
-  // Try AIML GLM-OCR first (vision-capable)
-  try {
-    return await analyzeImageWithAiml(imageBuffer, imagePrompt, options)
-  } catch (aimlError: any) {
-    console.warn(`⚠️ [Fallback] AIML failed: ${aimlError.message}. Trying Zyloo...`)
-  }
-
-  // Fallback to Zyloo (text-only, no image)
-  const result = await analyzeTextWithZyloo(textFallbackPrompt, {
-    timeout: options.timeout,
-    maxRetries: options.maxRetries,
-  })
-  return result
-}
-
-/**
- * Call AIML API (GLM-OCR) with image + prompt
+ * Analyze image with vision model (Claude Opus via Zyloo).
+ * Sends image + text prompt together.
  */
 export async function analyzeImageWithAiml(
   imageBuffer: Buffer,
   prompt: string,
-  options: AimlVisionOptions = {}
+  options: VisionOptions = {}
 ): Promise<VisionResult> {
-  const {
-    timeout = 60000,
-    maxRetries = 2,
-  } = options
-
-  const apiKey = process.env.AIML_API_KEY
-  if (!apiKey) {
-    throw new Error('AIML_API_KEY is not configured')
-  }
-
   // Optimize image: resize + JPEG compression for faster upload
   const optimized = await sharp(imageBuffer)
     .resize(1920, 1080, { fit: 'inside', withoutEnlargement: true })
@@ -150,84 +118,65 @@ export async function analyzeImageWithAiml(
 
   const base64Image = optimized.toString('base64')
 
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      console.log(`🤖 [AIML Vision] GLM-OCR attempt ${attempt + 1}/${maxRetries}`)
-
-      const response = await fetch(AIML_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+  const messages = [
+    {
+      role: 'user',
+      content: [
+        {
+          type: 'image_url',
+          image_url: {
+            url: `data:image/jpeg;base64,${base64Image}`,
+          },
         },
-        body: JSON.stringify({
-          model: 'glm-4v-flash',
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: `data:image/jpeg;base64,${base64Image}`,
-                  },
-                },
-                {
-                  type: 'text',
-                  text: prompt,
-                },
-              ],
-            },
-          ],
-          max_tokens: 2048,
-          temperature: 0.05,
-        }),
-        signal: AbortSignal.timeout(timeout),
-      })
+        {
+          type: 'text',
+          text: prompt,
+        },
+      ],
+    },
+  ]
 
-      if (!response.ok) {
-        const errText = await response.text()
-        console.error(`❌ [AIML Vision] Error ${response.status}:`, errText)
-
-        if (response.status === 429 && attempt < maxRetries - 1) {
-          await new Promise(r => setTimeout(r, 3000 * (attempt + 1)))
-          continue
-        }
-
-        throw new Error(`AIML API error (${response.status}): ${errText.slice(0, 200)}`)
-      }
-
-      const data = await response.json()
-      const text = data.choices?.[0]?.message?.content || ''
-
-      if (!text.trim()) {
-        throw new Error('Empty response from AIML API')
-      }
-
-      console.log(`✅ [AIML Vision] Success: ${text.length} chars`)
-
-      return { text, raw: data }
-    } catch (error: any) {
-      if (error.name === 'AbortError' || error.name === 'TimeoutError') {
-        if (attempt < maxRetries - 1) {
-          await new Promise(r => setTimeout(r, 2000))
-          continue
-        }
-        throw new Error('AIML API timeout. Coba lagi.')
-      }
-
-      if (attempt === maxRetries - 1) throw error
-
-      console.warn(`⚠️ [AIML Vision] Retrying...`, error.message)
-      await new Promise(r => setTimeout(r, 2000 * (attempt + 1)))
-    }
-  }
-
-  throw new Error('All AIML API attempts failed')
+  return callZyloo(messages, options)
 }
 
 /**
- * Trade-specific extraction prompt for GLM-OCR
+ * Text-only analysis (no image). Used for journal generation fallback.
+ */
+export async function analyzeTextWithZyloo(
+  prompt: string,
+  options: VisionOptions = {}
+): Promise<VisionResult> {
+  const messages = [
+    { role: 'user', content: prompt },
+  ]
+
+  return callZyloo(messages, options)
+}
+
+/**
+ * Unified fallback: tries vision (image + prompt), falls back to text-only.
+ */
+export async function analyzeWithFallback(
+  imageBuffer: Buffer,
+  imagePrompt: string,
+  textFallbackPrompt: string,
+  options: VisionOptions = {}
+): Promise<VisionResult> {
+  // Try vision first (Claude Opus supports multimodal)
+  try {
+    return await analyzeImageWithAiml(imageBuffer, imagePrompt, options)
+  } catch (error: any) {
+    console.warn(`⚠️ [Fallback] Vision failed: ${error.message}. Trying text-only...`)
+  }
+
+  // Fallback to text-only
+  return analyzeTextWithZyloo(textFallbackPrompt, options)
+}
+
+// ==================== PROMPTS ====================
+
+/**
+ * Trade-specific extraction prompt
  * Optimized for MT4/MT5 trading screenshots
  */
 export const TRADE_EXTRACTION_PROMPT = `Analyze this trading screenshot (MT5/MT4 or similar platform) and extract ALL trade information.
