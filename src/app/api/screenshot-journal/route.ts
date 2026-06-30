@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
-import { analyzeImageWithHuggingFace } from '@/lib/huggingface-vision'
-import { analyzeImageWithOllama, generateJournalEntry, checkOllamaHealth } from '@/lib/ollama-vision'
-import { analyzeImageWithZAIVision } from '@/lib/zai-vision'
+import { analyzeImageWithAiml } from '@/lib/aiml-vision'
 
 // ==================== TYPES ====================
 interface ExtractedTrade {
@@ -242,142 +240,23 @@ async function analyzeWithFallback(): Promise<VLMResponse> {
   }
 }
 
-// ==================== HELPER: Call VLM with Hugging Face + Ollama + Z.ai Vision Fallback ====================
+// ==================== HELPER: Call AIML GLM-4V-OCR ====================
 async function analyzeScreenshotWithVLM(
-  base64Image: string,
-  mimeType: string
+  imageBuffer: Buffer
 ): Promise<VLMResponse> {
-  // Step 1: Try Hugging Face (FREE, but network blocked in some environments)
-  console.log('🤖 [Screenshot Journal] Checking Hugging Face availability...')
+  // Primary: AIML API (GLM-4V-OCR)
+  console.log('🤖 [Screenshot Journal] Analyzing with AIML GLM-4V-OCR...')
 
   try {
-    // Try to get token from process.env first, then from .env file
-    let hfApiKey = process.env.HUGGING_FACE_API_TOKEN
-
-    // If not in process.env, try to read from .env file
-    if (!hfApiKey) {
-      try {
-        const fs = await import('fs')
-        const path = await import('path')
-        const envPath = path.join(process.cwd(), '.env')
-        const envContent = fs.readFileSync(envPath, 'utf-8')
-        const match = envContent.match(/HUGGING_FACE_API_TOKEN=([^\s\n]+)/)
-        if (match && match[1]) {
-          hfApiKey = match[1]
-          console.log('📝 [Screenshot Journal] Loaded Hugging Face token from .env file')
-        }
-      } catch (error) {
-        console.log('⚠️ [Screenshot Journal] Could not read .env file')
-      }
-    }
-
-    if (hfApiKey && hfApiKey.startsWith('hf_')) {
-      console.log('✅ [Screenshot Journal] Using Hugging Face Vision (FREE)...')
-
-      // Temporarily set the env var for the function
-      const originalToken = process.env.HUGGING_FACE_API_TOKEN
-      process.env.HUGGING_FACE_API_TOKEN = hfApiKey
-
-      try {
-        const result = await analyzeImageWithHuggingFace(base64Image, VLM_PROMPT, {
-          timeout: 45000,
-          maxRetries: 2
-        })
-        const parsed = parseVLMResponse(result.text)
-        console.log(`✅ [Screenshot Journal] Hugging Face analysis completed`)
-        return parsed
-      } finally {
-        // Restore original env var
-        if (originalToken) {
-          process.env.HUGGING_FACE_API_TOKEN = originalToken
-        }
-      }
-    } else {
-      console.log('⚠️ [Screenshot Journal] No valid Hugging Face token found, skipping...')
-    }
+    const result = await analyzeImageWithAiml(imageBuffer, VLM_PROMPT)
+    const parsed = parseVLMResponse(result.text)
+    console.log('✅ [Screenshot Journal] AIML analysis completed')
+    return parsed
   } catch (error: any) {
-    console.log('⚠️ [Screenshot Journal] Hugging Face failed:', error.message)
+    console.error('❌ [Screenshot Journal] AIML failed:', error.message)
   }
 
-  // Step 2: Try Ollama (FREE, local installation)
-  console.log('🤖 [Screenshot Journal] Checking Ollama availability...')
-
-  try {
-    const ollamaHealth = await checkOllamaHealth()
-
-    if (ollamaHealth.running) {
-      console.log('✅ [Screenshot Journal] Ollama is available, using it for analysis')
-
-      // Extract trading data using Ollama
-      const ollamaResult = await analyzeImageWithOllama(
-        base64Image,
-        mimeType,
-        'Analyze this trading screenshot and extract all relevant information including symbol, type, entry/exit prices, profit/loss, lot size, timeframe, strategy, and notes. Return in JSON format.'
-      )
-
-      console.log('📊 [Screenshot Journal] Ollama extraction result:', ollamaResult)
-
-      // Convert Ollama result to VLMResponse format
-      const trade: ExtractedTrade = {
-        symbol: ollamaResult.symbol || '',
-        type: ollamaResult.type?.toUpperCase() || 'BUY',
-        open_price: ollamaResult.entry_price || 0,
-        close_price: ollamaResult.exit_price || 0,
-        stop_loss: 0,
-        take_profit: 0,
-        lot_size: ollamaResult.lot_size || 0,
-        profit_loss: ollamaResult.profit_loss || 0,
-        open_time: new Date().toISOString(),
-        close_time: ollamaResult.exit_price ? new Date().toISOString() : '',
-        swap: 0,
-        commission: 0,
-        order_id: '',
-        platform: 'MT5'
-      }
-
-      const journalContent = generateJournalEntry(ollamaResult)
-
-      const journal: ExtractedJournal = {
-        title: `${trade.symbol || 'Trade'} ${trade.type} - ${trade.profit_loss >= 0 ? 'Profit' : 'Loss'} $${Math.abs(trade.profit_loss).toFixed(2)}`,
-        content: journalContent,
-        mood: 'neutral',
-        market_condition: 'ranging',
-        tags: [trade.symbol?.toLowerCase() || 'trade'],
-        setup_type: ollamaResult.strategy || '',
-        risk_reward_ratio: 0
-      }
-
-      return {
-        trade,
-        journal,
-        raw_analysis: JSON.stringify(ollamaResult)
-      }
-    } else {
-      console.log('⚠️ [Screenshot Journal] Ollama is not available, trying Z.ai Vision')
-    }
-  } catch (error: any) {
-    console.log('⚠️ [Screenshot Journal] Ollama analysis failed, trying Z.ai Vision:', error.message)
-  }
-
-  // Step 3: Try Z.ai Vision (Build-required SDK) - SKIP IN PRODUCTION
-  console.log('🤖 [Screenshot Journal] Checking Z.ai Vision availability...')
-
-  // Skip Z.ai Vision in production (internal API not accessible from Vercel)
-  if (process.env.NODE_ENV === 'production') {
-    console.log('⚠️ [Screenshot Journal] Skipping Z.ai Vision in production (internal API not accessible)')
-  } else {
-    try {
-      console.log('🔄 [Screenshot Journal] Calling analyzeImageWithZAIVision...')
-      const result = await analyzeImageWithZAIVision(base64Image, VLM_PROMPT, {})
-      const parsed = parseVLMResponse(result.text)
-      console.log(`✅ [Screenshot Journal] Z.ai Vision analysis completed`)
-      return parsed
-    } catch (error: any) {
-      console.log('⚠️ [Screenshot Journal] Z.ai Vision failed, using fallback:', error.message || 'Connection timeout')
-    }
-  }
-
-  // Step 4: Use fallback (no OCR available)
+  // Fallback: empty template for manual input
   console.log('⚠️ [Screenshot Journal] All AI services failed, using fallback template')
   return analyzeWithFallback()
 }
@@ -480,7 +359,7 @@ export async function POST(request: NextRequest) {
     // Step 4: Call VLM (try all free services first)
     console.log('🤖 [Screenshot Journal] Starting VLM analysis...')
 
-    const parsed = await analyzeScreenshotWithVLM(base64Image, mimeType)
+    const parsed = await analyzeScreenshotWithVLM(Buffer.from(base64Image, 'base64'))
 
     // If we only got raw_analysis (JSON parsing failed), still return it
     const hasTradeData = parsed.trade.symbol && parsed.trade.symbol.length > 0
