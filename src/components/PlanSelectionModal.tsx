@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Check, Crown, Sparkles, Clock, ArrowRight, ShieldCheck } from 'lucide-react'
+import { X, Check, Crown, Sparkles, Clock, ArrowRight, ShieldCheck, Loader2, Zap, CreditCard, Tag } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { PRICING, formatRupiah, type PricingPlan } from '@/lib/pricing'
 import PaymentConfirmationModal from './PaymentConfirmationModal'
+import { toast } from 'sonner'
 
 interface Plan {
   id: string
@@ -106,6 +107,134 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null)
   const [showPayment, setShowPayment] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
+  const [promoCode, setPromoCode] = useState('')
+  const [promoValid, setPromoValid] = useState(false)
+  const [promoInfo, setPromoInfo] = useState<any>(null)
+  const [promoLoading, setPromoLoading] = useState(false)
+  const [midtransLoading, setMidtransLoading] = useState<string | null>(null)
+  const [midtransReady, setMidtransReady] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<'midtrans' | 'manual'>('midtrans')
+
+  // Load Midtrans Snap script
+  useEffect(() => {
+    if (!isOpen) return
+
+    const loadSnap = async () => {
+      try {
+        const res = await fetch('/api/midtrans/create-transaction')
+        const config = await res.json()
+        if (!config.configured || !config.snapUrl) {
+          console.log('Midtrans not configured, manual payment only')
+          setPaymentMethod('manual')
+          return
+        }
+
+        // Check if script already loaded
+        if (document.getElementById('midtrans-snap-script')) {
+          setMidtransReady(true)
+          return
+        }
+
+        const script = document.createElement('script')
+        script.id = 'midtrans-snap-script'
+        script.src = config.snapUrl
+        script.async = true
+        script.onload = () => {
+          setMidtransReady(true)
+          console.log('Midtrans Snap loaded')
+        }
+        script.onerror = () => {
+          console.warn('Failed to load Midtrans Snap')
+          setPaymentMethod('manual')
+        }
+        document.body.appendChild(script)
+      } catch {
+        setPaymentMethod('manual')
+      }
+    }
+
+    loadSnap()
+  }, [isOpen])
+
+  // Validate promo code
+  const handleValidatePromo = useCallback(async () => {
+    if (!promoCode.trim()) return
+
+    setPromoLoading(true)
+    try {
+      const res = await fetch('/api/promo/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: promoCode }),
+      })
+      const data = await res.json()
+
+      if (data.valid) {
+        setPromoValid(true)
+        setPromoInfo(data.promoCode)
+        toast.success(`Kode promo valid! Diskon ${data.promoCode.discountPercent}%`)
+      } else {
+        setPromoValid(false)
+        setPromoInfo(null)
+        toast.error(data.message || 'Kode promo tidak valid')
+      }
+    } catch {
+      toast.error('Gagal memvalidasi kode promo')
+    } finally {
+      setPromoLoading(false)
+    }
+  }, [promoCode])
+
+  // Open Midtrans Snap popup
+  const handleMidtransPay = async (plan: Plan) => {
+    if (!midtransReady) {
+      toast.error('Payment gateway sedang dimuat...')
+      return
+    }
+
+    setMidtransLoading(plan.id)
+    try {
+      const res = await fetch('/api/midtrans/create-transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plan: plan.pricingKey,
+          promoCode: promoValid ? promoCode : undefined,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        toast.error(data.error || 'Gagal membuat transaksi')
+        setMidtransLoading(null)
+        return
+      }
+
+      // Open Snap popup
+      ;(window as any).snap.pay(data.token, {
+        onSuccess: () => {
+          toast.success('Pembayaran berhasil! Akun PRO kamu sedang diaktivasi...')
+          if (onPaymentSuccess) onPaymentSuccess()
+          onClose()
+          // Refresh after a short delay for DB sync
+          setTimeout(() => window.location.reload(), 3000)
+        },
+        onPending: () => {
+          toast.info('Menunggu pembayaran. Selesaikan pembayaran untuk mengaktifkan PRO.')
+        },
+        onError: () => {
+          toast.error('Pembayaran gagal atau dibatalkan.')
+        },
+        onClose: () => {
+          setMidtransLoading(null)
+        },
+      })
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal terhubung ke payment gateway')
+      setMidtransLoading(null)
+    }
+  }
 
   const handlePlanSelect = async (plan: Plan) => {
     if (plan.price === 0) {
@@ -113,17 +242,32 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
       return
     }
 
-    // Manual payment flow — show payment confirmation modal directly
     setSelectedPlan(plan)
-    setShowPayment(true)
+
+    // If Midtrans ready and method is midtrans, go straight to Snap
+    if (paymentMethod === 'midtrans' && midtransReady) {
+      handleMidtransPay(plan)
+    } else {
+      // Fallback to manual payment
+      setShowPayment(true)
+    }
   }
 
   const handlePaymentClose = () => {
     setShowPayment(false)
     setSelectedPlan(null)
+    setMidtransLoading(null)
     if (onPaymentSuccess) {
       onPaymentSuccess()
     }
+  }
+
+  // Calculate discounted price
+  const getDiscountedPrice = (plan: Plan) => {
+    if (promoValid && promoInfo) {
+      return Math.round(plan.price * (1 - promoInfo.discountPercent / 100))
+    }
+    return plan.price
   }
 
   if (!isOpen) return null
@@ -177,116 +321,189 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                 </div>
               </div>
 
-              {/* Payment Methods Banner — QRIS + Telegram */}
-              <div className="px-6 md:px-8 py-4 border-b border-white/5">
-                <div className="flex items-center justify-center gap-6 md:gap-8 text-white/40">
-                  <div className="flex items-center gap-2 text-xs md:text-sm">
-                    <span className="text-emerald-400 font-bold">QRIS</span>
-                    <span>Pembayaran</span>
+              {/* Promo Code + Payment Method Toggle */}
+              <div className="px-6 md:px-8 py-4 border-b border-white/5 space-y-3">
+                {/* Promo Code */}
+                <div className="flex items-center gap-2 max-w-md mx-auto">
+                  <div className="relative flex-1">
+                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-400" />
+                    <input
+                      type="text"
+                      value={promoCode}
+                      onChange={(e) => {
+                        setPromoCode(e.target.value.toUpperCase())
+                        setPromoValid(false)
+                        setPromoInfo(null)
+                      }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleValidatePromo()}
+                      placeholder="Kode promo (opsional)"
+                      className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 transition-all"
+                    />
                   </div>
-                  <div className="flex items-center gap-2 text-xs md:text-sm">
-                    <span className="text-[#0088cc] font-bold">TG</span>
-                    <span>Konfirmasi</span>
-                  </div>
+                  <button
+                    onClick={handleValidatePromo}
+                    disabled={!promoCode.trim() || promoLoading}
+                    className="px-4 py-2.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-300 text-sm font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {promoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Pakai'}
+                  </button>
+                </div>
+
+                {promoValid && promoInfo && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center"
+                  >
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
+                      <Zap className="w-3 h-3" />
+                      Diskon {promoInfo.discountPercent}% aktif — {promoInfo.remainingQuota} kuota tersisa
+                    </span>
+                  </motion.div>
+                )}
+
+                {/* Payment Method Toggle */}
+                <div className="flex items-center justify-center gap-3">
+                  <button
+                    onClick={() => setPaymentMethod('midtrans')}
+                    disabled={!midtransReady}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      paymentMethod === 'midtrans'
+                        ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                        : 'text-white/40 hover:text-white/60'
+                    } disabled:opacity-30 disabled:cursor-not-allowed`}
+                  >
+                    <CreditCard className="w-3.5 h-3.5" />
+                    Pay Otomatis
+                  </button>
+                  <span className="text-white/20">|</span>
+                  <button
+                    onClick={() => setPaymentMethod('manual')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      paymentMethod === 'manual'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        : 'text-white/40 hover:text-white/60'
+                    }`}
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    Bayar Manual (QRIS)
+                  </button>
                 </div>
               </div>
 
               {/* Plans Grid */}
               <div className="p-6 md:p-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
-                {plans.map((plan, index) => (
-                  <motion.div
-                    key={plan.id}
-                    initial={{ opacity: 0, y: 25 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.08, duration: 0.4 }}
-                    onMouseEnter={() => setHoveredPlan(plan.id)}
-                    onMouseLeave={() => setHoveredPlan(null)}
-                    onClick={() => handlePlanSelect(plan)}
-                    className={`
-                      relative rounded-2xl border-2 p-5 md:p-6 cursor-pointer transition-all duration-300 group
-                      ${hoveredPlan === plan.id
-                        ? 'border-purple-400 scale-[1.03] shadow-2xl shadow-purple-500/20'
-                        : 'border-purple-500/15 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-900/10'
-                      }
-                      ${plan.highlight
-                        ? 'bg-gradient-to-b from-amber-500/10 via-amber-500/5 to-transparent'
-                        : plan.popular
-                        ? 'bg-gradient-to-b from-purple-500/10 via-purple-500/5 to-transparent'
-                        : 'bg-white/[0.02]'
-                      }
-                    `}
-                  >
-                    {plan.popular && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold px-3 py-1 shadow-lg shadow-purple-500/30 tracking-wider uppercase">
-                          Terpopuler
-                        </Badge>
-                      </div>
-                    )}
+                {plans.map((plan, index) => {
+                  const discountedPrice = getDiscountedPrice(plan)
+                  const hasDiscount = promoValid && promoInfo && plan.price > 0 && discountedPrice < plan.price
 
-                    {plan.highlight && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-bold px-3 py-1 shadow-lg shadow-amber-500/30 flex items-center gap-1 tracking-wider uppercase">
-                          <Crown className="w-3 h-3" />
-                          Promo
-                        </Badge>
-                      </div>
-                    )}
-
-                    <div className="text-center mb-4">
-                      <h3 className="text-lg font-bold text-white mb-1">{plan.name}</h3>
-                      <p className="text-white/50 text-xs">{plan.description}</p>
-                    </div>
-
-                    <div className="text-center mb-5">
-                      {plan.price === 0 ? (
-                        <div className="text-2xl font-bold text-white tracking-tight">FREE</div>
-                      ) : (
-                        <div>
-                          <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-amber-300 bg-clip-text text-transparent tracking-tight">
-                            {formatRupiah(plan.price)}
-                          </div>
-                          <div className="text-xs text-white/50 mt-1 flex items-center justify-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            / {plan.duration}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-2 mb-6">
-                      {plan.features.map((feature, idx) => (
-                        <div key={idx} className="flex items-start gap-2 text-xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                          <span className="text-white/75 leading-relaxed">{feature}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                  return (
+                    <motion.div
+                      key={plan.id}
+                      initial={{ opacity: 0, y: 25 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.08, duration: 0.4 }}
+                      onMouseEnter={() => setHoveredPlan(plan.id)}
+                      onMouseLeave={() => setHoveredPlan(null)}
+                      onClick={() => handlePlanSelect(plan)}
                       className={`
-                        w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer
+                        relative rounded-2xl border-2 p-5 md:p-6 cursor-pointer transition-all duration-300 group
+                        ${hoveredPlan === plan.id
+                          ? 'border-purple-400 scale-[1.03] shadow-2xl shadow-purple-500/20'
+                          : 'border-purple-500/15 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-900/10'
+                        }
                         ${plan.highlight
-                          ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white shadow-lg shadow-amber-500/20'
+                          ? 'bg-gradient-to-b from-amber-500/10 via-amber-500/5 to-transparent'
                           : plan.popular
-                          ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white shadow-lg shadow-purple-500/20'
-                          : plan.price === 0
-                          ? 'bg-white/10 hover:bg-white/15 text-white/80'
-                          : 'bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/20'
+                          ? 'bg-gradient-to-b from-purple-500/10 via-purple-500/5 to-transparent'
+                          : 'bg-white/[0.02]'
                         }
                       `}
                     >
-                      {plan.price === 0 ? 'Mulai Gratis' : (
-                        <>
-                          Bayar Manual
-                          <ArrowRight className="w-4 h-4" />
-                        </>
+                      {plan.popular && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                          <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold px-3 py-1 shadow-lg shadow-purple-500/30 tracking-wider uppercase">
+                            Terpopuler
+                          </Badge>
+                        </div>
                       )}
-                    </motion.button>
-                  </motion.div>
-                ))}
+
+                      {plan.highlight && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                          <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-bold px-3 py-1 shadow-lg shadow-amber-500/30 flex items-center gap-1 tracking-wider uppercase">
+                            <Crown className="w-3 h-3" />
+                            Promo
+                          </Badge>
+                        </div>
+                      )}
+
+                      <div className="text-center mb-4">
+                        <h3 className="text-lg font-bold text-white mb-1">{plan.name}</h3>
+                        <p className="text-white/50 text-xs">{plan.description}</p>
+                      </div>
+
+                      <div className="text-center mb-5">
+                        {plan.price === 0 ? (
+                          <div className="text-2xl font-bold text-white tracking-tight">FREE</div>
+                        ) : (
+                          <div>
+                            {hasDiscount && (
+                              <div className="text-xs text-white/30 line-through mb-1">{formatRupiah(plan.price)}</div>
+                            )}
+                            <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-amber-300 bg-clip-text text-transparent tracking-tight">
+                              {formatRupiah(discountedPrice)}
+                            </div>
+                            <div className="text-xs text-white/50 mt-1 flex items-center justify-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              / {plan.duration}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2 mb-6">
+                        {plan.features.map((feature, idx) => (
+                          <div key={idx} className="flex items-start gap-2 text-xs">
+                            <Check className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                            <span className="text-white/75 leading-relaxed">{feature}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        disabled={midtransLoading === plan.id}
+                        className={`
+                          w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer
+                          disabled:opacity-60 disabled:cursor-wait
+                          ${plan.highlight
+                            ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white shadow-lg shadow-amber-500/20'
+                            : plan.popular
+                            ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white shadow-lg shadow-purple-500/20'
+                            : plan.price === 0
+                            ? 'bg-white/10 hover:bg-white/15 text-white/80'
+                            : 'bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/20'
+                          }
+                        `}
+                      >
+                        {midtransLoading === plan.id ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Memproses...
+                          </>
+                        ) : plan.price === 0 ? (
+                          'Mulai Gratis'
+                        ) : (
+                          <>
+                            {paymentMethod === 'midtrans' ? 'Bayar Sekarang' : 'Bayar Manual'}
+                            <ArrowRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </motion.button>
+                    </motion.div>
+                  )
+                })}
               </div>
 
               {/* Footer */}
@@ -294,15 +511,15 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-white/30 text-xs">
                   <div className="flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/60" />
-                    <span>Pembayaran QRIS</span>
+                    <span>{paymentMethod === 'midtrans' ? 'Pembayaran Otomatis via Midtrans' : 'Pembayaran QRIS'}</span>
                   </div>
                   <span className="hidden sm:inline">•</span>
                   <div className="flex items-center gap-1.5">
-                    <span>Konfirmasi via Telegram</span>
+                    <span>{paymentMethod === 'midtrans' ? 'Aktivasi otomatis setelah bayar' : 'Konfirmasi via Telegram'}</span>
                   </div>
                   <span className="hidden sm:inline">•</span>
                   <div className="flex items-center gap-1.5">
-                    <span>Aktivasi manual oleh admin</span>
+                    <span>Enkripsi & Keamanan Terjamin</span>
                   </div>
                 </div>
               </div>
@@ -311,12 +528,12 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
         </motion.div>
       </AnimatePresence>
 
-      {/* Manual Payment Confirmation Modal */}
+      {/* Manual Payment Confirmation Modal (fallback) */}
       <PaymentConfirmationModal
         isOpen={showPayment}
         onClose={handlePaymentClose}
         planName={selectedPlan?.name}
-        planPrice={selectedPlan?.price}
+        planPrice={selectedPlan ? getDiscountedPrice(selectedPlan) : undefined}
       />
     </>
   )
