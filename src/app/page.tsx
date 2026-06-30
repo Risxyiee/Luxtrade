@@ -883,6 +883,36 @@ export default function LuxTradeLanding() {
                 <span className="text-white/50 text-xs font-bold">{language === 'id' ? 'Produk Digital — Non-Refundable' : 'Digital Product — Non-Refundable'}</span>
               </div>
             </div>
+
+            {/* Payment Gateway Trust Badge */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="flex justify-center mt-6"
+            >
+              <div className="inline-flex items-center gap-3 px-5 py-3 bg-white/[0.03] border border-white/[0.06] rounded-2xl">
+                <div className="flex items-center gap-2">
+                  {/* Midtrans Logo */}
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="shrink-0">
+                    <rect width="24" height="24" rx="6" fill="#1A1A2E"/>
+                    <path d="M6 8h12v2H6zM6 12h8v2H6zM6 16h10v2H6z" fill="#42B549"/>
+                    <circle cx="19" cy="16" r="3" fill="#42B549"/>
+                  </svg>
+                  <span className="text-white/60 text-xs font-bold tracking-wide">MIDTRANS</span>
+                </div>
+                <div className="w-px h-4 bg-white/10" />
+                <div className="flex items-center gap-1.5">
+                  <Lock className="w-3 h-3 text-emerald-400/70" />
+                  <span className="text-white/40 text-[11px]">{language === 'id' ? 'Pembayaran Aman & Terenkripsi' : 'Secure & Encrypted Payments'}</span>
+                </div>
+                <div className="w-px h-4 bg-white/10" />
+                <div className="flex items-center gap-1.5">
+                  <Zap className="w-3 h-3 text-emerald-400/70" />
+                  <span className="text-white/40 text-[11px]">{language === 'id' ? 'Aktivasi Instan' : 'Instant Activation'}</span>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </section>
 
@@ -1264,7 +1294,16 @@ export default function LuxTradeLanding() {
             </div>
           </div>
           <div className="pt-8 border-t border-white/[0.08]">
-            <p className="text-white/40 text-sm">© {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <p className="text-white/40 text-sm">© {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
+              <div className="flex items-center gap-2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="opacity-40">
+                  <rect width="24" height="24" rx="6" fill="#1A1A2E"/>
+                  <path d="M6 8h12v2H6zM6 12h8v2H6zM6 16h10v2H6z" fill="#42B549"/>
+                </svg>
+                <span className="text-white/30 text-xs">Powered by <span className="font-semibold text-white/40">Midtrans</span> — {language === 'id' ? 'Pembayaran Aman' : 'Secure Payments'}</span>
+              </div>
+            </div>
           </div>
         </div>
       </footer>
