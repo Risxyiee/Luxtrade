@@ -9,6 +9,18 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /**
+ * Format date for Midtrans: "2020-06-09 15:07:00 +0700"
+ */
+function formatMidtransTime(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const offset = -date.getTimezoneOffset()
+  const sign = offset >= 0 ? '+' : '-'
+  const hours = String(Math.floor(Math.abs(offset) / 60)).padStart(2, '0')
+  const mins = String(Math.abs(offset) % 60).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())} ${sign}${hours}${mins}`
+}
+
+/**
  * POST /api/midtrans/create-transaction
  * 
  * Body: {
@@ -140,7 +152,7 @@ export async function POST(request: NextRequest) {
       },
       // Auto close popup after 24h
       expiry: {
-        start_time: new Date().toISOString(),
+        start_time: formatMidtransTime(new Date()),
         unit: 'hour',
         duration: 24,
       },
