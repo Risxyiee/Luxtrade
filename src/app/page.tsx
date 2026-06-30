@@ -427,7 +427,7 @@ export default function LuxTradeLanding() {
       if (res.status === 401) {
         // Not logged in — redirect to signup with plan info
         setPayLoading(null)
-        window.location.href = `/signup?plan=${plan}&redirect=/dashboard`
+        window.location.href = `/auth/signup?plan=${plan}&redirect=/dashboard`
         return
       }
 
