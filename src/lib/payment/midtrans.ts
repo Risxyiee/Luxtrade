@@ -40,8 +40,6 @@ export function getMidtransSnapUrl(): string {
     : 'https://app.sandbox.midtrans.com/snap/snap.js'
 }
 
-import crypto from 'node:crypto'
-
 /**
  * Validate Midtrans webhook signature
  * Uses SHA512(order_id + status_code + gross_amount + ServerKey)
