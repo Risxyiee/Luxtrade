@@ -16,8 +16,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import PaymentConfirmationModal from '@/components/PaymentConfirmationModal'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { toast } from 'sonner'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 export const dynamic = 'force-dynamic'
@@ -475,32 +475,54 @@ function LifetimeUltraCard({ onButtonClick, language, t }: { onButtonClick: () =
 
 export default function LuxTradeLanding() {
   const { language, t, formatPrice } = useLanguage()
-  const [showPayment, setShowPayment] = useState(false)
-  const [showLifetimePaymentModal, setShowLifetimePaymentModal] = useState(false)
+  const [snapLoaded, setSnapLoaded] = useState(false)
+  const [payLoading, setPayLoading] = useState<string | null>(null)
 
-  // Don't render until mounted to avoid SSR issues with useLanguage
-  // (hasMounted is always true since this is 'use client')
+  // Load Midtrans Snap.js
+  useEffect(() => {
+    const loadSnap = async () => {
+      try {
+        const res = await fetch('/api/midtrans/create-transaction')
+        const config = await res.json()
+        if (!config.configured || !config.snapUrl) return
+        if ((window as any).snap) { setSnapLoaded(true); return }
+        const script = document.createElement('script')
+        script.id = 'midtrans-snap-landing2'
+        script.src = config.snapUrl
+        script.setAttribute('data-client-key', config.clientKey)
+        script.async = true
+        script.onload = () => setSnapLoaded(true)
+        document.body.appendChild(script)
+      } catch { /* ignore */ }
+    }
+    loadSnap()
+  }, [])
 
-  // Skrill payment links for English users
-  const skrillLinks = {
-    pro: 'https://skrill.me/rq/RIZQI%20AKBAR/3/USD?key=vXcr_5kNitZJFVBnkmK0sakLnjB',
-    lifetime: 'https://skrill.me/rq/RIZQI%20AKBAR/5/USD?key=EI71vCJNy64rGTOWNzhHPcWiTXS'
+  const handleMidtransPay = async (plan: 'PRO_30_DAYS' | 'PRO_LIFETIME') => {
+    if (!snapLoaded) { toast.error('Payment gateway sedang dimuat, coba lagi...'); return }
+    setPayLoading(plan)
+    try {
+      const res = await fetch('/api/midtrans/create-transaction', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan }),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error || 'Gagal membuat transaksi'); setPayLoading(null); return }
+      ;(window as any).snap.pay(data.token, {
+        onSuccess: () => { toast.success('Pembayaran berhasil! Akun PRO sedang diaktivasi...'); setTimeout(() => window.location.href = '/dashboard', 2000) },
+        onPending: () => { toast.info('Menunggu pembayaran. Selesaikan untuk mengaktifkan PRO otomatis.') },
+        onError: () => { toast.error('Pembayaran gagal atau dibatalkan.') },
+        onClose: () => { setPayLoading(null) },
+      })
+    } catch { toast.error('Gagal terhubung ke payment gateway'); setPayLoading(null) }
   }
 
   const handleProUpgrade = () => {
-    if (language === 'en') {
-      window.open(skrillLinks.pro, '_blank')
-    } else {
-      setShowPayment(true)
-    }
+    if (language === 'en') window.open('https://skrill.me/rq/RIZQI%20AKBAR/3/USD?key=vXcr_5kNitZJFVBnkmK0sakLnjB', '_blank')
+    else handleMidtransPay('PRO_30_DAYS')
   }
-
   const handleLifetimeUpgrade = () => {
-    if (language === 'en') {
-      window.open(skrillLinks.lifetime, '_blank')
-    } else {
-      setShowLifetimePaymentModal(true)
-    }
+    if (language === 'en') window.open('https://skrill.me/rq/RIZQI%20AKBAR/5/USD?key=EI71vCJNy64rGTOWNzhHPcWiTXS', '_blank')
+    else handleMidtransPay('PRO_LIFETIME')
   }
 
   // Realistic stats for a new trading platform
@@ -1148,9 +1170,10 @@ export default function LuxTradeLanding() {
                 >
                   <Button
                     onClick={handleProUpgrade}
-                    className="w-full h-12 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-xl"
+                    disabled={payLoading === 'PRO_30_DAYS'}
+                    className="w-full h-12 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-xl disabled:opacity-60"
                   >
-                    {t('pricing.cta.upgrade')}
+                    {payLoading === 'PRO_30_DAYS' ? 'Membuka pembayaran...' : t('pricing.cta.upgrade')}
                   </Button>
                 </motion.div>
               </motion.div>
@@ -1580,9 +1603,7 @@ export default function LuxTradeLanding() {
         </div>
       </footer>
 
-      {/* Payment Modals */}
-      <PaymentConfirmationModal isOpen={showPayment} onClose={() => setShowPayment(false)} planName="Elite Pro" planPrice={25000} />
-      <PaymentConfirmationModal isOpen={showLifetimePaymentModal} onClose={() => setShowLifetimePaymentModal(false)} planName="Lifetime Ultra" planPrice={52000} />
+      {/* Payment Modals — Midtrans handles payment via Snap popup, no manual modal needed */}
     </div>
   )
 }

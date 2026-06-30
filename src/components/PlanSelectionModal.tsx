@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Check, Crown, Sparkles, Clock, ArrowRight, ShieldCheck, Loader2, Zap, CreditCard, Tag } from 'lucide-react'
+import { X, Check, Crown, Sparkles, Clock, ArrowRight, ShieldCheck, Loader2, Tag, CreditCard } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { PRICING, formatRupiah, type PricingPlan } from '@/lib/pricing'
 import PaymentConfirmationModal from './PaymentConfirmationModal'
@@ -105,17 +105,17 @@ const plans: Plan[] = [
 
 export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPaymentSuccess }: PlanSelectionModalProps) {
   const [hoveredPlan, setHoveredPlan] = useState<string | null>(null)
-  const [showPayment, setShowPayment] = useState(false)
+  const [showManualPayment, setShowManualPayment] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
   const [promoCode, setPromoCode] = useState('')
   const [promoValid, setPromoValid] = useState(false)
   const [promoInfo, setPromoInfo] = useState<any>(null)
   const [promoLoading, setPromoLoading] = useState(false)
-  const [midtransLoading, setMidtransLoading] = useState<string | null>(null)
-  const [midtransReady, setMidtransReady] = useState(false)
-  const [paymentMethod, setPaymentMethod] = useState<'midtrans' | 'manual'>('midtrans')
+  const [payLoading, setPayLoading] = useState<string | null>(null)
+  const [snapLoaded, setSnapLoaded] = useState(false)
+  const [gatewayAvailable, setGatewayAvailable] = useState<boolean | null>(null)
 
-  // Load Midtrans Snap script
+  // Load Midtrans Snap script on mount
   useEffect(() => {
     if (!isOpen) return
 
@@ -123,33 +123,37 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
       try {
         const res = await fetch('/api/midtrans/create-transaction')
         const config = await res.json()
+
         if (!config.configured || !config.snapUrl) {
-          console.log('Midtrans not configured, manual payment only')
-          setPaymentMethod('manual')
+          console.log('[PlanSelection] Midtrans not configured — manual QRIS fallback')
+          setGatewayAvailable(false)
           return
         }
 
-        // Check if script already loaded
-        if (document.getElementById('midtrans-snap-script')) {
-          setMidtransReady(true)
+        setGatewayAvailable(true)
+
+        // Already loaded?
+        if ((window as any).snap) {
+          setSnapLoaded(true)
           return
         }
 
         const script = document.createElement('script')
         script.id = 'midtrans-snap-script'
         script.src = config.snapUrl
+        script.setAttribute('data-client-key', config.clientKey)
         script.async = true
         script.onload = () => {
-          setMidtransReady(true)
-          console.log('Midtrans Snap loaded')
+          setSnapLoaded(true)
+          console.log('[PlanSelection] Midtrans Snap.js loaded')
         }
         script.onerror = () => {
-          console.warn('Failed to load Midtrans Snap')
-          setPaymentMethod('manual')
+          console.warn('[PlanSelection] Failed to load Snap.js — fallback to manual')
+          setGatewayAvailable(false)
         }
         document.body.appendChild(script)
       } catch {
-        setPaymentMethod('manual')
+        setGatewayAvailable(false)
       }
     }
 
@@ -185,14 +189,16 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
     }
   }, [promoCode])
 
-  // Open Midtrans Snap popup
-  const handleMidtransPay = async (plan: Plan) => {
-    if (!midtransReady) {
-      toast.error('Payment gateway sedang dimuat...')
+  // Pay via Midtrans Snap popup
+  const handlePay = async (plan: Plan) => {
+    // If gateway not available, fallback to manual QRIS
+    if (gatewayAvailable === false || !snapLoaded) {
+      setSelectedPlan(plan)
+      setShowManualPayment(true)
       return
     }
 
-    setMidtransLoading(plan.id)
+    setPayLoading(plan.id)
     try {
       const res = await fetch('/api/midtrans/create-transaction', {
         method: 'POST',
@@ -207,59 +213,49 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
 
       if (!res.ok) {
         toast.error(data.error || 'Gagal membuat transaksi')
-        setMidtransLoading(null)
+        setPayLoading(null)
         return
       }
 
-      // Open Snap popup
+      // Open Midtrans Snap payment popup
       ;(window as any).snap.pay(data.token, {
         onSuccess: () => {
-          toast.success('Pembayaran berhasil! Akun PRO kamu sedang diaktivasi...')
+          toast.success('Pembayaran berhasil! Akun PRO kamu sedang diaktivasi otomatis...')
           if (onPaymentSuccess) onPaymentSuccess()
           onClose()
-          // Refresh after a short delay for DB sync
           setTimeout(() => window.location.reload(), 3000)
         },
         onPending: () => {
-          toast.info('Menunggu pembayaran. Selesaikan pembayaran untuk mengaktifkan PRO.')
+          toast.info('Menunggu pembayaran. Selesaikan pembayaran untuk mengaktifkan PRO otomatis.')
         },
         onError: () => {
           toast.error('Pembayaran gagal atau dibatalkan.')
         },
         onClose: () => {
-          setMidtransLoading(null)
+          setPayLoading(null)
         },
       })
     } catch (err: any) {
       toast.error(err.message || 'Gagal terhubung ke payment gateway')
-      setMidtransLoading(null)
+      setPayLoading(null)
     }
   }
 
-  const handlePlanSelect = async (plan: Plan) => {
+  const handlePlanSelect = (plan: Plan) => {
     if (plan.price === 0) {
       onSelectPlan(plan)
       return
     }
 
-    setSelectedPlan(plan)
-
-    // If Midtrans ready and method is midtrans, go straight to Snap
-    if (paymentMethod === 'midtrans' && midtransReady) {
-      handleMidtransPay(plan)
-    } else {
-      // Fallback to manual payment
-      setShowPayment(true)
-    }
+    // For paid plans → go through Midtrans Snap (or manual fallback)
+    handlePay(plan)
   }
 
-  const handlePaymentClose = () => {
-    setShowPayment(false)
+  const handleManualPaymentClose = () => {
+    setShowManualPayment(false)
     setSelectedPlan(null)
-    setMidtransLoading(null)
-    if (onPaymentSuccess) {
-      onPaymentSuccess()
-    }
+    setPayLoading(null)
+    if (onPaymentSuccess) onPaymentSuccess()
   }
 
   // Calculate discounted price
@@ -321,9 +317,8 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                 </div>
               </div>
 
-              {/* Promo Code + Payment Method Toggle */}
+              {/* Promo Code Input */}
               <div className="px-6 md:px-8 py-4 border-b border-white/5 space-y-3">
-                {/* Promo Code */}
                 <div className="flex items-center gap-2 max-w-md mx-auto">
                   <div className="relative flex-1">
                     <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-400" />
@@ -356,39 +351,11 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                     className="text-center"
                   >
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
-                      <Zap className="w-3 h-3" />
+                      <Sparkles className="w-3 h-3" />
                       Diskon {promoInfo.discountPercent}% aktif — {promoInfo.remainingQuota} kuota tersisa
                     </span>
                   </motion.div>
                 )}
-
-                {/* Payment Method Toggle */}
-                <div className="flex items-center justify-center gap-3">
-                  <button
-                    onClick={() => setPaymentMethod('midtrans')}
-                    disabled={!midtransReady}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      paymentMethod === 'midtrans'
-                        ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                        : 'text-white/40 hover:text-white/60'
-                    } disabled:opacity-30 disabled:cursor-not-allowed`}
-                  >
-                    <CreditCard className="w-3.5 h-3.5" />
-                    Pay Otomatis
-                  </button>
-                  <span className="text-white/20">|</span>
-                  <button
-                    onClick={() => setPaymentMethod('manual')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      paymentMethod === 'manual'
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                        : 'text-white/40 hover:text-white/60'
-                    }`}
-                  >
-                    <Zap className="w-3.5 h-3.5" />
-                    Bayar Manual (QRIS)
-                  </button>
-                </div>
               </div>
 
               {/* Plans Grid */}
@@ -473,7 +440,7 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                       <motion.button
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        disabled={midtransLoading === plan.id}
+                        disabled={payLoading === plan.id}
                         className={`
                           w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer
                           disabled:opacity-60 disabled:cursor-wait
@@ -487,16 +454,16 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                           }
                         `}
                       >
-                        {midtransLoading === plan.id ? (
+                        {payLoading === plan.id ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin" />
-                            Memproses...
+                            Membuka pembayaran...
                           </>
                         ) : plan.price === 0 ? (
                           'Mulai Gratis'
                         ) : (
                           <>
-                            {paymentMethod === 'midtrans' ? 'Bayar Sekarang' : 'Bayar Manual'}
+                            Bayar Sekarang
                             <ArrowRight className="w-4 h-4" />
                           </>
                         )}
@@ -510,12 +477,13 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
               <div className="px-6 md:px-8 pb-6 md:pb-8">
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-white/30 text-xs">
                   <div className="flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/60" />
-                    <span>{paymentMethod === 'midtrans' ? 'Pembayaran Otomatis via Midtrans' : 'Pembayaran QRIS'}</span>
+                    <CreditCard className="w-3.5 h-3.5 text-purple-500/60" />
+                    <span>Pembayaran aman via {gatewayAvailable !== false ? 'Midtrans' : 'QRIS'}</span>
                   </div>
                   <span className="hidden sm:inline">•</span>
                   <div className="flex items-center gap-1.5">
-                    <span>{paymentMethod === 'midtrans' ? 'Aktivasi otomatis setelah bayar' : 'Konfirmasi via Telegram'}</span>
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/60" />
+                    <span>{gatewayAvailable !== false ? 'Aktivasi PRO otomatis setelah bayar' : 'Konfirmasi via Telegram'}</span>
                   </div>
                   <span className="hidden sm:inline">•</span>
                   <div className="flex items-center gap-1.5">
@@ -528,10 +496,10 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
         </motion.div>
       </AnimatePresence>
 
-      {/* Manual Payment Confirmation Modal (fallback) */}
+      {/* Manual Payment Fallback (QRIS) — only shown when Midtrans is not available */}
       <PaymentConfirmationModal
-        isOpen={showPayment}
-        onClose={handlePaymentClose}
+        isOpen={showManualPayment}
+        onClose={handleManualPaymentClose}
         planName={selectedPlan?.name}
         planPrice={selectedPlan ? getDiscountedPrice(selectedPlan) : undefined}
       />
