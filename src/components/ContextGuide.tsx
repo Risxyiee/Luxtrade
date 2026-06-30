@@ -81,21 +81,6 @@ export const guideData: Record<string, GuideTip> = {
       en: 'You can have multiple trading accounts.'
     }
   },
-  smartImport: {
-    id: 'smartImport',
-    title: {
-      id: 'Smart Import AI',
-      en: 'Smart Import AI'
-    },
-    description: {
-      id: 'Upload screenshot atau HTML dari MT4/MT5. AI akan otomatis mengekstrak data trading.',
-      en: 'Upload screenshot or HTML from MT4/MT5. AI will automatically extract trading data.'
-    },
-    tips: {
-      id: 'Tersedia untuk user PRO dan trial users (3x penggunaan).',
-      en: 'Available for PRO users and trial users (3x usage).'
-    }
-  },
   calendar: {
     id: 'calendar',
     title: {

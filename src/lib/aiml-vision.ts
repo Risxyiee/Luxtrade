@@ -8,7 +8,7 @@
 
 import sharp from 'sharp'
 
-const AIML_API_URL = 'https://api.aimlapi.com/v1/chat/completions'
+const AIML_API_URL = 'https://api.aimlapi.com/v2/glm-ocr'
 
 interface AimlVisionOptions {
   timeout?: number
@@ -21,7 +21,7 @@ interface VisionResult {
 }
 
 /**
- * Call AIML API (GLM-4V-OCR) with image + prompt
+ * Call AIML API (GLM-OCR) with image + prompt
  */
 export async function analyzeImageWithAiml(
   imageBuffer: Buffer,
