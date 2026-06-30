@@ -9,9 +9,9 @@ import {
   TrendingUp, TrendingDown, Plus, BarChart3, BookOpen,
   Eye, Brain, Menu, X, DollarSign, Target,
   Activity, PieChart, Sparkles, AlertTriangle,
-  Zap, RefreshCw, LogOut, CalendarDays, Upload, Edit, Trash2, Eye as ViewIcon, Calendar, Clock,
+  Zap, RefreshCw, LogOut, CalendarDays, Edit, Trash2, Calendar, Clock,
   Smile, Meh, Frown, Sun, Moon, Cloud, AlertCircle, Search, Send, MessageSquare, MessageCircle, Bot, User,
-  TrendingUp as TrendingUpIcon, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, FileText, Share2, Download, Shield, Crown, AlertCircle as AlertCircleIcon, Camera, Gift, Trophy, Flame, ExternalLink, Newspaper
+  TrendingUp as TrendingUpIcon, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, FileText, Share2, Download, Shield, Crown, AlertCircle as AlertCircleIcon, Gift, Trophy, Flame, ExternalLink, Newspaper
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -68,17 +68,14 @@ import DashboardModals from './components/DashboardModals'
 import TabContent from './components/TabContent'
 
 // Extracted Utils & Hooks
-import { Trade, JournalEntry, WatchlistItem, Analytics, TradeFormData, MTReportPreview, emptyFormData } from './utils/types'
+import { Trade, JournalEntry, WatchlistItem, Analytics, TradeFormData, emptyFormData } from './utils/types'
 import { formatLocalDateTime, datetimeLocalToFormat, moodOptions, marketConditions } from './utils/helpers'
 import { useCountUp } from './hooks/useCountUp'
-import { parseMT4HTML } from './utils/parseMT4HTML'
-import { parseCSV, fileToBase64 } from './utils/importUtils'
 
 // Extracted Handlers
 import { createTradeHandlers } from './handlers/tradeHandlers'
 import { createJournalHandlers } from './handlers/journalHandlers'
 import { createWatchlistHandlers } from './handlers/watchlistHandlers'
-import { createImportHandlers } from './handlers/importHandlers'
 
 
 // ==================== EXTRACTED INTERFACES MOVED TO utils/types.ts ====================
@@ -165,24 +162,6 @@ function LuxTradeDashboardContent() {
   
   // Watchlist modals
   const [addWatchlistOpen, setAddWatchlistOpen] = useState(false)
-  
-  // CSV Import
-  const [csvImportOpen, setCsvImportOpen] = useState(false)
-  const [csvFile, setCsvFile] = useState<File | null>(null)
-  const [csvPreview, setCsvPreview] = useState<Trade[]>([])
-  const [csvImporting, setCsvImporting] = useState(false)
-  
-  // Smart Import (PDF/CSV/HTML)
-  const [smartImportOpen, setSmartImportOpen] = useState(false)
-  const [smartImportPreview, setSmartImportPreview] = useState<MTReportPreview | null>(null)
-  const [smartImportFile, setSmartImportFile] = useState<File | null>(null)
-  const [smartImportParsing, setSmartImportParsing] = useState(false)
-
-  // Universal Trade Importer - 2 Tabs
-  const [importTab, setImportTab] = useState<'screenshot' | 'file'>('screenshot')
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
-  const [importedTrades, setImportedTrades] = useState<Trade[]>([])
-  const [importParsing, setImportParsing] = useState(false)
 
   // Data states
   const [trades, setTrades] = useState<Trade[]>([])
@@ -362,24 +341,6 @@ function LuxTradeDashboardContent() {
     }
   }, [])
 
-  // ==================== IMPORT TRADE EDITING ====================
-  
-  // Update a specific field of an imported trade
-  const updateImportedTrade = useCallback((index: number, field: keyof Trade, value: string | number) => {
-    setImportedTrades(prev => {
-      const updated = [...prev]
-      if (updated[index]) {
-        updated[index] = { ...updated[index], [field]: value }
-      }
-      return updated
-    })
-  }, [])
-  
-  // Remove an imported trade from the list
-  const removeImportedTrade = useCallback((index: number) => {
-    setImportedTrades(prev => prev.filter((_, i) => i !== index))
-  }, [])
-
   // Fetch all data
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -545,48 +506,6 @@ function LuxTradeDashboardContent() {
     fetchData
   })
 
-  // Import Handlers
-  const {
-    handleCsvFileChange,
-    handleCsvImport,
-    handleSmartImport,
-    handleSmartImportSave,
-    handleScreenshotUpload,
-    handleFileUpload,
-    handleSaveImportedTrades
-  } = createImportHandlers({
-    csvFile,
-    setCsvFile,
-    csvPreview,
-    setCsvPreview,
-    csvImporting,
-    setCsvImporting,
-    csvImportOpen,
-    setCsvImportOpen,
-    smartImportOpen,
-    setSmartImportOpen,
-    smartImportPreview,
-    setSmartImportPreview,
-    smartImportFile,
-    setSmartImportFile,
-    smartImportParsing,
-    setSmartImportParsing,
-    importTab,
-    setImportTab,
-    screenshotPreview,
-    setScreenshotPreview,
-    importedTrades,
-    setImportedTrades,
-    importParsing,
-    setImportParsing,
-    updateImportedTrade,
-    removeImportedTrade,
-    isPro,
-    setPlanSelectionModalOpen,
-    getAuthHeaders,
-    fetchData
-  })
-
   // ==================== AI INSIGHTS ====================
 
   const getPerformanceTips = async () => {
@@ -743,7 +662,6 @@ function LuxTradeDashboardContent() {
           fetchData={fetchData}
           trades={trades}
           isPro={isPro}
-          setSmartImportOpen={setSmartImportOpen}
           user={user}
           handleSignOut={handleSignOut}
           userInitials={userInitials}
@@ -765,8 +683,6 @@ function LuxTradeDashboardContent() {
           setAddTradeOpen={setAddTradeOpen}
           setAddJournalOpen={setAddJournalOpen}
           setAddWatchlistOpen={setAddWatchlistOpen}
-          setCsvImportOpen={setCsvImportOpen}
-          setSmartImportOpen={setSmartImportOpen}
           setPlanSelectionModalOpen={setPlanSelectionModalOpen}
           onView={openViewModal}
           onEdit={openEditModal}
@@ -803,10 +719,6 @@ function LuxTradeDashboardContent() {
         setAddJournalOpen={setAddJournalOpen}
         addWatchlistOpen={addWatchlistOpen}
         setAddWatchlistOpen={setAddWatchlistOpen}
-        csvImportOpen={csvImportOpen}
-        setCsvImportOpen={setCsvImportOpen}
-        smartImportOpen={smartImportOpen}
-        setSmartImportOpen={setSmartImportOpen}
         planSelectionModalOpen={planSelectionModalOpen}
         setPlanSelectionModalOpen={setPlanSelectionModalOpen}
         paymentModalOpen={paymentModalOpen}
@@ -853,29 +765,6 @@ function LuxTradeDashboardContent() {
         watchlistForm={watchlistForm}
         setWatchlistForm={setWatchlistForm}
         handleAddWatchlist={handleAddWatchlist}
-
-        // CSV Import-related
-        csvFile={csvFile}
-        csvPreview={csvPreview}
-        csvImporting={csvImporting}
-        setCsvFile={setCsvFile}
-        setCsvPreview={setCsvPreview}
-        handleCsvFileChange={handleCsvFileChange}
-        handleCsvImport={handleCsvImport}
-
-        // Smart Import-related
-        importTab={importTab}
-        setImportTab={setImportTab}
-        screenshotPreview={screenshotPreview}
-        importedTrades={importedTrades}
-        importParsing={importParsing}
-        setScreenshotPreview={setScreenshotPreview}
-        setImportedTrades={setImportedTrades}
-        handleScreenshotUpload={handleScreenshotUpload}
-        handleFileUpload={handleFileUpload}
-        handleSaveImportedTrades={handleSaveImportedTrades}
-        updateImportedTrade={updateImportedTrade}
-        removeImportedTrade={removeImportedTrade}
 
         // User & Plan
         user={user}

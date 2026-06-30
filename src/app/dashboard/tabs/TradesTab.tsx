@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Activity, Search, Upload, Download, FileText, View as ViewIcon, Edit, Trash2, RefreshCw, Clock, Target, Tag, Link2, Image as ImageIcon } from 'lucide-react'
+import { Activity, Search, Download, View as ViewIcon, Edit, Trash2, Clock, Target, Tag, Link2, Image as ImageIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,8 +41,6 @@ interface TradesTabProps {
   onView: (trade: Trade) => void
   onEdit: (trade: Trade) => void
   onDelete: (trade: Trade) => void
-  onImport: () => void
-  onSmartImport: () => void
 }
 
 function TradesTab({
@@ -50,9 +48,7 @@ function TradesTab({
   loading,
   onView,
   onEdit,
-  onDelete,
-  onImport,
-  onSmartImport
+  onDelete
 }: TradesTabProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'BUY' | 'SELL'>('all')
@@ -135,12 +131,6 @@ function TradesTab({
           <p className="text-sm text-gray-400">{filteredTrades.length} of {trades.length} trades</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={onSmartImport} variant="outline" className="border-purple-500/30 text-purple-400">
-            <Upload className="w-4 h-4 mr-2" /> Smart Import
-          </Button>
-          <Button onClick={onImport} className="bg-gradient-to-r from-purple-500 to-violet-600">
-            <FileText className="w-4 h-4 mr-2" /> Import CSV
-          </Button>
           <Button onClick={handleExportCSV} variant="outline" className="border-emerald-500/30 text-emerald-400">
             <Download className="w-4 h-4 mr-2" /> Export CSV
           </Button>

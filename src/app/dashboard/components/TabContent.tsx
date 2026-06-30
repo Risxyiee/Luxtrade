@@ -34,8 +34,6 @@ interface TabContentProps {
   setAddTradeOpen: (open: boolean) => void
   setAddJournalOpen: (open: boolean) => void
   setAddWatchlistOpen: (open: boolean) => void
-  setCsvImportOpen: (open: boolean) => void
-  setSmartImportOpen: (open: boolean) => void
   setPlanSelectionModalOpen: (open: boolean) => void
   onView: (trade: Trade) => void
   onEdit: (trade: Trade) => void
@@ -70,8 +68,6 @@ export default function TabContent({
   setAddTradeOpen,
   setAddJournalOpen,
   setAddWatchlistOpen,
-  setCsvImportOpen,
-  setSmartImportOpen,
   setPlanSelectionModalOpen,
   onView,
   onEdit,
@@ -132,8 +128,6 @@ export default function TabContent({
             onView={onView}
             onEdit={onEdit}
             onDelete={onDelete}
-            onImport={() => setCsvImportOpen(true)}
-            onSmartImport={() => setSmartImportOpen(true)}
           />
         </motion.div>
       )}
