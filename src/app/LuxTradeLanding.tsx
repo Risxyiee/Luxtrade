@@ -509,7 +509,7 @@ export default function LuxTradeLanding() {
 
       if (res.status === 401) {
         setPayLoading(null)
-        window.location.href = `/auth/signup?plan=${plan}&redirect=/dashboard`
+        window.location.href = `/auth/checkout?plan=${plan}`
         return
       }
 
