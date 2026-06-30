@@ -170,8 +170,17 @@ export async function POST(request: NextRequest) {
     if (!snapRes.ok) {
       const errText = await snapRes.text()
       console.error('❌ [Midtrans] Snap API error:', snapRes.status, errText)
+      let userMessage = 'Gagal membuat transaksi pembayaran'
+      try {
+        const errJson = JSON.parse(errText)
+        if (errJson.validation_messages) {
+          userMessage = `Payment error: ${Array.isArray(errJson.validation_messages) ? errJson.validation_messages.join(', ') : errJson.validation_messages}`
+        } else if (errJson.status_message) {
+          userMessage = errJson.status_message
+        }
+      } catch { /* keep default message */ }
       return NextResponse.json(
-        { error: 'Gagal membuat transaksi pembayaran' },
+        { error: userMessage },
         { status: 500 }
       )
     }
