@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
 import { extractTradeData, saveTrade, uploadScreenshot } from '@/lib/extractTradeData'
+import { analyzeImageWithAiml } from '@/lib/aiml-vision'
 
 // ==================== TYPES ====================
 
@@ -18,18 +19,12 @@ interface GeneratedJournal {
 // ==================== HELPERS ====================
 
 /**
- * Generate journal content using LLM based on extracted trade data
- * Uses HuggingFace Vision API (FREE)
+ * Generate journal content using AIML GLM-OCR based on extracted trade data
  */
 async function generateJournalContent(
   tradeData: any,
   imageBuffer: Buffer
 ): Promise<GeneratedJournal> {
-  // Import here to avoid circular dependency
-  const { analyzeImageWithHuggingFace } = await import('@/lib/huggingface-vision')
-
-  const base64Image = imageBuffer.toString('base64')
-
   const journalPrompt = `Based on this trading screenshot with the following extracted data:
 - Symbol: ${tradeData.symbol}
 - Type: ${tradeData.type}
@@ -59,13 +54,13 @@ Market Condition: [trending/ranging/volatile/bullish/bearish]
 Tags: [comma-separated relevant tags]
 Setup Type: [strategy name like breakout/pullback/momentum etc.]`
 
-  const journalResponse = await analyzeImageWithHuggingFace(base64Image, journalPrompt, {
+  const journalResponse = await analyzeImageWithAiml(imageBuffer, journalPrompt, {
     timeout: 60000,
     maxRetries: 2
   })
 
   const journalContent = journalResponse.text || ''
-  console.log('📝 [Auto Journal] Journal analysis completed')
+  console.log('📝 [Auto Journal] Journal analysis completed (AIML GLM-OCR)')
 
   // Parse journal response
   const journal = parseJournalResponse(journalContent)
@@ -176,9 +171,9 @@ export async function POST(request: NextRequest) {
     const bytes = await imageFile.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    console.log('🤖 [Auto Journal] Extracting trade data with AI (HuggingFace Vision - FREE)...')
+    console.log('🤖 [Auto Journal] Extracting trade data with AI (AIML GLM-OCR)...')
 
-    // Extract trade data using HuggingFace Vision API (FREE)
+    // Extract trade data using AIML GLM-OCR
     const extractionResult = await extractTradeData(buffer)
 
     if (!extractionResult.success) {
@@ -222,7 +217,7 @@ export async function POST(request: NextRequest) {
       // Continue without screenshot URL
     }
 
-    // Generate journal content
+    // Generate journal content using AIML GLM-OCR
     console.log('📝 [Auto Journal] Generating journal content...')
     const journal = await generateJournalContent(extractionResult.data, buffer)
 

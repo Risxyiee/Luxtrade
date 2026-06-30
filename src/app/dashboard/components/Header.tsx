@@ -1,11 +1,10 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Menu, RefreshCw, Upload, LogOut } from 'lucide-react'
+import { Menu, RefreshCw, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import NotificationCenter from '@/components/NotificationCenter'
-import { ContextGuide, useContextGuides, guideData } from '@/components/ContextGuide'
 
 interface HeaderProps {
   sidebarOpen: boolean
@@ -16,7 +15,6 @@ interface HeaderProps {
   fetchData: () => void
   trades: any[]
   isPro: boolean
-  setSmartImportOpen: (open: boolean) => void
   user: any
   handleSignOut: () => void
   userInitials: string
@@ -32,14 +30,11 @@ export default function Header({
   fetchData,
   trades,
   isPro,
-  setSmartImportOpen,
   user,
   handleSignOut,
   userInitials,
   language = 'id'
 }: HeaderProps) {
-  const { activeGuide, openGuide, closeGuide } = useContextGuides()
-
   return (
     <header className="h-16 border-b border-purple-900/30 flex items-center justify-between px-4 lg:px-6 bg-[#0f0b18]/90 backdrop-blur-md sticky top-0 z-30">
       <div className="flex items-center gap-3">
@@ -72,34 +67,6 @@ export default function Header({
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           />
           <span className="text-xs text-emerald-400">Connected</span>
-        </div>
-
-        <div className="relative">
-          <button
-            onClick={() => setSmartImportOpen(true)}
-            className="flex px-2 sm:px-3 lg:px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-violet-500/20 text-purple-400 border border-purple-500/30 hover:from-purple-500/30 hover:to-violet-500/30 transition-all text-sm font-medium items-center gap-1 sm:gap-2"
-            title={language === 'id' ? 'Import Trade menggunakan AI' : 'Import trades using AI'}
-          >
-            <Upload className="w-4 h-4 flex-shrink-0" />
-            <span className="hidden sm:inline">Smart</span>
-            <span className="hidden lg:inline">Import</span>
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); openGuide('smartImport') }}
-            className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center text-[8px] text-white hover:bg-purple-600 transition-colors z-10"
-            title={language === 'id' ? 'Panduan' : 'Guide'}
-          >
-            ?
-          </button>
-          <ContextGuide
-            isOpen={activeGuide === 'smartImport'}
-            onClose={closeGuide}
-            title={guideData.smartImport.title[language]}
-            description={guideData.smartImport.description[language]}
-            tips={guideData.smartImport.tips?.[language]}
-            language={language}
-            position="bottom"
-          />
         </div>
 
         {user && (
