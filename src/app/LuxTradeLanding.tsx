@@ -506,6 +506,13 @@ export default function LuxTradeLanding() {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan }),
       })
       const data = await res.json()
+
+      if (res.status === 401) {
+        setPayLoading(null)
+        window.location.href = `/signup?plan=${plan}&redirect=/dashboard`
+        return
+      }
+
       if (!res.ok) { toast.error(data.error || 'Gagal membuat transaksi'); setPayLoading(null); return }
       ;(window as any).snap.pay(data.token, {
         onSuccess: () => { toast.success('Pembayaran berhasil! Akun PRO sedang diaktivasi...'); setTimeout(() => window.location.href = '/dashboard', 2000) },
