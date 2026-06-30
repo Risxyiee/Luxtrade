@@ -423,6 +423,14 @@ export default function LuxTradeLanding() {
         body: JSON.stringify({ plan }),
       })
       const data = await res.json()
+
+      if (res.status === 401) {
+        // Not logged in — redirect to signup with plan info
+        setPayLoading(null)
+        window.location.href = `/signup?plan=${plan}&redirect=/dashboard`
+        return
+      }
+
       if (!res.ok) { toast.error(data.error || 'Gagal membuat transaksi'); setPayLoading(null); return }
 
       ;(window as any).snap.pay(data.token, {
