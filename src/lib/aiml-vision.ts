@@ -9,6 +9,9 @@
 import sharp from 'sharp'
 
 const AIML_API_URL = 'https://api.aimlapi.com/v2/glm-ocr'
+const ZYLOO_API_URL = 'https://api.zyloo.io/v1/chat/completions'
+
+// ==================== ZYLOO FALLBACK (Text-only, for journal generation) ====================
 
 interface AimlVisionOptions {
   timeout?: number
@@ -18,6 +21,107 @@ interface AimlVisionOptions {
 interface VisionResult {
   text: string
   raw?: any
+}
+
+/**
+ * Call Zyloo API (Claude Opus 4.7) as a text-only fallback.
+ * Used when AIML GLM-OCR fails for journal generation tasks.
+ */
+export async function analyzeTextWithZyloo(
+  prompt: string,
+  options: { timeout?: number; maxRetries?: number } = {}
+): Promise<{ text: string; raw?: any }> {
+  const { timeout = 60000, maxRetries = 2 } = options
+
+  const apiKey = process.env.ZYLOO_API_KEY
+  if (!apiKey) {
+    throw new Error('ZYLOO_API_KEY is not configured')
+  }
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      console.log(`🤖 [Zyloo] Claude Opus attempt ${attempt + 1}/${maxRetries}`)
+
+      const response = await fetch(ZYLOO_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'zyloo/claude-opus-4-7',
+          messages: [
+            { role: 'user', content: prompt },
+          ],
+          max_tokens: 2048,
+          temperature: 0.3,
+        }),
+        signal: AbortSignal.timeout(timeout),
+      })
+
+      if (!response.ok) {
+        const errText = await response.text()
+        console.error(`❌ [Zyloo] Error ${response.status}:`, errText)
+
+        if (response.status === 429 && attempt < maxRetries - 1) {
+          await new Promise(r => setTimeout(r, 3000 * (attempt + 1)))
+          continue
+        }
+
+        throw new Error(`Zyloo API error (${response.status}): ${errText.slice(0, 200)}`)
+      }
+
+      const data = await response.json()
+      const text = data.choices?.[0]?.message?.content || ''
+
+      if (!text.trim()) {
+        throw new Error('Empty response from Zyloo API')
+      }
+
+      console.log(`✅ [Zyloo] Success: ${text.length} chars`)
+      return { text, raw: data }
+    } catch (error: any) {
+      if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+        if (attempt < maxRetries - 1) {
+          await new Promise(r => setTimeout(r, 2000))
+          continue
+        }
+        throw new Error('Zyloo API timeout.')
+      }
+
+      if (attempt === maxRetries - 1) throw error
+
+      console.warn(`⚠️ [Zyloo] Retrying...`, error.message)
+      await new Promise(r => setTimeout(r, 2000 * (attempt + 1)))
+    }
+  }
+
+  throw new Error('All Zyloo API attempts failed')
+}
+
+/**
+ * Unified analysis: tries AIML GLM-OCR first (vision), falls back to Zyloo (text-only).
+ * For image-based tasks, use analyzeImageWithAiml directly.
+ */
+export async function analyzeWithFallback(
+  imageBuffer: Buffer,
+  imagePrompt: string,
+  textFallbackPrompt: string,
+  options: AimlVisionOptions = {}
+): Promise<VisionResult> {
+  // Try AIML GLM-OCR first (vision-capable)
+  try {
+    return await analyzeImageWithAiml(imageBuffer, imagePrompt, options)
+  } catch (aimlError: any) {
+    console.warn(`⚠️ [Fallback] AIML failed: ${aimlError.message}. Trying Zyloo...`)
+  }
+
+  // Fallback to Zyloo (text-only, no image)
+  const result = await analyzeTextWithZyloo(textFallbackPrompt, {
+    timeout: options.timeout,
+    maxRetries: options.maxRetries,
+  })
+  return result
 }
 
 /**

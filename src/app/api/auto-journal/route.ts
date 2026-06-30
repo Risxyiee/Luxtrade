@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
 import { extractTradeData, saveTrade, uploadScreenshot } from '@/lib/extractTradeData'
-import { analyzeImageWithAiml } from '@/lib/aiml-vision'
+import { analyzeImageWithAiml, analyzeTextWithZyloo } from '@/lib/aiml-vision'
 
 // ==================== TYPES ====================
 
@@ -19,7 +19,7 @@ interface GeneratedJournal {
 // ==================== HELPERS ====================
 
 /**
- * Generate journal content using AIML GLM-OCR based on extracted trade data
+ * Generate journal content using AIML GLM-OCR with Zyloo fallback
  */
 async function generateJournalContent(
   tradeData: any,
@@ -54,13 +54,40 @@ Market Condition: [trending/ranging/volatile/bullish/bearish]
 Tags: [comma-separated relevant tags]
 Setup Type: [strategy name like breakout/pullback/momentum etc.]`
 
-  const journalResponse = await analyzeImageWithAiml(imageBuffer, journalPrompt, {
-    timeout: 60000,
-    maxRetries: 2
-  })
+  let journalContent = ''
 
-  const journalContent = journalResponse.text || ''
-  console.log('📝 [Auto Journal] Journal analysis completed (AIML GLM-OCR)')
+  // Try AIML GLM-OCR first (vision-capable)
+  try {
+    const journalResponse = await analyzeImageWithAiml(imageBuffer, journalPrompt, {
+      timeout: 60000,
+      maxRetries: 2
+    })
+    journalContent = journalResponse.text || ''
+    console.log('📝 [Auto Journal] Journal analysis completed (AIML GLM-OCR)')
+  } catch (aimlError: any) {
+    console.warn(`⚠️ [Auto Journal] AIML failed for journal: ${aimlError.message}. Trying Zyloo fallback...`)
+  }
+
+  // Fallback to Zyloo Claude Opus (text-only, no image)
+  if (!journalContent.trim()) {
+    try {
+      const zylooResponse = await analyzeTextWithZyloo(journalPrompt, {
+        timeout: 60000,
+        maxRetries: 2
+      })
+      journalContent = zylooResponse.text || ''
+      console.log('📝 [Auto Journal] Journal analysis completed (Zyloo Claude Opus fallback)')
+    } catch (zylooError: any) {
+      console.error('❌ [Auto Journal] Both AIML and Zyloo failed for journal generation')
+      // Generate a basic journal entry as last resort
+      journalContent = `Title: ${tradeData.symbol} ${tradeData.type} Trade
+Content: ${tradeData.type === 'buy' ? 'Long' : 'Short'} position on ${tradeData.symbol}. Entry at ${tradeData.openPrice}, exit at ${tradeData.closePrice}. P/L: ${tradeData.profitLoss}.
+Mood: neutral
+Market Condition: ranging
+Tags: ${tradeData.symbol.toLowerCase()}, ${tradeData.type}
+Setup Type: manual`
+    }
+  }
 
   // Parse journal response
   const journal = parseJournalResponse(journalContent)
