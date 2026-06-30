@@ -51,14 +51,14 @@ import sharp from "sharp";
 import { analyzeImageWithAiml, TRADE_EXTRACTION_PROMPT } from "./aiml-vision";
 
 /**
- * Extract trade data using AIML API (GLM-4V-OCR) — PRIMARY
+ * Extract trade data using Claude Opus Vision — PRIMARY
  */
-async function extractWithAimlVision(imageBuffer: Buffer): Promise<RawTradeData> {
+async function extractWithVision(imageBuffer: Buffer): Promise<RawTradeData> {
   const result = await analyzeImageWithAiml(imageBuffer, TRADE_EXTRACTION_PROMPT)
 
   const jsonMatch = result.text.match(/\{[\s\S]*\}/)
   if (!jsonMatch) {
-    throw new Error('No JSON found in AIML response')
+    throw new Error('No JSON found in vision response')
   }
 
   return JSON.parse(jsonMatch[0]) as RawTradeData
@@ -185,14 +185,14 @@ export async function extractTradeData(imageBuffer: Buffer): Promise<ExtractionR
   const errors: string[] = [];
   let rawData: RawTradeData | undefined;
 
-  // Primary: AIML API (GLM-4V-OCR)
+  // Primary: Claude Opus Vision via Zyloo
   try {
-    console.log('🤖 Extracting trade data with AIML GLM-4V-OCR...')
-    rawData = await extractWithAimlVision(imageBuffer)
-    console.log('✅ AIML extraction successful')
+    console.log('🤖 Extracting trade data with Claude Opus Vision...')
+    rawData = await extractWithVision(imageBuffer)
+    console.log('✅ Vision extraction successful')
   } catch (error: any) {
-    console.error('❌ AIML extraction failed:', error.message)
-    errors.push(`AIML error: ${error.message}`)
+    console.error('❌ Vision extraction failed:', error.message)
+    errors.push(`Vision error: ${error.message}`)
 
     return {
       success: false,

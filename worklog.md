@@ -2632,3 +2632,26 @@ Stage Summary:
 - Mobile sidebar now scrolls as one unit on mobile, all items (akun trade, setting, code promo) are accessible
 - Zyloo API added as backup when AIML API fails for journal generation
 - Files modified: Sidebar.tsx, aiml-vision.ts, auto-journal/route.ts
+---
+Task ID: 9
+Agent: Z.ai Code
+Task: Fix AIML GLM-OCR 404 — Switch to Zyloo Claude Opus as primary vision provider
+
+Work Log:
+- Identified AIML GLM-OCR endpoint `/v2/glm-ocr` returning 404 (service deprecated)
+- Rewrote `src/lib/aiml-vision.ts` — replaced AIML API with Zyloo Claude Opus 4.7 as primary
+- `analyzeImageWithAiml()` now sends image+prompt to Zyloo Claude Opus (multimodal vision)
+- `analyzeTextWithZyloo()` for text-only requests
+- `callZyloo()` unified internal function with retry logic, rate-limit handling, timeout
+- Updated `src/lib/extractTradeData.ts` — renamed to use Claude Opus Vision
+- Updated `src/app/api/auto-journal/route.ts` — Claude Opus Vision for extraction + journal gen, text-only fallback
+- Kept same function signatures so `screenshot-journal/route.ts` works without changes
+- Increased timeout to 90s for vision requests (Claude Opus needs more time)
+- Increased max_tokens to 4096 for better journal generation
+- Lint passes clean, compilation verified (GET / 200)
+
+Stage Summary:
+- AIML GLM-OCR fully replaced with Zyloo Claude Opus 4.7 (vision + text)
+- Extraction chain: Claude Opus Vision → Claude Opus Text → Basic template
+- Journal chain: Claude Opus Vision (image+prompt) → Claude Opus Text (no image) → Basic template
+- Files changed: aiml-vision.ts (rewrite), extractTradeData.ts (update), auto-journal/route.ts (update)

@@ -19,7 +19,7 @@ interface GeneratedJournal {
 // ==================== HELPERS ====================
 
 /**
- * Generate journal content using AIML GLM-OCR with Zyloo fallback
+ * Generate journal content using Claude Opus Vision with text fallback
  */
 async function generateJournalContent(
   tradeData: any,
@@ -56,29 +56,29 @@ Setup Type: [strategy name like breakout/pullback/momentum etc.]`
 
   let journalContent = ''
 
-  // Try AIML GLM-OCR first (vision-capable)
+  // Try Claude Opus Vision first (image + prompt)
   try {
     const journalResponse = await analyzeImageWithAiml(imageBuffer, journalPrompt, {
-      timeout: 60000,
+      timeout: 90000,
       maxRetries: 2
     })
     journalContent = journalResponse.text || ''
-    console.log('📝 [Auto Journal] Journal analysis completed (AIML GLM-OCR)')
-  } catch (aimlError: any) {
-    console.warn(`⚠️ [Auto Journal] AIML failed for journal: ${aimlError.message}. Trying Zyloo fallback...`)
+    console.log('📝 [Auto Journal] Journal analysis completed (Claude Opus Vision)')
+  } catch (visionError: any) {
+    console.warn(`⚠️ [Auto Journal] Vision failed for journal: ${visionError.message}. Trying text-only...`)
   }
 
-  // Fallback to Zyloo Claude Opus (text-only, no image)
+  // Fallback to Claude Opus text-only (no image)
   if (!journalContent.trim()) {
     try {
-      const zylooResponse = await analyzeTextWithZyloo(journalPrompt, {
+      const textResponse = await analyzeTextWithZyloo(journalPrompt, {
         timeout: 60000,
         maxRetries: 2
       })
-      journalContent = zylooResponse.text || ''
-      console.log('📝 [Auto Journal] Journal analysis completed (Zyloo Claude Opus fallback)')
-    } catch (zylooError: any) {
-      console.error('❌ [Auto Journal] Both AIML and Zyloo failed for journal generation')
+      journalContent = textResponse.text || ''
+      console.log('📝 [Auto Journal] Journal analysis completed (Claude Opus text fallback)')
+    } catch (textError: any) {
+      console.error('❌ [Auto Journal] Both vision and text failed for journal generation')
       // Generate a basic journal entry as last resort
       journalContent = `Title: ${tradeData.symbol} ${tradeData.type} Trade
 Content: ${tradeData.type === 'buy' ? 'Long' : 'Short'} position on ${tradeData.symbol}. Entry at ${tradeData.openPrice}, exit at ${tradeData.closePrice}. P/L: ${tradeData.profitLoss}.
@@ -198,9 +198,9 @@ export async function POST(request: NextRequest) {
     const bytes = await imageFile.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    console.log('🤖 [Auto Journal] Extracting trade data with AI (AIML GLM-OCR)...')
+    console.log('🤖 [Auto Journal] Extracting trade data with AI (Claude Opus Vision)...')
 
-    // Extract trade data using AIML GLM-OCR
+    // Extract trade data using Claude Opus Vision
     const extractionResult = await extractTradeData(buffer)
 
     if (!extractionResult.success) {
@@ -244,7 +244,7 @@ export async function POST(request: NextRequest) {
       // Continue without screenshot URL
     }
 
-    // Generate journal content using AIML GLM-OCR
+    // Generate journal content using Claude Opus Vision
     console.log('📝 [Auto Journal] Generating journal content...')
     const journal = await generateJournalContent(extractionResult.data, buffer)
 
