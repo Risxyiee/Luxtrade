@@ -463,15 +463,6 @@ export default function LuxTradeLanding() {
     setNewsletterLoading(false)
   }
 
-  const handleProUpgrade = () => {
-    if (language === 'en') window.open(skrillLinks.pro, '_blank')
-    else setShowPayment(true)
-  }
-  const handleLifetimeUpgrade = () => {
-    if (language === 'en') window.open(skrillLinks.lifetime, '_blank')
-    else setShowLifetimePaymentModal(true)
-  }
-
   const stats = [
     { value: '10+', label: language === 'id' ? 'Tipe Analitik' : 'Analytics Types', icon: BarChart3 },
     { value: '24/7', label: language === 'id' ? 'Akses Dashboard' : 'Dashboard Access', icon: Activity },
