@@ -172,12 +172,12 @@ export default function Sidebar({
       <aside className={`
         fixed lg:static
         top-0 left-0
-        h-screen lg:h-full
+        h-dvh lg:h-auto
         z-50
         transition-all duration-300 ease-in-out
         ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         ${mobileSidebarOpen ? 'w-80' : sidebarOpen ? 'w-80' : 'w-20'}
-        flex flex-col
+        flex flex-col overflow-hidden
       `}>
         {/* Glassmorphism Background */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0d0a1a]/98 via-[#0f0b18]/98 to-[#0d0a1a]/98 backdrop-blur-3xl border-r border-purple-500/20" />
@@ -189,7 +189,7 @@ export default function Sidebar({
         <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-500/5 to-transparent pointer-events-none" />
 
         {/* Header Section - Logo & Account Selector */}
-        <div className="relative p-4 border-b border-purple-500/20 shrink-0 flex flex-col">
+        <div className="relative p-4 pb-3 border-b border-purple-500/20 shrink-0 flex flex-col">
           <Link href="/" className="flex items-center gap-3 group">
             <motion.div
               className="relative flex-shrink-0"
@@ -244,7 +244,7 @@ export default function Sidebar({
                     )}
                   </div>
 
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                  <div className="space-y-1 max-h-24 lg:max-h-32 overflow-y-auto">
                     <button
                       onClick={() => {
                         setSelectedAccountId(null)
@@ -364,7 +364,9 @@ export default function Sidebar({
           )}
         </div>
 
-        <nav className="flex-1 p-3 space-y-2 overflow-y-auto overflow-x-hidden relative min-h-0 overscroll-y-contain scrollbar-thin">
+        {/* Scrollable content area on mobile; on desktop nav scrolls independently */}
+        <div className="flex-1 lg:flex-none flex flex-col min-h-0 overflow-y-auto overscroll-y-contain scrollbar-thin">
+        <nav className="p-3 space-y-2 relative">
           {(['utama', 'alat', 'lanjutan'] as const).map((category) => {
             const categoryItems = menuItems.filter(item => item.category === category)
             const catInfo = menuCategories[category]
@@ -535,8 +537,8 @@ export default function Sidebar({
           })}
         </nav>
 
-        {/* Bottom Section - Scrollable on mobile */}
-        <div className="relative p-3 pt-3 lg:pt-3 border-t border-purple-500/20 space-y-2 lg:space-y-2 shrink-0 max-h-[45vh] lg:max-h-none overflow-y-auto overscroll-y-contain scrollbar-thin">
+        {/* Bottom Section - Compact on mobile */}
+        <div className="relative p-3 pt-2 lg:pt-3 border-t border-purple-500/20 space-y-1.5 lg:space-y-2 pb-safe">
           {/* Promo Code Claim Button */}
           {!isPro && (sidebarOpen || mobileSidebarOpen) && (
             <motion.button
@@ -748,6 +750,7 @@ export default function Sidebar({
               {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </motion.div>
           </motion.button>
+        </div>
         </div>
       </aside>
 

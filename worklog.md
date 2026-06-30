@@ -2608,3 +2608,27 @@ Stage Summary:
 - Export CSV button preserved in TradesTab
 - importHandlers.ts file still exists (unused but harmless)
 - No build/lint errors
+---
+Task ID: 8
+Agent: Z.ai Code
+Task: Fix mobile sidebar layout + Add Zyloo API fallback for auto-journal
+
+Work Log:
+- Analyzed sidebar component structure (Sidebar.tsx) to identify mobile layout issue
+- Found root cause: header section (account selector, Add Account/Trade buttons) + bottom section (promo, upgrade, settings, user profile, discord, collapse button) both used `shrink-0` with bottom having `max-h-[45vh]`, causing bottom items to be cut off on mobile
+- Fixed by wrapping nav + bottom section in a single scrollable container on mobile (`flex-1 min-h-0 overflow-y-auto`)
+- Changed aside height from `h-screen` to `h-dvh lg:h-auto` for proper mobile viewport handling
+- Reduced account selector max-height on mobile (`max-h-24 lg:max-h-32`)
+- Added `pb-safe` for iOS safe area padding
+- Tightened bottom section spacing (`space-y-1.5 lg:space-y-2`)
+- Added Zyloo API (zyloo/claude-opus-4-7) as text-only fallback in `src/lib/aiml-vision.ts`
+- Added `analyzeTextWithZyloo()` function with retry logic and timeout handling
+- Added `analyzeWithFallback()` unified function (AIML vision first, Zyloo text fallback)
+- Updated `src/app/api/auto-journal/route.ts` to use Zyloo fallback for journal generation
+- Added 3-tier fallback: AIML GLM-OCR (vision) → Zyloo Claude Opus (text) → Basic template journal
+- All lint checks pass, dashboard compiles with 200 status
+
+Stage Summary:
+- Mobile sidebar now scrolls as one unit on mobile, all items (akun trade, setting, code promo) are accessible
+- Zyloo API added as backup when AIML API fails for journal generation
+- Files modified: Sidebar.tsx, aiml-vision.ts, auto-journal/route.ts
