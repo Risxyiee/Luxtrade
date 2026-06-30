@@ -1,6 +1,6 @@
 /**
  * AUTO-JOURNAL TRADING SYSTEM - INTEGRATED CORE
- * Extracts trade data from screenshots using Claude Vision API with HuggingFace fallback
+ * Extracts trade data from screenshots using AIML API (GLM-4V-OCR)
  */
 
 // ==============================================================================
@@ -43,187 +43,25 @@ export interface ExtractionResult {
 }
 
 // ==============================================================================
-// 2. EXTRACTION LOGIC (Claude Vision + HuggingFace Fallback)
+// 2. EXTRACTION LOGIC (AIML GLM-4V-OCR)
 // ==============================================================================
 
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
-import { analyzeImageWithHuggingFace } from "./huggingface-vision";
-
-// Claude Vision API client
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
+import { analyzeImageWithAiml, TRADE_EXTRACTION_PROMPT } from "./aiml-vision";
 
 /**
- * Extract trade data using Claude Vision API
+ * Extract trade data using AIML API (GLM-4V-OCR) — PRIMARY
  */
-async function extractWithClaudeVision(imageBuffer: Buffer): Promise<RawTradeData> {
-  if (!ANTHROPIC_API_KEY) {
-    throw new Error("ANTHROPIC_API_KEY is not configured");
+async function extractWithAimlVision(imageBuffer: Buffer): Promise<RawTradeData> {
+  const result = await analyzeImageWithAiml(imageBuffer, TRADE_EXTRACTION_PROMPT)
+
+  const jsonMatch = result.text.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) {
+    throw new Error('No JSON found in AIML response')
   }
 
-  // Optimize image for Claude Vision (max 5MB, WebP format for better compression)
-  const optimizedImage = await sharp(imageBuffer)
-    .resize(1920, 1080, {
-      fit: "inside",
-      withoutEnlargement: true,
-    })
-    .webp({ quality: 85 })
-    .toBuffer();
-
-  const base64Image = optimizedImage.toString("base64");
-
-  const prompt = `Analyze this trading screenshot (MT5/MT4 platform) and extract ALL trade information in JSON format.
-
-IMPORTANT RULES:
-1. Return ONLY valid JSON, no markdown or other text
-2. Use these exact field names: symbol, type, openPrice, closePrice, profitLoss, openTime, closeTime, stopLoss, takeProfit, volume, ticketNumber
-3. Type must be either "buy" or "sell" (lowercase)
-4. Prices should be numbers (not strings)
-5. For currency pairs like EURUSD, use "EURUSD" format
-6. Extract date/time exactly as shown
-7. If a field is not visible, set it to null
-8. profitLoss can be negative (loss) or positive (profit)
-9. Look for the "History" tab or "Trade History" table
-10. Focus on ONE complete trade entry, not summary statistics
-
-Example output:
-{
-  "symbol": "EURUSD",
-  "type": "buy",
-  "openPrice": 1.0875,
-  "closePrice": 1.0890,
-  "profitLoss": 150.50,
-  "openTime": "2024-01-15 10:30:00",
-  "closeTime": "2024-01-15 14:45:00",
-  "stopLoss": 1.0850,
-  "takeProfit": 1.0920,
-  "volume": 0.1,
-  "ticketNumber": "12345"
-}`;
-
-  try {
-    const response = await fetch(ANTHROPIC_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "false",
-      },
-      body: JSON.stringify({
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 4096,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: "image/webp",
-                  data: base64Image,
-                },
-              },
-              {
-                type: "text",
-                text: prompt,
-              },
-            ],
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Claude API error: ${response.status} - ${error}`);
-    }
-
-    const data = await response.json();
-    const text = data.content?.[0]?.text || data.message?.content?.[0]?.text || "";
-
-    // Extract JSON from response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No JSON found in Claude response");
-    }
-
-    const parsedData = JSON.parse(jsonMatch[0]);
-    return parsedData as RawTradeData;
-  } catch (error) {
-    console.error("Claude Vision extraction error:", error);
-    throw error;
-  }
-}
-
-/**
- * Extract trade data using HuggingFace API (fallback)
- */
-async function extractWithHuggingFace(imageBuffer: Buffer): Promise<RawTradeData> {
-  // Optimize image for HuggingFace
-  const optimizedImage = await sharp(imageBuffer)
-    .resize(1280, 720, {
-      fit: "inside",
-      withoutEnlargement: true,
-    })
-    .jpeg({ quality: 80 })
-    .toBuffer();
-
-  const base64Image = optimizedImage.toString("base64");
-
-  const prompt = `Analyze this trading screenshot (MT5/MT4 platform) and extract ALL trade information.
-
-Extract these fields:
-- symbol: Currency pair (e.g., EURUSD, GBPUSD)
-- type: "buy" or "sell"
-- openPrice: Opening price as number
-- closePrice: Closing price as number
-- profitLoss: Profit/loss as number (positive or negative)
-- openTime: Opening date and time
-- closeTime: Closing date and time
-- stopLoss: Stop loss price if visible
-- takeProfit: Take profit price if visible
-- volume: Lot size if visible
-- ticketNumber: Trade ticket number if visible
-
-Return ONLY valid JSON format. If a field is not visible, use null.
-
-Example:
-{
-  "symbol": "EURUSD",
-  "type": "buy",
-  "openPrice": 1.0875,
-  "closePrice": 1.0890,
-  "profitLoss": 150.50,
-  "openTime": "2024-01-15 10:30:00",
-  "closeTime": "2024-01-15 14:45:00",
-  "stopLoss": 1.0850,
-  "takeProfit": 1.0920,
-  "volume": 0.1,
-  "ticketNumber": "12345"
-}`;
-
-  try {
-    const result = await analyzeImageWithHuggingFace(base64Image, prompt, {
-      model: "Qwen/Qwen2-VL-2B-Instruct",
-      timeout: 45000,
-      maxRetries: 3,
-    });
-
-    // Extract JSON from response
-    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No JSON found in HuggingFace response");
-    }
-
-    const parsedData = JSON.parse(jsonMatch[0]);
-    return parsedData as RawTradeData;
-  } catch (error) {
-    console.error("HuggingFace extraction error:", error);
-    throw error;
-  }
+  return JSON.parse(jsonMatch[0]) as RawTradeData
 }
 
 /**
@@ -341,20 +179,20 @@ function validateTradeData(rawData: RawTradeData): {
 
 /**
  * Main function to extract trade data from screenshot
- * Uses HuggingFace Vision API (FREE) with retry logic
+ * Uses AIML API (GLM-4V-OCR) as primary
  */
 export async function extractTradeData(imageBuffer: Buffer): Promise<ExtractionResult> {
   const errors: string[] = [];
   let rawData: RawTradeData | undefined;
 
-  // Use HuggingFace Vision API (FREE)
+  // Primary: AIML API (GLM-4V-OCR)
   try {
-    console.log("🤖 Attempting extraction with HuggingFace Vision API (FREE)...");
-    rawData = await extractWithHuggingFace(imageBuffer);
-    console.log("✅ HuggingFace extraction successful");
+    console.log('🤖 Extracting trade data with AIML GLM-4V-OCR...')
+    rawData = await extractWithAimlVision(imageBuffer)
+    console.log('✅ AIML extraction successful')
   } catch (error: any) {
-    console.error("❌ HuggingFace extraction failed:", error.message);
-    errors.push(`HuggingFace error: ${error.message}`);
+    console.error('❌ AIML extraction failed:', error.message)
+    errors.push(`AIML error: ${error.message}`)
 
     return {
       success: false,
@@ -362,11 +200,11 @@ export async function extractTradeData(imageBuffer: Buffer): Promise<ExtractionR
       validFieldCount: 0,
       errors,
       confidence: 0,
-    };
+    }
   }
 
   // Validate extracted data
-  const validation = validateTradeData(rawData!);
+  const validation = validateTradeData(rawData!)
 
   if (!validation.isValid) {
     return {
@@ -375,12 +213,12 @@ export async function extractTradeData(imageBuffer: Buffer): Promise<ExtractionR
       validFieldCount: validation.validFieldCount,
       errors: [...errors, ...validation.errors],
       confidence: validation.confidence,
-    };
+    }
   }
 
-  console.log(`✅ Trade data extraction complete (HuggingFace)`);
-  console.log(`   Confidence: ${validation.confidence.toFixed(1)}%`);
-  console.log(`   Valid fields: ${validation.validFieldCount}/11`);
+  console.log(`✅ Trade data extraction complete (AIML GLM-OCR)`)
+  console.log(`   Confidence: ${validation.confidence.toFixed(1)}%`)
+  console.log(`   Valid fields: ${validation.validFieldCount}/11`)
 
   return {
     success: true,
@@ -389,7 +227,7 @@ export async function extractTradeData(imageBuffer: Buffer): Promise<ExtractionR
     validFieldCount: validation.validFieldCount,
     errors: validation.errors,
     confidence: validation.confidence,
-  };
+  }
 }
 
 // ==============================================================================
