@@ -212,7 +212,8 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
       const data = await res.json()
 
       if (!res.ok) {
-        toast.error(data.error || 'Gagal membuat transaksi')
+        console.error('[PlanSelection] Transaction failed:', res.status, data)
+        toast.error(data.error || `Gagal membuat transaksi (${res.status})`)
         setPayLoading(null)
         return
       }
