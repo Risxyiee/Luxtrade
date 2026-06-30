@@ -11,7 +11,7 @@ import {
   Activity, PieChart, Sparkles, AlertTriangle,
   Zap, RefreshCw, LogOut, CalendarDays, Edit, Trash2, Calendar, Clock,
   Smile, Meh, Frown, Sun, Moon, Cloud, AlertCircle, Search, Send, MessageSquare, MessageCircle, Bot, User,
-  TrendingUp as TrendingUpIcon, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, FileText, Share2, Download, Shield, Crown, AlertCircle as AlertCircleIcon, Gift, Trophy, Flame, ExternalLink, Newspaper
+  TrendingUp as TrendingUpIcon, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, Share2, Download, Shield, Crown, AlertCircle as AlertCircleIcon, Gift, Trophy, Flame, ExternalLink, Newspaper
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -70,7 +70,6 @@ import TabContent from './components/TabContent'
 // Extracted Utils & Hooks
 import { Trade, JournalEntry, WatchlistItem, Analytics, TradeFormData, emptyFormData } from './utils/types'
 import { formatLocalDateTime, datetimeLocalToFormat, moodOptions, marketConditions } from './utils/helpers'
-import { useCountUp } from './hooks/useCountUp'
 
 // Extracted Handlers
 import { createTradeHandlers } from './handlers/tradeHandlers'

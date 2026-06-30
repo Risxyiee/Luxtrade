@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Activity, Search, Download, View as ViewIcon, Edit, Trash2, Clock, Target, Tag, Link2, Image as ImageIcon } from 'lucide-react'
+import { Activity, Search, Download, View as ViewIcon, Edit, Trash2, RefreshCw, Clock, Target, Tag, Link2, Image as ImageIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

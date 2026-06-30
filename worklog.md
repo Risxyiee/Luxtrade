@@ -2585,3 +2585,26 @@ Stage Summary:
 - New user flow: Signup → Dashboard (empty) → Onboarding modal (1.5s delay) → 4-step tour → Add trade / Load sample data
 - 15 sample trades with realistic data for demo purposes
 - Footer & sidebar both have FAQ + Refund Policy under "Perusahaan"
+---
+Task ID: 1
+Agent: Main Agent
+Task: Remove Importer feature (Screenshot OCR + Upload File) from dashboard
+
+Work Log:
+- Read current state of all 6 affected files to understand what was already done vs pending
+- Header.tsx: Removed Smart Import button, ContextGuide/UseContextGuides imports, Upload icon, setSmartImportOpen prop. KEPT Connected badge (green pulsing dot).
+- TradesTab.tsx: Removed onImport and onSmartImport from props/interface, removed Smart Import and Import CSV buttons, removed Upload/FileText icon imports. KEPT Export CSV button.
+- DashboardModals.tsx: Removed CSV Import modal (~80 lines), Smart Import modal (~400 lines), all import-related props (csvImportOpen, smartImportOpen, csvFile, csvPreview, csvImporting, importTab, screenshotPreview, importedTrades, importParsing, and all their setters/handlers). Removed unused imports: Upload, Camera, FileText, Sparkles, Loader2, motion.
+- LuxTradeDashboard.tsx: Removed createImportHandlers import, removed parseMT4HTML/parseCSV/fileToBase64 imports, removed MTReportPreview from types import, removed unused lucide icons (Upload, Camera, ViewIcon, FileText).
+- TabContent.tsx: Removed setCsvImportOpen and setSmartImportOpen from props/interface and destructuring, removed onImport/onSmartImport from TradesTab usage.
+- ContextGuide.tsx: smartImport guide entry was already removed in previous session (confirmed still removed).
+- Fixed dev script in package.json (removed `tee dev.log` pipe that caused server instability).
+- Ran lint: clean, no errors.
+- Verified server compiles successfully (GET / 200 OK).
+
+Stage Summary:
+- Importer feature (Screenshot OCR + Upload File + CSV Import) fully removed from 6 files
+- Connected badge (green pulsing indicator) preserved in Header
+- Export CSV button preserved in TradesTab
+- importHandlers.ts file still exists (unused but harmless)
+- No build/lint errors
