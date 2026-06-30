@@ -1,8 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Share2, Edit, Trash2, Calendar, Clock, Plus, Wallet } from 'lucide-react'
 import PNLShareCard from '@/components/PNLShareCard'
@@ -12,7 +16,8 @@ import PaywallModal from '@/components/PaywallModal'
 import WelcomeOnboarding from '@/components/WelcomeOnboarding'
 import TradeWizardForm from './TradeWizardForm'
 import AddAccountForm from './AddAccountForm'
-import { TradeFormData } from '../utils/types'
+import { formatCurrency } from '@/lib/supabase'
+import { Trade, TradeFormData } from '../utils/types'
 import { emptyFormData, moodOptions, marketConditions } from '../utils/helpers'
 
 interface DashboardModalsProps {
@@ -72,7 +77,6 @@ interface DashboardModalsProps {
   watchlistForm: { symbol: string; name: string; target_price: string; notes: string }
   setWatchlistForm: (form: { symbol: string; name: string; target_price: string; notes: string }) => void
   handleAddWatchlist: () => void
-
 
   // User & Plan
   user: any
@@ -142,7 +146,6 @@ export default function DashboardModals({
   watchlistForm,
   setWatchlistForm,
   handleAddWatchlist,
-
 
   // User & Plan
   user,
