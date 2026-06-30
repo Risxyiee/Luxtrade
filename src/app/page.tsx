@@ -13,8 +13,8 @@ import {
   Clock, Mail, Zap as Lightning, X, AlertTriangle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import PaymentConfirmationModal from '@/components/PaymentConfirmationModal'
 import LegalPagesModal, { type LegalPageTab } from '@/components/LegalPagesModal'
+import { toast } from 'sonner'
 import { useLanguage } from '@/contexts/LanguageContext'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 
@@ -351,9 +351,9 @@ function LifetimeUltraCard({ onButtonClick, language, t, promoRemaining }: { onB
 
 export default function LuxTradeLanding() {
   const { language, t, formatPrice } = useLanguage()
-  const [showPayment, setShowPayment] = useState(false)
-  const [showLifetimePaymentModal, setShowLifetimePaymentModal] = useState(false)
   const [showLegalModal, setShowLegalModal] = useState(false)
+  const [snapLoaded, setSnapLoaded] = useState(false)
+  const [payLoading, setPayLoading] = useState<string | null>(null)
   const [legalModalTab, setLegalModalTab] = useState<LegalPageTab>('terms')
 
   const openLegalPage = (tab: LegalPageTab) => {
@@ -388,9 +388,59 @@ export default function LuxTradeLanding() {
       .catch(() => {})
   }, [])
 
-  const skrillLinks = {
-    pro: 'https://skrill.me/rq/RIZQI%20AKBAR/3/USD?key=vXcr_5kNitZJFVBnkmK0sakLnjB',
-    lifetime: 'https://skrill.me/rq/RIZQI%20AKBAR/5/USD?key=EI71vCJNy64rGTOWNzhHPcWiTXS'
+  // Load Midtrans Snap.js
+  useEffect(() => {
+    const loadSnap = async () => {
+      try {
+        const res = await fetch('/api/midtrans/create-transaction')
+        const config = await res.json()
+        if (!config.configured || !config.snapUrl) return
+
+        if ((window as any).snap) { setSnapLoaded(true); return }
+
+        const script = document.createElement('script')
+        script.id = 'midtrans-snap-landing'
+        script.src = config.snapUrl
+        script.setAttribute('data-client-key', config.clientKey)
+        script.async = true
+        script.onload = () => setSnapLoaded(true)
+        document.body.appendChild(script)
+      } catch { /* ignore */ }
+    }
+    loadSnap()
+  }, [])
+
+  const handleMidtransPay = async (plan: 'PRO_30_DAYS' | 'PRO_LIFETIME') => {
+    if (!snapLoaded) {
+      toast.error('Payment gateway sedang dimuat, coba lagi...')
+      return
+    }
+    setPayLoading(plan)
+    try {
+      const res = await fetch('/api/midtrans/create-transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan }),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error || 'Gagal membuat transaksi'); setPayLoading(null); return }
+
+      ;(window as any).snap.pay(data.token, {
+        onSuccess: () => { toast.success('Pembayaran berhasil! Akun PRO sedang diaktivasi...'); setTimeout(() => window.location.href = '/dashboard', 2000) },
+        onPending: () => { toast.info('Menunggu pembayaran. Selesaikan untuk mengaktifkan PRO otomatis.') },
+        onError: () => { toast.error('Pembayaran gagal atau dibatalkan.') },
+        onClose: () => { setPayLoading(null) },
+      })
+    } catch { toast.error('Gagal terhubung ke payment gateway'); setPayLoading(null) }
+  }
+
+  const handleProUpgrade = () => {
+    if (language === 'en') window.open('https://skrill.me/rq/RIZQI%20AKBAR/3/USD?key=vXcr_5kNitZJFVBnkmK0sakLnjB', '_blank')
+    else handleMidtransPay('PRO_30_DAYS')
+  }
+  const handleLifetimeUpgrade = () => {
+    if (language === 'en') window.open('https://skrill.me/rq/RIZQI%20AKBAR/5/USD?key=EI71vCJNy64rGTOWNzhHPcWiTXS', '_blank')
+    else handleMidtransPay('PRO_LIFETIME')
   }
 
   const handleNewsletterSubmit = async (e: React.FormEvent) => {
@@ -815,8 +865,8 @@ export default function LuxTradeLanding() {
                   </div>
                 </div>
                 <div className="p-6 pt-0">
-                  <button onClick={handleProUpgrade} className="w-full flex items-center justify-center h-[52px] rounded-2xl bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 transition shadow-lg shadow-purple-500/20 active:scale-95 text-white font-medium">
-                    {t('pricing.cta.upgrade')} →
+                  <button onClick={handleProUpgrade} disabled={payLoading === 'PRO_30_DAYS'} className="w-full flex items-center justify-center h-[52px] rounded-2xl bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 transition shadow-lg shadow-purple-500/20 active:scale-95 text-white font-medium disabled:opacity-60">
+                    {payLoading === 'PRO_30_DAYS' ? 'Membuka pembayaran...' : `${t('pricing.cta.upgrade')} →`}
                   </button>
                 </div>
               </motion.div>
@@ -1220,8 +1270,6 @@ export default function LuxTradeLanding() {
         </div>
       </footer>
 
-      <PaymentConfirmationModal isOpen={showPayment} onClose={() => setShowPayment(false)} planName="Elite Pro" planPrice={25000} />
-      <PaymentConfirmationModal isOpen={showLifetimePaymentModal} onClose={() => setShowLifetimePaymentModal(false)} planName="Lifetime Ultra" planPrice={52000} />
       <LegalPagesModal isOpen={showLegalModal} onClose={() => setShowLegalModal(false)} initialTab={legalModalTab} />
     </div>
   )
