@@ -1,15 +1,19 @@
 /**
- * Vision AI Integration — Zyloo Claude Opus 4.7 (Primary)
- * Fallback chain: Zyloo Claude Opus (vision) → Zyloo Claude Opus (text) → Basic template
- *
- * Uses Claude Opus 4.7 via Zyloo for:
+ * Vision AI Integration — Google Gemini Vision (Free & Unlimited)
+ * 
+ * Uses Google Gemini Pro Vision for:
  * - Trading screenshot OCR/extraction (vision)
- * - Journal content generation (vision or text)
+ * - Journal content generation
+ * 
+ * Benefits:
+ * - ✅ GRATIS (60 calls/menit = 86,400 calls/hari)
+ * - ✅ Akurat untuk membaca text, angka, chart
+ * - ✅ Cepat responsnya
  */
 
 import sharp from 'sharp'
 
-const ZYLOO_API_URL = 'https://api.zyloo.io/v1/chat/completions'
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent'
 
 // ==================== TYPES ====================
 
@@ -23,64 +27,63 @@ interface VisionResult {
   raw?: any
 }
 
-// ==================== ZYLOO CLAUDE OPUS (PRIMARY) ====================
+// ==================== GOOGLE GEMINI VISION ====================
 
 /**
- * Call Zyloo API (Claude Opus 4.7) — supports both vision (image + text) and text-only.
- * Claude Opus natively supports multimodal input.
+ * Call Google Gemini Vision API
  */
-async function callZyloo(
+async function callGemini(
   messages: any[],
   options: VisionOptions = {}
 ): Promise<VisionResult> {
   const { timeout = 90000, maxRetries = 2 } = options
 
-  const apiKey = process.env.ZYLOO_API_KEY
+  const apiKey = process.env.GOOGLE_GEMINI_API_KEY
   if (!apiKey) {
-    throw new Error('ZYLOO_API_KEY is not configured')
+    throw new Error('GOOGLE_GEMINI_API_KEY is not configured')
   }
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      console.log(`🤖 [Zyloo] Claude Opus attempt ${attempt + 1}/${maxRetries}`)
+      console.log(`🤖 [Gemini] Attempt ${attempt + 1}/${maxRetries}`)
 
-      const response = await fetch(ZYLOO_API_URL, {
+      const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'zyloo/claude-opus-4-7',
-          messages,
-          max_tokens: 4096,
-          temperature: 0.1,
+          contents: messages,
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 2048,
+          },
         }),
         signal: AbortSignal.timeout(timeout),
       })
 
       if (!response.ok) {
         const errText = await response.text()
-        console.error(`❌ [Zyloo] Error ${response.status}:`, errText)
+        console.error(`❌ [Gemini] Error ${response.status}:`, errText)
 
         if (response.status === 429 && attempt < maxRetries - 1) {
           const wait = 3000 * (attempt + 1)
-          console.log(`⏳ [Zyloo] Rate limited, waiting ${wait}ms...`)
+          console.log(`⏳ [Gemini] Rate limited, waiting ${wait}ms...`)
           await new Promise(r => setTimeout(r, wait))
           continue
         }
 
-        throw new Error(`Zyloo API error (${response.status}): ${errText.slice(0, 200)}`)
+        throw new Error(`Gemini API error (${response.status}): ${errText.slice(0, 200)}`)
       }
 
       const data = await response.json()
-      const text = data.choices?.[0]?.message?.content || ''
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
 
       if (!text.trim()) {
-        throw new Error('Empty response from Zyloo API')
+        throw new Error('Empty response from Gemini API')
       }
 
-      console.log(`✅ [Zyloo] Success: ${text.length} chars`)
+      console.log(`✅ [Gemini] Success: ${text.length} chars`)
       return { text, raw: data }
     } catch (error: any) {
       if (error.name === 'AbortError' || error.name === 'TimeoutError') {
@@ -88,29 +91,28 @@ async function callZyloo(
           await new Promise(r => setTimeout(r, 3000))
           continue
         }
-        throw new Error('Zyloo API timeout.')
+        throw new Error('Gemini API timeout.')
       }
 
       if (attempt === maxRetries - 1) throw error
 
-      console.warn(`⚠️ [Zyloo] Retrying...`, error.message)
+      console.warn(`⚠️ [Gemini] Retrying...`, error.message)
       await new Promise(r => setTimeout(r, 2000 * (attempt + 1)))
     }
   }
 
-  throw new Error('All Zyloo API attempts failed')
+  throw new Error('All Gemini API attempts failed')
 }
 
 /**
- * Analyze image with vision model (Claude Opus via Zyloo).
- * Sends image + text prompt together.
+ * Analyze image with vision model (Google Gemini Vision)
  */
 export async function analyzeImageWithAiml(
   imageBuffer: Buffer,
   prompt: string,
   options: VisionOptions = {}
 ): Promise<VisionResult> {
-  // Optimize image: resize + JPEG compression for faster upload
+  // Optimize image: resize + JPEG compression
   const optimized = await sharp(imageBuffer)
     .resize(1920, 1080, { fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: 85 })
@@ -121,22 +123,21 @@ export async function analyzeImageWithAiml(
   const messages = [
     {
       role: 'user',
-      content: [
+      parts: [
         {
-          type: 'image_url',
-          image_url: {
-            url: `data:image/jpeg;base64,${base64Image}`,
-          },
+          text: prompt,
         },
         {
-          type: 'text',
-          text: prompt,
+          inline_data: {
+            mime_type: 'image/jpeg',
+            data: base64Image,
+          },
         },
       ],
     },
   ]
 
-  return callZyloo(messages, options)
+  return callGemini(messages, options)
 }
 
 /**
@@ -147,10 +148,17 @@ export async function analyzeTextWithZyloo(
   options: VisionOptions = {}
 ): Promise<VisionResult> {
   const messages = [
-    { role: 'user', content: prompt },
+    {
+      role: 'user',
+      parts: [
+        {
+          text: prompt,
+        },
+      ],
+    },
   ]
 
-  return callZyloo(messages, options)
+  return callGemini(messages, options)
 }
 
 /**
@@ -162,7 +170,7 @@ export async function analyzeWithFallback(
   textFallbackPrompt: string,
   options: VisionOptions = {}
 ): Promise<VisionResult> {
-  // Try vision first (Claude Opus supports multimodal)
+  // Try vision first
   try {
     return await analyzeImageWithAiml(imageBuffer, imagePrompt, options)
   } catch (error: any) {
@@ -177,7 +185,7 @@ export async function analyzeWithFallback(
 
 /**
  * Trade-specific extraction prompt
- * Optimized for BOTH table history AND chart/graph screenshots from MT4/MT5/other platforms
+ * Optimized for MT4/MT5 trading screenshots and trade detail panels
  */
 export const TRADE_EXTRACTION_PROMPT = `You are an expert at reading trading platform screenshots and extracting trade information.
 
@@ -228,4 +236,3 @@ Example outputs:
 
 Return the JSON now:
 `
-
