@@ -370,17 +370,10 @@ export default function LuxTradeLanding() {
   const [promoRemaining, setPromoRemaining] = useState<number | null>(null)
   const [promoMax, setPromoMax] = useState<number>(30)
   const [promoActive, setPromoActive] = useState<boolean | null>(null)
-  const [carouselIndex, setCarouselIndex] = useState(0)
   const [newsletterEmail, setNewsletterEmail] = useState('')
   const [newsletterLoading, setNewsletterLoading] = useState(false)
   const [newsletterSuccess, setNewsletterSuccess] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(null)
-  const touchStartX = useRef(0)
-
-  const screenshots = [
-    '/screenshots/01.jpeg', '/screenshots/02.jpeg', '/screenshots/03.jpeg',
-    '/screenshots/04.jpeg', '/screenshots/05.jpeg', '/screenshots/06.jpeg',
-  ]
 
   useEffect(() => {
     fetch('/api/promo-quota?code=TRADERCEPAT')
@@ -1015,52 +1008,56 @@ export default function LuxTradeLanding() {
           </div>
         </section>
 
-        {/* Screenshot Carousel */}
+        {/* Demo Video */}
         <section id="demo" className="py-16 px-4 sm:px-6 lg:px-8">
           <div className="max-w-5xl mx-auto">
             <div className="flex flex-col items-center mb-12">
               <div className="flex items-center h-9 w-max bg-[#2a1b3d]/90 backdrop-blur-sm border border-white/10 rounded-xl mb-6">
                 <div className="w-4 h-full" />
                 <div className="flex items-center gap-2 text-sm font-medium text-white/90">
-                  <Activity className="w-4 h-4 text-emerald-400" />
-                  {language === 'id' ? 'Tampilan Asli' : 'Real Screenshots'}
+                  <Play className="w-4 h-4 text-emerald-400" />
+                  {language === 'id' ? 'Tampilan Asli' : 'Real Preview'}
                 </div>
                 <div className="w-4 h-full" />
               </div>
             </div>
-            <div className="relative"
-              onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX }}
-              onTouchEnd={(e) => {
-                const diff = touchStartX.current - e.changedTouches[0].clientX
-                if (Math.abs(diff) > 50) {
-                  if (diff > 0 && carouselIndex < screenshots.length - 1) setCarouselIndex(carouselIndex + 1)
-                  else if (diff < 0 && carouselIndex > 0) setCarouselIndex(carouselIndex - 1)
-                }
-              }}
+
+            <motion.div
+              initial={{ opacity: 0, y: 30, scale: 0.97 }}
+              whileInView={{ opacity: 1, y: 0, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+              className="relative group"
             >
-              <div className="overflow-hidden rounded-2xl border border-white/[0.08]">
-                <motion.div className="flex" animate={{ x: `-${carouselIndex * 100}%` }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}>
-                  {screenshots.map((src, i) => (
-                    <div key={i} className="w-full flex-shrink-0">
-                      <div className="relative bg-[#0d0715] flex items-center justify-center p-2 sm:p-4">
-                        <Image src={src} alt={language === 'id' ? `Tampilan LuxTrade ${i + 1}` : `LuxTrade Screenshot ${i + 1}`} width={1200} height={800} className="w-full h-auto rounded-xl" priority={i === 0} />
-                      </div>
-                    </div>
-                  ))}
-                </motion.div>
+              {/* Elegant glowing border */}
+              <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-500/60 via-cyan-400/60 to-purple-500/60 opacity-60 group-hover:opacity-100 transition-opacity duration-700 blur-[1px]" />
+              <div className="absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-500/30 via-cyan-400/30 to-purple-500/30 opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-[8px]" />
+              <div className="absolute -inset-[2px] rounded-2xl bg-gradient-to-br from-purple-600/20 via-transparent to-cyan-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-[16px]" />
+
+              {/* Video container */}
+              <div className="relative rounded-2xl overflow-hidden bg-[#080510] border border-white/[0.08]">
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-auto block"
+                  poster="/demo-video-poster.png"
+                >
+                  <source src="/demo-video.mp4" type="video/mp4" />
+                </video>
+
+                {/* Subtle vignette overlay */}
+                <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,transparent_50%,rgba(0,0,0,0.3)_100%)]" />
+
+                {/* Play button overlay (shows briefly on hover) */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                  <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center">
+                    <Play className="w-6 h-6 text-white ml-1" />
+                  </div>
+                </div>
               </div>
-              <button onClick={() => setCarouselIndex(Math.max(0, carouselIndex - 1))} disabled={carouselIndex === 0} className={`absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full backdrop-blur-xl bg-black/40 border border-white/[0.1] flex items-center justify-center transition-all hover:bg-black/60 hover:border-purple-500/40 ${carouselIndex === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                <ChevronRight className="w-5 h-5 text-white rotate-180" />
-              </button>
-              <button onClick={() => setCarouselIndex(Math.min(screenshots.length - 1, carouselIndex + 1))} disabled={carouselIndex === screenshots.length - 1} className={`absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 rounded-full backdrop-blur-xl bg-black/40 border border-white/[0.1] flex items-center justify-center transition-all hover:bg-black/60 hover:border-purple-500/40 ${carouselIndex === screenshots.length - 1 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                <ChevronRight className="w-5 h-5 text-white" />
-              </button>
-              <div className="flex items-center justify-center gap-2 mt-6">
-                {screenshots.map((_, i) => (
-                  <button key={i} onClick={() => setCarouselIndex(i)} className={`transition-all duration-300 rounded-full ${i === carouselIndex ? 'w-8 h-2.5 bg-gradient-to-r from-purple-500 to-cyan-500' : 'w-2.5 h-2.5 bg-white/20 hover:bg-white/40'}`} />
-                ))}
-              </div>
-            </div>
+            </motion.div>
           </div>
         </section>
 
