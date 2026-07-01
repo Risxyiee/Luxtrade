@@ -2655,3 +2655,29 @@ Stage Summary:
 - Extraction chain: Claude Opus Vision → Claude Opus Text → Basic template
 - Journal chain: Claude Opus Vision (image+prompt) → Claude Opus Text (no image) → Basic template
 - Files changed: aiml-vision.ts (rewrite), extractTradeData.ts (update), auto-journal/route.ts (update)
+---
+Task ID: 10
+Agent: Z.ai Code
+Task: Landing page improvements + Calendar tab upgrade
+
+Work Log:
+- Verified stats section already uses product features (not fake numbers) — no change needed
+- Added "How It Works" 3-step section to landing page (Daftar Gratis → Catat Trade → AI Analisis)
+- Added connecting gradient line between steps on desktop, responsive mobile layout
+- Added "Cara Kerja" / "How It Works" to top navbar and mobile sidebar nav
+- Converted FAQ from flat cards to interactive accordion with AnimatePresence
+- Updated FAQ MT4/MT5 answer to reflect current screenshot-based import
+- Upgraded CalendarTab from 122 lines to 665 lines with full features:
+  - Month navigation (prev/next + Today button)
+  - Click-to-filter: clicking a day shows trades list with details
+  - P/L coloring: green for profit days, red for loss days, purple for breakeven
+  - Trade count badges per day
+  - Month summary card calculated for selected month
+  - Bilingual (ID/EN) support
+  - ScrollArea for trade detail panel
+- All lint checks pass clean
+
+Stage Summary:
+- Landing page now has: Hero → Stats → Pricing → Screenshots → How It Works → Features → FAQ (accordion) → Roadmap → Newsletter → Footer
+- Calendar tab is now a full-featured trading calendar with navigation and trade filtering
+- Files changed: page.tsx, CalendarTab.tsx
