@@ -177,31 +177,55 @@ export async function analyzeWithFallback(
 
 /**
  * Trade-specific extraction prompt
- * Optimized for MT4/MT5 trading screenshots
+ * Optimized for BOTH table history AND chart/graph screenshots from MT4/MT5/other platforms
  */
-export const TRADE_EXTRACTION_PROMPT = `Analyze this trading screenshot (MT5/MT4 or similar platform) and extract ALL trade information.
+export const TRADE_EXTRACTION_PROMPT = `You are an expert at reading trading platform screenshots and extracting trade information.
 
-Extract these fields from the screenshot:
-- symbol: Currency pair or asset name (e.g., XAUUSD, EURUSD, GBPJPY)
+Analyze this trading screenshot and extract ALL trade information visible.
+The screenshot could be:
+1. A trade history table (MT4/MT5 list view) showing multiple or single trades
+2. A trading chart with trade markers/entry-exit points
+3. A trade details/summary panel
+4. Any combination of the above
+
+Extract these fields:
+- symbol: Currency pair or asset name (e.g., XAUUSD, EURUSD, GBPJPY, BTC/USD)
 - type: "buy" or "sell" (lowercase)
-- openPrice: Opening price as number
-- closePrice: Closing price as number
+- openPrice: Opening/entry price as number
+- closePrice: Closing/exit price as number
 - profitLoss: Profit/loss amount as number (negative for loss, e.g., -99.75)
-- openTime: Opening date and time (format: YYYY-MM-DD HH:mm:ss)
-- closeTime: Closing date and time (format: YYYY-MM-DD HH:mm:ss)
+- openTime: Opening/entry date and time (format: YYYY-MM-DD HH:mm:ss)
+- closeTime: Closing/exit date and time (format: YYYY-MM-DD HH:mm:ss)
 - stopLoss: Stop loss price if visible (number)
 - takeProfit: Take profit price if visible (number)
 - volume: Lot size if visible (number, e.g., 0.05)
-- ticketNumber: Trade ticket number if visible (string)
+- ticketNumber: Trade ticket/order number if visible (string)
 
 RULES:
-1. Return ONLY valid JSON, no markdown, no explanation
-2. Prices must be numbers not strings
-3. type must be exactly "buy" or "sell"
-4. If a field is not visible in the screenshot, use null
-5. For date like "2026.06.23 06:04:10" convert to "2026-06-23 06:04:10"
-6. For profit shown as "$ -1995 (-0.48%)" the profitLoss is -1995
-7. Focus on the specific trade entry, not summary stats
+1. Return ONLY valid JSON, no markdown, no explanation, no backticks
+2. All prices must be numbers not strings
+3. type must be exactly "buy" or "sell" (lowercase)
+4. If a field is not visible in the screenshot, use null (not undefined, not empty string)
+5. For dates like "2026.06.23 06:04:10" convert to "2026-06-23 06:04:10"
+6. For profit shown as "-99.75" or "$ -1995" or "-1995 (-0.48%)", extract just the number: -99.75
+7. Look for:
+   - S/L (stop loss), TP (take profit) labels
+   - Entry and exit prices on chart
+   - Bid/ask prices on table rows
+   - Timestamps near prices
+8. If it's a chart, look for:
+   - Horizontal lines marking entry, stop loss, take profit
+   - Labels with "BUY" or "SELL"
+   - Timestamps on the bottom
+   - Price levels on the right
+9. If multiple trades visible, extract ONLY the most recent or active one
+10. For profit calculation, if entry is 4140.35 and exit is 4120.40, the difference is -19.95
 
-Example output:
-{"symbol":"XAUUSD","type":"buy","openPrice":4140.35,"closePrice":4120.40,"profitLoss":-99.75,"openTime":"2026-06-23 06:04:10","closeTime":"2026-06-23 07:59:11","stopLoss":4120.40,"takeProfit":4182.15,"volume":0.05,"ticketNumber":"9186738488"}`
+Example outputs:
+{"symbol":"XAUUSD","type":"buy","openPrice":4140.35,"closePrice":4120.40,"profitLoss":-99.75,"openTime":"2026-06-23 06:04:10","closeTime":"2026-06-23 07:59:11","stopLoss":4120.40,"takeProfit":4182.15,"volume":0.05,"ticketNumber":"918673848"}
+
+{"symbol":"EURUSD","type":"sell","openPrice":1.0875,"closePrice":1.0850,"profitLoss":250,"openTime":"2026-06-23 10:30:00","closeTime":"2026-06-23 11:45:00","stopLoss":1.0900,"takeProfit":1.0825,"volume":0.1,"ticketNumber":null}
+
+Return the JSON now:
+`
+
