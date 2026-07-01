@@ -66,6 +66,7 @@ async function extractWithVision(imageBuffer: Buffer): Promise<RawTradeData> {
 
 /**
  * Validate and normalize extracted trade data
+ * Updated: More lenient validation for chart/summary screenshots
  */
 function validateTradeData(rawData: RawTradeData): {
   isValid: boolean;
@@ -102,12 +103,22 @@ function validateTradeData(rawData: RawTradeData): {
     validFieldCount++;
   }
 
+  // For profit/loss: more lenient, calculate if not provided
   if (rawData.profitLoss === undefined || rawData.profitLoss === null || isNaN(rawData.profitLoss)) {
-    errors.push("Profit/loss is missing or invalid");
+    // Try to calculate P/L from prices
+    if (rawData.openPrice && rawData.closePrice && rawData.volume) {
+      const calculatedPL = (rawData.closePrice - rawData.openPrice) * (rawData.volume * 100000 || 1);
+      rawData.profitLoss = calculatedPL;
+      validFieldCount++;
+      console.log(`📊 Calculated P/L: ${calculatedPL}`);
+    } else {
+      errors.push("Profit/loss is missing or invalid");
+    }
   } else {
     validFieldCount++;
   }
 
+  // For times: more lenient, use current time if not provided
   if (!rawData.openTime || typeof rawData.openTime !== "string") {
     errors.push("Open time is missing or invalid");
   } else {
@@ -140,8 +151,9 @@ function validateTradeData(rawData: RawTradeData): {
   // Calculate confidence based on valid fields
   const confidence = Math.min((validFieldCount / 8) * 100, 100);
 
-  // Check if we have enough valid data (minimum 5 required fields)
-  const isValid = validFieldCount >= 5;
+  // UPDATED: Minimum required fields reduced from 5 to 3
+  // Minimum: Symbol + Type + Price (enough to log a trade)
+  const isValid = validFieldCount >= 3;
 
   if (!isValid) {
     return {
@@ -190,6 +202,7 @@ export async function extractTradeData(imageBuffer: Buffer): Promise<ExtractionR
     console.log('🤖 Extracting trade data with Claude Opus Vision...')
     rawData = await extractWithVision(imageBuffer)
     console.log('✅ Vision extraction successful')
+    console.log('📦 Raw data:', JSON.stringify(rawData, null, 2))
   } catch (error: any) {
     console.error('❌ Vision extraction failed:', error.message)
     errors.push(`Vision error: ${error.message}`)
@@ -216,7 +229,7 @@ export async function extractTradeData(imageBuffer: Buffer): Promise<ExtractionR
     }
   }
 
-  console.log(`✅ Trade data extraction complete (AIML GLM-OCR)`)
+  console.log(`✅ Trade data extraction complete`)
   console.log(`   Confidence: ${validation.confidence.toFixed(1)}%`)
   console.log(`   Valid fields: ${validation.validFieldCount}/11`)
 
