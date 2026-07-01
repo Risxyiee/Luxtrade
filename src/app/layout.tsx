@@ -31,14 +31,14 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "LuxTrade - Trading Journal Premium Indonesia",
-  description: "Platform trading journal premium untuk trader Indonesia. Catat trade, analisis performa dengan AI, dan tingkatkan strategi trading kamu.",
-  keywords: ["trading journal", "jurnal trading", "trading Indonesia", "analisis trading", "AI trading", "forex journal", "forex Indonesia", "catat trade", "luxtrade"],
+  title: "LuxTrade - AI Trading Journal Indonesia | Catat Trade, Deteksi Kesalahan, Naikkan Win Rate",
+  description: "Trading journal dengan AI untuk trader Indonesia. Screenshot trade dari MT4/MT5, AI auto-extract data & deteksi pola kesalahan berulang. Equity curve, analisis psikologi trading, risk calculator. Gratis 10 trade/bulan.",
+  keywords: ["trading journal", "jurnal trading", "trading journal Indonesia", "AI trading journal", "jurnal trading AI", "catat trade", "analisis trading", "forex journal", "jurnal forex", "equity curve", "deteksi kesalahan trading", "trading psikologi", "risk calculator forex", "MT4 journal", "MT5 journal", "luxtrade"],
   authors: [{ name: "LuxTrade" }],
   icons: { icon: "/logo.png" },
   openGraph: {
-    title: "LuxTrade - Trading Journal Premium Indonesia",
-    description: "Platform trading journal premium untuk trader Indonesia. Catat trade, analisis performa dengan AI, dan tingkatkan strategi trading kamu.",
+    title: "LuxTrade - AI Trading Journal Indonesia | Catat Trade, Deteksi Kesalahan, Naikkan Win Rate",
+    description: "Trading journal dengan AI untuk trader Indonesia. Screenshot trade dari MT4/MT5, AI auto-extract data & deteksi pola kesalahan berulang. Gratis 10 trade/bulan.",
     type: "website",
     siteName: "LuxTrade",
     locale: "id_ID",
