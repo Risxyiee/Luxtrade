@@ -661,7 +661,7 @@ export default function Sidebar({
           )}
 
           {isAdmin && (sidebarOpen || mobileSidebarOpen) && (
-            <Link href="/admin-secure" className="block">
+            <Link href="/admin-panel" className="block">
               <motion.button
                 className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-purple-600/20 to-violet-600/20 text-purple-300 border border-purple-500/30 hover:from-purple-600/30 hover:to-violet-600/30 transition-all flex items-center justify-center gap-2 text-sm font-bold shadow-lg shadow-purple-500/10"
                 whileHover={{ scale: 1.02 }}

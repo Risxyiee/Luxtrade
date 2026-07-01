@@ -2681,3 +2681,52 @@ Stage Summary:
 - Landing page now has: Hero → Stats → Pricing → Screenshots → How It Works → Features → FAQ (accordion) → Roadmap → Newsletter → Footer
 - Calendar tab is now a full-featured trading calendar with navigation and trade filtering
 - Files changed: page.tsx, CalendarTab.tsx
+---
+Task ID: 1
+Agent: fullstack-developer
+Task: Split landing page into components
+
+Work Log:
+- Created 19 component files in src/components/landing/
+- Added Demo labels to EquityWidget (changed "LIVE" badge to "DEMO") and AnimatedForexTrades (changed "Live" text to "Demo")
+- Fixed duplicate Sparkles import: HowItWorksSection uses `Sparkles` directly (was `SparklesIcon` in original), no more duplicate import conflict
+- Created SocialIcons shared component used by both LandingSidebar and LandingFooter
+- Updated page.tsx to import and compose all 19 components
+- All components are self-contained 'use client' with proper TypeScript interfaces
+- All existing styling and logic preserved exactly
+- Lint passes with no errors
+- Dev server compiles successfully (312ms)
+
+Stage Summary:
+- All landing page sections extracted into separate components in src/components/landing/
+- Demo labels added to simulated data widgets (EquityWidget and AnimatedForexTrades)
+- Duplicate Sparkles/SparklesIcon import issue resolved
+- page.tsx reduced from ~1456 lines to ~113 lines (composition only)
+
+---
+Task ID: 8
+Agent: Z.ai Code
+Task: Code cleanup & landing page split
+
+Work Log:
+- Split landing page (page.tsx) from 1456 lines into 163 lines + 19 components in src/components/landing/
+- Created: ParticleBackground, AnnouncementBar, EquityWidget, AnimatedForexTrades, LifetimeUltraCard, LandingNavbar, LandingSidebar, HeroSection, StatsStrip, PricingSection, PromoCodeSection, DemoVideoSection, HowItWorksSection, FeaturesSection, FAQSection, RoadmapSection, NewsletterSection, LandingFooter, SocialIcons
+- Changed "LIVE" badge to "DEMO" in EquityWidget
+- Changed "Live" label to "Demo" in AnimatedForexTrades
+- Fixed duplicate Sparkles/SparklesIcon import
+- Removed unused dependencies: next-auth, better-sqlite3, next-intl, react-quill-new, @types/pdf-parse
+- Deleted dead Supabase client files: supabase-db.ts, supabase/client.ts
+- Deleted redundant admin pages: admin-dashboard-secret, admin-secure
+- Updated Sidebar.tsx admin link from /admin-secure to /admin-panel
+- Deleted unused duplicate LuxTradeLanding.tsx (86KB)
+- Kept pdf-parse (used by import/file/route.ts) and next-themes (used by sonner.tsx)
+- Verified page loads with 200, all sections render, DEMO labels present, no LIVE labels
+
+Stage Summary:
+- page.tsx: 1456 lines → 163 lines (89% reduction)
+- 19 new component files in src/components/landing/
+- 4 unused packages removed
+- 2 dead Supabase files deleted
+- 2 redundant admin pages deleted
+- 1 duplicate file deleted (LuxTradeLanding.tsx)
+- Lint passes clean, page compiles and renders correctly
