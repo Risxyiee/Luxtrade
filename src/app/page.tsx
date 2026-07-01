@@ -1278,7 +1278,6 @@ export default function LuxTradeLanding() {
                   <ul className="space-y-4">
                     {[
                       { icon: '💱', title: language === 'id' ? 'Harga Forex Real-time' : 'Real-time Forex Prices', desc: language === 'id' ? 'Harga pasar langsung di dashboard kamu' : 'Live market prices in your dashboard' },
-                      { icon: '📄', title: language === 'id' ? 'Export PDF' : 'Export to PDF', desc: language === 'id' ? 'Download laporan trading kamu langsung' : 'Download your trading reports instantly' },
                       { icon: '🔔', title: language === 'id' ? 'Notifikasi Harga' : 'Price Alerts', desc: language === 'id' ? 'Dapet notif pas harga nyentuh target kamu' : 'Get notified when price hits your target' },
                     ].map((item, index) => (
                       <li key={index} className="flex items-start gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-cyan-500/20 hover:bg-white/[0.04] transition-all">
@@ -1303,7 +1302,7 @@ export default function LuxTradeLanding() {
                     {[
                       { icon: '📊', title: language === 'id' ? 'Integrasi Chart TradingView' : 'TradingView Charts', desc: language === 'id' ? 'Chart lengkap langsung di dalam LuxTrade' : 'Full charts embedded inside LuxTrade' },
                       { icon: '📥', title: language === 'id' ? 'Import MT4/MT5 Lebih Baik' : 'Better MT4/MT5 Import', desc: language === 'id' ? 'Parsing lebih akurat, support lebih banyak format' : 'More accurate parsing, more format support' },
-                      { icon: '💳', title: language === 'id' ? 'Payment Gateway Baru' : 'New Payment Gateway', desc: language === 'id' ? 'Aktivasi instan setelah bayar' : 'Instant activation after payment' },
+                      { icon: '🤝', title: language === 'id' ? 'Komunitas & Sharing' : 'Community & Sharing', desc: language === 'id' ? 'Bagikan jurnal ke komunitas, belajar dari trader lain' : 'Share journals with the community, learn from other traders' },
                     ].map((item, index) => (
                       <li key={index} className="flex items-start gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-violet-500/20 hover:bg-white/[0.04] transition-all">
                         <span className="text-2xl">{item.icon}</span>
@@ -1323,7 +1322,7 @@ export default function LuxTradeLanding() {
                   <h3 className="font-bold text-white">{language === 'id' ? 'Sudah Tersedia Sekarang' : 'Already Available'}</h3>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {(language === 'id' ? ['Jurnal Trading', 'Analitik Performa', 'Analisis AI', 'Tracking P/L', 'Equity Curve', 'Sistem Achievement', 'Streak Tracking', 'Export CSV', 'Multi-Platform', 'Responsive Mobile'] : ['Trade Journal', 'Performance Analytics', 'AI Analysis', 'P/L Tracking', 'Equity Curve', 'Achievement System', 'Streak Tracking', 'CSV Export', 'Multi-Platform', 'Mobile Responsive']).map((f, i) => (
+                  {(language === 'id' ? ['Jurnal Trading', 'Analitik Performa', 'Analisis AI', 'Tracking P/L', 'Equity Curve', 'Sistem Achievement', 'Streak Tracking', 'Export CSV', 'Export PDF', 'Multi-Platform', 'Responsive Mobile', 'Payment Gateway (Midtrans)'] : ['Trade Journal', 'Performance Analytics', 'AI Analysis', 'P/L Tracking', 'Equity Curve', 'Achievement System', 'Streak Tracking', 'CSV Export', 'PDF Export', 'Multi-Platform', 'Mobile Responsive', 'Payment Gateway (Midtrans)']).map((f, i) => (
                     <span key={i} className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-bold">✓ {f}</span>
                   ))}
                 </div>
