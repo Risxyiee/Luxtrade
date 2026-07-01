@@ -716,14 +716,9 @@ export default function LuxTradeLanding() {
                   </span>
                 </h1>
 
-                <motion.p
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.3 }}
-                  className="text-white/70 max-w-md text-base md:text-lg leading-relaxed mb-8"
-                >
+                <p className="text-white/70 max-w-md text-base md:text-lg leading-relaxed mb-8">
                   {t('hero.subtitle')}
-                </motion.p>
+                </p>
 
                 <div className="flex flex-col sm:flex-row items-start gap-4 w-full sm:w-max">
                   <Link href="/auth/signup" className="w-full sm:w-max">
