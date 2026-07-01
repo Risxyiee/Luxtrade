@@ -114,7 +114,7 @@ function EquityWidget() {
       newData.push({ time: lastPoint.time + 1, value: newValue, change })
       dataRef.current = newData
       drawChart(newData)
-    }, 1500)
+    }, 1000)
 
     return () => clearInterval(interval)
   }, [])
@@ -123,7 +123,12 @@ function EquityWidget() {
   const changePercent = ((changeAmount / 10500) * 100).toFixed(2)
 
   return (
-    <div className="rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] p-6 hover:shadow-[0_0_40px_rgba(139,92,246,0.3)] transition-shadow duration-500">
+    <motion.div
+      className="rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] p-6 hover:shadow-[0_0_40px_rgba(139,92,246,0.3)] transition-shadow duration-500"
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.8, delay: 0.4, ease: 'easeOut' }}
+    >
       <div className="flex items-center justify-between mb-4">
         <div>
           <p className="text-sm text-purple-300/80 font-semibold tracking-wide uppercase text-xs">Portfolio Equity</p>
@@ -156,12 +161,12 @@ function EquityWidget() {
           />
         </div>
       </div>
-      <canvas ref={canvasRef} width={500} height={120} className="w-full h-32" />
+      <canvas ref={canvasRef} width={500} height={160} className="w-full h-40" />
       <div className="flex items-center justify-between mt-4 text-xs text-purple-300/60 font-medium">
         <span>Start: $10,500.00</span>
         <span>Updated just now</span>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -696,8 +701,8 @@ export default function LuxTradeLanding() {
                 <div className="flex items-center h-9 w-max bg-[#2a1b3d]/90 backdrop-blur-sm border border-white/10 rounded-xl mb-8">
                   <div className="w-4 h-full" />
                   <div className="flex items-center gap-2 text-sm font-medium text-white/90">
-                    <span className="w-1.5 h-1.5 bg-purple-400 rounded-sm" />
-                    {t('hero.subtitle').split('.')[0]}
+                    <Sparkles className="w-4 h-4 text-purple-400" />
+                    {language === 'id' ? 'AI-Powered Trading Journal' : 'AI-Powered Trading Journal'}
                   </div>
                   <div className="w-4 h-full" />
                 </div>
@@ -711,9 +716,14 @@ export default function LuxTradeLanding() {
                   </span>
                 </h1>
 
-                <p className="text-white/40 max-w-md text-[15px] md:text-lg leading-relaxed mb-8">
+                <motion.p
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
+                  className="text-white/70 max-w-md text-base md:text-lg leading-relaxed mb-8"
+                >
                   {t('hero.subtitle')}
-                </p>
+                </motion.p>
 
                 <div className="flex flex-col sm:flex-row items-start gap-4 w-full sm:w-max">
                   <Link href="/auth/signup" className="w-full sm:w-max">
@@ -753,13 +763,18 @@ export default function LuxTradeLanding() {
             </div>
 
             {/* Right Side - Widgets */}
-            <div className="relative w-full lg:w-1/2 flex items-center justify-center mt-8 lg:mt-0 lg:-mt-4">
+            <motion.div
+              className="relative w-full lg:w-1/2 flex items-center justify-center mt-8 lg:mt-0 lg:-mt-4"
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+            >
               <div className="w-full max-w-md space-y-4">
                 <EquityWidget />
                 <AnimatedForexTrades />
                 <p className="text-center text-white/25 text-xs">{language === 'id' ? 'Data simulasi untuk demo' : 'Simulated data for demo'}</p>
               </div>
-            </div>
+            </motion.div>
           </div>
         </section>
 
@@ -1143,7 +1158,7 @@ export default function LuxTradeLanding() {
             </div>
 
             <div className="flex justify-center mt-10">
-              <Link href="/signup">
+              <Link href="/auth/signup">
                 <Button className={`bg-gradient-to-r from-purple-600 via-violet-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold px-8 py-3 rounded-xl shadow-lg shadow-purple-500/20 transition-all hover:shadow-purple-500/40`}>
                   {language === 'id' ? 'Mulai Sekarang — Gratis' : 'Get Started — Free'}
                   <ArrowRight className="w-4 h-4 ml-2" />
