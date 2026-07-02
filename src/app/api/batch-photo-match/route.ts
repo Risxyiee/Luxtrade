@@ -17,21 +17,19 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error || !user) {
-      console.log('❌ [Batch Photo Match] Unauthorized')
       return NextResponse.json(
         { error: 'Unauthorized - Please login' },
         { status: 401 }
       )
     }
 
-    console.log(`✅ [Batch Photo Match] Authenticated user: ${user.email}`)
+    // User authenticated
 
     // Get JSON body
     const body = await request.json()
     const { fileNames, accountId, toleranceMinutes = 5 } = body
 
     if (!fileNames || !Array.isArray(fileNames) || fileNames.length === 0) {
-      console.log('❌ [Batch Photo Match] No fileNames provided')
       return NextResponse.json(
         { error: 'fileNames is required (array of filenames)' },
         { status: 400 }
@@ -167,11 +165,7 @@ export async function POST(request: NextRequest) {
     const withMatches = results.filter(r => r.success && r.matches.length > 0)
     const highConfidence = results.filter(r => r.bestMatch !== null)
 
-    console.log(`\n✅ [Batch Photo Match] Batch completed`)
-    console.log(`   Total photos: ${fileNames.length}`)
-    console.log(`   Processed: ${successful.length}`)
-    console.log(`   With matches: ${withMatches.length}`)
-    console.log(`   High confidence: ${highConfidence.length}`)
+    console.log(`✅ [Batch Photo Match] Batch completed: ${successful.length}/${fileNames.length} processed, ${withMatches.length} with matches`)
 
     return NextResponse.json({
       success: true,

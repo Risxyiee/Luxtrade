@@ -109,7 +109,7 @@ async function activateTrialIfNeeded(userId: string, email: string) {
       updated_at: new Date().toISOString()
     }).eq('id', userId)
 
-    console.log('🎁 7-day PRO trial activated for:', email)
+    console.log('🎁 7-day PRO trial activated')
   } catch (err) {
     console.warn('⚠️ Failed to activate trial:', err)
   }

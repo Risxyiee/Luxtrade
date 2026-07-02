@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClientForApi } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth check
+    const { supabase } = createClientForApi(request)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { text, voice = 'alloy', speed = 1.0, format = 'mp3' } = await request.json()
 
     if (!text) {
@@ -52,7 +60,7 @@ export async function POST(request: NextRequest) {
 
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('OpenAI TTS API error:', response.status, errorText)
+        // OpenAI TTS API error
 
         if (response.status === 401) {
           return NextResponse.json({ error: 'Invalid OpenAI API key' }, { status: 401 })
@@ -91,7 +99,7 @@ export async function POST(request: NextRequest) {
       throw error
     }
   } catch (error: any) {
-    console.error('TTS Error:', error)
+    // TTS error
     return NextResponse.json(
       { error: error.message || 'Failed to generate speech' },
       { status: 500 }

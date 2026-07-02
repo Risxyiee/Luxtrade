@@ -16,19 +16,16 @@ async function getAuthUser(request: NextRequest): Promise<{ id: string; email: s
     const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error) {
-      console.error('❌ [API] Supabase auth error:', error.message)
       return null
     }
 
     if (!user) {
-      console.log('❌ [API] No user found in session')
       return null
     }
 
-    console.log('✅ [API] Authenticated user:', { id: user.id, email: user.email })
+    // User authenticated
     return { id: user.id, email: user.email || '' }
-  } catch (error) {
-    console.error('❌ [API] Auth error:', error)
+  } catch (_error) {
     return null
   }
 }

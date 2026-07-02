@@ -1,33 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { createClientForApi } from '@/lib/supabase/server'
+import { getAuthUser } from '@/lib/api-auth'
 import { checkAchievementsAfterTrade } from '@/lib/achievement-checker'
 
 // Free user trade limit - 10 trades per month
 const FREE_TRADE_LIMIT = 10
 
-// Helper: Get authenticated user from request
-async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
-  try {
-    const { supabase } = createClientForApi(request)
-    const { data: { user }, error } = await supabase.auth.getUser()
+// In-memory rate limiter for POST
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+const RATE_LIMIT_WINDOW_MS = 60_000 // 1 minute
+const RATE_LIMIT_MAX = 15 // 15 requests per minute
 
-    if (error) {
-      console.error('❌ [API] Supabase auth error:', error.message)
-      return null
-    }
-
-    if (!user) {
-      console.log('❌ [API] No user found in session')
-      return null
-    }
-
-    console.log('✅ [API] Authenticated user:', { id: user.id, email: user.email })
-    return { id: user.id, email: user.email || '' }
-  } catch (error) {
-    console.error('❌ [API] Auth error:', error)
-    return null
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now()
+  let entry = rateLimitMap.get(ip)
+  if (!entry || now > entry.resetAt) {
+    entry = { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS }
+    rateLimitMap.set(ip, entry)
   }
+  entry.count++
+  return entry.count <= RATE_LIMIT_MAX
 }
 
 // Helper: Ensure profile exists (auto-create if not) - MUST RUN FIRST
@@ -38,7 +30,6 @@ async function ensureProfile(userId: string, email?: string): Promise<void> {
     })
 
     if (!existing) {
-      console.log('📝 [API] Auto-creating profile for user:', userId)
       await db.profile.create({
         data: {
           id: userId,
@@ -53,7 +44,6 @@ async function ensureProfile(userId: string, email?: string): Promise<void> {
           updatedAt: new Date(),
         }
       })
-      console.log('✅ [API] Profile created successfully')
     } else {
       // Update email if changed
       if (email && existing.email !== email) {
@@ -61,11 +51,9 @@ async function ensureProfile(userId: string, email?: string): Promise<void> {
           where: { id: userId },
           data: { email, updatedAt: new Date() }
         })
-        console.log('✅ [API] Profile email updated')
       }
     }
   } catch (error) {
-    console.error('❌ [API] Error creating profile:', error)
     throw error
   }
 }
@@ -87,8 +75,7 @@ async function isUserPro(userId: string): Promise<boolean> {
     }
 
     return false
-  } catch (error) {
-    console.error('❌ [API] Error checking PRO status:', error)
+  } catch {
     return false
   }
 }
@@ -109,8 +96,7 @@ async function countUserTrades(userId: string): Promise<number> {
     })
 
     return count
-  } catch (error) {
-    console.error('❌ [API] Error counting trades:', error)
+  } catch {
     return 0
   }
 }
@@ -118,12 +104,9 @@ async function countUserTrades(userId: string): Promise<number> {
 // GET - Fetch all trades
 export async function GET(request: NextRequest) {
   try {
-    console.log('🟢 [API /api/trades GET] Fetching trades...')
-
     const authUser = await getAuthUser(request)
 
     if (!authUser) {
-      console.log('❌ [API] Unauthorized - no valid user')
       return NextResponse.json(
         { error: 'Unauthorized - Please login' },
         { status: 401 }
@@ -139,10 +122,8 @@ export async function GET(request: NextRequest) {
       take: limit
     })
 
-    console.log(`✅ [API] Found ${trades.length} trades for user ${authUser.id}`)
     return NextResponse.json({ trades })
   } catch (err) {
-    console.error('❌ [API /api/trades GET] Error:', err)
     return NextResponse.json(
       { error: 'Failed to fetch trades', details: err instanceof Error ? err.message : 'Unknown error' },
       { status: 500 }
@@ -152,16 +133,23 @@ export async function GET(request: NextRequest) {
 
 // POST - Create new trade
 export async function POST(request: NextRequest) {
+  // Rate limit check
+  const forwarded = request.headers.get('x-forwarded-for')
+  const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown'
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429 }
+    )
+  }
+
   let createdTradeId: string | null = null
   
   try {
-    console.log('🟢 [API /api/trades POST] Starting trade creation...')
-
     // Get authenticated user
     const authUser = await getAuthUser(request)
 
     if (!authUser) {
-      console.log('❌ [API] Unauthorized - no valid user')
       return NextResponse.json(
         { error: 'Unauthorized - Please login' },
         { status: 401 }
@@ -170,16 +158,12 @@ export async function POST(request: NextRequest) {
 
     const userId = authUser.id
     const body = await request.json()
-    console.log('📊 [API] Request body:', body)
-    console.log('👤 [API] User ID:', userId)
-    console.log('📧 [API] User Email:', authUser.email)
 
     // Validate required fields
     const requiredFields = ['symbol', 'type', 'open_price', 'lot_size', 'profit_loss', 'open_time', 'close_time']
     const missingFields = requiredFields.filter(field => !body[field] && body[field] !== 0)
 
     if (missingFields.length > 0) {
-      console.log('❌ [API] Missing required fields:', missingFields)
       return NextResponse.json(
         { error: `Missing required fields: ${missingFields.join(', ')}` },
         { status: 400 }
@@ -188,18 +172,14 @@ export async function POST(request: NextRequest) {
 
     // STEP 1: Auto-create profile if not exists - CRITICAL FOR DATA INTEGRITY
     await ensureProfile(userId, authUser.email)
-    console.log('✅ [API] Profile ensured for user:', userId)
 
     // STEP 2: Check PRO status BEFORE creating trade
     const isPro = await isUserPro(userId)
-    console.log('💎 [API] Is PRO user:', isPro)
 
     if (!isPro) {
       const tradeCount = await countUserTrades(userId)
-      console.log('📈 [API] Trade count for user:', tradeCount, '/', FREE_TRADE_LIMIT)
 
       if (tradeCount >= FREE_TRADE_LIMIT) {
-        console.log('⚠️ [API] Trade limit exceeded!')
         return NextResponse.json({
           error: `Pengguna Free dibatasi maksimal ${FREE_TRADE_LIMIT} jurnal transaksi per bulan. Upgrade ke PRO untuk akses UNLIMITED!`,
           code: 'TRADE_LIMIT_EXCEEDED',
@@ -209,8 +189,6 @@ export async function POST(request: NextRequest) {
         }, { status: 403 })
       }
     }
-
-    console.log('💾 [API] Creating trade in database...')
 
     // STEP 3: Create trade with explicit user_id
     const trade = await db.trade.create({
@@ -241,11 +219,6 @@ export async function POST(request: NextRequest) {
     })
 
     createdTradeId = trade.id
-    console.log('✅ [API] Trade created successfully:', {
-      id: trade.id,
-      symbol: trade.symbol,
-      user_id: trade.user_id
-    })
 
     // STEP 4: Verify trade ownership immediately
     const verification = await db.trade.findUnique({
@@ -254,26 +227,17 @@ export async function POST(request: NextRequest) {
     })
     
     if (!verification || verification.user_id !== userId) {
-      console.error('❌ [API] CRITICAL: Trade ownership verification failed!', {
-        tradeId: trade.id,
-        expectedUserId: userId,
-        actualUserId: verification?.user_id
-      })
       // Trade was created but with wrong user_id - this is a critical data integrity issue
-    } else {
-      console.log('✅ [API] Trade ownership verified:', verification)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('CRITICAL: Trade ownership verification failed!')
+      }
     }
 
     // STEP 5: Check achievements after trade creation
-    console.log('🏆 [API] Checking achievements after trade...')
     let unlockedAchievements: any[] = []
     try {
       unlockedAchievements = await checkAchievementsAfterTrade(userId)
-      if (unlockedAchievements.length > 0) {
-        console.log(`🎉 [API] Unlocked ${unlockedAchievements.length} achievements:`, unlockedAchievements)
-      }
-    } catch (error) {
-      console.error('❌ [API] Error checking achievements:', error)
+    } catch {
       // Don't fail the trade creation if achievement check fails
     }
 
@@ -281,21 +245,11 @@ export async function POST(request: NextRequest) {
       success: true,
       trade,
       unlockedAchievements,
-      debug: {
-        userId,
-        tradeId: trade.id,
-        verified: verification?.user_id === userId
-      }
     })
   } catch (err) {
-    console.error('❌ [API /api/trades POST] Error:', err)
-    console.error('❌ [API] Trade ID (if created):', createdTradeId)
-    console.error('Error stack:', err instanceof Error ? err.stack : 'No stack trace')
-
     // Check for specific Prisma errors
     if (err instanceof Error) {
       if (err.message.includes('Foreign key constraint')) {
-        console.error('❌ [API] Foreign key constraint violation - PROFILE MAY NOT EXIST')
         return NextResponse.json(
           { error: 'Profile not found. Please refresh and try again.', details: err.message },
           { status: 400 }
@@ -313,12 +267,9 @@ export async function POST(request: NextRequest) {
 // PUT - Update trade
 export async function PUT(request: NextRequest) {
   try {
-    console.log('🟢 [API /api/trades PUT] Updating trade...')
-
     const authUser = await getAuthUser(request)
 
     if (!authUser) {
-      console.log('❌ [API] Unauthorized - no valid user')
       return NextResponse.json(
         { error: 'Unauthorized - Please login' },
         { status: 401 }
@@ -329,7 +280,6 @@ export async function PUT(request: NextRequest) {
     const { id, ...updates } = body
 
     if (!id) {
-      console.log('❌ [API] Missing trade ID')
       return NextResponse.json(
         { error: 'Trade ID is required' },
         { status: 400 }
@@ -342,7 +292,6 @@ export async function PUT(request: NextRequest) {
     })
 
     if (!existingTrade) {
-      console.log('❌ [API] Trade not found')
       return NextResponse.json(
         { error: 'Trade not found' },
         { status: 404 }
@@ -350,7 +299,6 @@ export async function PUT(request: NextRequest) {
     }
 
     if (existingTrade.user_id !== authUser.id) {
-      console.log('❌ [API] Unauthorized - trade belongs to another user')
       return NextResponse.json(
         { error: 'Unauthorized - Trade belongs to another user' },
         { status: 403 }
@@ -377,10 +325,8 @@ export async function PUT(request: NextRequest) {
       data: updateData
     })
 
-    console.log('✅ [API] Trade updated successfully:', trade.id)
     return NextResponse.json({ trade })
   } catch (err) {
-    console.error('❌ [API /api/trades PUT] Error:', err)
     return NextResponse.json(
       { error: 'Failed to update trade', details: err instanceof Error ? err.message : 'Unknown error' },
       { status: 500 }
@@ -391,12 +337,9 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete trade
 export async function DELETE(request: NextRequest) {
   try {
-    console.log('🟢 [API /api/trades DELETE] Deleting trade...')
-
     const authUser = await getAuthUser(request)
 
     if (!authUser) {
-      console.log('❌ [API] Unauthorized - no valid user')
       return NextResponse.json(
         { error: 'Unauthorized - Please login' },
         { status: 401 }
@@ -407,7 +350,6 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id')
 
     if (!id) {
-      console.log('❌ [API] Missing trade ID')
       return NextResponse.json(
         { error: 'Trade ID is required' },
         { status: 400 }
@@ -420,7 +362,6 @@ export async function DELETE(request: NextRequest) {
     })
 
     if (!existingTrade) {
-      console.log('❌ [API] Trade not found')
       return NextResponse.json(
         { error: 'Trade not found' },
         { status: 404 }
@@ -428,7 +369,6 @@ export async function DELETE(request: NextRequest) {
     }
 
     if (existingTrade.user_id !== authUser.id) {
-      console.log('❌ [API] Unauthorized - trade belongs to another user')
       return NextResponse.json(
         { error: 'Unauthorized - Trade belongs to another user' },
         { status: 403 }
@@ -439,10 +379,8 @@ export async function DELETE(request: NextRequest) {
       where: { id: String(id) }
     })
 
-    console.log('✅ [API] Trade deleted successfully')
     return NextResponse.json({ success: true })
   } catch (err) {
-    console.error('❌ [API /api/trades DELETE] Error:', err)
     return NextResponse.json(
       { error: 'Failed to delete trade', details: err instanceof Error ? err.message : 'Unknown error' },
       { status: 500 }

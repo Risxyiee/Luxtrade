@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClientForApi } from '@/lib/supabase/server'
+import { getAuthUser } from '@/lib/api-auth'
 import { db, ensureSchema } from '@/lib/db'
 
 // GET - Fetch watchlist
@@ -7,15 +7,13 @@ export async function GET(request: NextRequest) {
   try {
     await ensureSchema()
 
-    const { supabase } = createClientForApi(request)
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
+    const authUser = await getAuthUser(request)
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const items = await db.watchlistItem.findMany({
-      where: { userId: user.id },
+      where: { userId: authUser.id },
       orderBy: { createdAt: 'desc' }
     })
 
@@ -40,10 +38,8 @@ export async function POST(request: NextRequest) {
   try {
     await ensureSchema()
 
-    const { supabase } = createClientForApi(request)
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
+    const authUser = await getAuthUser(request)
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -55,12 +51,12 @@ export async function POST(request: NextRequest) {
 
     // Ensure profile exists
     try {
-      const existing = await db.profile.findUnique({ where: { id: user.id } })
+      const existing = await db.profile.findUnique({ where: { id: authUser.id } })
       if (!existing) {
         await db.profile.create({
           data: {
-            id: user.id,
-            email: user.email,
+            id: authUser.id,
+            email: authUser.email,
             plan: 'FREE',
             is_pro: false,
             role: 'USER',
@@ -76,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     const item = await db.watchlistItem.create({
       data: {
-        userId: user.id,
+        userId: authUser.id,
         symbol: body.symbol.toUpperCase(),
         name: body.name || body.symbol.toUpperCase(),
         targetPrice: body.target_price ? parseFloat(body.target_price) : null,
@@ -103,10 +99,8 @@ export async function POST(request: NextRequest) {
 // DELETE - Remove from watchlist
 export async function DELETE(request: NextRequest) {
   try {
-    const { supabase } = createClientForApi(request)
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
+    const authUser = await getAuthUser(request)
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -119,7 +113,7 @@ export async function DELETE(request: NextRequest) {
 
     // Verify ownership
     const item = await db.watchlistItem.findUnique({ where: { id } })
-    if (!item || item.userId !== user.id) {
+    if (!item || item.userId !== authUser.id) {
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
 

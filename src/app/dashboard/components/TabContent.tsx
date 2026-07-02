@@ -1,24 +1,30 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { motion } from 'framer-motion'
-import DashboardTab from '../tabs/DashboardTab'
-import TradesTab from '../tabs/TradesTab'
-import JournalTab from '../tabs/JournalTab'
-import WatchlistTab from '../tabs/WatchlistTab'
-import AnalyticsTab from '../tabs/AnalyticsTab'
-import AITab from '../tabs/AITab'
-import PsychologyTab from '../tabs/PsychologyTab'
-import HeatmapTab from '../tabs/HeatmapTab'
-import CalendarTab from '../tabs/CalendarTab'
-import RiskCalculatorTab from '../tabs/RiskCalculatorTab'
-import TargetsTab from '../tabs/TargetsTab'
-import MarketNewsTab from '../tabs/MarketNewsTab'
-import EconomicCalendarTab from '../tabs/EconomicCalendarTab'
-import TradingScore from '@/components/TradingScore'
-import AIWeeklyReport from '@/components/AIWeeklyReport'
-import TradingStreaks from '@/components/TradingStreaks'
-import AchievementCenter from '@/components/AchievementCenter'
+import { TabSkeleton } from '@/components/TabSkeleton'
 import { Trade, JournalEntry, WatchlistItem, Analytics } from '../utils/types'
+
+// Lazy-loaded tab components — each chunk is only fetched when the tab is first visited
+const DashboardTab = dynamic(() => import('../tabs/DashboardTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const TradesTab = dynamic(() => import('../tabs/TradesTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const JournalTab = dynamic(() => import('../tabs/JournalTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const WatchlistTab = dynamic(() => import('../tabs/WatchlistTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const AnalyticsTab = dynamic(() => import('../tabs/AnalyticsTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const AITab = dynamic(() => import('../tabs/AITab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const PsychologyTab = dynamic(() => import('../tabs/PsychologyTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const HeatmapTab = dynamic(() => import('../tabs/HeatmapTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const CalendarTab = dynamic(() => import('../tabs/CalendarTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const RiskCalculatorTab = dynamic(() => import('../tabs/RiskCalculatorTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const TargetsTab = dynamic(() => import('../tabs/TargetsTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const MarketNewsTab = dynamic(() => import('../tabs/MarketNewsTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const EconomicCalendarTab = dynamic(() => import('../tabs/EconomicCalendarTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+
+// Lazy-loaded feature components
+const TradingScore = dynamic(() => import('@/components/TradingScore').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const AIWeeklyReport = dynamic(() => import('@/components/AIWeeklyReport').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const TradingStreaks = dynamic(() => import('@/components/TradingStreaks').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const AchievementCenter = dynamic(() => import('@/components/AchievementCenter').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 
 interface TabContentProps {
   activeTab: string
@@ -38,6 +44,7 @@ interface TabContentProps {
   onView: (trade: Trade) => void
   onEdit: (trade: Trade) => void
   onDelete: (trade: Trade) => void
+  onDuplicate?: (trade: Trade) => void
   onJournalView: (entry: JournalEntry) => void
   onJournalEdit: (entry: JournalEntry) => void
   onJournalDelete: (id: string) => void
@@ -72,6 +79,7 @@ export default function TabContent({
   onView,
   onEdit,
   onDelete,
+  onDuplicate,
   onJournalView,
   onJournalEdit,
   onJournalDelete,
@@ -128,6 +136,7 @@ export default function TabContent({
             onView={onView}
             onEdit={onEdit}
             onDelete={onDelete}
+            onDuplicate={onDuplicate}
           />
         </motion.div>
       )}
@@ -178,7 +187,7 @@ export default function TabContent({
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.3 }}
         >
-          <AnalyticsTab analytics={analytics} loading={loading} trades={trades} />
+          <AnalyticsTab language={language} />
         </motion.div>
       )}
 

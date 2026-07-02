@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClientForApi } from '@/lib/supabase/server'
+import { getAuthUser } from '@/lib/api-auth'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 
@@ -12,10 +12,8 @@ export async function POST(request: NextRequest) {
     console.log('📤 [File Upload] Starting file upload...')
 
     // Authenticate user
-    const { supabase } = createClientForApi(request)
-    const { data: { user }, error } = await supabase.auth.getUser()
-
-    if (error || !user) {
+    const authUser = await getAuthUser(request)
+    if (!authUser) {
       console.log('❌ [File Upload] Unauthorized')
       return NextResponse.json(
         { error: 'Unauthorized - Please login' },
@@ -23,7 +21,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`✅ [File Upload] Authenticated user: ${user.email}`)
+    // User authenticated
 
     // Get form data
     const formData = await request.formData()
@@ -108,10 +106,8 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const { supabase } = createClientForApi(request)
-    const { data: { user }, error } = await supabase.auth.getUser()
-
-    if (error || !user) {
+    const authUser = await getAuthUser(request)
+    if (!authUser) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }

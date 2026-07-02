@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    console.log(`✅ New verification token generated for: ${profile.email}`)
+    console.log('✅ New verification token generated')
 
     // Build verification URL (points to our custom verify page)
     const confirmationUrl = `${SITE_URL}/auth/verify?token=${newToken}`
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`✅ Resend verification email sent to: ${email}`)
+    console.log('✅ Resend verification email sent')
     return NextResponse.json({
       success: true,
       message: 'Link verifikasi baru sudah dikirim ke email kamu. Cek inbox/spam ya!',

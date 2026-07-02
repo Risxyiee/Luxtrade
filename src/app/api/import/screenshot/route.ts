@@ -98,11 +98,7 @@ export async function POST(request: NextRequest) {
         'Use Quick Import in Add Trade form for AI Vision analysis',
         'Use MT5 Statement file import (CSV/Excel/HTML)',
         'Add trades manually'
-      ],
-      debug: {
-        processingTime: `${processingTime}s`,
-        note: 'AI Vision analysis available through Quick Import feature'
-      }
+      ]
     }, { status: 503 })
 
   } catch (error) {

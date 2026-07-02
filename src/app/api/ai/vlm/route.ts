@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { analyzeImageWithZAIVision } from '@/lib/zai-vision'
 import { analyzeImageWithOllama } from '@/lib/ollama-vision'
+import { createClientForApi } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth check
+    const { supabase } = createClientForApi(request)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const formData = await request.formData()
     const image = formData.get('image') as File
     const question = formData.get('question') as string || 'Describe this image in detail'
@@ -32,7 +40,7 @@ export async function POST(request: NextRequest) {
       )
       analysis = JSON.stringify(ollamaResult)
     } catch (ollamaError) {
-      console.log('⚠️ Ollama failed, trying Z.ai Vision...')
+      // Ollama failed, trying Z.ai Vision fallback
       const zaiResult = await analyzeImageWithZAIVision(base64Image, question, {})
       analysis = zaiResult.text
     }
@@ -42,7 +50,7 @@ export async function POST(request: NextRequest) {
       response: analysis
     })
   } catch (error: any) {
-    console.error('VLM Error:', error)
+    // VLM error
     return NextResponse.json(
       { error: error.message || 'Failed to analyze image' },
       { status: 500 }

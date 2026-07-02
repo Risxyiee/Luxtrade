@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('🔄 Ensuring profile exists for user:', userId)
+    // Ensuring profile exists
 
     // Check if profile already exists in Prisma/SQLite
     const existingProfile = await db.profile.findUnique({
@@ -21,12 +21,10 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingProfile) {
-      console.log('✅ Profile already exists')
       return NextResponse.json({ profile: existingProfile, created: false })
     }
 
     // Create new profile using Prisma
-    console.log('📝 Creating new profile in SQLite...')
     const profile = await db.profile.create({
       data: {
         id: userId,
@@ -41,7 +39,6 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    console.log('✅ Profile created successfully')
     return NextResponse.json({ profile, created: true })
   } catch (error: any) {
     console.error('❌ Ensure profile error:', error)

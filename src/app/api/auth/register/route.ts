@@ -21,8 +21,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('📝 Registering new user:', email)
-
     // Create user in Supabase Auth
     const { data, error: authError } = await supabase.auth.signUp({
       email,
@@ -51,10 +49,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('✅ User created in Supabase Auth, UID:', data.user.id)
+    console.log('✅ User created in Supabase Auth')
 
     // User is now fully managed in Supabase Auth with metadata
-    console.log('✅ Registration complete - using Supabase Auth only')
 
     return NextResponse.json({
       success: true,

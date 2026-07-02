@@ -7,8 +7,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { userId, email, fullName } = body
 
-    console.log('🔄 Syncing user:', { userId, email, fullName })
-
     if (!userId || !email) {
       return NextResponse.json(
         { error: 'userId and email are required' },
@@ -51,7 +49,6 @@ export async function POST(request: NextRequest) {
       action: 'synced',
       user: {
         id: user.user.id,
-        email: user.user.email,
         name: user.user.user_metadata?.full_name || email.split('@')[0]
       }
     })
