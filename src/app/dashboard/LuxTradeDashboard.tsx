@@ -651,10 +651,10 @@ function LuxTradeDashboardContent() {
   // Show auth loading state
   if ((authLoading || !authChecked)) {
     return (
-      <div className="min-h-screen bg-[#0a0712] flex items-center justify-center" suppressHydrationWarning={true}>
+      <div className="min-h-screen bg-lux-bg-primary flex items-center justify-center" suppressHydrationWarning={true}>
         <div className="text-center">
           <Loader2 className="w-8 h-8 text-purple-500 animate-spin mx-auto mb-4" />
-          <p className="text-white/60 text-sm">Loading...</p>
+          <p className="text-lux-text-muted text-sm">Loading...</p>
         </div>
       </div>
     )
@@ -662,7 +662,7 @@ function LuxTradeDashboardContent() {
 
   return (
     <ContextGuideProvider>
-      <div className="min-h-screen bg-[#0a0712] text-white flex w-full" suppressHydrationWarning={true}>
+      <div className="min-h-screen bg-lux-bg-secondary text-lux-text-primary flex w-full" suppressHydrationWarning={true}>
       {/* Sidebar */}
       <Sidebar
         sidebarOpen={sidebarOpen}

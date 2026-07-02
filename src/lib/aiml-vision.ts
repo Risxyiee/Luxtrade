@@ -1,7 +1,7 @@
 /**
- * Vision AI Integration — Google Gemini Vision (Free & Unlimited)
+ * Vision AI Integration — Google Gemini 2.0 Flash (Free & Unlimited)
  * 
- * Uses Google Gemini Pro Vision for:
+ * Uses Google Gemini 2.0 Flash for:
  * - Trading screenshot OCR/extraction (vision)
  * - Journal content generation
  * 
@@ -13,7 +13,7 @@
 
 import sharp from 'sharp'
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent'
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
 
 // ==================== TYPES ====================
 
