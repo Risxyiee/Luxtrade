@@ -1,6 +1,7 @@
 'use client'
 
-import { Eye, Plus, Trash2, TrendingUp as TrendingUpIcon } from 'lucide-react'
+import { useState } from 'react'
+import { Eye, Plus, Trash2, TrendingUp as TrendingUpIcon, Bell, BellRing } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
@@ -26,6 +27,30 @@ export default function WatchlistTab({
   onAdd,
   onDelete
 }: WatchlistTabProps) {
+  // Local alert toggle state (visual only — persists in session)
+  const [alertItems, setAlertItems] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set()
+    try {
+      const stored = sessionStorage.getItem('watchlist-alerts')
+      return stored ? new Set(JSON.parse(stored)) : new Set()
+    } catch {
+      return new Set()
+    }
+  })
+
+  const toggleAlert = (id: string) => {
+    setAlertItems(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      sessionStorage.setItem('watchlist-alerts', JSON.stringify([...next]))
+      return next
+    })
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -58,41 +83,74 @@ export default function WatchlistTab({
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {items.map((item) => (
-            <Card key={item.id} className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30 hover:border-emerald-500/30 transition-colors group">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                      <TrendingUpIcon className="w-5 h-5 text-emerald-400" />
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {items.map((item) => {
+              const isAlertOn = alertItems.has(item.id)
+              return (
+                <Card key={item.id} className={`bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30 hover:border-emerald-500/30 transition-colors group ${isAlertOn ? 'ring-1 ring-amber-500/30' : ''}`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                          <TrendingUpIcon className="w-5 h-5 text-emerald-400" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold">{item.symbol}</h4>
+                          {item.name && <p className="text-xs text-gray-500">{item.name}</p>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {/* Alert toggle button */}
+                        <button
+                          onClick={() => toggleAlert(item.id)}
+                          className={`p-1.5 rounded-lg transition-all ${isAlertOn ? 'text-amber-400 bg-amber-500/15 hover:bg-amber-500/25' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5 opacity-0 group-hover:opacity-100'}`}
+                          title={isAlertOn ? 'Alert ON' : 'Alert OFF'}
+                        >
+                          {isAlertOn ? (
+                            <BellRing className="w-4 h-4 animate-[swing_1s_ease-in-out_infinite]" />
+                          ) : (
+                            <Bell className="w-4 h-4" />
+                          )}
+                        </button>
+                        {/* Delete button */}
+                        <button
+                          onClick={() => onDelete(item.id)}
+                          className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-all"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-bold">{item.symbol}</h4>
-                      {item.name && <p className="text-xs text-gray-500">{item.name}</p>}
+                    {item.target_price && (
+                      <div className="mb-2">
+                        <span className="text-xs text-gray-500">Target: </span>
+                        <span className="text-sm font-bold text-emerald-400">{item.target_price}</span>
+                      </div>
+                    )}
+                    {item.notes && (
+                      <p className="text-xs text-gray-400 line-clamp-2">{item.notes}</p>
+                    )}
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="text-xs text-gray-600">Added {new Date(item.created_at).toLocaleDateString()}</p>
+                      {isAlertOn && (
+                        <span className="text-[10px] text-amber-400/80 font-medium flex items-center gap-1">
+                          <BellRing className="w-3 h-3" />
+                          Alert ON
+                        </span>
+                      )}
                     </div>
-                  </div>
-                  <button
-                    onClick={() => onDelete(item.id)}
-                    className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-all"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-                {item.target_price && (
-                  <div className="mb-2">
-                    <span className="text-xs text-gray-500">Target: </span>
-                    <span className="text-sm font-bold text-emerald-400">{item.target_price}</span>
-                  </div>
-                )}
-                {item.notes && (
-                  <p className="text-xs text-gray-400 line-clamp-2">{item.notes}</p>
-                )}
-                <p className="text-xs text-gray-600 mt-2">Added {new Date(item.created_at).toLocaleDateString()}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+
+          {/* Alert notice */}
+          <p className="text-xs text-gray-500 text-center mt-2">
+            🔔 Alerts require real-time price data (coming soon) / Alert membutuhkan data harga real-time (segera hadir)
+          </p>
+        </>
       )}
     </div>
   )

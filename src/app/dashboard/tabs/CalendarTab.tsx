@@ -17,7 +17,19 @@ import {
   Clock,
   Activity,
   BarChart3,
+  Flame,
+  Trophy,
+  Skull,
 } from 'lucide-react'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts'
 
 // ── Interfaces ──────────────────────────────────────────────────────────────
 
@@ -82,6 +94,17 @@ function t(key: string, lang: string) {
     sell: { id: 'Jual', en: 'SELL' },
     lots: { id: 'lot', en: 'lot' },
     winRate: { id: 'Win Rate', en: 'Win Rate' },
+    bestDay: { id: 'Hari Terbaik', en: 'Best Day' },
+    worstDay: { id: 'Hari Terburuk', en: 'Worst Day' },
+    tradingStreak: { id: 'Streak Trading', en: 'Trading Streak' },
+    days: { id: 'hari', en: 'days' },
+    legendProfit: { id: 'Hari Profit', en: 'Profit day' },
+    legendLoss: { id: 'Hari Loss', en: 'Loss day' },
+    legendBreakeven: { id: 'Breakeven', en: 'Breakeven' },
+    legendNoTrades: { id: 'Tidak ada transaksi', en: 'No trades' },
+    dailyPL: { id: 'P/L Harian', en: 'Daily P/L' },
+    daySummaryTrades: { id: 'transaksi', en: 'trades' },
+    daySummaryWinRate: { id: 'Win Rate', en: 'Win Rate' },
     dayHeader: {
       id: (d: number, m: string, y: number) =>
         `Transaksi — ${d} ${m} ${y}`,
@@ -151,6 +174,21 @@ const tradeItemVariants = {
   exit: { opacity: 0, y: -8, transition: { duration: 0.15 } },
 }
 
+// ── Custom tooltip for mini bar chart ────────────────────────────────────────
+
+function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; payload: { day: number } }>; label?: string }) {
+  if (!active || !payload || payload.length === 0) return null
+  const value = payload[0].value
+  return (
+    <div className="bg-[#1a1028] border border-purple-900/40 rounded-lg px-3 py-2 shadow-xl">
+      <p className="text-xs text-gray-400">{label}</p>
+      <p className={`text-sm font-bold ${value >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+        {formatCurrency(value)}
+      </p>
+    </div>
+  )
+}
+
 // ── Component ───────────────────────────────────────────────────────────────
 
 function CalendarTab({ trades, language }: CalendarTabProps) {
@@ -210,6 +248,15 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
     return netPLByDay[selectedDay] ?? 0
   }, [selectedDay, netPLByDay])
 
+  // ── Derived: selected day summary stats ────────────────────────────────
+
+  const selectedDayStats = useMemo(() => {
+    if (selectedDay === null || selectedTrades.length === 0) return null
+    const wins = selectedTrades.filter((t) => t.profit_loss >= 0).length
+    const winRate = ((wins / selectedTrades.length) * 100).toFixed(1)
+    return { count: selectedTrades.length, winRate }
+  }, [selectedDay, selectedTrades])
+
   // ── Derived: month summary stats ────────────────────────────────────────
 
   const monthTrades = useMemo(
@@ -229,6 +276,70 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
     const winRate = total > 0 ? ((wins / total) * 100).toFixed(1) : '0.0'
     return { total, wins, losses, netPL, winRate }
   }, [monthTrades])
+
+  // ── Derived: best day and worst day ────────────────────────────────────
+
+  const { bestDay, worstDay } = useMemo(() => {
+    let best: { day: number; pl: number } | null = null
+    let worst: { day: number; pl: number } | null = null
+    for (const [dayStr, pl] of Object.entries(netPLByDay)) {
+      const day = Number(dayStr)
+      if (!best || pl > best.pl) best = { day, pl }
+      if (!worst || pl < worst.pl) worst = { day, pl }
+    }
+    return {
+      bestDay: best && best.pl > 0 ? best : null,
+      worstDay: worst && worst.pl < 0 ? worst : null,
+    }
+  }, [netPLByDay])
+
+  // ── Derived: trading day streak ─────────────────────────────────────────
+
+  const tradingStreak = useMemo(() => {
+    // Calculate consecutive trading days ending at today (or the most recent trading day before today)
+    const streakDays: number[] = []
+    const checkDate = new Date(today)
+
+    // If today has no trades, check if yesterday was a trading day to continue streak
+    let startOffset = 0
+    const todayKey = `${checkDate.getFullYear()}-${checkDate.getMonth()}-${checkDate.getDate()}`
+    if (!tradesByKey[todayKey]) {
+      // Check yesterday
+      checkDate.setDate(checkDate.getDate() - 1)
+      const yesterdayKey = `${checkDate.getFullYear()}-${checkDate.getMonth()}-${checkDate.getDate()}`
+      if (!tradesByKey[yesterdayKey]) return 0
+      startOffset = 1
+    }
+
+    // Count backwards from the last trading day
+    const startDate = new Date(today)
+    startDate.setDate(startDate.getDate() - startOffset)
+
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(startDate)
+      d.setDate(d.getDate() - i)
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+      if (tradesByKey[key] && tradesByKey[key].length > 0) {
+        streakDays.push(d.getDate())
+      } else {
+        break
+      }
+    }
+
+    return streakDays.length
+  }, [tradesByKey, today])
+
+  // ── Derived: mini bar chart data ────────────────────────────────────────
+
+  // Build daily P/L chart data (not memoized to avoid React Compiler issues)
+  const dailyPLChartData = (() => {
+    const netPLMap = new Map(Object.entries(netPLByDay).map(([k, v]) => [Number(k), v] as const))
+    return Array.from({ length: daysInMonth }, (_, i) => {
+      const day = i + 1
+      const pl = netPLMap.get(day) ?? 0
+      return { day, pl, hasTrades: netPLMap.has(day) }
+    }).filter((d) => d.hasTrades)
+  })()
 
   // ── Navigation handlers ─────────────────────────────────────────────────
 
@@ -440,10 +551,30 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
               })}
             </motion.div>
           </AnimatePresence>
+
+          {/* ── Legend ─────────────────────────────────────────────────────── */}
+          <div className="flex items-center justify-center gap-4 mt-4 pt-3 border-t border-white/5">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-emerald-500/30 border border-emerald-500/40" />
+              <span className="text-[11px] text-gray-500">{t('legendProfit', lang)}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-red-500/30 border border-red-500/40" />
+              <span className="text-[11px] text-gray-500">{t('legendLoss', lang)}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-purple-500/30 border border-purple-500/40" />
+              <span className="text-[11px] text-gray-500">{t('legendBreakeven', lang)}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm bg-white/5 border border-white/10" />
+              <span className="text-[11px] text-gray-500">{t('legendNoTrades', lang)}</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      {/* ── Trade Detail Panel ─────────────────────────────────────────── */}
+      {/* ── Trade Detail Panel (enhanced with summary stats) ────────────── */}
       <AnimatePresence>
         {selectedDay !== null && (
           <motion.div
@@ -481,6 +612,17 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
                     {formatCurrency(selectedDayNetPL)}
                   </Badge>
                 </div>
+                {/* Day summary row */}
+                {selectedDayStats && (
+                  <div className="flex items-center gap-4 mt-2">
+                    <span className="text-xs text-gray-400">
+                      {selectedDayStats.count} {t('daySummaryTrades', lang)}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {t('daySummaryWinRate', lang)}: <span className="text-purple-300 font-medium">{selectedDayStats.winRate}%</span>
+                    </span>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 {selectedTrades.length === 0 ? (
@@ -595,7 +737,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
         )}
       </AnimatePresence>
 
-      {/* ── Month Summary Card ─────────────────────────────────────────── */}
+      {/* ── Month Summary Card (enhanced) ──────────────────────────────── */}
       <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -606,7 +748,8 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
             </span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
+          {/* Stats grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
             {/* Total Trades */}
             <div className="p-3 rounded-xl bg-purple-500/10">
@@ -657,6 +800,105 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
               </div>
             </div>
           </div>
+
+          {/* Best Day / Worst Day / Streak row */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Best Day */}
+            <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+              <div className="flex items-center gap-2 mb-1">
+                <Trophy className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs text-gray-500">{t('bestDay', lang)}</span>
+              </div>
+              {bestDay ? (
+                <>
+                  <div className="text-lg font-bold text-emerald-400">
+                    {formatCurrency(bestDay.pl)}
+                  </div>
+                  <div className="text-[11px] text-gray-500">
+                    {bestDay.day} {monthName} {currentYear}
+                  </div>
+                </>
+              ) : (
+                <div className="text-sm text-gray-600">—</div>
+              )}
+            </div>
+
+            {/* Worst Day */}
+            <div className="p-3 rounded-xl bg-red-500/5 border border-red-500/10">
+              <div className="flex items-center gap-2 mb-1">
+                <Skull className="w-4 h-4 text-red-400" />
+                <span className="text-xs text-gray-500">{t('worstDay', lang)}</span>
+              </div>
+              {worstDay ? (
+                <>
+                  <div className="text-lg font-bold text-red-400">
+                    {formatCurrency(worstDay.pl)}
+                  </div>
+                  <div className="text-[11px] text-gray-500">
+                    {worstDay.day} {monthName} {currentYear}
+                  </div>
+                </>
+              ) : (
+                <div className="text-sm text-gray-600">—</div>
+              )}
+            </div>
+
+            {/* Trading Streak */}
+            <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
+              <div className="flex items-center gap-2 mb-1">
+                <Flame className="w-4 h-4 text-amber-400" />
+                <span className="text-xs text-gray-500">{t('tradingStreak', lang)}</span>
+              </div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-lg font-bold text-amber-400">
+                  {tradingStreak}
+                </span>
+                <span className="text-xs text-gray-500">
+                  {t('days', lang)}
+                </span>
+              </div>
+              <div className="text-[11px] text-gray-500">
+                🔥 {tradingStreak > 0 ? 'Keep going!' : 'Start trading!'}
+              </div>
+            </div>
+          </div>
+
+          {/* Mini Bar Chart — Daily P/L */}
+          {dailyPLChartData.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <BarChart3 className="w-4 h-4 text-purple-400" />
+                <span className="text-sm font-medium text-gray-300">{t('dailyPL', lang)}</span>
+              </div>
+              <div className="h-40 sm:h-52">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dailyPLChartData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
+                    <XAxis
+                      dataKey="day"
+                      tick={{ fontSize: 10, fill: '#6b7280' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: '#6b7280' }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v: number) => `$${v}`}
+                    />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(168,85,247,0.08)' }} />
+                    <Bar dataKey="pl" radius={[3, 3, 0, 0]} maxBarSize={20}>
+                      {dailyPLChartData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={entry.pl >= 0 ? 'rgba(52,211,153,0.6)' : 'rgba(248,113,113,0.6)'}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

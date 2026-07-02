@@ -3,13 +3,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   BookOpen, Plus, Edit, Trash2, Smile, Meh, Frown, Sparkles,
-  BarChart3, Brain, Zap, Crown, RefreshCw, Calendar, Tag, Image as ImageIcon, Link2, ChevronLeft, ChevronRight
+  BarChart3, Brain, Zap, Crown, RefreshCw, Calendar, Tag, Image as ImageIcon, Link2, ChevronLeft, ChevronRight, FileText, Printer, X, PenLine
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { motion, AnimatePresence } from 'framer-motion'
 import { safeParseTags } from '@/lib/parseUtils'
+import { toast } from 'sonner'
+import { JournalFilterPanel } from '@/app/dashboard/components/JournalFilterPanel'
 
 // ==================== INTERFACES ====================
 
@@ -231,6 +233,250 @@ function JournalTab({
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
   const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [reminderDismissed, setReminderDismissed] = useState(false)
+
+  // Check if reminder was dismissed this session
+  useEffect(() => {
+    const dismissed = sessionStorage.getItem('journal-reminder-dismissed')
+    if (dismissed === new Date().toDateString()) {
+      setReminderDismissed(true)
+    }
+  }, [])
+
+  const dismissReminder = () => {
+    setReminderDismissed(true)
+    sessionStorage.setItem('journal-reminder-dismissed', new Date().toDateString())
+  }
+
+  // Filter state for advanced search
+  const [filteredEntries, setFilteredEntries] = useState<JournalEntry[]>(entries)
+
+  // Keep filteredEntries in sync when entries prop changes
+  useEffect(() => {
+    setFilteredEntries(entries)
+  }, [entries])
+
+  // ============ FEATURE 1: EXPORT PDF ============
+  const handleExportPDF = useCallback(async () => {
+    try {
+      const jsPDFModule = await import('jspdf')
+      const jsPDF = jsPDFModule.default
+      await import('jspdf-autotable')
+
+      const doc = new jsPDF()
+      const exportDate = new Date().toLocaleDateString('id-ID', {
+        day: 'numeric', month: 'long', year: 'numeric'
+      })
+
+      // Dark header background
+      doc.setFillColor(15, 5, 29) // #0f051d
+      doc.rect(0, 0, 210, 40, 'F')
+
+      // Purple accent line
+      doc.setFillColor(139, 92, 246) // purple-500
+      doc.rect(0, 40, 210, 2, 'F')
+
+      // Title
+      doc.setTextColor(139, 92, 246)
+      doc.setFontSize(22)
+      doc.text('LuxTrade Journal Export', 14, 20)
+
+      // Date
+      doc.setTextColor(180, 160, 200)
+      doc.setFontSize(11)
+      doc.text(exportDate, 14, 30)
+
+      // Total entries
+      doc.setTextColor(200, 200, 200)
+      doc.text(`${filteredEntries.length} entries`, 160, 30)
+
+      let yPos = 50
+
+      if (filteredEntries.length === 0) {
+        doc.setTextColor(150, 150, 150)
+        doc.setFontSize(14)
+        doc.text('No journal entries to export.', 14, yPos)
+      } else {
+        // Table with summary data
+        const tableData = filteredEntries.map((entry, index) => [
+          (index + 1).toString(),
+          new Date(entry.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+          entry.title,
+          entry.mood || '-',
+          entry.market_condition || '-',
+          entry.tags ? entry.tags.split(',').map((t: string) => t.trim()).join(', ') : '-'
+        ])
+
+        ;(doc as any).autoTable({
+          startY: yPos,
+          head: [['#', 'Date', 'Title', 'Mood', 'Market', 'Tags']],
+          body: tableData,
+          theme: 'grid',
+          styles: {
+            fontSize: 8,
+            cellPadding: 3,
+            textColor: [80, 80, 80],
+            lineColor: [200, 200, 200],
+            lineWidth: 0.1
+          },
+          headStyles: {
+            fillColor: [139, 92, 246],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 8
+          },
+          columnStyles: {
+            0: { cellWidth: 10 },
+            1: { cellWidth: 25 },
+            2: { cellWidth: 55 },
+            3: { cellWidth: 22 },
+            4: { cellWidth: 28 },
+            5: { cellWidth: 50 }
+          },
+          alternateRowStyles: {
+            fillColor: [248, 245, 252]
+          }
+        })
+
+        yPos = (doc as any).lastAutoTable.finalY + 10
+
+        // Each entry content section
+        filteredEntries.forEach((entry) => {
+          // Check if we need a new page
+          if (yPos > 250) {
+            doc.addPage()
+            yPos = 20
+          }
+
+          // Entry title
+          doc.setFontSize(12)
+          doc.setTextColor(80, 40, 120)
+          doc.text(entry.title, 14, yPos)
+          yPos += 6
+
+          // Entry date & mood
+          doc.setFontSize(9)
+          doc.setTextColor(120, 120, 120)
+          const entryDate = new Date(entry.created_at).toLocaleDateString('id-ID', {
+            day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+          })
+          const moodText = entry.mood ? ` | Mood: ${entry.mood}` : ''
+          const marketText = entry.market_condition ? ` | Market: ${entry.market_condition}` : ''
+          doc.text(`${entryDate}${moodText}${marketText}`, 14, yPos)
+          yPos += 6
+
+          // Content (handle multi-line)
+          doc.setFontSize(10)
+          doc.setTextColor(60, 60, 60)
+          const lines = doc.splitTextToSize(entry.content, 180)
+          doc.text(lines, 14, yPos)
+          yPos += lines.length * 5 + 8
+        })
+      }
+
+      // Footer
+      const pageCount = doc.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+
+        // Dark footer background
+        doc.setFillColor(15, 5, 29)
+        doc.rect(0, 282, 210, 15, 'F')
+
+        // Purple accent line above footer
+        doc.setFillColor(139, 92, 246)
+        doc.rect(0, 280, 210, 2, 'F')
+
+        doc.setTextColor(180, 160, 200)
+        doc.setFontSize(8)
+        doc.text('Generated by LuxTrade', 14, 290)
+        doc.text(`Page ${i} of ${pageCount}`, 160, 290)
+      }
+
+      doc.save('luxtrade-journal.pdf')
+      toast.success('Journal exported to PDF!')
+    } catch (error) {
+      console.error('PDF export error:', error)
+      toast.error('Failed to export PDF')
+    }
+  }, [filteredEntries])
+
+  // ============ FEATURE 2: PRINT ============
+  const handlePrint = useCallback(() => {
+    const entriesToPrint = filteredEntries
+    const now = new Date()
+    const dateRange = entriesToPrint.length > 0
+      ? `${new Date(entriesToPrint[entriesToPrint.length - 1].created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} — ${new Date(entriesToPrint[0].created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`
+      : now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+
+    const entriesHtml = entriesToPrint.map((entry) => `
+      <div style="margin-bottom: 24px; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px; page-break-inside: avoid;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h3 style="font-size: 16px; font-weight: 700; margin: 0; color: #1a1a2e;">${entry.title}</h3>
+          <span style="font-size: 12px; color: #6b7280;">${new Date(entry.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+          ${entry.mood ? `<span style="display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 12px; font-weight: 500; background: ${entry.mood === 'confident' ? '#d1fae5' : entry.mood === 'anxious' ? '#fee2e2' : '#ede9fe'}; color: ${entry.mood === 'confident' ? '#065f46' : entry.mood === 'anxious' ? '#991b1b' : '#5b21b6'};">${entry.mood}</span>` : ''}
+          ${entry.market_condition ? `<span style="display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 12px; font-weight: 500; background: #f3e8ff; color: #7c3aed;">${entry.market_condition}</span>` : ''}
+        </div>
+        <p style="font-size: 13px; line-height: 1.6; color: #374151; white-space: pre-wrap; margin: 0;">${entry.content}</p>
+      </div>
+    `).join('')
+
+    const html = `<!DOCTYPE html>
+    <html>
+    <head>
+      <title>LuxTrade Journal — Print</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+          background: #ffffff;
+          color: #1a1a2e;
+          padding: 24px;
+          max-width: 800px;
+          margin: 0 auto;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 32px;
+          padding-bottom: 16px;
+          border-bottom: 2px solid #7c3aed;
+        }
+        .header h1 { font-size: 24px; color: #1a1a2e; margin-bottom: 4px; }
+        .header .date { font-size: 14px; color: #6b7280; }
+        .header .count { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+        .footer {
+          text-align: center; margin-top: 32px; padding-top: 12px;
+          border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af;
+        }
+        @media print {
+          body { padding: 0; }
+          .no-print { display: none; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>LuxTrade Journal</h1>
+        <div class="date">${dateRange}</div>
+        <div class="count">${entriesToPrint.length} entries</div>
+      </div>
+      ${entriesHtml}
+      <div class="footer">Generated by LuxTrade — ${now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+    </body>
+    </html>`
+
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(html)
+      printWindow.document.close()
+      printWindow.onload = () => {
+        printWindow.print()
+        printWindow.onafterprint = () => printWindow.close()
+      }
+    }
+  }, [filteredEntries])
 
   // Toggle analytics and fetch data
   const toggleAnalytics = useCallback(async () => {
@@ -257,7 +503,7 @@ function JournalTab({
 
   const todayPrompt = getDailyPrompt()
   const todayStr = new Date().toDateString()
-  const hasTodayEntry = entries.some(e => new Date(e.created_at).toDateString() === todayStr)
+  const hasTodayEntry = filteredEntries.some(e => new Date(e.created_at).toDateString() === todayStr)
 
   // Calculate quick streak locally
   const uniqueDates = [...new Set(entries.map(e => new Date(e.created_at).toDateString()))]
@@ -335,11 +581,73 @@ function JournalTab({
               {showAnalytics ? 'Hide Analytics' : 'Analytics'}
             </Button>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportPDF}
+            disabled={entries.length === 0}
+            className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+          >
+            <FileText className="w-4 h-4 mr-1" /> Export PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePrint}
+            disabled={entries.length === 0}
+            className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+          >
+            <Printer className="w-4 h-4 mr-1" /> Print
+          </Button>
           <Button onClick={onAdd} className="bg-gradient-to-r from-purple-500 to-violet-600">
             <Plus className="w-4 h-4 mr-2" />New Entry
           </Button>
         </div>
       </div>
+
+      {/* Daily Reminder Banner */}
+      {!hasTodayEntry && !reminderDismissed && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="relative overflow-hidden rounded-2xl border border-amber-500/30"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-orange-500/15" />
+          <div className="relative flex items-center justify-between gap-4 p-4">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center flex-shrink-0">
+                <PenLine className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-amber-200">
+                  📝 Belum menulis jurnal hari ini. Catat trading kamu sekarang!
+                </p>
+                <p className="text-xs text-amber-300/60 mt-0.5">
+                  Haven't written a journal entry today. Log your trades now!
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button
+                size="sm"
+                onClick={onAdd}
+                className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+              >
+                <PenLine className="w-4 h-4 mr-1.5" />
+                Write Now
+              </Button>
+              <button
+                onClick={dismissReminder}
+                className="p-1.5 rounded-lg text-amber-300/50 hover:text-amber-200 hover:bg-amber-500/15 transition-colors"
+                aria-label="Dismiss reminder"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Streak & Daily Prompt Banner */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -504,10 +812,22 @@ function JournalTab({
         )}
       </AnimatePresence>
 
+      {/* Advanced Search/Filter Panel */}
+      {entries.length > 0 && (
+        <JournalFilterPanel entries={entries} onFilterChange={setFilteredEntries} />
+      )}
+
+      {/* Filtered entries count */}
+      {filteredEntries.length !== entries.length && entries.length > 0 && (
+        <p className="text-sm text-gray-400">
+          Showing <span className="font-bold text-purple-400">{filteredEntries.length}</span> of <span className="font-bold">{entries.length}</span> entries
+        </p>
+      )}
+
       {/* Calendar View */}
-      {viewMode === 'calendar' && entries.length > 0 && (
+      {viewMode === 'calendar' && filteredEntries.length > 0 && (
         <CalendarView 
-          entries={entries} 
+          entries={filteredEntries} 
           currentMonth={currentMonth} 
           setCurrentMonth={setCurrentMonth}
           onView={onView}
@@ -515,7 +835,7 @@ function JournalTab({
       )}
 
       {/* Journal Entries List */}
-      {entries.length === 0 ? (
+      {filteredEntries.length === 0 && entries.length === 0 ? (
         <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
           <CardContent className="py-16 text-center">
             <BookOpen className="w-12 h-12 mx-auto mb-4 text-gray-500" />
@@ -529,9 +849,17 @@ function JournalTab({
             </Button>
           </CardContent>
         </Card>
+      ) : filteredEntries.length === 0 && entries.length > 0 ? (
+        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <CardContent className="py-12 text-center">
+            <BookOpen className="w-10 h-10 mx-auto mb-3 text-gray-500" />
+            <h3 className="text-lg font-semibold mb-2">No Matching Entries</h3>
+            <p className="text-gray-400 text-sm">Try adjusting your search or filters</p>
+          </CardContent>
+        </Card>
       ) : viewMode === 'list' ? (
         <div className="grid gap-4">
-          {entries.map((entry) => {
+          {filteredEntries.map((entry) => {
             const tags = safeParseTags(entry.tags)
             return (
             <Card

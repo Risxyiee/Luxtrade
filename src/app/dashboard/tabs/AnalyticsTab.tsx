@@ -3,14 +3,27 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts'
-import { TrendingUp, TrendingDown, Target, Clock, DollarSign, Activity } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area } from 'recharts'
+import { TrendingUp, TrendingDown, Target, Clock, DollarSign, Activity, ArrowDownCircle, Zap, BarChart3, Globe } from 'lucide-react'
 
 interface AnalyticsTabProps {
   language: 'id' | 'en'
 }
 
 const COLORS = ['#a855f7', '#f59e0b', '#22c55e', '#3b82f6', '#ec4899']
+
+// Color coding helper for ratio-based metrics
+const getRatioColor = (value: number, goodThreshold = 2, midThreshold = 1) => {
+  if (value >= goodThreshold) return 'text-emerald-400'
+  if (value >= midThreshold) return 'text-amber-400'
+  return 'text-red-400'
+}
+
+const getRatioBg = (value: number, goodThreshold = 2, midThreshold = 1) => {
+  if (value >= goodThreshold) return 'from-emerald-500/15 to-emerald-600/5 border-emerald-500/30'
+  if (value >= midThreshold) return 'from-amber-500/15 to-amber-600/5 border-amber-500/30'
+  return 'from-red-500/15 to-red-600/5 border-red-500/30'
+}
 
 export default function AnalyticsTab({ language }: AnalyticsTabProps) {
   const [analytics, setAnalytics] = useState<any>(null)
@@ -62,6 +75,9 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
       </Card>
     )
   }
+
+  // Determine if we have the new metrics available
+  const hasAdvancedMetrics = analytics.profitFactor !== undefined || analytics.sharpeRatio !== undefined
 
   return (
     <div className="space-y-6">
@@ -146,6 +162,253 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
               </p>
             </div>
           </div>
+        </motion.div>
+      )}
+
+      {/* ==================== NEW: Key Metrics Row ==================== */}
+      {hasAdvancedMetrics && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Profit Factor */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+          >
+            <Card className={`bg-gradient-to-br ${getRatioBg(analytics.profitFactor || 0)}`}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <BarChart3 className="w-4 h-4 text-purple-400" />
+                  <p className="text-xs text-gray-400">{language === 'id' ? 'Faktor Profit' : 'Profit Factor'}</p>
+                </div>
+                <p className={`text-2xl font-bold ${getRatioColor(analytics.profitFactor || 0)}`}>
+                  {analytics.profitFactor === Infinity
+                    ? '∞'
+                    : (analytics.profitFactor || 0).toFixed(2)
+                  }
+                </p>
+                <p className="text-[10px] text-gray-500 mt-1">
+                  {analytics.profitFactor >= 2
+                    ? language === 'id' ? 'Sangat Baik' : 'Excellent'
+                    : analytics.profitFactor >= 1
+                    ? language === 'id' ? 'Cukup Baik' : 'Good'
+                    : language === 'id' ? 'Perlu Perbaikan' : 'Needs Improvement'
+                  }
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Sharpe Ratio */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <Card className={`bg-gradient-to-br ${getRatioBg(analytics.sharpeRatio || 0)}`}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="w-4 h-4 text-purple-400" />
+                  <p className="text-xs text-gray-400">Sharpe Ratio</p>
+                </div>
+                <p className={`text-2xl font-bold ${getRatioColor(analytics.sharpeRatio || 0)}`}>
+                  {(analytics.sharpeRatio || 0).toFixed(2)}
+                </p>
+                <p className="text-[10px] text-gray-500 mt-1">
+                  {analytics.sharpeRatio >= 2
+                    ? language === 'id' ? 'Sangat Baik' : 'Excellent'
+                    : analytics.sharpeRatio >= 1
+                    ? language === 'id' ? 'Cukup Baik' : 'Good'
+                    : language === 'id' ? 'Perlu Perbaikan' : 'Needs Improvement'
+                  }
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Max Drawdown */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <Card className="bg-gradient-to-br from-red-500/15 to-red-600/5 border-red-500/30">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <ArrowDownCircle className="w-4 h-4 text-red-400" />
+                  <p className="text-xs text-gray-400">{language === 'id' ? 'Max Drawdown' : 'Max Drawdown'}</p>
+                </div>
+                <p className="text-2xl font-bold text-red-400">
+                  -${(analytics.maxDrawdown || 0).toFixed(2)}
+                </p>
+                <p className="text-[10px] text-gray-500 mt-1">
+                  {language === 'id' ? 'Kerugian Maksimal' : 'Maximum Loss'}
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Avg Win / Avg Loss */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <DollarSign className="w-4 h-4 text-purple-400" />
+                  <p className="text-xs text-gray-400">{language === 'id' ? 'Rata-rata Win/Loss' : 'Avg Win / Loss'}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div>
+                    <p className="text-xs text-gray-500">{language === 'id' ? 'Menang' : 'Win'}</p>
+                    <p className="text-lg font-bold text-emerald-400">
+                      +${(analytics.avgProfit || 0).toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="w-px h-8 bg-white/10" />
+                  <div>
+                    <p className="text-xs text-gray-500">{language === 'id' ? 'Kalah' : 'Loss'}</p>
+                    <p className="text-lg font-bold text-red-400">
+                      ${(analytics.avgLoss || 0).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+      )}
+
+      {/* ==================== NEW: Equity Curve ==================== */}
+      {analytics.equityCurve && analytics.equityCurve.length > 1 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+        >
+          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Activity className="w-5 h-5 text-purple-400" />
+                {language === 'id' ? 'Kurva Ekuitas' : 'Equity Curve'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={analytics.equityCurve}>
+                    <defs>
+                      <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(value: string) => {
+                        const d = new Date(value)
+                        return `${d.getMonth() + 1}/${d.getDate()}`
+                      }}
+                    />
+                    <YAxis
+                      tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(value: number) => `$${value.toFixed(0)}`}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: '#0f0b18',
+                        border: '1px solid rgba(139,92,246,0.3)',
+                        borderRadius: 8
+                      }}
+                      formatter={(value: number) => [`$${value.toFixed(2)}`, 'Equity']}
+                      labelFormatter={(label: string) => {
+                        const d = new Date(label)
+                        return d.toLocaleDateString()
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="equity"
+                      stroke="#a855f7"
+                      strokeWidth={2}
+                      fill="url(#equityGradient)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* ==================== NEW: Session Performance ==================== */}
+      {analytics.sessionPerformance && analytics.sessionPerformance.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Globe className="w-5 h-5 text-purple-400" />
+                {language === 'id' ? 'Performa Sesi' : 'Session Performance'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {analytics.sessionPerformance.map((session: any, index: number) => {
+                  const maxPL = Math.max(...analytics.sessionPerformance.map((s: any) => Math.abs(s.pl)))
+                  const barWidth = maxPL > 0 ? (Math.abs(session.pl) / maxPL) * 100 : 0
+                  const sessionColors: Record<string, string> = {
+                    'London': '#a855f7',
+                    'New York': '#22c55e',
+                    'Asia': '#f59e0b',
+                    'Off-Market': '#6b7280',
+                  }
+                  const barColor = sessionColors[session.session] || '#a855f7'
+
+                  return (
+                    <div key={session.session} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: barColor }} />
+                          <span className="text-gray-300 font-medium">{session.session}</span>
+                          <span className="text-gray-500 text-xs">
+                            ({session.trades} {language === 'id' ? 'trade' : 'trades'})
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-gray-400">
+                            {session.winRate.toFixed(1)}% WR
+                          </span>
+                          <span className={`font-bold ${session.pl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {session.pl >= 0 ? '+' : ''}${session.pl.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="h-3 bg-white/5 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${barWidth}%`,
+                            backgroundColor: session.pl >= 0 ? barColor : '#ef4444',
+                            opacity: 0.8,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
         </motion.div>
       )}
 

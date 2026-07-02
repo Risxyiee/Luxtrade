@@ -1,25 +1,24 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useSyncExternalStore, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Moon, Sun } from 'lucide-react'
 import { toggleTheme, getCurrentTheme, type Theme } from '@/lib/theme-utils'
 
-export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>('dark')
-  const [mounted, setMounted] = useState(false)
+function subscribeToTheme(callback: () => void) {
+  window.addEventListener('storage', callback)
+  return () => window.removeEventListener('storage', callback)
+}
 
-  useEffect(() => {
-    setMounted(true)
-    setTheme(getCurrentTheme())
-  }, [])
+export function ThemeToggle() {
+  const getSnapshot = useCallback((): Theme => getCurrentTheme(), [])
+  const getServerSnapshot = useCallback((): Theme => 'dark', [])
+
+  const theme = useSyncExternalStore(subscribeToTheme, getSnapshot, getServerSnapshot)
 
   const handleToggle = () => {
-    const newTheme = toggleTheme()
-    setTheme(newTheme)
+    toggleTheme()
   }
-
-  if (!mounted) return null
 
   return (
     <Button
