@@ -3047,3 +3047,28 @@ Stage Summary:
 - Dev server starts and serves pages (confirmed 200 status for /)
 - Key files created: sitemap.ts, robots.ts, dashboard/layout.tsx, not-found.tsx
 - Key files modified: layout.tsx (Twitter OG + skip-to-content), page.tsx (JSON-LD), Sidebar.tsx (promo dialog), DashboardTab.tsx (aria labels), FAQSection.tsx (aria-expanded), auth-context.tsx (security)
+
+---
+Task ID: 2
+Agent: Z.ai Code
+Task: Split Sidebar.tsx (943 lines) into sub-components
+
+Work Log:
+- Created `src/app/dashboard/components/sidebar/` directory
+- Extracted `SidebarHeader.tsx` (210 lines) — logo, account selector, quick action buttons, guide buttons
+- Extracted `SidebarNav.tsx` (240 lines) — navigation menu with menuCategories, menuItems configs, all menu items with icons/active states/PRO locks/guide buttons/haptic feedback. Re-exports menuCategories and menuItems.
+- Extracted `SidebarFooter.tsx` (322 lines) — promo code claim button, upgrade to Pro, ELITE PRO badge, settings link, user info card, admin panel/email broadcast links, free user trade counter, Discord community banner, sidebar collapse toggle, promo code dialog
+- Extracted `DeleteAccountDialog.tsx` (92 lines) — delete account confirmation modal
+- Rewrote `Sidebar.tsx` (266 lines) as thin orchestrator keeping SidebarProps interface, mobile overlay, account deletion state/handlers, focus management (sidebarRef, previousFocusRef, handleKeyDown, useEffect), and delegating to sub-components
+- All framer-motion animations preserved exactly
+- All CSS classes preserved exactly
+- All functionality preserved (haptic feedback, promo dialog, delete account, context guides)
+- ESLint passes with zero errors
+- No external imports changed — no other files needed updates
+
+Files changed:
+- src/app/dashboard/components/Sidebar.tsx (943 → 266 lines, rewritten as orchestrator)
+- src/app/dashboard/components/sidebar/SidebarHeader.tsx (new, 210 lines)
+- src/app/dashboard/components/sidebar/SidebarNav.tsx (new, 240 lines)
+- src/app/dashboard/components/sidebar/SidebarFooter.tsx (new, 322 lines)
+- src/app/dashboard/components/sidebar/DeleteAccountDialog.tsx (new, 92 lines)
