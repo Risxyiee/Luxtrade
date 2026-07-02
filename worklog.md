@@ -3072,3 +3072,85 @@ Files changed:
 - src/app/dashboard/components/sidebar/SidebarNav.tsx (new, 240 lines)
 - src/app/dashboard/components/sidebar/SidebarFooter.tsx (new, 322 lines)
 - src/app/dashboard/components/sidebar/DeleteAccountDialog.tsx (new, 92 lines)
+---
+Task ID: 8
+Agent: Z.ai Code
+Task: Fix FAQ, HowItWorks, Roadmap, Newsletter landing sections for dark/light theme support
+
+Work Log:
+- Replaced hardcoded dark-theme color classes with CSS variable-based classes in 4 landing page components
+- FAQSection.tsx: 5 replacements (badge bg, inline border, card surface, card hover, text colors)
+- HowItWorksSection.tsx: 7 replacements (badge bg, inline border, card surface, card hover, icon border, text colors)
+- RoadmapSection.tsx: 10 replacements (badge bg, inline border, card surface, inline hover bg/border, text colors for headings and labels)
+- NewsletterSection.tsx: 6 replacements (badge bg, inline border, text primary/subtitle/label, input bg/border)
+- Intentionally left `text-white` on gradient backgrounds (step number badges, CTA buttons, input text) as these remain white in both themes
+- No component logic was changed; only Tailwind color classes were updated
+- Verified zero remaining hardcoded `bg-[#2a1b3d]`, `border-white/`, `text-white/`, or `bg-white/` classes across all 4 files
+
+---
+Task ID: 8
+Agent: Z.ai Code
+Task: Fix StatsStrip, Features, Pricing, LifetimeUltra components for dark/light theme support
+
+Work Log:
+- StatsStrip.tsx: 6 replacements — card bg, hover bg, 2× inline border, icon circle bg, text body
+- FeaturesSection.tsx: 9 replacements — badge bg, inline border, text on-surface, text subtitle, card bg, hover bg, icon circle bg, inline border, text body
+- PricingSection.tsx: 18 replacements — badge bg, inline border, text on-surface, text subtitle, card surface, free/pro plan titles (text-primary), descriptions (text-body), prices (text-primary), feature items (text-body-2), free CTA button (bg/border/hover/text), non-refundable notice (bg/border/icon/text), payment trust badge (bg/border/svg fill/dividers/labels), "per month" label (text-label-2)
+- LifetimeUltraCard.tsx: 9 replacements — skeleton bg/border/bars (card-surface, inline-border, inline-hover-bg-2), card bg/hover, border, title (text-primary), description (text-body), price (text-primary), feature items (text-body-2), sold-out button (inline-hover-bg-2, text-subtitle)
+- Intentionally left `text-white` on colored/gradient backgrounds: PRO "Most Popular" badge, PRO CTA button (gradient), SOLD OUT badge (bg-red-500), promo badge (amber gradient), lifetime CTA button (amber gradient)
+- No component logic was changed; only Tailwind color classes were updated
+- Verified zero remaining hardcoded `bg-[#2a1b3d]`, `bg-[#171221]`, `border-white/`, `text-white/`, `bg-white/`, `fill="#1A1A2E"` across all 4 files
+---
+Task ID: 9
+Agent: Z.ai Code
+Task: Fix Promo, Demo, Footer, Social, Equity, AnimatedTrades, Particle components for dark/light theme support
+
+Work Log:
+- PromoCodeSection.tsx: 8 replacements — card bg (`bg-[#2a1b3d]/40` → `lux-card-surface`), heading (`text-white` → `lux-text-primary`), description (`text-white/50` → `lux-text-subtitle`), promo code bg (`bg-black/40` → `lux-promo-code-bg`), click-to-copy label (`text-white/30` → `lux-text-label`), slots remaining (`text-white/40` → `lux-text-label-2`), claimed count (`text-white/25` → `lux-text-label-3`), progress bar bg (`bg-white/5` → `lux-inline-hover-bg`)
+- DemoVideoSection.tsx: 7 replacements — badge bg (`bg-[#2a1b3d]/90` → `lux-badge-bg`), badge text (`text-white/90` → `lux-text-on-surface`), 2× tab button inactive states (bg/border/text/hover), video container (`bg-[#080510]` + `border-white/[0.08]` → `lux-video-bg` + `lux-inline-border`), play overlay bg/border (`bg-white/10` + `border-white/20` → `lux-inline-hover-bg-2`), play icon (`text-white` → `lux-text-primary`)
+- LandingFooter.tsx: 13 replacements — top border, description text, 2× heading text, 6× link text, bottom divider, copyright text, SVG `fill="#1A1A2E"` → `lux-icon-circle-bg`, powered-by label, Midtrans text
+- SocialIcons.tsx: 8 replacements — 3× icon button bg (`bg-white/5` → `lux-inline-hover-bg`), 3× icon button border (`border-white/[0.08]` → `lux-inline-border`), 2× hover bg (`hover:bg-white/10` → `lux-inline-hover-bg-3`), 6× icon color (`text-white/60` → `lux-text-body`)
+- EquityWidget.tsx: 3 replacements — card bg/border, value text (`text-white` → `lux-text-primary`), bottom label (`text-purple-300/60` → `text-purple-500/60 dark:text-purple-300/60`)
+- AnimatedForexTrades.tsx: 5 replacements — trade row bg/border/hover, pair name text, 2× `text-white/50` → `lux-text-subtitle`
+- ParticleBackground.tsx: 1 replacement — added `opacity-60 dark:opacity-100` to container div for subtle light-mode particles
+- No component logic was changed; only Tailwind color classes were updated
+- Verified zero remaining hardcoded target colors across all 7 files
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix landing page light mode - replace all 29+ hardcoded dark colors with CSS variables
+
+Work Log:
+- Explored all 19 landing page component files
+- Identified 29 hardcoded dark color references across 15 files
+- Added 20 new CSS variables to globals.css for both .dark and .light themes (--lux-badge-bg, --lux-card-surface, --lux-icon-circle-bg, --lux-video-bg, --lux-sidebar-panel-bg, --lux-navbar-bg, --lux-overlay-bg, --lux-inline-border, --lux-inline-hover-bg, --lux-text-on-surface, --lux-text-subtitle, --lux-text-body, etc.)
+- Fixed .glass-card CSS utility to use CSS variables instead of hardcoded rgba
+- Fixed HeroSection.tsx (7 replacements)
+- Fixed LandingNavbar.tsx (12 replacements)
+- Fixed LandingSidebar.tsx (14 replacements)
+- Fixed AnnouncementBar.tsx (4 replacements)
+- Fixed StatsStrip.tsx (6 replacements)
+- Fixed FeaturesSection.tsx (9 replacements)
+- Fixed PricingSection.tsx (18 replacements)
+- Fixed LifetimeUltraCard.tsx (9 replacements)
+- Fixed FAQSection.tsx (7 replacements)
+- Fixed HowItWorksSection.tsx (7 replacements)
+- Fixed RoadmapSection.tsx (10 replacements)
+- Fixed NewsletterSection.tsx (6 replacements)
+- Fixed PromoCodeSection.tsx (8 replacements)
+- Fixed DemoVideoSection.tsx (7 replacements)
+- Fixed LandingFooter.tsx (13 replacements)
+- Fixed SocialIcons.tsx (8 replacements)
+- Fixed EquityWidget.tsx (3 replacements)
+- Fixed AnimatedForexTrades.tsx (5 replacements)
+- Fixed ParticleBackground.tsx (1 replacement - opacity-60 dark:opacity-100)
+- Verified: zero remaining hardcoded dark color patterns in landing/
+- ESLint: clean
+- Build: passes
+
+Stage Summary:
+- All 19 landing page components now use CSS custom properties for theming
+- Both dark and light modes will render correctly
+- Dark mode preserved (identical visual output)
+- Light mode now shows proper purple-tinted surfaces instead of invisible dark colors

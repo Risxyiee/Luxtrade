@@ -25,8 +25,8 @@ export default function LifetimeUltraCard({ onButtonClick, language, t, promoRem
   if (loading) {
     return (
       <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }}>
-        <div className="h-full bg-[#2a1b3d]/40 backdrop-blur-sm border border-white/10 rounded-3xl p-8">
-          <div className="animate-pulse"><div className="h-6 bg-white/10 rounded mb-4 w-1/2" /><div className="h-8 bg-white/10 rounded mb-2 w-3/4" /><div className="space-y-3">{[1,2,3,4].map(i => <div key={i} className="h-4 bg-white/10 rounded" />)}</div></div>
+        <div className="h-full bg-[var(--lux-card-surface)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-3xl p-8">
+          <div className="animate-pulse"><div className="h-6 bg-[var(--lux-inline-hover-bg-2)] rounded mb-4 w-1/2" /><div className="h-8 bg-[var(--lux-inline-hover-bg-2)] rounded mb-2 w-3/4" /><div className="space-y-3">{[1,2,3,4].map(i => <div key={i} className="h-4 bg-[var(--lux-inline-hover-bg-2)] rounded" />)}</div></div>
         </div>
       </motion.div>
     )
@@ -34,7 +34,7 @@ export default function LifetimeUltraCard({ onButtonClick, language, t, promoRem
 
   return (
     <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }}>
-      <div className={`h-full relative bg-[#2a1b3d]/40 backdrop-blur-sm border ${isSoldOut ? 'border-red-500/30' : 'border-amber-500/30'} rounded-3xl p-8 pt-10 hover:bg-[#2a1b3d]/60 transition-colors`}>
+      <div className={`h-full relative bg-[var(--lux-card-surface)] backdrop-blur-sm border ${isSoldOut ? 'border-red-500/30' : 'border-amber-500/30'} rounded-3xl p-8 pt-10 hover:bg-[var(--lux-card-surface-hover)] transition-colors`}>
         {isSoldOut && (
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-red-500 text-xs font-bold text-white backdrop-blur-sm animate-pulse">SOLD OUT</div>
         )}
@@ -47,10 +47,10 @@ export default function LifetimeUltraCard({ onButtonClick, language, t, promoRem
         <div className="flex items-center justify-center mb-6">
           <Crown className="w-5 h-5 text-amber-400" />
           <div className="w-3" />
-          <h3 className="text-2xl font-bold text-white">{t('pricing.lifetime.title')}</h3>
+          <h3 className="text-2xl font-bold text-[var(--lux-text-primary)]">{t('pricing.lifetime.title')}</h3>
         </div>
-        <p className="text-[12px] text-white/60 text-center mb-6 leading-relaxed">{t('pricing.lifetime.desc')}</p>
-        <div className="text-3xl font-extrabold text-white text-center mb-2">
+        <p className="text-[12px] text-[var(--lux-text-body)] text-center mb-6 leading-relaxed">{t('pricing.lifetime.desc')}</p>
+        <div className="text-3xl font-extrabold text-[var(--lux-text-primary)] text-center mb-2">
           {t('pricing.lifetime.price').split(' /')[0]}
         </div>
         {!isSoldOut && (
@@ -65,13 +65,13 @@ export default function LifetimeUltraCard({ onButtonClick, language, t, promoRem
             { text: language === 'id' ? 'Tanpa biaya bulanan' : 'No monthly fees ever' },
             { text: language === 'id' ? 'Semua fitur Elite PRO' : 'All Elite PRO features' },
           ].map((item, index) => (
-            <div key={index} className="flex items-start gap-3 text-sm text-white/70">
+            <div key={index} className="flex items-start gap-3 text-sm text-[var(--lux-text-body-2)]">
               <Zap className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
               <span>{item.text}</span>
             </div>
           ))}
         </div>
-        <Button disabled={isSoldOut} onClick={onButtonClick} className={`w-full h-[52px] rounded-2xl font-medium ${isSoldOut ? 'bg-white/10 text-white/50 cursor-not-allowed' : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-lg active:scale-95 transition-transform'}`}>
+        <Button disabled={isSoldOut} onClick={onButtonClick} className={`w-full h-[52px] rounded-2xl font-medium ${isSoldOut ? 'bg-[var(--lux-inline-hover-bg-2)] text-[var(--lux-text-subtitle)] cursor-not-allowed' : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-lg active:scale-95 transition-transform'}`}>
           {isSoldOut ? 'SOLD OUT' : (language === 'id' ? 'Ambil Promo Lifetime' : 'Get Lifetime Promo')}
         </Button>
       </div>

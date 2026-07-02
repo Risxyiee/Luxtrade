@@ -18,18 +18,18 @@ export default function NewsletterSection({ language, newsletterEmail, setNewsle
     <section className="py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto text-center">
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-          <div className="flex items-center h-9 w-max mx-auto bg-[#2a1b3d]/90 backdrop-blur-sm border border-white/10 rounded-xl mb-6">
+          <div className="flex items-center h-9 w-max mx-auto bg-[var(--lux-badge-bg)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-xl mb-6">
             <div className="w-4 h-full" />
-            <div className="flex items-center gap-2 text-sm font-medium text-white/90">
+            <div className="flex items-center gap-2 text-sm font-medium text-[var(--lux-text-on-surface)]">
               <Mail className="w-4 h-4 text-purple-400" />
               {language === 'id' ? 'Wawasan Mingguan' : 'Weekly Insights'}
             </div>
             <div className="w-4 h-full" />
           </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold mb-4 text-white">
+          <h2 className="text-3xl sm:text-4xl font-extrabold mb-4 text-[var(--lux-text-primary)]">
             {language === 'id' ? 'Dapatkan Tips Trading Setiap Minggu' : 'Get Trading Tips Every Week'}
           </h2>
-          <p className="text-white/50 mb-8 max-w-md mx-auto text-base">
+          <p className="text-[var(--lux-text-subtitle)] mb-8 max-w-md mx-auto text-base">
             {language === 'id' ? 'Bergabung dengan trader yang menerima tips trading mingguan, wawasan psikologi, dan update fitur terbaru.' : 'Join traders receiving weekly trading tips, psychology insights, and latest feature updates.'}
           </p>
           <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto" onSubmit={handleNewsletterSubmit}>
@@ -38,7 +38,7 @@ export default function NewsletterSection({ language, newsletterEmail, setNewsle
               value={newsletterEmail}
               onChange={(e) => setNewsletterEmail(e.target.value)}
               placeholder={language === 'id' ? 'Masukkan email Anda' : 'Enter your email'} 
-              className="flex-1 px-5 py-4 rounded-2xl bg-white/5 border border-white/[0.08] text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 transition-all font-medium" 
+              className="flex-1 px-5 py-4 rounded-2xl bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] text-[var(--lux-text-primary)] placeholder:text-[var(--lux-text-label)] focus:outline-none focus:border-purple-500/50 transition-all font-medium" 
               required 
             />
             <button 
@@ -52,7 +52,7 @@ export default function NewsletterSection({ language, newsletterEmail, setNewsle
           {newsletterSuccess && (
             <p className="text-green-400 text-sm mt-3">✓ {language === 'id' ? 'Berhasil berlangganan!' : 'Subscribed!'}</p>
           )}
-          <p className="text-white/30 text-xs mt-4">{language === 'id' ? 'Tidak ada spam. Berhenti langganan kapan saja.' : 'No spam. Unsubscribe anytime.'}</p>
+          <p className="text-[var(--lux-text-label)] text-xs mt-4">{language === 'id' ? 'Tidak ada spam. Berhenti langganan kapan saja.' : 'No spam. Unsubscribe anytime.'}</p>
         </motion.div>
       </div>
     </section>

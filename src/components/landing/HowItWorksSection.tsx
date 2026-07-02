@@ -16,15 +16,15 @@ export default function HowItWorksSection({ language, t }: HowItWorksSectionProp
     <section id="how-it-works" className="py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col items-center mb-14">
-          <div className="flex items-center h-9 w-max bg-[#2a1b3d]/90 backdrop-blur-sm border border-white/10 rounded-xl mb-6">
+          <div className="flex items-center h-9 w-max bg-[var(--lux-badge-bg)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-xl mb-6">
             <div className="w-4 h-full" />
-            <div className="flex items-center gap-2 text-sm font-medium text-white/90">
+            <div className="flex items-center gap-2 text-sm font-medium text-[var(--lux-text-on-surface)]">
               <Zap className="w-4 h-4 text-purple-400" />
               {language === 'id' ? 'Cara Kerja' : 'How It Works'}
             </div>
             <div className="w-4 h-full" />
           </div>
-          <p className="text-white/50 max-w-md text-center text-base">
+          <p className="text-[var(--lux-text-subtitle)] max-w-md text-center text-base">
             {language === 'id'
               ? 'Tiga langkah simpel untuk mulai meningkatkan performa trading kamu.'
               : 'Three simple steps to start improving your trading performance.'}
@@ -81,17 +81,17 @@ export default function HowItWorksSection({ language, t }: HowItWorksSectionProp
               transition={{ delay: index * 0.15 }}
               className="relative"
             >
-              <div className={`bg-[#2a1b3d]/40 backdrop-blur-sm border ${item.border} rounded-2xl p-6 pt-8 h-full hover:bg-[#2a1b3d]/60 transition-colors`}>
+              <div className={`bg-[var(--lux-card-surface)] backdrop-blur-sm border ${item.border} rounded-2xl p-6 pt-8 h-full hover:bg-[var(--lux-card-surface-hover)] transition-colors`}>
                 {/* Step number */}
                 <span className={`absolute -top-3 left-6 text-xs font-black px-3 py-1 rounded-lg bg-gradient-to-r ${item.color} text-white shadow-lg`}>
                   {item.step}
                 </span>
                 {/* Icon */}
-                <div className={`w-12 h-12 rounded-xl ${item.iconBg} border border-white/10 flex items-center justify-center mb-5`}>
+                <div className={`w-12 h-12 rounded-xl ${item.iconBg} border border-[var(--lux-inline-border)] flex items-center justify-center mb-5`}>
                   <item.icon className={`w-6 h-6 ${item.iconColor}`} />
                 </div>
-                <h3 className="text-lg font-bold text-white mb-2">{item.title}</h3>
-                <p className="text-white/50 text-sm leading-relaxed">{item.desc}</p>
+                <h3 className="text-lg font-bold text-[var(--lux-text-primary)] mb-2">{item.title}</h3>
+                <p className="text-[var(--lux-text-subtitle)] text-sm leading-relaxed">{item.desc}</p>
               </div>
             </motion.div>
           ))}
