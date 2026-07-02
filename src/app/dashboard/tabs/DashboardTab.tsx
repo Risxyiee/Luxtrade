@@ -731,7 +731,7 @@ function DashboardTab({
       )}
 
       {/* Stats Cards with Animation */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4" aria-live="polite" aria-label="Statistik trading utama">
         <AnimatedStatCard
           title="Total P/L"
           value={analytics?.totalPL || 0}
@@ -886,6 +886,7 @@ function DashboardTab({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.15 }}
+          aria-label="Grafik performa sesi trading"
         >
           <Card className="bg-gradient-to-br from-[#0f0b18]/80 to-[#12091a]/80 backdrop-blur-md border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10">
             <CardHeader>
@@ -922,6 +923,7 @@ function DashboardTab({
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
+          aria-label="Grafik equity curve"
           transition={{ duration: 0.5, delay: 0.2 }}
         >
           <Card className="bg-gradient-to-br from-[#0f0b18]/80 to-[#12091a]/80 backdrop-blur-md border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10">

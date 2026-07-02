@@ -53,6 +53,7 @@ export default function Header({
         <button
           onClick={() => setMobileSidebarOpen(true)}
           className="lg:hidden p-2 text-gray-400 hover:text-white transition-colors"
+          aria-label={language === 'id' ? 'Buka menu' : 'Open menu'}
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -62,7 +63,7 @@ export default function Header({
         <button
           onClick={fetchData}
           className="p-2 text-gray-400 hover:text-purple-400 transition-colors"
-          title="Refresh data"
+          aria-label={language === 'id' ? 'Muat ulang data' : 'Refresh data'}
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
@@ -76,7 +77,7 @@ export default function Header({
           <DialogTrigger asChild>
             <button
               className="p-2 text-gray-400 hover:text-white hover:bg-white/5 transition-colors rounded-md"
-              title="Keyboard Shortcuts"
+              aria-label={language === 'id' ? 'Pintasan keyboard' : 'Keyboard shortcuts'}
             >
               <Keyboard className="w-5 h-5" />
             </button>
@@ -113,13 +114,13 @@ export default function Header({
           <button
             onClick={handleSignOut}
             className="p-2 text-gray-400 hover:text-white transition-colors"
-            title="Sign out"
+            aria-label={language === 'id' ? 'Keluar' : 'Sign out'}
           >
             <LogOut className="w-5 h-5" />
           </button>
         )}
 
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold" title={user?.email || 'User'}>
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold" role="img" aria-label={`Profil pengguna: ${user?.email || 'User'}`}>
           {userInitials}
         </div>
       </div>

@@ -1,32 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClientForApi } from '@/lib/supabase/server'
+import { getAuthUser } from '@/lib/api-auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 // Maximum file size: 10MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 // Allowed file types
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp']
-
-// Helper: Get authenticated user from request
-async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
-  try {
-    const { supabase } = createClientForApi(request)
-    const { data: { user }, error } = await supabase.auth.getUser()
-
-    if (error) {
-      return null
-    }
-
-    if (!user) {
-      return null
-    }
-
-    // User authenticated
-    return { id: user.id, email: user.email || '' }
-  } catch (_error) {
-    return null
-  }
-}
 
 // POST - Upload trade image to Supabase Storage
 export async function POST(request: NextRequest) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
@@ -105,6 +105,9 @@ export default function Sidebar({
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
   const [accountToDelete, setAccountToDelete] = useState<any>(null)
   const [deleting, setDeleting] = useState(false)
+  const [promoDialogOpen, setPromoDialogOpen] = useState(false)
+  const [promoCode, setPromoCode] = useState('')
+  const [promoLoading, setPromoLoading] = useState(false)
 
   const handleDeleteAccount = async () => {
     if (!accountToDelete) return
@@ -152,6 +155,51 @@ export default function Sidebar({
     setAccountToDelete(account)
     setDeleteAccountOpen(true)
   }
+
+  // Focus management for mobile sidebar
+  const sidebarRef = useRef<HTMLElement>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setMobileSidebarOpen(false)
+      return
+    }
+    if (e.key !== 'Tab' || !sidebarRef.current) return
+
+    const focusableElements = sidebarRef.current.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )
+    if (focusableElements.length === 0) return
+
+    const firstEl = focusableElements[0]
+    const lastEl = focusableElements[focusableElements.length - 1]
+
+    if (e.shiftKey) {
+      if (document.activeElement === firstEl) {
+        e.preventDefault()
+        lastEl.focus()
+      }
+    } else {
+      if (document.activeElement === lastEl) {
+        e.preventDefault()
+        firstEl.focus()
+      }
+    }
+  }, [setMobileSidebarOpen])
+
+  useEffect(() => {
+    if (mobileSidebarOpen) {
+      previousFocusRef.current = document.activeElement as HTMLElement
+      // Delay focus to allow animation
+      setTimeout(() => {
+        sidebarRef.current?.focus()
+      }, 100)
+    } else if (previousFocusRef.current) {
+      previousFocusRef.current.focus()
+      previousFocusRef.current = null
+    }
+  }, [mobileSidebarOpen])
   return (
     <>
       {/* Mobile Overlay Background - Click to close with better feedback */}
@@ -165,11 +213,21 @@ export default function Sidebar({
               navigator.vibrate(10)
             }
           }}
+          aria-hidden="true"
         />
       )}
 
       {/* Sidebar Component */}
-      <aside className={`
+      <aside
+        ref={sidebarRef}
+        {...(mobileSidebarOpen ? {
+          role: 'dialog',
+          'aria-modal': 'true',
+          'aria-label': language === 'id' ? 'Menu navigasi' : 'Navigation menu',
+          onKeyDown: handleKeyDown,
+          tabIndex: -1
+        } : {})}
+        className={`
         fixed lg:static
         top-0 left-0
         h-dvh lg:h-auto
@@ -286,7 +344,7 @@ export default function Sidebar({
                           <button
                             onClick={() => openDeleteModal(account)}
                             className="p-1.5 rounded text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-60 hover:opacity-100"
-                            title="Delete Account"
+                            aria-label={`Hapus akun ${account.name}`}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -319,7 +377,7 @@ export default function Sidebar({
                   <button
                     onClick={(e) => { e.stopPropagation(); openGuide('addAccount') }}
                     className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-[8px] text-white hover:bg-blue-600 transition-colors z-10"
-                    title={language === 'id' ? 'Panduan' : 'Guide'}
+                    aria-label={language === 'id' ? 'Panduan tambah akun' : 'Add account guide'}
                   >
                     ?
                   </button>
@@ -345,7 +403,7 @@ export default function Sidebar({
                   <button
                     onClick={(e) => { e.stopPropagation(); openGuide('addTrade') }}
                     className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center text-[8px] text-white hover:bg-purple-600 transition-colors z-10"
-                    title={language === 'id' ? 'Panduan' : 'Guide'}
+                    aria-label={language === 'id' ? 'Panduan tambah trade' : 'Add trade guide'}
                   >
                     ?
                   </button>
@@ -431,6 +489,8 @@ export default function Sidebar({
                               navigator.vibrate(5)
                             }
                           }}
+                          aria-label={language === 'id' ? item.labelId : item.label}
+                          aria-current={activeTab === item.id ? 'page' : undefined}
                           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 relative overflow-hidden group ${
                             activeTab === item.id
                               ? 'bg-gradient-to-r from-purple-500/20 via-violet-500/15 to-pink-500/10 text-white shadow-lg shadow-purple-500/20'
@@ -513,7 +573,7 @@ export default function Sidebar({
                             <button
                               onClick={(e) => { e.stopPropagation(); openGuide(item.id) }}
                               className="absolute top-2 right-2 w-4 h-4 bg-purple-500/20 hover:bg-purple-500/40 rounded-full flex items-center justify-center text-[8px] text-purple-400 hover:text-white transition-colors z-20"
-                              title={language === 'id' ? 'Panduan' : 'Guide'}
+                              aria-label={`${language === 'id' ? 'Panduan' : 'Guide'}: ${language === 'id' ? item.labelId : item.label}`}
                             >
                               ?
                             </button>
@@ -542,31 +602,11 @@ export default function Sidebar({
           {/* Promo Code Claim Button */}
           {!isPro && (sidebarOpen || mobileSidebarOpen) && (
             <motion.button
-              onClick={() => {
-                // Open promo code input dialog
-                const promoCode = prompt('Masukkan Kode Promo (3 Bulan Gratis):')
-                if (promoCode) {
-                  // Apply promo code
-                  fetch('/api/promo/apply', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ promoCode: promoCode.trim(), plan: 'PRO' })
-                  })
-                  .then(res => res.json())
-                  .then(data => {
-                    if (data.success) {
-                      toast.success(`🎉 ${data.message}`)
-                      setTimeout(() => { window.location.reload() }, 1500)
-                    } else {
-                      toast.error(data.message || data.error || 'Kode promo tidak valid')
-                    }
-                  })
-                  .catch(() => toast.error('Gagal mengklaim kode promo'))
-                }
-              }}
+              onClick={() => { setPromoDialogOpen(true); setPromoCode('') }}
               className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-green-600/20 to-emerald-600/20 text-green-300 border border-green-500/30 hover:from-green-600/30 hover:to-emerald-600/30 transition-all flex items-center justify-center gap-2 text-xs font-semibold shadow-lg shadow-green-500/10 group"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
+              aria-label="Klaim kode promo"
             >
               <Gift className="w-3.5 h-3.5 flex-shrink-0" />
               <span className="truncate">Claim Promo Code</span>
@@ -739,6 +779,7 @@ export default function Sidebar({
                 navigator.vibrate(10)
               }
             }}
+            aria-label={sidebarOpen ? (language === 'id' ? 'Tutup sidebar' : 'Collapse sidebar') : (language === 'id' ? 'Buka sidebar' : 'Expand sidebar')}
             className="relative w-full flex items-center justify-center py-2 text-gray-400 hover:text-white transition-colors rounded-xl hover:bg-white/5 active:bg-white/10 group"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -753,6 +794,77 @@ export default function Sidebar({
         </div>
         </div>
       </aside>
+
+      {/* Promo Code Dialog */}
+      <Dialog open={promoDialogOpen} onOpenChange={setPromoDialogOpen}>
+        <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center gap-2 text-green-400">
+              <Gift className="w-5 h-5" />
+              Klaim Kode Promo
+            </DialogTitle>
+            <DialogDescription className="text-gray-400 mt-2">
+              Masukkan kode promo untuk mendapatkan akses PRO gratis.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <input
+              type="text"
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+              placeholder="Masukkan kode promo"
+              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-purple-500/30 text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const btn = e.currentTarget.closest('[role="dialog"]')?.querySelector<HTMLButtonElement>('[data-promo-submit]')
+                  btn?.click()
+                }
+              }}
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setPromoDialogOpen(false)}
+              className="border-gray-600 text-gray-300 hover:bg-gray-700"
+            >
+              Batal
+            </Button>
+            <Button
+              data-promo-submit
+              onClick={async () => {
+                if (!promoCode.trim()) return
+                setPromoLoading(true)
+                try {
+                  const res = await fetch('/api/promo/apply', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ promoCode: promoCode.trim(), plan: 'PRO' })
+                  })
+                  const data = await res.json()
+                  if (data.success) {
+                    toast.success(`🎉 ${data.message}`)
+                    setPromoDialogOpen(false)
+                    setTimeout(() => { window.location.reload() }, 1500)
+                  } else {
+                    toast.error(data.message || data.error || 'Kode promo tidak valid')
+                  }
+                } catch {
+                  toast.error('Gagal mengklaim kode promo')
+                } finally {
+                  setPromoLoading(false)
+                }
+              }}
+              disabled={promoLoading || !promoCode.trim()}
+              className="bg-green-500 hover:bg-green-600 text-white"
+            >
+              {promoLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Klaim
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Account Confirmation Modal */}
       <Dialog open={deleteAccountOpen} onOpenChange={setDeleteAccountOpen}>

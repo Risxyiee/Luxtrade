@@ -42,6 +42,13 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "LuxTrade",
     locale: "id_ID",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "LuxTrade - AI Trading Journal Indonesia" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LuxTrade - AI Trading Journal Indonesia",
+    description: "Trading journal dengan AI untuk trader Indonesia. Catat trade, deteksi kesalahan, naikkan win rate.",
+    images: ["/og-image.png"],
   },
 };
 
@@ -73,6 +80,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${lexend.variable} ${inter.variable} antialiased font-sans`}
       >
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:bg-purple-600 focus:text-white focus:px-4 focus:py-2 focus:rounded-md"
+        >
+          Skip to main content
+        </a>
         <GlobalErrorBoundary>
           <LanguageProvider>
             <Providers>
