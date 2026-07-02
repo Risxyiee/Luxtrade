@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { createClientForApi } from '@/lib/supabase/server'
-
-async function getAuthUser(request: NextRequest) {
-  try {
-    const { supabase } = createClientForApi(request)
-    const { data: { user }, error } = await supabase.auth.getUser()
-    if (error || !user) return null
-    return { id: user.id, email: user.email || '' }
-  } catch {
-    return null
-  }
-}
+import { getAuthUser } from '@/lib/api-auth'
 
 const SAMPLE_TRADES = [
   { symbol: 'EUR/USD', type: 'BUY', open_price: 1.0842, close_price: 1.0891, lot_size: 0.1, profit_loss: 49.00, session: 'London', emotion: 'Calm', setup_type: 'Trend Continuation', risk_reward_ratio: 2.1, trade_duration: 45 },

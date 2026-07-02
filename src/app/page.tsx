@@ -145,11 +145,13 @@ export default function LuxTradeLanding() {
   return (
     <div className="min-h-screen bg-[#0f051d] text-white overflow-x-hidden flex flex-col">
       <ParticleBackground />
-      <AnnouncementBar language={language} />
-      <LandingNavbar language={language} t={t} onSidebarOpen={() => setSidebarOpen(true)} />
+      <header>
+        <AnnouncementBar language={language} />
+        <LandingNavbar language={language} t={t} onSidebarOpen={() => setSidebarOpen(true)} />
+      </header>
       <LandingSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} language={language} t={t} openLegalPage={openLegalPage} />
 
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         <HeroSection language={language} t={t} />
         <StatsStrip language={language} t={t} />
         <PricingSection language={language} t={t} payLoading={payLoading} handleProUpgrade={handleProUpgrade} handleLifetimeUpgrade={handleLifetimeUpgrade} promoRemaining={promoRemaining} />
@@ -165,6 +167,54 @@ export default function LuxTradeLanding() {
       <LandingFooter language={language} openLegalPage={openLegalPage} />
 
       <LegalPagesModal isOpen={showLegalModal} onClose={() => setShowLegalModal(false)} initialTab={legalModalTab} />
+
+      {/* JSON-LD Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "LuxTrade",
+            "applicationCategory": "FinanceApplication",
+            "operatingSystem": "Web",
+            "description": "AI Trading Journal Indonesia - Catat trade, deteksi kesalahan, naikkan win rate. Screenshot trade dari MT4/MT5, AI auto-extract data & deteksi pola kesalahan berulang.",
+            "url": "https://luxtrade.id",
+            "offers": [
+              {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "IDR",
+                "description": "Free Plan - 10 trades/bulan"
+              },
+              {
+                "@type": "Offer",
+                "price": "49000",
+                "priceCurrency": "IDR",
+                "description": "PRO Plan - 30 hari"
+              }
+            ],
+            "aggregateRating": {
+              "@type": "AggregateRating",
+              "ratingValue": "4.8",
+              "ratingCount": "500"
+            }
+          })
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "LuxTrade",
+            "url": "https://luxtrade.id",
+            "logo": "https://luxtrade.id/logo.png",
+            "sameAs": []
+          })
+        }}
+      />
     </div>
   )
 }
