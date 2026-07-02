@@ -66,7 +66,9 @@ export default function RootLayout({
               (function() {
                 try {
                   var theme = localStorage.getItem('luxtrade-theme');
-                  if (theme !== 'light') {
+                  if (theme === 'light') {
+                    document.documentElement.classList.add('light');
+                  } else {
                     document.documentElement.classList.add('dark');
                   }
                 } catch(e) {
