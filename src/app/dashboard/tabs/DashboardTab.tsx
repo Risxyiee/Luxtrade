@@ -16,59 +16,10 @@ import QuickStats from '@/components/QuickStats'
 import ActivityFeed from '@/components/ActivityFeed'
 import ParticleBackground from '@/components/ParticleBackground'
 import { useConfetti } from '@/hooks/useConfetti'
+import type { Trade, JournalEntry, Analytics } from '@/types'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell
 } from 'recharts'
-
-// ==================== INTERFACES ====================
-
-interface Trade {
-  id: string
-  symbol: string
-  type: 'BUY' | 'SELL'
-  open_price: number
-  close_price: number
-  lot_size: number
-  profit_loss: number
-  open_time: string
-  close_time: string
-  session: string | null
-  notes?: string
-  image_url?: string | null
-  trade_duration?: number | null
-  risk_reward_ratio?: number | null
-  tags?: string | null
-  setup_type?: string | null
-  linked_journal_id?: string | null
-}
-
-interface JournalEntry {
-  id: string
-  title: string
-  content: string
-  mood: string | null
-  market_condition: string | null
-  created_at: string
-  tags?: string | null
-  image_url?: string | null
-  linked_trades_count?: number
-}
-
-interface Analytics {
-  totalTrades: number
-  winningTrades: number
-  losingTrades: number
-  winRate: number
-  totalPL: number
-  avgProfit: number
-  avgLoss: number
-  profitFactor: number
-  maxDrawdown: number
-  sharpeRatio: number
-  equityCurve: { date: string; equity: number }[]
-  sessionPerformance: { session: string; trades: number; pl: number; winRate: number }[]
-  monthlyPerformance: { month: string; pl: number; trades: number }[]
-}
 
 // ==================== ANIMATED NUMBER HOOK ====================
 

@@ -215,13 +215,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('✅ [Midtrans] Transaction created:', {
-      orderId,
-      userId: user.id,
-      plan,
-      grossAmount,
-      discountPercent,
-    })
+    console.log('✅ [Midtrans] Transaction created')
 
     return NextResponse.json({
       success: true,

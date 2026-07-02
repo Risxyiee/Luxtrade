@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { analyzeImageWithOllama } from '@/lib/ollama-vision'
 import { analyzeImageWithZAIVision } from '@/lib/zai-vision'
+import { createClientForApi } from '@/lib/supabase/server'
 
 /**
  * API Route: Analyze Trading Screenshot
@@ -121,7 +122,12 @@ function normalizeTradingData(data: any): any {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('📷 [Analyze Screenshot] Starting analysis...')
+    // Auth check — uses service-role client for storage, but user must be authenticated
+    const { supabase: authClient } = createClientForApi(request)
+    const { data: { user } } = await authClient.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     // Parse form data
     const formData = await request.formData()

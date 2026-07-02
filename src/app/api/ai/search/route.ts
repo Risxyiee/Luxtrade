@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClientForApi } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth check
+    const { supabase } = createClientForApi(request)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { query, num = 10, recency_days } = await request.json()
 
     if (!query) {
@@ -91,7 +99,7 @@ export async function POST(request: NextRequest) {
       })
     }
   } catch (error: any) {
-    console.error('Search Error:', error)
+    // Search error
     return NextResponse.json(
       { error: error.message || 'Failed to perform search' },
       { status: 500 }

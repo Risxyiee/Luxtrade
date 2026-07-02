@@ -1,63 +1,33 @@
 'use client'
 
-export const dynamic = 'force-dynamic'
-
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { registerKeyboardShortcuts, type ShortcutAction } from '@/lib/keyboard-shortcuts'
 import {
   TrendingUp, TrendingDown, Plus, BarChart3, BookOpen,
   Eye, Brain, Menu, X, DollarSign, Target,
-  Activity, PieChart, Sparkles, AlertTriangle,
+  Activity, Sparkles, AlertTriangle,
   Zap, RefreshCw, LogOut, CalendarDays, Edit, Trash2, Calendar, Clock,
-  Smile, Meh, Frown, Sun, Moon, Cloud, AlertCircle, Search, Send, MessageSquare, MessageCircle, Bot, User,
-  TrendingUp as TrendingUpIcon, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, Share2, Download, Shield, Crown, AlertCircle as AlertCircleIcon, Gift, Trophy, Flame, ExternalLink, Newspaper
+  AlertCircle, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, Share2, Download, Shield, Crown, Gift, Trophy, Flame, ExternalLink, Newspaper
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
-import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell
-} from 'recharts'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useAuth } from '@/lib/auth-context'
 import { useLanguage } from '@/contexts/LanguageContext'
 import PlanSelectionModal from '@/components/PlanSelectionModal'
 import PNLShareCard from '@/components/PNLShareCard'
-import TradingScore from '@/components/TradingScore'
-import AIWeeklyReport from '@/components/AIWeeklyReport'
-import TradingStreaks from '@/components/TradingStreaks'
+// TradingScore, AIWeeklyReport, TradingStreaks are now lazy-loaded via next/dynamic in TabContent.tsx
 import NotificationCenter from '@/components/NotificationCenter'
 import ActivityFeed from '@/components/ActivityFeed'
 import QuickStats from '@/components/QuickStats'
 import WelcomeOnboarding from '@/components/WelcomeOnboarding'
-import { formatCurrency } from '@/lib/supabase'
 import { ChartErrorBoundary } from '@/components/ChartErrorBoundary'
-import AchievementCenter from '@/components/AchievementCenter'
+// AchievementCenter is now lazy-loaded via next/dynamic in TabContent.tsx
 import PaywallModal from '@/components/PaywallModal'
 import { ContextGuideProvider } from '@/components/ContextGuide'
 
-// Extracted Tab Components
-import DashboardTab from './tabs/DashboardTab'
-import TradesTab from './tabs/TradesTab'
-import JournalTab from './tabs/JournalTab'
-import WatchlistTab from './tabs/WatchlistTab'
-import AnalyticsTab from './tabs/AnalyticsTab'
-import AITab from './tabs/AITab'
-import PsychologyTab from './tabs/PsychologyTab'
-import HeatmapTab from './tabs/HeatmapTab'
-import CalendarTab from './tabs/CalendarTab'
-import RiskCalculatorTab from './tabs/RiskCalculatorTab'
-import TargetsTab from './tabs/TargetsTab'
-import MarketNewsTab from './tabs/MarketNewsTab'
-import EconomicCalendarTab from './tabs/EconomicCalendarTab'
+// Tab components are now lazy-loaded via next/dynamic in TabContent.tsx
 
 // Extracted Components
 import TradeForm from './components/TradeForm'
@@ -68,8 +38,9 @@ import DashboardModals from './components/DashboardModals'
 import TabContent from './components/TabContent'
 
 // Extracted Utils & Hooks
-import { Trade, JournalEntry, WatchlistItem, Analytics, TradeFormData, emptyFormData } from './utils/types'
-import { formatLocalDateTime, datetimeLocalToFormat, moodOptions, marketConditions } from './utils/helpers'
+import type { Trade, JournalEntry, WatchlistItem, Analytics } from '@/types'
+import { TradeFormData, emptyFormData } from './utils/types'
+import { formatLocalDateTime, datetimeLocalToFormat } from './utils/helpers'
 
 // Extracted Handlers
 import { createTradeHandlers } from './handlers/tradeHandlers'

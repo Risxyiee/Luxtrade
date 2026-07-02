@@ -1,28 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
-
-async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
-  try {
-    const { supabase } = createClientForApi(request)
-    const { data: { user }, error } = await supabase.auth.getUser()
-
-    if (error) {
-      console.error('❌ [API] Supabase auth error:', error.message)
-      return null
-    }
-
-    if (!user) {
-      console.log('❌ [API] No user found in session')
-      return null
-    }
-
-    console.log('✅ [API] Authenticated user:', { id: user.id, email: user.email })
-    return { id: user.id, email: user.email || '' }
-  } catch (error) {
-    console.error('❌ [API] Auth error:', error)
-    return null
-  }
-}
+import { getAuthUser } from '@/lib/api-auth'
 
 // GET - Fetch journal entries
 export async function GET(request: NextRequest) {

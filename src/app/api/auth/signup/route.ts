@@ -186,7 +186,6 @@ export async function POST(request: NextRequest) {
   try {
     const { email, password, fullName, deviceId, referralCode } = await request.json()
     const emailLower = email?.toLowerCase()
-    console.log('📝 Signup request for:', emailLower)
 
     if (!email || !password || !fullName) {
       return NextResponse.json({ error: 'Semua field harus diisi' }, { status: 400 })
@@ -222,7 +221,9 @@ export async function POST(request: NextRequest) {
       const ep = Array.isArray(existing) ? existing[0] : null
 
       if (ep) {
-        console.log('📧 Email sudah ada di profiles DB:', emailLower, 'verified:', ep.email_verified)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('📧 Email already exists in profiles DB, verified:', ep.email_verified)
+        }
 
         // Cek apakah user masih ada di Supabase Auth
         let userStillExists = false
@@ -238,7 +239,7 @@ export async function POST(request: NextRequest) {
         if (!userStillExists) {
           // User sudah dihapus dari Supabase Auth, tapi profil masih di DB
           // Hapus profil lama supaya bisa signup ulang
-          console.log('🧹 User tidak ada di Auth, hapus profil lama untuk signup ulang:', ep.id)
+          console.log('🧹 User not in Auth, removing old profile for re-signup')
           try {
             await db.$executeRawUnsafe(`DELETE FROM profiles WHERE id = $1`, ep.id)
             console.log('✅ Profil lama dihapus')
@@ -330,7 +331,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Gagal membuat akun. Silakan coba lagi.' }, { status: 500 })
     }
 
-    console.log('✅ User created:', userId)
+    console.log('✅ User created')
 
     // ============================================
     // Step 2: Create profile with verification token (raw SQL)
@@ -364,7 +365,7 @@ export async function POST(request: NextRequest) {
     const name = fullName || emailLower.split('@')[0]
 
     try {
-      console.log('📧 Sending confirmation email via Resend to:', emailLower)
+      console.log('📧 Sending confirmation email via Resend')
       const fallbackHtml = getConfirmationEmailHtml(name, confirmationUrl)
       const emailResult = await sendEmailFromTemplate({
         to: emailLower,

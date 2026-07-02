@@ -15,21 +15,19 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error || !user) {
-      console.log('❌ [Photo Metadata] Unauthorized')
       return NextResponse.json(
         { error: 'Unauthorized - Please login' },
         { status: 401 }
       )
     }
 
-    console.log(`✅ [Photo Metadata] Authenticated user: ${user.email}`)
+    // User authenticated
 
     // Get JSON body
     const body = await request.json()
     const { fileName } = body
 
     if (!fileName) {
-      console.log('❌ [Photo Metadata] No fileName provided')
       return NextResponse.json(
         { error: 'fileName is required' },
         { status: 400 }
@@ -45,7 +43,9 @@ export async function POST(request: NextRequest) {
     // Read metadata
     const metadata = await readPhotoMetadata(filePath)
 
-    console.log('📋 [Photo Metadata] Raw metadata:', JSON.stringify(metadata, null, 2))
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📋 [Photo Metadata] Raw metadata:', JSON.stringify(metadata, null, 2))
+    }
 
     // Format output
     const result: any = {

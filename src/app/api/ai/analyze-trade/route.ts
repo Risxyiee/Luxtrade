@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClientForApi } from '@/lib/supabase/server'
 
 /**
  * AI Trade Analysis API
@@ -7,6 +8,13 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
   try {
+    // Auth check
+    const { supabase } = createClientForApi(req as NextRequest)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { trades, question } = await req.json()
 
     if (!trades || !Array.isArray(trades)) {
@@ -71,7 +79,7 @@ export async function POST(req: Request) {
       }
     })
   } catch (error: any) {
-    console.error('[AI ANALYZE TRADE] Error:', error)
+    // AI analyze trade error
     return NextResponse.json(
       { error: error.message || 'Failed to analyze trades' },
       { status: 500 }

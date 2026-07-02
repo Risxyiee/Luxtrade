@@ -233,7 +233,6 @@ export async function PATCH(request: NextRequest) {
         {
           error: 'Admin configuration error',
           details: 'SUPABASE_SERVICE_ROLE_KEY is missing in environment variables. Please add it in Vercel dashboard.',
-          debug: status,
           solution: 'Go to Vercel Project Settings > Environment Variables > Add SUPABASE_SERVICE_ROLE_KEY'
         },
         { status: 500 }
@@ -390,8 +389,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json(
         {
           error: 'Admin configuration error',
-          details: 'SUPABASE_SERVICE_ROLE_KEY is missing',
-          debug: status
+          details: 'SUPABASE_SERVICE_ROLE_KEY is missing'
         },
         { status: 500 }
       )

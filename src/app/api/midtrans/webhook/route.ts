@@ -59,13 +59,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('✅ [Midtrans Webhook] Signature valid:', {
-      orderId,
-      transactionStatus,
-      paymentType,
-      grossAmount,
-      fraudStatus,
-    })
+    console.log('✅ [Midtrans Webhook] Signature valid')
 
     // ── 3. Determine final status ──────────────────────────────
     // Midtrans status mapping:
@@ -180,7 +174,7 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      console.log(`🎉 [Midtrans Webhook] User ${userId} upgraded to PRO! Plan: ${paymentOrder.plan}, Until: ${subscriptionUntil.toISOString()}`)
+      console.log('🎉 [Midtrans Webhook] User upgraded to PRO!')
     }
 
     // ── 8. Return 200 to acknowledge ───────────────────────────

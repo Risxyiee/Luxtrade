@@ -1,5 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
 import { createZAI } from '@/lib/zai'
+
+// In-memory rate limiter
+const aiRateLimit = new Map<string, { count: number; resetAt: number }>()
+const AI_RATE_LIMIT = 20 // 20 requests per minute
+const AI_RATE_WINDOW = 60 * 1000 // 1 minute
+
+function checkAIRateLimit(userId: string): boolean {
+  const now = Date.now()
+  const entry = aiRateLimit.get(userId)
+  if (!entry || now > entry.resetAt) {
+    aiRateLimit.set(userId, { count: 1, resetAt: now + AI_RATE_WINDOW })
+    return true
+  }
+  if (entry.count >= AI_RATE_LIMIT) return false
+  entry.count++
+  return true
+}
 
 // ==================== SMART LOCAL INSIGHT ENGINE ====================
 // Generates insightful trading analysis without requiring external AI SDK.
@@ -198,6 +216,18 @@ function generateChatResponse(message: string, data: Record<string, any>): strin
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth check using shared utility
+    const { error: authError, user } = await requireAuth(request)
+    if (authError) return authError
+
+    // Rate limit by user ID
+    if (!checkAIRateLimit(user!.id)) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Please try again in a minute.' },
+        { status: 429 }
+      )
+    }
+
     const body = await request.json()
     const { type, data } = body
 
@@ -254,9 +284,8 @@ export async function POST(request: NextRequest) {
         ]
       })
       response = result.choices?.[0]?.message?.content || ''
-    } catch (error) {
-      // Z.ai not available, use local fallback
-      console.log('Z.ai not available, using local insight engine', error)
+    } catch (_error) {
+      // Z.ai not available, using local fallback
     }
 
     // Local fallback for trade analysis
@@ -283,8 +312,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       insight: response || 'Unable to generate insight'
     })
-  } catch (error) {
-    console.error('AI Analysis error:', error)
+  } catch (_error) {
     return NextResponse.json({
       error: 'Gagal generate insight. Coba lagi.',
       insight: null

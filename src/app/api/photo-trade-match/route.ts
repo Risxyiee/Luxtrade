@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClientForApi } from '@/lib/supabase/server'
+import { getAuthUser } from '@/lib/api-auth'
 import { readPhotoMetadata } from '@/lib/photo-metadata'
 import path from 'path'
 
@@ -12,10 +12,8 @@ export async function POST(request: NextRequest) {
     console.log('🔍 [Photo-Trade Match] Starting photo-trade matching...')
 
     // Authenticate user
-    const { supabase } = createClientForApi(request)
-    const { data: { user }, error } = await supabase.auth.getUser()
-
-    if (error || !user) {
+    const authUser = await getAuthUser(request)
+    if (!authUser) {
       console.log('❌ [Photo-Trade Match] Unauthorized')
       return NextResponse.json(
         { error: 'Unauthorized - Please login' },
@@ -23,7 +21,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`✅ [Photo-Trade Match] Authenticated user: ${user.email}`)
+    // User authenticated
 
     // Get JSON body
     const body = await request.json()
@@ -32,7 +30,10 @@ export async function POST(request: NextRequest) {
     if (!fileName) {
       console.log('❌ [Photo-Trade Match] No fileName provided')
       return NextResponse.json(
-        { error: 'fileName is required' },
+        {
+          error: 'fileName is required',
+          warning: 'Make sure the photo has EXIF DateTime data'
+        },
         { status: 400 }
       )
     }
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
     `
 
     const params = [
-      user.id,
+      authUser.id,
       startTime.toISOString(),
       endTime.toISOString(),
       photoTime.toISOString()
@@ -193,10 +194,8 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const { supabase } = createClientForApi(request)
-    const { data: { user }, error } = await supabase.auth.getUser()
-
-    if (error || !user) {
+    const authUser = await getAuthUser(request)
+    if (!authUser) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }

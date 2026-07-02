@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    console.log('✅ [Auto Journal] Authenticated user:', authUser.email)
+    // User authenticated
 
     // Parse form data
     const formData = await request.formData()
@@ -217,7 +217,9 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('✅ [Auto Journal] Trade data extracted successfully')
-    console.log('📊 [Auto Journal] Trade:', JSON.stringify(extractionResult.data))
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📊 [Auto Journal] Trade:', JSON.stringify(extractionResult.data))
+    }
     console.log('📈 [Auto Journal] Confidence:', extractionResult.confidence.toFixed(1), '%')
 
     // Check if we have minimum required fields
@@ -238,7 +240,7 @@ export async function POST(request: NextRequest) {
     let screenshotUrl: string | undefined
     try {
       screenshotUrl = await uploadScreenshot(buffer, authUser.id)
-      console.log('✅ [Auto Journal] Screenshot uploaded:', screenshotUrl)
+      console.log('✅ [Auto Journal] Screenshot uploaded')
     } catch (uploadError: any) {
       console.warn('⚠️ [Auto Journal] Failed to upload screenshot:', uploadError.message)
       // Continue without screenshot URL
@@ -248,7 +250,7 @@ export async function POST(request: NextRequest) {
     console.log('📝 [Auto Journal] Generating journal content...')
     const journal = await generateJournalContent(extractionResult.data, buffer)
 
-    console.log('✅ [Auto Journal] Journal generated:', JSON.stringify(journal))
+    console.log('✅ [Auto Journal] Journal generated')
 
     // Ensure profile exists
     try {
