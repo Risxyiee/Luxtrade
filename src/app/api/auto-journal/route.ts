@@ -19,7 +19,7 @@ interface GeneratedJournal {
 // ==================== HELPERS ====================
 
 /**
- * Generate journal content using Claude Opus Vision with text fallback
+ * Generate journal content using Gemini 2.0 Flash Vision with text fallback
  */
 async function generateJournalContent(
   tradeData: any,
@@ -56,14 +56,14 @@ Setup Type: [strategy name like breakout/pullback/momentum etc.]`
 
   let journalContent = ''
 
-  // Try Claude Opus Vision first (image + prompt)
+  // Try Gemini Vision first (image + prompt)
   try {
     const journalResponse = await analyzeImageWithAiml(imageBuffer, journalPrompt, {
       timeout: 90000,
       maxRetries: 2
     })
     journalContent = journalResponse.text || ''
-    console.log('📝 [Auto Journal] Journal analysis completed (Claude Opus Vision)')
+    console.log('📝 [Auto Journal] Journal analysis completed (Gemini Vision)')
   } catch (visionError: any) {
     console.warn(`⚠️ [Auto Journal] Vision failed for journal: ${visionError.message}. Trying text-only...`)
   }
@@ -180,9 +180,9 @@ export async function POST(request: NextRequest) {
     const bytes = await imageFile.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    console.log('🤖 [Auto Journal] Extracting trade data with AI (Claude Opus Vision)...')
+    console.log('🤖 [Auto Journal] Extracting trade data with AI (Gemini Vision)...')
 
-    // Extract trade data using Claude Opus Vision
+    // Extract trade data using Gemini Vision
     const extractionResult = await extractTradeData(buffer)
 
     if (!extractionResult.success) {
@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
       // Continue without screenshot URL
     }
 
-    // Generate journal content using Claude Opus Vision
+    // Generate journal content using Gemini Vision
     console.log('📝 [Auto Journal] Generating journal content...')
     const journal = await generateJournalContent(extractionResult.data, buffer)
 

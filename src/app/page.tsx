@@ -143,7 +143,7 @@ export default function LuxTradeLanding() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f051d] text-white overflow-x-hidden flex flex-col">
+    <div className="min-h-screen bg-lux-bg-primary text-lux-text-primary overflow-x-hidden flex flex-col">
       <ParticleBackground />
       <header>
         <AnnouncementBar language={language} />
