@@ -31,23 +31,22 @@ interface WatchlistAlertsProps {
 }
 
 export function WatchlistAlerts({ watchlistItems }: WatchlistAlertsProps) {
-  const [alerts, setAlerts] = useState<Record<string, WatchlistAlert>>({})
-  const [showDialog, setShowDialog] = useState(false)
-  const [selectedSymbol, setSelectedSymbol] = useState('')
-  const [priceTarget, setPriceTarget] = useState('')
-  const [alertType, setAlertType] = useState<'above' | 'below'>('above')
-
-  // Load alerts from localStorage
-  useEffect(() => {
+  const [alerts, setAlerts] = useState<Record<string, WatchlistAlert>>(() => {
+    if (typeof window === 'undefined') return {}
     const stored = localStorage.getItem('watchlist-alerts')
     if (stored) {
       try {
-        setAlerts(JSON.parse(stored))
+        return JSON.parse(stored)
       } catch (e) {
         console.error('Failed to load alerts:', e)
       }
     }
-  }, [])
+    return {}
+  })
+  const [showDialog, setShowDialog] = useState(false)
+  const [selectedSymbol, setSelectedSymbol] = useState('')
+  const [priceTarget, setPriceTarget] = useState('')
+  const [alertType, setAlertType] = useState<'above' | 'below'>('above')
 
   // Monitor prices
   useEffect(() => {

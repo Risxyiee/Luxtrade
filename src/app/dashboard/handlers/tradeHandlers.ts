@@ -274,12 +274,35 @@ export const createTradeHandlers = ({
     setDeleteTradeOpen(true)
   }
 
+  const openDuplicateModal = (trade: Trade) => {
+    // Copy all fields except id, created_at, updated_at
+    setFormData({
+      symbol: trade.symbol,
+      type: trade.type,
+      open_price: trade.open_price.toString(),
+      close_price: trade.close_price.toString(),
+      lot_size: trade.lot_size.toString(),
+      profit_loss: trade.profit_loss.toString(),
+      open_time: trade.open_time,
+      close_time: trade.close_time,
+      session: trade.session || '',
+      notes: trade.notes || '',
+      image_url: trade.image_url || '',
+      screenshot_url: (trade as any).screenshot_url || '',
+      emotion: (trade as any).emotion || '',
+      account_id: (trade as any).account_id || '',
+      account_type: (trade as any).account_type || 'STANDARD',
+    })
+    setAddTradeOpen(true)
+  }
+
   return {
     handleAddTrade,
     handleEditTrade,
     handleDeleteTrade,
     openEditModal,
     openViewModal,
-    openDeleteModal
+    openDeleteModal,
+    openDuplicateModal
   }
 }

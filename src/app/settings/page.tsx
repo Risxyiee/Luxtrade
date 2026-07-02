@@ -7,7 +7,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { 
   User, Mail, Lock, Eye, EyeOff, Loader2, CheckCircle, 
-  AlertCircle, ArrowLeft, Save, Trash2, Download, FileText
+  AlertCircle, ArrowLeft, Save, Trash2, Download, FileText, MailIcon
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,6 +32,26 @@ export default function SettingsPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [passwordLoading, setPasswordLoading] = useState(false)
   
+  // Email backup
+  const [emailBackupLoading, setEmailBackupLoading] = useState(false)
+
+  const handleEmailBackup = async () => {
+    setEmailBackupLoading(true)
+    try {
+      const res = await fetch('/api/email-backup', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success('Backup berhasil dikirim ke email Anda!')
+      } else {
+        toast.error(data.error || 'Gagal mengirim backup email')
+      }
+    } catch {
+      toast.error('Gagal mengirim backup email')
+    } finally {
+      setEmailBackupLoading(false)
+    }
+  }
+
   // Delete account
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [deleteEmailConfirm, setDeleteEmailConfirm] = useState('')
@@ -393,6 +413,32 @@ export default function SettingsPage() {
             >
               <FileText className="w-4 h-4 mr-2" />
               Export Semua Data
+            </Button>
+          </div>
+
+          {/* Data Backup */}
+          <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6">
+            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+              <MailIcon className="w-5 h-5 text-amber-400" />
+              Data Backup
+            </h2>
+            
+            <p className="text-white/60 mb-4">
+              Kirim backup data trading ke email Anda / Send a backup of your trading data to your email.
+            </p>
+            
+            <Button
+              onClick={handleEmailBackup}
+              disabled={emailBackupLoading}
+              variant="outline"
+              className="border-white/10 text-white hover:bg-white/5"
+            >
+              {emailBackupLoading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Mail className="w-4 h-4 mr-2" />
+              )}
+              {emailBackupLoading ? 'Mengirim...' : 'Email My Data'}
             </Button>
           </div>
 
