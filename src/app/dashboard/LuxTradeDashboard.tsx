@@ -3,8 +3,8 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import dynamicImport from 'next/dynamic'
 import { useRouter } from 'next/navigation'
+import { registerKeyboardShortcuts, type ShortcutAction } from '@/lib/keyboard-shortcuts'
 import {
   TrendingUp, TrendingDown, Plus, BarChart3, BookOpen,
   Eye, Brain, Menu, X, DollarSign, Target,
@@ -447,6 +447,80 @@ function LuxTradeDashboardContent() {
     }
   }, [authLoading, user, loading, trades.length])
 
+  // ==================== KEYBOARD SHORTCUTS ====================
+  useEffect(() => {
+    const handleShortcutAction = (action: ShortcutAction) => {
+      switch (action) {
+        case 'save':
+          toast.info('Use the form to save your trade')
+          break
+        case 'print':
+          window.print()
+          break
+        case 'search':
+          if (activeTab === 'trades') {
+            // Focus the search input in Trades tab
+            const searchInput = document.querySelector<HTMLInputElement>(
+              'input[placeholder*="Search"], input[placeholder*="Cari"]'
+            )
+            if (searchInput) {
+              searchInput.focus()
+              searchInput.select()
+            }
+          }
+          break
+        case 'new-entry':
+          setAddTradeOpen(true)
+          break
+        case 'export': {
+          // Trigger CSV export from Trades tab
+          const exportBtn = document.querySelector<HTMLButtonElement>(
+            'button:has(> svg.lucide-download)'
+          )
+          if (exportBtn) {
+            exportBtn.click()
+          } else {
+            toast.info('Switch to Trades tab to export CSV')
+          }
+          break
+        }
+        case 'escape':
+          // Close any open modal
+          const anyModalOpen =
+            addTradeOpen || editTradeOpen || deleteTradeOpen ||
+            viewTradeOpen || addJournalOpen || viewJournalOpen ||
+            editJournalOpen || addWatchlistOpen || isAddAccountOpen ||
+            paymentModalOpen || planSelectionModalOpen || shareCardOpen ||
+            paywallModalOpen || showOnboarding
+          if (anyModalOpen) {
+            setAddTradeOpen(false)
+            setEditTradeOpen(false)
+            setDeleteTradeOpen(false)
+            setViewTradeOpen(false)
+            setAddJournalOpen(false)
+            setViewJournalOpen(false)
+            setEditJournalOpen(false)
+            setAddWatchlistOpen(false)
+            setIsAddAccountOpen(false)
+            setPaymentModalOpen(false)
+            setPlanSelectionModalOpen(false)
+            setShareCardOpen(false)
+            setPaywallModalOpen(false)
+            setShowOnboarding(false)
+          }
+          break
+      }
+    }
+
+    const unregister = registerKeyboardShortcuts(handleShortcutAction)
+    return unregister
+  }, [
+    activeTab, addTradeOpen, editTradeOpen, deleteTradeOpen,
+    viewTradeOpen, addJournalOpen, viewJournalOpen, editJournalOpen,
+    addWatchlistOpen, isAddAccountOpen, paymentModalOpen,
+    planSelectionModalOpen, shareCardOpen, paywallModalOpen, showOnboarding
+  ])
+
   // ==================== CREATE ALL HANDLERS ====================
   
   // Trade Handlers
@@ -456,7 +530,8 @@ function LuxTradeDashboardContent() {
     handleDeleteTrade,
     openEditModal,
     openViewModal,
-    openDeleteModal
+    openDeleteModal,
+    openDuplicateModal
   } = createTradeHandlers({
     formData,
     setFormData,
@@ -686,6 +761,7 @@ function LuxTradeDashboardContent() {
           onView={openViewModal}
           onEdit={openEditModal}
           onDelete={openDeleteModal}
+          onDuplicate={openDuplicateModal}
           onJournalView={(entry) => { setSelectedJournal(entry); setViewJournalOpen(true) }}
           onJournalEdit={(entry) => { setSelectedJournal(entry); setEditJournalOpen(true) }}
           onJournalDelete={handleDeleteJournal}

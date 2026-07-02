@@ -37,6 +37,9 @@ export function setTheme(theme: Theme) {
     html.classList.add('light')
     html.classList.remove('dark')
   }
+
+  // Dispatch a storage event so useSyncExternalStore subscribers re-render
+  window.dispatchEvent(new StorageEvent('storage', { key: 'luxtrade-theme' }))
 }
 
 /**
