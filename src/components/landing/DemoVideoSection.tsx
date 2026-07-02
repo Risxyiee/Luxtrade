@@ -15,9 +15,9 @@ export default function DemoVideoSection({ language }: DemoVideoSectionProps) {
     <section id="demo" className="py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center h-9 w-max bg-[#2a1b3d]/90 backdrop-blur-sm border border-white/10 rounded-xl mb-6">
+          <div className="flex items-center h-9 w-max bg-[var(--lux-badge-bg)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-xl mb-6">
             <div className="w-4 h-full" />
-            <div className="flex items-center gap-2 text-sm font-medium text-white/90">
+            <div className="flex items-center gap-2 text-sm font-medium text-[var(--lux-text-on-surface)]">
               <Play className="w-4 h-4 text-emerald-400" />
               {language === 'id' ? 'Tampilan Asli' : 'Real Preview'}
             </div>
@@ -29,13 +29,13 @@ export default function DemoVideoSection({ language }: DemoVideoSectionProps) {
         <div className="flex items-center justify-center gap-2 mb-8">
           <button
             onClick={() => setActiveDemoVideo(0)}
-            className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${activeDemoVideo === 0 ? 'bg-gradient-to-r from-purple-600 to-cyan-600 text-white shadow-lg shadow-purple-500/20' : 'bg-white/[0.04] text-white/50 hover:text-white/80 hover:bg-white/[0.08] border border-white/[0.08]'}`}
+            className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${activeDemoVideo === 0 ? 'bg-gradient-to-r from-purple-600 to-cyan-600 text-white shadow-lg shadow-purple-500/20' : 'bg-[var(--lux-inline-hover-bg)] text-[var(--lux-text-subtitle)] hover:text-[var(--lux-text-body-2)] hover:bg-[var(--lux-inline-hover-bg-2)] border border-[var(--lux-inline-border)]'}`}
           >
             {language === 'id' ? 'Dashboard' : 'Dashboard'}
           </button>
           <button
             onClick={() => setActiveDemoVideo(1)}
-            className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${activeDemoVideo === 1 ? 'bg-gradient-to-r from-purple-600 to-cyan-600 text-white shadow-lg shadow-purple-500/20' : 'bg-white/[0.04] text-white/50 hover:text-white/80 hover:bg-white/[0.08] border border-white/[0.08]'}`}
+            className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${activeDemoVideo === 1 ? 'bg-gradient-to-r from-purple-600 to-cyan-600 text-white shadow-lg shadow-purple-500/20' : 'bg-[var(--lux-inline-hover-bg)] text-[var(--lux-text-subtitle)] hover:text-[var(--lux-text-body-2)] hover:bg-[var(--lux-inline-hover-bg-2)] border border-[var(--lux-inline-border)]'}`}
           >
             {language === 'id' ? 'Landing Page' : 'Landing Page'}
           </button>
@@ -56,7 +56,7 @@ export default function DemoVideoSection({ language }: DemoVideoSectionProps) {
             <div className="absolute -inset-[2px] rounded-2xl bg-gradient-to-br from-purple-600/20 via-transparent to-cyan-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-[16px]" />
 
             {/* Video container */}
-            <div className="relative rounded-2xl overflow-hidden bg-[#080510] border border-white/[0.08]">
+            <div className="relative rounded-2xl overflow-hidden bg-[var(--lux-video-bg)] border border-[var(--lux-inline-border)]">
               {activeDemoVideo === 0 ? (
                 <video autoPlay loop muted playsInline className="w-full h-auto block" poster="/demo-video-poster.png">
                   <source src="/demo-video.mp4" type="video/mp4" />
@@ -72,8 +72,8 @@ export default function DemoVideoSection({ language }: DemoVideoSectionProps) {
 
               {/* Play button overlay (shows on hover) */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center">
-                  <Play className="w-6 h-6 text-white ml-1" />
+                <div className="w-16 h-16 rounded-full bg-[var(--lux-inline-hover-bg-2)] backdrop-blur-md border border-[var(--lux-inline-hover-bg-2)] flex items-center justify-center">
+                  <Play className="w-6 h-6 text-[var(--lux-text-primary)] ml-1" />
                 </div>
               </div>
             </div>

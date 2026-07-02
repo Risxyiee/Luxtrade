@@ -20,30 +20,30 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
     <section id="pricing" className="w-full pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center mb-16">
-          <div className="flex items-center h-9 w-max bg-[#2a1b3d]/90 backdrop-blur-sm border border-white/10 rounded-xl mb-6">
+          <div className="flex items-center h-9 w-max bg-[var(--lux-badge-bg)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-xl mb-6">
             <div className="w-4 h-full" />
-            <div className="flex items-center gap-2 text-sm font-medium text-white/90">
+            <div className="flex items-center gap-2 text-sm font-medium text-[var(--lux-text-on-surface)]">
               <Crown className="w-4 h-4 text-purple-400" />
               {language === 'id' ? 'Pilih Paket' : 'Choose Plan'}
             </div>
             <div className="w-4 h-full" />
           </div>
-          <p className="text-white/50 max-w-[320px] md:max-w-2xl text-center text-base md:text-lg leading-relaxed">
+          <p className="text-[var(--lux-text-subtitle)] max-w-[320px] md:max-w-2xl text-center text-base md:text-lg leading-relaxed">
             {t('pricing.subtitle')}
           </p>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8 w-full justify-center max-w-[1200px] mx-auto">
           {/* Free Plan */}
-          <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="flex-1 flex flex-col bg-[#2a1b3d]/40 backdrop-blur-sm border border-white/10 rounded-3xl overflow-hidden min-w-[280px]">
+          <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="flex-1 flex flex-col bg-[var(--lux-card-surface)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-3xl overflow-hidden min-w-[280px]">
             <div className="flex flex-col items-center flex-grow p-8 pt-10">
               <div className="flex items-center justify-center mb-6">
                 <BookOpen className="w-5 h-5 text-purple-400" />
                 <div className="w-3" />
-                <h3 className="text-2xl font-bold text-white">{t('pricing.free.title')}</h3>
+                <h3 className="text-2xl font-bold text-[var(--lux-text-primary)]">{t('pricing.free.title')}</h3>
               </div>
-              <p className="text-[12px] text-white/60 text-center mb-6 leading-relaxed">{t('pricing.free.desc')}</p>
-              <div className="text-3xl font-extrabold text-white text-center mb-8">{t('pricing.free.price').split(' /')[0]}</div>
+              <p className="text-[12px] text-[var(--lux-text-body)] text-center mb-6 leading-relaxed">{t('pricing.free.desc')}</p>
+              <div className="text-3xl font-extrabold text-[var(--lux-text-primary)] text-center mb-8">{t('pricing.free.price').split(' /')[0]}</div>
               <div className="flex flex-col gap-3.5 w-full mb-8">
                 {[
                   language === 'id' ? '10 jurnal per bulan' : '10 journals per month',
@@ -51,7 +51,7 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
                   language === 'id' ? 'Kalkulator risiko pemula' : 'Basic risk calculator',
                   language === 'id' ? '3x trial AI analysis' : '3x AI analysis trials',
                 ].map((item, index) => (
-                  <div key={index} className="flex items-start gap-3 text-sm text-white/70">
+                  <div key={index} className="flex items-start gap-3 text-sm text-[var(--lux-text-body-2)]">
                     <Zap className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
                     <span>{item}</span>
                   </div>
@@ -60,7 +60,7 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
             </div>
             <div className="p-6 pt-0">
               <Link href="/auth/signup" className="block">
-                <button className="w-full flex items-center justify-center h-[52px] rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition active:scale-95 text-white font-medium">
+                <button className="w-full flex items-center justify-center h-[52px] rounded-2xl bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] hover:bg-[var(--lux-inline-hover-bg-3)] transition active:scale-95 text-[var(--lux-text-primary)] font-medium">
                   {t('pricing.cta.free')} →
                 </button>
               </Link>
@@ -76,12 +76,12 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
               <div className="flex items-center justify-center mb-6">
                 <Crown className="w-5 h-5 text-purple-400" />
                 <div className="w-3" />
-                <h3 className="text-2xl font-bold text-white">{t('pricing.pro.title')}</h3>
+                <h3 className="text-2xl font-bold text-[var(--lux-text-primary)]">{t('pricing.pro.title')}</h3>
               </div>
-              <p className="text-[12px] text-white/60 text-center mb-6 leading-relaxed">{t('pricing.pro.desc')}</p>
-              <div className="text-3xl font-extrabold text-white text-center mb-8">
+              <p className="text-[12px] text-[var(--lux-text-body)] text-center mb-6 leading-relaxed">{t('pricing.pro.desc')}</p>
+              <div className="text-3xl font-extrabold text-[var(--lux-text-primary)] text-center mb-8">
                 {t('pricing.pro.price').split(' /')[0]}
-                <span className="text-base font-normal text-white/40"> / {language === 'id' ? 'bulan' : 'mo'}</span>
+                <span className="text-base font-normal text-[var(--lux-text-label-2)]"> / {language === 'id' ? 'bulan' : 'mo'}</span>
               </div>
               <div className="flex flex-col gap-3.5 w-full mb-8">
                 {[
@@ -92,7 +92,7 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
                   language === 'id' ? 'Export Excel / PDF' : 'Excel / PDF export',
                   language === 'id' ? 'VIP support & grup' : 'VIP support & group access',
                 ].map((item, index) => (
-                  <div key={index} className="flex items-start gap-3 text-sm text-white/70">
+                  <div key={index} className="flex items-start gap-3 text-sm text-[var(--lux-text-body-2)]">
                     <Zap className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
                     <span>{item}</span>
                   </div>
@@ -114,9 +114,9 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
 
         {/* Non-refundable notice */}
         <div className="flex justify-center mt-10">
-          <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl">
-            <AlertTriangle className="w-4 h-4 text-white/40" />
-            <span className="text-white/50 text-xs font-bold">{language === 'id' ? 'Produk Digital — Non-Refundable' : 'Digital Product — Non-Refundable'}</span>
+          <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] rounded-xl">
+            <AlertTriangle className="w-4 h-4 text-[var(--lux-text-label-2)]" />
+            <span className="text-[var(--lux-text-subtitle)] text-xs font-bold">{language === 'id' ? 'Produk Digital — Non-Refundable' : 'Digital Product — Non-Refundable'}</span>
           </div>
         </div>
 
@@ -127,25 +127,25 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
           viewport={{ once: true }}
           className="flex justify-center mt-6"
         >
-          <div className="inline-flex items-center gap-3 px-5 py-3 bg-white/[0.03] border border-white/[0.06] rounded-2xl">
+          <div className="inline-flex items-center gap-3 px-5 py-3 bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] rounded-2xl">
             <div className="flex items-center gap-2">
               {/* Midtrans Logo */}
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="shrink-0">
-                <rect width="24" height="24" rx="6" fill="#1A1A2E"/>
+                <rect width="24" height="24" rx="6" fill="var(--lux-icon-circle-bg)"/>
                 <path d="M6 8h12v2H6zM6 12h8v2H6zM6 16h10v2H6z" fill="#42B549"/>
                 <circle cx="19" cy="16" r="3" fill="#42B549"/>
               </svg>
-              <span className="text-white/60 text-xs font-bold tracking-wide">MIDTRANS</span>
+              <span className="text-[var(--lux-text-body)] text-xs font-bold tracking-wide">MIDTRANS</span>
             </div>
-            <div className="w-px h-4 bg-white/10" />
+            <div className="w-px h-4 bg-[var(--lux-inline-border)]" />
             <div className="flex items-center gap-1.5">
               <Lock className="w-3 h-3 text-emerald-400/70" />
-              <span className="text-white/40 text-[11px]">{language === 'id' ? 'Pembayaran Aman & Terenkripsi' : 'Secure & Encrypted Payments'}</span>
+              <span className="text-[var(--lux-text-label-2)] text-[11px]">{language === 'id' ? 'Pembayaran Aman & Terenkripsi' : 'Secure & Encrypted Payments'}</span>
             </div>
-            <div className="w-px h-4 bg-white/10" />
+            <div className="w-px h-4 bg-[var(--lux-inline-border)]" />
             <div className="flex items-center gap-1.5">
               <Zap className="w-3 h-3 text-emerald-400/70" />
-              <span className="text-white/40 text-[11px]">{language === 'id' ? 'Aktivasi Instan' : 'Instant Activation'}</span>
+              <span className="text-[var(--lux-text-label-2)] text-[11px]">{language === 'id' ? 'Aktivasi Instan' : 'Instant Activation'}</span>
             </div>
           </div>
         </motion.div>

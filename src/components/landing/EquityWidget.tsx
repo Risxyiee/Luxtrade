@@ -109,7 +109,7 @@ export default function EquityWidget() {
 
   return (
     <motion.div
-      className="rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] p-6 hover:shadow-[0_0_40px_rgba(139,92,246,0.3)] transition-shadow duration-500"
+      className="rounded-2xl backdrop-blur-xl bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] p-6 hover:shadow-[0_0_40px_rgba(139,92,246,0.3)] transition-shadow duration-500"
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.8, delay: 0.4, ease: 'easeOut' }}
@@ -118,7 +118,7 @@ export default function EquityWidget() {
         <div>
           <p className="text-sm text-purple-300/80 font-semibold tracking-wide uppercase text-xs">Portfolio Equity</p>
           <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-extrabold text-white tracking-tight">
+            <span className="text-3xl font-extrabold text-[var(--lux-text-primary)] tracking-tight">
               ${currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
             <AnimatePresence mode="wait">
@@ -147,7 +147,7 @@ export default function EquityWidget() {
         </div>
       </div>
       <canvas ref={canvasRef} width={500} height={160} className="w-full h-40" />
-      <div className="flex items-center justify-between mt-4 text-xs text-purple-300/60 font-medium">
+      <div className="flex items-center justify-between mt-4 text-xs text-purple-500/60 dark:text-purple-300/60 font-medium">
         <span>Start: $10,500.00</span>
         <span>Updated just now</span>
       </div>

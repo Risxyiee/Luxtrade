@@ -24,9 +24,9 @@ export default function FAQSection({ language }: FAQSectionProps) {
     <section id="faq" className="py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         <div className="flex flex-col items-center mb-12">
-          <div className="flex items-center h-9 w-max bg-[#2a1b3d]/90 backdrop-blur-sm border border-white/10 rounded-xl mb-6">
+          <div className="flex items-center h-9 w-max bg-[var(--lux-badge-bg)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-xl mb-6">
             <div className="w-4 h-full" />
-            <div className="flex items-center gap-2 text-sm font-medium text-white/90">
+            <div className="flex items-center gap-2 text-sm font-medium text-[var(--lux-text-on-surface)]">
               <HelpCircle className="w-4 h-4 text-purple-400" />
               {language === 'id' ? 'Tanya Jawab' : 'FAQ'}
             </div>
@@ -42,10 +42,10 @@ export default function FAQSection({ language }: FAQSectionProps) {
                   onClick={() => setOpenFaq(isOpen ? null : index)}
                   aria-expanded={isOpen}
                   aria-controls={`faq-answer-${index}`}
-                  className={`w-full text-left p-5 bg-[#2a1b3d]/40 backdrop-blur-sm border rounded-2xl transition-all duration-200 ${isOpen ? 'border-purple-500/30 bg-[#2a1b3d]/60' : 'border-white/10 hover:border-white/20 hover:bg-[#2a1b3d]/50'}`}
+                  className={`w-full text-left p-5 bg-[var(--lux-card-surface)] backdrop-blur-sm border rounded-2xl transition-all duration-200 ${isOpen ? 'border-purple-500/30 bg-[var(--lux-card-surface-hover)]' : 'border-[var(--lux-inline-border)] hover:border-[var(--lux-inline-hover-bg-2)] hover:bg-[var(--lux-card-surface-hover)]'}`}
                 >
                   <div className="flex items-center justify-between gap-4">
-                    <h3 className="text-base font-bold text-white">{faq.q}</h3>
+                    <h3 className="text-base font-bold text-[var(--lux-text-primary)]">{faq.q}</h3>
                     <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
                       <ChevronDown className="w-5 h-5 text-purple-400 shrink-0" />
                     </motion.div>
@@ -61,7 +61,7 @@ export default function FAQSection({ language }: FAQSectionProps) {
                         transition={{ duration: 0.25 }}
                         className="overflow-hidden"
                       >
-                        <span className="block pt-3 text-white/50 text-sm leading-relaxed">{faq.a}</span>
+                        <span className="block pt-3 text-[var(--lux-text-subtitle)] text-sm leading-relaxed">{faq.a}</span>
                       </motion.p>
                     )}
                   </AnimatePresence>

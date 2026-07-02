@@ -61,7 +61,7 @@ export default function AnimatedForexTrades() {
         return (
           <motion.div
             key={`${tradeIdx}-${i}`}
-            className="flex items-center justify-between p-3 rounded-xl backdrop-blur-md bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-purple-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.2)] transition-all duration-300"
+            className="flex items-center justify-between p-3 rounded-xl backdrop-blur-md bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] hover:bg-[var(--lux-inline-hover-bg)] hover:border-purple-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.2)] transition-all duration-300"
             initial={false}
             animate={{ opacity: isExiting ? 0 : 1, x: isExiting ? -100 : isEntering ? 100 : 0, scale: isExiting ? 0.9 : 1 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
@@ -77,14 +77,14 @@ export default function AnimatedForexTrades() {
               </motion.div>
               <div>
                 <div className="flex items-center gap-2">
-                  <motion.span className="text-sm font-extrabold text-white tracking-wide" animate={{ opacity: [1, 0.8, 1] }} transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2 }}>
+                  <motion.span className="text-sm font-extrabold text-[var(--lux-text-primary)] tracking-wide" animate={{ opacity: [1, 0.8, 1] }} transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2 }}>
                     {trade.pair}
                   </motion.span>
                   <motion.span className="text-[9px] px-2.5 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 font-bold backdrop-blur-sm" animate={{ opacity: [0.6, 1, 0.6] }} transition={{ duration: 2, repeat: Infinity }}>
                     {trade.session}
                   </motion.span>
                 </div>
-                <div className="text-[10px] text-white/50 flex items-center gap-2">
+                <div className="text-[10px] text-[var(--lux-text-subtitle)] flex items-center gap-2">
                   <motion.span className={`font-bold ${trade.type === 'BUY' ? 'text-emerald-400' : 'text-red-400'}`} animate={{ opacity: [1, 0.7, 1] }} transition={{ duration: 1, repeat: Infinity }}>
                     {trade.type}
                   </motion.span>
@@ -103,7 +103,7 @@ export default function AnimatedForexTrades() {
               </motion.div>
               <div className="flex items-center justify-end gap-1.5 mt-0.5">
                 <motion.div className={`w-2 h-2 rounded-full ${isLiveProfit ? 'bg-emerald-400' : 'bg-red-400'}`} animate={{ opacity: [1, 0.3, 1], scale: [1, 1.3, 1] }} transition={{ duration: 0.8, repeat: Infinity }} />
-                <motion.span className="text-[10px] text-white/50 font-semibold" animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.5, repeat: Infinity }}>
+                <motion.span className="text-[10px] text-[var(--lux-text-subtitle)] font-semibold" animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.5, repeat: Infinity }}>
                   Demo
                 </motion.span>
               </div>
