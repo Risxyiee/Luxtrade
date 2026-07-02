@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import dynamic from 'next/dynamic'
 import {
   Mail, Send, Loader2, Users, ShieldCheck, Crown, UserX,
   CheckCircle, XCircle, Clock, AlertTriangle, Eye, EyeOff,
@@ -22,34 +21,8 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 
-const ReactQuill = dynamic(() => import('react-quill-new'), {
-  ssr: false,
-  loading: () => (
-    <div className="h-64 bg-white/[0.03] border border-white/[0.08] rounded-lg flex items-center justify-center">
-      <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
-    </div>
-  ),
-})
-
 const ADMIN_EMAIL = 'luxtradee@gmail.com'
 
-// Quill toolbar modules
-const QUILL_MODULES = {
-  toolbar: [
-    [{ header: [1, 2, 3, false] }],
-    ['bold', 'italic', 'underline', 'strike'],
-    [{ color: [] }, { background: [] }],
-    [{ list: 'ordered' }, { list: 'bullet' }],
-    ['link', 'image'],
-    [{ align: [] }],
-    ['clean'],
-  ],
-}
-
-const QUILL_FORMATS = [
-  'header', 'bold', 'italic', 'underline', 'strike',
-  'color', 'background', 'list', 'link', 'image', 'align',
-]
 
 interface EmailStats {
   total: number
@@ -658,13 +631,12 @@ export default function AdminEmailPage() {
                           .email-editor-wrapper ::-webkit-scrollbar-track { background: transparent; }
                           .email-editor-wrapper ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
                         `}</style>
-                        <ReactQuill
-                          theme="snow"
+                        <Textarea
                           value={htmlBody}
-                          onChange={setHtmlBody}
-                          modules={QUILL_MODULES}
-                          formats={QUILL_FORMATS}
-                          placeholder="Tulis konten email broadcast..."
+                          onChange={e => setHtmlBody(e.target.value)}
+                          placeholder="Tulis konten email broadcast... (support HTML tags)"
+                          rows={10}
+                          className="bg-white/[0.03] border-white/[0.08] text-white placeholder:text-white/25 focus:border-amber-500/40 focus:ring-amber-500/20 text-sm min-h-[200px]"
                         />
                       </div>
                     )}
