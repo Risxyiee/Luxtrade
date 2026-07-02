@@ -21,28 +21,28 @@ export default function FeaturesSection({ language, t }: FeaturesSectionProps) {
     <section id="features" className="py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col items-center mb-12">
-          <div className="flex items-center h-9 w-max bg-[#2a1b3d]/90 backdrop-blur-sm border border-white/10 rounded-xl mb-6">
+          <div className="flex items-center h-9 w-max bg-[var(--lux-badge-bg)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-xl mb-6">
             <div className="w-4 h-full" />
-            <div className="flex items-center gap-2 text-sm font-medium text-white/90">
+            <div className="flex items-center gap-2 text-sm font-medium text-[var(--lux-text-on-surface)]">
               <span className="w-1.5 h-1.5 bg-purple-400 rounded-sm" />
               {t('features.title')}
             </div>
             <div className="w-4 h-full" />
           </div>
-          <p className="text-white/50 max-w-[400px] md:max-w-2xl text-center text-base leading-relaxed">{t('features.subtitle')}</p>
+          <p className="text-[var(--lux-text-subtitle)] max-w-[400px] md:max-w-2xl text-center text-base leading-relaxed">{t('features.subtitle')}</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {features.map((feature, index) => (
             <motion.div key={index} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.1 }}
-              className="flex flex-col bg-[#2a1b3d]/40 backdrop-blur-sm border border-white/10 rounded-2xl p-5 hover:bg-[#2a1b3d]/60 transition-colors h-full"
+              className="flex flex-col bg-[var(--lux-card-surface)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-2xl p-5 hover:bg-[var(--lux-card-surface-hover)] transition-colors h-full"
             >
               <div className="flex items-center gap-3 mb-3">
-                <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#171221] border border-white/5 flex items-center justify-center shrink-0 shadow-inner`}>
+                <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full bg-[var(--lux-icon-circle-bg)] border border-[var(--lux-inline-border)] flex items-center justify-center shrink-0 shadow-inner`}>
                   <feature.icon className="w-4 h-4 md:w-5 md:h-5 text-purple-400" />
                 </div>
                 <h3 className="text-purple-300 font-medium text-sm md:text-[15px] leading-tight">{feature.title}</h3>
               </div>
-              <p className="text-white/60 text-xs md:text-sm font-medium leading-relaxed">{feature.description}</p>
+              <p className="text-[var(--lux-text-body)] text-xs md:text-sm font-medium leading-relaxed">{feature.description}</p>
             </motion.div>
           ))}
         </div>

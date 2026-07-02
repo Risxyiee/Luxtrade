@@ -4,6 +4,44 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --color-lux-bg-primary: var(--lux-bg-primary);
+  --color-lux-bg-secondary: var(--lux-bg-secondary);
+  --color-lux-bg-tertiary: var(--lux-bg-tertiary);
+  --color-lux-bg-sidebar: var(--lux-bg-sidebar);
+  --color-lux-bg-card: var(--lux-bg-card);
+  --color-lux-bg-surface: var(--lux-bg-surface);
+  --color-lux-bg-surface-hover: var(--lux-bg-surface-hover);
+  --color-lux-bg-inner: var(--lux-bg-inner);
+  --color-lux-text-primary: var(--lux-text-primary);
+  --color-lux-text-secondary: var(--lux-text-secondary);
+  --color-lux-text-muted: var(--lux-text-muted);
+  --color-lux-text-accent: var(--lux-text-accent);
+  --color-lux-border: var(--lux-border);
+  --color-lux-border-subtle: var(--lux-border-subtle);
+  --color-lux-glass-bg: var(--lux-glass-bg);
+  --color-lux-glass-border: var(--lux-glass-border);
+  --color-lux-overlay: var(--lux-overlay);
+  --color-lux-badge-bg: var(--lux-badge-bg);
+  --color-lux-accent-purple: var(--lux-accent-purple);
+  --color-lux-accent-purple-light: var(--lux-accent-purple-light);
+  --color-lux-accent-green: var(--lux-accent-green);
+  --color-lux-accent-red: var(--lux-accent-red);
+  --color-lux-accent-amber: var(--lux-accent-amber);
+  --color-lux-accent-blue: var(--lux-accent-blue);
+  --color-lux-accent-cyan: var(--lux-accent-cyan);
+  --color-lux-accent-pink: var(--lux-accent-pink);
+  --color-lux-btn-primary-from: var(--lux-btn-primary-from);
+  --color-lux-btn-primary-to: var(--lux-btn-primary-to);
+  --color-lux-btn-primary-hover-from: var(--lux-btn-primary-hover-from);
+  --color-lux-btn-primary-hover-to: var(--lux-btn-primary-hover-to);
+  --color-lux-input-bg: var(--lux-input-bg);
+  --color-lux-input-border: var(--lux-input-border);
+  --color-lux-input-placeholder: var(--lux-input-placeholder);
+  --color-lux-video-bg: var(--lux-video-bg);
+  --color-lux-logo-from: var(--lux-logo-from);
+  --color-lux-logo-mid: var(--lux-logo-mid);
+  --color-lux-logo-to: var(--lux-logo-to);
+  --color-lux-progress-track: var(--lux-progress-track);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -96,6 +134,27 @@
   --lux-scrollbar-track: rgba(168, 85, 247, 0.05);
   --lux-scrollbar-thumb: rgba(168, 85, 247, 0.3);
   --lux-scrollbar-thumb-hover: rgba(168, 85, 247, 0.5);
+  /* Landing page specific vars */
+  --lux-badge-bg: rgba(42, 27, 61, 0.9);
+  --lux-card-surface: rgba(42, 27, 61, 0.4);
+  --lux-card-surface-hover: rgba(42, 27, 61, 0.6);
+  --lux-icon-circle-bg: #171221;
+  --lux-video-bg: #080510;
+  --lux-sidebar-panel-bg: rgba(13, 8, 20, 0.95);
+  --lux-navbar-bg: rgba(15, 5, 29, 0.8);
+  --lux-overlay-bg: rgba(0, 0, 0, 0.6);
+  --lux-inline-border: rgba(255, 255, 255, 0.08);
+  --lux-inline-hover-bg: rgba(255, 255, 255, 0.05);
+  --lux-inline-hover-bg-2: rgba(255, 255, 255, 0.08);
+  --lux-inline-hover-bg-3: rgba(255, 255, 255, 0.1);
+  --lux-text-on-surface: rgba(255, 255, 255, 0.9);
+  --lux-text-subtitle: rgba(255, 255, 255, 0.5);
+  --lux-text-body: rgba(255, 255, 255, 0.6);
+  --lux-text-body-2: rgba(255, 255, 255, 0.7);
+  --lux-text-label: rgba(255, 255, 255, 0.3);
+  --lux-text-label-2: rgba(255, 255, 255, 0.4);
+  --lux-text-label-3: rgba(255, 255, 255, 0.25);
+  --lux-promo-code-bg: rgba(0, 0, 0, 0.4);
 }
 
 .light {
@@ -146,6 +205,27 @@
   --lux-scrollbar-track: rgba(124, 58, 237, 0.05);
   --lux-scrollbar-thumb: rgba(124, 58, 237, 0.2);
   --lux-scrollbar-thumb-hover: rgba(124, 58, 237, 0.35);
+  /* Landing page specific vars */
+  --lux-badge-bg: rgba(124, 58, 237, 0.1);
+  --lux-card-surface: rgba(124, 58, 237, 0.06);
+  --lux-card-surface-hover: rgba(124, 58, 237, 0.1);
+  --lux-icon-circle-bg: #f1ecf9;
+  --lux-video-bg: #1a1528;
+  --lux-sidebar-panel-bg: rgba(243, 240, 250, 0.97);
+  --lux-navbar-bg: rgba(248, 247, 252, 0.85);
+  --lux-overlay-bg: rgba(0, 0, 0, 0.4);
+  --lux-inline-border: rgba(124, 58, 237, 0.12);
+  --lux-inline-hover-bg: rgba(124, 58, 237, 0.06);
+  --lux-inline-hover-bg-2: rgba(124, 58, 237, 0.1);
+  --lux-inline-hover-bg-3: rgba(124, 58, 237, 0.15);
+  --lux-text-on-surface: rgba(26, 21, 40, 0.9);
+  --lux-text-subtitle: rgba(26, 21, 40, 0.55);
+  --lux-text-body: rgba(26, 21, 40, 0.65);
+  --lux-text-body-2: rgba(26, 21, 40, 0.75);
+  --lux-text-label: rgba(26, 21, 40, 0.35);
+  --lux-text-label-2: rgba(26, 21, 40, 0.45);
+  --lux-text-label-3: rgba(26, 21, 40, 0.3);
+  --lux-promo-code-bg: rgba(26, 21, 40, 0.06);
 }
 
 @layer base {
@@ -194,17 +274,17 @@
 
 /* Enhanced Glass Card */
 .glass-card {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--lux-card-surface);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--lux-inline-border);
   transition: all 0.3s ease;
 }
 
 .glass-card:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(168, 85, 247, 0.3);
+  background: var(--lux-card-surface-hover);
+  border-color: var(--primary);
   transform: translateY(-2px);
-  box-shadow: 0 10px 40px rgba(168, 85, 247, 0.2);
+  box-shadow: 0 10px 40px rgba(124, 58, 237, 0.15);
 }
 
 /* Glow effect */

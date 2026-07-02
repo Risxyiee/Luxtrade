@@ -23,15 +23,15 @@ export default function StatsStrip({ language, t }: StatsStripProps) {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map((stat, index) => (
             <motion.div key={index} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.1 }}
-              className="flex flex-col bg-[#2a1b3d]/40 backdrop-blur-sm border border-white/10 rounded-2xl p-5 hover:bg-[#2a1b3d]/60 transition-colors"
+              className="flex flex-col bg-[var(--lux-card-surface)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-2xl p-5 hover:bg-[var(--lux-card-surface-hover)] transition-colors"
             >
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#171221] border border-white/5 flex items-center justify-center shrink-0 shadow-inner">
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[var(--lux-icon-circle-bg)] border border-[var(--lux-inline-border)] flex items-center justify-center shrink-0 shadow-inner">
                   <stat.icon className="w-4 h-4 md:w-5 md:h-5 text-purple-400" />
                 </div>
                 <h3 className="text-purple-300 font-medium text-sm md:text-[15px] leading-tight">{stat.value}</h3>
               </div>
-              <p className="text-white/60 text-xs md:text-sm font-medium leading-relaxed">{stat.label}</p>
+              <p className="text-[var(--lux-text-body)] text-xs md:text-sm font-medium leading-relaxed">{stat.label}</p>
             </motion.div>
           ))}
         </div>
