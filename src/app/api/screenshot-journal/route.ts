@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClientForApi } from '@/lib/supabase/server'
+import { getAuthUser } from '@/lib/api-auth'
 import { analyzeImageWithAiml } from '@/lib/aiml-vision'
 
 // ==================== TYPES ====================
@@ -259,26 +259,6 @@ async function analyzeScreenshotWithVLM(
   // Fallback: empty template for manual input
   console.log('⚠️ [Screenshot Journal] All AI services failed, using fallback template')
   return analyzeWithFallback()
-}
-
-// ==================== HELPER: Get authenticated user ====================
-async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
-  try {
-    const { supabase } = createClientForApi(request)
-    const { data: { user }, error } = await supabase.auth.getUser()
-
-    if (error) {
-      return null
-    }
-
-    if (!user) {
-      return null
-    }
-
-    return { id: user.id, email: user.email || '' }
-  } catch (_error) {
-    return null
-  }
 }
 
 // ==================== MAIN HANDLER ====================

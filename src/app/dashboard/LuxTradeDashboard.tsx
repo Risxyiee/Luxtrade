@@ -694,7 +694,7 @@ function LuxTradeDashboardContent() {
       />
 
       {/* Main Content - MOBILE: Full width, DESKTOP: Adjusted by sidebar */}
-      <main className={`flex-1 overflow-auto transition-all duration-300 min-h-screen
+      <main id="main-content" className={`flex-1 overflow-auto transition-all duration-300 min-h-screen
         w-full ml-0 pl-0 pr-0
         ${sidebarOpen ? 'lg:ml-64 lg:pl-0' : 'lg:ml-20 lg:pl-0'}
       `}>

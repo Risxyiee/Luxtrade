@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClientForApi } from '@/lib/supabase/server'
+import { getAuthUser } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { extractTradeData, saveTrade, uploadScreenshot } from '@/lib/extractTradeData'
 import { analyzeImageWithAiml, analyzeTextWithZyloo } from '@/lib/aiml-vision'
@@ -150,24 +150,6 @@ function parseJournalResponse(text: string): GeneratedJournal {
   }
 
   return journal as GeneratedJournal
-}
-
-/**
- * Get authenticated user
- */
-async function getAuthUser(request: NextRequest) {
-  try {
-    const { supabase } = createClientForApi(request)
-    const { data: { user }, error } = await supabase.auth.getUser()
-
-    if (error || !user) {
-      return null
-    }
-
-    return { id: user.id, email: user.email || '' }
-  } catch (error) {
-    return null
-  }
 }
 
 // ==================== MAIN API ====================

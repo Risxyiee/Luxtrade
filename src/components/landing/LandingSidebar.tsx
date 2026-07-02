@@ -27,12 +27,16 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm"
             onClick={onClose}
+            aria-hidden="true"
           />
           <motion.div
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={language === 'id' ? 'Menu navigasi' : 'Navigation menu'}
             className="fixed top-0 left-0 bottom-0 z-[80] w-[280px] bg-[#0d0814]/95 backdrop-blur-xl border-r border-white/[0.08] flex flex-col"
           >
             {/* Sidebar Header */}

@@ -40,6 +40,8 @@ export default function FAQSection({ language }: FAQSectionProps) {
               <motion.div key={index} initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.06 }}>
                 <button
                   onClick={() => setOpenFaq(isOpen ? null : index)}
+                  aria-expanded={isOpen}
+                  aria-controls={`faq-answer-${index}`}
                   className={`w-full text-left p-5 bg-[#2a1b3d]/40 backdrop-blur-sm border rounded-2xl transition-all duration-200 ${isOpen ? 'border-purple-500/30 bg-[#2a1b3d]/60' : 'border-white/10 hover:border-white/20 hover:bg-[#2a1b3d]/50'}`}
                 >
                   <div className="flex items-center justify-between gap-4">
@@ -51,6 +53,8 @@ export default function FAQSection({ language }: FAQSectionProps) {
                   <AnimatePresence>
                     {isOpen && (
                       <motion.p
+                        id={`faq-answer-${index}`}
+                        role="region"
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}

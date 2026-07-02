@@ -86,11 +86,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error) {
-        console.log('Profile fetch error:', error.message);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Profile fetch error:', error.message);
+        }
 
         // If profile doesn't exist, try to create it via API route
         if (error.code === 'PGRST116') {
-          console.log('Profile not found, attempting to create via API...');
           try {
             const response = await fetch('/api/auth/ensure-profile', {
               method: 'POST',
@@ -104,7 +105,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             const result = await response.json();
             if (result.profile) {
-              console.log('✅ Profile created via API');
               return result.profile as Profile;
             }
           } catch (apiError) {
@@ -134,7 +134,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // If marked as PRO but subscription expired, update to FREE
     if (profileData.is_pro && !isValid) {
-      console.log('Subscription expired, auto-locking...');
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -159,7 +158,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // If Supabase is not configured, just set loading to false
     if (!supabase) {
-      console.log('Supabase not configured, running in no-auth mode');
       // Use setTimeout to avoid synchronous setState in effect
       setTimeout(() => {
         setLoading(false);
@@ -167,11 +165,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    console.log('🔵 [AuthContext] Initializing auth...');
-
     // Get initial session quickly - don't wait for profile
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('🟢 [AuthContext] Got initial session:', session ? 'EXISTS' : 'NULL');
 
       setSession(session);
       setUser(session?.user ?? null);
@@ -180,11 +175,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Fetch profile in background (non-blocking)
       if (session?.user) {
-        console.log('📝 [AuthContext] User found, fetching profile:', session.user.id);
         fetchProfile(session.user.id).then(async (profileData) => {
           const checkedProfile = await checkAndLockExpired(profileData);
           setProfile(checkedProfile);
-          console.log('✅ [AuthContext] Profile loaded:', profileData ? 'YES' : 'NO');
         });
       }
     });
@@ -192,11 +185,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('🔄 [AuthContext] Auth state changed:', event, 'session:', session ? 'EXISTS' : 'NULL');
-
         // Handle sign out - clear everything immediately
         if (event === 'SIGNED_OUT') {
-          console.log('🔴 [AuthContext] User signed out');
           setSession(null);
           setUser(null);
           setProfile(null);
@@ -210,7 +200,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Fetch profile in background for sign in
         if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-          console.log('📝 [AuthContext] Signed in or token refreshed, fetching profile');
           fetchProfile(session.user.id).then(async (profileData) => {
             const checkedProfile = await checkAndLockExpired(profileData);
             setProfile(checkedProfile);
@@ -221,7 +210,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const { updateLoginStreak, checkStreakAchievements } = await import('./streak-tracker')
                 const newStreak = await updateLoginStreak(session.user.id)
                 await checkStreakAchievements(session.user.id, newStreak)
-                console.log(`🔥 [AuthContext] Login streak updated: ${newStreak}`)
               } catch (error) {
                 console.error('[AuthContext] Error updating streak:', error)
               }

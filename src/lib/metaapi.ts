@@ -53,10 +53,6 @@ export async function createMetaApiAccount(accountData: {
   platform: 'MT4' | 'MT5'
   name?: string
 }) {
-  console.log('DEBUG: Menggunakan Token MetaApi:', process.env.METAAPI_TOKEN ? 'Tersedia' : 'KOSONG')
-  console.log('DEBUG: Token length:', process.env.METAAPI_TOKEN?.length || 0)
-  console.log('DEBUG: API URL:', METAAPI_CONFIG.api_url)
-
   if (!isMetaApiConfigured()) {
     throw new Error('MetaApi token is not configured. Please set METAAPI_TOKEN environment variable.')
   }

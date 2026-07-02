@@ -1,27 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { createClientForApi } from '@/lib/supabase/server'
-
-// Helper: Get authenticated user from request
-async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
-  try {
-    const { supabase } = createClientForApi(request)
-    const { data: { user }, error } = await supabase.auth.getUser()
-
-    if (error) {
-      return null
-    }
-
-    if (!user) {
-      return null
-    }
-
-    // User authenticated
-    return { id: user.id, email: user.email || '' }
-  } catch (_error) {
-    return null
-  }
-}
+import { getAuthUser } from '@/lib/api-auth'
 
 // Helper function to check if user is admin
 async function isAdmin(userId: string): Promise<boolean> {
