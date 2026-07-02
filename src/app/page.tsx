@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
 import { useLanguage } from '@/contexts/LanguageContext'
 import LegalPagesModal, { type LegalPageTab } from '@/components/LegalPagesModal'
@@ -23,7 +23,6 @@ import LandingFooter from '@/components/landing/LandingFooter'
 export default function LuxTradeLanding() {
   const { language, t } = useLanguage()
   const [showLegalModal, setShowLegalModal] = useState(false)
-  const [snapLoaded, setSnapLoaded] = useState(false)
   const [payLoading, setPayLoading] = useState<string | null>(null)
   const [legalModalTab, setLegalModalTab] = useState<LegalPageTab>('terms')
 
@@ -52,33 +51,41 @@ export default function LuxTradeLanding() {
       .catch(() => {})
   }, [])
 
-  // Load Midtrans Snap.js
-  useEffect(() => {
-    const loadSnap = async () => {
-      try {
-        const res = await fetch('/api/midtrans/create-transaction')
-        const config = await res.json()
-        if (!config.configured || !config.snapUrl) return
+  // Lazily load Midtrans Snap.js only when payment is initiated
+  const ensureSnapLoaded = useCallback(async (): Promise<boolean> => {
+    if ((window as any).snap) return true
 
-        if ((window as any).snap) { setSnapLoaded(true); return }
+    const loadingToast = toast.loading('Memuat payment gateway...')
+    try {
+      const res = await fetch('/api/midtrans/create-transaction')
+      const config = await res.json()
+      if (!config.configured || !config.snapUrl) {
+        toast.dismiss(loadingToast)
+        toast.error('Payment gateway tidak tersedia')
+        return false
+      }
 
+      return await new Promise<boolean>((resolve) => {
         const script = document.createElement('script')
         script.id = 'midtrans-snap-landing'
         script.src = config.snapUrl
         script.setAttribute('data-client-key', config.clientKey)
         script.async = true
-        script.onload = () => setSnapLoaded(true)
+        script.onload = () => { toast.dismiss(loadingToast); resolve(true) }
+        script.onerror = () => { toast.dismiss(loadingToast); toast.error('Gagal memuat payment gateway'); resolve(false) }
         document.body.appendChild(script)
-      } catch { /* ignore */ }
+      })
+    } catch {
+      toast.dismiss(loadingToast)
+      toast.error('Gagal terhubung ke payment gateway')
+      return false
     }
-    loadSnap()
   }, [])
 
   const handleMidtransPay = async (plan: 'PRO_30_DAYS' | 'PRO_LIFETIME') => {
-    if (!snapLoaded) {
-      toast.error('Payment gateway sedang dimuat, coba lagi...')
-      return
-    }
+    const ready = await ensureSnapLoaded()
+    if (!ready) return
+
     setPayLoading(plan)
     try {
       const res = await fetch('/api/midtrans/create-transaction', {

@@ -11,28 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/supabase'
 import { safeParseTags } from '@/lib/parseUtils'
-
-// ==================== INTERFACES ====================
-
-interface Trade {
-  id: string
-  symbol: string
-  type: 'BUY' | 'SELL'
-  open_price: number
-  close_price: number
-  lot_size: number
-  profit_loss: number
-  open_time: string
-  close_time: string
-  session: string | null
-  notes?: string
-  image_url?: string | null
-  trade_duration?: number | null
-  risk_reward_ratio?: number | null
-  tags?: string | null
-  setup_type?: string | null
-  linked_journal_id?: string | null
-}
+import type { Trade } from '@/types'
 
 // ==================== TRADES TAB COMPONENT ====================
 

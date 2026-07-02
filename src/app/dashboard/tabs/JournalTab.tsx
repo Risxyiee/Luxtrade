@@ -12,20 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { safeParseTags } from '@/lib/parseUtils'
 import { toast } from 'sonner'
 import { JournalFilterPanel } from '@/app/dashboard/components/JournalFilterPanel'
-
-// ==================== INTERFACES ====================
-
-interface JournalEntry {
-  id: string
-  title: string
-  content: string
-  mood: string | null
-  market_condition: string | null
-  created_at: string
-  tags?: string | null
-  image_url?: string | null
-  linked_trades_count?: number
-}
+import type { JournalEntry } from '@/types'
 
 // ==================== DAILY PROMPTS ====================
 

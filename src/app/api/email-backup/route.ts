@@ -1,22 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
+import { getAuthUser } from '@/lib/api-auth'
 import { sendEmail } from '@/lib/email'
-
-// Helper: Get authenticated user from request
-async function getAuthUser(request: NextRequest): Promise<{ id: string; email: string } | null> {
-  try {
-    const { supabase } = createClientForApi(request)
-    const { data: { user }, error } = await supabase.auth.getUser()
-
-    if (error || !user) {
-      return null
-    }
-
-    return { id: user.id, email: user.email || '' }
-  } catch {
-    return null
-  }
-}
 
 // POST - Send email backup of trading data
 export async function POST(request: NextRequest) {
