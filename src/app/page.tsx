@@ -12,7 +12,6 @@ import HeroSection from '@/components/landing/HeroSection'
 import StatsStrip from '@/components/landing/StatsStrip'
 import PricingSection from '@/components/landing/PricingSection'
 import PromoCodeSection from '@/components/landing/PromoCodeSection'
-import DemoVideoSection from '@/components/landing/DemoVideoSection'
 import HowItWorksSection from '@/components/landing/HowItWorksSection'
 import FeaturesSection from '@/components/landing/FeaturesSection'
 import TestimonialSection from '@/components/landing/TestimonialSection'
@@ -160,8 +159,6 @@ export default function LuxTradeLanding() {
         <SectionDivider />
         <PricingSection language={language} t={t} payLoading={payLoading} handleProUpgrade={handleProUpgrade} handleLifetimeUpgrade={handleLifetimeUpgrade} promoRemaining={promoRemaining} />
         <PromoCodeSection language={language} promoRemaining={promoRemaining} promoMax={promoMax} promoActive={promoActive} />
-        <SectionDivider />
-        <DemoVideoSection language={language} />
         <SectionDivider />
         <HowItWorksSection language={language} t={t} />
         <SectionDivider />
