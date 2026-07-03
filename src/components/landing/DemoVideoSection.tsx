@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Play } from 'lucide-react'
+import { Play, Monitor } from 'lucide-react'
 
 interface DemoVideoSectionProps {
   language: 'id' | 'en'
@@ -15,13 +15,12 @@ export default function DemoVideoSection({ language }: DemoVideoSectionProps) {
     <section id="demo" className="py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center h-9 w-max bg-[var(--lux-badge-bg)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-xl mb-6">
-            <div className="w-4 h-full" />
-            <div className="flex items-center gap-2 text-sm font-medium text-[var(--lux-text-on-surface)]">
-              <Play className="w-4 h-4 text-emerald-400" />
+          {/* Unique badge: subtle outlined pill with emerald accent */}
+          <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 mb-6">
+            <Monitor className="w-4 h-4 text-emerald-400" />
+            <span className="text-sm font-bold text-[var(--lux-text-on-surface)]">
               {language === 'id' ? 'Tampilan Asli' : 'Real Preview'}
-            </div>
-            <div className="w-4 h-full" />
+            </span>
           </div>
         </div>
 

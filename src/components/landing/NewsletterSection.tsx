@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Mail } from 'lucide-react'
+import { Mail, Bell } from 'lucide-react'
 
 interface NewsletterSectionProps {
   language: 'id' | 'en'
@@ -18,13 +18,12 @@ export default function NewsletterSection({ language, newsletterEmail, setNewsle
     <section className="py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto text-center">
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-          <div className="flex items-center h-9 w-max mx-auto bg-[var(--lux-badge-bg)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-xl mb-6">
-            <div className="w-4 h-full" />
-            <div className="flex items-center gap-2 text-sm font-medium text-[var(--lux-text-on-surface)]">
-              <Mail className="w-4 h-4 text-purple-400" />
+          {/* Unique badge: compact with bell icon */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-pink-500/20 mb-6">
+            <Bell className="w-3.5 h-3.5 text-pink-400" />
+            <span className="text-xs font-bold text-pink-300">
               {language === 'id' ? 'Wawasan Mingguan' : 'Weekly Insights'}
-            </div>
-            <div className="w-4 h-full" />
+            </span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-extrabold mb-4 text-[var(--lux-text-primary)]">
             {language === 'id' ? 'Dapatkan Tips Trading Setiap Minggu' : 'Get Trading Tips Every Week'}

@@ -21,7 +21,7 @@ export default function CTASectionBreak({ language }: CTASectionBreakProps) {
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 mb-8">
             <Sparkles className="w-4 h-4 text-purple-400" />
-            <span className="text-sm font-semibold text-purple-300">
+            <span className="text-sm font-semibold text-purple-400">
               {language === 'id' ? 'Gratis untuk memulai' : 'Free to get started'}
             </span>
           </div>

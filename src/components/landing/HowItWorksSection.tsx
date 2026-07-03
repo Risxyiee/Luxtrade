@@ -16,13 +16,12 @@ export default function HowItWorksSection({ language, t }: HowItWorksSectionProp
     <section id="how-it-works" className="py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col items-center mb-14">
-          <div className="flex items-center h-9 w-max bg-[var(--lux-badge-bg)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-xl mb-6">
-            <div className="w-4 h-full" />
-            <div className="flex items-center gap-2 text-sm font-medium text-[var(--lux-text-on-surface)]">
-              <Zap className="w-4 h-4 text-purple-400" />
+          {/* Unique badge: gradient pill with dashed border effect */}
+          <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-gradient-to-r from-purple-500/15 to-cyan-500/10 border border-purple-500/25 mb-6">
+            <Zap className="w-4 h-4 text-cyan-400" />
+            <span className="text-sm font-bold text-[var(--lux-text-on-surface)]">
               {language === 'id' ? 'Cara Kerja' : 'How It Works'}
-            </div>
-            <div className="w-4 h-full" />
+            </span>
           </div>
           <p className="text-[var(--lux-text-subtitle)] max-w-md text-center text-base">
             {language === 'id'
@@ -33,7 +32,7 @@ export default function HowItWorksSection({ language, t }: HowItWorksSectionProp
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
           {/* Connecting line (desktop only) */}
-          <div className="hidden md:block absolute top-16 left-[20%] right-[20%] h-px bg-gradient-to-r from-purple-500/50 via-purple-400/30 to-purple-500/50" />
+          <div className="hidden md:block absolute top-16 left-[20%] right-[20%] h-px bg-gradient-to-r from-purple-500/50 via-cyan-400/30 to-emerald-500/50" />
 
           {[
             {
