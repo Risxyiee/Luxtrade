@@ -1,9 +1,9 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
-import { X, ChevronRight } from 'lucide-react'
+import { X, ChevronRight, Sun, Moon } from 'lucide-react'
 import { type LegalPageTab } from '@/components/LegalPagesModal'
 import SocialIcons from './SocialIcons'
 
@@ -16,6 +16,19 @@ interface LandingSidebarProps {
 }
 
 export default function LandingSidebar({ isOpen, onClose, language, t, openLegalPage }: LandingSidebarProps) {
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return localStorage.getItem('luxtrade-theme') !== 'light'
+  })
+
+  const toggleTheme = () => {
+    const newDark = !isDark
+    setIsDark(newDark)
+    localStorage.setItem('luxtrade-theme', newDark ? 'dark' : 'light')
+    document.documentElement.classList.toggle('dark', newDark)
+    document.documentElement.classList.toggle('light', !newDark)
+  }
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -45,7 +58,7 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
                 <Image src="/logo.png" alt="LuxTrade" width={28} height={28} className="rounded-lg" />
                 <span className="text-base font-extrabold bg-gradient-to-r from-[var(--lux-text-primary)] via-purple-300 to-purple-400 bg-clip-text text-transparent">LuxTrade</span>
               </div>
-              <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--lux-inline-hover-bg-2)] transition-colors" aria-label="Close">
+              <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--lux-inline-hover-bg-2)] transition-colors" aria-label="Close">
                 <X className="w-4 h-4 text-[var(--lux-text-body)]" />
               </button>
             </div>
@@ -60,6 +73,7 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
                   { href: '#how-it-works', label: language === 'id' ? 'Cara Kerja' : 'How It Works' },
                   { href: '#features', label: language === 'id' ? 'Fitur' : 'Features' },
                   { href: '#pricing', label: language === 'id' ? 'Harga' : 'Pricing' },
+                  { href: '#testimonials', label: language === 'id' ? 'Testimoni' : 'Testimonials' },
                   { href: '#demo', label: t('hero.cta.secondary') },
                   { href: '#faq', label: 'FAQ' },
                 ].map((link) => (
@@ -79,27 +93,31 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
                 <p className="px-3 mb-3 text-[10px] font-bold tracking-[0.2em] text-purple-400/70 uppercase">
                   {language === 'id' ? 'Perusahaan' : 'Company'}
                 </p>
-                <a
-                  onClick={() => { openLegalPage('contact'); onClose() }}
-                  className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-[var(--lux-text-body-2)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg)] transition-all group cursor-pointer"
+                {[
+                  { label: language === 'id' ? 'Kontak' : 'Contact', tab: 'contact' as LegalPageTab },
+                  { label: language === 'id' ? 'Ketentuan' : 'Terms', tab: 'terms' as LegalPageTab },
+                  { label: 'Refund Policy', tab: 'refund' as LegalPageTab },
+                ].map((item) => (
+                  <a
+                    key={item.tab}
+                    onClick={() => { openLegalPage(item.tab); onClose() }}
+                    className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-[var(--lux-text-body-2)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg)] transition-all group cursor-pointer"
+                  >
+                    <span>{item.label}</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-[var(--lux-text-label-3)] group-hover:text-[var(--lux-text-label-2)] transition-colors" />
+                  </a>
+                ))}
+              </div>
+
+              {/* Theme Toggle in Sidebar */}
+              <div className="px-3 mb-6">
+                <button
+                  onClick={toggleTheme}
+                  className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-[var(--lux-text-body-2)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg)] transition-all group"
                 >
-                  <span>{language === 'id' ? 'Kontak' : 'Contact'}</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-[var(--lux-text-label-3)] group-hover:text-[var(--lux-text-label-2)] transition-colors" />
-                </a>
-                <a
-                  onClick={() => { openLegalPage('terms'); onClose() }}
-                  className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-[var(--lux-text-body-2)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg)] transition-all group cursor-pointer"
-                >
-                  <span>{language === 'id' ? 'Ketentuan' : 'Terms'}</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-[var(--lux-text-label-3)] group-hover:text-[var(--lux-text-label-2)] transition-colors" />
-                </a>
-                <a
-                  onClick={() => { openLegalPage('refund'); onClose() }}
-                  className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-[var(--lux-text-body-2)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg)] transition-all group cursor-pointer"
-                >
-                  <span>Refund Policy</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-[var(--lux-text-label-3)] group-hover:text-[var(--lux-text-label-2)] transition-colors" />
-                </a>
+                  {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-purple-400" />}
+                  <span>{isDark ? (language === 'id' ? 'Mode Terang' : 'Light Mode') : (language === 'id' ? 'Mode Gelap' : 'Dark Mode')}</span>
+                </button>
               </div>
 
               {/* Sidebar Social */}

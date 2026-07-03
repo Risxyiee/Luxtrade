@@ -3,7 +3,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Sparkles, ArrowRight, Play, Star } from 'lucide-react'
+import { Sparkles, ArrowRight, Play, Star, Users, Shield } from 'lucide-react'
 import EquityWidget from './EquityWidget'
 import AnimatedForexTrades from './AnimatedForexTrades'
 
@@ -14,7 +14,7 @@ interface HeroSectionProps {
 
 export default function HeroSection({ language, t }: HeroSectionProps) {
   return (
-    <section className="relative w-full pt-32 pb-12">
+    <section className="relative w-full pt-28 sm:pt-32 pb-12">
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row">
         <div className="w-full lg:w-1/2 flex flex-col justify-center px-4 sm:px-6 lg:px-8 lg:pr-12">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
@@ -28,7 +28,7 @@ export default function HeroSection({ language, t }: HeroSectionProps) {
               <div className="w-4 h-full" />
             </div>
 
-            <h1 className="text-[44px] md:text-6xl font-semibold leading-[1.05] tracking-tight mb-6">
+            <h1 className="text-3xl sm:text-[44px] md:text-6xl font-semibold leading-[1.08] tracking-tight mb-6">
               {t('hero.title').split('.').slice(0, -1).join('.')}
               <span className="text-purple-400">.</span>
               <br />
@@ -65,14 +65,26 @@ export default function HeroSection({ language, t }: HeroSectionProps) {
               </a>
             </div>
 
-            {/* Trust Signal */}
-            <div className="flex items-start gap-3 mt-8">
-              <Star className="w-5 h-5 text-purple-400 fill-purple-400 mt-0.5" />
-              <div className="flex flex-col">
-                <p className="text-[var(--lux-text-body-2)] text-sm">
-                  <strong className="text-[var(--lux-text-primary)]">{t('hero.trust')}</strong>
-                </p>
-                <p className="text-[var(--lux-text-label)] text-xs">{language === 'id' ? 'Dibangun di Indonesia, untuk trader Indonesia' : 'Built in Indonesia, for Indonesian traders'}</p>
+            {/* Trust Signals */}
+            <div className="flex flex-wrap items-center gap-5 mt-8">
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-0.5">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  ))}
+                </div>
+                <span className="text-[var(--lux-text-body-2)] text-sm font-medium">4.8/5</span>
+              </div>
+              <div className="w-px h-4 bg-[var(--lux-inline-border)]" />
+              <div className="flex items-center gap-1.5 text-sm text-[var(--lux-text-body)]">
+                <Users className="w-4 h-4 text-purple-400" />
+                <span className="font-semibold text-[var(--lux-text-body-2)]">20+</span>
+                <span>{language === 'id' ? 'trader' : 'traders'}</span>
+              </div>
+              <div className="w-px h-4 bg-[var(--lux-inline-border)]" />
+              <div className="flex items-center gap-1.5 text-sm text-[var(--lux-text-body)]">
+                <Shield className="w-4 h-4 text-emerald-400" />
+                <span>{language === 'id' ? 'Data Aman' : 'Secure Data'}</span>
               </div>
             </div>
           </motion.div>
