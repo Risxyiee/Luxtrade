@@ -15,10 +15,14 @@ import PromoCodeSection from '@/components/landing/PromoCodeSection'
 import DemoVideoSection from '@/components/landing/DemoVideoSection'
 import HowItWorksSection from '@/components/landing/HowItWorksSection'
 import FeaturesSection from '@/components/landing/FeaturesSection'
+import TestimonialSection from '@/components/landing/TestimonialSection'
 import FAQSection from '@/components/landing/FAQSection'
 import RoadmapSection from '@/components/landing/RoadmapSection'
 import NewsletterSection from '@/components/landing/NewsletterSection'
 import LandingFooter from '@/components/landing/LandingFooter'
+import SectionDivider from '@/components/landing/SectionDivider'
+import CTASectionBreak from '@/components/landing/CTASectionBreak'
+import ScrollToTopButton from '@/components/landing/ScrollToTopButton'
 
 export default function LuxTradeLanding() {
   const { language, t } = useLanguage()
@@ -96,7 +100,6 @@ export default function LuxTradeLanding() {
       const data = await res.json()
 
       if (res.status === 401) {
-        // Not logged in — redirect to checkout page (login/signup + pay)
         setPayLoading(null)
         window.location.href = `/auth/checkout?plan=${plan}`
         return
@@ -154,17 +157,24 @@ export default function LuxTradeLanding() {
       <main id="main-content" className="flex-1">
         <HeroSection language={language} t={t} />
         <StatsStrip language={language} t={t} />
+        <SectionDivider />
         <PricingSection language={language} t={t} payLoading={payLoading} handleProUpgrade={handleProUpgrade} handleLifetimeUpgrade={handleLifetimeUpgrade} promoRemaining={promoRemaining} />
         <PromoCodeSection language={language} promoRemaining={promoRemaining} promoMax={promoMax} promoActive={promoActive} />
         <DemoVideoSection language={language} />
+        <SectionDivider />
         <HowItWorksSection language={language} t={t} />
         <FeaturesSection language={language} t={t} />
+        <CTASectionBreak language={language} />
+        <TestimonialSection language={language} />
+        <SectionDivider />
         <FAQSection language={language} />
         <RoadmapSection language={language} />
+        <SectionDivider />
         <NewsletterSection language={language} newsletterEmail={newsletterEmail} setNewsletterEmail={setNewsletterEmail} newsletterLoading={newsletterLoading} newsletterSuccess={newsletterSuccess} handleNewsletterSubmit={handleNewsletterSubmit} />
       </main>
 
       <LandingFooter language={language} openLegalPage={openLegalPage} />
+      <ScrollToTopButton />
 
       <LegalPagesModal isOpen={showLegalModal} onClose={() => setShowLegalModal(false)} initialTab={legalModalTab} />
 
@@ -181,24 +191,10 @@ export default function LuxTradeLanding() {
             "description": "AI Trading Journal Indonesia - Catat trade, deteksi kesalahan, naikkan win rate. Screenshot trade dari MT4/MT5, AI auto-extract data & deteksi pola kesalahan berulang.",
             "url": "https://luxtrade.id",
             "offers": [
-              {
-                "@type": "Offer",
-                "price": "0",
-                "priceCurrency": "IDR",
-                "description": "Free Plan - 10 trades/bulan"
-              },
-              {
-                "@type": "Offer",
-                "price": "49000",
-                "priceCurrency": "IDR",
-                "description": "PRO Plan - 30 hari"
-              }
+              { "@type": "Offer", "price": "0", "priceCurrency": "IDR", "description": "Free Plan - 10 trades/bulan" },
+              { "@type": "Offer", "price": "49000", "priceCurrency": "IDR", "description": "PRO Plan - 30 hari" }
             ],
-            "aggregateRating": {
-              "@type": "AggregateRating",
-              "ratingValue": "4.8",
-              "ratingCount": "500"
-            }
+            "aggregateRating": { "@type": "AggregateRating", "ratingValue": "4.8", "ratingCount": "500" }
           })
         }}
       />

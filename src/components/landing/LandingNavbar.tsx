@@ -1,10 +1,10 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Sun, Moon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 
@@ -15,6 +15,19 @@ interface LandingNavbarProps {
 }
 
 export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNavbarProps) {
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return localStorage.getItem('luxtrade-theme') !== 'light'
+  })
+
+  const toggleTheme = () => {
+    const newDark = !isDark
+    setIsDark(newDark)
+    localStorage.setItem('luxtrade-theme', newDark ? 'dark' : 'light')
+    document.documentElement.classList.toggle('dark', newDark)
+    document.documentElement.classList.toggle('light', !newDark)
+  }
+
   return (
     <nav className="fixed top-10 left-0 right-0 z-50">
       <div className="backdrop-blur-xl bg-[var(--lux-navbar-bg)] border-b border-[var(--lux-inline-border)]">
@@ -44,8 +57,11 @@ export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNav
                 </a>
               ))}
             </div>
-            <div className="flex items-center gap-3">
-              <button onClick={onSidebarOpen} className="lg:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] hover:bg-[var(--lux-inline-hover-bg-3)] transition-colors" aria-label="Menu">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button onClick={toggleTheme} className="w-11 h-11 flex items-center justify-center rounded-xl bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] hover:bg-[var(--lux-inline-hover-bg-3)] transition-colors" aria-label="Toggle theme">
+                {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-purple-400" />}
+              </button>
+              <button onClick={onSidebarOpen} className="lg:hidden w-11 h-11 flex items-center justify-center rounded-xl bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] hover:bg-[var(--lux-inline-hover-bg-3)] transition-colors" aria-label="Menu">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-[var(--lux-text-body-2)]"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
               </button>
               <LanguageSwitcher />
