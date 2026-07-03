@@ -222,7 +222,7 @@ export default function TutorialVideoSection({ language }: TutorialVideoSectionP
               playsInline
               preload="metadata"
               loop
-              className="w-full aspect-[9/16] sm:aspect-video object-cover relative z-[5] cursor-pointer"
+              className="w-full object-contain relative z-[5] cursor-pointer"
               onClick={handlePlay}
             />
 
