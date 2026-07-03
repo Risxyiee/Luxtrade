@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { type LucideIcon } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { motion } from 'framer-motion'
 
@@ -51,20 +52,17 @@ interface AnimatedStatCardProps {
   prefix?: string
   suffix?: string
   decimals?: number
-  icon?: React.ReactNode
+  subtitle?: string
+  icon?: LucideIcon
+  iconColor?: string
+  iconBgColor?: string
+  gradientBg?: string
+  valueColor?: string
   trend?: {
     value: number
     positive: boolean
   }
   color?: 'purple' | 'emerald' | 'red' | 'blue' | 'amber'
-}
-
-const colorClasses = {
-  purple: 'from-purple-500 to-violet-600',
-  emerald: 'from-emerald-500 to-green-600',
-  red: 'from-red-500 to-rose-600',
-  blue: 'from-blue-500 to-cyan-600',
-  amber: 'from-amber-500 to-orange-600',
 }
 
 function AnimatedStatCard({
@@ -73,7 +71,11 @@ function AnimatedStatCard({
   prefix = '',
   suffix = '',
   decimals = 2,
-  icon,
+  subtitle,
+  icon: Icon,
+  iconColor = 'text-purple-400',
+  iconBgColor = 'bg-purple-500/20',
+  valueColor = 'text-white',
   trend,
   color = 'purple'
 }: AnimatedStatCardProps) {
@@ -81,13 +83,19 @@ function AnimatedStatCard({
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    // Use setTimeout to avoid direct setState in effect
-    setTimeout(() => {
-      setMounted(true)
-    }, 0)
+    const timer = setTimeout(() => setMounted(true), 0)
+    return () => clearTimeout(timer)
   }, [])
 
-  const gradientColor = colorClasses[color]
+  const gradientColors: Record<string, string> = {
+    purple: 'from-purple-500 to-violet-600',
+    emerald: 'from-emerald-500 to-green-600',
+    red: 'from-red-500 to-rose-600',
+    blue: 'from-blue-500 to-cyan-600',
+    amber: 'from-amber-500 to-orange-600',
+  }
+
+  const gradientColor = gradientColors[color] || gradientColors.purple
 
   return (
     <Card className="bg-[#0a0712] border-purple-900/30 overflow-hidden relative group hover:border-purple-500/50 transition-all duration-300">
@@ -97,7 +105,11 @@ function AnimatedStatCard({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium text-gray-400">{title}</CardTitle>
-          {icon && <div className="text-purple-400">{icon}</div>}
+          {Icon && (
+            <div className={`p-2 rounded-lg ${iconBgColor}`}>
+              <Icon className={`w-5 h-5 ${iconColor}`} />
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent>
@@ -106,9 +118,12 @@ function AnimatedStatCard({
           animate={mounted ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.5 }}
         >
-          <div className="text-2xl font-bold text-white mb-1">
+          <div className={`text-2xl font-bold mb-1 ${valueColor}`}>
             {prefix}{animatedValue.toFixed(decimals)}{suffix}
           </div>
+          {subtitle && (
+            <p className="text-xs text-gray-500">{subtitle}</p>
+          )}
           {trend && (
             <div className={`text-xs flex items-center gap-1 ${trend.positive ? 'text-emerald-400' : 'text-red-400'}`}>
               {trend.positive ? '↑' : '↓'} {Math.abs(trend.value)}%
