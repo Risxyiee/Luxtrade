@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { HelpCircle, ChevronDown } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 
 interface FAQSectionProps {
   language: 'id' | 'en'
@@ -24,14 +24,9 @@ export default function FAQSection({ language }: FAQSectionProps) {
     <section id="faq" className="py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         <div className="flex flex-col items-center mb-12">
-          <div className="flex items-center h-9 w-max bg-[var(--lux-badge-bg)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-xl mb-6">
-            <div className="w-4 h-full" />
-            <div className="flex items-center gap-2 text-sm font-medium text-[var(--lux-text-on-surface)]">
-              <HelpCircle className="w-4 h-4 text-purple-400" />
-              {language === 'id' ? 'Tanya Jawab' : 'FAQ'}
-            </div>
-            <div className="w-4 h-full" />
-          </div>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-[var(--lux-text-primary)] mb-4">
+            {language === 'id' ? 'Pertanyaan Umum' : 'Frequently Asked Questions'}
+          </h2>
         </div>
         <div className="space-y-3">
           {faqs.map((faq, index) => {

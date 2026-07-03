@@ -21,14 +21,7 @@ export default function FeaturesSection({ language, t }: FeaturesSectionProps) {
     <section id="features" className="py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col items-center mb-12">
-          <div className="flex items-center h-9 w-max bg-[var(--lux-badge-bg)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-xl mb-6">
-            <div className="w-4 h-full" />
-            <div className="flex items-center gap-2 text-sm font-medium text-[var(--lux-text-on-surface)]">
-              <span className="w-1.5 h-1.5 bg-purple-400 rounded-sm" />
-              {t('features.title')}
-            </div>
-            <div className="w-4 h-full" />
-          </div>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-[var(--lux-text-primary)] mb-4">{t('features.title')}</h2>
           <p className="text-[var(--lux-text-subtitle)] max-w-[400px] md:max-w-2xl text-center text-base leading-relaxed">{t('features.subtitle')}</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -38,9 +31,9 @@ export default function FeaturesSection({ language, t }: FeaturesSectionProps) {
             >
               <div className="flex items-center gap-3 mb-3">
                 <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full bg-[var(--lux-icon-circle-bg)] border border-[var(--lux-inline-border)] flex items-center justify-center shrink-0 shadow-inner`}>
-                  <feature.icon className="w-4 h-4 md:w-5 md:h-5 text-purple-400" />
+                  <feature.icon className={`w-4 h-4 md:w-5 md:h-5 ${index === 0 ? 'text-purple-400' : index === 1 ? 'text-violet-400' : index === 2 ? 'text-cyan-400' : 'text-emerald-400'}`} />
                 </div>
-                <h3 className="text-purple-300 font-medium text-sm md:text-[15px] leading-tight">{feature.title}</h3>
+                <h3 className="text-[var(--lux-text-primary)] font-semibold text-sm md:text-[15px] leading-tight">{feature.title}</h3>
               </div>
               <p className="text-[var(--lux-text-body)] text-xs md:text-sm font-medium leading-relaxed">{feature.description}</p>
             </motion.div>

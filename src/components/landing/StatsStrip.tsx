@@ -1,8 +1,33 @@
 'use client'
 
-import React from 'react'
-import { motion } from 'framer-motion'
-import { BarChart3, Activity, Brain, Lock } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { motion, useInView } from 'framer-motion'
+import { Users, Zap, Brain, Shield } from 'lucide-react'
+
+function AnimatedCounter({ target, suffix = '', duration = 2000 }: { target: number; suffix?: string; duration?: number }) {
+  const [count, setCount] = useState(0)
+  const ref = useRef<HTMLSpanElement>(null)
+  const isInView = useInView(ref, { once: true })
+  const hasAnimated = useRef(false)
+
+  useEffect(() => {
+    if (!isInView || hasAnimated.current) return
+    hasAnimated.current = true
+
+    const startTime = performance.now()
+    const step = (currentTime: number) => {
+      const elapsed = currentTime - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setCount(Math.round(eased * target))
+      if (progress < 1) requestAnimationFrame(step)
+    }
+    requestAnimationFrame(step)
+  }, [isInView, target, duration])
+
+  return <span ref={ref}>{count}{suffix}</span>
+}
 
 interface StatsStripProps {
   language: 'id' | 'en'
@@ -10,28 +35,44 @@ interface StatsStripProps {
 }
 
 export default function StatsStrip({ language, t }: StatsStripProps) {
-  const stats = [
-    { value: '10+', label: language === 'id' ? 'Tipe Analitik' : 'Analytics Types', icon: BarChart3 },
-    { value: '24/7', label: language === 'id' ? 'Akses Dashboard' : 'Dashboard Access', icon: Activity },
-    { value: 'AI', label: language === 'id' ? 'Analisis Cerdas' : 'Smart Analysis', icon: Brain },
-    { value: 'E2E', label: language === 'id' ? 'Enkripsi Data' : 'Data Encryption', icon: Lock },
+  const [stats, setStats] = useState({ totalUsers: 20, activeUsers: 7, tradesLogged: 300 })
+
+  useEffect(() => {
+    fetch('/api/landing-stats')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data) setStats(data) })
+      .catch(() => {})
+  }, [])
+
+  const items = [
+    { value: stats.totalUsers, suffix: '+', label: language === 'id' ? 'Trader Terdaftar' : 'Registered Traders', icon: Users, color: 'text-purple-400' },
+    { value: stats.activeUsers, suffix: '', label: language === 'id' ? 'Trader Aktif' : 'Active Traders', icon: Zap, color: 'text-emerald-400' },
+    { value: stats.tradesLogged, suffix: '+', label: language === 'id' ? 'Trade Tercatat' : 'Trades Logged', icon: Brain, color: 'text-cyan-400' },
+    { value: 100, suffix: '%', label: language === 'id' ? 'Data Terenkripsi' : 'Data Encrypted', icon: Shield, color: 'text-amber-400' },
   ]
 
   return (
     <section className="w-full pb-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.map((stat, index) => (
-            <motion.div key={index} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.1 }}
+          {items.map((item, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: index * 0.1 }}
               className="flex flex-col bg-[var(--lux-card-surface)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-2xl p-5 hover:bg-[var(--lux-card-surface-hover)] transition-colors"
             >
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[var(--lux-icon-circle-bg)] border border-[var(--lux-inline-border)] flex items-center justify-center shrink-0 shadow-inner">
-                  <stat.icon className="w-4 h-4 md:w-5 md:h-5 text-purple-400" />
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[var(--lux-icon-circle-bg)] border border-[var(--lux-inline-border)] flex items-center justify-center shrink-0">
+                  <item.icon className={`w-4 h-4 md:w-5 md:h-5 ${item.color}`} />
                 </div>
-                <h3 className="text-purple-300 font-medium text-sm md:text-[15px] leading-tight">{stat.value}</h3>
+                <h3 className={`${item.color} font-bold text-2xl md:text-3xl leading-tight`}>
+                  <AnimatedCounter target={item.value} suffix={item.suffix} />
+                </h3>
               </div>
-              <p className="text-[var(--lux-text-body)] text-xs md:text-sm font-medium leading-relaxed">{stat.label}</p>
+              <p className="text-[var(--lux-text-body)] text-xs md:text-sm font-medium leading-relaxed">{item.label}</p>
             </motion.div>
           ))}
         </div>
