@@ -20,13 +20,12 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
     <section id="pricing" className="w-full pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center mb-16">
-          <div className="flex items-center h-9 w-max bg-[var(--lux-badge-bg)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-xl mb-6">
-            <div className="w-4 h-full" />
-            <div className="flex items-center gap-2 text-sm font-medium text-[var(--lux-text-on-surface)]">
-              <Crown className="w-4 h-4 text-purple-400" />
+          {/* Unique badge: gold/amber accent for pricing */}
+          <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-amber-500/10 border border-amber-500/25 mb-6">
+            <Crown className="w-4 h-4 text-amber-400" />
+            <span className="text-sm font-bold text-amber-300">
               {language === 'id' ? 'Pilih Paket' : 'Choose Plan'}
-            </div>
-            <div className="w-4 h-full" />
+            </span>
           </div>
           <p className="text-[var(--lux-text-subtitle)] max-w-[320px] md:max-w-2xl text-center text-base md:text-lg leading-relaxed">
             {t('pricing.subtitle')}

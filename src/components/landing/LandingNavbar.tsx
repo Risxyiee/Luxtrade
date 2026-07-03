@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -14,11 +14,36 @@ interface LandingNavbarProps {
   onSidebarOpen: () => void
 }
 
+const SECTION_IDS = ['how-it-works', 'features', 'pricing', 'demo', 'faq']
+
 export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNavbarProps) {
   const [isDark, setIsDark] = useState(() => {
     if (typeof window === 'undefined') return true
     return localStorage.getItem('luxtrade-theme') !== 'light'
   })
+
+  const [activeSection, setActiveSection] = useState('')
+
+  // Track active section on scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id)
+          }
+        }
+      },
+      { rootMargin: '-30% 0px -60% 0px' }
+    )
+
+    for (const id of SECTION_IDS) {
+      const el = document.getElementById(id)
+      if (el) observer.observe(el)
+    }
+
+    return () => observer.disconnect()
+  }, [])
 
   const toggleTheme = () => {
     const newDark = !isDark
@@ -27,6 +52,14 @@ export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNav
     document.documentElement.classList.toggle('dark', newDark)
     document.documentElement.classList.toggle('light', !newDark)
   }
+
+  const navLinks = [
+    { key: 'how-it-works', label: language === 'id' ? 'Cara Kerja' : 'How It Works' },
+    { key: 'features', label: t('nav.features') },
+    { key: 'pricing', label: t('nav.pricing') },
+    { key: 'demo', label: t('hero.cta.secondary') },
+    { key: 'faq', label: 'FAQ' },
+  ]
 
   return (
     <nav className="fixed top-10 left-0 right-0 z-50">
@@ -44,18 +77,15 @@ export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNav
               </div>
             </div>
             <div className="hidden md:flex items-center gap-8">
-              {[
-                { key: 'how-it-works', label: language === 'id' ? 'Cara Kerja' : 'How It Works' },
-                { key: 'features', label: t('nav.features') },
-                { key: 'pricing', label: t('nav.pricing') },
-                { key: 'demo', label: t('hero.cta.secondary') },
-                { key: 'faq', label: 'FAQ' },
-              ].map((item) => (
-                <a key={item.key} href={`#${item.key}`} className="text-sm text-[var(--lux-text-body)] hover:text-[var(--lux-text-primary)] transition-colors font-medium relative group">
-                  {item.label}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 group-hover:w-full transition-all duration-300" />
-                </a>
-              ))}
+              {navLinks.map((item) => {
+                const isActive = activeSection === item.key
+                return (
+                  <a key={item.key} href={`#${item.key}`} className={`text-sm font-medium transition-colors relative group ${isActive ? 'text-[var(--lux-text-primary)]' : 'text-[var(--lux-text-body)] hover:text-[var(--lux-text-primary)]'}`}>
+                    {item.label}
+                    <span className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 transition-all duration-300 ${isActive ? 'w-full' : 'w-0 group-hover:w-full'}`} />
+                  </a>
+                )
+              })}
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <button onClick={toggleTheme} className="w-11 h-11 flex items-center justify-center rounded-xl bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] hover:bg-[var(--lux-inline-hover-bg-3)] transition-colors" aria-label="Toggle theme">
