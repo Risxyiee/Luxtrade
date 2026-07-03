@@ -160,14 +160,17 @@ export default function LuxTradeLanding() {
         <SectionDivider />
         <PricingSection language={language} t={t} payLoading={payLoading} handleProUpgrade={handleProUpgrade} handleLifetimeUpgrade={handleLifetimeUpgrade} promoRemaining={promoRemaining} />
         <PromoCodeSection language={language} promoRemaining={promoRemaining} promoMax={promoMax} promoActive={promoActive} />
+        <SectionDivider />
         <DemoVideoSection language={language} />
         <SectionDivider />
         <HowItWorksSection language={language} t={t} />
+        <SectionDivider />
         <FeaturesSection language={language} t={t} />
         <CTASectionBreak language={language} />
         <TestimonialSection language={language} />
         <SectionDivider />
         <FAQSection language={language} />
+        <SectionDivider />
         <RoadmapSection language={language} />
         <SectionDivider />
         <NewsletterSection language={language} newsletterEmail={newsletterEmail} setNewsletterEmail={setNewsletterEmail} newsletterLoading={newsletterLoading} newsletterSuccess={newsletterSuccess} handleNewsletterSubmit={handleNewsletterSubmit} />

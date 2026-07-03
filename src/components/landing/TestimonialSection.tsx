@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Star, Quote, ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -11,6 +11,8 @@ interface Testimonial {
   rating: number
   text: string
   textEn: string
+  gradient: string
+  borderHover: string
 }
 
 const DEFAULT_TESTIMONIALS: Testimonial[] = [
@@ -21,6 +23,8 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
     rating: 5,
     text: 'Dulu saya cuma catat trade di notes HP, sekarang semua terstruktur. AI-nya beneran nunjukin pola loss yang saya nggak sadar — selalu FOMO di session London. Win rate naik dari 40% ke 58% dalam 2 bulan.',
     textEn: 'I used to log trades in phone notes, now everything is structured. The AI really shows loss patterns I didn\'t realize — always FOMOing in London session. Win rate went from 40% to 58% in 2 months.',
+    gradient: 'from-purple-500 to-violet-600',
+    borderHover: 'hover:border-purple-500/30',
   },
   {
     name: 'Rina Wulandari',
@@ -29,6 +33,8 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
     rating: 5,
     text: 'Sebagai trader part-time, saya butuh tools yang simpel. LuxTrade pas banget — screenshot langsung jadi jurnal. Nggak perlu input manual lagi. Save banget waktu saya.',
     textEn: 'As a part-time trader, I need simple tools. LuxTrade is perfect — screenshot instantly becomes a journal. No more manual input. Saves me so much time.',
+    gradient: 'from-cyan-500 to-blue-600',
+    borderHover: 'hover:border-cyan-500/30',
   },
   {
     name: 'Dimas Kurniawan',
@@ -37,6 +43,8 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
     rating: 5,
     text: 'Fitur equity curve dan AI analysis game changer. Saya baru sadar 60% loss saya terjadi di hari Jumat. Sekarang saya avoid trading di hari itu dan performa langsung membaik.',
     textEn: 'Equity curve and AI analysis are game changers. I just realized 60% of my losses happen on Fridays. Now I avoid trading that day and performance immediately improved.',
+    gradient: 'from-emerald-500 to-teal-600',
+    borderHover: 'hover:border-emerald-500/30',
   },
   {
     name: 'Sarah Amelia',
@@ -45,6 +53,8 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
     rating: 4,
     text: 'Baru 3 bulan trading dan LuxTrade bantu saya nggak repeat kesalahan sama. Fitur risk calculator juga membantu saya manage lot size yang benar. Recommended buat beginner!',
     textEn: 'Only 3 months trading and LuxTrade helps me not repeat mistakes. The risk calculator also helps me manage proper lot sizes. Recommended for beginners!',
+    gradient: 'from-pink-500 to-rose-600',
+    borderHover: 'hover:border-pink-500/30',
   },
   {
     name: 'Budi Santoso',
@@ -53,6 +63,8 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
     rating: 5,
     text: 'Pernah coba 5 trading journal lain, semuanya terlalu ribet. LuxTrade yang paling clean dan cepat. Screenshot → AI extract → done. Kurang dari 10 detik per trade.',
     textEn: 'Tried 5 other trading journals, all too complicated. LuxTrade is the cleanest and fastest. Screenshot → AI extract → done. Under 10 seconds per trade.',
+    gradient: 'from-amber-500 to-orange-600',
+    borderHover: 'hover:border-amber-500/30',
   },
   {
     name: 'Fitri Handayani',
@@ -61,13 +73,15 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
     rating: 5,
     text: 'Yang paling helpful itu AI pattern detection. Dia detect saya selalu overtrading setelah loss berturut-turut. Sekarang saya punya rule: max 3 trade setelah loss. Discipline naik banget.',
     textEn: 'The most helpful thing is AI pattern detection. It detected I always overtrade after consecutive losses. Now I have a rule: max 3 trades after a loss. Discipline improved a lot.',
+    gradient: 'from-violet-500 to-purple-600',
+    borderHover: 'hover:border-violet-500/30',
   },
 ]
 
 export default function TestimonialSection({ language }: { language: 'id' | 'en' }) {
   const [currentPage, setCurrentPage] = useState(0)
   const [direction, setDirection] = useState(0)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const containerRef = React.useRef<HTMLDivElement>(null)
 
   const testimonialsPerPage = 3
   const totalPages = Math.ceil(DEFAULT_TESTIMONIALS.length / testimonialsPerPage)
@@ -87,7 +101,7 @@ export default function TestimonialSection({ language }: { language: 'id' | 'en'
   return (
     <section id="testimonials" className="py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
-        {/* Section Header — no badge, clean heading */}
+        {/* Section Header */}
         <div className="text-center mb-14">
           <h2 className="text-3xl sm:text-4xl font-extrabold text-[var(--lux-text-primary)] mb-4">
             {language === 'id' ? 'Apa Kata Mereka' : 'What They Say'}
@@ -114,8 +128,11 @@ export default function TestimonialSection({ language }: { language: 'id' | 'en'
               {currentTestimonials.map((t, i) => (
                 <div
                   key={t.name}
-                  className="flex flex-col bg-[var(--lux-card-surface)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-2xl p-6 hover:bg-[var(--lux-card-surface-hover)] transition-all duration-300 h-full"
+                  className={`relative flex flex-col bg-[var(--lux-card-surface)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-2xl p-6 hover:bg-[var(--lux-card-surface-hover)] ${t.borderHover} transition-all duration-300 h-full`}
                 >
+                  {/* Quote icon */}
+                  <Quote className="absolute top-5 right-5 w-8 h-8 text-[var(--lux-text-label-3)] opacity-50" />
+
                   {/* Stars */}
                   <div className="flex items-center gap-1 mb-4">
                     {Array.from({ length: 5 }).map((_, si) => (
@@ -126,7 +143,7 @@ export default function TestimonialSection({ language }: { language: 'id' | 'en'
                     ))}
                   </div>
 
-                  {/* Quote */}
+                  {/* Quote Text */}
                   <div className="flex-1 mb-5">
                     <p className="text-[var(--lux-text-body-2)] text-sm leading-relaxed">
                       &ldquo;{language === 'id' ? t.text : t.textEn}&rdquo;
@@ -135,7 +152,7 @@ export default function TestimonialSection({ language }: { language: 'id' | 'en'
 
                   {/* Author */}
                   <div className="flex items-center gap-3 pt-4 border-t border-[var(--lux-inline-border)]">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${t.gradient} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
                       {t.avatar}
                     </div>
                     <div>
