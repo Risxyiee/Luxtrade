@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
 import { createZAI } from '@/lib/zai'
+import { isUserPro } from '@/lib/pro-check'
 
 // In-memory rate limiter
 const aiRateLimit = new Map<string, { count: number; resetAt: number }>()
@@ -219,6 +220,16 @@ export async function POST(request: NextRequest) {
     // Auth check using shared utility
     const { error: authError, user } = await requireAuth(request)
     if (authError) return authError
+
+    // PRO check - AI insights is a PRO feature
+    const pro = await isUserPro(user!.id)
+    if (!pro) {
+      return NextResponse.json({
+        error: 'AI Insights adalah fitur PRO. Upgrade ke PRO untuk menggunakan AI trading assistant!',
+        code: 'PRO_REQUIRED',
+        requiresUpgrade: true
+      }, { status: 403 })
+    }
 
     // Rate limit by user ID
     if (!checkAIRateLimit(user!.id)) {
