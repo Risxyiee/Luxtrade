@@ -3201,3 +3201,28 @@ Stage Summary:
 - Fixed 1 critical runtime bug (out-of-scope error variable) that would have crashed the fallback
 - Updated 3 stale comments for accuracy
 - All code is lint-clean and pushed to GitHub
+
+---
+Task ID: 9
+Agent: Z.ai Code
+Task: Add video background to hero section of landing page
+
+Work Log:
+- Analyzed source video: 2560x1320, 60fps, 16.6s, 51MB with audio
+- Compressed video with ffmpeg: 51MB → 2.9MB (1920x990, 30fps, no audio, H.264 CRF 30)
+- Implemented video as hero background in HeroSection.tsx
+- Initial brightness 0.12 was too dark (mobile 2/10)
+- Iterated to brightness 0.45 with split gradients (desktop 8/10, mobile improved)
+- Desktop: left gradient for text readability, right side shows video
+- Mobile: 30% light overlay + bottom gradient
+- Fade-in transition (1.2s) when video ready, particles as loading state
+- 8s fallback timer for video readiness
+- VLM verification: dashboard UI (equity graph, BUY/SELL, DEMO label) clearly visible
+- Text readability maintained throughout (9/10)
+
+Stage Summary:
+- Video compressed and deployed: public/hero-video.mp4 (2.9MB)
+- HeroSection.tsx updated with video background, fade-in, responsive gradients
+- Desktop video visibility: 8/10, text readable: 9/10
+- Old tutorial video section NOT removed (per user request)
+- Pushed: commit a88700b
