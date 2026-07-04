@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/api-auth'
+import { isUserPro } from '@/lib/pro-check'
 import { analyzeImageWithAiml } from '@/lib/aiml-vision'
 
 // ==================== TYPES ====================
@@ -275,6 +276,16 @@ export async function POST(request: NextRequest) {
         { error: 'Unauthorized - Please login' },
         { status: 401 }
       )
+    }
+
+    // PRO check - screenshot journal uses AI Vision, a PRO feature
+    const pro = await isUserPro(authUser.id)
+    if (!pro) {
+      return NextResponse.json({
+        error: 'Screenshot Analysis adalah fitur PRO. Upgrade ke PRO untuk menggunakan AI screenshot analysis!',
+        code: 'PRO_REQUIRED',
+        requiresUpgrade: true
+      }, { status: 403 })
     }
 
     // Step 2: Parse image - support both JSON (base64) and multipart/form-data

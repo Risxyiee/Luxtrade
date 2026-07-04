@@ -64,7 +64,7 @@ export default function SidebarFooter({
             aria-label="Klaim kode promo"
           >
             <Gift className="w-3.5 h-3.5 flex-shrink-0" />
-            <span className="truncate">Claim Promo Code</span>
+            <span className="truncate">{language === 'id' ? 'Klaim Kode Promo' : 'Claim Promo Code'}</span>
           </motion.button>
         )}
 
@@ -78,7 +78,7 @@ export default function SidebarFooter({
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
             <span className="relative z-10 flex items-center justify-center gap-2">
               <Zap className="w-3.5 h-3.5" />
-              Upgrade to Pro
+              {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
             </span>
           </motion.button>
         )}
@@ -112,7 +112,7 @@ export default function SidebarFooter({
               className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
             />
             <Settings className="w-3.5 h-3.5 relative z-10 group-hover:text-purple-400 transition-colors flex-shrink-0" />
-            {(sidebarOpen || mobileSidebarOpen) && <span className="relative z-10 overflow-hidden whitespace-nowrap">Settings</span>}
+            {(sidebarOpen || mobileSidebarOpen) && <span className="relative z-10 overflow-hidden whitespace-nowrap">{language === 'id' ? 'Pengaturan' : 'Settings'}</span>}
           </motion.button>
         </Link>
 
@@ -148,7 +148,7 @@ export default function SidebarFooter({
                   )}
                 </div>
                 <Link href="/settings" className="text-[11px] text-gray-500 hover:text-purple-400 transition-colors">
-                  Settings
+                  {language === 'id' ? 'Pengaturan' : 'Settings'}
                 </Link>
               </div>
             </div>
@@ -164,7 +164,7 @@ export default function SidebarFooter({
             >
               <Shield className="w-4 h-4" />
               <span className="flex items-center gap-1">
-                Admin Panel
+                {language === 'id' ? 'Panel Admin' : 'Admin Panel'}
                 <Crown className="w-3 h-3 text-purple-400" />
               </span>
             </motion.button>
@@ -179,7 +179,7 @@ export default function SidebarFooter({
               whileTap={{ scale: 0.98 }}
             >
               <Send className="w-4 h-4" />
-              <span>Email Broadcast</span>
+              <span>{language === 'id' ? 'Broadcast Email' : 'Email Broadcast'}</span>
             </motion.button>
           </Link>
         )}
@@ -193,7 +193,7 @@ export default function SidebarFooter({
           >
             <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
             <span className="text-xs text-amber-300 overflow-hidden whitespace-nowrap">
-              {tradeCount}/{FREE_TRADE_LIMIT} trades used
+              {tradeCount}/{FREE_TRADE_LIMIT} {language === 'id' ? 'trade digunakan' : 'trades used'}
             </span>
           </motion.div>
         )}
