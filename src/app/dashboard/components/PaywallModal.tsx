@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { 
   Dialog, 
   DialogContent, 
@@ -36,6 +37,10 @@ interface PaywallModalProps {
 
 export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalProps) {
   const { language } = useLanguage()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    requestAnimationFrame(() => setMounted(true))
+  }, [])
 
   const content = {
     id: {

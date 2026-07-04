@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { getAuthUser } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 
 /**
@@ -8,10 +9,16 @@ import { db } from '@/lib/db'
  * Adds ALL missing columns, sets DEFAULTs, backfills NULLs.
  * Safe to run multiple times (IF NOT EXISTS everywhere).
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const results: { step: string; status: string; detail?: string }[] = []
 
   try {
+    const authUser = await getAuthUser(request)
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    // TODO: Add admin role check here for production
+
     // Step 1: Add columns
     const columns = [
       `email TEXT`,
@@ -125,6 +132,6 @@ export async function GET() {
   }
 }
 
-export async function POST() {
-  return GET()
+export async function POST(request: NextRequest) {
+  return GET(request)
 }

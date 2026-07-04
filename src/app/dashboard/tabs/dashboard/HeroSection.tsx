@@ -163,7 +163,7 @@ export default function HeroSection({ analytics, trades, language, profile }: He
                   </span>
                 </div>
                 <span className="text-xs text-gray-400">
-                  {trades.length} / 10 {language === 'id' ? 'trades' : 'trades'}
+                  {trades.length} / 10 {language === 'id' ? 'transaksi' : 'trades'}
                 </span>
               </div>
               <div className="h-2 bg-white/10 rounded-full overflow-hidden">

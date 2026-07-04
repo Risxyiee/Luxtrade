@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getAuthUser } from '@/lib/api-auth'
+import { isUserPro } from '@/lib/pro-check'
 
 // GET - Fetch comprehensive analytics
 export async function GET(request: NextRequest) {
@@ -8,6 +9,15 @@ export async function GET(request: NextRequest) {
     const authUser = await getAuthUser(request)
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const pro = await isUserPro(authUser.id)
+    if (!pro) {
+      return NextResponse.json({
+        error: 'Fitur ini hanya untuk pengguna PRO. Upgrade ke PRO untuk akses!',
+        code: 'PRO_REQUIRED',
+        requiresUpgrade: true
+      }, { status: 403 })
     }
 
     const userId = authUser.id
