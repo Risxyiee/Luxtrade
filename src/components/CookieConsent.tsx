@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useSyncExternalStore, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Cookie } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -8,31 +8,36 @@ import { useLanguage } from '@/contexts/LanguageContext'
 
 const CONSENT_KEY = 'luxtrade_cookie_consent'
 
+function subscribe(callback: () => void) {
+  window.addEventListener('storage', callback)
+  return () => window.removeEventListener('storage', callback)
+}
+
+function getSnapshot(): boolean {
+  try {
+    return !localStorage.getItem(CONSENT_KEY)
+  } catch {
+    return true
+  }
+}
+
+function getServerSnapshot(): boolean {
+  return false
+}
+
 export default function CookieConsent() {
   const { language } = useLanguage()
-  const [visible, setVisible] = useState(() => {
-    if (typeof window === 'undefined') return false
-    try {
-      return !localStorage.getItem(CONSENT_KEY)
-    } catch {
-      return true
-    }
-  })
+  const visible = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 
-  const handleAccept = () => {
+  const dismiss = useCallback((value: string) => {
     try {
-      localStorage.setItem(CONSENT_KEY, 'accepted')
-      document.cookie = 'luxtrade_consent=accepted; path=/; max-age=31536000'
+      localStorage.setItem(CONSENT_KEY, value)
+      if (value === 'accepted') {
+        document.cookie = 'luxtrade_consent=accepted; path=/; max-age=31536000'
+      }
+      window.dispatchEvent(new Event('storage'))
     } catch {}
-    setVisible(false)
-  }
-
-  const handleReject = () => {
-    try {
-      localStorage.setItem(CONSENT_KEY, 'rejected')
-    } catch {}
-    setVisible(false)
-  }
+  }, [])
 
   const text =
     language === 'id'
@@ -62,14 +67,14 @@ export default function CookieConsent() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleReject}
+                onClick={() => dismiss('rejected')}
                 className="border-purple-800/50 text-gray-300 hover:bg-purple-900/30 hover:text-white"
               >
                 {rejectLabel}
               </Button>
               <Button
                 size="sm"
-                onClick={handleAccept}
+                onClick={() => dismiss('accepted')}
                 className="bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-purple-400"
               >
                 {acceptLabel}
