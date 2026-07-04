@@ -131,7 +131,7 @@ export default function TutorialVideoSection({ language }: TutorialVideoSectionP
       {/* Section background glow */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-500/5 to-transparent pointer-events-none" />
 
-      <div className="max-w-3xl mx-auto relative z-10">
+      <div className="max-w-[400px] sm:max-w-[420px] mx-auto relative z-10">
         {/* Header */}
         <div className="flex flex-col items-center mb-12">
           <motion.div
