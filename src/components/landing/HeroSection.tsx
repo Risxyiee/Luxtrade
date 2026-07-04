@@ -3,7 +3,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Sparkles, ArrowRight, Play, Star, Users, Shield } from 'lucide-react'
+import { Sparkles, ArrowRight, Play, Star, Users, Shield, VolumeX } from 'lucide-react'
 import EquityWidget from './EquityWidget'
 import AnimatedForexTrades from './AnimatedForexTrades'
 
@@ -14,38 +14,13 @@ interface HeroSectionProps {
 
 export default function HeroSection({ language, t }: HeroSectionProps) {
   return (
-    <section className="relative w-full pt-28 sm:pt-32 pb-12 overflow-hidden">
-      {/* Video Background */}
-      <div
-          className="absolute inset-0 z-0"
-          style={{ pointerEvents: 'none' }}
-        >
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            className="absolute inset-0 w-full h-full object-cover scale-105"
-            style={{ filter: 'brightness(0.45) saturate(1.3)' }}
-          >
-            <source src="/hero-video.mp4" type="video/mp4" />
-          </video>
-
-          {/* Desktop: gradient kiri agar text terbaca, kanan video keliatan */}
-          <div className="hidden lg:block absolute inset-0 bg-gradient-to-r from-[var(--lux-bg-primary)] via-[var(--lux-bg-primary)]/70 to-transparent" />
-
-          {/* Mobile/tablet: overlay tipis merata + gradient bawah */}
-          <div className="lg:hidden absolute inset-0 bg-[var(--lux-bg-primary)]/30" />
-          <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[var(--lux-bg-primary)] to-transparent" />
-        </div>
-
-      {/* Content */}
-      <div className="relative z-20 max-w-7xl mx-auto flex flex-col lg:flex-row">
+    <section className="relative w-full pt-28 sm:pt-32 pb-12">
+      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row">
+        {/* Left Side - Text */}
         <div className="w-full lg:w-1/2 flex flex-col justify-center px-4 sm:px-6 lg:px-8 lg:pr-12">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
             {/* Badge */}
-            <div className="flex items-center h-9 w-max bg-[var(--lux-badge-bg)] backdrop-blur-md border border-[var(--lux-inline-border)] rounded-xl mb-8">
+            <div className="flex items-center h-9 w-max bg-[var(--lux-badge-bg)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-xl mb-8">
               <div className="w-4 h-full" />
               <div className="flex items-center gap-2 text-sm font-medium text-[var(--lux-text-on-surface)]">
                 <Sparkles className="w-4 h-4 text-purple-400" />
@@ -79,7 +54,7 @@ export default function HeroSection({ language, t }: HeroSectionProps) {
                 </button>
               </Link>
               <a href="#demo" className="w-full sm:w-max">
-                <button className="flex items-center justify-center w-full h-14 rounded-2xl bg-[var(--lux-badge-bg)] backdrop-blur-md border border-[var(--lux-inline-border)] hover:bg-[var(--lux-inline-hover-bg-3)] transition active:scale-95 group">
+                <button className="flex items-center justify-center w-full h-14 rounded-2xl bg-[var(--lux-badge-bg)] backdrop-blur-sm border border-[var(--lux-inline-border)] hover:bg-[var(--lux-inline-hover-bg-3)] transition active:scale-95 group">
                   <div className="w-6 h-full" />
                   <div className="flex items-center gap-2 text-[15px] font-bold text-[var(--lux-text-on-surface)]">
                     <Play className="w-4 h-4" />
@@ -116,18 +91,48 @@ export default function HeroSection({ language, t }: HeroSectionProps) {
           </motion.div>
         </div>
 
-        {/* Right Side - Widgets */}
+        {/* Right Side - Video + Widgets stacked */}
         <motion.div
-          className="relative w-full lg:w-1/2 flex items-center justify-center mt-8 lg:mt-0 lg:-mt-4"
+          className="relative w-full lg:w-1/2 flex flex-col items-center justify-center mt-10 lg:mt-0 gap-4"
           initial={{ opacity: 0, x: 40 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
         >
-          <div className="w-full max-w-md space-y-4">
-            <EquityWidget />
-            <AnimatedForexTrades />
-            <p className="text-center text-[var(--lux-text-label-3)] text-xs">{language === 'id' ? 'Data simulasi untuk demo' : 'Simulated data for demo'}</p>
-          </div>
+          {/* Video Preview */}
+          <motion.div
+            className="w-full max-w-md rounded-2xl overflow-hidden border border-[var(--lux-inline-border)] bg-[var(--lux-inline-hover-bg)] relative group"
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.4, ease: 'easeOut' }}
+          >
+            <video
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              className="w-full object-contain bg-black/50"
+            >
+              <source src="/hero-video.mp4" type="video/mp4" />
+            </video>
+            {/* Muted badge */}
+            <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur-md border border-white/10">
+              <VolumeX className="w-3 h-3 text-white/70" />
+              <span className="text-[10px] text-white/70 font-medium">Muted</span>
+            </div>
+            {/* Subtle glow on hover */}
+            <div className="absolute -inset-px rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20" style={{ zIndex: -1 }} />
+          </motion.div>
+
+          {/* Equity Widget */}
+          <EquityWidget />
+
+          {/* Animated Forex Trades */}
+          <AnimatedForexTrades />
+
+          <p className="text-center text-[var(--lux-text-label-3)] text-xs">
+            {language === 'id' ? 'Data simulasi untuk demo' : 'Simulated data for demo'}
+          </p>
         </motion.div>
       </div>
     </section>
