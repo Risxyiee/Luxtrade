@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createZAI } from '@/lib/zai'
 import { createClientForApi } from '@/lib/supabase/server'
+import { isUserPro } from '@/lib/pro-check'
 
 // In-memory rate limiter
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
@@ -25,6 +26,15 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const pro = await isUserPro(user.id)
+    if (!pro) {
+      return NextResponse.json({
+        error: 'Fitur ini hanya untuk pengguna PRO. Upgrade ke PRO untuk akses!',
+        code: 'PRO_REQUIRED',
+        requiresUpgrade: true
+      }, { status: 403 })
     }
 
     // Rate limit by user ID

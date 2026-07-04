@@ -37,7 +37,7 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
               <li><a href="#features" className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm">{language === 'id' ? 'Fitur' : 'Features'}</a></li>
               <li><a href="#pricing" className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm">{language === 'id' ? 'Harga' : 'Pricing'}</a></li>
               <li><a href="#testimonials" className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm">{language === 'id' ? 'Testimoni' : 'Testimonials'}</a></li>
-              <li><a href="#roadmap" className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm">{language === 'id' ? 'Roadmap' : 'Roadmap'}</a></li>
+              <li><a href="#roadmap" className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm">{language === 'id' ? 'Rencana' : 'Roadmap'}</a></li>
               <li><a href="#demo" className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm">{language === 'id' ? 'Demo' : 'Demo'}</a></li>
             </ul>
           </div>

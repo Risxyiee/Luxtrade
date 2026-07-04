@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getAuthUser } from '@/lib/api-auth'
 import { parseMT5TradeData } from '@/lib/simple-parser'
 
 // ==================== TYPES ====================
@@ -62,6 +63,11 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now()
 
   try {
+    const authUser = await getAuthUser(request)
+    if (!authUser) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
     const { imageBase64 } = body
 

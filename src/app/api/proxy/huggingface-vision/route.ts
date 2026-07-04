@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getAuthUser } from '@/lib/api-auth'
 
 /**
  * Proxy API for HuggingFace Vision to bypass DNS issues on Vercel
@@ -6,6 +7,11 @@ import { NextRequest, NextResponse } from 'next/server'
  */
 export async function POST(request: NextRequest) {
   try {
+    const authUser = await getAuthUser(request)
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { model, inputs, parameters } = await request.json()
 
     console.log(`🌉 [Proxy] Request to HuggingFace API: ${model}`)

@@ -246,17 +246,21 @@ export async function POST(request: NextRequest) {
     console.log('✅ [Auto Journal] Journal generated')
 
     // Ensure profile exists
-    try {
-      await db.profile.findUnique({
-        where: { id: authUser.id }
-      })
-    } catch {
+    const existingProfile = await db.profile.findUnique({
+      where: { id: authUser.id }
+    })
+    if (!existingProfile) {
       await db.profile.create({
         data: {
           id: authUser.id,
           email: authUser.email,
           plan: 'FREE',
-          role: 'USER'
+          role: 'USER',
+          streakCount: 0,
+          bestStreak: 0,
+          achievements: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
         }
       })
     }
