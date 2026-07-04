@@ -3179,3 +3179,25 @@ Stage Summary:
 - All audit items from the previous session have been addressed
 - Commit c4d8e0d pushed to origin/main
 ---
+
+---
+Task ID: 8
+Agent: Z.ai Code
+Task: Fix AI vision extraction — bug fix & comment cleanup
+
+Work Log:
+- Searched all files for gemini-2.0-flash, extractWithGemini, Claude Opus references
+- Found `aiml-vision.ts` already uses gemini-2.5-flash with OpenRouter fallback chain (from previous session)
+- Found `OPENROUTER_API_KEY` already in `.env.example`
+- **Found critical bug**: In `analyzeImageWithAiml()`, variable `error` was referenced outside its catch block scope (line 243), causing runtime crash when Gemini fails and tries to check for rate-limit before fallback delay
+- Fixed by introducing `geminiError` variable before try block
+- Updated stale comments in `auto-journal/route.ts`: "Claude Opus text fallback" → "text fallback via OpenRouter", "Gemini 2.0 Flash" → "Gemini 2.5 Flash"
+- Verified no remaining references to "2.0-flash" or "Claude Opus" in src/
+- ESLint passed clean
+- Pushed to GitHub: commit fd196df
+
+Stage Summary:
+- Model was already updated to gemini-2.5-flash and fallback chain was already implemented
+- Fixed 1 critical runtime bug (out-of-scope error variable) that would have crashed the fallback
+- Updated 3 stale comments for accuracy
+- All code is lint-clean and pushed to GitHub
