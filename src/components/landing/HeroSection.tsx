@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import React from 'react'
+import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Sparkles, ArrowRight, Play, Star, Users, Shield } from 'lucide-react'
 import EquityWidget from './EquityWidget'
@@ -13,42 +13,14 @@ interface HeroSectionProps {
 }
 
 export default function HeroSection({ language, t }: HeroSectionProps) {
-  const [videoReady, setVideoReady] = useState(false)
-  const videoRef = useRef<HTMLVideoElement>(null)
-
-  useEffect(() => {
-    const video = videoRef.current
-    if (!video) return
-
-    const handleCanPlay = () => setVideoReady(true)
-    const handleLoadedData = () => setVideoReady(true)
-
-    video.addEventListener('canplaythrough', handleCanPlay)
-    video.addEventListener('loadeddata', handleLoadedData)
-
-    // Fallback: jika event tidak trigger dalam 8 detik, tetap tampilkan
-    const fallbackTimer = setTimeout(() => setVideoReady(true), 8000)
-
-    return () => {
-      video.removeEventListener('canplaythrough', handleCanPlay)
-      video.removeEventListener('loadeddata', handleLoadedData)
-      clearTimeout(fallbackTimer)
-    }
-  }, [])
-
   return (
     <section className="relative w-full pt-28 sm:pt-32 pb-12 overflow-hidden">
       {/* Video Background */}
-      <AnimatePresence>
-        <motion.div
+      <div
           className="absolute inset-0 z-0"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: videoReady ? 1 : 0 }}
-          transition={{ duration: 1.2, ease: 'easeInOut' }}
           style={{ pointerEvents: 'none' }}
         >
           <video
-            ref={videoRef}
             autoPlay
             muted
             loop
@@ -66,8 +38,7 @@ export default function HeroSection({ language, t }: HeroSectionProps) {
           {/* Mobile/tablet: overlay tipis merata + gradient bawah */}
           <div className="lg:hidden absolute inset-0 bg-[var(--lux-bg-primary)]/30" />
           <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[var(--lux-bg-primary)] to-transparent" />
-        </motion.div>
-      </AnimatePresence>
+        </div>
 
       {/* Content */}
       <div className="relative z-20 max-w-7xl mx-auto flex flex-col lg:flex-row">
