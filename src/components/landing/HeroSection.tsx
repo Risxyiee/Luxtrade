@@ -55,14 +55,17 @@ export default function HeroSection({ language, t }: HeroSectionProps) {
             playsInline
             preload="auto"
             className="absolute inset-0 w-full h-full object-cover scale-105"
-            style={{ filter: 'brightness(0.12) saturate(1.2)' }}
+            style={{ filter: 'brightness(0.45) saturate(1.3)' }}
           >
             <source src="/hero-video.mp4" type="video/mp4" />
           </video>
-          {/* Gradient overlays for text readability */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[var(--lux-bg-primary)] via-[var(--lux-bg-primary)]/80 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[var(--lux-bg-primary)] via-transparent to-[var(--lux-bg-primary)]/60" />
-          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[var(--lux-bg-primary)] to-transparent" />
+
+          {/* Desktop: gradient kiri agar text terbaca, kanan video keliatan */}
+          <div className="hidden lg:block absolute inset-0 bg-gradient-to-r from-[var(--lux-bg-primary)] via-[var(--lux-bg-primary)]/70 to-transparent" />
+
+          {/* Mobile/tablet: overlay tipis merata + gradient bawah */}
+          <div className="lg:hidden absolute inset-0 bg-[var(--lux-bg-primary)]/30" />
+          <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[var(--lux-bg-primary)] to-transparent" />
         </motion.div>
       </AnimatePresence>
 
@@ -71,7 +74,7 @@ export default function HeroSection({ language, t }: HeroSectionProps) {
         <div className="w-full lg:w-1/2 flex flex-col justify-center px-4 sm:px-6 lg:px-8 lg:pr-12">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
             {/* Badge */}
-            <div className="flex items-center h-9 w-max bg-[var(--lux-badge-bg)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-xl mb-8">
+            <div className="flex items-center h-9 w-max bg-[var(--lux-badge-bg)] backdrop-blur-md border border-[var(--lux-inline-border)] rounded-xl mb-8">
               <div className="w-4 h-full" />
               <div className="flex items-center gap-2 text-sm font-medium text-[var(--lux-text-on-surface)]">
                 <Sparkles className="w-4 h-4 text-purple-400" />
@@ -105,7 +108,7 @@ export default function HeroSection({ language, t }: HeroSectionProps) {
                 </button>
               </Link>
               <a href="#demo" className="w-full sm:w-max">
-                <button className="flex items-center justify-center w-full h-14 rounded-2xl bg-[var(--lux-badge-bg)] backdrop-blur-sm border border-[var(--lux-inline-border)] hover:bg-[var(--lux-inline-hover-bg-3)] transition active:scale-95 group">
+                <button className="flex items-center justify-center w-full h-14 rounded-2xl bg-[var(--lux-badge-bg)] backdrop-blur-md border border-[var(--lux-inline-border)] hover:bg-[var(--lux-inline-hover-bg-3)] transition active:scale-95 group">
                   <div className="w-6 h-full" />
                   <div className="flex items-center gap-2 text-[15px] font-bold text-[var(--lux-text-on-surface)]">
                     <Play className="w-4 h-4" />
