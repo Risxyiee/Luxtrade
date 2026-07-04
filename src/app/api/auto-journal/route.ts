@@ -19,7 +19,7 @@ interface GeneratedJournal {
 // ==================== HELPERS ====================
 
 /**
- * Generate journal content using Gemini 2.0 Flash Vision with text fallback
+ * Generate journal content using Gemini 2.5 Flash Vision with OpenRouter fallback
  */
 async function generateJournalContent(
   tradeData: any,
@@ -68,7 +68,7 @@ Setup Type: [strategy name like breakout/pullback/momentum etc.]`
     console.warn(`⚠️ [Auto Journal] Vision failed for journal: ${visionError.message}. Trying text-only...`)
   }
 
-  // Fallback to Claude Opus text-only (no image)
+  // Fallback to text-only (Gemini → OpenRouter)
   if (!journalContent.trim()) {
     try {
       const textResponse = await analyzeTextWithZyloo(journalPrompt, {
@@ -76,7 +76,7 @@ Setup Type: [strategy name like breakout/pullback/momentum etc.]`
         maxRetries: 2
       })
       journalContent = textResponse.text || ''
-      console.log('📝 [Auto Journal] Journal analysis completed (Claude Opus text fallback)')
+      console.log('📝 [Auto Journal] Journal analysis completed (text fallback via OpenRouter)')
     } catch (textError: any) {
       console.error('❌ [Auto Journal] Both vision and text failed for journal generation')
       // Generate a basic journal entry as last resort
@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
     const bytes = await imageFile.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    console.log('🤖 [Auto Journal] Extracting trade data with AI (Gemini Vision)...')
+    console.log('🤖 [Auto Journal] Extracting trade data with AI (Vision + OpenRouter fallback)...')
 
     // Extract trade data using Gemini Vision
     const extractionResult = await extractTradeData(buffer)
