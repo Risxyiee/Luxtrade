@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
+import { isUserPro } from '@/lib/pro-check'
 
 /**
  * AI Trade Analysis API
@@ -13,6 +14,16 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // PRO check - AI trade analysis is a PRO feature
+    const pro = await isUserPro(user.id)
+    if (!pro) {
+      return NextResponse.json({
+        error: 'AI Trade Analysis adalah fitur PRO. Upgrade ke PRO untuk menggunakan fitur ini!',
+        code: 'PRO_REQUIRED',
+        requiresUpgrade: true
+      }, { status: 403 })
     }
 
     const { trades, question } = await req.json()

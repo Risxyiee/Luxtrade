@@ -108,8 +108,9 @@ export default function AITab({
         </Card>
       )}
 
-      {/* AI Header */}
-      <Card className={`bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30 ${!isPro ? 'blur-sm pointer-events-none' : ''}`}>
+      {/* AI Content - Only render for PRO users */}
+      {isPro && (<>
+      <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
         <CardHeader>
           <CardTitle className="flex items-center gap-3 text-xl">
             <motion.div
@@ -381,6 +382,8 @@ export default function AITab({
             </div>
           </CardContent>
         </Card>
+      )}
+      </>
       )}
     </div>
   )

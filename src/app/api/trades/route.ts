@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getAuthUser } from '@/lib/api-auth'
+import { isUserPro } from '@/lib/pro-check'
 import { checkAchievementsAfterTrade } from '@/lib/achievement-checker'
 
 // Free user trade limit - 10 trades per month
@@ -21,6 +22,9 @@ function checkRateLimit(ip: string): boolean {
   entry.count++
   return entry.count <= RATE_LIMIT_MAX
 }
+
+// Helper: Check if user is PRO (imported from shared utility)
+// Use imported isUserPro from '@/lib/pro-check'
 
 // Helper: Ensure profile exists (auto-create if not) - MUST RUN FIRST
 async function ensureProfile(userId: string, email?: string): Promise<void> {
@@ -55,28 +59,6 @@ async function ensureProfile(userId: string, email?: string): Promise<void> {
     }
   } catch (error) {
     throw error
-  }
-}
-
-// Helper: Check if user is PRO
-async function isUserPro(userId: string): Promise<boolean> {
-  try {
-    const profile = await db.profile.findUnique({
-      where: { id: userId },
-      select: { is_pro: true, subscription_until: true }
-    })
-
-    if (!profile) return false
-
-    // Check if subscription is still valid
-    if (profile.is_pro && profile.subscription_until) {
-      const until = new Date(profile.subscription_until)
-      return until > new Date()
-    }
-
-    return false
-  } catch {
-    return false
   }
 }
 
@@ -174,9 +156,9 @@ export async function POST(request: NextRequest) {
     await ensureProfile(userId, authUser.email)
 
     // STEP 2: Check PRO status BEFORE creating trade
-    const isPro = await isUserPro(userId)
+    const pro = await isUserPro(userId)
 
-    if (!isPro) {
+    if (!pro) {
       const tradeCount = await countUserTrades(userId)
 
       if (tradeCount >= FREE_TRADE_LIMIT) {

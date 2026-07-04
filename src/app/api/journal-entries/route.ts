@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { getAuthUser } from '@/lib/api-auth'
+import { isUserPro, countUserJournalsThisMonth, FREE_JOURNAL_LIMIT } from '@/lib/pro-check'
 
 // GET - Fetch journal entries
 export async function GET(request: NextRequest) {
@@ -43,6 +44,21 @@ export async function POST(request: NextRequest) {
 
     if (!title || !content) {
       return NextResponse.json({ error: 'Title and content are required' }, { status: 400 })
+    }
+
+    // Check PRO status - free users limited to N journals per month
+    const isPro = await isUserPro(authUser.id)
+    if (!isPro) {
+      const journalCount = await countUserJournalsThisMonth(authUser.id)
+      if (journalCount >= FREE_JOURNAL_LIMIT) {
+        return NextResponse.json({
+          error: `Pengguna Free dibatasi maksimal ${FREE_JOURNAL_LIMIT} jurnal per bulan. Upgrade ke PRO untuk akses UNLIMITED!`,
+          code: 'JOURNAL_LIMIT_EXCEEDED',
+          limit: FREE_JOURNAL_LIMIT,
+          current: journalCount,
+          requiresUpgrade: true
+        }, { status: 403 })
+      }
     }
 
     const { data, error } = await supabase

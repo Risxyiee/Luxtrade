@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/api-auth'
 import { db } from '@/lib/db'
+import { isUserPro } from '@/lib/pro-check'
 import { extractTradeData, saveTrade, uploadScreenshot } from '@/lib/extractTradeData'
 import { analyzeImageWithAiml, analyzeTextWithZyloo } from '@/lib/aiml-vision'
 
@@ -165,6 +166,16 @@ export async function POST(request: NextRequest) {
     }
 
     // User authenticated
+
+    // PRO check - auto-journal is a PRO feature (AI-powered)
+    const pro = await isUserPro(authUser.id)
+    if (!pro) {
+      return NextResponse.json({
+        error: 'Auto-Journal adalah fitur PRO. Upgrade ke PRO untuk menggunakan AI auto-journal!',
+        code: 'PRO_REQUIRED',
+        requiresUpgrade: true
+      }, { status: 403 })
+    }
 
     // Parse form data
     const formData = await request.formData()

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { analyzeImageWithZAIVision } from '@/lib/zai-vision'
 import { analyzeImageWithOllama } from '@/lib/ollama-vision'
 import { createClientForApi } from '@/lib/supabase/server'
+import { isUserPro } from '@/lib/pro-check'
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,6 +11,16 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // PRO check - VLM analysis is a PRO feature
+    const pro = await isUserPro(user.id)
+    if (!pro) {
+      return NextResponse.json({
+        error: 'AI Vision adalah fitur PRO. Upgrade ke PRO untuk menggunakan fitur ini!',
+        code: 'PRO_REQUIRED',
+        requiresUpgrade: true
+      }, { status: 403 })
     }
 
     const formData = await request.formData()
