@@ -111,6 +111,141 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
           </div>
         </div>
 
+        {/* Comparison Table */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.2 }}
+          className="mt-16 max-w-[900px] mx-auto"
+        >
+          <div className="bg-[var(--lux-card-surface)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-3xl overflow-hidden">
+            {/* Table Header */}
+            <div className="grid grid-cols-4 gap-0 border-b border-[var(--lux-inline-border)]">
+              <div className="p-4 sm:p-5 text-sm font-bold text-[var(--lux-text-subtitle)]">
+                {language === 'id' ? 'Fitur' : 'Feature'}
+              </div>
+              <div className="p-4 sm:p-5 text-sm font-bold text-[var(--lux-text-primary)] text-center">
+                Free
+              </div>
+              <div className="p-4 sm:p-5 text-sm font-bold text-purple-400 text-center relative">
+                PRO
+                <span className="absolute top-1/2 right-2 -translate-y-1/2 text-[9px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded-full font-bold">
+                  POPULER
+                </span>
+              </div>
+              <div className="p-4 sm:p-5 text-sm font-bold text-amber-400 text-center">
+                Lifetime
+              </div>
+            </div>
+
+            {/* Rows */}
+            {[
+              {
+                id: language === 'id' ? 'Jurnal per bulan' : 'Journals/month',
+                free: '10',
+                pro: language === 'id' ? 'Unlimited' : 'Unlimited',
+                lifetime: language === 'id' ? 'Unlimited' : 'Unlimited',
+                highlight: false,
+              },
+              {
+                id: language === 'id' ? 'Analisis AI' : 'AI Analysis',
+                free: language === 'id' ? '3x trial' : '3x trial',
+                pro: language === 'id' ? 'Unlimited' : 'Unlimited',
+                lifetime: language === 'id' ? 'Unlimited' : 'Unlimited',
+                highlight: false,
+              },
+              {
+                id: language === 'id' ? 'Deteksi kesalahan berulang' : 'Mistake pattern detection',
+                free: '✕',
+                pro: '✓',
+                lifetime: '✓',
+                highlight: false,
+              },
+              {
+                id: language === 'id' ? 'Grafik performa' : 'Performance charts',
+                free: language === 'id' ? 'Standar' : 'Standard',
+                pro: language === 'id' ? 'Advanced' : 'Advanced',
+                lifetime: language === 'id' ? 'Advanced' : 'Advanced',
+                highlight: false,
+              },
+              {
+                id: language === 'id' ? 'Kalkulator risiko' : 'Risk calculator',
+                free: language === 'id' ? 'Pemula' : 'Basic',
+                pro: language === 'id' ? 'Advanced' : 'Advanced',
+                lifetime: language === 'id' ? 'Advanced' : 'Advanced',
+                highlight: false,
+              },
+              {
+                id: language === 'id' ? 'Export Excel / PDF' : 'Export Excel / PDF',
+                free: '✕',
+                pro: '✓',
+                lifetime: '✓',
+                highlight: false,
+              },
+              {
+                id: language === 'id' ? 'Screenshot AI extract' : 'Screenshot AI extract',
+                free: '✕',
+                pro: '✓',
+                lifetime: '✓',
+                highlight: false,
+              },
+              {
+                id: language === 'id' ? 'Analisis psikologi trading' : 'Trading psychology analysis',
+                free: '✕',
+                pro: '✓',
+                lifetime: '✓',
+                highlight: false,
+              },
+              {
+                id: language === 'id' ? 'VIP support & grup' : 'VIP support & group',
+                free: '✕',
+                pro: '✓',
+                lifetime: '✓',
+                highlight: false,
+              },
+              {
+                id: language === 'id' ? 'Telegram privat' : 'Private Telegram',
+                free: '✕',
+                pro: '✕',
+                lifetime: '✓',
+                highlight: true,
+              },
+            ].map((row, i) => (
+              <div
+                key={i}
+                className={`grid grid-cols-4 gap-0 ${i % 2 === 0 ? 'bg-transparent' : 'bg-[var(--lux-inline-hover-bg)]'} ${row.highlight ? 'bg-purple-500/5' : ''}`}
+              >
+                <div className="p-3.5 sm:p-4 text-sm text-[var(--lux-text-body-2)]">
+                  {row.id}
+                </div>
+                <div className="p-3.5 sm:p-4 text-sm text-[var(--lux-text-label-2)] text-center">
+                  {row.free === '✕'
+                    ? <span className="text-[var(--lux-text-label-3)]">—</span>
+                    : row.free
+                  }
+                </div>
+                <div className={`p-3.5 sm:p-4 text-sm text-center font-medium ${row.pro === '✕' ? 'text-[var(--lux-text-label-3)]' : 'text-purple-300'}`}>
+                  {row.pro === '✓'
+                    ? <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-500/20 text-purple-400 text-xs">✓</span>
+                    : row.pro === '✕'
+                      ? <span className="text-[var(--lux-text-label-3)]">—</span>
+                      : row.pro
+                  }
+                </div>
+                <div className={`p-3.5 sm:p-4 text-sm text-center font-medium ${row.lifetime === '✓' || row.highlight ? 'text-amber-300' : 'text-[var(--lux-text-label-2)]'}`}>
+                  {row.lifetime === '✓'
+                    ? <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 text-xs">✓</span>
+                    : row.lifetime === '✕'
+                      ? <span className="text-[var(--lux-text-label-3)]">—</span>
+                      : row.lifetime
+                  }
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
         {/* Non-refundable notice */}
         <div className="flex justify-center mt-10">
           <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] rounded-xl">
