@@ -13,7 +13,6 @@ import { motion } from 'framer-motion'
 import { formatCurrency } from '@/lib/supabase'
 import QuickStats from '@/components/QuickStats'
 import ActivityFeed from '@/components/ActivityFeed'
-import ParticleBackground from '@/components/ParticleBackground'
 import { useConfetti } from '@/hooks/useConfetti'
 import AnimatedStatCard from '../components/AnimatedStatCard'
 import type { Trade, JournalEntry, Analytics } from '@/types'
@@ -103,7 +102,6 @@ function DashboardTab({
   if (loading) {
     return (
       <div className="space-y-6 relative">
-        <ParticleBackground />
         {/* Skeleton Hero */}
         <div className="relative overflow-hidden bg-gradient-to-br from-purple-600/20 via-violet-600/10 to-amber-500/10 border-purple-500/30 backdrop-blur-sm rounded-xl">
           <div className="p-6 lg:p-8">
@@ -141,7 +139,6 @@ function DashboardTab({
 
   return (
     <div className="space-y-6 relative min-h-screen">
-      <ParticleBackground />
 
       {/* Hero Section */}
       <motion.div
@@ -201,7 +198,7 @@ function DashboardTab({
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }} className="mt-6 pt-6 border-t border-white/10">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2"><Trophy className="w-4 h-4 text-amber-400" /><span className="text-xs font-semibold text-gray-300">{language === 'id' ? 'Target Minggu Ini' : 'Weekly Target'}</span></div>
-                  <span className="text-xs text-gray-400">{trades.length} / 10 {language === 'id' ? 'trades' : 'trades'}</span>
+                  <span className="text-xs text-gray-400">{trades.length} / 10 {language === 'id' ? 'transaksi' : 'trades'}</span>
                 </div>
                 <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                   <motion.div className="h-full bg-gradient-to-r from-purple-500 via-violet-500 to-amber-500 rounded-full" initial={{ width: 0 }} animate={{ width: `${Math.min((trades.length / 10) * 100, 100)}%` }} transition={{ duration: 1.5, ease: "easeOut" }} />

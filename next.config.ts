@@ -3,15 +3,14 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
 
-  // Disable minification for debugging chart issues
   compiler: {
     removeConsole: false,
   },
 
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: true, // Keep true for now — fixing all TS errors would be a separate task
   },
-  reactStrictMode: false,
+  reactStrictMode: false, // TODO: Enable after fixing double-render side effects
 
   // Experimental settings to help with large files
   experimental: {

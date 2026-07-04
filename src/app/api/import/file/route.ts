@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getAuthUser } from '@/lib/api-auth'
 import { PDFParse } from 'pdf-parse'
 
 // ==================== TYPES ====================
@@ -373,6 +374,11 @@ function parseCSV(content: string): ParsedTrade[] {
 // ==================== MAIN HANDLER ====================
 export async function POST(request: NextRequest) {
   try {
+    const authUser = await getAuthUser(request)
+    if (!authUser) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
     const { fileBase64, fileType, fileName } = body
     
