@@ -3226,3 +3226,30 @@ Stage Summary:
 - Desktop video visibility: 8/10, text readable: 9/10
 - Old tutorial video section NOT removed (per user request)
 - Pushed: commit a88700b
+---
+Task ID: 8
+Agent: Z.ai Code
+Task: Fix all remaining audit issues for production-ready website (siap dijual) + push to GitHub
+
+Work Log:
+- Created shared `/lib/pro-check.ts` with `isUserPro()`, `countUserJournalsThisMonth()`, `FREE_JOURNAL_LIMIT=15`
+- Added server-side journal creation limit (15/month for free users) in `/api/journal-entries` POST
+- Added server-side PRO check to `/api/auto-journal` (AI auto-journal is PRO)
+- Added server-side PRO check to `/api/screenshot-journal` (AI screenshot analysis is PRO)
+- Added server-side PRO check to `/api/ai` (AI insights/chat is PRO)
+- Added server-side PRO check to `/api/ai/vlm` (AI vision is PRO)
+- Added server-side PRO check to `/api/ai/analyze-trade` (AI trade analysis is PRO)
+- Refactored `/api/trades` to use shared `isUserPro` from pro-check.ts (removed duplicate local function)
+- Fixed sidebar text language inconsistency: "Admin Panel" → "Panel Admin", "Email Broadcast" → "Broadcast Email", "trades used" → "trade digunakan" (when language=id)
+- Fixed AI Tab blur bypass vulnerability: replaced CSS `blur-sm pointer-events-none` with proper conditional rendering `{isPro && <>...</>}` — content is never sent to DOM for non-PRO users
+- Verified dev server starts cleanly (no compilation errors, no lint errors)
+- Verified landing page renders correctly via Agent Browser (no console errors)
+- Pushed all changes to GitHub (rebased with remote, pushed as 28356f0)
+
+Stage Summary:
+- All 6 server-side PRO enforcement points are now protected (revenue-safe)
+- AI Tab can no longer be unblurred via DevTools
+- Sidebar is fully bilingual (ID/EN)
+- Export feature was already implemented (PDF/CSV/JSON) — no action needed
+- SEO metadata was already in place — no action needed
+- Website is production-ready for sale
