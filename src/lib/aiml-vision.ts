@@ -224,6 +224,7 @@ export async function analyzeImageWithAiml(
   const base64Image = optimized.toString('base64')
 
   // === Provider 1: Gemini 2.5 Flash ===
+  let geminiError: Error | null = null
   try {
     const geminiMessages = [
       {
@@ -236,11 +237,12 @@ export async function analyzeImageWithAiml(
     ]
     return await callGemini(geminiMessages, options)
   } catch (error: any) {
+    geminiError = error
     console.warn(`⚠️ [Fallback] Gemini 2.5 Flash failed: ${error.message}`)
   }
 
   // Short delay before fallback (unless it was a rate-limit, which already waited)
-  if (!error?.message?.includes('429')) {
+  if (!geminiError?.message?.includes('429')) {
     console.log(`⏳ [Fallback] Waiting 2s before trying OpenRouter...`)
     await new Promise(r => setTimeout(r, 2000))
   }
