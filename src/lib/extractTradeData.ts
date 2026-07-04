@@ -1,6 +1,7 @@
 /**
  * AUTO-JOURNAL TRADING SYSTEM - INTEGRATED CORE
- * Extracts trade data from screenshots using AIML API (GLM-4V-OCR)
+ * Extracts trade data from screenshots using AI Vision
+ * Provider chain: Gemini 2.5 Flash → OpenRouter Free Vision
  */
 
 // ==============================================================================
@@ -51,7 +52,7 @@ import sharp from "sharp";
 import { analyzeImageWithAiml, TRADE_EXTRACTION_PROMPT } from "./aiml-vision";
 
 /**
- * Extract trade data using Claude Opus Vision — PRIMARY
+ * Extract trade data using AI Vision (Gemini 2.5 Flash → OpenRouter fallback)
  */
 async function extractWithVision(imageBuffer: Buffer): Promise<RawTradeData> {
   const result = await analyzeImageWithAiml(imageBuffer, TRADE_EXTRACTION_PROMPT)
@@ -197,9 +198,9 @@ export async function extractTradeData(imageBuffer: Buffer): Promise<ExtractionR
   const errors: string[] = [];
   let rawData: RawTradeData | undefined;
 
-  // Primary: Claude Opus Vision via Zyloo
+  // Primary: AI Vision (Gemini 2.5 Flash, fallback to OpenRouter)
   try {
-    console.log('🤖 Extracting trade data with Claude Opus Vision...')
+    console.log('🤖 Extracting trade data with AI Vision...')
     rawData = await extractWithVision(imageBuffer)
     console.log('✅ Vision extraction successful')
     console.log('📦 Raw data:', JSON.stringify(rawData, null, 2))
