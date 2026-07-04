@@ -3,7 +3,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Crown, BookOpen, Zap, AlertTriangle, Lock } from 'lucide-react'
+import { Crown, BookOpen, Zap, AlertTriangle, Lock, Shield, CreditCard } from 'lucide-react'
 import LifetimeUltraCard from './LifetimeUltraCard'
 
 interface PricingSectionProps {
@@ -254,32 +254,47 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
           </div>
         </div>
 
-        {/* Payment Gateway Trust Badge */}
+        {/* Payment Gateway Trust Badges */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="flex justify-center mt-6"
+          className="flex flex-col items-center gap-3 mt-10"
         >
-          <div className="inline-flex items-center gap-3 px-5 py-3 bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] rounded-2xl">
-            <div className="flex items-center gap-2">
-              {/* Midtrans Logo */}
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="shrink-0">
-                <rect width="24" height="24" rx="6" fill="var(--lux-icon-circle-bg)"/>
-                <path d="M6 8h12v2H6zM6 12h8v2H6zM6 16h10v2H6z" fill="#42B549"/>
-                <circle cx="19" cy="16" r="3" fill="#42B549"/>
-              </svg>
-              <span className="text-[var(--lux-text-body)] text-xs font-bold tracking-wide">MIDTRANS</span>
+          {/* Midtrans Badge */}
+          <div className="inline-flex items-center gap-3 px-6 py-3.5 bg-[var(--lux-card-surface)] border border-[var(--lux-inline-border)] rounded-2xl">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-lg bg-[#42B549]/15 border border-[#42B549]/30 flex items-center justify-center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M3 7.5C3 5.01 5.01 3 7.5 3h9C18.99 3 21 5.01 21 7.5v9c0 2.49-2.01 4.5-4.5 4.5h-9C5.01 21 3 18.99 3 16.5v-9z" fill="#42B549"/>
+                  <path d="M8 8h8v2H8zM8 12h6v2H8zM8 16h7v2H8z" fill="white" opacity="0.9"/>
+                </svg>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-[var(--lux-text-primary)] tracking-wide leading-tight">Midtrans</span>
+                <span className="text-[10px] text-[var(--lux-text-label-2)] leading-tight">{language === 'id' ? 'Payment Gateway Resmi' : 'Official Payment Gateway'}</span>
+              </div>
             </div>
-            <div className="w-px h-4 bg-[var(--lux-inline-border)]" />
+            <div className="w-px h-8 bg-[var(--lux-inline-border)]" />
             <div className="flex items-center gap-1.5">
-              <Lock className="w-3 h-3 text-emerald-400/70" />
-              <span className="text-[var(--lux-text-label-2)] text-[11px]">{language === 'id' ? 'Pembayaran Aman & Terenkripsi' : 'Secure & Encrypted Payments'}</span>
+              <Lock className="w-4 h-4 text-emerald-400" />
+              <span className="text-xs text-[var(--lux-text-body)]">{language === 'id' ? 'Pembayaran Aman & Terenkripsi' : 'Secure & Encrypted'}</span>
             </div>
-            <div className="w-px h-4 bg-[var(--lux-inline-border)]" />
-            <div className="flex items-center gap-1.5">
-              <Zap className="w-3 h-3 text-emerald-400/70" />
-              <span className="text-[var(--lux-text-label-2)] text-[11px]">{language === 'id' ? 'Aktivasi Instan' : 'Instant Activation'}</span>
+          </div>
+
+          {/* Sub-badges row */}
+          <div className="inline-flex items-center gap-4">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] rounded-xl">
+              <Zap className="w-3.5 h-3.5 text-purple-400" />
+              <span className="text-[11px] text-[var(--lux-text-body)] font-medium">{language === 'id' ? 'Aktivasi Instan' : 'Instant Activation'}</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] rounded-xl">
+              <Shield className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="text-[11px] text-[var(--lux-text-body)] font-medium">{language === 'id' ? 'Data Terproteksi' : 'Data Protected'}</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] rounded-xl">
+              <CreditCard className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-[11px] text-[var(--lux-text-body)] font-medium">{language === 'id' ? 'Semua Metode Bayar' : 'All Payment Methods'}</span>
             </div>
           </div>
         </motion.div>
