@@ -1,19 +1,14 @@
 /**
- * Vision AI Integration — Google Gemini 2.0 Flash (Free & Unlimited)
+ * Vision AI Integration — Multi-provider fallback chain
  * 
- * Uses Google Gemini 2.0 Flash for:
- * - Trading screenshot OCR/extraction (vision)
- * - Journal content generation
+ * Provider order:
+ * 1. Gemini 2.5 Flash (Google AI Studio, GEMINI_API_KEY)
+ * 2. OpenRouter free vision model (OPENROUTER_API_KEY)
  * 
- * Benefits:
- * - ✅ GRATIS (60 calls/menit = 86,400 calls/hari)
- * - ✅ Akurat untuk membaca text, angka, chart
- * - ✅ Cepat responsnya
+ * If both fail, throws clear error for user to retry.
  */
 
 import sharp from 'sharp'
-
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
 
 // ==================== TYPES ====================
 
@@ -25,33 +20,31 @@ interface VisionOptions {
 interface VisionResult {
   text: string
   raw?: any
+  provider: string
 }
 
-// ==================== GOOGLE GEMINI VISION ====================
+// ==================== GEMINI 2.5 FLASH ====================
 
-/**
- * Call Google Gemini Vision API
- */
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
+
 async function callGemini(
   messages: any[],
   options: VisionOptions = {}
 ): Promise<VisionResult> {
   const { timeout = 90000, maxRetries = 2 } = options
 
-  const apiKey = process.env.GOOGLE_GEMINI_API_KEY
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY
   if (!apiKey) {
-    throw new Error('GOOGLE_GEMINI_API_KEY is not configured')
+    throw new Error('GEMINI_API_KEY is not configured')
   }
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      console.log(`🤖 [Gemini] Attempt ${attempt + 1}/${maxRetries}`)
+      console.log(`🤖 [Gemini 2.5 Flash] Attempt ${attempt + 1}/${maxRetries}`)
 
       const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: messages,
           generationConfig: {
@@ -64,11 +57,12 @@ async function callGemini(
 
       if (!response.ok) {
         const errText = await response.text()
-        console.error(`❌ [Gemini] Error ${response.status}:`, errText)
+        console.error(`❌ [Gemini 2.5 Flash] Error ${response.status}:`, errText.slice(0, 200))
 
+        // Rate limit / quota — retry with backoff
         if (response.status === 429 && attempt < maxRetries - 1) {
           const wait = 3000 * (attempt + 1)
-          console.log(`⏳ [Gemini] Rate limited, waiting ${wait}ms...`)
+          console.log(`⏳ [Gemini 2.5 Flash] Rate limited, waiting ${wait}ms...`)
           await new Promise(r => setTimeout(r, wait))
           continue
         }
@@ -83,8 +77,8 @@ async function callGemini(
         throw new Error('Empty response from Gemini API')
       }
 
-      console.log(`✅ [Gemini] Success: ${text.length} chars`)
-      return { text, raw: data }
+      console.log(`✅ [Gemini 2.5 Flash] Success: ${text.length} chars`)
+      return { text, raw: data, provider: 'gemini-2.5-flash' }
     } catch (error: any) {
       if (error.name === 'AbortError' || error.name === 'TimeoutError') {
         if (attempt < maxRetries - 1) {
@@ -96,7 +90,7 @@ async function callGemini(
 
       if (attempt === maxRetries - 1) throw error
 
-      console.warn(`⚠️ [Gemini] Retrying...`, error.message)
+      console.warn(`⚠️ [Gemini 2.5 Flash] Retrying...`, error.message)
       await new Promise(r => setTimeout(r, 2000 * (attempt + 1)))
     }
   }
@@ -104,8 +98,117 @@ async function callGemini(
   throw new Error('All Gemini API attempts failed')
 }
 
+// ==================== OPENROUTER FREE VISION ====================
+
+const OPENROUTER_MODELS = [
+  'meta-llama/llama-4-scout:free',
+  'google/gemma-3-27b-it:free',
+  'qwen/qwen3-235b-a22b:free',
+]
+
+let cachedOpenRouterModel: string | null = null
+
+async function getOpenRouterModel(): Promise<string> {
+  if (cachedOpenRouterModel) return cachedOpenRouterModel
+
+  const apiKey = process.env.OPENROUTER_API_KEY
+  if (!apiKey) throw new Error('OPENROUTER_API_KEY is not configured')
+
+  // Try to find a working free vision model
+  for (const model of OPENROUTER_MODELS) {
+    try {
+      console.log(`🔍 [OpenRouter] Checking model: ${model}`)
+      const res = await fetch('https://openrouter.ai/api/v1/models', {
+        headers: { 'Authorization': `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(10000),
+      })
+      if (!res.ok) {
+        console.warn(`⚠️ [OpenRouter] Failed to fetch models list`)
+        break
+      }
+      const data = await res.json()
+      const found = data.data?.find((m: any) => m.id === model)
+      if (found) {
+        cachedOpenRouterModel = model
+        console.log(`✅ [OpenRouter] Using model: ${model}`)
+        return model
+      }
+    } catch {
+      // Continue to next model
+    }
+  }
+
+  // Fallback to first model even if we couldn't verify
+  cachedOpenRouterModel = OPENROUTER_MODELS[0]
+  console.log(`⚠️ [OpenRouter] Using unverified model: ${cachedOpenRouterModel}`)
+  return cachedOpenRouterModel!
+}
+
+async function callOpenRouter(
+  imageBase64: string,
+  prompt: string,
+  options: VisionOptions = {}
+): Promise<VisionResult> {
+  const { timeout = 90000 } = options
+
+  const apiKey = process.env.OPENROUTER_API_KEY
+  if (!apiKey) {
+    throw new Error('OPENROUTER_API_KEY is not configured')
+  }
+
+  const model = await getOpenRouterModel()
+
+  console.log(`🤖 [OpenRouter] Attempting with model: ${model}`)
+
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': 'https://luxtrade.id',
+      'X-Title': 'LuxTrade',
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt },
+            {
+              type: 'image_url',
+              image_url: { url: `data:image/jpeg;base64,${imageBase64}` },
+            },
+          ],
+        },
+      ],
+      temperature: 0.1,
+      max_tokens: 2048,
+    }),
+    signal: AbortSignal.timeout(timeout),
+  })
+
+  if (!response.ok) {
+    const errText = await response.text()
+    console.error(`❌ [OpenRouter] Error ${response.status}:`, errText.slice(0, 200))
+    throw new Error(`OpenRouter API error (${response.status}): ${errText.slice(0, 200)}`)
+  }
+
+  const data = await response.json()
+  const text = data.choices?.[0]?.message?.content || ''
+
+  if (!text.trim()) {
+    throw new Error('Empty response from OpenRouter API')
+  }
+
+  console.log(`✅ [OpenRouter] Success (${model}): ${text.length} chars`)
+  return { text, raw: data, provider: `openrouter:${model}` }
+}
+
+// ==================== UNIFIED FUNCTIONS ====================
+
 /**
- * Analyze image with vision model (Google Gemini Vision)
+ * Analyze image with vision model — tries Gemini first, then OpenRouter
  */
 export async function analyzeImageWithAiml(
   imageBuffer: Buffer,
@@ -120,45 +223,102 @@ export async function analyzeImageWithAiml(
 
   const base64Image = optimized.toString('base64')
 
-  const messages = [
-    {
-      role: 'user',
-      parts: [
-        {
-          text: prompt,
-        },
-        {
-          inline_data: {
-            mime_type: 'image/jpeg',
-            data: base64Image,
-          },
-        },
-      ],
-    },
-  ]
+  // === Provider 1: Gemini 2.5 Flash ===
+  try {
+    const geminiMessages = [
+      {
+        role: 'user',
+        parts: [
+          { text: prompt },
+          { inline_data: { mime_type: 'image/jpeg', data: base64Image } },
+        ],
+      },
+    ]
+    return await callGemini(geminiMessages, options)
+  } catch (error: any) {
+    console.warn(`⚠️ [Fallback] Gemini 2.5 Flash failed: ${error.message}`)
+  }
 
-  return callGemini(messages, options)
+  // Short delay before fallback (unless it was a rate-limit, which already waited)
+  if (!error?.message?.includes('429')) {
+    console.log(`⏳ [Fallback] Waiting 2s before trying OpenRouter...`)
+    await new Promise(r => setTimeout(r, 2000))
+  }
+
+  // === Provider 2: OpenRouter Free Vision ===
+  try {
+    return await callOpenRouter(base64Image, prompt, options)
+  } catch (error: any) {
+    console.error(`❌ [Fallback] OpenRouter also failed: ${error.message}`)
+  }
+
+  // All providers failed
+  throw new Error(
+    'Semua provider AI gagal. Coba lagi nanti (biasanya karena rate limit sementara).'
+  )
 }
 
 /**
- * Text-only analysis (no image). Used for journal generation fallback.
+ * Text-only analysis (no image). Tries Gemini, then OpenRouter.
  */
 export async function analyzeTextWithZyloo(
   prompt: string,
   options: VisionOptions = {}
 ): Promise<VisionResult> {
-  const messages = [
-    {
-      role: 'user',
-      parts: [
-        {
-          text: prompt,
-        },
-      ],
-    },
-  ]
+  // === Provider 1: Gemini 2.5 Flash ===
+  try {
+    const geminiMessages = [{ role: 'user', parts: [{ text: prompt }] }]
+    return await callGemini(geminiMessages, options)
+  } catch (error: any) {
+    console.warn(`⚠️ [Text Fallback] Gemini failed: ${error.message}`)
+  }
 
-  return callGemini(messages, options)
+  // Short delay before fallback
+  await new Promise(r => setTimeout(r, 2000))
+
+  // === Provider 2: OpenRouter Free ===
+  try {
+    const apiKey = process.env.OPENROUTER_API_KEY
+    if (!apiKey) throw new Error('OPENROUTER_API_KEY not configured')
+
+    const model = await getOpenRouterModel()
+    console.log(`🤖 [OpenRouter Text] Using model: ${model}`)
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://luxtrade.id',
+        'X-Title': 'LuxTrade',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.1,
+        max_tokens: 2048,
+      }),
+      signal: AbortSignal.timeout(options.timeout || 90000),
+    })
+
+    if (!response.ok) {
+      const errText = await response.text()
+      throw new Error(`OpenRouter error (${response.status}): ${errText.slice(0, 200)}`)
+    }
+
+    const data = await response.json()
+    const text = data.choices?.[0]?.message?.content || ''
+    if (!text.trim()) throw new Error('Empty response from OpenRouter')
+
+    console.log(`✅ [OpenRouter Text] Success: ${text.length} chars`)
+    return { text, raw: data, provider: `openrouter:${model}` }
+  } catch (error: any) {
+    console.error(`❌ [Text Fallback] OpenRouter also failed: ${error.message}`)
+  }
+
+  throw new Error(
+    'Semua provider AI gagal. Coba lagi nanti.'
+  )
 }
 
 /**
