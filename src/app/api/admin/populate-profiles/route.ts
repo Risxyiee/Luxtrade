@@ -10,8 +10,14 @@ export async function POST(request: NextRequest) {
 
     console.log('🚀 Starting profiles population...')
 
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Supabase Admin tidak tersedia' }, { status: 500 })
+    }
+
+    const admin = supabaseAdmin
+
     // Get all users from Supabase Auth
-    const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers()
+    const { data: authUsers, error: authError } = await admin.auth.admin.listUsers()
 
     if (authError) {
       console.error('❌ Error fetching Supabase Auth users:', authError)
@@ -41,7 +47,7 @@ export async function POST(request: NextRequest) {
         console.log(`\n📋 Processing: ${authUser.email} (${authUser.id})`)
 
         // Check if profile already exists
-        const { data: existingProfile, error: checkError } = await supabaseAdmin
+        const { data: existingProfile, error: checkError } = await admin
           .from('profiles')
           .select('id')
           .eq('id', authUser.id)
@@ -59,7 +65,7 @@ export async function POST(request: NextRequest) {
                        authUser.user_metadata?.full_name ||
                        null
 
-        const { error: insertError } = await supabaseAdmin
+        const { error: insertError } = await admin
           .from('profiles')
           .insert({
             id: authUser.id,
@@ -97,7 +103,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get total profile count
-    const { count: totalProfiles } = await supabaseAdmin
+    const { count: totalProfiles } = await admin
       .from('profiles')
       .select('*', { count: 'exact', head: true })
 
@@ -131,7 +137,13 @@ export async function GET(request: NextRequest) {
     if (error) return error
 
     // Check if trigger exists in database
-    const { data: triggerInfo } = await supabaseAdmin
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Supabase Admin tidak tersedia' }, { status: 500 })
+    }
+
+    const admin = supabaseAdmin
+
+    const { data: triggerInfo } = await admin
       .from('profiles')
       .select('count')
       .limit(1)

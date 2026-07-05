@@ -16,8 +16,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
     }
 
+    const admin = supabaseAdmin
+
     // Step 1: Generate confirmation link via admin API
-    const { data: otpData, error: otpError } = await supabaseAdmin.auth.admin.generateLink({
+    const { data: otpData, error: otpError } = await admin.auth.admin.generateLink({
       type: 'signup',
       email,
       options: {
