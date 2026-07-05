@@ -17,22 +17,17 @@ import { Progress } from '@/components/ui/progress'
 const PLANS = [
   {
     id: 'pro-1m', plan: 'PRO', durationMonths: 1, label: '1 Bulan',
-    price: 25000, popular: false, emoji: '📊',
+    price: 39000, popular: false, emoji: '📊',
     features: ['Semua fitur PRO', 'Analisis AI', 'Jurnal otomatis', 'Unlimited trades']
   },
   {
-    id: 'pro-3m', plan: 'PRO', durationMonths: 3, label: '3 Bulan',
-    price: 65000, popular: true, savings: '13%', emoji: '⭐',
+    id: 'pro-1y', plan: 'PRO', durationMonths: 12, label: '1 Tahun',
+    price: 390000, popular: true, savings: '16%', emoji: '⭐',
     features: ['Semua fitur PRO', 'Analisis AI', 'Jurnal otomatis', 'Unlimited trades', 'Priority support']
   },
   {
-    id: 'pro-6m', plan: 'PRO', durationMonths: 6, label: '6 Bulan',
-    price: 120000, popular: false, savings: '20%', emoji: '🔥',
-    features: ['Semua fitur PRO', 'Analisis AI', 'Jurnal otomatis', 'Unlimited trades', 'Priority support', 'Early access']
-  },
-  {
     id: 'lifetime', plan: 'LIFETIME', durationMonths: 1200, label: 'Lifetime',
-    price: 52000, popular: false, badge: 'PROMO', emoji: '👑',
+    price: 299000, popular: false, badge: 'PROMO', emoji: '👑',
     features: ['Semua fitur selamanya', 'Analisis AI', 'Jurnal otomatis', 'Unlimited trades', 'Priority support', 'Early access', 'Exclusive community']
   }
 ]

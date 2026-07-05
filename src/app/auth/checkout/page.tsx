@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase'
-import { PRICING, formatRupiah, type PricingPlan } from '@/lib/pricing'
+import { PRICING, getPlanPrice, formatRupiah, type PricingPlan } from '@/lib/pricing'
 import { toast } from 'sonner'
 
 function generateDeviceId(): string {
@@ -53,8 +53,8 @@ function CheckoutContent() {
   const [payLoading, setPayLoading] = useState(false)
 
   // Plan info
-  const planPrice = PRICING[planParam] || PRICING.PRO_30_DAYS
-  const planLabel = planParam === 'PRO_LIFETIME' ? 'Lifetime Ultra' : planParam === 'PRO_180_DAYS' ? 'Elite Pro 6 Bulan' : 'Elite Pro 1 Bulan'
+  const planPrice = getPlanPrice(planParam) || PRICING.PRO_30_DAYS
+  const planLabel = planParam === 'PRO_LIFETIME' ? 'Lifetime Ultra' : planParam === 'PRO_ANNUAL' ? 'Pro Annual 1 Tahun' : planParam === 'PRO_180_DAYS' ? 'Elite Pro 6 Bulan' : 'Elite Pro 1 Bulan'
 
   // Load Midtrans Snap.js
   useEffect(() => {

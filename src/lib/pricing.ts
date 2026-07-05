@@ -6,21 +6,22 @@
  */
 
 export const PRICING = {
-  // PRO Subscription Plans (PROMO PRICES)
-  PRO_30_DAYS: 25000,      // Rp25.000 (Promo Price)
-  PRO_180_DAYS: 120000,    // Rp120.000
-  PRO_LIFETIME: 52000,     // Rp52.000 (Lifetime Promo Price)
+  // PRO Subscription Plans
+  PRO_30_DAYS: 39000,      // Rp39.000 / Bulan
+  PRO_ANNUAL: 390000,     // Rp390.000 / Tahun (hemat 2 bulan)
+  PRO_LIFETIME: 299000,    // Rp299.000 (Lifetime - Founding Member, 30 slot)
 
-  // Legacy pricing (for reference)
+  // Legacy pricing (for grandfathering existing subscribers)
   LEGACY: {
-    PRO_30_DAYS: 149000,     // Old price
-    PRO_180_DAYS: 749000,    // Old price
-    PRO_365_DAYS: 1499000,   // Old price
-    LIFETIME_ULTRA: 100000,   // Old price (Rp100.000)
+    PRO_30_DAYS: 25000,
+    PRO_180_DAYS: 120000,
+    PRO_LIFETIME: 52000,
+    LIFETIME_ULTRA: 100000,
+    PRO_365_DAYS: 1499000,
   },
 } as const
 
-export type PricingPlan = 'PRO_30_DAYS' | 'PRO_180_DAYS' | 'PRO_LIFETIME' | 'LIFETIME_ULTRA'
+export type PricingPlan = 'PRO_30_DAYS' | 'PRO_ANNUAL' | 'PRO_LIFETIME' | 'LIFETIME_ULTRA' | 'PRO_180_DAYS'
 
 /**
  * Get duration in days for a pricing plan
@@ -29,12 +30,14 @@ export function getPlanDuration(plan: PricingPlan): number {
   switch (plan) {
     case 'PRO_30_DAYS':
       return 30
-    case 'PRO_180_DAYS':
-      return 180
+    case 'PRO_ANNUAL':
+      return 365
     case 'PRO_LIFETIME':
       return 365 * 50 // 50 years for lifetime
     case 'LIFETIME_ULTRA':
       return 365 * 50 // 50 years for lifetime
+    case 'PRO_180_DAYS':
+      return 180
   }
 }
 
@@ -42,10 +45,10 @@ export function getPlanDuration(plan: PricingPlan): number {
  * Get price in Rupiah for a pricing plan
  */
 export function getPlanPrice(plan: PricingPlan): number {
-  // Map LIFETIME_ULTRA to PRO_LIFETIME for backward compatibility
-  if (plan === 'LIFETIME_ULTRA') {
-    return PRICING.PRO_LIFETIME
-  }
+  // Legacy plans — return old prices for existing subscribers
+  if (plan === 'LIFETIME_ULTRA') return PRICING.PRO_LIFETIME
+  if (plan === 'PRO_180_DAYS') return PRICING.LEGACY.PRO_180_DAYS
+
   return PRICING[plan]
 }
 

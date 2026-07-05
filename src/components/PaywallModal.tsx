@@ -39,14 +39,21 @@ export default function PaywallModal({
   const pricing = {
     pro: {
       title: isEnglish ? 'ELITE PRO' : 'ELITE PRO',
-      price: isEnglish ? '$3' : 'Rp 25.000',
+      price: isEnglish ? '$4.99' : 'Rp 39.000',
       period: isEnglish ? '/ Month' : '/ Bulan',
       description: isEnglish ? 'For serious traders who want consistent profits' : 'Untuk trader serius yang ingin profit konsisten',
       popular: isEnglish ? 'Most Popular' : 'Paling Populer'
     },
+    annual: {
+      title: isEnglish ? 'PRO ANNUAL' : 'PRO ANNUAL',
+      price: isEnglish ? '$39.99' : 'Rp 390.000',
+      period: isEnglish ? '/ Year' : '/ Tahun',
+      description: isEnglish ? 'Best value — equivalent to 10 months' : 'Harga terbaik — setara 10 bulan',
+      popular: isEnglish ? 'BEST VALUE' : 'HEMAT 2 BULAN'
+    },
     lifetime: {
       title: isEnglish ? 'LIFETIME ULTRA' : 'LIFETIME ULTRA',
-      price: isEnglish ? '$5' : 'Rp 52.000',
+      price: isEnglish ? '$29.99' : 'Rp 299.000',
       period: isEnglish ? '/ One-Time Payment' : '/ Sekali Bayar',
       description: isEnglish ? 'Lifetime access at promotional price' : 'Akses seumur hidup dengan harga promo',
       promo: isEnglish ? 'PROMO: ONLY 30 SLOTS LEFT!' : 'PROMO MERDEKA TRADER - SISA 30 SLOT!'
@@ -55,6 +62,22 @@ export default function PaywallModal({
 
   // Features list based on language - Matching landing page features
   const proFeatures = isEnglish ? [
+    '🔥 UNLIMITED Trade Journals (No Monthly Limits)',
+    '🧠 Full Smart AI Analysis Access (Mistake Detection & Solutions)',
+    '📊 In-Depth Win-Rate Charts & Mistake Tracker',
+    '🧮 Advanced Risk & Position Calculator',
+    '📥 Free Data Export to Excel / PDF',
+    '👑 VIP Group Access & Priority Support',
+  ] : [
+    '🔥 UNLIMITED Jurnal Transaksi (Tanpa Batas Bulanan)',
+    '🧠 Akses Penuh Analisis AI Pintar (Deteksi Kesalahan & Solusi)',
+    '📊 Grafik Win-Rate Mendalam & Mistake Tracker',
+    '🧮 Kalkulator Risiko & Posisi Advance',
+    '📥 Bebas Ekspor Data ke Excel / PDF',
+    '👑 Akses VIP Grup & Dukungan Prioritas',
+  ]
+
+  const annualFeatures = isEnglish ? [
     '🔥 UNLIMITED Trade Journals (No Monthly Limits)',
     '🧠 Full Smart AI Analysis Access (Mistake Detection & Solutions)',
     '📊 In-Depth Win-Rate Charts & Mistake Tracker',
@@ -81,6 +104,14 @@ export default function PaywallModal({
     'VIP Telegram Support & Akses Grup Privat',
     'Tanpa Biaya Bulanan Lagi',
   ]
+
+  const handleAnnualUpgrade = () => {
+    if (isEnglish) {
+      window.open(SKRILL_LINKS.pro, '_blank')
+    } else {
+      onUpgrade?.()
+    }
+  }
 
   const handleProUpgrade = () => {
     if (isEnglish) {
@@ -244,6 +275,69 @@ export default function PaywallModal({
                                 className="space-y-2 overflow-hidden"
                               >
                                 {proFeatures.map((feature, index) => (
+                                  <div key={index} className="flex items-start gap-2 text-xs text-white/60">
+                                    <Check className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                                    <span className="leading-relaxed">{feature}</span>
+                                  </div>
+                                ))}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* PRO Annual */}
+                    <Card
+                      className={`bg-gradient-to-br from-emerald-500/10 to-transparent border-emerald-500/30 hover:border-emerald-500/50 transition-all cursor-pointer group ${isEnglish ? '' : 'hover:scale-[1.02]'}`}
+                      onClick={handleAnnualUpgrade}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs">
+                                {pricing.annual.popular}
+                              </Badge>
+                              <span className="text-white font-bold">{pricing.annual.title}</span>
+                            </div>
+                            <div className="text-2xl font-extrabold text-white">
+                              {pricing.annual.price}
+                              <span className="text-sm font-normal text-white/40"> {pricing.annual.period}</span>
+                            </div>
+                            <p className="text-xs text-white/50 mt-1">{pricing.annual.description}</p>
+                          </div>
+                          <Crown className="w-8 h-8 text-emerald-400 group-hover:scale-110 transition-transform" />
+                        </div>
+
+                        {/* Features list - collapsible */}
+                        <div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setShowFeatures(!showFeatures)
+                            }}
+                            className="flex items-center gap-2 text-xs text-emerald-300 hover:text-emerald-200 transition-colors mb-2"
+                          >
+                            <HelpCircle className="w-3.5 h-3.5" />
+                            {isEnglish ? 'View Features' : 'Lihat Fitur'}
+                            <motion.div
+                              animate={{ rotate: showFeatures ? 180 : 0 }}
+                              className="text-xs"
+                            >
+                              ▼
+                            </motion.div>
+                          </button>
+
+                          <AnimatePresence>
+                            {showFeatures && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="space-y-2 overflow-hidden"
+                              >
+                                {annualFeatures.map((feature, index) => (
                                   <div key={index} className="flex items-start gap-2 text-xs text-white/60">
                                     <Check className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5" />
                                     <span className="leading-relaxed">{feature}</span>

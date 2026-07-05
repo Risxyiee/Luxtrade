@@ -90,7 +90,7 @@ export default function PaymentModal({
   userId,
   email,
   planName = 'Elite Pro',
-  amount = 25000,
+  amount = 39000,
   plan = 'PRO',
   durationMonths = 1,
 }: PaymentModalProps) {
