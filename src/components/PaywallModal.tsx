@@ -97,12 +97,12 @@ export default function PaywallModal({
   const lifetimeFeatures = isEnglish ? [
     '👑 LIFETIME ACCESS',
     'All Elite PRO Features Forever',
-    'VIP Telegram Support & Private Group Access',
+    'VIP Discord Support & Private Group Access',
     'No More Monthly Fees',
   ] : [
     '👑 AKSES SEUMUR HIDUP',
     'Semua Fitur Elite PRO Terbuka Selamanya',
-    'VIP Telegram Support & Akses Grup Privat',
+    'VIP Discord Support & Akses Grup Privat',
     'Tanpa Biaya Bulanan Lagi',
   ]
 
@@ -413,12 +413,12 @@ export default function PaywallModal({
                         </Button>
                       ) : (
                         <Button
-                          onClick={() => window.open('https://t.me/luxtrade_admin?text=Halo%20saya%20ingin%20upgrade%20ke%20Elite%20PRO', '_blank')}
+                          onClick={() => window.open('https://discord.gg/nkXpgMyzk', '_blank')}
                           variant="outline"
                           className="w-full h-12 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50 font-semibold transition-all"
                         >
                           <ExternalLink className="w-5 h-5 mr-2" />
-                          Hubungi Telegram Admin
+                          Hubungi Admin di Discord
                         </Button>
                       )}
                     </>
@@ -471,7 +471,7 @@ export default function PaywallModal({
                           <div className="flex items-start gap-2">
                             <span className="text-purple-400 text-xs font-bold mt-0.5">3.</span>
                             <p className="text-xs text-white/60 leading-relaxed">
-                              After payment, send screenshot to <span className="text-amber-400 font-semibold">@luxtrade_admin</span> on Telegram for activation
+                              After payment, send screenshot to admin on Discord for activation
                             </p>
                           </div>
                           <div className="flex items-start gap-2">
@@ -492,7 +492,7 @@ export default function PaywallModal({
                           <div className="flex items-start gap-2">
                             <span className="text-purple-400 text-xs font-bold mt-0.5">2.</span>
                             <p className="text-xs text-white/60 leading-relaxed">
-                              Anda akan diarahkan ke <span className="text-emerald-400 font-semibold">Telegram Admin</span>
+                              Anda akan diarahkan ke <span className="text-emerald-400 font-semibold">Discord Admin</span>
                             </p>
                           </div>
                           <div className="flex items-start gap-2">
@@ -518,12 +518,7 @@ export default function PaywallModal({
 
                       <div className="pt-3">
                         <Button
-                          onClick={() => window.open(
-                            isEnglish
-                              ? 'https://t.me/luxtrade_admin?text=Hi%2C%20I%20need%20help%20with%20payment'
-                              : 'https://t.me/luxtrade_admin?text=Halo%20saya%20butuh%20bantuan%20pembayaran',
-                            '_blank'
-                          )}
+                          onClick={() => window.open('https://discord.gg/nkXpgMyzk', '_blank')}
                           variant="ghost"
                           size="sm"
                           className="text-xs text-white/40 hover:text-white/60 hover:bg-white/5"

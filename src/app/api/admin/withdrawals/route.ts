@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { sendTelegramNotification } from '@/lib/telegram'
+import { sendAdminNotification } from '@/lib/admin-notify'
 import { requireAdmin } from '@/lib/admin-auth'
 
 export async function GET(request: NextRequest) {
@@ -62,10 +62,10 @@ export async function PATCH(request: NextRequest) {
       })
     }
 
-    // Send Telegram notification
+    // Send admin notification
     const statusEmoji = status === 'approved' ? '✅' : '❌'
     const msg = `${statusEmoji} <b>PENARIKAN SALDO ${status === 'approved' ? 'APPROVED' : 'DITOLAK'}</b>\n\n👤 ${withdrawal.fullName}\n📧 ${withdrawal.email}\n💵 Rp${withdrawal.amount.toLocaleString('id-ID')}\n🏦 ${withdrawal.bankName} - ${withdrawal.bankAccount}\n\n${adminNote ? `📝 Catatan: ${adminNote}\n\n` : ''}⏰ ${new Date().toLocaleString('id-ID')}`
-    await sendTelegramNotification(msg)
+    await sendAdminNotification(msg)
 
     return NextResponse.json({ success: true, withdrawal: updated })
   } catch (error) {

@@ -52,7 +52,7 @@ const faqSections: { title: string; items: FAQItem[] }[] = [
       },
       {
         question: 'Bagaimana cara berlangganan?',
-        answer: 'Pilih paket yang diinginkan, scan QRIS untuk pembayaran, lalu konfirmasi ke Telegram admin @Risxyiee dengan bukti transfer. Akun Pro akan diaktivasi manual setelah verifikasi.',
+        answer: 'Pilih paket yang diinginkan, scan QRIS untuk pembayaran, lalu konfirmasi ke Discord admin dengan bukti transfer. Akun Pro akan diaktivasi manual setelah verifikasi.',
       },
       {
         question: 'Apakah bisa refund?',
