@@ -83,7 +83,6 @@ async function activateTrialIfNeeded(userId: string, email: string) {
     await db.$executeRawUnsafe(`
       UPDATE profiles SET 
         is_pro = true, 
-        subscription_status = 'trial',
         subscription_until = $1,
         has_ever_been_pro = true,
         updated_at = now()
@@ -98,7 +97,6 @@ async function activateTrialIfNeeded(userId: string, email: string) {
     await authAdmin.updateUserById(userId, {
       user_metadata: {
         is_pro: true,
-        subscription_status: 'trial',
         subscription_until: trialEnd.toISOString(),
         has_ever_been_pro: true,
       }
@@ -107,7 +105,6 @@ async function activateTrialIfNeeded(userId: string, email: string) {
     // Also update Supabase profiles table
     await admin.from('profiles').update({
       is_pro: true,
-      subscription_status: 'trial',
       subscription_until: trialEnd.toISOString(),
       has_ever_been_pro: true,
       updated_at: new Date().toISOString()
