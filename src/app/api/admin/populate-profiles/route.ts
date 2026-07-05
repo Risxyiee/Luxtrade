@@ -1,23 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
 import { requireAdmin } from '@/lib/admin-auth'
 
 // One-time script to populate all Supabase Auth users to profiles table
 export async function POST(request: NextRequest) {
   try {
-    const { error } = await requireAdmin(request)
-    if (error) return error
+    const authResult = await requireAdmin(request)
+    if (authResult.error) return authResult.error
 
     console.log('🚀 Starting profiles population...')
 
-    if (!supabaseAdmin) {
+    const authAdmin = getSupabaseAdminAuthFromClient()
+    if (!authAdmin) {
       return NextResponse.json({ error: 'Supabase Admin tidak tersedia' }, { status: 500 })
     }
 
-    const admin = supabaseAdmin
-
     // Get all users from Supabase Auth
-    const { data: authUsers, error: authError } = await admin.auth.admin.listUsers()
+    const { data: authUsers, error: authError } = await authAdmin.listUsers()
 
     if (authError) {
       console.error('❌ Error fetching Supabase Auth users:', authError)
@@ -46,8 +45,10 @@ export async function POST(request: NextRequest) {
       try {
         console.log(`\n📋 Processing: ${authUser.email} (${authUser.id})`)
 
+        if (!supabaseAdmin) continue
+
         // Check if profile already exists
-        const { data: existingProfile, error: checkError } = await admin
+        const { data: existingProfile, error: checkError } = await supabaseAdmin
           .from('profiles')
           .select('id')
           .eq('id', authUser.id)
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
                        authUser.user_metadata?.full_name ||
                        null
 
-        const { error: insertError } = await admin
+        const { error: insertError } = await supabaseAdmin
           .from('profiles')
           .insert({
             id: authUser.id,
@@ -96,22 +97,33 @@ export async function POST(request: NextRequest) {
           console.log(`   ✅ Profile created`)
           createdCount++
         }
-      } catch (error) {
-        console.error(`   ❌ Error processing user ${authUser.email}:`, error)
+      } catch (err) {
+        console.error(`   ❌ Error processing user ${authUser.email}:`, err)
         errorCount++
       }
     }
 
     // Get total profile count
-    const { count: totalProfiles } = await admin
-      .from('profiles')
-      .select('*', { count: 'exact', head: true })
+    if (supabaseAdmin) {
+      const { count: totalProfiles } = await supabaseAdmin
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
 
-    console.log('\n📊 Population Summary:')
-    console.log(`   ✅ Created: ${createdCount} profiles`)
-    console.log(`   ⏭️ Skipped: ${skippedCount} profiles`)
-    console.log(`   ❌ Errors: ${errorCount}`)
-    console.log(`   📋 Total profiles: ${totalProfiles || 0}`)
+      console.log('\n📊 Population Summary:')
+      console.log(`   ✅ Created: ${createdCount} profiles`)
+      console.log(`   ⏭️ Skipped: ${skippedCount} profiles`)
+      console.log(`   ❌ Errors: ${errorCount}`)
+      console.log(`   📋 Total profiles: ${totalProfiles || 0}`)
+
+      return NextResponse.json({
+        success: true,
+        message: 'Profiles population completed',
+        createdCount,
+        skippedCount,
+        errorCount,
+        totalProfiles: totalProfiles || 0
+      })
+    }
 
     return NextResponse.json({
       success: true,
@@ -119,7 +131,7 @@ export async function POST(request: NextRequest) {
       createdCount,
       skippedCount,
       errorCount,
-      totalProfiles: totalProfiles || 0
+      totalProfiles: 0
     })
   } catch (error) {
     console.error('❌ Error in populate profiles:', error)
@@ -133,17 +145,14 @@ export async function POST(request: NextRequest) {
 // GET to check trigger status
 export async function GET(request: NextRequest) {
   try {
-    const { error } = await requireAdmin(request)
-    if (error) return error
+    const authResult = await requireAdmin(request)
+    if (authResult.error) return authResult.error
 
-    // Check if trigger exists in database
     if (!supabaseAdmin) {
       return NextResponse.json({ error: 'Supabase Admin tidak tersedia' }, { status: 500 })
     }
 
-    const admin = supabaseAdmin
-
-    const { data: triggerInfo } = await admin
+    const { data: triggerInfo } = await supabaseAdmin
       .from('profiles')
       .select('count')
       .limit(1)

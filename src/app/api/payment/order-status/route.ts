@@ -204,11 +204,12 @@ async function activateSubscription(
 
   // Sync to Supabase Auth metadata
   try {
-    const { supabaseAdmin: adminClient } = await import('@/lib/supabase-admin-alt')
-    if (adminClient) {
-      const { data: { user: authUser } } = await adminClient.auth.admin.getUserById(userId)
+    const { getAdminAuth } = await import('@/lib/supabase-admin-alt')
+    const authAdmin = getAdminAuth()
+    if (authAdmin) {
+      const { data: { user: authUser } } = await authAdmin.getUserById(userId)
       const currentMeta = authUser?.user_metadata || {}
-      await adminClient.auth.admin.updateUserById(userId, {
+      await authAdmin.updateUserById(userId, {
         user_metadata: {
           ...currentMeta,
           is_pro: true,

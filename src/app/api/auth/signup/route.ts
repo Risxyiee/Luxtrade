@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
 import { db } from '@/lib/db'
 import { sendEmailFromTemplate, getConfirmationEmailHtml } from '@/lib/email'
 import crypto from 'crypto'
@@ -204,6 +204,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server tidak dikonfigurasi dengan benar.' }, { status: 500 })
     }
 
+    const authAdmin = getSupabaseAdminAuthFromClient()
+    if (!authAdmin) {
+      return NextResponse.json({ error: 'Server tidak dikonfigurasi dengan benar.' }, { status: 500 })
+    }
+
     const admin = supabaseAdmin
 
     // ============================================
@@ -230,7 +235,7 @@ export async function POST(request: NextRequest) {
         // Cek apakah user masih ada di Supabase Auth
         let userStillExists = false
         try {
-          const { data: { users }, error: listErr } = await admin.auth.admin.listUsers({
+          const { data: { users }, error: listErr } = await authAdmin.listUsers({
             page: 1, perPage: 1000
           })
           if (!listErr && users) {
@@ -292,7 +297,7 @@ export async function POST(request: NextRequest) {
     const myReferralCode = generateReferralCode()
     const now = new Date().toISOString()
 
-    const { data: userData, error: createError } = await admin.auth.admin.createUser({
+    const { data: userData, error: createError } = await authAdmin.createUser({
       email: emailLower,
       password,
       email_confirm: false,
@@ -347,7 +352,7 @@ export async function POST(request: NextRequest) {
 
     // Also store token in Supabase user metadata as backup for verify-email fallback
     try {
-      await admin.auth.admin.updateUserById(userId, {
+      await authAdmin.updateUserById(userId, {
         user_metadata: {
           ...userData?.user?.user_metadata,
           email_verify_token: savedToken,

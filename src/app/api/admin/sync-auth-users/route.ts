@@ -1,38 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
 import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
 
 // Sync logic - shared by GET and POST
-// Uses the shared singleton `db` from @/lib/db (auto-pooled, no connection leak)
 async function performSync() {
   try {
     // Check if supabaseAdmin is available
     if (!supabaseAdmin) {
-      console.error('❌ supabaseAdmin client is not available. Make sure SUPABASE_SERVICE_ROLE_KEY is configured.')
       return {
         error: 'SUPABASE_SERVICE_ROLE_KEY not configured',
         message: 'Please set SUPABASE_SERVICE_ROLE_KEY in Vercel Environment Variables',
-        troubleshooting: [
-            '1. Go to Vercel Project Settings',
-            '2. Navigate to Environment Variables',
-            '3. Add variable: SUPABASE_SERVICE_ROLE_KEY',
-            '4. Get the key from Supabase Dashboard > Project Settings > API',
-            '5. Redeploy after adding the variable'
-          ],
-          envCheck: {
-            NODE_ENV: process.env.NODE_ENV,
-            NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'NOT SET',
-            NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'SET' : 'NOT SET',
-            SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET'
-          }
       }
     }
 
-    const admin = supabaseAdmin
+    const authAdmin = getSupabaseAdminAuthFromClient()
+    if (!authAdmin) {
+      return {
+        error: 'SUPABASE_SERVICE_ROLE_KEY not configured',
+        message: 'Admin auth API not available',
+      }
+    }
 
     // Get all users from Supabase Auth using admin client
-    const { data: authUsers, error: authError } = await admin.auth.admin.listUsers()
+    const { data: authUsers, error: authError } = await authAdmin.listUsers()
 
     if (authError) {
       console.error('❌ Error fetching Supabase Auth users:', authError)
@@ -83,17 +74,15 @@ async function performSync() {
             syncedCount++
           }
 
-          // ============================================
           // SYNC TO SUPABASE PROFILES TABLE
-          // ============================================
-          const { data: existingProfile, error: profileCheckError } = await admin
+          const { data: existingProfile, error: profileCheckError } = await supabaseAdmin
             .from('profiles')
             .select('id')
             .eq('id', authUser.id)
             .single()
 
           if (profileCheckError && profileCheckError.code !== 'PGRST116') {
-            console.error(`   ⚠️ Error checking profile:`, profileCheckError)
+            // non-critical
           }
 
           if (existingProfile) {
@@ -104,7 +93,7 @@ async function performSync() {
                            authUser.user_metadata?.full_name ||
                            null
 
-            const { error: profileCreateError } = await admin
+            const { error: profileCreateError } = await supabaseAdmin
               .from('profiles')
               .insert({
                 id: authUser.id,
@@ -141,10 +130,10 @@ async function performSync() {
             userId: authUser.id,
             profileCreated: !existingProfile
           }
-        } catch (error) {
-          console.error(`   ❌ Error syncing user ${authUser.email}:`, error)
+        } catch (err) {
+          console.error(`   ❌ Error syncing user ${authUser.email}:`, err)
 
-          if ((error as any)?.code === 'P2002' || (error as any)?.code === 'P2003') {
+          if ((err as any)?.code === 'P2002' || (err as any)?.code === 'P2003') {
             skippedCount++
             return {
               email: authUser.email,
@@ -157,7 +146,7 @@ async function performSync() {
           return {
             email: authUser.email,
             action: 'error',
-            error: JSON.stringify(error, null, 2)
+            error: JSON.stringify(err, null, 2)
           }
         }
       })
@@ -165,7 +154,7 @@ async function performSync() {
 
     // Get final counts
     const allPrismaUsers = await db.user.findMany()
-    const { count: profileCount } = await admin
+    const { count: profileCount } = await supabaseAdmin
       .from('profiles')
       .select('*', { count: 'exact', head: true })
 
@@ -180,22 +169,22 @@ async function performSync() {
       totalSupabaseProfiles: profileCount || 0,
       results: syncResults
     }
-  } catch (error) {
-    console.error('❌ Unexpected error in sync:', error)
+  } catch (err) {
+    console.error('❌ Unexpected error in sync:', err)
     return {
       error: 'Sync failed',
-      details: JSON.stringify(error, null, 2),
-      errorType: (error as any)?.constructor?.name || 'Unknown',
-      errorCode: (error as any)?.code || 'NO_CODE',
-      errorMessage: (error as any)?.message || String(error)
+      details: JSON.stringify(err, null, 2),
+      errorType: (err as any)?.constructor?.name || 'Unknown',
+      errorCode: (err as any)?.code || 'NO_CODE',
+      errorMessage: (err as any)?.message || String(err)
     }
   }
 }
 
 // GET to sync all Supabase Auth users to Prisma
 export async function GET(request: NextRequest) {
-  const { error } = await requireAdmin(request)
-  if (error) return error
+  const authResult = await requireAdmin(request)
+  if (authResult.error) return authResult.error
 
   const result = await performSync()
   if (result.error) {
@@ -206,8 +195,8 @@ export async function GET(request: NextRequest) {
 
 // POST to sync all Supabase Auth users to Prisma (for Admin Panel)
 export async function POST(request: NextRequest) {
-  const { error } = await requireAdmin(request)
-  if (error) return error
+  const authResult = await requireAdmin(request)
+  if (authResult.error) return authResult.error
 
   const result = await performSync()
   if (result.error) {

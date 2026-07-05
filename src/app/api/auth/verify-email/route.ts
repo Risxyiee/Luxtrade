@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
 import crypto from 'crypto'
 
 // ============================================
@@ -92,8 +92,10 @@ async function activateTrialIfNeeded(userId: string, email: string) {
 
     // Also update Supabase Auth metadata
     if (!supabaseAdmin) return
+    const authAdmin = getSupabaseAdminAuthFromClient()
+    if (!authAdmin) return
     const admin = supabaseAdmin
-    await admin.auth.admin.updateUserById(userId, {
+    await authAdmin.updateUserById(userId, {
       user_metadata: {
         is_pro: true,
         subscription_status: 'trial',
@@ -125,6 +127,11 @@ async function activateTrialIfNeeded(userId: string, email: string) {
 export async function POST(request: NextRequest) {
   try {
     if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
+    }
+
+    const authAdmin = getSupabaseAdminAuthFromClient()
+    if (!authAdmin) {
       return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
     }
 
@@ -218,7 +225,7 @@ export async function POST(request: NextRequest) {
       // FALLBACK 2: Try searching via Supabase admin API (listUsers with metadata filter)
       try {
         console.log('🔍 Fallback 2: Searching via admin listUsers...')
-        const { data: { users }, error: listErr } = await admin.auth.admin.listUsers({
+        const { data: { users }, error: listErr } = await authAdmin.listUsers({
           page: 1, perPage: 1000
         })
         if (!listErr && users) {
@@ -308,9 +315,10 @@ export async function POST(request: NextRequest) {
 
 async function ensureSupabaseConfirmed(userId: string) {
   if (!supabaseAdmin) return
-  const admin = supabaseAdmin
+  const authAdmin = getSupabaseAdminAuthFromClient()
+  if (!authAdmin) return
   try {
-    const { error } = await admin.auth.admin.updateUserById(userId, {
+    const { error } = await authAdmin.updateUserById(userId, {
       email_confirm: true,
       user_metadata: { email_verified: true, updated_at: new Date().toISOString() }
     })

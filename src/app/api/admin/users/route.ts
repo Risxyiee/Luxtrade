@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin, getAdminStatus } from '@/lib/supabase-admin-alt'
+import { supabaseAdmin, getAdminStatus, getAdminAuth } from '@/lib/supabase-admin-alt'
 import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
 
@@ -18,7 +18,6 @@ async function syncProfileFromAuth(userId: string, isPro: boolean, subscriptionU
     } else {
       await db.profile.create({ data: { id: userId, ...data } })
     }
-    // Synced Prisma profile
   } catch (err) {
     // Failed to sync Prisma profile (non-critical)
   }
@@ -27,8 +26,8 @@ async function syncProfileFromAuth(userId: string, isPro: boolean, subscriptionU
 // GET all users — Prisma profiles PRIMARY (no user lost), Supabase Auth for enrichment only
 export async function GET(request: NextRequest) {
   try {
-    const { error } = await requireAdmin(request)
-    if (error) return error
+    const authResult = await requireAdmin(request)
+    if (authResult.error) return authResult.error
 
     // ── Step 1: Fetch ALL profiles from Prisma DB (PRIMARY source of truth) ──
     let profiles: any[] = []
@@ -40,14 +39,12 @@ export async function GET(request: NextRequest) {
         // Try Prisma ORM first
         try {
           profiles = await db.profile.findMany({ orderBy: { createdAt: 'desc' } })
-          // Prisma findMany succeeded
         } catch (_prismaErr) {
           // ORM failed (missing column?) — fallback to raw SQL
           try {
             const raw = await db.$queryRaw`SELECT * FROM profiles ORDER BY created_at DESC`
             if (Array.isArray(raw) && raw.length > 0) {
               profiles = raw
-              // Raw SQL succeeded
             }
           } catch (_rawErr) {
             // Raw SQL also failed
@@ -64,14 +61,13 @@ export async function GET(request: NextRequest) {
 
     if (supabaseAdmin) {
       try {
-        const admin = supabaseAdmin
-        const { data: { users }, error } = await admin.auth.admin.listUsers()
-        if (!error && users) {
-          authUserMap = new Map(users.map(u => [u.id, u]))
-          authEnriched = true
-          // Supabase Auth enrichment succeeded
-        } else if (error) {
-          // Auth error (non-critical)
+        const authAdmin = getAdminAuth()
+        if (authAdmin) {
+          const { data: { users }, error: listError } = await authAdmin.listUsers()
+          if (!listError && users) {
+            authUserMap = new Map(users.map(u => [u.id, u]))
+            authEnriched = true
+          }
         }
       } catch (err) {
         // Auth call failed (non-critical)
@@ -171,8 +167,8 @@ export async function GET(request: NextRequest) {
 // POST create a new user in Supabase
 export async function POST(request: NextRequest) {
   try {
-    const { error } = await requireAdmin(request)
-    if (error) return error
+    const authResult = await requireAdmin(request)
+    if (authResult.error) return authResult.error
 
     const body = await request.json()
     const { email, password, name, metadata = {} } = body
@@ -185,11 +181,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user in Supabase Auth
-    if (!supabaseAdmin) {
+    const authAdmin = getAdminAuth()
+    if (!authAdmin) {
       return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
     }
-    const admin = supabaseAdmin
-    const { data, error } = await admin.auth.admin.createUser({
+
+    const { data, error: createUserError } = await authAdmin.createUser({
       email,
       password: password || Math.random().toString(36).slice(-8),
       email_confirm: true,
@@ -199,10 +196,10 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    if (error) {
-      console.error('❌ [ADMIN API] Error creating user:', error)
+    if (createUserError) {
+      console.error('❌ [ADMIN API] Error creating user:', createUserError)
       return NextResponse.json(
-        { error: error.message },
+        { error: createUserError.message },
         { status: 400 }
       )
     }
@@ -220,30 +217,24 @@ export async function POST(request: NextRequest) {
 // PATCH - Activate PRO for user
 export async function PATCH(request: NextRequest) {
   try {
-    const { error } = await requireAdmin(request)
-    if (error) return error
+    const authResult = await requireAdmin(request)
+    if (authResult.error) return authResult.error
 
     const body = await request.json()
     const { userId, action = 'activate', days = 30 } = body
 
-    if (!supabaseAdmin) {
-      const status = getAdminStatus()
-      console.error('❌ [ADMIN API] supabaseAdmin is not configured')
-      console.error('❌ [ADMIN API] Status:', JSON.stringify(status))
+    const authAdmin = getAdminAuth()
+    if (!authAdmin) {
       return NextResponse.json(
         {
           error: 'Admin configuration error',
-          details: 'SUPABASE_SERVICE_ROLE_KEY is missing in environment variables. Please add it in Vercel dashboard.',
-          solution: 'Go to Vercel Project Settings > Environment Variables > Add SUPABASE_SERVICE_ROLE_KEY'
+          details: 'SUPABASE_SERVICE_ROLE_KEY is missing in environment variables.',
         },
         { status: 500 }
       )
     }
 
-    const admin = supabaseAdmin
-
     if (!userId) {
-      console.error('❌ [ADMIN API] User ID is required')
       return NextResponse.json(
         { error: 'User ID is required' },
         { status: 400 }
@@ -251,7 +242,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Get current user metadata
-    const { data: { user }, error: fetchError } = await admin.auth.admin.getUserById(userId)
+    const { data: { user }, error: fetchError } = await authAdmin.getUserById(userId)
 
     if (fetchError) {
       console.error('❌ [ADMIN API] Error fetching user:', fetchError)
@@ -262,7 +253,6 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (!user) {
-      console.error('❌ [ADMIN API] User not found:', userId)
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -271,7 +261,6 @@ export async function PATCH(request: NextRequest) {
 
     // Handle different actions
     if (action === 'revoke') {
-      // Revoke PRO
       const newMetadata = {
         ...user.user_metadata,
         is_pro: false,
@@ -280,7 +269,7 @@ export async function PATCH(request: NextRequest) {
         updated_at: new Date().toISOString()
       }
 
-      const { data: updatedUser, error: updateError } = await admin.auth.admin.updateUserById(userId, {
+      const { data: updatedUser, error: updateError } = await authAdmin.updateUserById(userId, {
         user_metadata: newMetadata
       })
 
@@ -292,7 +281,6 @@ export async function PATCH(request: NextRequest) {
         )
       }
 
-      // Also sync revoke to Prisma profile
       await syncProfileFromAuth(userId, false, null)
 
       return NextResponse.json({
@@ -300,18 +288,14 @@ export async function PATCH(request: NextRequest) {
         user: updatedUser.user
       })
     } else if (action === 'activate') {
-      // Activate PRO
-      // Calculate new subscription date (add days to current date or extend if already PRO)
       const now = new Date()
       const currentSubscriptionUntil = user.user_metadata?.subscription_until
         ? new Date(user.user_metadata.subscription_until)
         : now
 
-      // If subscription is still valid, extend from current expiry. If expired, start from now.
       const baseDate = currentSubscriptionUntil > now ? currentSubscriptionUntil : now
       const subscriptionUntil = new Date(baseDate.getTime() + (days * 24 * 60 * 60 * 1000)).toISOString()
 
-      // Merge existing metadata with new PRO status
       const newMetadata = {
         ...user.user_metadata,
         is_pro: true,
@@ -321,8 +305,7 @@ export async function PATCH(request: NextRequest) {
         updated_at: new Date().toISOString()
       }
 
-      // Update user metadata
-      const { data: updatedUser, error: updateError } = await admin.auth.admin.updateUserById(userId, {
+      const { data: updatedUser, error: updateError } = await authAdmin.updateUserById(userId, {
         user_metadata: newMetadata
       })
 
@@ -334,7 +317,6 @@ export async function PATCH(request: NextRequest) {
         )
       }
 
-      // Also sync to Prisma profile
       await syncProfileFromAuth(userId, true, subscriptionUntil)
 
       return NextResponse.json({
@@ -350,7 +332,6 @@ export async function PATCH(request: NextRequest) {
     }
   } catch (error) {
     console.error('❌ [ADMIN API] Error in PATCH:', error)
-    console.error('❌ [ADMIN API] Error stack:', error instanceof Error ? error.stack : 'No stack')
     return NextResponse.json(
       {
         error: 'Failed to process request',
@@ -364,14 +345,14 @@ export async function PATCH(request: NextRequest) {
 // DELETE - Revoke PRO for user
 export async function DELETE(request: NextRequest) {
   try {
-    const { error } = await requireAdmin(request)
-    if (error) return error
+    const authResult = await requireAdmin(request)
+    if (authResult.error) return authResult.error
 
     const searchParams = request.nextUrl.searchParams
     const userId = searchParams.get('userId')
 
-    if (!supabaseAdmin) {
-      console.error('❌ [ADMIN API] supabaseAdmin is not configured')
+    const authAdmin = getAdminAuth()
+    if (!authAdmin) {
       return NextResponse.json(
         {
           error: 'Admin configuration error',
@@ -381,10 +362,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const admin = supabaseAdmin
-
     if (!userId) {
-      console.error('❌ [ADMIN API] User ID is required')
       return NextResponse.json(
         { error: 'User ID is required' },
         { status: 400 }
@@ -392,7 +370,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get current user metadata
-    const { data: { user }, error: fetchError } = await admin.auth.admin.getUserById(userId)
+    const { data: { user }, error: fetchError } = await authAdmin.getUserById(userId)
 
     if (fetchError) {
       console.error('❌ [ADMIN API] Error fetching user:', fetchError)
@@ -403,7 +381,6 @@ export async function DELETE(request: NextRequest) {
     }
 
     if (!user) {
-      console.error('❌ [ADMIN API] User not found:', userId)
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -419,7 +396,7 @@ export async function DELETE(request: NextRequest) {
       updated_at: new Date().toISOString()
     }
 
-    const { data: updatedUser, error: updateError } = await admin.auth.admin.updateUserById(userId, {
+    const { data: updatedUser, error: updateError } = await authAdmin.updateUserById(userId, {
       user_metadata: newMetadata
     })
 
@@ -431,7 +408,6 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Also sync revoke to Prisma profile
     await syncProfileFromAuth(userId, false, null)
 
     return NextResponse.json({
