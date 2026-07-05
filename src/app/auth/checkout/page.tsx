@@ -108,52 +108,54 @@ function CheckoutContent() {
 
       if (signInError) {
         const msg = signInError.message?.toLowerCase() || ''
-        if (msg.includes('invalid') || msg.includes('credentials') || msg.includes('email not confirmed')) {
-          // Try force-confirm first (handles both "invalid credentials" for unconfirmed users
-          // and explicit "email not confirmed" errors)
-          try {
-            const confirmRes = await fetch('/api/auth/force-confirm', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email })
+
+        // Rate limit
+        if (msg.includes('too many requests') || msg.includes('rate limit')) {
+          setAuthError('Terlalu banyak percobaan. Tunggu beberapa menit.')
+          setAuthLoading(false)
+          return
+        }
+
+        // Admin-login fallback for all errors
+        try {
+          const adminRes = await fetch('/api/auth/admin-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          })
+          const adminData = await adminRes.json()
+
+          if (adminData.success && adminData.session) {
+            const { error: setErr } = await supabase.auth.setSession({
+              access_token: adminData.session.access_token,
+              refresh_token: adminData.session.refresh_token,
             })
-            const confirmData = await confirmRes.json()
-
-            if (confirmData.confirmed) {
-              await new Promise(r => setTimeout(r, 500))
-              const retry = await supabase.auth.signInWithPassword({ email, password })
-              if (retry.data.session) {
-                try {
-                  await fetch('/api/auth/sync-user', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      userId: retry.data.user.id,
-                      email: retry.data.user.email,
-                      fullName: retry.data.user.user_metadata?.display_name || retry.data.user.user_metadata?.name || email.split('@')[0]
-                    })
+            if (!setErr) {
+              try {
+                await fetch('/api/auth/sync-user', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    userId: adminData.session.user.id,
+                    email: adminData.session.user.email,
+                    fullName: adminData.session.user.user_metadata?.full_name || adminData.session.user.user_metadata?.display_name || email.split('@')[0]
                   })
-                } catch { /* non-critical */ }
-                setStep('payment')
-                return
-              }
+                })
+              } catch { /* non-critical */ }
+              setStep('payment')
+              return
             }
-          } catch { /* force-confirm failed */ }
+          }
 
-          if (msg.includes('not found')) {
+          if (adminData.error?.includes('tidak ditemukan') || adminData.error?.includes('not found')) {
             setAuthError('Akun tidak ditemukan. Silakan daftar dulu.')
             setMode('signup')
-          } else if (msg.includes('email not confirmed')) {
-            setAuthError('Email belum diverifikasi. Cek inbox atau kirim ulang link verifikasi.')
           } else {
             setAuthError('Email atau password salah.')
             setMode('signup')
           }
-        } else if (msg.includes('not found')) {
-          setAuthError('Akun tidak ditemukan. Silakan daftar dulu.')
-          setMode('signup')
-        } else {
-          setAuthError('Login gagal. Coba lagi.')
+        } catch {
+          setAuthError('Login gagal. Cek internet.')
         }
         setAuthLoading(false)
         return
