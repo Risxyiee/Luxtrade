@@ -465,13 +465,13 @@ export default function PaymentModal({
                                   <p className="text-[10px] text-white/50">a.n. RIZQI AKBAR PRATAMA</p>
                                 </div>
                                 <a
-                                  href={`https://t.me/Risxyiee?text=${encodeURIComponent(`Halo admin, saya mau konfirmasi pembayaran LuxTrade paket ${planName} (${formatRupiah(amount)}). Terima kasih.`)}`}
+                                  href="https://discord.gg/nkXpgMyzk"
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0088cc]/20 text-[#0088cc] text-[11px] font-medium hover:bg-[#0088cc]/30 transition-colors"
+                                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#5865F2]/20 text-[#5865F2] text-[11px] font-medium hover:bg-[#5865F2]/30 transition-colors"
                                 >
                                   <Smartphone className="w-3 h-3" />
-                                  Konfirmasi via Telegram
+                                  Konfirmasi via Discord
                                 </a>
                               </div>
                             </div>

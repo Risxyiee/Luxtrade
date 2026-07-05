@@ -31,7 +31,6 @@ const PLATFORMS = [
   'tiktok',
   'linkedin',
   'facebook',
-  'telegram',
   'discord'
 ] as const
 

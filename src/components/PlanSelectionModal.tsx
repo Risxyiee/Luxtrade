@@ -98,7 +98,7 @@ const plans: Plan[] = [
     features: [
       'AKSES SEUMUR HIDUP',
       'Semua Fitur Elite PRO Selamanya',
-      'VIP Telegram Support & Grup Privat',
+      'VIP Discord Support & Grup Privat',
       'Tanpa Biaya Berulang'
     ],
     highlight: true
@@ -483,7 +483,7 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                   <span className="hidden sm:inline">•</span>
                   <div className="flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/60" />
-                    <span>{gatewayAvailable !== false ? 'Aktivasi PRO otomatis setelah bayar' : 'Konfirmasi via Telegram'}</span>
+                    <span>{gatewayAvailable !== false ? 'Aktivasi PRO otomatis setelah bayar' : 'Konfirmasi via Discord'}</span>
                   </div>
                   <span className="hidden sm:inline">•</span>
                   <div className="flex items-center gap-1.5">

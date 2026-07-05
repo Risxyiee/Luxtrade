@@ -341,7 +341,7 @@ function RefundContent() {
           <li><strong className="text-white/80">Pembayaran gagal namun dana terpotong</strong> — Status pembayaran gagal tetapi saldo berkurang.</li>
         </ul>
         <Paragraph>
-          Segera hubungi tim admin LuxTrade melalui Telegram <span className="text-[#8a2be2] font-semibold">@Risxyiee</span> atau email <a href="mailto:luxtradee@gmail.com" className="text-[#8a2be2] hover:underline">luxtradee@gmail.com</a> dengan menyertakan bukti pembayaran (screenshot).
+          Segera hubungi tim admin LuxTrade melalui Discord <span className="text-[#5865F2] font-semibold">LuxTrade Server</span> atau email <a href="mailto:luxtradee@gmail.com" className="text-[#8a2be2] hover:underline">luxtradee@gmail.com</a> dengan menyertakan bukti pembayaran (screenshot).
         </Paragraph>
       </Section>
 
@@ -366,9 +366,9 @@ function RefundContent() {
           <div className="flex items-start gap-3 p-3 bg-white/[0.02] border border-white/[0.05] rounded-xl">
             <span className="flex-shrink-0 w-7 h-7 rounded-lg bg-[#8a2be2]/20 flex items-center justify-center text-[#8a2be2] font-bold text-sm">2</span>
             <div>
-              <p className="text-white/80 text-sm font-semibold">Hubungi admin via Telegram atau Email</p>
+              <p className="text-white/80 text-sm font-semibold">Hubungi admin via Discord atau Email</p>
               <p className="text-white/50 text-xs mt-0.5">
-                Telegram: <span className="text-[#8a2be2]">@Risxyiee</span> atau Email: <a href="mailto:luxtradee@gmail.com" className="text-[#8a2be2] hover:underline">luxtradee@gmail.com</a>
+                Discord: <span className="text-[#5865F2]">LuxTrade Server</span> atau Email: <a href="mailto:luxtradee@gmail.com" className="text-[#8a2be2] hover:underline">luxtradee@gmail.com</a>
               </p>
             </div>
           </div>
@@ -454,16 +454,18 @@ function FAQContent() {
 
       <div className="mt-8 p-5 bg-[#2a1b3d]/40 border border-violet-500/20 rounded-xl text-center">
         <p className="text-white/70 text-sm mb-2">Masih punya pertanyaan?</p>
-        <p className="text-white/40 text-xs mb-4">Hubungi kami langsung melalui Telegram atau Email</p>
+        <p className="text-white/40 text-xs mb-4">Hubungi kami langsung melalui Discord atau Email</p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <a
-            href="https://t.me/Risxyiee"
+            href="https://discord.gg/nkXpgMyzk"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#8a2be2] hover:bg-[#7a22cc] text-white text-sm font-semibold transition-all shadow-lg shadow-purple-500/20"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white text-sm font-semibold transition-all shadow-lg shadow-[#5865F2]/20"
           >
-            <Send className="w-4 h-4" />
-            Telegram @Risxyiee
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+            </svg>
+            Discord LuxTrade
           </a>
           <a
             href="mailto:luxtradee@gmail.com"
@@ -505,19 +507,21 @@ function ContactContent() {
           </div>
         </a>
 
-        {/* Telegram */}
+        {/* Discord */}
         <a
-          href="https://t.me/Risxyiee"
+          href="https://discord.gg/nkXpgMyzk"
           target="_blank"
           rel="noopener noreferrer"
-          className="group flex items-start gap-4 p-5 bg-white/[0.02] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-[#8a2be2]/30 transition-all"
+          className="group flex items-start gap-4 p-5 bg-white/[0.02] border border-white/[0.06] rounded-xl hover:bg-white/[0.05] hover:border-[#5865F2]/30 transition-all"
         >
-          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#8a2be2]/10 border border-[#8a2be2]/20 flex items-center justify-center group-hover:bg-[#8a2be2]/20 transition-all">
-            <Send className="w-5 h-5 text-[#8a2be2]" />
+          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#5865F2]/10 border border-[#5865F2]/20 flex items-center justify-center group-hover:bg-[#5865F2]/20 transition-all">
+            <svg className="w-5 h-5 text-[#5865F2]" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+            </svg>
           </div>
           <div>
-            <h4 className="font-semibold text-white text-sm mb-1">Telegram</h4>
-            <p className="text-[#8a2be2] text-sm">@Risxyiee</p>
+            <h4 className="font-semibold text-white text-sm mb-1">Discord</h4>
+            <p className="text-[#5865F2] text-sm">LuxTrade Server</p>
             <p className="text-white/40 text-xs mt-1">Respon tercepat</p>
           </div>
         </a>
@@ -603,16 +607,18 @@ function ContactContent() {
       <div className="p-6 bg-gradient-to-br from-[#8a2be2]/10 to-transparent border border-[#8a2be2]/20 rounded-xl text-center">
         <h3 className="text-lg font-bold text-white mb-2">Butuh bantuan lebih cepat?</h3>
         <p className="text-white/50 text-sm mb-4 max-w-md mx-auto">
-          Untuk respon tercepat, hubungi kami langsung melalui Telegram. Kami biasanya membalas dalam hitungan menit.
+          Untuk respon tercepat, hubungi kami langsung melalui Discord. Kami biasanya membalas dalam hitungan menit.
         </p>
         <a
-          href="https://t.me/Risxyiee"
+          href="https://discord.gg/nkXpgMyzk"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#8a2be2] hover:bg-[#7a22cc] text-white font-bold text-sm transition-all shadow-lg shadow-purple-500/20 active:scale-95"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold text-sm transition-all shadow-lg shadow-[#5865F2]/20 active:scale-95"
         >
-          <Send className="w-4 h-4" />
-          Chat di Telegram
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+          </svg>
+          Chat di Discord
         </a>
       </div>
     </div>
@@ -677,7 +683,7 @@ function PrivacyContent() {
       <div className="mt-8 p-4 bg-white/[0.02] border border-white/[0.06] rounded-xl">
         <h4 className="text-sm font-bold text-white mb-2">Pertanyaan tentang privasi?</h4>
         <p className="text-white/40 text-sm">
-          Hubungi kami di <a href="mailto:support@luxtrade.id" className="text-[#8a2be2] hover:underline">support@luxtrade.id</a> atau melalui <a href="https://t.me/Risxyiee" target="_blank" rel="noopener noreferrer" className="text-[#8a2be2] hover:underline">Telegram</a>.
+          Hubungi kami di <a href="mailto:support@luxtrade.id" className="text-[#8a2be2] hover:underline">support@luxtrade.id</a> atau melalui <a href="https://discord.gg/nkXpgMyzk" target="_blank" rel="noopener noreferrer" className="text-[#5865F2] hover:underline">Discord</a>.
         </p>
       </div>
     </div>

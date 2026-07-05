@@ -115,7 +115,7 @@ export default function RefundPolicyPage() {
                 </div>
                 <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-5">
                   <p className="text-white/70 leading-relaxed">
-                    <strong className="text-red-300">Batas waktu pengajuan:</strong> Permintaan refund atas pengecualian di atas harus diajukan dalam waktu <strong>maksimal 7 hari</strong> sejak insiden terjadi, melalui Telegram <strong className="text-purple-400">@Risxyiee</strong> atau email <strong className="text-purple-400">luxtradee@gmail.com</strong>.
+                    <strong className="text-red-300">Batas waktu pengajuan:</strong> Permintaan refund atas pengecualian di atas harus diajukan dalam waktu <strong>maksimal 7 hari</strong> sejak insiden terjadi, melalui Discord <strong className="text-purple-400">LuxTrade Server</strong> atau email <strong className="text-purple-400">luxtradee@gmail.com</strong>.
                   </p>
                 </div>
               </div>
@@ -128,7 +128,7 @@ export default function RefundPolicyPage() {
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
                   <h3 className="text-lg font-medium text-purple-400 mb-2">Langkah Pengajuan</h3>
                   <ul className="list-disc list-inside space-y-2 text-white/70">
-                    <li>Hubungi kami melalui <strong className="text-purple-400">Telegram @Risxyiee</strong> atau email <strong className="text-purple-400">luxtradee@gmail.com</strong></li>
+                    <li>Hubungi kami melalui <strong className="text-purple-400">Discord (LuxTrade Server)</strong> atau email <strong className="text-purple-400">luxtradee@gmail.com</strong></li>
                     <li>Sertakan bukti pendukung (screenshot pembayaran ganda, bukti transfer, dll.)</li>
                     <li>Sertakan informasi akun: email terdaftar dan tanggal transaksi</li>
                   </ul>

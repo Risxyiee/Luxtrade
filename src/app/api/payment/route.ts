@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { notifyPaymentConfirmation } from '@/lib/telegram'
+import { notifyPaymentConfirmation } from '@/lib/admin-notify'
 import { PRICING, formatRupiah } from '@/lib/pricing'
 
 // Payment configuration
@@ -8,7 +8,6 @@ const PAYMENT_CONFIG = {
   accountNumber: '104051474194',
   accountHolder: 'RIZQI AKBAR PRATAMA',
   amount: PRICING.PRO_30_DAYS,
-  adminTelegram: '@Risxyiee',
 }
 
 export async function POST(request: NextRequest) {
@@ -16,23 +15,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { userId, email, fullName } = body
 
-    // Generate Telegram deep link with pre-filled message
-    const message = encodeURIComponent(
-      `Halo Admin LuxTrade! 👋\n\n` +
-      `Saya ingin konfirmasi pembayaran PRO Membership:\n\n` +
-      `📧 Email: ${email || 'Not provided'}\n` +
-      `🆔 User ID: ${userId || 'Not provided'}\n\n` +
-      `Saya sudah transfer ${formatRupiah(PAYMENT_CONFIG.amount)} ke:\n` +
-      `Bank: ${PAYMENT_CONFIG.bankName}\n` +
-      `Rekening: ${PAYMENT_CONFIG.accountNumber}\n` +
-      `Atas Nama: ${PAYMENT_CONFIG.accountHolder}\n\n` +
-      `Mohon diaktivasi ya, terima kasih! 🙏`
-    )
-
-    const tgLink = `https://t.me/${PAYMENT_CONFIG.adminTelegram.replace('@', '')}?text=${message}`
-
-    // Send silent notification to admin's Telegram bot (background)
-    // This acts as a backup notification so admin always sees payment requests
+    // Send background notification to admin
     notifyPaymentConfirmation({
       email: email || 'Not provided',
       userId: userId || 'guest',
@@ -53,8 +36,7 @@ export async function POST(request: NextRequest) {
         accountHolder: PAYMENT_CONFIG.accountHolder,
         amount: PAYMENT_CONFIG.amount,
       },
-      tgLink,
-      adminTelegram: PAYMENT_CONFIG.adminTelegram,
+      discordLink: 'https://discord.gg/nkXpgMyzk',
       message: 'Payment details generated successfully',
     })
   } catch (error) {

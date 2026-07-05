@@ -1,4 +1,32 @@
 ---
+Task ID: 5
+Agent: admin-panel-enhancer
+Task: Enhance admin panel with duration selector, modal, verified badges, last login column
+
+Work Log:
+- Added `email_confirmed_at` and `last_sign_in_at` to UserProfile interface
+- Re-enabled admin role check (removed temporary bypass and console.log warning)
+- Added "Last Login" column to user table showing `last_sign_in_at` formatted in id-ID locale
+- Added "Email Verified" badge in Status column (blue badge with CheckCircle icon) shown when `email_confirmed_at` is truthy
+- Improved stats cards from 3 to 4 — added "FREE Users" card, changed grid to `grid-cols-2 md:grid-cols-4`
+- Removed Test debug button (Bug icon per user row) and the `testPROToggle` function
+- Replaced direct `activatePRO` button with shadcn Dialog modal featuring:
+  - Duration selector: 30 Hari, 90 Hari, 180 Hari, 365 Hari, Lifetime
+  - Lifetime warning with amber alert styling
+  - Confirm/Cancel buttons with purple gradient theme
+  - Lifetime maps to 36500 days (100 years) for API compatibility
+- Added Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle imports from @/components/ui/dialog
+- Added state: `proDialogOpen`, `proDialogUser`, `proDuration` (default 30)
+- Verified zero lint/TypeScript errors
+
+Stage Summary:
+- Admin panel now has luxurious PRO activation with duration choices via modal dialog
+- Admin role check re-enabled for security
+- Better user visibility with verified badge and last login column
+- Stats dashboard now shows 4 cards including FREE user count
+- Debug test button removed for cleaner UI
+
+---
 Task ID: 7
 Agent: Z.ai Code
 Task: Finalize affiliate system removal
@@ -3484,3 +3512,45 @@ Stage Summary:
 - ✅ Commit 1272434 pushed to GitHub
 - ✅ ESLint clean, dev server returns 200
 - ⚠️ IMPORTANT: User must still rotate Supabase DB password, service role key, anon key, and MetaApi token (they were in git history)
+
+---
+Task ID: 1-4
+Agent: main
+Task: Replace all Telegram references with Discord across the codebase
+
+Work Log:
+- Searched entire codebase for Telegram/t.me references — found 60+ mentions across 18 files
+- Discovered many files were already partially updated (PaymentConfirmationModal, PaywallModal, FAQ, Contact, Refund Policy, Disclaimer)
+- Updated LegalPagesModal.tsx: 7 Telegram→Discord replacements (refund contact info, FAQ CTA, contact section, privacy section)
+- Updated PaymentInvoiceModal.tsx: 6 replacements (TG_ADMIN_LINK→DISCORD_ADMIN_LINK, all "Chat Admin via Telegram"→"Chat Admin via Discord", Telegram SVG→Discord SVG, color #0088cc→#5865F2)
+- Updated about/page.tsx: t.me/Risxyiee link→discord.gg/nkXpgMyzk, Telegram icon→Discord SVG icon
+- Updated PlanSelectionModal.tsx: "VIP Telegram Support"→"VIP Discord Support"
+- Updated api/payment/route.ts: Already updated (import from admin-notify, discordLink instead of tgLink)
+- Updated api/admin/withdrawals/route.ts: sendTelegramNotification→sendAdminNotification
+- Updated api/admin/subscriptions/[id]/activate/route.ts: sendTelegramNotification→sendAdminNotification
+- Updated api/admin/activate/route.ts: sendTelegramNotification→sendAdminNotification
+- Updated api/promo/validate/route.ts: Already updated
+- Updated upgrade/UpgradeFormClient.tsx: Already updated
+- Cleaned up admin-notify.ts: Added @deprecated alias, clarified comments
+- Deleted src/lib/telegram.ts (dead file, already unused)
+- Kept 'telegram' in social-links platform list (user-submitted links, not branding)
+
+Stage Summary:
+- Zero user-facing Telegram references remain
+- Only backend admin-notify.ts still uses Telegram Bot API as delivery mechanism (internal, not visible to users)
+- All Discord links point to https://discord.gg/nkXpgMyzk
+- All Discord branding uses #5865F2 color scheme
+
+---
+Task ID: 5
+Agent: main + admin-panel-enhancer
+Task: Enhance admin panel — luxurious UI, Pro activation with duration, admin role check
+
+Work Log:
+- Added PRO activation Dialog with duration selector (30/90/180/365/Lifetime days)
+- Re-enabled admin role check (removed TEMPORARY bypass)
+- Added email verified badge and last login column to user table
+- Expanded stats cards from 3 to 4 (added FREE Users count)
+- Removed debug "Test" button and testPROToggle function
+- Extended UserProfile interface with email_confirmed_at and last_sign_in_at
+- Clean lint pass confirmed
