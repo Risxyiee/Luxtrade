@@ -100,6 +100,11 @@ export default function SettingsPage() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    if (!currentPassword) {
+      toast.error('Masukkan password saat ini')
+      return
+    }
+    
     if (!hasMinLength || !hasUppercase || !hasLowercase || !hasNumber) {
       toast.error('Password tidak memenuhi syarat')
       return
@@ -113,6 +118,17 @@ export default function SettingsPage() {
     setPasswordLoading(true)
     
     try {
+      // Verify current password first
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: user?.email || '',
+        password: currentPassword,
+      })
+      if (verifyError) {
+        toast.error('Password saat ini salah')
+        setPasswordLoading(false)
+        return
+      }
+      
       const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword
       })
@@ -318,6 +334,20 @@ export default function SettingsPage() {
             </h2>
             
             <form onSubmit={handleChangePassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-white/70">Password Saat Ini</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="pl-10 h-12 bg-white/[0.03] border-white/10 text-white"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+              
               <div className="space-y-2">
                 <Label className="text-white/70">Password Baru</Label>
                 <div className="relative">

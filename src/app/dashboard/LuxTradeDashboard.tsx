@@ -8,7 +8,7 @@ import {
   Eye, Brain, Menu, X, DollarSign, Target,
   Activity, Sparkles, AlertTriangle,
   Zap, RefreshCw, LogOut, CalendarDays, Edit, Trash2, Calendar, Clock,
-  AlertCircle, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, Share2, Download, Shield, Crown, Gift, Trophy, Flame, ExternalLink, Newspaper
+  AlertCircle, Loader2, Settings, Bell, HelpCircle, Lock, Heart, Grid3X3, CircleDot, Share2, Download, Shield, Crown, Trophy, Flame, ExternalLink, Newspaper
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -379,6 +379,7 @@ function LuxTradeDashboardContent() {
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
+      toast.error('Gagal memuat data dashboard. Coba refresh halaman.')
     } finally {
       setLoading(false)
       setChartAnimated(true)
