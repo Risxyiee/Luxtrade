@@ -12,9 +12,6 @@ export async function middleware(request: NextRequest) {
   // Allow API routes (they handle their own auth)
   if (pathname.startsWith('/api/')) return NextResponse.next()
   
-  // Allow admin pages (they have their own auth)
-  if (pathname.startsWith('/admin')) return NextResponse.next()
-  
   // Allow public static pages
   if (PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) return NextResponse.next()
   

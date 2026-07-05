@@ -146,8 +146,8 @@ export async function POST(request: NextRequest) {
       }
 
       if (paymentOrder.plan === 'LIFETIME') {
-        // 5 years = effectively lifetime
-        subscriptionUntil.setFullYear(subscriptionUntil.getFullYear() + 5)
+        // 50 years = effectively lifetime
+        subscriptionUntil.setFullYear(subscriptionUntil.getFullYear() + 50)
       } else {
         subscriptionUntil.setMonth(subscriptionUntil.getMonth() + durationMonths)
       }

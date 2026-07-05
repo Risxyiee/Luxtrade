@@ -50,6 +50,7 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
               <li><button onClick={() => openLegalPage('terms')} className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm cursor-pointer">{language === 'id' ? 'Ketentuan Layanan' : 'Terms of Service'}</button></li>
               <li><button onClick={() => openLegalPage('refund')} className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm cursor-pointer">Refund Policy</button></li>
               <li><button onClick={() => openLegalPage('faq')} className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm cursor-pointer">FAQ</button></li>
+              <li><button onClick={() => openLegalPage('privacy')} className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm cursor-pointer">{language === 'id' ? 'Kebijakan Privasi' : 'Privacy Policy'}</button></li>
             </ul>
           </div>
         </div>

@@ -97,6 +97,7 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
                   { label: language === 'id' ? 'Kontak' : 'Contact', tab: 'contact' as LegalPageTab },
                   { label: language === 'id' ? 'Ketentuan' : 'Terms', tab: 'terms' as LegalPageTab },
                   { label: 'Refund Policy', tab: 'refund' as LegalPageTab },
+                  { label: language === 'id' ? 'Privasi' : 'Privacy', tab: 'privacy' as LegalPageTab },
                 ].map((item) => (
                   <a
                     key={item.tab}
