@@ -26,3 +26,12 @@ export function createAdminClient() {
     }
   })
 }
+
+/**
+ * Get the admin Auth API from a Supabase client.
+ * Uses `as any` to bypass Turbopack type resolution issues with .auth.admin chain.
+ * At runtime, this is fully valid — supabase-js v2 exposes auth.admin on service role clients.
+ */
+export function getSupabaseAdminAuth(client: ReturnType<typeof createClient>) {
+  return (client.auth as any).admin
+}

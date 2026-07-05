@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     // Step 10: Delete user's session in Supabase Auth
     try {
       const { supabase } = createClientForApi(request)
-      await supabase.auth.admin.deleteUser(userId)
+      await (supabase.auth as any).admin.deleteUser(userId)
       console.log('✅ [API] Supabase Auth user deleted')
     } catch (authError) {
       console.error('⚠️ [API] Failed to delete Supabase Auth user:', authError)

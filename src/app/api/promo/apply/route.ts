@@ -206,11 +206,12 @@ export async function POST(request: NextRequest) {
 
     // Sync Supabase Auth metadata (non-critical)
     try {
-      const { supabaseAdmin: adminClient } = await import('@/lib/supabase-admin-alt')
-      if (adminClient) {
-        const { data: { user: authUser } } = await adminClient.auth.admin.getUserById(userId)
+      const { getAdminAuth } = await import('@/lib/supabase-admin-alt')
+      const authAdmin = getAdminAuth()
+      if (authAdmin) {
+        const { data: { user: authUser } } = await authAdmin.getUserById(userId)
         const currentMeta = authUser?.user_metadata || {}
-        await adminClient.auth.admin.updateUserById(userId, {
+        await authAdmin.updateUserById(userId, {
           user_metadata: { ...currentMeta, is_pro: true, subscription_status: 'active', subscription_until: endDate.toISOString(), has_ever_been_pro: true, updated_at: new Date().toISOString() }
         })
       }
