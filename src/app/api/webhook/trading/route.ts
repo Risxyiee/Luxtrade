@@ -222,6 +222,15 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
+    // Webhook secret verification
+    const webhookSecret = process.env.WEBHOOK_SECRET
+    if (webhookSecret) {
+      const authHeader = req.headers.get('authorization') || req.headers.get('x-webhook-secret')
+      if (authHeader !== `Bearer ${webhookSecret}`) {
+        return NextResponse.json({ error: 'Invalid webhook secret' }, { status: 401 })
+      }
+    }
+
     // Log incoming request
     console.log('[WEBHOOK] Received POST request')
 

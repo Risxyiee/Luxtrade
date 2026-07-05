@@ -17,7 +17,10 @@ export async function GET(request: NextRequest) {
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    // TODO: Add admin role check here for production
+    const profile = await db.profile.findUnique({ where: { id: authUser.id }, select: { role: true } })
+    if (profile?.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 })
+    }
 
     // Step 1: Add columns
     const columns = [

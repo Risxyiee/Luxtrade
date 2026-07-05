@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { CalendarDays, RefreshCw } from 'lucide-react'
+import { CalendarDays, RefreshCw, Crown, Lock } from 'lucide-react'
 
 // Interface
 interface CalendarEvent {
@@ -21,10 +21,12 @@ interface CalendarEvent {
 
 interface EconomicCalendarTabProps {
   language: 'id' | 'en'
+  isPro?: boolean
+  onUpgrade?: () => void
 }
 
 // Component
-function EconomicCalendarTab({ language }: EconomicCalendarTabProps) {
+function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTabProps) {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [calLoading, setCalLoading] = useState(true)
   const [calFilter, setCalFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all')
@@ -87,6 +89,21 @@ function EconomicCalendarTab({ language }: EconomicCalendarTabProps) {
 
   const highCount = events.filter(e => e.impact === 'high').length
   const medCount = events.filter(e => e.impact === 'medium').length
+
+  if (!isPro) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center mb-4">
+          <Crown className="w-8 h-8 text-white" />
+        </div>
+        <h3 className="text-xl font-bold text-white mb-2">{language === 'id' ? 'Fitur Premium' : 'Premium Feature'}</h3>
+        <p className="text-gray-400 text-center max-w-sm mb-6">{language === 'id' ? 'Kalender ekonomi hanya tersedia untuk pengguna PRO' : 'Economic calendar is only available for PRO users'}</p>
+        <button onClick={onUpgrade} className="px-6 py-2.5 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity">
+          {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
+        </button>
+      </div>
+    )
+  }
 
   const labels = {
     id: {

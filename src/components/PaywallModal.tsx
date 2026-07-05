@@ -18,8 +18,8 @@ interface PaywallModalProps {
 
 // Skrill payment links
 const SKRILL_LINKS = {
-  pro: 'https://skrill.me/rq/RIZQI%20AKBAR/3/USD?key=vXcr_5kNitZJFVBnkmK0sakLnjB',
-  lifetime: 'https://skrill.me/rq/RIZQI%20AKBAR/5/USD?key=EI71vCJNy64rGTOWNzhHPcWiTXS'
+  pro: process.env.NEXT_PUBLIC_SKRILL_PRO_URL || '#',
+  lifetime: process.env.NEXT_PUBLIC_SKRILL_LIFETIME_URL || '#'
 }
 
 export default function PaywallModal({

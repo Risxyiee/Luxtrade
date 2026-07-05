@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/api-auth'
 import { db, ensureSchema } from '@/lib/db'
+import { isUserPro } from '@/lib/pro-check'
 
 // GET - Fetch watchlist
 export async function GET(request: NextRequest) {
@@ -41,6 +42,11 @@ export async function POST(request: NextRequest) {
     const authUser = await getAuthUser(request)
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const pro = await isUserPro(authUser.id)
+    if (!pro) {
+      return NextResponse.json({ error: 'PRO_REQUIRED', code: 'PRO_REQUIRED' }, { status: 403 })
     }
 
     const body = await request.json()
