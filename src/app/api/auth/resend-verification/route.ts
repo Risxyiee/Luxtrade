@@ -1,26 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sendEmailFromTemplate, getConfirmationEmailHtml } from '@/lib/email'
+import { rateLimitByEmail } from '@/lib/rate-limit'
 import crypto from 'crypto'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 
-/**
- * POST /api/auth/resend-verification
- * Body: { email: string }
- * Generates new token in Prisma, sends email via Resend.
- * NO dependency on Supabase generateLink.
- */
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json()
 
     if (!email) {
-      return NextResponse.json(
-        { error: 'Email wajib diisi' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Email wajib diisi' }, { status: 400 })
     }
+
+    // Rate limit: 3 per 15 minutes per email
+    const rl = rateLimitByEmail('resend-verification', email, {
+      maxRequests: 3,
+      windowMs: 15 * 60 * 1000,
+      message: 'Terlalu banyak permintaan kirim ulang verifikasi. Tunggu 15 menit.',
+    })
+    if (rl) return rl
 
     // Find profile by email in Prisma
     const profile = await db.profile.findFirst({
