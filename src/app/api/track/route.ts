@@ -41,8 +41,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    const forwarded = request.headers.get('x-forwarded-for')
-    const ip = forwarded ? forwarded.split(',')[0].trim() : 'direct'
+    const ip = 'anon'
 
     // Rate limit check
     const cacheKey = `${ip}:${path}`
@@ -67,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     // Update in-memory analytics (no database required)
     analyticsData.pageViews++
-    analyticsData.uniqueVisitors.add(ip)
+    analyticsData.uniqueVisitors.add('anon')
     analyticsData.deviceStats[device as keyof typeof analyticsData.deviceStats]++
     analyticsData.browserStats[browser as keyof typeof analyticsData.browserStats]++
     analyticsData.osStats[os as keyof typeof analyticsData.osStats]++
@@ -83,7 +82,6 @@ export async function POST(request: NextRequest) {
       device,
       browser,
       os,
-      ip,
       createdAt: new Date(),
     })
 

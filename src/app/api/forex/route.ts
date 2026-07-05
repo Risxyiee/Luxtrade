@@ -60,11 +60,6 @@ export async function GET(request: NextRequest) {
     const interval = searchParams.get('interval') || '15m'
     const limit = parseInt(searchParams.get('limit') || '50')
 
-    console.log('📈 Fetching forex data...')
-    console.log('   Symbol:', symbol)
-    console.log('   Interval:', interval)
-    console.log('   Limit:', limit)
-
     // Validate symbol
     if (!FOREX_SYMBOLS[symbol]) {
       console.warn(`⚠️ Unknown symbol: ${symbol}, using EURUSD as default`)
@@ -77,8 +72,6 @@ export async function GET(request: NextRequest) {
 
     if (useRealAPI) {
       try {
-        console.log('🌐 Fetching from Alpha Vantage API...')
-
         // Alpha Vantage Forex API - Daily data only
         const avUrl = `https://www.alphavantage.co/query?function=FX_DAILY&from_symbol=${symbolInfo.from}&to_symbol=${symbolInfo.to}&apikey=${ALPHA_VANTAGE_API_KEY}&outputsize=compact`
 
@@ -145,8 +138,6 @@ export async function GET(request: NextRequest) {
           })
           .sort((a, b) => a.time - b.time) // Ensure ascending order
 
-        console.log(`✅ Fetched ${ohlcData.length} candles from Alpha Vantage`)
-
         return NextResponse.json({
           success: true,
           symbol,
@@ -156,7 +147,6 @@ export async function GET(request: NextRequest) {
         })
       } catch (avError: any) {
         console.warn('⚠️ Alpha Vantage API failed:', avError.message)
-        console.log('🎲 Falling back to mock data...')
 
         // Fallback to mock data
         const mockData = generateMockForexData(symbol, limit)
@@ -172,8 +162,6 @@ export async function GET(request: NextRequest) {
       }
     } else {
       // Use mock data (no API key provided)
-      console.log('🎲 Using mock forex data (no API key)')
-
       const mockData = generateMockForexData(symbol, limit)
 
       return NextResponse.json({

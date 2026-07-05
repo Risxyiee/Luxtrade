@@ -175,6 +175,8 @@ export default function TabContent({
             loading={loading}
             onAdd={() => setAddWatchlistOpen(true)}
             onDelete={onWatchlistDelete}
+            isPro={isPro}
+            onUpgrade={() => setPlanSelectionModalOpen(true)}
           />
         </motion.div>
       )}
@@ -296,7 +298,7 @@ export default function TabContent({
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.3 }}
         >
-          <MarketNewsTab language={language} />
+          <MarketNewsTab language={language} isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
         </motion.div>
       )}
 
@@ -308,7 +310,7 @@ export default function TabContent({
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.3 }}
         >
-          <EconomicCalendarTab language={language} />
+          <EconomicCalendarTab language={language} isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
         </motion.div>
       )}
 

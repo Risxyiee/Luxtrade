@@ -1,39 +1,21 @@
 import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
 
 export async function GET() {
   try {
-    let totalUsers = 20
-    let activeUsers = 7
+    const totalUsers = await db.profile.count()
 
-    try {
-      const { createClient } = await import('@supabase/supabase-js')
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    const activeUsersData = await db.trade.groupBy({ by: ['user_id'] })
+    const activeUsers = activeUsersData.length
 
-      if (supabaseUrl && supabaseKey) {
-        const supabase = createClient(supabaseUrl, supabaseKey)
-        const { count } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-
-        if (count !== null) totalUsers = count
-
-        const { count: activeCount } = await supabase
-          .from('trades')
-          .select('user_id', { count: 'exact', head: true })
-
-        if (activeCount !== null) activeUsers = Math.min(activeCount, totalUsers)
-      }
-    } catch {
-      // Use defaults
-    }
+    const tradesLogged = await db.trade.count()
 
     return NextResponse.json({
       totalUsers,
       activeUsers,
-      tradesLogged: totalUsers * 15,
+      tradesLogged,
     })
   } catch {
-    return NextResponse.json({ totalUsers: 20, activeUsers: 7, tradesLogged: 300 })
+    return NextResponse.json({ totalUsers: 0, activeUsers: 0, tradesLogged: 0 })
   }
 }
