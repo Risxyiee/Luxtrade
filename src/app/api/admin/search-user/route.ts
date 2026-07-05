@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAdmin } from '@/lib/admin-auth'
 
 export async function GET(req: NextRequest) {
   try {
+    const { error } = await requireAdmin(req)
+    if (error) return error
+
     const email = req.nextUrl.searchParams.get('email')
     
     if (!email) {

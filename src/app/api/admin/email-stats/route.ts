@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
-
-const ADMIN_EMAILS = ['luxtradee@gmail.com']
+import { requireAdmin } from '@/lib/admin-auth'
 
 export async function GET(request: NextRequest) {
   try {
-    // Admin check
-    const adminEmail = request.headers.get('x-admin-email')
-    if (!adminEmail || !ADMIN_EMAILS.includes(adminEmail.toLowerCase())) {
-      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 })
-    }
+    const { error } = await requireAdmin(request)
+    if (error) return error
 
     // Auto-migrate: ensure all tables exist before querying
     await ensureSchema()
@@ -41,7 +37,7 @@ export async function GET(request: NextRequest) {
       })
     } catch (broadcastErr: any) {
       // Table might not exist yet — return empty instead of crashing
-      console.warn('⚠️ [EMAIL-STATS] Could not fetch broadcasts (table may not exist):', broadcastErr?.message)
+      // Could not fetch broadcasts (table may not exist)
       recentBroadcasts = []
     }
 

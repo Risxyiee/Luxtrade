@@ -15,7 +15,8 @@ export async function GET() {
       activeUsers,
       tradesLogged,
     })
-  } catch {
-    return NextResponse.json({ totalUsers: 0, activeUsers: 0, tradesLogged: 0 })
+  } catch (error) {
+    console.error('[landing-stats] Error:', error)
+    return NextResponse.json({ totalUsers: 0, activeUsers: 0, tradesLogged: 0 }, { status: 500 })
   }
 }

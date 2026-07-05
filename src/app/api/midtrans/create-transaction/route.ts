@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
         },
       })
     } catch (dbErr: any) {
-      console.warn('⚠️ [Midtrans] DB save skipped:', dbErr.message)
+      // DB save skipped (non-critical)
     }
 
     // ── 10. Consume promo quota if applied ─────────────────────
@@ -215,8 +215,6 @@ export async function POST(request: NextRequest) {
         // Non-critical
       }
     }
-
-    console.log('✅ [Midtrans] Transaction created')
 
     return NextResponse.json({
       success: true,

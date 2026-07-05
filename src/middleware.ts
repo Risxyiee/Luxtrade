@@ -15,8 +15,9 @@ export async function middleware(request: NextRequest) {
   // Allow public static pages
   if (PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) return NextResponse.next()
   
-  // For dashboard and settings, check session
-  if (pathname.startsWith('/dashboard') || pathname === '/settings') {
+  // For dashboard, settings, and admin pages — check session
+  const protectedPaths = ['/dashboard', '/settings', '/admin-secret', '/admin-email', '/admin-panel', '/admin-subscriptions']
+  if (protectedPaths.some(p => pathname === p || pathname.startsWith(p + '/'))) {
     const response = NextResponse.next()
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,5 +46,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/settings', '/auth/:path*'],
+  matcher: ['/dashboard/:path*', '/settings', '/auth/:path*', '/admin-secret', '/admin-email', '/admin-panel', '/admin-subscriptions', '/admin-subscriptions/:path*'],
 }

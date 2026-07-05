@@ -34,16 +34,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { tradingAccountId, accountNumber, password, brokerServer, platform } = body
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📋 [METAAPI CONNECT] Request body:', {
-        tradingAccountId,
-        accountNumber: accountNumber ? '***' : 'MISSING',
-        password: password ? '***' : 'MISSING',
-        brokerServer,
-        platform
-      })
-    }
-
     // Validate required fields
     if (!tradingAccountId || !accountNumber || !password || !brokerServer || !platform) {
       // Missing required fields
@@ -112,12 +102,6 @@ export async function POST(req: NextRequest) {
     // Create MetaApi account
     let metaApiAccount
     try {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔵 [METAAPI CONNECT] Creating MetaApi account for:', accountNumber, 'on', brokerServer)
-        console.log('DEBUG: Menggunakan Token MetaApi:', process.env.METAAPI_TOKEN ? 'Tersedia' : 'KOSONG')
-        console.log('DEBUG: Token length:', process.env.METAAPI_TOKEN?.length || 0)
-      }
-
       metaApiAccount = await createMetaApiAccount({
         accountNumber,
         password,
@@ -125,7 +109,6 @@ export async function POST(req: NextRequest) {
         platform: platform as 'MT4' | 'MT5',
         name: `${platform} Account ${accountNumber}`
       })
-      console.log('✅ [METAAPI CONNECT] MetaApi account created successfully')
     } catch (metaApiError) {
       console.error('🔴 METAAPI ERROR DETAIL:', metaApiError)
 
@@ -140,7 +123,7 @@ export async function POST(req: NextRequest) {
       console.error('🔴 [METAAPI CONNECT] Error details:', errorDetails)
 
       // ROLLBACK: Delete the trading account record to avoid duplicate key error on retry
-      console.log('🔄 [METAAPI CONNECT] Rolling back - deleting trading account record')
+      // Rolling back - deleting trading account record
       const { error: deleteError } = await supabaseAdmin
         .from('trading_accounts')
         .delete()
@@ -149,7 +132,7 @@ export async function POST(req: NextRequest) {
       if (deleteError) {
         console.error('🔴 [METAAPI CONNECT] Failed to delete trading account during rollback:', deleteError)
       } else {
-        console.log('✅ [METAAPI CONNECT] Successfully deleted trading account during rollback') // status log
+        // Successfully deleted trading account during rollback
       }
 
       return NextResponse.json(
@@ -187,8 +170,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    console.log('✅ [METAAPI CONNECT] Trading account updated successfully')
-
     const response = NextResponse.json({
       success: true,
       message: 'Account successfully connected to MetaApi',
@@ -220,7 +201,7 @@ export async function POST(req: NextRequest) {
     // ROLLBACK: Try to clean up trading account if possible
     const body = await req.json().catch(() => ({}))
     if (body.tradingAccountId) {
-      console.log('🔄 [METAAPI CONNECT] Rolling back - deleting trading account record in main catch')
+      // Rolling back - deleting trading account record in main catch
       const { createClient: createAdminClient } = await import('@supabase/supabase-js')
       const supabaseAdmin = createAdminClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,

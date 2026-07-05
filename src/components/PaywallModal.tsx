@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { PRICING, formatRupiah } from '@/lib/pricing'
 import { useState } from 'react'
 
 interface PaywallModalProps {
@@ -39,21 +40,21 @@ export default function PaywallModal({
   const pricing = {
     pro: {
       title: isEnglish ? 'ELITE PRO' : 'ELITE PRO',
-      price: isEnglish ? '$4.99' : 'Rp 39.000',
+      price: isEnglish ? '$4.99' : formatRupiah(PRICING.PRO_30_DAYS),
       period: isEnglish ? '/ Month' : '/ Bulan',
       description: isEnglish ? 'For serious traders who want consistent profits' : 'Untuk trader serius yang ingin profit konsisten',
       popular: isEnglish ? 'Most Popular' : 'Paling Populer'
     },
     annual: {
       title: isEnglish ? 'PRO ANNUAL' : 'PRO ANNUAL',
-      price: isEnglish ? '$39.99' : 'Rp 390.000',
+      price: isEnglish ? '$39.99' : formatRupiah(PRICING.PRO_ANNUAL),
       period: isEnglish ? '/ Year' : '/ Tahun',
       description: isEnglish ? 'Best value — equivalent to 10 months' : 'Harga terbaik — setara 10 bulan',
       popular: isEnglish ? 'BEST VALUE' : 'HEMAT 2 BULAN'
     },
     lifetime: {
       title: isEnglish ? 'LIFETIME ULTRA' : 'LIFETIME ULTRA',
-      price: isEnglish ? '$29.99' : 'Rp 299.000',
+      price: isEnglish ? '$29.99' : formatRupiah(PRICING.PRO_LIFETIME),
       period: isEnglish ? '/ One-Time Payment' : '/ Sekali Bayar',
       description: isEnglish ? 'Lifetime access at promotional price' : 'Akses seumur hidup dengan harga promo',
       promo: isEnglish ? 'PROMO: ONLY 30 SLOTS LEFT!' : 'PROMO MERDEKA TRADER - SISA 30 SLOT!'

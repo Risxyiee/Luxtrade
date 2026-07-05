@@ -127,7 +127,6 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
         const config = await res.json()
 
         if (!config.configured || !config.snapUrl) {
-          console.log('[PlanSelection] Midtrans not configured — manual QRIS fallback')
           setGatewayAvailable(false)
           return
         }
@@ -147,10 +146,8 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
         script.async = true
         script.onload = () => {
           setSnapLoaded(true)
-          console.log('[PlanSelection] Midtrans Snap.js loaded')
         }
         script.onerror = () => {
-          console.warn('[PlanSelection] Failed to load Snap.js — fallback to manual')
           setGatewayAvailable(false)
         }
         document.body.appendChild(script)

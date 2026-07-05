@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-const ADMIN_EMAIL = 'luxtradee@gmail.com'
+import { requireAdmin } from '@/lib/admin-auth'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { adminEmail, userId, months } = body
+    const { error } = await requireAdmin(request)
+    if (error) return error
 
-    // Verify admin
-    if (adminEmail !== ADMIN_EMAIL) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 403 }
-      )
-    }
+    const body = await request.json()
+    const { userId, months } = body
 
     // This endpoint is deprecated - use /api/admin/users instead
     return NextResponse.json({
@@ -31,17 +25,11 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const adminEmail = searchParams.get('adminEmail')
-    const userId = searchParams.get('userId')
+    const { error } = await requireAdmin(request)
+    if (error) return error
 
-    // Verify admin
-    if (adminEmail !== ADMIN_EMAIL) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 403 }
-      )
-    }
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get('userId')
 
     // This endpoint is deprecated - use /api/admin/users instead
     return NextResponse.json({

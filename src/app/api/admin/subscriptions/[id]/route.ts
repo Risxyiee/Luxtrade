@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAdmin } from '@/lib/admin-auth'
 
 // PUT update a subscription
 export async function PUT(
@@ -7,6 +8,9 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     const params = await context.params
     const body = await request.json()
     const { id } = params
@@ -108,6 +112,9 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     const params = await context.params
     const { id } = params
 

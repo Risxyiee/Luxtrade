@@ -59,8 +59,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('✅ [Midtrans Webhook] Signature valid')
-
     // ── 3. Determine final status ──────────────────────────────
     // Midtrans status mapping:
     // capture   + accept → SUCCESS
@@ -102,14 +100,12 @@ export async function POST(request: NextRequest) {
     })
 
     if (!paymentOrder) {
-      console.warn('⚠️ [Midtrans Webhook] Order not found in DB:', orderId)
       // Still return 200 to prevent Midtrans retries
       return NextResponse.json({ status: 'ok', message: 'Order not found, acknowledged' })
     }
 
     // ── 5. Skip if already processed ───────────────────────────
     if (paymentOrder.status === 'SUCCESS' && finalStatus === 'SUCCESS') {
-      console.log('ℹ️ [Midtrans Webhook] Already processed, skipping:', orderId)
       return NextResponse.json({ status: 'ok', message: 'Already processed' })
     }
 
@@ -122,8 +118,6 @@ export async function POST(request: NextRequest) {
         ...(shouldUpgrade && transactionTime ? { paidAt: new Date(transactionTime) } : {}),
       },
     })
-
-    console.log(`📝 [Midtrans Webhook] Order ${orderId} → ${finalStatus}`)
 
     // ── 7. Upgrade user to PRO on successful payment ───────────
     if (shouldUpgrade) {
@@ -174,7 +168,6 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      console.log('🎉 [Midtrans Webhook] User upgraded to PRO!')
     }
 
     // ── 8. Return 200 to acknowledge ───────────────────────────
