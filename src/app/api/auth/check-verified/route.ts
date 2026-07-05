@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 /**
  * GET /api/auth/check-verified
  * Checks if the authenticated user's email is verified.
- * IMPORTANT: Email verification is ENFORCED to prevent bots.
+ * Exception: If user has a successful payment, allow login (email was auto-verified by webhook).
  */
 export async function GET(request: NextRequest) {
   try {
@@ -16,32 +16,49 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    // Check Prisma profile for custom email verification
+    // Check if user has a successful payment — webhook auto-verifies email
+    const successfulPayment = await db.paymentOrder.findFirst({
+      where: {
+        userId: user.id,
+        status: 'SUCCESS',
+      },
+      select: { id: true },
+    })
+
+    if (successfulPayment) {
+      // User paid — webhook should have verified their email.
+      // Double-check and force-verify if needed.
+      const profile = await db.profile.findUnique({
+        where: { id: user.id },
+        select: { emailVerified: true }
+      })
+
+      if (profile && !profile.emailVerified) {
+        // Webhook might have failed to update — fix it now
+        await db.profile.update({
+          where: { id: user.id },
+          data: { emailVerified: true },
+        })
+      }
+
+      return NextResponse.json({ verified: true, justPaid: true })
+    }
+
+    // No successful payment — enforce email verification
     const profile = await db.profile.findUnique({
       where: { id: user.id },
       select: { emailVerified: true, email: true }
     })
 
-    // If no profile exists yet (e.g., old user before verification system), 
-    // check Supabase Auth's built-in email confirmation
     if (!profile) {
-      // Fall back to Supabase's email_confirm field
       const verified = !!user.email_confirmed_at
-      if (!verified) {
-        console.warn(`⚠️ No profile found for user ${user.id}, Supabase email_confirmed_at is null - blocking login`)
-      }
       return NextResponse.json({ verified })
     }
 
     const isVerified = !!profile.emailVerified
-    if (!isVerified) {
-      console.log(`🚫 Email NOT verified for user: ${user.id} (${profile.email}) - blocking login`)
-    }
     return NextResponse.json({ verified: isVerified })
   } catch (error: any) {
-    console.error('❌ Check verified error:', error)
-    // On error, BLOCK login to enforce email verification.
-    // This prevents bypassing verification through server errors.
+    console.error('Check verified error:', error)
     return NextResponse.json({ verified: false, error: 'Gagal memeriksa verifikasi email. Coba lagi.' })
   }
 }
