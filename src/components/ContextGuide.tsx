@@ -21,36 +21,6 @@ interface GuideTip {
 }
 
 export const guideData: Record<string, GuideTip> = {
-  dashboard: {
-    id: 'dashboard',
-    title: {
-      id: 'Dashboard',
-      en: 'Dashboard'
-    },
-    description: {
-      id: 'Lihat ringkasan performa trading Anda: P&L, win rate, equity curve, dan statistik lainnya.',
-      en: 'View your trading performance summary: P&L, win rate, equity curve, and other statistics.'
-    },
-    tips: {
-      id: 'Review dashboard setiap hari untuk tracking progress.',
-      en: 'Review dashboard daily to track progress.'
-    }
-  },
-  trades: {
-    id: 'trades',
-    title: {
-      id: 'Daftar Transaksi',
-      en: 'Trades List'
-    },
-    description: {
-      id: 'Lihat semua trade Anda, filter berdasarkan pair/session, dan analisis performa historis.',
-      en: 'View all your trades, filter by pair/session, and analyze historical performance.'
-    },
-    tips: {
-      id: 'Klik trade untuk melihat detail lengkap.',
-      en: 'Click on a trade to view full details.'
-    }
-  },
   addTrade: {
     id: 'addTrade',
     title: {
@@ -79,39 +49,6 @@ export const guideData: Record<string, GuideTip> = {
     tips: {
       id: 'Anda bisa memiliki multiple akun trading.',
       en: 'You can have multiple trading accounts.'
-    }
-  },
-  calendar: {
-    id: 'calendar',
-    title: {
-      id: 'Kalender Trading',
-      en: 'Trading Calendar'
-    },
-    description: {
-      id: 'Lihat dan plan trading sessions Anda dengan calendar visual.',
-      en: 'View and plan your trading sessions with visual calendar.'
-    }
-  },
-  journal: {
-    id: 'journal',
-    title: {
-      id: 'Jurnal Trading',
-      en: 'Trading Journal'
-    },
-    description: {
-      id: 'Catat refleksi dan pelajaran dari setiap trading session.',
-      en: 'Record reflections and lessons from each trading session.'
-    }
-  },
-  watchlist: {
-    id: 'watchlist',
-    title: {
-      id: 'Daftar Pantauan',
-      en: 'Watchlist'
-    },
-    description: {
-      id: 'Monitor pair favorit Anda dengan harga target dan notes.',
-      en: 'Monitor your favorite pairs with target prices and notes.'
     }
   },
   risk: {

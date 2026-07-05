@@ -49,4 +49,4 @@ export async function countUserJournalsThisMonth(userId: string): Promise<number
 }
 
 /** Free user limits */
-export const FREE_JOURNAL_LIMIT = 15
+export const FREE_JOURNAL_LIMIT = 10
