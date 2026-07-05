@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
+import { isUserPro } from '@/lib/pro-check'
 
 // GET - Fetch goals for a user
 export async function GET(request: NextRequest) {
@@ -60,6 +61,11 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const pro = await isUserPro(user.id)
+    if (!pro) {
+      return NextResponse.json({ error: 'PRO_REQUIRED', code: 'PRO_REQUIRED' }, { status: 403 })
     }
 
     const body = await request.json()

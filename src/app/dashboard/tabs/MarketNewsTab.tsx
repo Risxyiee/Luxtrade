@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Newspaper, RefreshCw, AlertTriangle, Zap, Sparkles, ExternalLink } from 'lucide-react'
+import { Newspaper, RefreshCw, AlertTriangle, Zap, Sparkles, ExternalLink, Lock, Crown } from 'lucide-react'
 
 // Interface
 interface FullNewsItem {
@@ -19,10 +19,12 @@ interface FullNewsItem {
 
 interface MarketNewsTabProps {
   language: 'id' | 'en'
+  isPro?: boolean
+  onUpgrade?: () => void
 }
 
 // Component
-function MarketNewsTab({ language }: MarketNewsTabProps) {
+function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
   // News state
   const [news, setNews] = useState<FullNewsItem[]>([])
   const [newsLoading, setNewsLoading] = useState(true)
@@ -48,6 +50,21 @@ function MarketNewsTab({ language }: MarketNewsTabProps) {
     const interval = setInterval(fetchNews, 30 * 60 * 1000)
     return () => clearInterval(interval)
   }, [fetchNews])
+
+  if (!isPro) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center mb-4">
+          <Crown className="w-8 h-8 text-white" />
+        </div>
+        <h3 className="text-xl font-bold text-white mb-2">{language === 'id' ? 'Fitur Premium' : 'Premium Feature'}</h3>
+        <p className="text-gray-400 text-center max-w-sm mb-6">{language === 'id' ? 'Berita pasar forex hanya tersedia untuk pengguna PRO' : 'Forex market news is only available for PRO users'}</p>
+        <button onClick={onUpgrade} className="px-6 py-2.5 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity">
+          {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
+        </button>
+      </div>
+    )
+  }
 
   // News filtering
   const highImpact = news.filter(n => n.type === 'high')

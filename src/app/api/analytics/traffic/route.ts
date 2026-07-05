@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getAuthUser } from '@/lib/api-auth'
+import { db } from '@/lib/db'
 import { analyticsData, cleanupOldVisits } from '@/lib/analytics-memory'
 
 export async function GET(request: NextRequest) {
   try {
+    const authUser = await getAuthUser(request)
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const profile = await db.profile.findUnique({ where: { id: authUser.id }, select: { role: true } })
+    if (profile?.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 })
+    }
+
     cleanupOldVisits()
 
     const { searchParams } = new URL(request.url)

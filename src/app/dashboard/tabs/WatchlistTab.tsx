@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Eye, Plus, Trash2, TrendingUp as TrendingUpIcon, Bell, BellRing } from 'lucide-react'
+import { Eye, Plus, Trash2, TrendingUp as TrendingUpIcon, Bell, BellRing, Crown, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
@@ -19,13 +19,17 @@ interface WatchlistTabProps {
   loading: boolean
   onAdd: () => void
   onDelete: (id: string) => void
+  isPro?: boolean
+  onUpgrade?: () => void
 }
 
 export default function WatchlistTab({
   items,
   loading,
   onAdd,
-  onDelete
+  onDelete,
+  isPro,
+  onUpgrade
 }: WatchlistTabProps) {
   // Local alert toggle state (visual only — persists in session)
   const [alertItems, setAlertItems] = useState<Set<string>>(() => {
@@ -49,6 +53,21 @@ export default function WatchlistTab({
       sessionStorage.setItem('watchlist-alerts', JSON.stringify([...next]))
       return next
     })
+  }
+
+  if (!loading && !isPro) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mb-4">
+          <Crown className="w-8 h-8 text-white" />
+        </div>
+        <h3 className="text-xl font-bold text-white mb-2">Premium Feature</h3>
+        <p className="text-gray-400 text-center max-w-sm mb-6">Watchlist is only available for PRO users</p>
+        <button onClick={onUpgrade} className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity">
+          Upgrade to PRO
+        </button>
+      </div>
+    )
   }
 
   if (loading) {

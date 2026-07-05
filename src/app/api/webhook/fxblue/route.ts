@@ -38,6 +38,15 @@ interface FxBlueWebhookPayload {
 // POST: Receive webhook from FxBlue
 export async function POST(req: NextRequest) {
   try {
+    // Webhook secret verification
+    const webhookSecret = process.env.WEBHOOK_SECRET
+    if (webhookSecret) {
+      const authHeader = req.headers.get('authorization') || req.headers.get('x-webhook-secret')
+      if (authHeader !== `Bearer ${webhookSecret}`) {
+        return NextResponse.json({ error: 'Invalid webhook secret' }, { status: 401 })
+      }
+    }
+
     console.log('🔔 [FXBLUE WEBHOOK] Received webhook request')
 
     // Parse request body

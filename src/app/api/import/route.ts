@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/api-auth'
+import { createClientForApi } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {

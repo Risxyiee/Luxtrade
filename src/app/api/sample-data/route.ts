@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getAuthUser } from '@/lib/api-auth'
+import { isUserPro } from '@/lib/pro-check'
 
 const SAMPLE_TRADES = [
   { symbol: 'EUR/USD', type: 'BUY', open_price: 1.0842, close_price: 1.0891, lot_size: 0.1, profit_loss: 49.00, session: 'London', emotion: 'Calm', setup_type: 'Trend Continuation', risk_reward_ratio: 2.1, trade_duration: 45 },
@@ -28,6 +29,11 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = authUser.id
+
+    const pro = await isUserPro(userId)
+    if (!pro) {
+      return NextResponse.json({ error: 'PRO_REQUIRED', code: 'PRO_REQUIRED' }, { status: 403 })
+    }
 
     // Check if user already has trades
     const existingCount = await db.trade.count({ where: { user_id: userId } })
