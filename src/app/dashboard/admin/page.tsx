@@ -23,6 +23,7 @@ import { toast } from 'sonner'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
+import { authFetch } from '@/lib/api-fetch'
 
 // Admin credentials - MUST match backend
 const ADMIN_IDS = ['8f7fe295-2df0-412d-ba91-8e6060f3ab08']
@@ -500,9 +501,7 @@ export default function AdminPanel() {
     setLoading(true)
     setFetchError(null)
     try {
-      const res = await fetch('/api/admin/users', {
-        credentials: 'include'
-      })
+      const res = await authFetch('/api/admin/users')
 
       const data = await res.json()
 
@@ -555,7 +554,7 @@ export default function AdminPanel() {
     if (activatingPromo) return
     setActivatingPromo(true)
     try {
-      const res = await fetch('/api/admin/promo/activate', {
+      const res = await authFetch('/api/admin/promo/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-email': 'luxtradee@gmail.com' },
         body: JSON.stringify({ code: 'TRADERCEPAT' }),
@@ -580,7 +579,7 @@ export default function AdminPanel() {
     if (syncing) return
     setSyncing(true)
     try {
-      const res = await fetch('/api/admin/sync-users', {
+      const res = await authFetch('/api/admin/sync-users', {
         method: 'POST',
         headers: { 'x-admin-email': 'luxtradee@gmail.com' },
       })
@@ -621,13 +620,9 @@ export default function AdminPanel() {
 
     setUpdatingId(userId)
     try {
-      const res = await fetch('/api/admin/users', {
+      const res = await authFetch('/api/admin/users', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({ userId, action: 'revoke' }),
-        credentials: 'include'
       })
 
       const data = await res.json()
@@ -655,13 +650,9 @@ export default function AdminPanel() {
   const activatePROWithDuration = async (userId: string, days: number, label: string) => {
     setUpdatingId(userId)
     try {
-      const res = await fetch('/api/admin/users', {
+      const res = await authFetch('/api/admin/users', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({ userId, action: 'activate', days }),
-        credentials: 'include'
       })
 
       const data = await res.json()

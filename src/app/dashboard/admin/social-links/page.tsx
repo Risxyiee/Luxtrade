@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { authFetch } from '@/lib/api-fetch'
 import { CheckCircle, XCircle, Eye, ExternalLink, User, Clock, Shield, Loader2, Filter } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -113,7 +114,7 @@ export default function AdminSocialLinksPage() {
   const handleApprove = async (linkId: string) => {
     try {
       setProcessing(linkId)
-      const response = await fetch(`/api/admin/social-links/${linkId}`, {
+      const response = await authFetch(`/api/admin/social-links/${linkId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -138,7 +139,7 @@ export default function AdminSocialLinksPage() {
 
     try {
       setProcessing(selectedLink.id)
-      const response = await fetch(`/api/admin/social-links/${selectedLink.id}`, {
+      const response = await authFetch(`/api/admin/social-links/${selectedLink.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -168,7 +169,7 @@ export default function AdminSocialLinksPage() {
 
     try {
       setProcessing(linkId)
-      const response = await fetch(`/api/admin/social-links/${linkId}`, {
+      const response = await authFetch(`/api/admin/social-links/${linkId}`, {
         method: 'DELETE',
         credentials: 'include'
       })

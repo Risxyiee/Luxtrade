@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
+import { authFetch } from '@/lib/api-fetch'
 
 // Admin email - hardcoded for security
 const ADMIN_EMAIL = 'luxtradee@gmail.com'
@@ -117,12 +118,7 @@ export default function AdminPanel() {
     try {
       // Get session token for admin API auth
       const { supabase } = await import('@/lib/supabase')
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token || ''
-
-      const usersRes = await fetch('/api/admin/users', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      const usersRes = await authFetch('/api/admin/users')
 
       const usersData = await usersRes.json()
 
@@ -148,7 +144,7 @@ export default function AdminPanel() {
     if (!editingUser) return
     setProcessingEdit(true)
     try {
-      const res = await fetch('/api/admin/manual-update', {
+      const res = await authFetch('/api/admin/manual-update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

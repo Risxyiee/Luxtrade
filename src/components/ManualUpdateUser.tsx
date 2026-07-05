@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
+import { authFetch } from '@/lib/api-fetch'
 
 interface UserFound {
   id: string
@@ -36,7 +37,7 @@ export function ManualUpdateUser() {
     setUserFound(null)
 
     try {
-      const res = await fetch(`/api/admin/search-user?email=${encodeURIComponent(searchEmail.trim())}`)
+      const res = await authFetch(`/api/admin/search-user?email=${encodeURIComponent(searchEmail.trim())}`)
       const data = await res.json()
 
       if (!res.ok) {
@@ -83,9 +84,8 @@ export function ManualUpdateUser() {
     setUpdating(true)
 
     try {
-      const res = await fetch(`/api/admin/manual-update`, {
+      const res = await authFetch(`/api/admin/manual-update`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: userFound.email,
           plan,
