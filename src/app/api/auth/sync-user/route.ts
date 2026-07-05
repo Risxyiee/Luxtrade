@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
 import { supabaseAdmin, isAdminAvailable, getAdminAuth } from '@/lib/supabase-admin-alt'
 
 export async function POST(request: NextRequest) {
@@ -32,11 +31,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Use Supabase admin to update user metadata
+    // CRITICAL: Do NOT pass `email` as top-level param to updateUserById.
+    // Doing so triggers an email change request in Supabase, which:
+    //   1. Clears email_confirmed_at → user becomes unconfirmed
+    //   2. Sends a confirmation email to the "old" address
+    //   3. Blocks login with "Invalid login credentials"
+    // Only update user_metadata.
     const { data: user, error } = await authAdmin.updateUserById(
       userId,
       {
-        email: email,
         user_metadata: {
           full_name: fullName || email.split('@')[0],
           email: email,
