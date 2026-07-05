@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { verifyMidtransSignature } from '@/lib/payment/midtrans'
+import { getAdminAuth } from '@/lib/supabase-admin-alt'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -154,6 +155,7 @@ export async function POST(request: NextRequest) {
           subscription_until: subscriptionUntil,
           plan: paymentOrder.plan === 'LIFETIME' ? 'LIFETIME' : 'PRO',
           hasEverBeenPro: true,
+          emailVerified: true,
         },
       })
 
@@ -167,6 +169,26 @@ export async function POST(request: NextRequest) {
           endDate: subscriptionUntil,
         },
       })
+
+      // Auto-verify email in Supabase Auth so user can login
+      try {
+        const authAdmin = getAdminAuth()
+        if (authAdmin) {
+          await authAdmin.updateUserById(userId, {
+            email_confirm: true,
+            user_metadata: {
+              email_verified: true,
+              is_pro: true,
+              subscription_status: 'active',
+              subscription_until: subscriptionUntil.toISOString(),
+              has_ever_been_pro: true,
+              updated_at: new Date().toISOString(),
+            }
+          })
+        }
+      } catch (verifyErr) {
+        console.error('⚠️ [Midtrans Webhook] Failed to auto-verify email (non-critical):', verifyErr)
+      }
 
     }
 

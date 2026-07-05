@@ -35,9 +35,10 @@ function CheckoutContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const planParam = (searchParams.get('plan') || 'PRO_30_DAYS') as PricingPlan
+  const paymentStatus = searchParams.get('payment')
 
-  // Steps: 'auth' → 'payment' → 'verify-email'
-  const [step, setStep] = useState<'auth' | 'payment' | 'verify-email'>('auth')
+  // Steps: 'auth' → 'payment' → 'success'
+  const [step, setStep] = useState<'auth' | 'payment' | 'success'>('auth')
   const [mode, setMode] = useState<'login' | 'signup'>('login')
 
   // Auth fields
@@ -47,6 +48,9 @@ function CheckoutContent() {
   const [showPassword, setShowPassword] = useState(false)
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState('')
+
+  // For unverified user who just signed up
+  const [unverifiedUserId, setUnverifiedUserId] = useState<string | null>(null)
 
   // Payment
   const [snapLoaded, setSnapLoaded] = useState(false)
@@ -85,6 +89,13 @@ function CheckoutContent() {
     })
   }, [])
 
+  // Handle payment=success callback from Midtrans redirect
+  useEffect(() => {
+    if (paymentStatus === 'success') {
+      setStep('success')
+    }
+  }, [paymentStatus])
+
   // ── Login handler ──────────────────────────────────
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -99,9 +110,11 @@ function CheckoutContent() {
         const msg = signInError.message?.toLowerCase() || ''
         if (msg.includes('invalid') || msg.includes('credentials')) {
           setAuthError('Email atau password salah.')
-          setMode('signup') // Suggest signup
+          setMode('signup')
         } else if (msg.includes('email not confirmed')) {
-          setAuthError('Email belum diverifikasi. Cek inbox/spam kamu.')
+          // User registered but not verified — they must have a pending payment
+          // or they need to complete payment first. Let them proceed.
+          setAuthError('Email belum diverifikasi. Silakan cek inbox kamu atau coba lagi setelah bayar.')
         } else if (msg.includes('not found')) {
           setAuthError('Akun tidak ditemukan. Silakan daftar dulu.')
           setMode('signup')
@@ -113,7 +126,6 @@ function CheckoutContent() {
       }
 
       if (data.session) {
-        // Sync user
         try {
           await fetch('/api/auth/sync-user', {
             method: 'POST',
@@ -168,29 +180,14 @@ function CheckoutContent() {
         return
       }
 
-      // Auto-login after signup
-      const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({ email, password })
-      if (loginErr || !loginData.session) {
-        // If auto-login fails (unverified email), go to verify step
-        setStep('verify-email')
-        setAuthLoading(false)
-        return
+      // Save userId for unverified payment flow
+      if (data.user?.id) {
+        setUnverifiedUserId(data.user.id)
       }
 
-      // Sync user
-      try {
-        await fetch('/api/auth/sync-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: loginData.user.id,
-            email: loginData.user.email,
-            fullName: fullName || email.split('@')[0]
-          })
-        })
-      } catch { /* non-critical */ }
-
-      // Go to payment
+      // DON'T try auto-login — email is not verified yet.
+      // Go directly to payment step.
+      // The webhook will auto-verify email + activate PRO after payment.
       setStep('payment')
     } catch {
       setAuthError('Koneksi bermasalah. Cek internet kamu.')
@@ -204,15 +201,33 @@ function CheckoutContent() {
     if (!snapLoaded) { toast.error('Payment gateway sedang dimuat...'); return }
     setPayLoading(true)
     try {
-      const res = await fetch('/api/midtrans/create-transaction', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planParam }),
-      })
-      const data = await res.json()
+      let res: Response
+      let data: any
+
+      if (unverifiedUserId) {
+        // User just signed up, no session — use unverified endpoint
+        res = await fetch('/api/midtrans/create-transaction-unverified', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: unverifiedUserId,
+            email,
+            fullName: fullName || email.split('@')[0],
+            plan: planParam,
+          }),
+        })
+        data = await res.json()
+      } else {
+        // User is logged in — use normal endpoint
+        res = await fetch('/api/midtrans/create-transaction', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan: planParam }),
+        })
+        data = await res.json()
+      }
 
       if (!res.ok) {
-        console.error('[Checkout] Pay failed:', res.status, data)
         toast.error(data.error || `Gagal membuat transaksi (${res.status})`)
         setPayLoading(false)
         return
@@ -221,7 +236,7 @@ function CheckoutContent() {
       ;(window as any).snap.pay(data.token, {
         onSuccess: () => {
           toast.success('Pembayaran berhasil! Akun PRO sedang diaktivasi...')
-          setStep('verify-email')
+          setStep('success')
         },
         onPending: () => { toast.info('Menunggu pembayaran...') },
         onError: () => { toast.error('Pembayaran gagal atau dibatalkan.') },
@@ -262,17 +277,17 @@ function CheckoutContent() {
           {[
             { key: 'auth', label: 'Akun' },
             { key: 'payment', label: 'Bayar' },
-            { key: 'verify-email', label: 'Selesai' },
+            { key: 'success', label: 'Selesai' },
           ].map((s, i) => (
             <React.Fragment key={s.key}>
               <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
                 step === s.key
                   ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                  : ['auth', 'payment', 'verify-email'].indexOf(step) > i
+                  : ['auth', 'payment', 'success'].indexOf(step) > i
                   ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
                   : 'bg-white/5 text-white/30 border border-white/10'
               }`}>
-                {['auth', 'payment', 'verify-email'].indexOf(step) > i ? (
+                {['auth', 'payment', 'success'].indexOf(step) > i ? (
                   <CheckCircle className="w-3 h-3" />
                 ) : (
                   <span className="w-3 h-3 rounded-full border-current border-[1.5px] flex items-center justify-center text-[8px]">{i + 1}</span>
@@ -280,7 +295,7 @@ function CheckoutContent() {
                 {s.label}
               </div>
               {i < 2 && (
-                <div className={`h-px w-6 ${['auth', 'payment', 'verify-email'].indexOf(step) > i ? 'bg-emerald-500/40' : 'bg-white/10'}`} />
+                <div className={`h-px w-6 ${['auth', 'payment', 'success'].indexOf(step) > i ? 'bg-emerald-500/40' : 'bg-white/10'}`} />
               )}
             </React.Fragment>
           ))}
@@ -447,15 +462,15 @@ function CheckoutContent() {
 
               <p className="text-white/25 text-xs mt-4 flex items-center justify-center gap-1.5">
                 <ShieldCheck className="w-3 h-3" />
-                Pembayaran aman via Midtrans — Aktivasi PRO otomatis
+                Pembayaran aman via Midtrans — Email & PRO otomatis aktif setelah bayar
               </p>
             </motion.div>
           )}
 
-          {/* ── STEP 3: Done / Verify Email ──────────── */}
-          {step === 'verify-email' && (
+          {/* ── STEP 3: Success ──────────────────────── */}
+          {step === 'success' && (
             <motion.div
-              key="verify-email"
+              key="success"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
@@ -464,28 +479,20 @@ function CheckoutContent() {
               <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-8 h-8 text-emerald-400" />
               </div>
-              <h2 className="text-2xl font-bold text-white mb-2">Akun PRO Aktif! 🎉</h2>
-              <p className="text-white/60 text-sm mb-6">
-                Selamat! Paket <strong className="text-amber-400">{planLabel}</strong> sudah aktif.
+              <h2 className="text-2xl font-bold text-white mb-2">Pembayaran Berhasil! 🎉</h2>
+              <p className="text-white/60 text-sm mb-2">
+                Paket <strong className="text-amber-400">{planLabel}</strong> sudah aktif.
+              </p>
+              <p className="text-white/40 text-xs mb-6">
+                Email kamu sudah otomatis terverifikasi. Silakan login dengan akun yang baru didaftarkan.
               </p>
 
-              {/* Email verification reminder */}
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-6 text-left">
-                <div className="flex items-center gap-2 mb-2">
-                  <Mail className="w-4 h-4 text-amber-400" />
-                  <p className="text-amber-300 text-sm font-semibold">Verifikasi Email Kamu</p>
-                </div>
-                <p className="text-white/50 text-xs">
-                  Cek inbox/spam email <strong className="text-white/70">{email}</strong> dan klik link verifikasi untuk keamanan akun.
-                </p>
-              </div>
-
               <Button
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push('/auth/login')}
                 size="lg"
                 className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-semibold shadow-lg shadow-emerald-500/25"
               >
-                Buka Dashboard <ArrowRight className="w-4 h-4 ml-2" />
+                Login Sekarang <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
 
               <div className="mt-4">
