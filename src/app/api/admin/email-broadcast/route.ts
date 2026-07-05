@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureSchema, isDatabaseAvailable } from '@/lib/db'
 import { sendEmail, getUnverifiedBulkReminderHtml, getVerificationPromoEmailHtml } from '@/lib/email'
+import { requireAdmin } from '@/lib/admin-auth'
 import crypto from 'crypto'
 
-const ADMIN_EMAILS = ['luxtradee@gmail.com']
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 const BATCH_SIZE = 50
 // Resend free tier: max 2 requests/second.
@@ -13,13 +13,13 @@ const EMAIL_DELAY_MS = 600
 // GET handler: Send test email to admin
 export async function GET(request: NextRequest) {
   try {
-    const adminEmail = request.headers.get('x-admin-email')
-    if (!adminEmail || !ADMIN_EMAILS.includes(adminEmail.toLowerCase())) {
-      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 })
-    }
+    const { error, user } = await requireAdmin(request)
+    if (error) return error
 
     const subject = request.nextUrl.searchParams.get('subject') || 'Test Email — LuxTrade'
     const htmlBody = request.nextUrl.searchParams.get('htmlBody') || '<p>Ini email test dari Admin Panel LuxTrade.</p>'
+
+    const adminEmail = user!.email || 'admin'
 
     const personalizedSubject = subject.replace(/\{\{name\}\}/g, 'Admin').replace(/\{\{email\}\}/g, adminEmail)
     const personalizedHtml = htmlBody.replace(/\{\{name\}\}/g, 'Admin').replace(/\{\{email\}\}/g, adminEmail)
@@ -42,14 +42,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Admin check
-    const adminEmail = request.headers.get('x-admin-email')
-    if (!adminEmail || !ADMIN_EMAILS.includes(adminEmail.toLowerCase())) {
-      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 })
-    }
+    const { error, user } = await requireAdmin(request)
+    if (error) return error
 
     const body = await request.json()
     const { target, subject, htmlBody, customText, promoCode } = body
+
+    const adminEmail = user!.email || 'admin'
 
     // Auto-migrate: ensure email_broadcasts table exists
     await ensureSchema()

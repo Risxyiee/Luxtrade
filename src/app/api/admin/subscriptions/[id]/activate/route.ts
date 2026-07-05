@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
 import { sendTelegramNotification } from '@/lib/telegram'
+import { requireAdmin } from '@/lib/admin-auth'
 
 // Commission rate: 30% of Rp 49,000 = Rp 14,700
 const COMMISSION_PER_PRO = 14700
@@ -12,6 +13,9 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     const params = await context.params
     const { id } = params
     const body = await request.json()

@@ -23,7 +23,6 @@ export async function GET(request: NextRequest) {
     const authUser = await getAuthUser(request)
 
     if (!authUser) {
-      console.log('❌ [API] Unauthorized - no valid user')
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }

@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
-
-const ADMIN_EMAILS = ['luxtradee@gmail.com']
+import { requireAdmin } from '@/lib/admin-auth'
 
 export async function POST(request: NextRequest) {
-  const adminEmail = request.headers.get('x-admin-email')
-  if (!adminEmail || !ADMIN_EMAILS.includes(adminEmail.toLowerCase())) {
-    return NextResponse.json({ success: false, message: 'Akses ditolak' }, { status: 403 })
-  }
+  const { error } = await requireAdmin(request)
+  if (error) return error
 
   if (!isDatabaseAvailable()) {
     return NextResponse.json({ success: false, message: 'Database tidak tersedia. Pastikan DATABASE_URL sudah di-set ke PostgreSQL.' }, { status: 503 })

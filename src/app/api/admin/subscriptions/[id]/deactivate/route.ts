@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAdmin } from '@/lib/admin-auth'
 
 // POST deactivate a subscription
 export async function POST(
@@ -7,6 +8,9 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     const params = await context.params
     const { id } = params
     const body = await request.json()

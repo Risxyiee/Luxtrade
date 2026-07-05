@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, getAdminStatus } from '@/lib/supabase-admin-alt'
 import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
+import { requireAdmin } from '@/lib/admin-auth'
 
 // Helper: sync subscription data to Prisma profile
 async function syncProfileFromAuth(userId: string, isPro: boolean, subscriptionUntil: string | null) {
@@ -17,18 +18,17 @@ async function syncProfileFromAuth(userId: string, isPro: boolean, subscriptionU
     } else {
       await db.profile.create({ data: { id: userId, ...data } })
     }
-    console.log(`✅ [ADMIN API] Synced Prisma profile for ${userId}: is_pro=${isPro}`)
+    // Synced Prisma profile
   } catch (err) {
-    console.warn('⚠️ [ADMIN API] Failed to sync Prisma profile (non-critical):', err)
+    // Failed to sync Prisma profile (non-critical)
   }
 }
 
 // GET all users — Prisma profiles PRIMARY (no user lost), Supabase Auth for enrichment only
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 [ADMIN API] Fetching users...')
-    console.log('📊 [ADMIN API] DB available:', isDatabaseAvailable())
-    console.log('📊 [ADMIN API] Supabase Admin:', JSON.stringify(getAdminStatus()))
+    const { error } = await requireAdmin(request)
+    if (error) return error
 
     // ── Step 1: Fetch ALL profiles from Prisma DB (PRIMARY source of truth) ──
     let profiles: any[] = []
@@ -40,18 +40,17 @@ export async function GET(request: NextRequest) {
         // Try Prisma ORM first
         try {
           profiles = await db.profile.findMany({ orderBy: { createdAt: 'desc' } })
-          console.log(`✅ [ADMIN API] Prisma findMany: ${profiles.length} profiles`)
+          // Prisma findMany succeeded
         } catch (_prismaErr) {
           // ORM failed (missing column?) — fallback to raw SQL
-          console.warn('⚠️ [ADMIN API] Prisma findMany failed, trying raw SQL...')
           try {
             const raw = await db.$queryRaw`SELECT * FROM profiles ORDER BY created_at DESC`
             if (Array.isArray(raw) && raw.length > 0) {
               profiles = raw
-              console.log(`✅ [ADMIN API] Raw SQL: ${profiles.length} profiles`)
+              // Raw SQL succeeded
             }
           } catch (_rawErr) {
-            console.warn('⚠️ [ADMIN API] Raw SQL also failed')
+            // Raw SQL also failed
           }
         }
       } catch (dbErr: any) {
@@ -69,12 +68,12 @@ export async function GET(request: NextRequest) {
         if (!error && users) {
           authUserMap = new Map(users.map(u => [u.id, u]))
           authEnriched = true
-          console.log(`✅ [ADMIN API] Supabase Auth: ${users.length} users for enrichment`)
+          // Supabase Auth enrichment succeeded
         } else if (error) {
-          console.warn('⚠️ [ADMIN API] Auth error (non-critical):', error.message)
+          // Auth error (non-critical)
         }
       } catch (err) {
-        console.warn('⚠️ [ADMIN API] Auth call failed (non-critical):', err)
+        // Auth call failed (non-critical)
       }
     }
 
@@ -145,8 +144,6 @@ export async function GET(request: NextRequest) {
 
     const allUsers = [...formattedUsers, ...authOnlyUsers]
 
-    console.log(`✅ [ADMIN API] Total: ${allUsers.length} users (${formattedUsers.length} DB + ${authOnlyUsers.length} Auth-only)`)
-
     return NextResponse.json({
       users: allUsers,
       count: allUsers.length,
@@ -173,6 +170,9 @@ export async function GET(request: NextRequest) {
 // POST create a new user in Supabase
 export async function POST(request: NextRequest) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     const body = await request.json()
     const { email, password, name, metadata = {} } = body
 
@@ -202,7 +202,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('✅ [ADMIN API] User created:', data.user?.email)
     return NextResponse.json({ user: data.user })
   } catch (error) {
     console.error('❌ [ADMIN API] Error creating user:', error)
@@ -216,14 +215,11 @@ export async function POST(request: NextRequest) {
 // PATCH - Activate PRO for user
 export async function PATCH(request: NextRequest) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     const body = await request.json()
     const { userId, action = 'activate', days = 30 } = body
-
-    console.log('🔧 [ADMIN API] PATCH request')
-    console.log('🔧 [ADMIN API] action:', action)
-    console.log('🔧 [ADMIN API] userId:', userId)
-    console.log('🔧 [ADMIN API] days:', days)
-    console.log('📊 [ADMIN API] Admin status:', JSON.stringify(getAdminStatus()))
 
     if (!supabaseAdmin) {
       const status = getAdminStatus()
@@ -248,7 +244,6 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Get current user metadata
-    console.log('🔍 [ADMIN API] Fetching user by ID:', userId)
     const { data: { user }, error: fetchError } = await supabaseAdmin.auth.admin.getUserById(userId)
 
     if (fetchError) {
@@ -267,9 +262,6 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    console.log('✅ [ADMIN API] User found:', user.email)
-    console.log('📊 [ADMIN API] Current metadata:', JSON.stringify(user.user_metadata, null, 2))
-
     // Handle different actions
     if (action === 'revoke') {
       // Revoke PRO
@@ -280,8 +272,6 @@ export async function PATCH(request: NextRequest) {
         subscription_until: null,
         updated_at: new Date().toISOString()
       }
-
-      console.log('📝 [ADMIN API] New metadata (revoke):', JSON.stringify(newMetadata, null, 2))
 
       const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
         user_metadata: newMetadata
@@ -297,8 +287,6 @@ export async function PATCH(request: NextRequest) {
 
       // Also sync revoke to Prisma profile
       await syncProfileFromAuth(userId, false, null)
-
-      console.log('✅ [ADMIN API] PRO revoked for user:', updatedUser.user?.email)
 
       return NextResponse.json({
         message: 'PRO status revoked successfully',
@@ -316,8 +304,6 @@ export async function PATCH(request: NextRequest) {
       const baseDate = currentSubscriptionUntil > now ? currentSubscriptionUntil : now
       const subscriptionUntil = new Date(baseDate.getTime() + (days * 24 * 60 * 60 * 1000)).toISOString()
 
-      console.log('📅 [ADMIN API] Subscription until:', subscriptionUntil)
-
       // Merge existing metadata with new PRO status
       const newMetadata = {
         ...user.user_metadata,
@@ -327,8 +313,6 @@ export async function PATCH(request: NextRequest) {
         has_ever_been_pro: true,
         updated_at: new Date().toISOString()
       }
-
-      console.log('📝 [ADMIN API] New metadata:', JSON.stringify(newMetadata, null, 2))
 
       // Update user metadata
       const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
@@ -345,8 +329,6 @@ export async function PATCH(request: NextRequest) {
 
       // Also sync to Prisma profile
       await syncProfileFromAuth(userId, true, subscriptionUntil)
-
-      console.log('✅ [ADMIN API] PRO activated for user:', updatedUser.user?.email)
 
       return NextResponse.json({
         message: 'PRO activated successfully',
@@ -375,17 +357,14 @@ export async function PATCH(request: NextRequest) {
 // DELETE - Revoke PRO for user
 export async function DELETE(request: NextRequest) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     const searchParams = request.nextUrl.searchParams
     const userId = searchParams.get('userId')
 
-    console.log('🔧 [ADMIN API] DELETE request - Revoke PRO')
-    console.log('🔧 [ADMIN API] userId:', userId)
-    console.log('📊 [ADMIN API] Admin status:', JSON.stringify(getAdminStatus()))
-
     if (!supabaseAdmin) {
-      const status = getAdminStatus()
       console.error('❌ [ADMIN API] supabaseAdmin is not configured')
-      console.error('❌ [ADMIN API] Status:', JSON.stringify(status))
       return NextResponse.json(
         {
           error: 'Admin configuration error',
@@ -404,7 +383,6 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get current user metadata
-    console.log('🔍 [ADMIN API] Fetching user by ID:', userId)
     const { data: { user }, error: fetchError } = await supabaseAdmin.auth.admin.getUserById(userId)
 
     if (fetchError) {
@@ -423,9 +401,6 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    console.log('✅ [ADMIN API] User found:', user.email)
-    console.log('📊 [ADMIN API] Current metadata:', JSON.stringify(user.user_metadata, null, 2))
-
     // Update user metadata to revoke PRO
     const newMetadata = {
       ...user.user_metadata,
@@ -434,8 +409,6 @@ export async function DELETE(request: NextRequest) {
       subscription_until: null,
       updated_at: new Date().toISOString()
     }
-
-    console.log('📝 [ADMIN API] New metadata (revoke):', JSON.stringify(newMetadata, null, 2))
 
     const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
       user_metadata: newMetadata
@@ -452,15 +425,12 @@ export async function DELETE(request: NextRequest) {
     // Also sync revoke to Prisma profile
     await syncProfileFromAuth(userId, false, null)
 
-    console.log('✅ [ADMIN API] PRO revoked for user:', updatedUser.user?.email)
-
     return NextResponse.json({
       message: 'PRO status revoked successfully',
       user: updatedUser.user
     })
   } catch (error) {
     console.error('❌ [ADMIN API] Error revoking PRO:', error)
-    console.error('❌ [ADMIN API] Error stack:', error instanceof Error ? error.stack : 'No stack')
     return NextResponse.json(
       {
         error: 'Failed to revoke PRO',

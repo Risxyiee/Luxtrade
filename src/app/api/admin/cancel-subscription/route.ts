@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { supabase, supabaseAdmin } from '@/lib/supabase'
+import { requireAdmin } from '@/lib/admin-auth'
 
 export async function POST(request: NextRequest) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     const body = await request.json()
     const { userId } = body
 

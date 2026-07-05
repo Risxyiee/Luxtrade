@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAdmin } from '@/lib/admin-auth'
 
 // GET all subscription plans
 export async function GET(request: NextRequest) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     const plans = await db.subscriptionPlan.findMany({
       include: {
         userSubscriptions: {
@@ -27,6 +31,9 @@ export async function GET(request: NextRequest) {
 // POST create a new subscription plan
 export async function POST(request: NextRequest) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     const body = await request.json()
     const { name, description, price, currency, durationMonths, isLifetime, maxSlots, isActive } = body
 

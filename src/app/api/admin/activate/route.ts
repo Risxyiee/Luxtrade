@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
 import { sendTelegramNotification } from '@/lib/telegram'
+import { PRICING } from '@/lib/pricing'
+import { requireAdmin } from '@/lib/admin-auth'
 
 // Commission rate: 30% of Rp 49,000 = Rp 14,700
 const COMMISSION_PER_PRO = 14700
@@ -15,6 +17,9 @@ interface ActivateRequestBody {
 // POST to activate user subscription
 export async function POST(request: NextRequest) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     const body: ActivateRequestBody = await request.json()
     const { userId, planType, planId } = body
 
@@ -63,17 +68,17 @@ export async function POST(request: NextRequest) {
         case 'MONTHLY':
           planName = 'Elite Pro'
           durationMonths = 1
-          price = 39000
+          price = PRICING.PRO_30_DAYS
           break
         case 'YEARLY':
           planName = 'Elite Pro'
           durationMonths = 12
-          price = 390000
+          price = PRICING.PRO_ANNUAL
           break
         case 'LIFETIME':
           planName = 'Lifetime Ultra'
           isLifetime = true
-          price = 299000
+          price = PRICING.PRO_LIFETIME
           break
       }
 
@@ -128,7 +133,7 @@ export async function POST(request: NextRequest) {
         endDate,
         isActive: true,
         paymentStatus: 'completed',
-        amountPaid: planType === 'MONTHLY' ? 39000 : planType === 'YEARLY' ? 390000 : 299000,
+        amountPaid: planType === 'MONTHLY' ? PRICING.PRO_30_DAYS : planType === 'YEARLY' ? PRICING.PRO_ANNUAL : PRICING.PRO_LIFETIME,
         paymentMethod: 'manual',
         adminNote: `Activated by admin via Quick Activate (${planType})`
       }

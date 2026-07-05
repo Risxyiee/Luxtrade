@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAdmin } from '@/lib/admin-auth'
 
 // GET all user subscriptions
 export async function GET(request: NextRequest) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
     const planId = searchParams.get('planId')
@@ -37,6 +41,9 @@ export async function GET(request: NextRequest) {
 // POST create a new subscription
 export async function POST(request: NextRequest) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     const body = await request.json()
     const { userId, userEmail, userName, planId, startDate, endDate, paymentStatus, amountPaid, paymentMethod, adminNote } = body
 

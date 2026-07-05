@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAdmin } from '@/lib/admin-auth'
 
 export async function POST(req: NextRequest) {
   try {
+    const { error } = await requireAdmin(req)
+    if (error) return error
+
     const { email, plan, proExpiry } = await req.json()
     
     if (!email || !plan || !proExpiry) {
@@ -23,23 +27,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
