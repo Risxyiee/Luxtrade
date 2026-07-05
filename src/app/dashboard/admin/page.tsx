@@ -1137,7 +1137,7 @@ export default function AdminPanel() {
                         <ul className="text-white/60 text-sm space-y-1">
                           <li>• <span className="text-emerald-400">Active PRO</span>: Full access to all features</li>
                           <li>• <span className="text-red-400">Expired</span>: Auto-locks to FREE limits</li>
-                          <li>• <span className="text-white/40">FREE</span>: Limited to 5 trades max</li>
+                          <li>• <span className="text-white/40">FREE</span>: Limited to 10 trades/month</li>
                         </ul>
                       </div>
                     </div>
