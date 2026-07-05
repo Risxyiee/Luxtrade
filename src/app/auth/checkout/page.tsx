@@ -108,13 +108,47 @@ function CheckoutContent() {
 
       if (signInError) {
         const msg = signInError.message?.toLowerCase() || ''
-        if (msg.includes('invalid') || msg.includes('credentials')) {
-          setAuthError('Email atau password salah.')
-          setMode('signup')
-        } else if (msg.includes('email not confirmed')) {
-          // User registered but not verified — they must have a pending payment
-          // or they need to complete payment first. Let them proceed.
-          setAuthError('Email belum diverifikasi. Silakan cek inbox kamu atau coba lagi setelah bayar.')
+        if (msg.includes('invalid') || msg.includes('credentials') || msg.includes('email not confirmed')) {
+          // Try force-confirm first (handles both "invalid credentials" for unconfirmed users
+          // and explicit "email not confirmed" errors)
+          try {
+            const confirmRes = await fetch('/api/auth/force-confirm', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email })
+            })
+            const confirmData = await confirmRes.json()
+
+            if (confirmData.confirmed) {
+              await new Promise(r => setTimeout(r, 500))
+              const retry = await supabase.auth.signInWithPassword({ email, password })
+              if (retry.data.session) {
+                try {
+                  await fetch('/api/auth/sync-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      userId: retry.data.user.id,
+                      email: retry.data.user.email,
+                      fullName: retry.data.user.user_metadata?.display_name || retry.data.user.user_metadata?.name || email.split('@')[0]
+                    })
+                  })
+                } catch { /* non-critical */ }
+                setStep('payment')
+                return
+              }
+            }
+          } catch { /* force-confirm failed */ }
+
+          if (msg.includes('not found')) {
+            setAuthError('Akun tidak ditemukan. Silakan daftar dulu.')
+            setMode('signup')
+          } else if (msg.includes('email not confirmed')) {
+            setAuthError('Email belum diverifikasi. Cek inbox atau kirim ulang link verifikasi.')
+          } else {
+            setAuthError('Email atau password salah.')
+            setMode('signup')
+          }
         } else if (msg.includes('not found')) {
           setAuthError('Akun tidak ditemukan. Silakan daftar dulu.')
           setMode('signup')
