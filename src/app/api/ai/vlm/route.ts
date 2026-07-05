@@ -3,6 +3,7 @@ import { analyzeImageWithZAIVision } from '@/lib/zai-vision'
 import { analyzeImageWithOllama } from '@/lib/ollama-vision'
 import { createClientForApi } from '@/lib/supabase/server'
 import { isUserPro } from '@/lib/pro-check'
+import { rateLimitByUser } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,6 +13,14 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Rate limit: 10 requests per minute per user
+    const rl = rateLimitByUser('vlm', user.id, {
+      maxRequests: 10,
+      windowMs: 60 * 1000,
+      message: 'Terlalu banyak permintaan AI Vision. Tunggu 1 menit.',
+    })
+    if (rl) return rl
 
     // PRO check - VLM analysis is a PRO feature
     const pro = await isUserPro(user.id)

@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 5 signups per 15 minutes per IP
+    const rl = checkRateLimit(request, 'register', {
+      maxRequests: 5,
+      windowMs: 15 * 60 * 1000,
+      message: 'Terlalu banyak percobaan daftar. Tunggu 15 menit.',
+    })
+    if (rl) return rl
+
     const body = await request.json()
     const { email, password, fullName } = body
 
