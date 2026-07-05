@@ -3461,3 +3461,26 @@ Stage Summary:
 - ✅ All old prices removed from codebase (no stray 25000/52000/$3/$5 references)
 - ✅ Grandfathering confirmed: existing subscribers keep old prices until renewal
 - ✅ Dev server running, lint clean, ready for production
+---
+Task ID: 9
+Agent: Z.ai Code (with 3 subagents)
+Task: Complete P0/P1/P2 priority fixes — security hardening, cleanup, price consistency
+
+Work Log:
+- P0: Deleted 57 .md files from root containing real credentials (Supabase DB password, JWT service role keys, MetaApi tokens)
+- P0: Deleted /api/admin/create-admin and /api/admin/ensure-admin (zero-auth routes)
+- P0: Created src/lib/admin-auth.ts shared helper (requireAdmin)
+- P0: Applied requireAdmin to ALL 22 unprotected admin API routes
+- P0: Replaced spoofable x-admin-email header checks with proper session+role auth
+- P1: Added /admin-secret, /admin-email, /admin-panel, /admin-subscriptions to middleware matcher
+- P1: Fixed api/landing-stats silent error (now returns 500 + logs)
+- P1: Refactored 5 files to import prices from pricing.ts instead of hardcoded values
+- P2: Removed 70+ console.log/warn from production code (admin routes, screenshot-journal, metaapi, midtrans)
+- P2: Fixed privacy leak in admin routes (no more user email/metadata logging)
+- P2: Fixed security leak (MetaApi token availability no longer logged)
+
+Stage Summary:
+- ✅ 92 files changed, 232 insertions, 12,608 deletions
+- ✅ Commit 1272434 pushed to GitHub
+- ✅ ESLint clean, dev server returns 200
+- ⚠️ IMPORTANT: User must still rotate Supabase DB password, service role key, anon key, and MetaApi token (they were in git history)
