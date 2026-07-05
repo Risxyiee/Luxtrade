@@ -32,9 +32,9 @@ export function getPlanDuration(plan: PricingPlan): number {
     case 'PRO_180_DAYS':
       return 180
     case 'PRO_LIFETIME':
-      return 365 * 5 // 5 years for lifetime
+      return 365 * 50 // 50 years for lifetime
     case 'LIFETIME_ULTRA':
-      return 365 * 5 // 5 years for lifetime
+      return 365 * 50 // 50 years for lifetime
   }
 }
 

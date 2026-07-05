@@ -2,10 +2,10 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, FileText, RotateCcw, HelpCircle, Phone, Mail, Send, MapPin, Clock, AlertCircle, Globe } from 'lucide-react'
+import { X, FileText, RotateCcw, HelpCircle, Phone, Mail, Send, MapPin, Clock, AlertCircle, Globe, Shield } from 'lucide-react'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 
-export type LegalPageTab = 'terms' | 'refund' | 'faq' | 'contact'
+export type LegalPageTab = 'terms' | 'refund' | 'faq' | 'contact' | 'privacy'
 
 interface LegalPagesModalProps {
   isOpen: boolean
@@ -18,6 +18,7 @@ const TABS: { id: LegalPageTab; label: string; icon: React.ReactNode }[] = [
   { id: 'refund', label: 'Refund Policy', icon: <RotateCcw className="w-4 h-4" /> },
   { id: 'faq', label: 'FAQ', icon: <HelpCircle className="w-4 h-4" /> },
   { id: 'contact', label: 'Kontak', icon: <Phone className="w-4 h-4" /> },
+  { id: 'privacy', label: 'Privasi', icon: <Shield className="w-4 h-4" /> },
 ]
 
 export default function LegalPagesModal({ isOpen, onClose, initialTab = 'terms' }: LegalPagesModalProps) {
@@ -139,6 +140,7 @@ export default function LegalPagesModal({ isOpen, onClose, initialTab = 'terms' 
                   {activeTab === 'refund' && <RefundContent />}
                   {activeTab === 'faq' && <FAQContent />}
                   {activeTab === 'contact' && <ContactContent />}
+                  {activeTab === 'privacy' && <PrivacyContent />}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -612,6 +614,71 @@ function ContactContent() {
           <Send className="w-4 h-4" />
           Chat di Telegram
         </a>
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════
+   Kebijakan Privasi
+   ═══════════════════════════════════════════════════════ */
+function PrivacyContent() {
+  const lastUpdated = '1 Januari 2025'
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-2">Kebijakan Privasi</h2>
+        <p className="text-white/40 text-sm">Terakhir diperbarui: {lastUpdated}</p>
+      </div>
+
+      <Section title="1. Informasi yang Kami Kumpulkan">
+        <Paragraph>
+          LuxTrade mengumpulkan informasi yang Anda berikan secara langsung saat mendaftar, seperti nama, email, dan data trading yang Anda catat di platform. Kami juga mengumpulkan data penggunaan secara otomatis seperti alamat IP, jenis browser, dan perilaku navigasi untuk meningkatkan layanan.
+        </Paragraph>
+      </Section>
+
+      <Section title="2. Penggunaan Informasi">
+        <Paragraph>
+          Informasi yang dikumpulkan digunakan untuk: menyediakan dan meningkatkan layanan jurnal trading, menganalisis data trading Anda dengan AI untuk memberikan insight, mengirimkan notifikasi terkait akun, memproses pembayaran langganan, dan meningkatkan pengalaman pengguna secara keseluruhan.
+        </Paragraph>
+      </Section>
+
+      <Section title="3. Perlindungan Data">
+        <Paragraph>
+          Kami menerapkan langkah-langkah keamanan teknis dan organisasional yang wajar untuk melindungi data pribadi Anda. Semua data disimpan secara terenkripsi dan hanya diakses oleh personil yang berwenang. Namun, tidak ada metode transmisi data melalui internet yang 100% aman.
+        </Paragraph>
+      </Section>
+
+      <Section title="4. Berbagi Data dengan Pihak Ketiga">
+        <Paragraph>
+          LuxTrade tidak menjual, memperdagangkan, atau menyewakan data pribadi Anda kepada pihak ketiga. Kami hanya membagikan data yang diperlukan dengan penyedia layanan pihak ketiga (seperti Midtrans untuk pemrosesan pembayaran) untuk menjalankan layanan kami.
+        </Paragraph>
+      </Section>
+
+      <Section title="5. Cookie & Pelacakan">
+        <Paragraph>
+          Kami menggunakan cookie dan teknologi pelacakan serupa untuk meningkatkan pengalaman browsing Anda. Anda dapat mengatur preferensi cookie melalui pengaturan browser Anda. Menonaktifkan cookie tertentu dapat mempengaruhi fungsionalitas platform.
+        </Paragraph>
+      </Section>
+
+      <Section title="6. Hak Anda">
+        <Paragraph>
+          Anda memiliki hak untuk mengakses, memperbarui, atau menghapus data pribadi Anda kapan saja melalui pengaturan akun atau dengan menghubungi kami. Permintaan penghapusan data akan diproses dalam waktu 14 hari kerja.
+        </Paragraph>
+      </Section>
+
+      <Section title="7. Perubahan Kebijakan">
+        <Paragraph>
+          Kami dapat memperbarui kebijakan privasi ini dari waktu ke waktu. Perubahan signifikan akan diberitahukan melalui email atau notifikasi di platform. Penggunaan berkelanjutan atas layanan kami setelah perubahan berarti Anda menyetujui kebijakan yang diperbarui.
+        </Paragraph>
+      </Section>
+
+      <div className="mt-8 p-4 bg-white/[0.02] border border-white/[0.06] rounded-xl">
+        <h4 className="text-sm font-bold text-white mb-2">Pertanyaan tentang privasi?</h4>
+        <p className="text-white/40 text-sm">
+          Hubungi kami di <a href="mailto:support@luxtrade.id" className="text-[#8a2be2] hover:underline">support@luxtrade.id</a> atau melalui <a href="https://t.me/Risxyiee" target="_blank" rel="noopener noreferrer" className="text-[#8a2be2] hover:underline">Telegram</a>.
+        </p>
       </div>
     </div>
   )

@@ -119,6 +119,8 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
           transition={{ delay: 0.2 }}
           className="mt-16 max-w-[900px] mx-auto"
         >
+          <div className="overflow-x-auto -mx-4 px-4">
+          <div className="min-w-[640px]">
           <div className="bg-[var(--lux-card-surface)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-3xl overflow-hidden">
             {/* Table Header */}
             <div className="grid grid-cols-4 gap-0 border-b border-[var(--lux-inline-border)]">
@@ -243,6 +245,8 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
                 </div>
               </div>
             ))}
+          </div>
+          </div>
           </div>
         </motion.div>
 

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useCallback, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { toast } from 'sonner'
 import { useLanguage } from '@/contexts/LanguageContext'
 import LegalPagesModal, { type LegalPageTab } from '@/components/LegalPagesModal'
@@ -10,19 +11,21 @@ import LandingNavbar from '@/components/landing/LandingNavbar'
 import LandingSidebar from '@/components/landing/LandingSidebar'
 import HeroSection from '@/components/landing/HeroSection'
 import StatsStrip from '@/components/landing/StatsStrip'
-import PricingSection from '@/components/landing/PricingSection'
 import PromoCodeSection from '@/components/landing/PromoCodeSection'
 import HowItWorksSection from '@/components/landing/HowItWorksSection'
-import TutorialVideoSection from '@/components/landing/TutorialVideoSection'
 import FeaturesSection from '@/components/landing/FeaturesSection'
-import TestimonialSection from '@/components/landing/TestimonialSection'
 import FAQSection from '@/components/landing/FAQSection'
-import RoadmapSection from '@/components/landing/RoadmapSection'
-import NewsletterSection from '@/components/landing/NewsletterSection'
-import LandingFooter from '@/components/landing/LandingFooter'
 import SectionDivider from '@/components/landing/SectionDivider'
-import CTASectionBreak from '@/components/landing/CTASectionBreak'
+import LandingFooter from '@/components/landing/LandingFooter'
 import ScrollToTopButton from '@/components/landing/ScrollToTopButton'
+
+// Below-fold sections: lazy-loaded for performance
+const PricingSection = dynamic(() => import('@/components/landing/PricingSection').then(m => ({ default: m.default })), { ssr: false })
+const TutorialVideoSection = dynamic(() => import('@/components/landing/TutorialVideoSection').then(m => ({ default: m.default })), { ssr: false })
+const CTASectionBreak = dynamic(() => import('@/components/landing/CTASectionBreak').then(m => ({ default: m.default })), { ssr: false })
+const TestimonialSection = dynamic(() => import('@/components/landing/TestimonialSection').then(m => ({ default: m.default })), { ssr: false })
+const RoadmapSection = dynamic(() => import('@/components/landing/RoadmapSection').then(m => ({ default: m.default })), { ssr: false })
+const NewsletterSection = dynamic(() => import('@/components/landing/NewsletterSection').then(m => ({ default: m.default })), { ssr: false })
 
 export default function LuxTradeLanding() {
   const { language, t } = useLanguage()
@@ -162,7 +165,9 @@ export default function LuxTradeLanding() {
         <PromoCodeSection language={language} promoRemaining={promoRemaining} promoMax={promoMax} promoActive={promoActive} />
         <SectionDivider />
         <HowItWorksSection language={language} t={t} />
-        <TutorialVideoSection language={language} />
+        <div id="demo">
+          <TutorialVideoSection language={language} />
+        </div>
         <SectionDivider />
         <FeaturesSection language={language} t={t} />
         <CTASectionBreak language={language} />
@@ -194,9 +199,9 @@ export default function LuxTradeLanding() {
             "url": "https://luxtrade.id",
             "offers": [
               { "@type": "Offer", "price": "0", "priceCurrency": "IDR", "description": "Free Plan - 10 trades/bulan" },
-              { "@type": "Offer", "price": "49000", "priceCurrency": "IDR", "description": "PRO Plan - 30 hari" }
-            ],
-            "aggregateRating": { "@type": "AggregateRating", "ratingValue": "4.8", "ratingCount": "500" }
+              { "@type": "Offer", "price": "25000", "priceCurrency": "IDR", "description": "PRO Plan - 30 hari" },
+              { "@type": "Offer", "price": "52000", "priceCurrency": "IDR", "description": "Lifetime Ultra - Sekali bayar" }
+            ]
           })
         }}
       />
