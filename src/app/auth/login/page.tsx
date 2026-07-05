@@ -91,7 +91,46 @@ function LoginForm() {
             const confirmData = await confirmRes.json()
 
             if (confirmData.confirmed) {
-              // User was unconfirmed, now confirmed — retry login
+              // Small delay to let Supabase propagate the confirmation
+              await new Promise(r => setTimeout(r, 500))
+              
+              // Retry login
+              const retry = await supabase.auth.signInWithPassword({ email, password })
+              if (retry.data.session && retry.data.user) {
+                try {
+                  await fetch('/api/auth/sync-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      userId: retry.data.user.id,
+                      email: retry.data.user.email,
+                      fullName: retry.data.user.user_metadata?.display_name ||
+                               retry.data.user.user_metadata?.name ||
+                               retry.data.user.user_metadata?.full_name ||
+                               retry.data.user.email?.split('@')[0]
+                    })
+                  })
+                } catch { /* non-critical */ }
+                window.location.href = redirectPath
+                return
+              }
+              // Retry also failed — password might actually be wrong
+            }
+          } catch { /* force-confirm failed, show normal error */ }
+
+          setError('Email atau password salah. Coba lagi ya.')
+        } else if (errorMsg.includes('email not confirmed')) {
+          // Explicitly try force-confirm
+          try {
+            const confirmRes = await fetch('/api/auth/force-confirm', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email })
+            })
+            const confirmData = await confirmRes.json()
+
+            if (confirmData.confirmed) {
+              await new Promise(r => setTimeout(r, 500))
               const retry = await supabase.auth.signInWithPassword({ email, password })
               if (retry.data.session && retry.data.user) {
                 try {
@@ -112,11 +151,9 @@ function LoginForm() {
                 return
               }
             }
-          } catch { /* force-confirm failed, show normal error */ }
-
-          setError('Email atau password salah. Coba lagi ya.')
-        } else if (errorMsg.includes('email not confirmed')) {
-          setError('Email belum diverifikasi. Cek inbox/spam kamu untuk link verifikasi, atau klik tombol di bawah untuk kirim ulang.')
+          } catch { /* force-confirm failed */ }
+          
+          setError('Gagal konfirmasi email otomatis. Coba kirim ulang link verifikasi.')
           setShowResendButton(true)
         } else if (errorMsg.includes('too many requests') || errorMsg.includes('rate limit')) {
           setError('Terlalu banyak percobaan login. Tunggu beberapa menit ya.')
@@ -131,21 +168,27 @@ function LoginForm() {
 
       if (data.session && data.user) {
         // Check if email is verified via our custom verification
+        // This is a BEST-EFFORT check — failures should NEVER block login
         try {
           const verifyRes = await fetch('/api/auth/check-verified', {
             headers: { Authorization: `Bearer ${data.session.access_token}` }
           })
-          const verifyData = await verifyRes.json()
-
-          if (!verifyData.verified) {
-            setError('Email belum diverifikasi. Cek inbox/spam kamu untuk link verifikasi, atau klik tombol di bawah.')
-            setShowResendButton(true)
-            setIsLoading(false)
-            // Sign out the user since email not verified
-            await supabase.auth.signOut()
-            return
+          
+          // Only parse if we got a successful response
+          if (verifyRes.ok) {
+            const verifyData = await verifyRes.json()
+            // Only block if we got an explicit verified: false
+            if (verifyData.verified === false) {
+              setError('Email belum diverifikasi. Cek inbox/spam kamu untuk link verifikasi, atau klik tombol di bawah.')
+              setShowResendButton(true)
+              setIsLoading(false)
+              await supabase.auth.signOut()
+              return
+            }
           }
+          // If response is not ok (401, 500, etc.) — continue login, don't block
         } catch (verifyErr) {
+          // Network error — continue login, don't block
           console.warn('Could not check email verification (continuing):', verifyErr)
         }
 
