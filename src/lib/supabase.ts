@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { createBrowserClient } from '@supabase/ssr'
+import { getSupabaseAdminAuth } from '@/lib/supabase/admin'
 
 // Supabase configuration
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://klxkdrfsfcoankbaoejn.supabase.co'
@@ -85,6 +86,15 @@ export const supabaseAdmin = (() => {
     }
   })
 })()
+
+/**
+ * Get the admin Auth API from the supabaseAdmin client.
+ * Returns null if supabaseAdmin is not configured.
+ */
+export function getSupabaseAdminAuthFromClient() {
+  if (!supabaseAdmin) return null
+  return getSupabaseAdminAuth(supabaseAdmin as any)
+}
 
 // Database types
 export interface Trade {

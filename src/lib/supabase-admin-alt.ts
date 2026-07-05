@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createAdminClient, getSupabaseAdminAuth } from '@/lib/supabase/admin'
 
 /**
  * Supabase Admin client instance (lazy loaded)
@@ -33,4 +33,14 @@ export function getAdminStatus() {
 /** Check if admin is available (boolean) */
 export function isAdminAvailable(): boolean {
   return !!getSupabaseAdmin()
+}
+
+/**
+ * Get the admin Auth API for the singleton admin client.
+ * Returns null if admin client is not available.
+ */
+export function getAdminAuth() {
+  const client = getSupabaseAdmin()
+  if (!client) return null
+  return getSupabaseAdminAuth(client)
 }

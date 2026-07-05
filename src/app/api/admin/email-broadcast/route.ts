@@ -56,9 +56,10 @@ export async function POST(request: NextRequest) {
     // Auto-sync users from Supabase Auth → profiles DB before broadcast
     // This ensures all Auth users exist in the DB for targeting
     try {
-      const { supabaseAdmin: sa } = await import('@/lib/supabase-admin-alt')
-      if (sa && isDatabaseAvailable()) {
-        const { data: { users } } = await sa.auth.admin.listUsers({ perPage: 500 })
+      const { getAdminAuth } = await import('@/lib/supabase-admin-alt')
+      const authAdmin = getAdminAuth()
+      if (authAdmin && isDatabaseAvailable()) {
+        const { data: { users } } = await authAdmin.listUsers({ perPage: 500 })
         if (users && users.length > 0) {
           const existingIds = new Set(
             (await db.profile.findMany({ select: { id: true } })).map((p: any) => p.id)

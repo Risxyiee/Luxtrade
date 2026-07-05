@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin, getAdminStatus } from '@/lib/supabase-admin-alt'
+import { supabaseAdmin, getAdminStatus, getAdminAuth } from '@/lib/supabase-admin-alt'
 import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
 
@@ -12,17 +12,16 @@ import { requireAdmin } from '@/lib/admin-auth'
  */
 export async function POST(request: NextRequest) {
   try {
-    const { error } = await requireAdmin(request)
-    if (error) return error
+    const authResult = await requireAdmin(request)
+    if (authResult.error) return authResult.error
 
-    if (!supabaseAdmin) {
+    const authAdmin = getAdminAuth()
+    if (!authAdmin) {
       return NextResponse.json(
         { error: 'Supabase Admin tidak tersedia', details: 'SUPABASE_SERVICE_ROLE_KEY missing' },
         { status: 500 }
       )
     }
-
-    const admin = supabaseAdmin
 
     if (!isDatabaseAvailable()) {
       return NextResponse.json(
@@ -40,14 +39,14 @@ export async function POST(request: NextRequest) {
     const perPage = 50
 
     while (true) {
-      const { data, error } = await admin.auth.admin.listUsers({
+      const { data, error: listError } = await authAdmin.listUsers({
         page,
         perPage,
       })
 
-      if (error) {
-        console.error('❌ [SYNC] Auth listUsers error:', error.message)
-        return NextResponse.json({ error: 'Gagal mengambil data dari Supabase Auth', details: error.message }, { status: 500 })
+      if (listError) {
+        console.error('❌ [SYNC] Auth listUsers error:', listError.message)
+        return NextResponse.json({ error: 'Gagal mengambil data dari Supabase Auth', details: listError.message }, { status: 500 })
       }
 
       const users = data.users || []

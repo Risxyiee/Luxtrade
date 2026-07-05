@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
 import { sendEmailFromTemplate, getResetPasswordEmailHtml } from '@/lib/email'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
@@ -12,16 +12,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email wajib diisi' }, { status: 400 })
     }
 
-    if (!supabaseAdmin) {
+    const authAdmin = getSupabaseAdminAuthFromClient()
+    if (!authAdmin) {
       return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
     }
-
-    const admin = supabaseAdmin
 
     // Step 1: Generate reset password link via admin API
     // Include email in redirect URL so the reset page can use it as admin API fallback
     const emailEncoded = encodeURIComponent(email)
-    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+    const { data: linkData, error: linkError } = await authAdmin.generateLink({
       type: 'recovery',
       email,
       options: {
