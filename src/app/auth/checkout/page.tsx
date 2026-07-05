@@ -112,50 +112,10 @@ function CheckoutContent() {
         // Rate limit
         if (msg.includes('too many requests') || msg.includes('rate limit')) {
           setAuthError('Terlalu banyak percobaan. Tunggu beberapa menit.')
-          setAuthLoading(false)
-          return
-        }
-
-        // Admin-login fallback for all errors
-        try {
-          const adminRes = await fetch('/api/auth/admin-login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-          })
-          const adminData = await adminRes.json()
-
-          if (adminData.success && adminData.session) {
-            const { error: setErr } = await supabase.auth.setSession({
-              access_token: adminData.session.access_token,
-              refresh_token: adminData.session.refresh_token,
-            })
-            if (!setErr) {
-              try {
-                await fetch('/api/auth/sync-user', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    userId: adminData.session.user.id,
-                    email: adminData.session.user.email,
-                    fullName: adminData.session.user.user_metadata?.full_name || adminData.session.user.user_metadata?.display_name || email.split('@')[0]
-                  })
-                })
-              } catch { /* non-critical */ }
-              setStep('payment')
-              return
-            }
-          }
-
-          if (adminData.error?.includes('tidak ditemukan') || adminData.error?.includes('not found')) {
-            setAuthError('Akun tidak ditemukan. Silakan daftar dulu.')
-            setMode('signup')
-          } else {
-            setAuthError('Email atau password salah.')
-            setMode('signup')
-          }
-        } catch {
-          setAuthError('Login gagal. Cek internet.')
+        } else if (msg.includes('email not confirmed')) {
+          setAuthError('Email belum diverifikasi. Cek inbox/spam kamu.')
+        } else {
+          setAuthError('Email atau password salah.')
         }
         setAuthLoading(false)
         return

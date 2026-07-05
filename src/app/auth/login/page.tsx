@@ -5,8 +5,8 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { 
-  Crown, Mail, Lock, Eye, EyeOff, ArrowRight, 
+import {
+  Crown, Mail, Lock, Eye, EyeOff, ArrowRight,
   AlertCircle, Loader2, RefreshCw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -75,109 +75,44 @@ function LoginForm() {
         email,
         password,
       })
-      
+
       if (signInError) {
         const errorMsg = signInError.message?.toLowerCase() || ''
 
-        // Rate limit — don't retry
+        // Rate limit
         if (errorMsg.includes('too many requests') || errorMsg.includes('rate limit')) {
           setError('Terlalu banyak percobaan login. Tunggu beberapa menit ya.')
           setIsLoading(false)
           return
         }
 
-        // For ALL other errors (invalid credentials, email not confirmed, backend error, etc.),
-        // try the admin-login fallback which handles:
-        //   - Unconfirmed emails (force-confirm)
-        //   - Backend errors (admin password re-set)
-        //   - Corrupted auth state
-        try {
-          console.log('[login] Client signIn failed, trying admin-login fallback:', signInError.message)
-          const adminRes = await fetch('/api/auth/admin-login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-          })
-          const adminData = await adminRes.json()
-
-          if (adminData.success && adminData.session) {
-            // Restore the session in the browser client from the server-provided tokens
-            const { data: setSessionData, error: setSessionError } = await supabase.auth.setSession({
-              access_token: adminData.session.access_token,
-              refresh_token: adminData.session.refresh_token,
-            })
-
-            if (!setSessionError && setSessionData.session) {
-              // Sync user data
-              try {
-                await fetch('/api/auth/sync-user', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    userId: adminData.session.user.id,
-                    email: adminData.session.user.email,
-                    fullName: adminData.session.user.user_metadata?.full_name ||
-                             adminData.session.user.user_metadata?.display_name ||
-                             adminData.session.user.user_metadata?.name ||
-                             adminData.session.user.email?.split('@')[0]
-                  })
-                })
-              } catch { /* non-critical */ }
-
-              window.location.href = redirectPath
-              return
-            }
-          }
-
-          // Admin login also failed — show appropriate error
-          if (adminData.error?.includes('tidak ditemukan') || adminData.error?.includes('not found')) {
-            setError('Akun nggak ketemu. Belum daftar ya?')
-          } else {
-            // Show the original Supabase error for debugging transparency
-            setError(`${signInError.message}. Coba lagi atau reset password.`)
-          }
-        } catch (fallbackErr) {
-          // Network error on admin-login
-          setError('Login gagal. Cek internet dan coba lagi ya.')
+        // Email not confirmed
+        if (errorMsg.includes('email not confirmed')) {
+          setError('Email belum diverifikasi. Cek inbox/spam kamu untuk link verifikasi, atau klik tombol di bawah.')
+          setShowResendButton(true)
+          setIsLoading(false)
+          return
         }
 
+        // Invalid credentials
+        if (errorMsg.includes('invalid login credentials') || errorMsg.includes('invalid credentials')) {
+          setError('Email atau password salah. Coba lagi atau reset password.')
+          setIsLoading(false)
+          return
+        }
+
+        // Any other Supabase error
+        setError(signInError.message || 'Login gagal. Coba lagi nanti ya.')
         setIsLoading(false)
         return
       }
 
       if (data.session && data.user) {
-        // Check if email is verified via our custom verification
-        // This is a BEST-EFFORT check — failures should NEVER block login
-        try {
-          const verifyRes = await fetch('/api/auth/check-verified', {
-            headers: { Authorization: `Bearer ${data.session.access_token}` }
-          })
-          
-          // Only parse if we got a successful response
-          if (verifyRes.ok) {
-            const verifyData = await verifyRes.json()
-            // Only block if we got an explicit verified: false
-            if (verifyData.verified === false) {
-              setError('Email belum diverifikasi. Cek inbox/spam kamu untuk link verifikasi, atau klik tombol di bawah.')
-              setShowResendButton(true)
-              setIsLoading(false)
-              await supabase.auth.signOut()
-              return
-            }
-          }
-          // If response is not ok (401, 500, etc.) — continue login, don't block
-        } catch (verifyErr) {
-          // Network error — continue login, don't block
-          console.warn('Could not check email verification (continuing):', verifyErr)
-        }
-
-        // Sync user to Prisma database
+        // Sync user to Prisma database (non-blocking)
         try {
           await fetch('/api/auth/sync-user', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               userId: data.user.id,
               email: data.user.email,
@@ -189,11 +124,9 @@ function LoginForm() {
           })
         } catch (syncError) {
           console.error('Error syncing user:', syncError)
-          // Continue even if sync fails
         }
 
-        // HARD REDIRECT - Use window.location for immediate navigation
-        // This ensures a full page reload and prevents "stuck" states
+        // HARD REDIRECT for clean navigation
         window.location.href = redirectPath
       } else {
         setError('Login gagal. Gagal membuat sesi, coba lagi ya.')
@@ -224,10 +157,10 @@ function LoginForm() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-3">
-            <Image 
-              src="/logo.png" 
-              alt="LuxTrade Logo" 
-              width={48} 
+            <Image
+              src="/logo.png"
+              alt="LuxTrade Logo"
+              width={48}
               height={48}
               className="rounded-xl shadow-lg shadow-purple-500/20"
             />
