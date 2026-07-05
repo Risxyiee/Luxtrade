@@ -66,14 +66,16 @@ const plans: Plan[] = [
     popular: true
   },
   {
-    id: 'pro-6-months',
-    name: 'Elite Pro',
-    description: 'Hemat Rp 30.000',
-    price: PRICING.PRO_180_DAYS,
-    duration: '6 Bulan',
-    durationMonths: 6,
+    id: 'pro-annual',
+    name: 'Pro Annual',
+    description: 'Hemat 2 Bulan',
+    price: PRICING.PRO_ANNUAL,
+    duration: '1 Tahun',
+    durationMonths: 12,
     durationType: 'month',
-    pricingKey: 'PRO_180_DAYS',
+    pricingKey: 'PRO_ANNUAL',
+    popular: true,
+    savings: '16%',
     features: [
       'UNLIMITED Jurnal Transaksi',
       'Analisis AI Pintar - Deteksi Kesalahan & Solusi',
@@ -81,7 +83,7 @@ const plans: Plan[] = [
       'Kalkulator Risiko & Posisi Advance',
       'Ekspor Data ke Excel / PDF',
       'Akses VIP Grup & Dukungan Prioritas',
-      'Hemat Rp 30.000 vs Bulanan'
+      'Hemat 2 Bulan vs Bulanan'
     ]
   },
   {

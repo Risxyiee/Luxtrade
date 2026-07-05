@@ -199,8 +199,9 @@ export default function LuxTradeLanding() {
             "url": "https://luxtrade.id",
             "offers": [
               { "@type": "Offer", "price": "0", "priceCurrency": "IDR", "description": "Free Plan - 10 trades/bulan" },
-              { "@type": "Offer", "price": "25000", "priceCurrency": "IDR", "description": "PRO Plan - 30 hari" },
-              { "@type": "Offer", "price": "52000", "priceCurrency": "IDR", "description": "Lifetime Ultra - Sekali bayar" }
+              { "@type": "Offer", "price": "39000", "priceCurrency": "IDR", "description": "PRO Plan - 30 hari" },
+              { "@type": "Offer", "price": "390000", "priceCurrency": "IDR", "description": "PRO Annual - 365 hari" },
+              { "@type": "Offer", "price": "299000", "priceCurrency": "IDR", "description": "Lifetime Ultra - Sekali bayar" }
             ]
           })
         }}
