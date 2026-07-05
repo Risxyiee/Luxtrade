@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
 import { getMidtransConfig } from '@/lib/payment/midtrans'
-import { PRICING, type PricingPlan } from '@/lib/pricing'
+import { PRICING, getPlanPrice, type PricingPlan } from '@/lib/pricing'
 import crypto from 'crypto'
 
 export const runtime = 'nodejs'
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
  * POST /api/midtrans/create-transaction
  * 
  * Body: {
- *   plan: 'PRO_30_DAYS' | 'PRO_180_DAYS' | 'PRO_LIFETIME',
+ *   plan: 'PRO_30_DAYS' | 'PRO_ANNUAL' | 'PRO_LIFETIME',
  *   promoCode?: string
  * }
  * 
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { plan, promoCode } = body as { plan: PricingPlan; promoCode?: string }
 
-    if (!plan || !['PRO_30_DAYS', 'PRO_180_DAYS', 'PRO_LIFETIME'].includes(plan)) {
+    if (!plan || !['PRO_30_DAYS', 'PRO_ANNUAL', 'PRO_LIFETIME', 'PRO_180_DAYS'].includes(plan)) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
     }
 
@@ -52,8 +52,8 @@ export async function POST(request: NextRequest) {
     }
 
     // ── 5. Calculate price & duration ──────────────────────────
-    let grossAmount = PRICING[plan]
-    let durationMonths = plan === 'PRO_LIFETIME' ? 60 : plan === 'PRO_180_DAYS' ? 6 : 1
+    let grossAmount = getPlanPrice(plan)
+    let durationMonths = plan === 'PRO_LIFETIME' ? 60 : plan === 'PRO_ANNUAL' ? 12 : plan === 'PRO_180_DAYS' ? 6 : 1
     let discountPercent = 0
 
     // ── 6. Validate promo code (TRADERCEPAT etc.) ──────────────
@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
 
     const planLabel: Record<string, string> = {
       PRO_30_DAYS: 'LuxTrade PRO 30 Hari',
+      PRO_ANNUAL: 'LuxTrade PRO Annual',
       PRO_180_DAYS: 'LuxTrade PRO 180 Hari',
       PRO_LIFETIME: 'LuxTrade Lifetime',
     }
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
 
     // If promo applied, add discount as separate item (Midtrans best practice)
     if (discountPercent > 0) {
-      const originalPrice = PRICING[plan]
+      const originalPrice = getPlanPrice(plan)
       const discountAmount = originalPrice - grossAmount
       itemDetails.push({
         id: `PROMO-${promoCode}`,
