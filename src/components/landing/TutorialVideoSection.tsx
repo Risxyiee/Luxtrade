@@ -137,7 +137,7 @@ export default function TutorialVideoSection({ language }: TutorialVideoSectionP
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, amount: 0.1 }}
             className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-gradient-to-r from-purple-500/15 via-cyan-500/10 to-amber-500/10 border border-purple-500/25 mb-6"
           >
             <motion.div
@@ -154,7 +154,7 @@ export default function TutorialVideoSection({ language }: TutorialVideoSectionP
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, amount: 0.1 }}
             transition={{ delay: 0.1 }}
             className="text-3xl sm:text-4xl font-bold text-[var(--lux-text-primary)] mb-3 text-center"
           >
@@ -166,7 +166,7 @@ export default function TutorialVideoSection({ language }: TutorialVideoSectionP
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, amount: 0.1 }}
             transition={{ delay: 0.2 }}
             className="text-[var(--lux-text-subtitle)] max-w-md text-center text-base"
           >
@@ -180,7 +180,7 @@ export default function TutorialVideoSection({ language }: TutorialVideoSectionP
         <motion.div
           initial={{ opacity: 0, y: 40, scale: 0.95 }}
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
-          viewport={{ once: true }}
+          viewport={{ once: true, amount: 0.1 }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="relative group"
         >
@@ -309,7 +309,7 @@ export default function TutorialVideoSection({ language }: TutorialVideoSectionP
         <motion.p
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
+          viewport={{ once: true, amount: 0.1 }}
           transition={{ delay: 0.5 }}
           className="text-center text-xs text-[var(--lux-text-subtitle)] mt-6 opacity-50"
         >
