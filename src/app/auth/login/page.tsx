@@ -78,90 +78,69 @@ function LoginForm() {
       
       if (signInError) {
         const errorMsg = signInError.message?.toLowerCase() || ''
-        
-        if (errorMsg.includes('invalid login credentials') || errorMsg.includes('invalid credentials')) {
-          // Could be unconfirmed email — Supabase sometimes returns this instead of "email not confirmed"
-          // Try to force-confirm and retry
-          try {
-            const confirmRes = await fetch('/api/auth/force-confirm', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email })
-            })
-            const confirmData = await confirmRes.json()
 
-            if (confirmData.confirmed) {
-              // Small delay to let Supabase propagate the confirmation
-              await new Promise(r => setTimeout(r, 500))
-              
-              // Retry login
-              const retry = await supabase.auth.signInWithPassword({ email, password })
-              if (retry.data.session && retry.data.user) {
-                try {
-                  await fetch('/api/auth/sync-user', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      userId: retry.data.user.id,
-                      email: retry.data.user.email,
-                      fullName: retry.data.user.user_metadata?.display_name ||
-                               retry.data.user.user_metadata?.name ||
-                               retry.data.user.user_metadata?.full_name ||
-                               retry.data.user.email?.split('@')[0]
-                    })
-                  })
-                } catch { /* non-critical */ }
-                window.location.href = redirectPath
-                return
-              }
-              // Retry also failed — password might actually be wrong
-            }
-          } catch { /* force-confirm failed, show normal error */ }
-
-          setError('Email atau password salah. Coba lagi ya.')
-        } else if (errorMsg.includes('email not confirmed')) {
-          // Explicitly try force-confirm
-          try {
-            const confirmRes = await fetch('/api/auth/force-confirm', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email })
-            })
-            const confirmData = await confirmRes.json()
-
-            if (confirmData.confirmed) {
-              await new Promise(r => setTimeout(r, 500))
-              const retry = await supabase.auth.signInWithPassword({ email, password })
-              if (retry.data.session && retry.data.user) {
-                try {
-                  await fetch('/api/auth/sync-user', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      userId: retry.data.user.id,
-                      email: retry.data.user.email,
-                      fullName: retry.data.user.user_metadata?.display_name ||
-                               retry.data.user.user_metadata?.name ||
-                               retry.data.user.user_metadata?.full_name ||
-                               retry.data.user.email?.split('@')[0]
-                    })
-                  })
-                } catch { /* non-critical */ }
-                window.location.href = redirectPath
-                return
-              }
-            }
-          } catch { /* force-confirm failed */ }
-          
-          setError('Gagal konfirmasi email otomatis. Coba kirim ulang link verifikasi.')
-          setShowResendButton(true)
-        } else if (errorMsg.includes('too many requests') || errorMsg.includes('rate limit')) {
+        // Rate limit — don't retry
+        if (errorMsg.includes('too many requests') || errorMsg.includes('rate limit')) {
           setError('Terlalu banyak percobaan login. Tunggu beberapa menit ya.')
-        } else if (errorMsg.includes('user not found')) {
-          setError('Akun nggak ketemu. Belum daftar ya?')
-        } else {
-          setError('Login gagal. Coba lagi ya.')
+          setIsLoading(false)
+          return
         }
+
+        // For ALL other errors (invalid credentials, email not confirmed, backend error, etc.),
+        // try the admin-login fallback which handles:
+        //   - Unconfirmed emails (force-confirm)
+        //   - Backend errors (admin password re-set)
+        //   - Corrupted auth state
+        try {
+          console.log('[login] Client signIn failed, trying admin-login fallback:', signInError.message)
+          const adminRes = await fetch('/api/auth/admin-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          })
+          const adminData = await adminRes.json()
+
+          if (adminData.success && adminData.session) {
+            // Restore the session in the browser client from the server-provided tokens
+            const { data: setSessionData, error: setSessionError } = await supabase.auth.setSession({
+              access_token: adminData.session.access_token,
+              refresh_token: adminData.session.refresh_token,
+            })
+
+            if (!setSessionError && setSessionData.session) {
+              // Sync user data
+              try {
+                await fetch('/api/auth/sync-user', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    userId: adminData.session.user.id,
+                    email: adminData.session.user.email,
+                    fullName: adminData.session.user.user_metadata?.full_name ||
+                             adminData.session.user.user_metadata?.display_name ||
+                             adminData.session.user.user_metadata?.name ||
+                             adminData.session.user.email?.split('@')[0]
+                  })
+                })
+              } catch { /* non-critical */ }
+
+              window.location.href = redirectPath
+              return
+            }
+          }
+
+          // Admin login also failed — show appropriate error
+          if (adminData.error?.includes('tidak ditemukan') || adminData.error?.includes('not found')) {
+            setError('Akun nggak ketemu. Belum daftar ya?')
+          } else {
+            // Show the original Supabase error for debugging transparency
+            setError(`${signInError.message}. Coba lagi atau reset password.`)
+          }
+        } catch (fallbackErr) {
+          // Network error on admin-login
+          setError('Login gagal. Cek internet dan coba lagi ya.')
+        }
+
         setIsLoading(false)
         return
       }
