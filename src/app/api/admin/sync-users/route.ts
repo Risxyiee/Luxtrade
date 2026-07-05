@@ -22,6 +22,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const admin = supabaseAdmin
+
     if (!isDatabaseAvailable()) {
       return NextResponse.json(
         { error: 'Database tidak tersedia', hint: 'DATABASE_URL belum di-set atau salah format.' },
@@ -38,7 +40,7 @@ export async function POST(request: NextRequest) {
     const perPage = 50
 
     while (true) {
-      const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+      const { data, error } = await admin.auth.admin.listUsers({
         page,
         perPage,
       })

@@ -16,10 +16,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
     }
 
+    const admin = supabaseAdmin
+
     // Step 1: Generate reset password link via admin API
     // Include email in redirect URL so the reset page can use it as admin API fallback
     const emailEncoded = encodeURIComponent(email)
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: 'recovery',
       email,
       options: {

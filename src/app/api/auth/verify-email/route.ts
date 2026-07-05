@@ -91,7 +91,9 @@ async function activateTrialIfNeeded(userId: string, email: string) {
     `, trialEnd.toISOString(), userId)
 
     // Also update Supabase Auth metadata
-    await supabaseAdmin.auth.admin.updateUserById(userId, {
+    if (!supabaseAdmin) return
+    const admin = supabaseAdmin
+    await admin.auth.admin.updateUserById(userId, {
       user_metadata: {
         is_pro: true,
         subscription_status: 'trial',
@@ -101,7 +103,7 @@ async function activateTrialIfNeeded(userId: string, email: string) {
     })
 
     // Also update Supabase profiles table
-    await supabaseAdmin.from('profiles').update({
+    await admin.from('profiles').update({
       is_pro: true,
       subscription_status: 'trial',
       subscription_until: trialEnd.toISOString(),
@@ -122,6 +124,12 @@ async function activateTrialIfNeeded(userId: string, email: string) {
  */
 export async function POST(request: NextRequest) {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
+    }
+
+    const admin = supabaseAdmin
+
     const { token } = await request.json()
     console.log('🔍 Verify email attempt, token length:', token?.length, 'token prefix:', token?.substring(0, 10))
 
@@ -154,7 +162,7 @@ export async function POST(request: NextRequest) {
 
       // FALLBACK 1: Check Supabase profiles table via service role
       try {
-        const { data: supabaseProfile, error: sbError } = await supabaseAdmin
+        const { data: supabaseProfile, error: sbError } = await admin
           .from('profiles')
           .select('id, email, email_verified, email_verify_token, email_verify_exp_at, full_name')
           .eq('email_verify_token', token)
@@ -176,7 +184,7 @@ export async function POST(request: NextRequest) {
           }
 
           // Mark verified in Supabase
-          await supabaseAdmin.from('profiles').update({
+          await admin.from('profiles').update({
             email_verified: true, email_verify_token: null,
             updated_at: new Date().toISOString()
           }).eq('id', supabaseProfile.id)
@@ -210,7 +218,7 @@ export async function POST(request: NextRequest) {
       // FALLBACK 2: Try searching via Supabase admin API (listUsers with metadata filter)
       try {
         console.log('🔍 Fallback 2: Searching via admin listUsers...')
-        const { data: { users }, error: listErr } = await supabaseAdmin.auth.admin.listUsers({
+        const { data: { users }, error: listErr } = await admin.auth.admin.listUsers({
           page: 1, perPage: 1000
         })
         if (!listErr && users) {
@@ -280,7 +288,7 @@ export async function POST(request: NextRequest) {
 
     // Update Supabase profiles table
     try {
-      await supabaseAdmin.from('profiles')
+      await admin.from('profiles')
         .update({ email_verified: true, updated_at: new Date().toISOString() })
         .eq('id', profile.id)
     } catch { /* ignore */ }
@@ -300,8 +308,9 @@ export async function POST(request: NextRequest) {
 
 async function ensureSupabaseConfirmed(userId: string) {
   if (!supabaseAdmin) return
+  const admin = supabaseAdmin
   try {
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    const { error } = await admin.auth.admin.updateUserById(userId, {
       email_confirm: true,
       user_metadata: { email_verified: true, updated_at: new Date().toISOString() }
     })

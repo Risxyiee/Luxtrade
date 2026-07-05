@@ -64,7 +64,8 @@ export async function GET(request: NextRequest) {
 
     if (supabaseAdmin) {
       try {
-        const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers()
+        const admin = supabaseAdmin
+        const { data: { users }, error } = await admin.auth.admin.listUsers()
         if (!error && users) {
           authUserMap = new Map(users.map(u => [u.id, u]))
           authEnriched = true
@@ -184,7 +185,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user in Supabase Auth
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
+    }
+    const admin = supabaseAdmin
+    const { data, error } = await admin.auth.admin.createUser({
       email,
       password: password || Math.random().toString(36).slice(-8),
       email_confirm: true,
@@ -235,6 +240,8 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
+    const admin = supabaseAdmin
+
     if (!userId) {
       console.error('❌ [ADMIN API] User ID is required')
       return NextResponse.json(
@@ -244,7 +251,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Get current user metadata
-    const { data: { user }, error: fetchError } = await supabaseAdmin.auth.admin.getUserById(userId)
+    const { data: { user }, error: fetchError } = await admin.auth.admin.getUserById(userId)
 
     if (fetchError) {
       console.error('❌ [ADMIN API] Error fetching user:', fetchError)
@@ -273,7 +280,7 @@ export async function PATCH(request: NextRequest) {
         updated_at: new Date().toISOString()
       }
 
-      const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      const { data: updatedUser, error: updateError } = await admin.auth.admin.updateUserById(userId, {
         user_metadata: newMetadata
       })
 
@@ -315,7 +322,7 @@ export async function PATCH(request: NextRequest) {
       }
 
       // Update user metadata
-      const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      const { data: updatedUser, error: updateError } = await admin.auth.admin.updateUserById(userId, {
         user_metadata: newMetadata
       })
 
@@ -374,6 +381,8 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
+    const admin = supabaseAdmin
+
     if (!userId) {
       console.error('❌ [ADMIN API] User ID is required')
       return NextResponse.json(
@@ -383,7 +392,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get current user metadata
-    const { data: { user }, error: fetchError } = await supabaseAdmin.auth.admin.getUserById(userId)
+    const { data: { user }, error: fetchError } = await admin.auth.admin.getUserById(userId)
 
     if (fetchError) {
       console.error('❌ [ADMIN API] Error fetching user:', fetchError)
@@ -410,7 +419,7 @@ export async function DELETE(request: NextRequest) {
       updated_at: new Date().toISOString()
     }
 
-    const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    const { data: updatedUser, error: updateError } = await admin.auth.admin.updateUserById(userId, {
       user_metadata: newMetadata
     })
 
