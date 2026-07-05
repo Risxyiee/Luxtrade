@@ -20,6 +20,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
+import { authFetch } from '@/lib/api-fetch'
 
 const ADMIN_EMAIL = 'luxtradee@gmail.com'
 
@@ -136,7 +137,7 @@ export default function AdminEmailPage() {
     if (syncing) return
     setSyncing(true)
     try {
-      const res = await fetch('/api/admin/sync-users', {
+      const res = await authFetch('/api/admin/sync-users', {
         method: 'POST',
         headers: { 'x-admin-email': ADMIN_EMAIL },
       })
@@ -144,7 +145,7 @@ export default function AdminEmailPage() {
       if (res.ok && data.success) {
         toast.success(data.message, { duration: 6000 })
         // Refresh stats
-        const statsRes = await fetch('/api/admin/email-stats', {
+        const statsRes = await authFetch('/api/admin/email-stats', {
           headers: { 'x-admin-email': ADMIN_EMAIL },
         })
         if (statsRes.ok) setStats(await statsRes.json())
@@ -188,7 +189,7 @@ export default function AdminEmailPage() {
     if (!isAdmin) return
     async function fetchStats() {
       try {
-        const res = await fetch('/api/admin/email-stats', {
+        const res = await authFetch('/api/admin/email-stats', {
           headers: { 'x-admin-email': ADMIN_EMAIL },
         })
         if (res.ok) {
@@ -248,7 +249,7 @@ export default function AdminEmailPage() {
           ? '<p>Ini adalah test email untuk template reminder verifikasi.</p><p>Teks ini hanya untuk preview.</p>'
           : htmlBody,
       })
-      const res = await fetch(`/api/admin/email-broadcast?${params.toString()}`, {
+      const res = await authFetch(`/api/admin/email-broadcast?${params.toString()}`, {
         headers: { 'x-admin-email': ADMIN_EMAIL },
       })
       const data = await res.json()
@@ -283,7 +284,7 @@ export default function AdminEmailPage() {
     setResult(null)
 
     try {
-      const res = await fetch('/api/admin/email-broadcast', {
+      const res = await authFetch('/api/admin/email-broadcast', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -301,7 +302,7 @@ export default function AdminEmailPage() {
       if (res.ok) {
         setResult(data)
         toast.success(`Email terkirim! ${data.sent} berhasil, ${data.failed} gagal`)
-        const statsRes = await fetch('/api/admin/email-stats', {
+        const statsRes = await authFetch('/api/admin/email-stats', {
           headers: { 'x-admin-email': ADMIN_EMAIL },
         })
         if (statsRes.ok) {

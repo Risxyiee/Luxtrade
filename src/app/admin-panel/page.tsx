@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
+import { authFetch } from '@/lib/api-fetch'
 
 // Admin email - hardcoded for security
 const ADMIN_EMAIL = 'luxtradee@gmail.com'
@@ -103,16 +104,9 @@ export default function AdminPanel() {
   const fetchUsers = async () => {
     setIsLoading(true)
     try {
-      // Get session token for admin API auth
-      const { supabase } = await import('@/lib/supabase')
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token || ''
-
       const [usersRes, withdrawalsRes] = await Promise.all([
-        fetch('/api/admin/users', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`/api/admin/withdrawals?adminEmail=${encodeURIComponent(user?.email || '')}`),
+        authFetch('/api/admin/users'),
+        authFetch(`/api/admin/withdrawals?adminEmail=${encodeURIComponent(user?.email || '')}`),
       ])
       const usersData = await usersRes.json()
       const withdrawalsData = await withdrawalsRes.json()
@@ -134,7 +128,7 @@ export default function AdminPanel() {
     setShowDropdown(null)
 
     try {
-      const response = await fetch('/api/admin/activate-pro', {
+      const response = await authFetch('/api/admin/activate-pro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -166,7 +160,7 @@ export default function AdminPanel() {
     setActivating(userId)
 
     try {
-      const response = await fetch(`/api/admin/activate-pro?adminEmail=${encodeURIComponent(user?.email || '')}&userId=${userId}`, {
+      const response = await authFetch(`/api/admin/activate-pro?adminEmail=${encodeURIComponent(user?.email || '')}&userId=${userId}`, {
         method: 'DELETE',
       })
 
@@ -190,7 +184,7 @@ export default function AdminPanel() {
     if (!selectedWithdrawal || !withdrawAction) return
     setProcessingWithdrawal(true)
     try {
-      const res = await fetch('/api/admin/withdrawals', {
+      const res = await authFetch('/api/admin/withdrawals', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button'
 import { Gift, Loader2, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
+import { authFetch } from '@/lib/api-fetch'
 
 interface RewardBugButtonProps {
   reportId: string
@@ -54,20 +55,8 @@ export function RewardBugButton({
     setLoading(true)
 
     try {
-      // Get auth token
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        toast.error('Anda harus login sebagai admin untuk memberikan hadiah.')
-        return
-      }
-
-      // Call API
-      const response = await fetch('/api/admin/reward-bug', {
+      const response = await authFetch('/api/admin/reward-bug', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
         body: JSON.stringify({
           reportId
         })
