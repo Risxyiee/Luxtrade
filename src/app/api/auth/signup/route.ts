@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
 import { db } from '@/lib/db'
 import { sendEmailFromTemplate, getConfirmationEmailHtml } from '@/lib/email'
+import { checkRateLimit } from '@/lib/rate-limit'
 import crypto from 'crypto'
 
 function generateReferralCode(): string {
@@ -184,6 +185,14 @@ async function createOrUpdateProfile(data: {
 // ============================================
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 5 signups per 15 minutes per IP
+    const rl = checkRateLimit(request, 'signup', {
+      maxRequests: 5,
+      windowMs: 15 * 60 * 1000,
+      message: 'Terlalu banyak percobaan daftar. Tunggu 15 menit.',
+    })
+    if (rl) return rl
+
     const { email, password, fullName, deviceId, referralCode } = await request.json()
     const emailLower = email?.toLowerCase()
 

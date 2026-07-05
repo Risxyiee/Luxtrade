@@ -4,6 +4,7 @@ import { analyzeImageWithOllama } from '@/lib/ollama-vision'
 import { analyzeImageWithZAIVision } from '@/lib/zai-vision'
 import { createClientForApi } from '@/lib/supabase/server'
 import { isUserPro } from '@/lib/pro-check'
+import { rateLimitByUser } from '@/lib/rate-limit'
 
 /**
  * API Route: Analyze Trading Screenshot
@@ -129,6 +130,14 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Rate limit: 10 requests per minute per user
+    const rl = rateLimitByUser('analyze-screenshot', user.id, {
+      maxRequests: 10,
+      windowMs: 60_000,
+      message: 'Terlalu banyak permintaan analisis screenshot. Maksimal 10 per menit.',
+    })
+    if (rl) return rl
 
     const pro = await isUserPro(user.id)
     if (!pro) {

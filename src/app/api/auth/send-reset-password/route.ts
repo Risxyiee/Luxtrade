@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
 import { sendEmailFromTemplate, getResetPasswordEmailHtml } from '@/lib/email'
+import { rateLimitByEmail } from '@/lib/rate-limit'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 
@@ -11,6 +12,14 @@ export async function POST(request: NextRequest) {
     if (!email) {
       return NextResponse.json({ error: 'Email wajib diisi' }, { status: 400 })
     }
+
+    // Rate limit: 3 reset requests per 15 minutes per email
+    const rl = rateLimitByEmail('reset-password', email, {
+      maxRequests: 3,
+      windowMs: 15 * 60 * 1000,
+      message: 'Terlalu banyak permintaan reset password. Tunggu 15 menit.',
+    })
+    if (rl) return rl
 
     const authAdmin = getSupabaseAdminAuthFromClient()
     if (!authAdmin) {
