@@ -36,7 +36,7 @@ export default function FAQSection({ language }: FAQSectionProps) {
           {faqs.map((faq, index) => {
             const isOpen = openFaq === index
             return (
-              <motion.div key={index} initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.06 }}>
+              <motion.div key={index} initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.1 }} transition={{ delay: index * 0.06 }}>
                 <button
                   onClick={() => setOpenFaq(isOpen ? null : index)}
                   aria-expanded={isOpen}

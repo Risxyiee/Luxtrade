@@ -17,7 +17,7 @@ export default function NewsletterSection({ language, newsletterEmail, setNewsle
   return (
     <section className="py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto text-center">
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.1 }}>
           {/* Unique badge: compact with bell icon */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-pink-500/20 mb-6">
             <Bell className="w-3.5 h-3.5 text-pink-400" />

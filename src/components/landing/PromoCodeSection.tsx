@@ -17,7 +17,7 @@ export default function PromoCodeSection({ language, promoRemaining, promoMax, p
   return (
     <section id="promo" className="py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.1 }}>
           <div className={`relative overflow-hidden bg-[var(--lux-card-surface)] backdrop-blur-sm border rounded-3xl p-8 sm:p-10 transition-colors ${isAvailable ? 'border-amber-500/20' : 'border-red-500/20'}`}>
             {isAvailable && (
               <div className="absolute -top-20 -right-20 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl" />

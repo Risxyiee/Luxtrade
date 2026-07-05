@@ -37,7 +37,9 @@ export default function QuickStats({ trades, analytics, language = 'id' }: Quick
     const winRate = Math.round((wins / trades.length) * 100)
     const avgWin = wins > 0 ? trades.filter(t => t.profit_loss >= 0).reduce((s, t) => s + t.profit_loss, 0) / wins : 0
     const avgLoss = losses > 0 ? Math.abs(trades.filter(t => t.profit_loss < 0).reduce((s, t) => s + t.profit_loss, 0) / losses) : 0
-    const profitFactor = avgLoss > 0 ? avgWin / avgLoss : 0
+    const grossProfit = trades.filter(t => t.profit_loss > 0).reduce((s, t) => s + t.profit_loss, 0)
+    const grossLoss = Math.abs(trades.filter(t => t.profit_loss < 0).reduce((s, t) => s + t.profit_loss, 0))
+    const profitFactor = grossLoss > 0 ? Math.round((grossProfit / grossLoss) * 100) / 100 : (grossProfit > 0 ? Infinity : 0)
     const bestTrade = trades.length > 0 ? Math.max(...trades.map(t => t.profit_loss)) : 0
 
     // Session breakdown
@@ -56,7 +58,7 @@ export default function QuickStats({ trades, analytics, language = 'id' }: Quick
     return [
       {
         label: language === 'id' ? 'Total P/L' : 'Total P/L',
-        value: `$${totalPL.toLocaleString()}`,
+        value: `${totalPL >= 0 ? '+' : '-'}$${Math.abs(totalPL).toFixed(2)}`,
         subtext: `${wins}W / ${losses}L`,
         icon: <DollarSign className="w-5 h-5" />,
         color: totalPL >= 0 ? 'text-emerald-400' : 'text-red-400',
@@ -64,7 +66,7 @@ export default function QuickStats({ trades, analytics, language = 'id' }: Quick
       },
       {
         label: language === 'id' ? 'Win Rate' : 'Win Rate',
-        value: `${winRate}%`,
+        value: `${winRate.toFixed(1)}%`,
         subtext: `${wins}/${trades.length} ${language === 'id' ? 'trade menang' : 'wins'}`,
         icon: <Percent className="w-5 h-5" />,
         color: winRate >= 50 ? 'text-emerald-400' : 'text-amber-400',
@@ -80,19 +82,21 @@ export default function QuickStats({ trades, analytics, language = 'id' }: Quick
       },
       {
         label: language === 'id' ? 'Profit Factor' : 'Profit Factor',
-        value: profitFactor.toFixed(2),
-        subtext: profitFactor >= 1.5
+        value: profitFactor === Infinity ? '∞' : profitFactor.toFixed(2),
+        subtext: profitFactor === Infinity
+          ? (language === 'id' ? 'Tanpa kerugian!' : 'No losses!')
+          : profitFactor >= 1.5
           ? (language === 'id' ? 'Sangat bagus!' : 'Excellent!')
           : profitFactor >= 1
           ? (language === 'id' ? 'Cukup baik' : 'Good')
           : (language === 'id' ? 'Perlu perbaikan' : 'Needs work'),
         icon: <BarChart3 className="w-5 h-5" />,
-        color: profitFactor >= 1.5 ? 'text-emerald-400' : profitFactor >= 1 ? 'text-amber-400' : 'text-red-400',
-        bgColor: profitFactor >= 1.5 ? 'bg-emerald-500/10 border-emerald-500/20' : profitFactor >= 1 ? 'bg-amber-500/10 border-amber-500/20' : 'bg-red-500/10 border-red-500/20',
+        color: profitFactor === Infinity || profitFactor >= 1.5 ? 'text-emerald-400' : profitFactor >= 1 ? 'text-amber-400' : 'text-red-400',
+        bgColor: profitFactor === Infinity || profitFactor >= 1.5 ? 'bg-emerald-500/10 border-emerald-500/20' : profitFactor >= 1 ? 'bg-amber-500/10 border-amber-500/20' : 'bg-red-500/10 border-red-500/20',
       },
       {
         label: language === 'id' ? 'Trade Terbaik' : 'Best Trade',
-        value: `+$${bestTrade}`,
+        value: `+$${bestTrade.toFixed(2)}`,
         subtext: trades.find(t => t.profit_loss === bestTrade)?.symbol || '',
         icon: <Award className="w-5 h-5" />,
         color: 'text-amber-400',

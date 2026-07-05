@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { motion } from 'framer-motion'
 import { formatCurrency } from '@/lib/supabase'
-import QuickStats from '@/components/QuickStats'
 import ActivityFeed from '@/components/ActivityFeed'
 import { useConfetti } from '@/hooks/useConfetti'
 import AnimatedStatCard from '../components/AnimatedStatCard'
@@ -97,7 +96,9 @@ function DashboardTab({
 
   // Quick stats for streak cards
   const bestTrade = trades.length > 0 ? Math.max(...trades.map(t => t.profit_loss)) : 0
+  const bestTradeSymbol = trades.length > 0 ? trades.find(t => t.profit_loss === bestTrade)?.symbol : ''
   const worstTrade = trades.length > 0 ? Math.min(...trades.map(t => t.profit_loss)) : 0
+  const worstTradeSymbol = trades.length > 0 ? trades.find(t => t.profit_loss === worstTrade)?.symbol : ''
 
   if (loading) {
     return (
@@ -180,7 +181,7 @@ function DashboardTab({
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className="flex flex-col sm:flex-row gap-3">
                   <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 min-w-[140px] transition-all duration-300 hover:bg-white/15 hover:border-white/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/10">
                     <div className="flex items-center gap-2 mb-1"><TrendingUp className="w-4 h-4 text-emerald-400" /><span className="text-xs text-gray-400">{language === 'id' ? 'Total P/L' : 'Total P/L'}</span></div>
-                    <div className={`text-xl font-bold ${(analytics?.totalPL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{(analytics?.totalPL || 0) >= 0 ? '+' : ''}{(analytics?.totalPL || 0).toFixed(2)}</div>
+                    <div className={`text-xl font-bold ${(analytics?.totalPL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{(analytics?.totalPL || 0) >= 0 ? '+' : '-'}$${Math.abs(analytics?.totalPL || 0).toFixed(2)}</div>
                   </div>
                   <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 min-w-[140px] transition-all duration-300 hover:bg-white/15 hover:border-white/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-amber-500/10">
                     <div className="flex items-center gap-2 mb-1"><Target className="w-4 h-4 text-amber-400" /><span className="text-xs text-gray-400">{language === 'id' ? 'Win Rate' : 'Win Rate'}</span></div>
@@ -218,7 +219,7 @@ function DashboardTab({
             <CardContent>
               <div className="grid grid-cols-4 gap-3">
                 <div><p className="text-xs text-gray-400 mb-1">Trades</p><p className="text-lg font-bold text-white">{todayPerf.trades}</p></div>
-                <div><p className="text-xs text-gray-400 mb-1">P/L</p><p className={`text-lg font-bold ${todayPerf.totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{todayPerf.totalPL >= 0 ? '+' : ''}{todayPerf.totalPL.toFixed(2)}</p></div>
+                <div><p className="text-xs text-gray-400 mb-1">P/L</p><p className={`text-lg font-bold ${todayPerf.totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{todayPerf.totalPL >= 0 ? '+' : '-'}${Math.abs(todayPerf.totalPL).toFixed(2)}</p></div>
                 <div><p className="text-xs text-gray-400 mb-1">Win Rate</p><p className="text-lg font-bold text-amber-400">{todayPerf.winRate.toFixed(0)}%</p></div>
                 <div><p className="text-xs text-gray-400 mb-1">W/L</p><p className="text-lg font-bold text-purple-400">{todayPerf.wins}/{todayPerf.losses}</p></div>
               </div>
@@ -242,7 +243,7 @@ function DashboardTab({
                   </div>
                 </div>
                 <div>
-                  <div className="flex items-center justify-between mb-2"><p className="text-sm text-gray-400">Weekly P/L</p><p className={`text-sm font-bold ${weeklyPerf.totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{weeklyPerf.totalPL >= 0 ? '+' : ''}{weeklyPerf.totalPL.toFixed(2)}</p></div>
+                  <div className="flex items-center justify-between mb-2"><p className="text-sm text-gray-400">Weekly P/L</p><p className={`text-sm font-bold ${weeklyPerf.totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{weeklyPerf.totalPL >= 0 ? '+' : '-'}${Math.abs(weeklyPerf.totalPL).toFixed(2)}</p></div>
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     <div className="p-2 rounded-lg bg-white/5 text-center"><p className="text-xs text-gray-400">Win Rate</p><p className="text-sm font-bold text-amber-400">{weeklyPerf.winRate.toFixed(0)}%</p></div>
                     <div className="p-2 rounded-lg bg-white/5 text-center"><p className="text-xs text-gray-400">W/L Ratio</p><p className="text-sm font-bold text-purple-400">{weeklyPerf.losses > 0 ? (weeklyPerf.wins / weeklyPerf.losses).toFixed(2) : weeklyPerf.wins}</p></div>
@@ -281,7 +282,7 @@ function DashboardTab({
         <AnimatedStatCard title="Total P/L" value={analytics?.totalPL || 0} prefix="$" subtitle={`${analytics?.totalTrades || 0} trades`} icon={DollarSign} iconColor="text-white" iconBgColor={(analytics?.totalPL || 0) >= 0 ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/10' : 'bg-gradient-to-br from-red-500/20 to-red-600/10'} gradientBg={(analytics?.totalPL || 0) >= 0 ? 'from-emerald-500/30 to-emerald-600/20' : 'from-red-500/30 to-red-600/20'} valueColor={(analytics?.totalPL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'} />
         <AnimatedStatCard title="Win Rate" value={analytics?.winRate || 0} suffix="%" subtitle="Success rate" icon={Target} iconColor="text-amber-400" iconBgColor="bg-gradient-to-br from-amber-500/20 to-orange-600/10" gradientBg="from-amber-500/30 to-orange-600/20" valueColor="text-amber-400" decimals={1} />
         <AnimatedStatCard title="Win / Loss" value={analytics?.winningTrades || 0} subtitle={`${analytics?.losingTrades || 0} losses`} icon={Activity} iconColor="text-purple-400" iconBgColor="bg-gradient-to-br from-purple-500/20 to-violet-600/10" gradientBg="from-purple-500/30 to-violet-600/20" valueColor="text-purple-400" decimals={0} />
-        <AnimatedStatCard title="Profit Factor" value={analytics?.profitFactor || 0} subtitle={analytics && analytics.profitFactor >= 1.5 ? 'Good' : 'Needs work'} icon={TrendingUp} iconColor="text-blue-400" iconBgColor="bg-gradient-to-br from-blue-500/20 to-cyan-600/10" gradientBg="from-blue-500/30 to-cyan-600/20" valueColor="text-blue-400" decimals={2} />
+        <AnimatedStatCard title="Profit Factor" value={analytics?.profitFactor || 0} subtitle={analytics && analytics.profitFactor >= 1.5 ? 'Good' : analytics?.profitFactor === Infinity ? 'No losses!' : 'Needs work'} icon={TrendingUp} iconColor="text-blue-400" iconBgColor="bg-gradient-to-br from-blue-500/20 to-cyan-600/10" gradientBg="from-blue-500/30 to-cyan-600/20" valueColor="text-blue-400" decimals={2} />
       </div>
 
       {/* Streak & Best/Worst Stats */}
@@ -290,8 +291,8 @@ function DashboardTab({
           {([
             { label: 'Win Streak', value: calculateConsecutiveStreaks(trades, 'win'), color: 'emerald', icon: TrendingUp },
             { label: 'Lose Streak', value: calculateConsecutiveStreaks(trades, 'lose'), color: 'red', icon: TrendingDown },
-            { label: 'Best Trade', value: bestTrade, color: 'amber', prefix: '+', isCurrency: true, icon: Sparkles },
-            { label: 'Worst Trade', value: worstTrade, color: 'purple', isCurrency: true, icon: AlertTriangle },
+            { label: 'Best Trade', value: bestTrade, color: 'amber', prefix: '+$', symbol: bestTradeSymbol, isCurrency: true, icon: Sparkles },
+            { label: 'Worst Trade', value: worstTrade, color: 'purple', prefix: '-$', symbol: worstTradeSymbol, isCurrency: true, icon: AlertTriangle },
           ] as const).map((item, i) => (
             <motion.div key={item.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.15 + i * 0.05 }} whileHover={{ y: -3 }}>
               <Card className={`relative overflow-hidden bg-gradient-to-br from-${item.color}-500/15 to-${item.color}-600/5 backdrop-blur-md border border-${item.color}-500/20 transition-all duration-300 hover:border-${item.color}-500/40 hover:shadow-lg hover:shadow-${item.color}-500/10`}>
@@ -302,7 +303,8 @@ function DashboardTab({
                     <span className="text-xs text-gray-400 font-medium">{item.label}</span>
                   </div>
                   <div className="text-2xl font-bold text-{item.color}-400 drop-shadow-sm">
-                    {item.isCurrency ? `${item.prefix}${item.value.toFixed(2)}` : item.value}
+                    {item.isCurrency ? `${item.prefix || ''}${Math.abs(item.value).toFixed(2)}` : item.value}
+                    {(item as any).symbol && <span className="text-xs text-gray-500 ml-1">{(item as any).symbol}</span>}
                   </div>
                 </CardContent>
               </Card>
@@ -311,8 +313,7 @@ function DashboardTab({
         </div>
       )}
 
-      {/* Quick Stats */}
-      {hasData && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.12 }}><QuickStats trades={trades} analytics={analytics} language={language} /></motion.div>}
+      {/* Quick Stats — removed: was duplicating Total P/L, Win Rate, Profit Factor, Best Trade already shown above */}
 
       {/* Session Performance Chart */}
       {hasData && analytics?.sessionPerformance && (
@@ -343,7 +344,7 @@ function DashboardTab({
               <CardTitle className="text-lg">Equity Curve</CardTitle>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-400">Current:</span>
-                <span className={`text-lg font-bold ${(analytics?.totalPL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>${(analytics?.totalPL || 0) >= 0 ? '+' : ''}${(analytics?.totalPL || 0).toFixed(2)}</span>
+                <span className={`text-lg font-bold ${(analytics?.totalPL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>${(analytics?.totalPL || 0) >= 0 ? '+' : '-'}$${Math.abs(analytics?.totalPL || 0).toFixed(2)}</span>
               </div>
             </CardHeader>
             <CardContent>

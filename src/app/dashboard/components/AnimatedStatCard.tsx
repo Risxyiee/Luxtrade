@@ -79,7 +79,7 @@ function AnimatedStatCard({
   trend,
   color = 'purple'
 }: AnimatedStatCardProps) {
-  const animatedValue = useCountUp(value, 1500, 0, decimals)
+  const animatedValue = useCountUp(isFinite(value) ? value : 0, 1500, 0, decimals)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -119,7 +119,7 @@ function AnimatedStatCard({
           transition={{ duration: 0.5 }}
         >
           <div className={`text-2xl font-bold mb-1 ${valueColor}`}>
-            {prefix}{animatedValue.toFixed(decimals)}{suffix}
+            {!isFinite(value) ? '∞' : <>{prefix}{animatedValue.toFixed(decimals)}{suffix}</>}
           </div>
           {subtitle && (
             <p className="text-xs text-gray-500">{subtitle}</p>
