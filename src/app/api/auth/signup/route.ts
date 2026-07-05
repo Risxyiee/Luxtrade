@@ -204,6 +204,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server tidak dikonfigurasi dengan benar.' }, { status: 500 })
     }
 
+    const admin = supabaseAdmin
+
     // ============================================
     // PRE-FLIGHT: Auto-migrate database
     // ============================================
@@ -228,7 +230,7 @@ export async function POST(request: NextRequest) {
         // Cek apakah user masih ada di Supabase Auth
         let userStillExists = false
         try {
-          const { data: { users }, error: listErr } = await supabaseAdmin.auth.admin.listUsers({
+          const { data: { users }, error: listErr } = await admin.auth.admin.listUsers({
             page: 1, perPage: 1000
           })
           if (!listErr && users) {
@@ -290,7 +292,7 @@ export async function POST(request: NextRequest) {
     const myReferralCode = generateReferralCode()
     const now = new Date().toISOString()
 
-    const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+    const { data: userData, error: createError } = await admin.auth.admin.createUser({
       email: emailLower,
       password,
       email_confirm: false,
@@ -345,7 +347,7 @@ export async function POST(request: NextRequest) {
 
     // Also store token in Supabase user metadata as backup for verify-email fallback
     try {
-      await supabaseAdmin.auth.admin.updateUserById(userId, {
+      await admin.auth.admin.updateUserById(userId, {
         user_metadata: {
           ...userData?.user?.user_metadata,
           email_verify_token: savedToken,
@@ -381,7 +383,7 @@ export async function POST(request: NextRequest) {
 
     // Also sync to Supabase profiles table (backup for verify-email fallback)
     try {
-      await supabaseAdmin.from('profiles').upsert({
+      await admin.from('profiles').upsert({
         id: userId,
         email: emailLower,
         full_name: fullName,

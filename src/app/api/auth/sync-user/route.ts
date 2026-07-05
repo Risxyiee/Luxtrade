@@ -23,8 +23,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const admin = supabaseAdmin
+
     // Use Supabase admin to update user metadata
-    const { data: user, error } = await supabaseAdmin.auth.admin.updateUserById(
+    const { data: user, error } = await admin.auth.admin.updateUserById(
       userId,
       {
         email: email,

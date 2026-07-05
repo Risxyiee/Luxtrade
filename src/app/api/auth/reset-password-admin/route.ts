@@ -33,8 +33,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const admin = supabaseAdmin
+
     // Find user by email
-    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+    const { data: { users }, error: listError } = await admin.auth.admin.listUsers({
       filters: { email: email.toLowerCase() }
     })
 
@@ -49,7 +51,7 @@ export async function POST(request: NextRequest) {
     const user = users[0]
 
     // Update user password via admin API
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+    const { error: updateError } = await admin.auth.admin.updateUserById(user.id, {
       password: password,
       email_confirm: true,
     })

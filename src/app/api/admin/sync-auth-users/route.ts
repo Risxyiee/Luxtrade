@@ -29,8 +29,10 @@ async function performSync() {
       }
     }
 
+    const admin = supabaseAdmin
+
     // Get all users from Supabase Auth using admin client
-    const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers()
+    const { data: authUsers, error: authError } = await admin.auth.admin.listUsers()
 
     if (authError) {
       console.error('❌ Error fetching Supabase Auth users:', authError)
@@ -84,7 +86,7 @@ async function performSync() {
           // ============================================
           // SYNC TO SUPABASE PROFILES TABLE
           // ============================================
-          const { data: existingProfile, error: profileCheckError } = await supabaseAdmin
+          const { data: existingProfile, error: profileCheckError } = await admin
             .from('profiles')
             .select('id')
             .eq('id', authUser.id)
@@ -102,7 +104,7 @@ async function performSync() {
                            authUser.user_metadata?.full_name ||
                            null
 
-            const { error: profileCreateError } = await supabaseAdmin
+            const { error: profileCreateError } = await admin
               .from('profiles')
               .insert({
                 id: authUser.id,
@@ -163,7 +165,7 @@ async function performSync() {
 
     // Get final counts
     const allPrismaUsers = await db.user.findMany()
-    const { count: profileCount } = await supabaseAdmin
+    const { count: profileCount } = await admin
       .from('profiles')
       .select('*', { count: 'exact', head: true })
 
