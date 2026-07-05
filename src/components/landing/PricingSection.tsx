@@ -34,7 +34,7 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
 
         <div className="flex flex-col lg:flex-row gap-8 w-full justify-center max-w-[1200px] mx-auto">
           {/* Free Plan */}
-          <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="flex-1 flex flex-col bg-[var(--lux-card-surface)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-3xl overflow-hidden min-w-[280px]">
+          <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.1 }} transition={{ delay: 0.1 }} className="flex-1 flex flex-col bg-[var(--lux-card-surface)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-3xl overflow-hidden min-w-[280px]">
             <div className="flex flex-col items-center flex-grow p-8 pt-10">
               <div className="flex items-center justify-center mb-6">
                 <BookOpen className="w-5 h-5 text-purple-400" />
@@ -67,7 +67,7 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
           </motion.div>
 
           {/* Elite Pro - Highlighted */}
-          <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="flex-1 flex flex-col bg-gradient-to-b from-purple-500/20 via-white/5 to-purple-500/10 border border-purple-500/40 rounded-3xl overflow-hidden min-w-[280px] relative">
+          <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.1 }} transition={{ delay: 0.2 }} className="flex-1 flex flex-col bg-gradient-to-b from-purple-500/20 via-white/5 to-purple-500/10 border border-purple-500/40 rounded-3xl overflow-hidden min-w-[280px] relative">
             <motion.div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-xs font-bold text-white" animate={{ boxShadow: ['0 0 0 0 rgba(139, 92, 246, 0.7)', '0 0 0 10px rgba(139, 92, 246, 0)', '0 0 0 0 rgba(139, 92, 246, 0.7)'] }} transition={{ duration: 2, repeat: Infinity }}>
               {language === 'id' ? 'Paling Populer' : 'Most Popular'}
             </motion.div>
@@ -115,7 +115,7 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          viewport={{ once: true, amount: 0.1 }}
           transition={{ delay: 0.2 }}
           className="mt-16 max-w-[900px] mx-auto"
         >
@@ -262,7 +262,7 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          viewport={{ once: true, amount: 0.1 }}
           className="flex flex-col items-center gap-3 mt-10"
         >
           {/* Midtrans Badge */}

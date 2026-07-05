@@ -24,7 +24,7 @@ export default function RoadmapSection({ language }: RoadmapSectionProps) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}>
+          <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.1 }} transition={{ delay: 0.1 }}>
             <div className="h-full p-6 bg-[var(--lux-card-surface)] backdrop-blur-sm border border-cyan-500/20 rounded-2xl">
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center"><Activity className="w-5 h-5 text-cyan-400" /></div>
@@ -47,7 +47,7 @@ export default function RoadmapSection({ language }: RoadmapSectionProps) {
             </div>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}>
+          <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.1 }} transition={{ delay: 0.2 }}>
             <div className="h-full p-6 bg-[var(--lux-card-surface)] backdrop-blur-sm border border-violet-500/20 rounded-2xl">
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-10 h-10 rounded-xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center"><Rocket className="w-5 h-5 text-violet-400" /></div>
@@ -73,7 +73,7 @@ export default function RoadmapSection({ language }: RoadmapSectionProps) {
         </div>
 
         {/* Already Available */}
-        <motion.div className="mt-10" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+        <motion.div className="mt-10" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.1 }}>
           <div className="p-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center"><Check className="w-5 h-5 text-emerald-400" /></div>

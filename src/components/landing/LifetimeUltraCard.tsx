@@ -24,7 +24,7 @@ export default function LifetimeUltraCard({ onButtonClick, language, t, promoRem
 
   if (loading) {
     return (
-      <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }}>
+      <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.1 }} transition={{ delay: 0.3 }}>
         <div className="h-full bg-[var(--lux-card-surface)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-3xl p-8">
           <div className="animate-pulse"><div className="h-6 bg-[var(--lux-inline-hover-bg-2)] rounded mb-4 w-1/2" /><div className="h-8 bg-[var(--lux-inline-hover-bg-2)] rounded mb-2 w-3/4" /><div className="space-y-3">{[1,2,3,4].map(i => <div key={i} className="h-4 bg-[var(--lux-inline-hover-bg-2)] rounded" />)}</div></div>
         </div>
@@ -33,7 +33,7 @@ export default function LifetimeUltraCard({ onButtonClick, language, t, promoRem
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }}>
+    <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.1 }} transition={{ delay: 0.3 }}>
       <div className={`h-full relative bg-[var(--lux-card-surface)] backdrop-blur-sm border ${isSoldOut ? 'border-red-500/30' : 'border-amber-500/30'} rounded-3xl p-8 pt-10 hover:bg-[var(--lux-card-surface-hover)] transition-colors`}>
         {isSoldOut && (
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-red-500 text-xs font-bold text-white backdrop-blur-sm animate-pulse">SOLD OUT</div>
