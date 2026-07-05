@@ -25,6 +25,7 @@ import {
   Mail,
   UserCircle
 } from 'lucide-react'
+import { authFetch } from '@/lib/api-fetch'
 
 interface Subscription {
   id: string
@@ -115,7 +116,7 @@ export default function AdminSubscriptionsPanel() {
     try {
       console.log('🔄 Starting manual sync...')
 
-      const res = await fetch('/api/admin/sync-auth-users', {
+      const res = await authFetch('/api/admin/sync-auth-users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       })
@@ -146,7 +147,7 @@ export default function AdminSubscriptionsPanel() {
     try {
       // Fetch users
       console.log('📥 Fetching users from /api/admin/users')
-      const userRes = await fetch('/api/admin/users')
+      const userRes = await authFetch('/api/admin/users')
       console.log('📥 User response status:', userRes.status)
 
       const userData = await userRes.json()
@@ -171,13 +172,13 @@ export default function AdminSubscriptionsPanel() {
 
       // Fetch subscriptions
       console.log('📥 Fetching subscriptions...')
-      const subRes = await fetch('/api/admin/subscriptions')
+      const subRes = await authFetch('/api/admin/subscriptions')
       const subData = await subRes.json()
       setSubscriptions(subData.subscriptions || [])
 
       // Fetch plans
       console.log('📥 Fetching plans...')
-      const planRes = await fetch('/api/admin/plans')
+      const planRes = await authFetch('/api/admin/plans')
       const planData = await planRes.json()
       setPlans(planData.plans || [])
 
@@ -192,7 +193,7 @@ export default function AdminSubscriptionsPanel() {
       }
 
       // Fetch affiliate stats
-      const affiliateRes = await fetch('/api/admin/affiliate-stats')
+      const affiliateRes = await authFetch('/api/admin/affiliate-stats')
       const affiliateData = await affiliateRes.json()
       setAffiliateStats(affiliateData.data || [])
     } catch (error) {
@@ -209,17 +210,17 @@ export default function AdminSubscriptionsPanel() {
     console.log('🔄 Background fetch (no loading state)...')
     try {
       // Fetch users
-      const userRes = await fetch('/api/admin/users')
+      const userRes = await authFetch('/api/admin/users')
       const userData = await userRes.json()
       setUsers(userData.users || [])
 
       // Fetch subscriptions
-      const subRes = await fetch('/api/admin/subscriptions')
+      const subRes = await authFetch('/api/admin/subscriptions')
       const subData = await subRes.json()
       setSubscriptions(subData.subscriptions || [])
 
       // Fetch plans
-      const planRes = await fetch('/api/admin/plans')
+      const planRes = await authFetch('/api/admin/plans')
       const planData = await planRes.json()
       setPlans(planData.plans || [])
 
@@ -259,7 +260,7 @@ export default function AdminSubscriptionsPanel() {
     }
 
     try {
-      const res = await fetch('/api/admin/users', {
+      const res = await authFetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -287,7 +288,7 @@ export default function AdminSubscriptionsPanel() {
     if (!confirm(`Are you sure you want to delete user ${email}?`)) return
 
     try {
-      const res = await fetch(`/api/admin/users/${id}`, {
+      const res = await authFetch(`/api/admin/users/${id}`, {
         method: 'DELETE'
       })
 
@@ -319,7 +320,7 @@ export default function AdminSubscriptionsPanel() {
     try {
       console.log('🚀 Calling API to activate Pro for user:', userId, 'with planType:', planType)
 
-      const res = await fetch('/api/admin/activate-pro', {
+      const res = await authFetch('/api/admin/activate-pro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, planType })
@@ -350,7 +351,7 @@ export default function AdminSubscriptionsPanel() {
 
   const handleActivate = async (id: string) => {
     try {
-      const res = await fetch(`/api/admin/subscriptions/${id}/activate`, {
+      const res = await authFetch(`/api/admin/subscriptions/${id}/activate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -374,7 +375,7 @@ export default function AdminSubscriptionsPanel() {
     if (!confirm('Are you sure you want to deactivate this subscription?')) return
 
     try {
-      const res = await fetch(`/api/admin/subscriptions/${id}/deactivate`, {
+      const res = await authFetch(`/api/admin/subscriptions/${id}/deactivate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: 'Deactivated by admin' })
@@ -404,7 +405,7 @@ export default function AdminSubscriptionsPanel() {
         calculatedEndDate = editEndDate
       }
 
-      const res = await fetch(`/api/admin/subscriptions/${selectedSubscription.id}`, {
+      const res = await authFetch(`/api/admin/subscriptions/${selectedSubscription.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -430,7 +431,7 @@ export default function AdminSubscriptionsPanel() {
     }
 
     try {
-      const res = await fetch('/api/admin/subscriptions', {
+      const res = await authFetch('/api/admin/subscriptions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -491,7 +492,7 @@ export default function AdminSubscriptionsPanel() {
 
     setCancellingUserId(userId)
     try {
-      const res = await fetch('/api/admin/cancel-subscription', {
+      const res = await authFetch('/api/admin/cancel-subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId })
