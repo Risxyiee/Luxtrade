@@ -39,7 +39,7 @@ export default function LuxTradeLanding() {
     setShowLegalModal(true)
   }
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [promoRemaining, setPromoRemaining] = useState<number | null>(null)
+  const [promoRemaining, setPromoRemaining] = useState<number | null>(30)
   const [promoMax, setPromoMax] = useState<number>(30)
   const [promoActive, setPromoActive] = useState<boolean | null>(null)
   const [newsletterEmail, setNewsletterEmail] = useState('')
