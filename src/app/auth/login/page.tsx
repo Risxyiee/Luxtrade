@@ -80,6 +80,40 @@ function LoginForm() {
         const errorMsg = signInError.message?.toLowerCase() || ''
         
         if (errorMsg.includes('invalid login credentials') || errorMsg.includes('invalid credentials')) {
+          // Could be unconfirmed email — Supabase sometimes returns this instead of "email not confirmed"
+          // Try to force-confirm and retry
+          try {
+            const confirmRes = await fetch('/api/auth/force-confirm', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email })
+            })
+            const confirmData = await confirmRes.json()
+
+            if (confirmData.confirmed) {
+              // User was unconfirmed, now confirmed — retry login
+              const retry = await supabase.auth.signInWithPassword({ email, password })
+              if (retry.data.session && retry.data.user) {
+                try {
+                  await fetch('/api/auth/sync-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      userId: retry.data.user.id,
+                      email: retry.data.user.email,
+                      fullName: retry.data.user.user_metadata?.display_name ||
+                               retry.data.user.user_metadata?.name ||
+                               retry.data.user.user_metadata?.full_name ||
+                               retry.data.user.email?.split('@')[0]
+                    })
+                  })
+                } catch { /* non-critical */ }
+                window.location.href = redirectPath
+                return
+              }
+            }
+          } catch { /* force-confirm failed, show normal error */ }
+
           setError('Email atau password salah. Coba lagi ya.')
         } else if (errorMsg.includes('email not confirmed')) {
           setError('Email belum diverifikasi. Cek inbox/spam kamu untuk link verifikasi, atau klik tombol di bawah untuk kirim ulang.')
