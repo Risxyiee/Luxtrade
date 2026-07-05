@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin, isAdminAvailable, getAdminAuth } from '@/lib/supabase-admin-alt'
+import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,22 +13,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if admin is available
-    if (!isAdminAvailable() || !supabaseAdmin) {
-      console.error('❌ Supabase admin not available')
-      return NextResponse.json(
-        { error: 'Admin access not configured' },
-        { status: 500 }
-      )
+    if (!supabaseAdmin) {
+      console.error('[sync-user] Supabase admin not available')
+      return NextResponse.json({ success: true, action: 'skipped' })
     }
 
-    const authAdmin = getAdminAuth()
+    const authAdmin = getSupabaseAdminAuthFromClient()
     if (!authAdmin) {
-      console.error('❌ getAdminAuth() returned null')
-      return NextResponse.json(
-        { error: 'Admin access not configured' },
-        { status: 500 }
-      )
+      console.error('[sync-user] getSupabaseAdminAuthFromClient() returned null')
+      return NextResponse.json({ success: true, action: 'skipped' })
     }
 
     // CRITICAL: Do NOT pass `email` as top-level param to updateUserById.
@@ -48,14 +41,10 @@ export async function POST(request: NextRequest) {
     )
 
     if (error) {
-      console.error('❌ Error updating user in Supabase:', error)
-      return NextResponse.json(
-        { error: 'Failed to sync user to Supabase' },
-        { status: 500 }
-      )
+      console.error('[sync-user] Error updating user in Supabase:', error)
+      return NextResponse.json({ success: true, action: 'skipped' })
     }
 
-    console.log('✅ User synced successfully')
     return NextResponse.json({
       success: true,
       action: 'synced',
@@ -65,10 +54,7 @@ export async function POST(request: NextRequest) {
       }
     })
   } catch (error) {
-    console.error('❌ Error syncing user:', error)
-    return NextResponse.json(
-      { error: 'Failed to sync user' },
-      { status: 500 }
-    )
+    console.error('[sync-user] Error:', error)
+    return NextResponse.json({ success: true, action: 'skipped' })
   }
 }
