@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
-import { sendTelegramNotification } from '@/lib/telegram'
+import { sendAdminNotification } from '@/lib/admin-notify'
 import { PRICING } from '@/lib/pricing'
 import { requireAdmin } from '@/lib/admin-auth'
 
@@ -311,13 +311,13 @@ export async function POST(request: NextRequest) {
               .eq('id', trackingRecord.id)
           }
 
-          // Send Telegram notification to referrer
+          // Send admin notification to referrer
           try {
             const planName = planType === 'LIFETIME' ? 'Lifetime Ultra' : 'Elite Pro'
             const msg = `💰 <b>KOMISI DITERIMA!</b>\n\n🎯 Referal: ${userProfile.full_name || userProfile.email}\n💎 Upgrade ke: ${planName}\n💰 Komisi: Rp${COMMISSION_PER_PRO.toLocaleString('id-ID')}\n\nSaldo total: Rp${(referrer.affiliateBalance + COMMISSION_PER_PRO).toLocaleString('id-ID')}`
-            await sendTelegramNotification(msg)
+            await sendAdminNotification(msg)
           } catch (e) {
-            console.error('Failed to send Telegram notification:', e)
+            console.error('Failed to send admin notification:', e)
           }
         }
       }

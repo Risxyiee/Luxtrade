@@ -207,7 +207,7 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
                 highlight: false,
               },
               {
-                id: language === 'id' ? 'Telegram privat' : 'Private Telegram',
+                id: language === 'id' ? 'Discord privat' : 'Private Discord',
                 free: '✕',
                 pro: '✕',
                 lifetime: '✓',

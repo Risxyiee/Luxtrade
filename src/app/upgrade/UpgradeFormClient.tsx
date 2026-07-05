@@ -99,12 +99,10 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
     }
   }, [currentStep])
 
-  // Pay — manual transfer via Telegram
+  // Pay — manual transfer via Discord
   const handlePay = () => {
     if (!selectedPlan) return
-    const message = `Halo admin LuxTrade, saya mau konfirmasi pembayaran. 📋\n\nPaket: ${selectedPlan.label}\nNominal: ${formatRupiah(selectedPlan.price)}\n\nIni bukti transfer saya. Mohon aktivasi akun Pro saya. Terima kasih! 🙏`
-    const encodedMessage = encodeURIComponent(message)
-    window.open(`https://t.me/Risxyiee?text=${encodedMessage}`, '_blank')
+    window.open('https://discord.gg/nkXpgMyzk', '_blank')
   }
 
   if (success) return (
@@ -280,7 +278,7 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
                 </div>
                 <p className="text-xs text-white/50">a.n. Rizqi Akbar Pratama — Kode Bank: 542</p>
               </div>
-              <p className="text-amber-300/80 text-xs">Transfer sesuai nominal, lalu klik tombol hijau di bawah untuk konfirmasi ke Telegram admin.</p>
+              <p className="text-amber-300/80 text-xs">Transfer sesuai nominal, lalu klik tombol hijau di bawah untuk konfirmasi ke Discord admin.</p>
             </div>
 
             {/* Error */}
@@ -294,7 +292,7 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
             {/* Security */}
             <div className="flex items-center gap-2 p-3 bg-purple-500/10 border border-purple-900/30 rounded-lg">
               <Lock className="w-4 h-4 text-purple-400 flex-shrink-0" />
-              <span className="text-gray-400 text-xs">Transfer Bank Jago — Konfirmasi manual via Telegram</span>
+              <span className="text-gray-400 text-xs">Transfer Bank Jago — Konfirmasi manual via Discord</span>
             </div>
           </div>
         )}
@@ -333,7 +331,7 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
           ) : (
             <>
               <MessageCircle className="w-4 h-4 mr-1" />
-              Bayar & Konfirmasi via Telegram
+              Bayar & Konfirmasi via Discord
               <ArrowRight className="w-4 h-4 ml-1" />
             </>
           )}

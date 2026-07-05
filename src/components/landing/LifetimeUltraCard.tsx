@@ -61,7 +61,7 @@ export default function LifetimeUltraCard({ onButtonClick, language, t, promoRem
         <div className="flex flex-col gap-3.5 mb-8">
           {[
             { text: language === 'id' ? 'Akses seumur hidup semua fitur' : 'Lifetime access to all features' },
-            { text: language === 'id' ? 'VIP Telegram & grup privat' : 'VIP Telegram & private group' },
+            { text: language === 'id' ? 'VIP Discord & grup privat' : 'VIP Discord & private group' },
             { text: language === 'id' ? 'Tanpa biaya bulanan' : 'No monthly fees ever' },
             { text: language === 'id' ? 'Semua fitur Elite PRO' : 'All Elite PRO features' },
           ].map((item, index) => (

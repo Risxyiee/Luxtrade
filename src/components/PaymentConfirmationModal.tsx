@@ -24,11 +24,8 @@ export default function PaymentConfirmationModal({
     }).format(price)
   }
 
-  const handleTelegramClick = () => {
-    const message = `Halo admin LuxTrade, saya mau konfirmasi pembayaran paket ${planName || '-'} seharga ${planPrice ? formatPrice(planPrice) : '-'}. Ini bukti transfer saya. Mohon aktivasi akun Pro saya. Terima kasih!`
-    const encodedMessage = encodeURIComponent(message)
-    const telegramUrl = `https://t.me/Risxyiee?text=${encodedMessage}`
-    window.open(telegramUrl, '_blank')
+  const handleDiscordClick = () => {
+    window.open('https://discord.gg/nkXpgMyzk', '_blank')
   }
 
   if (!isOpen) return null
@@ -149,31 +146,31 @@ export default function PaymentConfirmationModal({
                   </p>
                   <p className="flex items-start gap-2">
                     <span className="text-amber-400 font-bold mt-0.5">3.</span>
-                    <span className="font-semibold text-amber-200">Setelah bayar, klik tombol biru di bawah untuk konfirmasi ke Telegram admin</span>
+                    <span className="font-semibold text-amber-200">Setelah bayar, klik tombol di bawah untuk konfirmasi ke Discord admin</span>
                   </p>
                   <p className="flex items-start gap-2">
                     <span className="text-amber-400 font-bold mt-0.5">4.</span>
-                    <span>Kirim bukti bayar di Telegram — akun Pro diaktivasi manual</span>
+                    <span>Kirim bukti bayar di Discord — akun Pro diaktivasi manual</span>
                   </p>
                 </div>
               </div>
 
-              {/* Telegram Confirm Button */}
+              {/* Discord Confirm Button */}
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={handleTelegramClick}
-                className="w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-3 bg-gradient-to-r from-[#0088cc] to-[#00a0e3] hover:from-[#0077b5] hover:to-[#0090cc] text-white shadow-lg shadow-[#0088cc]/25 transition-all"
+                onClick={handleDiscordClick}
+                className="w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-3 bg-gradient-to-r from-[#5865F2] to-[#7289DA] hover:from-[#4752C4] hover:to-[#5B6EAE] text-white shadow-lg shadow-[#5865F2]/25 transition-all"
               >
                 <MessageCircle className="w-5 h-5" />
-                Sudah Bayar? Konfirmasi ke Telegram
+                Sudah Bayar? Konfirmasi ke Discord
                 <ExternalLink className="w-4 h-4 opacity-70" />
               </motion.button>
 
               {/* Security Note */}
               <div className="flex items-center justify-center gap-2 text-xs text-white/30">
                 <Shield className="w-3 h-3" />
-                Pembayaran aman via QRIS — Konfirmasi privat via Telegram
+                Pembayaran aman via QRIS — Konfirmasi privat via Discord
               </div>
 
               {/* Cancel */}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
-import { sendTelegramNotification } from '@/lib/telegram'
+import { sendAdminNotification } from '@/lib/admin-notify'
 import { requireAdmin } from '@/lib/admin-auth'
 
 // Commission rate: 30% of Rp 49,000 = Rp 14,700
@@ -164,12 +164,12 @@ export async function POST(
               .eq('id', trackingRecord.id)
           }
 
-          // Send Telegram notification to referrer
+          // Send admin notification to referrer
           try {
             const msg = `💰 <b>KOMISI DITERIMA!</b>\n\n🎯 Referal: ${userProfile.full_name || userProfile.email}\n💎 Upgrade ke: ${subscription.plan.name}\n💰 Komisi: Rp${COMMISSION_PER_PRO.toLocaleString('id-ID')}\n\nSaldo total: Rp${(referrer.affiliateBalance + COMMISSION_PER_PRO).toLocaleString('id-ID')}`
-            await sendTelegramNotification(msg)
+            await sendAdminNotification(msg)
           } catch (e) {
-            console.error('Failed to send Telegram notification:', e)
+            console.error('Failed to send admin notification:', e)
           }
         }
       }
