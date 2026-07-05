@@ -3554,3 +3554,23 @@ Work Log:
 - Removed debug "Test" button and testPROToggle function
 - Extended UserProfile interface with email_confirmed_at and last_sign_in_at
 - Clean lint pass confirmed
+---
+Task ID: 7
+Agent: admin-panel-redesign
+Task: Redesign admin panel with user management, Pro activate with custom duration, downgrade, remove auth bypass
+
+Work Log:
+- Removed legacy DELETE handler from /api/admin/users/route.ts (duplicated PATCH revoke)
+- Removed Debug button from admin header toolbar
+- Removed testPROToggle (Bug icon) button from user table action rows
+- Replaced hardcoded activatePRO(30 days) with Popover-based duration picker (30/90/180/365/Lifetime)
+- Renamed "Revoke" to "Downgrade" in button text, confirm dialog, and toast messages
+- Removed Dialog-based PRO activation components
+- Cleaned up unused imports
+- Verified lint passes with zero errors
+
+Stage Summary:
+- Admin panel now has Popover-based PRO activation with 30/90/180/365/Lifetime options
+- Downgrade button replaces Revoke with clear UX
+- No debug buttons remain; admin auth check is active
+- Backend DELETE handler removed; all operations use PATCH
