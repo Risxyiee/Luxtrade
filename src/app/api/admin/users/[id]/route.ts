@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAdmin } from '@/lib/admin-auth'
 
 // DELETE a user
 export async function DELETE(
@@ -7,9 +8,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
+    const { error } = await requireAdmin(request)
+    if (error) return error
 
-    console.log(`🗑️ Deleting user with ID: ${id}`)
+    const { id } = await params
 
     // Check if user has subscriptions
     const subscriptionCount = await db.userSubscription.count({
@@ -17,7 +19,6 @@ export async function DELETE(
     })
 
     if (subscriptionCount > 0) {
-      console.log('⚠️ User has subscriptions, cannot delete')
       return NextResponse.json(
         { error: 'Cannot delete user with active subscriptions. Please delete subscriptions first.' },
         { status: 400 }
@@ -28,7 +29,6 @@ export async function DELETE(
       where: { id }
     })
 
-    console.log('✅ User deleted successfully')
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('❌ Error deleting user:', error)

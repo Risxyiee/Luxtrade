@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sendTelegramNotification } from '@/lib/telegram'
-
-const ADMIN_EMAIL = 'luxtradee@gmail.com'
+import { requireAdmin } from '@/lib/admin-auth'
 
 export async function GET(request: NextRequest) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     const { searchParams } = new URL(request.url)
-    const adminEmail = searchParams.get('adminEmail')
-
-    if (adminEmail !== ADMIN_EMAIL) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
-
     const status = searchParams.get('status')
 
     const where: any = {}
@@ -34,12 +30,11 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { adminEmail, withdrawalId, status, adminNote } = body
+    const { error } = await requireAdmin(request)
+    if (error) return error
 
-    if (adminEmail !== ADMIN_EMAIL) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
+    const body = await request.json()
+    const { withdrawalId, status, adminNote } = body
 
     if (!withdrawalId || !status || !['approved', 'rejected'].includes(status)) {
       return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 })

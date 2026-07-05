@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { db } from '@/lib/db'
+import { requireAdmin } from '@/lib/admin-auth'
 
 // Sync logic - shared by GET and POST
 // Uses the shared singleton `db` from @/lib/db (auto-pooled, no connection leak)
 async function performSync() {
   try {
-    console.log('🔄 Starting sync of Supabase Auth users to Prisma...')
-
     // Check if supabaseAdmin is available
     if (!supabaseAdmin) {
       console.error('❌ supabaseAdmin client is not available. Make sure SUPABASE_SERVICE_ROLE_KEY is configured.')
@@ -41,8 +40,6 @@ async function performSync() {
       }
     }
 
-    console.log(`✅ Found ${authUsers?.users?.length || 0} users in Supabase Auth`)
-
     if (!authUsers?.users || authUsers.users.length === 0) {
       return {
         success: true,
@@ -60,22 +57,19 @@ async function performSync() {
     const syncResults = await Promise.all(
       authUsers.users.map(async (authUser) => {
         try {
-          console.log(`\n📋 Processing user: ${authUser.email}`)
-
           // Check if user already exists in Prisma by UUID
           const existingUser = await db.user.findUnique({
             where: { id: authUser.id }
           })
 
           if (existingUser) {
-            console.log(`   ⏭️ User already exists in Prisma, skipping`)
+            // User already exists, skip
           } else {
             const displayName = authUser.user_metadata?.display_name ||
                               authUser.user_metadata?.name ||
                               authUser.user_metadata?.full_name ||
                               null
 
-            console.log(`   ➕ Creating user in Prisma...`)
             await db.user.create({
               data: {
                 id: authUser.id,
@@ -84,7 +78,6 @@ async function performSync() {
               }
             })
 
-            console.log(`   ✅ User synced to Prisma successfully`)
             syncedCount++
           }
 
@@ -102,9 +95,8 @@ async function performSync() {
           }
 
           if (existingProfile) {
-            console.log(`   ✅ Profile already exists in Supabase`)
+            // Profile already exists, skip
           } else {
-            console.log(`   ➕ Creating profile in Supabase...`)
             const fullName = authUser.user_metadata?.display_name ||
                            authUser.user_metadata?.name ||
                            authUser.user_metadata?.full_name ||
@@ -137,7 +129,6 @@ async function performSync() {
             if (profileCreateError) {
               console.error(`   ❌ Error creating profile:`, profileCreateError)
             } else {
-              console.log(`   ✅ Profile created in Supabase successfully`)
               profileSyncedCount++
             }
           }
@@ -152,7 +143,6 @@ async function performSync() {
           console.error(`   ❌ Error syncing user ${authUser.email}:`, error)
 
           if ((error as any)?.code === 'P2002' || (error as any)?.code === 'P2003') {
-            console.log(`   ⏭️ User already exists (duplicate), skipping`)
             skippedCount++
             return {
               email: authUser.email,
@@ -177,14 +167,6 @@ async function performSync() {
       .from('profiles')
       .select('*', { count: 'exact', head: true })
 
-    console.log('\n📊 Sync Summary:')
-    console.log(`   ✅ Prisma Users synced: ${syncedCount}`)
-    console.log(`   ✅ Supabase Profiles synced: ${profileSyncedCount}`)
-    console.log(`   ⏭️ Skipped: ${skippedCount} users`)
-    console.log(`   ❌ Errors: ${errorCount} users`)
-    console.log(`   📋 Total users in Prisma: ${allPrismaUsers.length}`)
-    console.log(`   📋 Total profiles in Supabase: ${profileCount || 0}`)
-
     return {
       success: true,
       message: 'Sync completed',
@@ -208,9 +190,11 @@ async function performSync() {
   }
 }
 
-// GET to sync all Supabase Auth users to Prisma (PUBLIC ACCESS - no auth required)
+// GET to sync all Supabase Auth users to Prisma
 export async function GET(request: NextRequest) {
-  console.log('📥 GET /api/admin/sync-auth-users')
+  const { error } = await requireAdmin(request)
+  if (error) return error
+
   const result = await performSync()
   if (result.error) {
     return NextResponse.json(result, { status: 500 })
@@ -220,7 +204,9 @@ export async function GET(request: NextRequest) {
 
 // POST to sync all Supabase Auth users to Prisma (for Admin Panel)
 export async function POST(request: NextRequest) {
-  console.log('📥 POST /api/admin/sync-auth-users')
+  const { error } = await requireAdmin(request)
+  if (error) return error
+
   const result = await performSync()
   if (result.error) {
     return NextResponse.json(result, { status: 500 })

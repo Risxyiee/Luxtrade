@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { requireAdmin } from '@/lib/admin-auth'
 
 // One-time script to populate all Supabase Auth users to profiles table
 export async function POST(request: NextRequest) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     console.log('🚀 Starting profiles population...')
 
     // Get all users from Supabase Auth
@@ -123,6 +127,9 @@ export async function POST(request: NextRequest) {
 // GET to check trigger status
 export async function GET(request: NextRequest) {
   try {
+    const { error } = await requireAdmin(request)
+    if (error) return error
+
     // Check if trigger exists in database
     const { data: triggerInfo } = await supabaseAdmin
       .from('profiles')

@@ -18,6 +18,7 @@ import FAQSection from '@/components/landing/FAQSection'
 import SectionDivider from '@/components/landing/SectionDivider'
 import LandingFooter from '@/components/landing/LandingFooter'
 import ScrollToTopButton from '@/components/landing/ScrollToTopButton'
+import { PRICING } from '@/lib/pricing'
 
 // Below-fold sections: lazy-loaded for performance
 const PricingSection = dynamic(() => import('@/components/landing/PricingSection').then(m => ({ default: m.default })), { ssr: false })
@@ -199,9 +200,9 @@ export default function LuxTradeLanding() {
             "url": "https://luxtrade.id",
             "offers": [
               { "@type": "Offer", "price": "0", "priceCurrency": "IDR", "description": "Free Plan - 10 trades/bulan" },
-              { "@type": "Offer", "price": "39000", "priceCurrency": "IDR", "description": "PRO Plan - 30 hari" },
-              { "@type": "Offer", "price": "390000", "priceCurrency": "IDR", "description": "PRO Annual - 365 hari" },
-              { "@type": "Offer", "price": "299000", "priceCurrency": "IDR", "description": "Lifetime Ultra - Sekali bayar" }
+              { "@type": "Offer", "price": String(PRICING.PRO_30_DAYS), "priceCurrency": "IDR", "description": "PRO Plan - 30 hari" },
+              { "@type": "Offer", "price": String(PRICING.PRO_ANNUAL), "priceCurrency": "IDR", "description": "PRO Annual - 365 hari" },
+              { "@type": "Offer", "price": String(PRICING.PRO_LIFETIME), "priceCurrency": "IDR", "description": "Lifetime Ultra - Sekali bayar" }
             ]
           })
         }}

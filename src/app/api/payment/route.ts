@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { notifyPaymentConfirmation } from '@/lib/telegram'
+import { PRICING, formatRupiah } from '@/lib/pricing'
 
 // Payment configuration
 const PAYMENT_CONFIG = {
   bankName: 'Bank Jago',
   accountNumber: '104051474194',
   accountHolder: 'RIZQI AKBAR PRATAMA',
-  amount: 39000, // Rp 39.000
+  amount: PRICING.PRO_30_DAYS,
   adminTelegram: '@Risxyiee',
 }
 
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
       `Saya ingin konfirmasi pembayaran PRO Membership:\n\n` +
       `📧 Email: ${email || 'Not provided'}\n` +
       `🆔 User ID: ${userId || 'Not provided'}\n\n` +
-      `Saya sudah transfer Rp 39.000 ke:\n` +
+      `Saya sudah transfer ${formatRupiah(PAYMENT_CONFIG.amount)} ke:\n` +
       `Bank: ${PAYMENT_CONFIG.bankName}\n` +
       `Rekening: ${PAYMENT_CONFIG.accountNumber}\n` +
       `Atas Nama: ${PAYMENT_CONFIG.accountHolder}\n\n` +

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-
-// Admin email - only this email can access admin panel
-const ADMIN_EMAIL = 'luxtradee@gmail.com'
+import { requireAdmin } from '@/lib/admin-auth'
 
 // SQL to add missing columns to profiles table
 const SETUP_SQL = `
@@ -20,16 +18,10 @@ CREATE INDEX IF NOT EXISTS idx_profiles_pro_status ON profiles(pro_status);
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { adminEmail } = body
+    const { error } = await requireAdmin(request)
+    if (error) return error
 
-    // Verify admin access
-    if (adminEmail !== ADMIN_EMAIL) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Admin access only.' },
-        { status: 403 }
-      )
-    }
+    const body = await request.json()
 
     // Since we can't run DDL via the Supabase client, return instructions
     return NextResponse.json({
@@ -55,15 +47,8 @@ export async function POST(request: NextRequest) {
 
 // GET to provide the SQL
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const adminEmail = searchParams.get('email')
-
-  if (adminEmail !== ADMIN_EMAIL) {
-    return NextResponse.json(
-      { error: 'Unauthorized.' },
-      { status: 403 }
-    )
-  }
+  const { error } = await requireAdmin(request)
+  if (error) return error
 
   return NextResponse.json({
     sql: SETUP_SQL,

@@ -10,31 +10,28 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
+import { PRICING, formatRupiah } from '@/lib/pricing'
 
 // ============================================
 // Data
-// ============================================
+// ===========================================
 const PLANS = [
   {
     id: 'pro-1m', plan: 'PRO', durationMonths: 1, label: '1 Bulan',
-    price: 39000, popular: false, emoji: '📊',
+    price: PRICING.PRO_30_DAYS, popular: false, emoji: '📊',
     features: ['Semua fitur PRO', 'Analisis AI', 'Jurnal otomatis', 'Unlimited trades']
   },
   {
     id: 'pro-1y', plan: 'PRO', durationMonths: 12, label: '1 Tahun',
-    price: 390000, popular: true, savings: '16%', emoji: '⭐',
+    price: PRICING.PRO_ANNUAL, popular: true, savings: '16%', emoji: '⭐',
     features: ['Semua fitur PRO', 'Analisis AI', 'Jurnal otomatis', 'Unlimited trades', 'Priority support']
   },
   {
     id: 'lifetime', plan: 'LIFETIME', durationMonths: 1200, label: 'Lifetime',
-    price: 299000, popular: false, badge: 'PROMO', emoji: '👑',
+    price: PRICING.PRO_LIFETIME, popular: false, badge: 'PROMO', emoji: '👑',
     features: ['Semua fitur selamanya', 'Analisis AI', 'Jurnal otomatis', 'Unlimited trades', 'Priority support', 'Early access', 'Exclusive community']
   }
 ]
-
-function formatRupiah(n: number) {
-  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n)
-}
 
 // ============================================
 // Client Component

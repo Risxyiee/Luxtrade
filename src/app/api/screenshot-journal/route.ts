@@ -208,7 +208,7 @@ function normalizeMarketCondition(condition: string): string {
 
 // ==================== HELPER: Parse with Fallback (No OCR) ====================
 async function analyzeWithFallback(): Promise<VLMResponse> {
-  console.log('⚠️ [Screenshot Journal] Using fallback - returning empty template')
+  // Using fallback - returning empty template
 
   // Return empty template for manual input
   return {
@@ -246,33 +246,26 @@ async function analyzeScreenshotWithVLM(
   imageBuffer: Buffer
 ): Promise<VLMResponse> {
   // Primary: AIML API (GLM-4V-OCR)
-  console.log('🤖 [Screenshot Journal] Analyzing with AIML GLM-4V-OCR...')
-
   try {
     const result = await analyzeImageWithAiml(imageBuffer, VLM_PROMPT)
     const parsed = parseVLMResponse(result.text)
-    console.log('✅ [Screenshot Journal] AIML analysis completed')
     return parsed
   } catch (error: any) {
     console.error('❌ [Screenshot Journal] AIML failed:', error.message)
   }
 
   // Fallback: empty template for manual input
-  console.log('⚠️ [Screenshot Journal] All AI services failed, using fallback template')
   return analyzeWithFallback()
 }
 
 // ==================== MAIN HANDLER ====================
 export async function POST(request: NextRequest) {
   try {
-    console.log('🟢 [Screenshot Journal] Starting screenshot analysis...')
-
     // Step 1: Authenticate user
     const authUser = await getAuthUser(request)
 
     if (!authUser) {
-      console.log('❌ [Screenshot Journal] Unauthorized - no valid user')
-      return NextResponse.json(
+        return NextResponse.json(
         { error: 'Unauthorized - Please login' },
         { status: 401 }
       )
@@ -300,7 +293,6 @@ export async function POST(request: NextRequest) {
       const imageFile = formData.get('image') as File | null
 
       if (!imageFile) {
-        console.log('❌ [Screenshot Journal] No image in form data')
         return NextResponse.json(
           { error: 'No image provided. Please upload a screenshot (JPEG/PNG).' },
           { status: 400 }
@@ -311,14 +303,12 @@ export async function POST(request: NextRequest) {
       mimeType = imageFile.type || 'image/jpeg'
 
       if (!allowedTypes.includes(mimeType)) {
-        console.log('❌ [Screenshot Journal] Invalid file type:', mimeType)
         return NextResponse.json(
           { error: `Invalid file type "${mimeType}". Only JPEG and PNG images are supported.` },
           { status: 400 }
         )
       }
 
-      console.log(`📷 [Screenshot Journal] Processing multipart image: ${imageFile.name} (${mimeType}, ${imageFile.size} bytes)`)
       const bytes = await imageFile.arrayBuffer()
       const buffer = Buffer.from(bytes)
       base64Image = buffer.toString('base64')
@@ -328,7 +318,6 @@ export async function POST(request: NextRequest) {
       const { imageBase64, mimeType: bodyMime } = body
 
       if (!imageBase64) {
-        console.log('❌ [Screenshot Journal] No imageBase64 in JSON body')
         return NextResponse.json(
           { error: 'No image provided. Please upload a screenshot (JPEG/PNG).' },
           { status: 400 }
@@ -340,19 +329,16 @@ export async function POST(request: NextRequest) {
       // Strip data URL prefix if present
       base64Image = imageBase64.replace(/^data:[^;]+;base64,/, '')
 
-      console.log(`📷 [Screenshot Journal] Processing JSON base64 image (${mimeType}, ${Math.round(base64Image.length * 0.75)} bytes)`)
+      // Processing JSON base64 image
     }
 
     // Step 4: Call VLM (try all free services first)
-    console.log('🤖 [Screenshot Journal] Starting VLM analysis...')
-
     const parsed = await analyzeScreenshotWithVLM(Buffer.from(base64Image, 'base64'))
 
     // If we only got raw_analysis (JSON parsing failed), still return it
     const hasTradeData = parsed.trade.symbol && parsed.trade.symbol.length > 0
 
     if (!hasTradeData && !parsed.journal.title) {
-      console.warn('⚠️ [Screenshot Journal] No structured data extracted, returning raw analysis')
       return NextResponse.json({
         success: true,
         trade: parsed.trade,
@@ -361,13 +347,6 @@ export async function POST(request: NextRequest) {
         warning: 'Could not extract structured trading data from the screenshot. AI Vision service may have limitations with this image.'
       })
     }
-
-    console.log('✅ [Screenshot Journal] Successfully extracted trade data:', {
-      symbol: parsed.trade.symbol,
-      type: parsed.trade.type,
-      profit_loss: parsed.trade.profit_loss,
-      mood: parsed.journal.mood
-    })
 
     // Step 6: Return structured data
     return NextResponse.json({
@@ -383,7 +362,6 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error) {
       // Handle network/connection errors
       if (error.message.includes('Connect Timeout') || error.message.includes('ETIMEDOUT') || error.message.includes('fetch failed')) {
-        console.error('❌ [Screenshot Journal] Network/Connection Error:', error.message)
         return NextResponse.json(
           { error: 'Tidak dapat terhubung ke AI/OCR service. Masalah jaringan atau server sedang sibuk. Silakan coba lagi dalam beberapa saat.' },
           { status: 503 }
