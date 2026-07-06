@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { analyzeImageWithOllama } from '@/lib/ollama-vision'
 import { analyzeImageWithZAIVision } from '@/lib/zai-vision'
 import { createClientForApi } from '@/lib/supabase/server'
@@ -12,17 +12,17 @@ import { rateLimitByUser } from '@/lib/rate-limit'
  * Uploads image to Supabase Storage and returns URL
  */
 
-// Initialize Supabase admin client with service role key for uploads
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
+// Initialize Supabase admin client with service role key for uploads (lazy)
+let _supabase: SupabaseClient | null = null
+function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !key) throw new Error('Missing Supabase env vars')
+    _supabase = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
   }
-)
+  return _supabase
+}
 
 const BUCKET_NAME = 'trade-screenshots'
 
@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(arrayBuffer)
 
     // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { data: uploadData, error: uploadError } = await getSupabase().storage
       .from(BUCKET_NAME)
       .upload(fileName, buffer, {
         contentType: image.type,
@@ -211,7 +211,7 @@ export async function POST(request: NextRequest) {
     console.log('✅ [Analyze Screenshot] Image uploaded to Supabase Storage:', uploadData.path)
 
     // Get public URL
-    const { data: urlData } = supabase.storage
+    const { data: urlData } = getSupabase().storage
       .from(BUCKET_NAME)
       .getPublicUrl(fileName)
 

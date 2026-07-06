@@ -1,184 +1,260 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { supabase } from '@/lib/supabase'
 import { sendAdminNotification } from '@/lib/admin-notify'
 import { requireAdmin } from '@/lib/admin-auth'
 import { PRICING } from '@/lib/pricing'
+import { createClient } from '@supabase/supabase-js'
 
 // Commission rates — calculated dynamically from PRICING
 const AFFILIATE_COMMISSION_RATE = 0.20 // 20% for recurring PRO
-const LIFETIME_COMMISSION = Math.round(PRICING.PRO_LIFETIME * 0.15) // 15% of Rp299.000 = Rp44.850
+const AFFILIATE_LIFETIME_RATE = 0.15  // 15% one-time for Lifetime
 
-// POST activate a subscription
+/** Get Supabase admin client (service role, bypasses RLS) */
+function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return null
+  return createClient(url, key)
+}
+
+/**
+ * Resolve a userId to a user profile via Supabase.
+ * Tries the profiles table first, then falls back to Supabase Auth.
+ */
+async function resolveUser(supabaseAdmin: ReturnType<typeof createClient>, userId: string) {
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('id, email, full_name, my_referral_code, referred_by_code')
+    .eq('id', userId)
+    .single()
+
+  if (profile) {
+    return {
+      id: profile.id,
+      email: profile.email || '',
+      fullName: profile.full_name || '',
+      myReferralCode: profile.my_referral_code || null,
+      referredByCode: profile.referred_by_code || null,
+    }
+  }
+
+  // Fallback: Auth API
+  try {
+    const { getAdminAuth } = await import('@/lib/supabase-admin-alt')
+    const authAdmin = getAdminAuth()
+    if (!authAdmin) return null
+    const { data: { user: authUser }, error: authErr } = await authAdmin.getUserById(userId)
+    if (authErr || !authUser) return null
+
+    // Auto-create profile
+    await supabaseAdmin.from('profiles').upsert({
+      id: userId,
+      email: authUser.email || '',
+      full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || '',
+      plan: 'FREE',
+      is_pro: false,
+      subscription_status: 'FREE',
+      created_at: authUser.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' })
+
+    return {
+      id: userId,
+      email: authUser.email || '',
+      fullName: authUser.user_metadata?.full_name || authUser.user_metadata?.name || '',
+      myReferralCode: null,
+      referredByCode: null,
+    }
+  } catch {
+    return null
+  }
+}
+
+// POST activate a subscription by subscription id (from UserSubscription table)
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { error } = await requireAdmin(request)
-    if (error) return error
+    const { error: authError } = await requireAdmin(request)
+    if (authError) return authError
 
     const params = await context.params
-    const { id } = params
+    const subscriptionId = params.id
     const body = await request.json()
-    const { endDate, paymentMethod, adminNote } = body
+    const { planType: overridePlanType } = body
 
-    // Get current subscription
-    const subscription = await db.userSubscription.findUnique({
-      where: { id },
-      include: { plan: true }
-    })
+    console.log('🚀 Admin activating subscription via [id]/activate:', { subscriptionId })
 
-    if (!subscription) {
+    const supabaseAdmin = getSupabaseAdmin()
+    if (!supabaseAdmin) {
       return NextResponse.json(
-        { error: 'Subscription not found' },
-        { status: 404 }
+        { error: 'Server not configured — missing Supabase service role key' },
+        { status: 500 }
       )
     }
 
-    if (subscription.isActive) {
+    // ============================================
+    // STEP 1: Look up the subscription from UserSubscription to get userId & plan
+    // ============================================
+    let userId: string | null = null
+    let plan: string | null = null
+
+    try {
+      const subscription = await db.userSubscription.findUnique({
+        where: { id: subscriptionId },
+        select: { userId: true, plan: true },
+      })
+      if (!subscription) {
+        return NextResponse.json(
+          { error: 'Subscription not found' },
+          { status: 404 }
+        )
+      }
+      userId = subscription.userId
+      plan = overridePlanType || subscription.plan
+    } catch {
+      // If Prisma is unavailable, the caller must provide userId and planType in body
+      if (!body.userId || !body.planType) {
+        return NextResponse.json(
+          { error: 'Subscription not found in database. Provide userId and planType in request body.' },
+          { status: 400 }
+        )
+      }
+      userId = body.userId
+      plan = body.planType
+    }
+
+    // ============================================
+    // STEP 2: Resolve plan config from PRICING
+    // ============================================
+    const planConfig = resolvePlanConfig(plan)
+    if (!planConfig) {
       return NextResponse.json(
-        { error: 'Subscription is already active' },
+        { error: `Cannot resolve plan: ${plan}. Supported: PRO_30_DAYS, PRO_180_DAYS, PRO_ANNUAL, PRO_LIFETIME, LIFETIME_ULTRA` },
         { status: 400 }
       )
     }
 
-    // Activate subscription in Prisma
-    const updatedSubscription = await db.userSubscription.update({
-      where: { id },
-      data: {
-        isActive: true,
-        paymentStatus: 'completed',
-        endDate: endDate ? new Date(endDate) : null,
-        amountPaid: subscription.plan.price,
-        paymentMethod: paymentMethod || 'manual',
-        adminNote: adminNote || 'Activated by admin'
-      }
-    })
-
-    // Update slot tracking if plan has max slots
-    if (subscription.plan.maxSlots) {
-      const slotTracking = await db.slotTracking.findUnique({
-        where: { planId: subscription.planId }
-      })
-
-      if (slotTracking) {
-        await db.slotTracking.update({
-          where: { id: slotTracking.id },
-          data: { usedSlots: slotTracking.usedSlots + 1 }
-        })
-      }
+    // ============================================
+    // STEP 3: Resolve user profile
+    // ============================================
+    const userProfile = await resolveUser(supabaseAdmin, userId)
+    if (!userProfile) {
+      return NextResponse.json(
+        { error: 'User not found in profiles or Auth' },
+        { status: 404 }
+      )
     }
 
+    console.log(`✅ Resolved user: ${userProfile.email}, Plan: ${planConfig.name}`)
+
     // ============================================
-    // UPDATE SUPABASE PROFILES TABLE
+    // STEP 4: Calculate subscription end date
     // ============================================
-    const subscriptionDuration = subscription.plan.durationMonths
-    const isLifetime = subscription.plan.isLifetime
-    
-    // Calculate subscription end date
     let subscriptionUntil: string | null = null
-    if (isLifetime) {
-      // Lifetime - set far future date (10 years)
+    if (planConfig.isLifetime) {
       subscriptionUntil = new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString()
-    } else if (subscriptionDuration && subscriptionDuration > 0) {
-      // Monthly/Yearly plan - calculate end date
-      const endDateObj = new Date()
-      endDateObj.setMonth(endDateObj.getMonth() + subscriptionDuration)
-      subscriptionUntil = endDateObj.toISOString()
+    } else {
+      const endDate = new Date()
+      endDate.setDate(endDate.getDate() + planConfig.days)
+      subscriptionUntil = endDate.toISOString()
     }
 
-    // Update Supabase profiles table
-    const { error: profileUpdateError } = await supabase
+    // ============================================
+    // STEP 5: Update Supabase profile to PRO
+    // ============================================
+    const { error: updateError } = await supabaseAdmin
       .from('profiles')
       .update({
         subscription_status: 'PRO',
         is_pro: true,
+        plan: 'PRO',
         subscription_until: subscriptionUntil,
         pro_status: 'active',
         pro_expiry: subscriptionUntil,
-        updated_at: new Date().toISOString()
+        has_ever_been_pro: true,
+        updated_at: new Date().toISOString(),
       })
-      .eq('email', subscription.userEmail)
+      .eq('id', userId)
 
-    if (profileUpdateError) {
-      console.error('❌ Failed to update Supabase profile:', profileUpdateError)
-    } else {
-      console.log('✅ Supabase profile updated to PRO for:', subscription.userEmail)
+    if (updateError) {
+      console.error('❌ Failed to update Supabase profile:', updateError.message)
+      return NextResponse.json(
+        { error: 'Failed to update user profile', details: updateError.message },
+        { status: 500 }
+      )
     }
 
+    console.log(`✅ Supabase profile updated to PRO for: ${userProfile.email}`)
+
     // ============================================
-    // COMMISSION: Update referrer's balance (dynamic from PRICING)
+    // STEP 6: Commission — affiliate lookup via db.affiliate
     // ============================================
-    // Calculate commission dynamically based on plan type
-    const planPrice = subscription.plan.price || 0
-    const commissionAmount = isLifetime
-      ? LIFETIME_COMMISSION
-      : Math.round(planPrice * AFFILIATE_COMMISSION_RATE)
+    const commissionAmount = Math.round(planConfig.price * planConfig.commissionRate)
 
     try {
-      // Get user's profile to find referrer
-      const { data: userProfile } = await supabase
+      // Re-fetch profile to get referred_by_code (might have been set before upsert above)
+      const { data: profileForReferral } = await supabaseAdmin
         .from('profiles')
-        .select('referred_by_code, my_referral_code, full_name, email')
-        .eq('email', subscription.userEmail)
+        .select('referred_by_code')
+        .eq('id', userId)
         .single()
 
-      if (userProfile?.referred_by_code) {
-        // Find referrer in Prisma
-        const referrer = await db.affiliateProfile.findUnique({
-          where: { myReferralCode: userProfile.referred_by_code }
+      if (profileForReferral?.referred_by_code) {
+        // Look up referrer in db.affiliate by referralCode
+        const referrer = await db.affiliate.findUnique({
+          where: { referralCode: profileForReferral.referred_by_code },
+          select: {
+            id: true,
+            userId: true,
+            referralCode: true,
+            currentBalance: true,
+            totalEarned: true,
+          },
         })
 
         if (referrer) {
-          // Update referrer's balance and commission
-          await db.affiliateProfile.update({
-            where: { userId: referrer.userId },
+          // Update affiliate balance in Prisma
+          await db.affiliate.update({
+            where: { id: referrer.id },
             data: {
-              affiliateBalance: { increment: commissionAmount },
-              totalCommission: { increment: commissionAmount },
-              totalReferrals: { increment: 1 }
-            }
+              currentBalance: { increment: commissionAmount },
+              totalEarned: { increment: commissionAmount },
+            },
           })
 
-          console.log('✅ Commission added to referrer:', referrer.email, 'Amount: Rp', commissionAmount)
+          const newBalance = referrer.currentBalance + commissionAmount
+          console.log(`✅ Commission Rp${commissionAmount.toLocaleString('id-ID')} added to affiliate: ${referrer.referralCode} (new balance: Rp${newBalance.toLocaleString('id-ID')})`)
 
-          // Update referrer's Supabase profile
-          await supabase
+          // Also update Supabase profiles.affiliate_balance for the referrer
+          // Find referrer's profile by userId
+          const { data: referrerProfile } = await supabaseAdmin
             .from('profiles')
-            .update({
-              affiliate_balance: (referrer.affiliateBalance || 0) + commissionAmount,
-              referral_count: { increment: 1 },
-              updated_at: new Date().toISOString()
-            })
-            .eq('email', referrer.email)
-
-          // Update referral_tracking status to 'paid'
-          const { data: trackingRecord } = await supabase
-            .from('referral_tracking')
-            .select('id')
-            .eq('referee_id', subscription.userId || userProfile.email)
-            .eq('referral_code_used', userProfile.referred_by_code)
+            .select('id, affiliate_balance, referral_count')
+            .eq('id', referrer.userId)
             .single()
 
-          if (trackingRecord) {
-            await supabase
-              .from('referral_tracking')
+          if (referrerProfile) {
+            await supabaseAdmin
+              .from('profiles')
               .update({
-                status: 'paid',
-                commission_amount: commissionAmount,
-                updated_at: new Date().toISOString()
+                affiliate_balance: (referrerProfile.affiliate_balance || 0) + commissionAmount,
+                referral_count: (referrerProfile.referral_count || 0) + 1,
+                updated_at: new Date().toISOString(),
               })
-              .eq('id', trackingRecord.id)
+              .eq('id', referrer.userId)
           }
 
-          // Send admin notification to referrer
+          // Send admin notification
           try {
-            const msg = `💰 <b>KOMISI DITERIMA!</b>\n\n🎯 Referal: ${userProfile.full_name || userProfile.email}\n💎 Upgrade ke: ${subscription.plan.name}\n💰 Komisi: Rp${commissionAmount.toLocaleString('id-ID')}\n\nSaldo total: Rp${(referrer.affiliateBalance + commissionAmount).toLocaleString('id-ID')}`
+            const msg = `💰 <b>KOMISI DITERIMA!</b>\n\n🎯 Referal: ${userProfile.fullName || userProfile.email}\n💎 Upgrade ke: ${planConfig.name}\n💰 Komisi: Rp${commissionAmount.toLocaleString('id-ID')}\n\nSaldo total: Rp${newBalance.toLocaleString('id-ID')}`
             await sendAdminNotification(msg)
-          } catch (e) {
-            console.error('Failed to send admin notification:', e)
+          } catch (notifyErr) {
+            console.error('Failed to send admin notification:', notifyErr)
           }
+        } else {
+          console.log(`⚠️ No affiliate found with referral code: ${profileForReferral.referred_by_code}`)
         }
       }
     } catch (commissionError) {
@@ -187,15 +263,45 @@ export async function POST(
     }
 
     return NextResponse.json({
-      subscription: updatedSubscription,
-      message: 'Subscription activated successfully',
-      commissionPaid: commissionAmount
+      success: true,
+      message: `${userProfile.email} berhasil diaktifkan ke ${planConfig.name}!`,
+      plan: planConfig.name,
+      subscription_until: subscriptionUntil,
+      commission: commissionAmount,
     })
   } catch (error) {
-    console.error('Error activating subscription:', error)
+    console.error('❌ Error activating subscription:', error)
     return NextResponse.json(
-      { error: 'Failed to activate subscription', details: String(error) },
+      { error: 'Failed to activate subscription', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     )
+  }
+}
+
+// ============================================
+// Plan config resolver
+// ============================================
+interface PlanConfig {
+  name: string
+  price: number
+  days: number
+  isLifetime: boolean
+  commissionRate: number
+}
+
+function resolvePlanConfig(plan: string): PlanConfig | null {
+  switch (plan) {
+    case 'PRO_30_DAYS':
+      return { name: 'PRO 30 Hari', price: PRICING.PRO_30_DAYS, days: 30, isLifetime: false, commissionRate: AFFILIATE_COMMISSION_RATE }
+    case 'PRO_180_DAYS':
+      return { name: 'PRO 180 Hari', price: PRICING.LEGACY.PRO_180_DAYS, days: 180, isLifetime: false, commissionRate: AFFILIATE_COMMISSION_RATE }
+    case 'PRO_ANNUAL':
+      return { name: 'PRO Tahunan', price: PRICING.PRO_ANNUAL, days: 365, isLifetime: false, commissionRate: AFFILIATE_COMMISSION_RATE }
+    case 'PRO_LIFETIME':
+      return { name: 'PRO Lifetime', price: PRICING.PRO_LIFETIME, days: 365 * 50, isLifetime: true, commissionRate: AFFILIATE_LIFETIME_RATE }
+    case 'LIFETIME_ULTRA':
+      return { name: 'Lifetime Ultra', price: PRICING.PRO_LIFETIME, days: 365 * 50, isLifetime: true, commissionRate: AFFILIATE_LIFETIME_RATE }
+    default:
+      return null
   }
 }

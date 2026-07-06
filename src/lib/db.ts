@@ -179,15 +179,26 @@ export async function ensureSchema(): Promise<void> {
   if (_autoMigrated || !_dbAvailable || !_rawPrisma) return
   _autoMigrated = true
 
-  // Minimal: only ensure the promo_codes table exists and is seeded.
-  // All other tables/columns are assumed to already exist in production
-  // (created via Supabase SQL Editor or Prisma migrations).
-  // If you need a new column, add it manually in Supabase SQL Editor.
-  const statements = [
-    // Promo tables (these get DROP+CREATE'd so they must be re-created)
-    `DROP TABLE IF EXISTS public.user_subscriptions CASCADE`,
-    `DROP TABLE IF EXISTS public.promo_codes CASCADE`,
-    `CREATE TABLE IF NOT EXISTS "promo_codes" (
+  // Individual statements — one-by-one for PgBouncer compatibility.
+  // Each is wrapped in its own try/catch so one failure doesn't block others.
+  const statements: { sql: string; critical: boolean; label: string }[] = [
+    // ── affiliates table: code_changed_at ──
+    { sql: `ALTER TABLE public.affiliates ADD COLUMN IF NOT EXISTS "code_changed_at" TIMESTAMP(3)`, critical: true, label: 'affiliates.code_changed_at' },
+
+    // ── profiles table: Supabase-only columns (not in Prisma schema) ──
+    { sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS "subscription_status" TEXT DEFAULT 'FREE'`, critical: true, label: 'profiles.subscription_status' },
+    { sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS "pro_status" TEXT DEFAULT 'inactive'`, critical: true, label: 'profiles.pro_status' },
+    { sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS "pro_expiry" TIMESTAMPTZ`, critical: true, label: 'profiles.pro_expiry' },
+    { sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS "affiliate_balance" DOUBLE PRECISION DEFAULT 0`, critical: false, label: 'profiles.affiliate_balance' },
+    { sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS "referral_count" INTEGER DEFAULT 0`, critical: false, label: 'profiles.referral_count' },
+    { sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS "referral_code_changes" INTEGER DEFAULT 2`, critical: false, label: 'profiles.referral_code_changes' },
+    { sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS "referral_status" TEXT`, critical: false, label: 'profiles.referral_status' },
+    { sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS "subscription_until" TIMESTAMPTZ`, critical: true, label: 'profiles.subscription_until' },
+
+    // ── promo_codes table: DROP+CREATE (safe — re-seeded below) ──
+    { sql: `DROP TABLE IF EXISTS public.user_subscriptions CASCADE`, critical: false, label: 'drop user_subscriptions' },
+    { sql: `DROP TABLE IF EXISTS public.promo_codes CASCADE`, critical: false, label: 'drop promo_codes' },
+    { sql: `CREATE TABLE IF NOT EXISTS "promo_codes" (
       "id" TEXT NOT NULL,
       "code" TEXT NOT NULL,
       "description" TEXT,
@@ -201,23 +212,28 @@ export async function ensureSchema(): Promise<void> {
       "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "promo_codes_pkey" PRIMARY KEY ("id")
-    )`,
-    `CREATE UNIQUE INDEX IF NOT EXISTS "promo_codes_code_key" ON "promo_codes"("code")`,
-    `INSERT INTO promo_codes (id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, is_active, created_at, updated_at)
+    )`, critical: false, label: 'create promo_codes' },
+    { sql: `CREATE UNIQUE INDEX IF NOT EXISTS "promo_codes_code_key" ON "promo_codes"("code")`, critical: false, label: 'promo_codes_code_key index' },
+    { sql: `INSERT INTO promo_codes (id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, is_active, created_at, updated_at)
       VALUES (gen_random_uuid()::text, 'TRADERCEPAT', 'Diskon 100% — 3 Bulan PRO Gratis!', 100, 30, 0, 3, NOW(), true, NOW(), NOW())
-      ON CONFLICT (code) DO NOTHING`,
-    `UPDATE promo_codes SET discount_percent=100, max_quota=30, duration_months=3, is_active=true, end_date=NULL, updated_at=NOW() WHERE code='TRADERCEPAT'`,
+      ON CONFLICT (code) DO NOTHING`, critical: false, label: 'seed TRADERCEPAT' },
+    { sql: `UPDATE promo_codes SET discount_percent=100, max_quota=30, duration_months=3, is_active=true, end_date=NULL, updated_at=NOW() WHERE code='TRADERCEPAT'`, critical: false, label: 'update TRADERCEPAT' },
   ]
 
-  console.log('🔄 [DB] Running minimal ensureSchema...')
-  for (const sql of statements) {
+  console.log('🔄 [DB] Running ensureSchema —', statements.length, 'statements...')
+  let failed = 0
+  for (const { sql, critical, label } of statements) {
     try {
       await _rawPrisma.$executeRawUnsafe(sql)
     } catch (e: any) {
-      // Silently ignore — column/table already exists, or pgbouncer quirk
+      failed++
+      if (critical) {
+        console.error(`❌ [DB] ensureSchema CRITICAL failure (${label}): ${e?.message?.substring(0, 120)}`)
+      }
+      // Non-critical: silently ignore (table exists, column exists, etc.)
     }
   }
-  console.log('✅ [DB] ensureSchema done')
+  console.log(`✅ [DB] ensureSchema done (${failed} non-critical failures ignored)`)
 }
 
 // Keep chunkSql for backward compat but it's no longer used

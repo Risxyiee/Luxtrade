@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
-import { db } from '@/lib/db'
+import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
 
 // Sync logic - shared by GET and POST
@@ -12,6 +12,11 @@ async function performSync() {
         error: 'SUPABASE_SERVICE_ROLE_KEY not configured',
         message: 'Please set SUPABASE_SERVICE_ROLE_KEY in Vercel Environment Variables',
       }
+    }
+
+    // Ensure all Supabase-only columns exist in profiles table
+    if (isDatabaseAvailable()) {
+      await ensureSchema()
     }
 
     const authAdmin = getSupabaseAdminAuthFromClient()

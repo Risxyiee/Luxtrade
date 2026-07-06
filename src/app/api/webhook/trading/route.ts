@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 /**
  * Universal Trading Webhook Endpoint
@@ -7,17 +7,22 @@ import { createClient } from '@supabase/supabase-js'
  * dan menyimpannya ke database Supabase
  */
 
-// Initialize Supabase Admin Client (bypasses RLS for trusted webhooks)
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
+// Lazy-initialized Supabase Admin Client (bypasses RLS for trusted webhooks)
+let _supabaseAdmin: SupabaseClient | null = null
+
+function getSupabaseAdmin(): SupabaseClient {
+  if (!_supabaseAdmin) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !key) {
+      throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_URL')
     }
+    _supabaseAdmin = createClient(url, key, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
   }
-)
+  return _supabaseAdmin
+}
 
 /**
  * FxBlue webhook format
@@ -279,7 +284,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Cek apakah trade sudah ada (based on ticket + account)
-      const { data: existingTrade, error: checkError } = await supabaseAdmin
+      const { data: existingTrade, error: checkError } = await getSupabaseAdmin()
         .from('trades')
         .select('id')
         .eq('ticket', parsedTrade.ticket)
@@ -298,7 +303,7 @@ export async function POST(req: NextRequest) {
       let result
       if (existingTrade) {
         // Update jika trade sudah ada (untuk update profit/price yang berubah)
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await getSupabaseAdmin()
           .from('trades')
           .update({
             close_price: parsedTrade.close_price,
@@ -316,7 +321,7 @@ export async function POST(req: NextRequest) {
         console.log('[WEBHOOK] Trade updated:', result.id)
       } else {
         // Insert baru
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await getSupabaseAdmin()
           .from('trades')
           .insert({
             user_id: parsedTrade.user_id,
@@ -371,7 +376,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Cek duplikat
-      const { data: existingTrade } = await supabaseAdmin
+      const { data: existingTrade } = await getSupabaseAdmin()
         .from('trades')
         .select('id')
         .eq('ticket', parsedTrade.ticket)
@@ -380,7 +385,7 @@ export async function POST(req: NextRequest) {
 
       let result
       if (existingTrade) {
-        const { data } = await supabaseAdmin
+        const { data } = await getSupabaseAdmin()
           .from('trades')
           .update({
             close_price: parsedTrade.close_price,
@@ -395,7 +400,7 @@ export async function POST(req: NextRequest) {
 
         result = data
       } else {
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await getSupabaseAdmin()
           .from('trades')
           .insert({
             user_id: parsedTrade.user_id,

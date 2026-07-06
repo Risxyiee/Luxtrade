@@ -155,6 +155,7 @@ export async function POST(request: NextRequest) {
               plan: 'PRO',
               is_pro: true,
               subscription_until: subscriptionUntil ? new Date(subscriptionUntil) : null,
+              proExpiry: subscriptionUntil ? new Date(subscriptionUntil) : null,
               hasEverBeenPro: true,
               updatedAt: new Date(),
             }
@@ -170,6 +171,7 @@ export async function POST(request: NextRequest) {
                 plan: 'PRO',
                 is_pro: true,
                 subscription_until: subscriptionUntil ? new Date(subscriptionUntil) : null,
+                proExpiry: subscriptionUntil ? new Date(subscriptionUntil) : null,
                 hasEverBeenPro: true,
               }
             })
