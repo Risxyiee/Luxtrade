@@ -365,6 +365,9 @@ export async function ensureSchema(): Promise<void> {
     ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
     ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
 
+    -- affiliates
+    ALTER TABLE "affiliates" ADD COLUMN IF NOT EXISTS "code_changed_at" TIMESTAMP(3);
+
     -- Indexes
     CREATE UNIQUE INDEX IF NOT EXISTS "profiles_email_verify_token_key" ON "profiles"("email_verify_token");
     CREATE UNIQUE INDEX IF NOT EXISTS "profiles_my_referral_code_key" ON "profiles"("my_referral_code");
