@@ -406,7 +406,7 @@ export default function AboutPage() {
                   <span className="text-sm font-bold text-white/60">T</span>
                 </a>
                 <a
-                  href="https://discord.gg/nkXpgMyzk"
+                  href="https://discord.gg/HDUNAsnW2R"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-12 h-12 rounded-xl backdrop-blur-sm bg-white/5 border border-white/[0.08] flex items-center justify-center hover:bg-white/10 hover:border-[#5865F2]/30 transition-all duration-300 hover:scale-110"
