@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
         plan: 'PRO',
         subscription_until: subscriptionUntil,
         pro_status: 'active',
-        pro_expiry_date: subscriptionUntil,
+        pro_expiry: subscriptionUntil,
         has_ever_been_pro: true,
         updated_at: new Date().toISOString()
       })

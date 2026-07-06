@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
         is_pro: false,
         subscription_until: null,
         pro_status: 'inactive',
-        pro_expiry_date: null,
+        pro_expiry: null,
         updated_at: new Date().toISOString()
       })
       .eq('email', user.email)

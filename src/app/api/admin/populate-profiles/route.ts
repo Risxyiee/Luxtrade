@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
             is_pro: false,
             subscription_until: null,
             pro_status: 'inactive',
-            pro_expiry_date: null,
+            pro_expiry: null,
             affiliate_balance: 0,
             referral_count: 0,
             commission_paid: false,
