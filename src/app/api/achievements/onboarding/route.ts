@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+let _supabase: SupabaseClient | null = null
+function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_ANON_KEY
+    if (!url || !key) throw new Error('Missing Supabase env vars')
+    _supabase = createClient(url, key)
+  }
+  return _supabase
+}
 
 // Achievement IDs
 const ONBOARDING_ACHIEVEMENT_ID = 'newcomer_achievement'
@@ -18,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already has this achievement
-    const { data: existingAchievement, error: checkError } = await supabase
+    const { data: existingAchievement, error: checkError } = await getSupabase()
       .from('user_achievements')
       .select('*')
       .eq('user_id', userId)
@@ -34,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if achievements table exists, if not create it
-    const { error: tableError } = await supabase
+    const { error: tableError } = await getSupabase()
       .from('achievements')
       .select('id')
       .limit(1)
@@ -45,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the onboarding achievement if it doesn't exist
-    const { data: achievementData, error: achievementError } = await supabase
+    const { data: achievementData, error: achievementError } = await getSupabase()
       .from('achievements')
       .upsert(
         {
@@ -69,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Award the achievement to the user
-    const { data: userAchievement, error: awardError } = await supabase
+    const { data: userAchievement, error: awardError } = await getSupabase()
       .from('user_achievements')
       .insert({
         user_id: userId,
@@ -99,7 +105,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get current user XP
-    const { data: profile } = await supabase
+    const { data: profile } = await getSupabase()
       .from('profiles')
       .select('total_xp')
       .eq('id', userId)
@@ -107,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     // Update user XP
     const newXP = (profile?.total_xp || 0) + 10
-    await supabase
+    await getSupabase()
       .from('profiles')
       .update({ total_xp: newXP })
       .eq('id', userId)

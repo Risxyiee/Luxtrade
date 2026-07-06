@@ -10,10 +10,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, message: 'Database tidak tersedia. Pastikan DATABASE_URL sudah di-set ke PostgreSQL.' }, { status: 503 })
   }
 
-  const body = await request.json()
+  let body: { code?: string; maxQuota?: string | number; durationMonths?: string | number }
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ success: false, message: 'Invalid JSON body' }, { status: 400 })
+  }
+
   const code = (body.code || 'TRADERCEPAT').trim().toUpperCase()
-  const maxQuota = body.maxQuota ? parseInt(body.maxQuota) : 30
-  const durationMonths = body.durationMonths ? parseInt(body.durationMonths) : 3
+  const maxQuota = body.maxQuota ? parseInt(String(body.maxQuota)) : 30
+  const durationMonths = body.durationMonths ? parseInt(String(body.durationMonths)) : 3
 
   try {
     await ensureSchema()

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
+import { isDatabaseAvailable, ensureSchema } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
 
 // One-time script to populate all Supabase Auth users to profiles table
@@ -9,6 +10,11 @@ export async function POST(request: NextRequest) {
     if (authResult.error) return authResult.error
 
     console.log('🚀 Starting profiles population...')
+
+    // Ensure all Supabase-only columns exist in profiles table
+    if (isDatabaseAvailable()) {
+      await ensureSchema()
+    }
 
     const authAdmin = getSupabaseAdminAuthFromClient()
     if (!authAdmin) {

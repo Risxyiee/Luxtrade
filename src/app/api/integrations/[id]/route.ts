@@ -1,22 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { createSupabaseClient } from '@/lib/supabase/server-client'
 
 /**
  * API untuk mengelola integrasi trading spesifik (Update & Delete)
  */
 
-// Initialize Supabase Admin Client
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
+// Initialize Supabase Admin Client (lazy)
+let _supabaseAdmin: SupabaseClient | null = null
+function getSupabaseAdmin(): SupabaseClient {
+  if (!_supabaseAdmin) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !key) throw new Error('Missing Supabase env vars')
+    _supabaseAdmin = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
   }
-)
+  return _supabaseAdmin
+}
 
 /**
  * PATCH - Update integrasi
@@ -38,7 +38,7 @@ export async function PATCH(
     const body = await req.json()
 
     // Cek apakah integrasi milik user ini
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await getSupabaseAdmin()
       .from('trading_integrations')
       .select('*')
       .eq('id', params.id)
@@ -50,7 +50,7 @@ export async function PATCH(
     }
 
     // Update integrasi
-    const { data: integration, error } = await supabaseAdmin
+    const { data: integration, error } = await getSupabaseAdmin()
       .from('trading_integrations')
       .update({
         name: body.name ?? existing.name,
@@ -98,7 +98,7 @@ export async function DELETE(
     }
 
     // Cek apakah integrasi milik user ini
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await getSupabaseAdmin()
       .from('trading_integrations')
       .select('*')
       .eq('id', params.id)
@@ -110,7 +110,7 @@ export async function DELETE(
     }
 
     // Hapus integrasi
-    const { error } = await supabaseAdmin
+    const { error } = await getSupabaseAdmin()
       .from('trading_integrations')
       .delete()
       .eq('id', params.id)
