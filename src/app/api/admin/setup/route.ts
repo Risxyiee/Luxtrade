@@ -6,7 +6,7 @@ import { requireAdmin } from '@/lib/admin-auth'
 const SETUP_SQL = `
 -- Add PRO status columns
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS pro_status TEXT DEFAULT 'inactive';
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS pro_expiry_date TIMESTAMP WITH TIME ZONE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS pro_expiry TIMESTAMP WITH TIME ZONE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS referral_code TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS referral_count INTEGER DEFAULT 0;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
