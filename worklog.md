@@ -3302,3 +3302,25 @@ Stage Summary:
 - Total auth-protected APIs: all endpoints now require auth
 - PaywallModal now renders correctly
 - Pushed as commit a06539a to GitHub main
+
+---
+Task ID: 8
+Agent: Z.ai Code
+Task: Fix Prisma pool exhaustion (EMAXCONNSESSION) and verify missing-profiles fix
+
+Work Log:
+- Fixed /api/analytics/traffic: replaced Prisma profile.findUnique admin check with requireAdmin() (hardcoded emails, 0 DB connections)
+- Fixed /api/admin/users: completely rewrote to use Supabase Auth as PRIMARY source (all 25 users visible), removed ensureSchema() and all Prisma queries from GET/PATCH
+- Fixed /api/admin/affiliate-withdrawals: eliminated N+1 Prisma queries (was doing findMany + N×findUnique), now uses Supabase direct only
+- Fixed /api/admin/affiliates: eliminated N+1 Prisma pattern (findMany + N×findUnique for emails), now uses Supabase direct + batch email fetch
+- Fixed /api/admin/email-stats: replaced 2 Prisma queries with 2 Supabase queries (no Prisma at all)
+- Fixed /api/promo-quota: reduced from 2 Prisma queries to 1 (removed information_schema table check)
+- Optimized ensureSchema() in db.ts: batched ~40+ individual $executeRawUnsafe calls into a SINGLE transaction (BEGIN...COMMIT), reducing cold-start from 40+ connections to 1
+- Verified /api/admin/activate already handles missing profiles correctly (Auth API fallback + auto-create profile)
+
+Stage Summary:
+- Prisma connections on admin panel load reduced from ~50+ to ~1-2
+- All admin panel page-load APIs now use Supabase direct (no Prisma): analytics/traffic, admin/users, admin/affiliates, admin/affiliate-withdrawals, admin/email-stats
+- promo-quota reduced from 2 to 1 Prisma query
+- ensureSchema batched into single transaction as fallback defense
+- /api/admin/activate already has Auth fallback for users without profile rows (22 of 25 users)
