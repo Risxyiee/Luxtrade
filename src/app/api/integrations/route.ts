@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { createSupabaseClient } from '@/lib/supabase/server-client'
 
 /**
@@ -7,17 +7,22 @@ import { createSupabaseClient } from '@/lib/supabase/server-client'
  * User bisa menambahkan kredensial Account ID, Investor Password, Broker Server
  */
 
-// Initialize Supabase Admin Client
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
+// Lazy-initialized Supabase Admin Client
+let _supabaseAdmin: SupabaseClient | null = null
+
+function getSupabaseAdmin(): SupabaseClient {
+  if (!_supabaseAdmin) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !key) {
+      throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY')
     }
+    _supabaseAdmin = createClient(url, key, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
   }
-)
+  return _supabaseAdmin
+}
 
 /**
  * GET - Mendapatkan semua integrasi milik user
@@ -33,7 +38,7 @@ export async function GET(req: Request) {
     }
 
     // Ambil semua integrasi user
-    const { data: integrations, error } = await supabaseAdmin
+    const { data: integrations, error } = await getSupabaseAdmin()
       .from('trading_integrations')
       .select('*')
       .eq('user_id', user.id)
@@ -89,7 +94,7 @@ export async function POST(req: Request) {
     }
 
     // Cek quota user
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await getSupabaseAdmin()
       .from('profiles')
       .select('plan, pro_expiry')
       .eq('id', user.id)
@@ -100,7 +105,7 @@ export async function POST(req: Request) {
                   new Date(profile.pro_expiry) > new Date()
 
     // Hitung jumlah integrasi yang sudah ada
-    const { count: currentCount } = await supabaseAdmin
+    const { count: currentCount } = await getSupabaseAdmin()
       .from('trading_integrations')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
@@ -123,7 +128,7 @@ export async function POST(req: Request) {
     const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com'}/api/webhook/trading?source=${provider}`
 
     // Insert integrasi baru
-    const { data: integration, error } = await supabaseAdmin
+    const { data: integration, error } = await getSupabaseAdmin()
       .from('trading_integrations')
       .insert({
         user_id: user.id,

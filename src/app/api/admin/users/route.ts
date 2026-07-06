@@ -172,6 +172,24 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: updateError.message }, { status: 500 })
       }
 
+      // Also sync to Supabase profiles table
+      try {
+        const svc = getSupabaseAdmin()
+        if (svc) {
+          await svc.from('profiles').update({
+            plan: 'FREE',
+            is_pro: false,
+            subscription_status: 'inactive',
+            pro_status: 'inactive',
+            subscription_until: null,
+            pro_expiry: null,
+            updated_at: new Date().toISOString(),
+          }).eq('id', userId)
+        }
+      } catch (syncErr) {
+        console.error('⚠️ [ADMIN] Supabase profiles sync failed (non-blocking):', syncErr)
+      }
+
       return NextResponse.json({ message: 'PRO status revoked successfully', user: updatedUser.user })
     } else if (action === 'activate') {
       const now = new Date()
@@ -198,6 +216,25 @@ export async function PATCH(request: NextRequest) {
 
       if (updateError) {
         return NextResponse.json({ error: updateError.message }, { status: 500 })
+      }
+
+      // Also sync to Supabase profiles table
+      try {
+        const svc = getSupabaseAdmin()
+        if (svc) {
+          await svc.from('profiles').update({
+            plan: 'PRO',
+            is_pro: true,
+            subscription_status: 'active',
+            pro_status: 'active',
+            subscription_until: subscriptionUntil,
+            pro_expiry: subscriptionUntil,
+            has_ever_been_pro: true,
+            updated_at: new Date().toISOString(),
+          }).eq('id', userId)
+        }
+      } catch (syncErr) {
+        console.error('⚠️ [ADMIN] Supabase profiles sync failed (non-blocking):', syncErr)
       }
 
       return NextResponse.json({

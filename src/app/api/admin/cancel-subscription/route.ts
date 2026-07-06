@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { supabase, supabaseAdmin } from '@/lib/supabase'
 import { requireAdmin } from '@/lib/admin-auth'
+import { createClient } from '@supabase/supabase-js'
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,94 +21,63 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Use supabaseAdmin if available (Service Role Key), otherwise use regular client
-    const supabaseClient = supabaseAdmin || supabase
+    // ========================================
+    // Create Supabase admin client directly
+    // ========================================
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-    if (!supabaseAdmin) {
-      console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY not configured. Using regular client. Updates may fail due to RLS policies.')
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('❌ Missing Supabase environment variables')
+      return NextResponse.json(
+        { error: 'Server configuration error', details: 'Supabase environment variables are not configured' },
+        { status: 500 }
+      )
     }
 
-    // ========================================
-    // STEP 1: Find user in Prisma
-    // ========================================
-    console.log('📋 Step 1: Finding user in Prisma...')
-    const user = await db.user.findUnique({
-      where: { id: userId }
-    })
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-    if (!user) {
-      console.error('❌ User not found in Prisma:', userId)
+    // ========================================
+    // STEP 1: Validate userId exists in Supabase
+    // ========================================
+    console.log('📋 Step 1: Validating user exists in Supabase...')
+
+    const { data: profile, error: fetchError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email')
+      .eq('id', userId)
+      .single()
+
+    if (fetchError || !profile) {
+      console.error('❌ User not found in Supabase:', userId)
+      if (fetchError) {
+        console.error('   Error:', fetchError.message)
+      }
       return NextResponse.json(
         { error: 'User not found', details: `User with ID ${userId} does not exist` },
         { status: 404 }
       )
     }
-    console.log('✅ User found:', user.email)
+
+    console.log('✅ User found:', profile.email)
 
     // ========================================
-    // STEP 2: DELETE subscriptions from Prisma and return slots
+    // STEP 2: Update Supabase profile back to FREE
     // ========================================
-    console.log('📋 Step 2: Deleting subscriptions from Prisma...')
-    const activeSubscriptions = await db.userSubscription.findMany({
-      where: {
-        userId,
-        isActive: true
-      }
-    })
+    console.log('📋 Step 2: Updating Supabase profile back to FREE...')
 
-    console.log(`   Found ${activeSubscriptions.length} active subscriptions`)
-
-    if (activeSubscriptions.length > 0) {
-      for (const sub of activeSubscriptions) {
-        console.log(`   Deleting subscription: ${sub.id}, Plan: ${sub.planId}`)
-
-        // Get plan info to check if it has slots
-        const plan = await db.subscriptionPlan.findUnique({
-          where: { id: sub.planId }
-        })
-
-        // If plan has maxSlots, return the slot
-        if (plan && plan.maxSlots) {
-          console.log(`   Plan has maxSlots (${plan.maxSlots}), returning slot...`)
-          const slotTracking = await db.slotTracking.findUnique({
-            where: { planId: sub.planId }
-          })
-
-          if (slotTracking && slotTracking.usedSlots > 0) {
-            await db.slotTracking.update({
-              where: { id: slotTracking.id },
-              data: { usedSlots: slotTracking.usedSlots - 1 }
-            })
-            console.log(`   Slot returned: ${slotTracking.usedSlots} -> ${slotTracking.usedSlots - 1}`)
-          } else {
-            console.log(`   No slot tracking found or usedSlots is 0, skipping slot return`)
-          }
-        }
-
-        // Delete the subscription
-        await db.userSubscription.delete({
-          where: { id: sub.id }
-        })
-        console.log(`   Deleted subscription: ${sub.id}`)
-      }
-    }
-
-    // ========================================
-    // STEP 3: Update Supabase profiles table back to FREE
-    // ========================================
-    console.log('📋 Step 3: Updating Supabase profile back to FREE...')
-
-    const { error: profileUpdateError, data: updatedData } = await supabaseClient
+    const { error: profileUpdateError, data: updatedData } = await supabaseAdmin
       .from('profiles')
       .update({
-        subscription_status: 'FREE',
+        plan: 'FREE',
         is_pro: false,
         subscription_until: null,
-        pro_status: 'inactive',
+        has_ever_been_pro: false,
         pro_expiry: null,
+        pro_status: 'inactive',
         updated_at: new Date().toISOString()
       })
-      .eq('email', user.email)
+      .eq('id', userId)
       .select()
 
     if (profileUpdateError) {
@@ -121,19 +89,18 @@ export async function POST(request: NextRequest) {
         { error: 'Failed to cancel subscription', details: profileUpdateError.message },
         { status: 500 }
       )
-    } else {
-      console.log('✅ Supabase profile updated to FREE for:', user.email)
-      console.log('   Updated data:', updatedData)
     }
+
+    console.log('✅ Supabase profile updated to FREE for:', profile.email)
+    console.log('   Updated data:', updatedData)
 
     console.log('✅ Subscription cancelled successfully!')
     return NextResponse.json({
       success: true,
-      message: `Subscription for ${user.email} cancelled successfully`,
+      message: `Subscription for ${profile.email} cancelled successfully`,
       data: {
         userId,
-        userEmail: user.email,
-        subscriptionsCancelled: activeSubscriptions.length
+        userEmail: profile.email
       }
     })
   } catch (error) {

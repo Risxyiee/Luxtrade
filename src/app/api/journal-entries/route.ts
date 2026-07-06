@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { supabase } = createClientForApi(request)
     const searchParams = request.nextUrl.searchParams
     const limit = parseInt(searchParams.get('limit') || '50')
 
@@ -61,6 +62,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const { supabase } = createClientForApi(request)
     const { data, error } = await supabase
       .from('journal_entries')
       .insert([{
@@ -96,10 +98,15 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { id, ...updates } = body
 
+    if (!id) {
+      return NextResponse.json({ error: 'Entry ID is required' }, { status: 400 })
+    }
+
     if (updates.tags) {
       updates.tags = JSON.stringify(updates.tags)
     }
 
+    const { supabase } = createClientForApi(request)
     const { data, error } = await supabase
       .from('journal_entries')
       .update(updates)
@@ -126,6 +133,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { supabase } = createClientForApi(request)
     const searchParams = request.nextUrl.searchParams
     const id = searchParams.get('id')
 

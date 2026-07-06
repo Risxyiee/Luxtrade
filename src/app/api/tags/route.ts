@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const supabase = await createClientForApi()
+
     const { data, error } = await supabase
       .from('tags')
       .select('*')
@@ -33,6 +35,8 @@ export async function POST(request: NextRequest) {
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const supabase = await createClientForApi()
 
     const body = await request.json()
     const { name, color } = body
