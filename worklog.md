@@ -54,3 +54,26 @@ Stage Summary:
 - 2 mini-services hardened with shared secret
 - Caddyfile port restriction noted but not changed (platform-managed infrastructure)
 - All changes use existing `requireAdmin()` and `requireAuth()` helpers from the project
+---
+Task ID: 2
+Agent: main
+Task: Fix activate/deactivate PRO user tidak bekerja, tidak ada error di Vercel log
+
+Work Log:
+- Analisa penuh 2 path: POST /api/admin/activate (dropdown) dan PATCH /api/admin/users (revoke)
+- Trace alur: Frontend → Backend → Supabase update → Frontend refresh
+- Temukan ROOT CAUSE: GET /api/admin/users hanya baca dari Auth user_metadata, tapi activate update profiles table. Jika Auth metadata update gagal silently, GET tetap menampilkan data lama.
+- Bug tambahan: subscription_status di /api/admin/activate set ke 'PRO' (seharusnya 'active')
+- Bug tambahan: PATCH /api/admin/users revoke, profiles table sync non-blocking — bisa gagal tanpa diketahui
+
+Fix yang dilakukan:
+1. GET /api/admin/users — DITULIS ULANG: sekarang fetch profiles table + Auth, merge data, profiles table sebagai source of truth untuk is_pro/plan/subscription_until/subscription_status
+2. POST /api/admin/activate — fix subscription_status: 'PRO' → 'active', tambah verbose logging dengan [ACTIVATE] prefix, log error detail dari Auth metadata sync
+3. PATCH /api/admin/users — DITULIS ULANG: profiles table update jadi PRIMARY (blocking), Auth metadata secondary. Jika BOTH gagal return 500. Jika hanya Auth gagal, return success + warnings. Juga fix activate path untuk baca subscription_until dari profiles table (bukan Auth metadata).
+4. Frontend admin/page.tsx — tambah console.log di activateWithPlan dan revokePRO untuk response status + data. Tambah warnings display.
+
+Stage Summary:
+- Root cause: Data source mismatch — write ke profiles table, read dari Auth metadata
+- Fix: GET users sekarang merge Auth + profiles table, profiles table = source of truth
+- Lint: clean, kompilasi OK
+- Browser verifikasi: tidak bisa full test (sandbox tanpa Supabase env vars), tapi kompilasi Next.js berhasil tanpa error

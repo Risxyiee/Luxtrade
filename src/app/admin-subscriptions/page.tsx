@@ -309,21 +309,21 @@ export default function AdminSubscriptionsPanel() {
     console.log('   userId:', userId)
     console.log('   planType:', planType)
 
-    alert(`Sistem sedang mencoba mengaktifkan ${planType === 'MONTHLY' ? 'Monthly' : 'Lifetime'} untuk user: ${userId}`)
-
     if (!userId || !planType) {
-      console.log('❌ Cannot activate - missing userId or planType')
       alert('Missing userId or planType')
       return
     }
 
     try {
-      console.log('🚀 Calling API to activate Pro for user:', userId, 'with planType:', planType)
-
-      const res = await authFetch('/api/admin/activate-pro', {
-        method: 'POST',
+      // Use PATCH /api/admin/users which updates Auth metadata (read by GET)
+      const res = await authFetch('/api/admin/users', {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, planType })
+        body: JSON.stringify({
+          userId,
+          action: 'activate',
+          days: planType === 'LIFETIME' ? 365 * 5 : 30,
+        })
       })
 
       console.log('📥 API response status:', res.status)
@@ -338,14 +338,12 @@ export default function AdminSubscriptionsPanel() {
         return
       }
 
-      fetchDataBackground() // No loading state
-      alert(`✅ User Berhasil Diaktifkan ${planType === 'MONTHLY' ? 'Monthly' : 'Lifetime'}!\n\nEmail: ${data.data.userEmail}`)
+      fetchDataBackground()
+      alert(`✅ User berhasil diaktifkan ${planType === 'MONTHLY' ? '30 Hari' : 'Lifetime'}!`)
     } catch (error) {
       console.error('❌ Error Detail:', error)
-      console.error('   Error type:', error?.constructor?.name)
-      console.error('   Error message:', error instanceof Error ? error.message : String(error))
       const errorMsg = error instanceof Error ? error.message : String(error)
-      alert(`Gagal mengaktifkan Pro subscription:\n${errorMsg}\n\nCek console browser untuk detail error (F12 -> Console)`)
+      alert(`Gagal mengaktifkan Pro:\n${errorMsg}`)
     }
   }
 

@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     const body: ActivateRequestBody = await request.json()
     const { userId, planType } = body
 
-    console.log('🚀 Admin activating subscription:', { adminUser: adminUser?.email, userId, planType })
+    console.log(`🚀 [ACTIVATE] Admin ${adminUser?.email} activating: userId=${userId}, planType=${planType}`)
 
     if (!userId || !planType) {
       return NextResponse.json({ error: 'userId and planType are required' }, { status: 400 })
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
     const { error: updateError } = await supabaseAdmin
       .from('profiles')
       .update({
-        subscription_status: 'PRO',
+        subscription_status: 'active',
         is_pro: true,
         plan: 'PRO',
         subscription_until: subscriptionUntil,
@@ -140,7 +140,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update user profile', details: updateError.message }, { status: 500 })
     }
 
-    console.log(`✅ Supabase profile updated to PRO for: ${userEmail}`)
+    console.log(`✅ [ACTIVATE] Profiles table updated to PRO for: ${userEmail} (${userId}) until ${subscriptionUntil}`)
+
+    // ============================================
+    // UPDATE AUTH METADATA (secondary — profiles table is source of truth)
+    // ============================================
+    try {
+      const { getAdminAuth } = await import('@/lib/supabase-admin-alt')
+      const authAdmin = getAdminAuth()
+      if (authAdmin) {
+        // Preserve existing metadata — don't overwrite referral codes, device_id, etc.
+        const { data: { user: authUser } } = await authAdmin.getUserById(userId)
+        const existingMeta = authUser?.user_metadata || {}
+
+        const { error: metaErr } = await authAdmin.updateUserById(userId, {
+          user_metadata: {
+            ...existingMeta,
+            is_pro: true,
+            subscription_status: 'active',
+            plan: 'PRO',
+            subscription_until: subscriptionUntil,
+            has_ever_been_pro: true,
+          }
+        })
+        if (metaErr) {
+          console.error(`⚠️ [ACTIVATE] Auth metadata sync failed (non-blocking): ${metaErr.message}`)
+        } else {
+          console.log(`✅ [ACTIVATE] Auth metadata updated for: ${userEmail}`)
+        }
+      } else {
+        console.warn(`⚠️ [ACTIVATE] getAdminAuth() returned null — Auth metadata NOT updated`)
+      }
+    } catch (metaErr) {
+      console.error('⚠️ [ACTIVATE] Auth metadata sync error (non-blocking):', metaErr)
+    }
 
     // ============================================
     // UPDATE PRISMA PROFILE (if DB available, non-blocking)

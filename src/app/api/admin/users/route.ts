@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAdminAuth, getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { requireAdmin } from '@/lib/admin-auth'
 
-// GET all users — Supabase Auth PRIMARY (has all 25 users), Prisma only for enrichment
+// GET all users — Auth for user list + profiles table for subscription truth
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireAdmin(request)
     if (authResult.error) return authResult.error
 
-    // ── Step 1: Fetch ALL users from Supabase Auth (PRIMARY — has all 25 users) ──
+    // ── Step 1: Fetch ALL users from Supabase Auth ──
     let authUsers: any[] = []
     const authAdmin = getAdminAuth()
 
@@ -23,44 +23,111 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── Step 2: Build user list from Auth data (no Prisma needed) ──
+    // ── Step 2: Fetch ALL profiles from Supabase profiles table (source of truth for subscription) ──
+    const svc = getSupabaseAdmin()
+    const profileMap = new Map<string, any>()
+
+    if (svc) {
+      try {
+        const { data: profiles, error: profError } = await svc
+          .from('profiles')
+          .select('id, email, full_name, plan, is_pro, subscription_status, subscription_until, pro_status, pro_expiry, my_referral_code, referred_by_code, affiliate_balance, referral_count, has_ever_been_pro, device_id, referral_status, commission_paid, updated_at, created_at')
+
+        if (!profError && profiles) {
+          for (const p of profiles) {
+            profileMap.set(p.id, p)
+          }
+          console.log(`📊 [ADMIN GET] Loaded ${profiles.length} profiles from Supabase`)
+        } else if (profError) {
+          console.error('⚠️ Profiles table fetch error:', profError.message)
+        }
+      } catch (err) {
+        console.error('⚠️ Profiles table fetch failed:', err)
+      }
+    } else {
+      console.error('⚠️ Supabase admin client not available — cannot read profiles table')
+    }
+
+    // ── Step 3: Merge Auth + Profiles (profiles table is source of truth for subscription) ──
     const formattedUsers = authUsers.map(user => {
       const metadata = user.user_metadata || {}
-      const isPro = metadata.is_pro ?? false
-      const plan = metadata.plan ?? (isPro ? 'PRO' : 'FREE')
+      const profile = profileMap.get(user.id)
+
+      // Use profiles table data as PRIMARY for subscription fields
+      // Fall back to Auth metadata ONLY if no profile exists
+      const isPro = profile?.is_pro ?? metadata.is_pro ?? false
+      const plan = profile?.plan ?? metadata.plan ?? (isPro ? 'PRO' : 'FREE')
+      const subStatus = profile?.subscription_status ?? metadata.subscription_status ?? (isPro ? 'active' : 'inactive')
+      const subUntil = profile?.subscription_until ?? metadata.subscription_until ?? null
+      const hasEverBeenPro = profile?.has_ever_been_pro ?? metadata.has_ever_been_pro ?? (isPro ? true : false)
 
       return {
         id: user.id,
-        email: user.email || '-',
-        full_name: metadata.full_name || metadata.name || 'No Name',
+        email: user.email || profile?.email || '-',
+        full_name: profile?.full_name || metadata.full_name || metadata.name || 'No Name',
         display_name: metadata.display_name || null,
         plan,
-        subscription_status: metadata.subscription_status ?? (isPro ? 'active' : 'inactive'),
+        subscription_status: subStatus,
         is_pro: isPro,
-        subscription_until: metadata.subscription_until ?? null,
-        my_referral_code: metadata.my_referral_code || null,
-        referred_by_code: metadata.referred_by_code || null,
+        subscription_until: subUntil,
+        my_referral_code: profile?.my_referral_code ?? metadata.my_referral_code ?? null,
+        referred_by_code: profile?.referred_by_code ?? metadata.referred_by_code ?? null,
         referred_by: metadata.referred_by || null,
         has_duplicate_device: metadata.has_duplicate_device || false,
-        referral_status: metadata.referral_status || null,
-        commission_paid: metadata.commission_paid ?? false,
-        has_ever_been_pro: metadata.has_ever_been_pro ?? (isPro ? true : false),
-        device_id: metadata.device_id || null,
-        created_at: user.created_at || new Date().toISOString(),
+        referral_status: profile?.referral_status ?? metadata.referral_status ?? null,
+        commission_paid: profile?.commission_paid ?? metadata.commission_paid ?? false,
+        has_ever_been_pro: hasEverBeenPro,
+        device_id: profile?.device_id ?? metadata.device_id ?? null,
+        created_at: user.created_at || profile?.created_at || new Date().toISOString(),
         role: metadata.role || 'member',
         emailVerified: user.email_confirmed_at != null,
         last_sign_in_at: user.last_sign_in_at || null,
         has_auth: true,
+        // Diagnostic: which source was used
+        _profile_found: !!profile,
       }
     })
+
+    // ── Step 4: Include profiles that have NO Auth record (edge case) ──
+    for (const [id, profile] of profileMap) {
+      if (!authUsers.find(u => u.id === id)) {
+        formattedUsers.push({
+          id: profile.id,
+          email: profile.email || '-',
+          full_name: profile.full_name || 'No Name',
+          display_name: null,
+          plan: profile.plan || 'FREE',
+          subscription_status: profile.subscription_status || 'inactive',
+          is_pro: profile.is_pro || false,
+          subscription_until: profile.subscription_until || null,
+          my_referral_code: profile.my_referral_code || null,
+          referred_by_code: profile.referred_by_code || null,
+          referred_by: null,
+          has_duplicate_device: false,
+          referral_status: profile.referral_status || null,
+          commission_paid: profile.commission_paid || false,
+          has_ever_been_pro: profile.has_ever_been_pro || false,
+          device_id: profile.device_id || null,
+          created_at: profile.created_at || new Date().toISOString(),
+          role: 'member',
+          emailVerified: false,
+          last_sign_in_at: null,
+          has_auth: false,
+          _profile_found: true,
+        })
+      }
+    }
+
+    const profileCount = profileMap.size
 
     return NextResponse.json({
       users: formattedUsers,
       count: formattedUsers.length,
-      source: 'auth-primary',
+      source: 'auth+profiles',
       auth_count: authUsers.length,
+      profile_count: profileCount,
       ...(formattedUsers.length === 0
-        ? { notice: 'Tidak ada user ditemukan di Supabase Auth.' }
+        ? { notice: 'Tidak ada user ditemukan.' }
         : {}),
     })
   } catch (error) {
@@ -124,7 +191,8 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH - Activate/Revoke PRO for user (uses Auth metadata, no Prisma)
+// PATCH - Activate/Revoke PRO for user
+// Updates BOTH Auth metadata AND profiles table (profiles table is source of truth)
 export async function PATCH(request: NextRequest) {
   try {
     const authResult = await requireAdmin(request)
@@ -154,7 +222,35 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
+    // Get Supabase admin client for profiles table
+    const svc = getSupabaseAdmin()
+
     if (action === 'revoke') {
+      console.log(`🔓 [ADMIN PATCH] Revoking PRO for user: ${user.email} (${userId})`)
+
+      // 1. Update profiles table (PRIMARY — source of truth)
+      let profileError: any = null
+      if (svc) {
+        const { error } = await svc.from('profiles').update({
+          plan: 'FREE',
+          is_pro: false,
+          subscription_status: 'inactive',
+          pro_status: 'inactive',
+          subscription_until: null,
+          pro_expiry: null,
+          updated_at: new Date().toISOString(),
+        }).eq('id', userId)
+        profileError = error
+        if (error) {
+          console.error('❌ [ADMIN PATCH] Profiles table revoke failed:', error.message)
+        } else {
+          console.log(`✅ [ADMIN PATCH] Profiles table updated to FREE for: ${user.email}`)
+        }
+      } else {
+        console.error('❌ [ADMIN PATCH] Supabase admin client not available for profiles table')
+      }
+
+      // 2. Update Auth metadata (secondary — for consistency)
       const newMetadata = {
         ...user.user_metadata,
         is_pro: false,
@@ -169,37 +265,79 @@ export async function PATCH(request: NextRequest) {
       })
 
       if (updateError) {
-        return NextResponse.json({ error: updateError.message }, { status: 500 })
+        console.error('❌ [ADMIN PATCH] Auth metadata revoke failed:', updateError.message)
       }
 
-      // Also sync to Supabase profiles table
-      try {
-        const svc = getSupabaseAdmin()
-        if (svc) {
-          await svc.from('profiles').update({
-            plan: 'FREE',
-            is_pro: false,
-            subscription_status: 'inactive',
-            pro_status: 'inactive',
-            subscription_until: null,
-            pro_expiry: null,
-            updated_at: new Date().toISOString(),
-          }).eq('id', userId)
-        }
-      } catch (syncErr) {
-        console.error('⚠️ [ADMIN] Supabase profiles sync failed (non-blocking):', syncErr)
+      // If BOTH failed, return error
+      if (profileError && updateError) {
+        return NextResponse.json({
+          error: 'Failed to revoke PRO',
+          details: `Profiles: ${profileError.message}. Auth: ${updateError.message}`,
+        }, { status: 500 })
       }
 
-      return NextResponse.json({ message: 'PRO status revoked successfully', user: updatedUser.user })
+      // If only Auth failed, still return success (profiles table is source of truth)
+      return NextResponse.json({
+        message: 'PRO status revoked successfully',
+        warnings: updateError ? `Auth metadata sync failed: ${updateError.message}` : undefined,
+        user: updatedUser?.user,
+      })
     } else if (action === 'activate') {
-      const now = new Date()
-      const currentSubscriptionUntil = user.user_metadata?.subscription_until
-        ? new Date(user.user_metadata.subscription_until)
-        : now
+      console.log(`👑 [ADMIN PATCH] Activating PRO for ${days} days for user: ${user.email} (${userId})`)
 
-      const baseDate = currentSubscriptionUntil > now ? currentSubscriptionUntil : now
+      const now = new Date()
+      // Check profiles table first for current subscription
+      let currentSubUntil: Date = now
+      if (svc) {
+        const { data: currentProfile } = await svc
+          .from('profiles')
+          .select('subscription_until, is_pro')
+          .eq('id', userId)
+          .single()
+
+        if (currentProfile?.subscription_until) {
+          const profileDate = new Date(currentProfile.subscription_until)
+          if (profileDate > now) {
+            currentSubUntil = profileDate
+          }
+        }
+      } else {
+        // Fallback to Auth metadata
+        if (user.user_metadata?.subscription_until) {
+          const metaDate = new Date(user.user_metadata.subscription_until)
+          if (metaDate > now) {
+            currentSubUntil = metaDate
+          }
+        }
+      }
+
+      const baseDate = currentSubUntil > now ? currentSubUntil : now
       const subscriptionUntil = new Date(baseDate.getTime() + (days * 24 * 60 * 60 * 1000)).toISOString()
 
+      // 1. Update profiles table (PRIMARY — source of truth)
+      let profileError: any = null
+      if (svc) {
+        const { error } = await svc.from('profiles').update({
+          plan: 'PRO',
+          is_pro: true,
+          subscription_status: 'active',
+          pro_status: 'active',
+          subscription_until: subscriptionUntil,
+          pro_expiry: subscriptionUntil,
+          has_ever_been_pro: true,
+          updated_at: new Date().toISOString(),
+        }).eq('id', userId)
+        profileError = error
+        if (error) {
+          console.error('❌ [ADMIN PATCH] Profiles table activate failed:', error.message)
+        } else {
+          console.log(`✅ [ADMIN PATCH] Profiles table updated to PRO for: ${user.email} until ${subscriptionUntil}`)
+        }
+      } else {
+        console.error('❌ [ADMIN PATCH] Supabase admin client not available for profiles table')
+      }
+
+      // 2. Update Auth metadata (secondary — for consistency)
       const newMetadata = {
         ...user.user_metadata,
         is_pro: true,
@@ -215,32 +353,23 @@ export async function PATCH(request: NextRequest) {
       })
 
       if (updateError) {
-        return NextResponse.json({ error: updateError.message }, { status: 500 })
+        console.error('❌ [ADMIN PATCH] Auth metadata activate failed:', updateError.message)
       }
 
-      // Also sync to Supabase profiles table
-      try {
-        const svc = getSupabaseAdmin()
-        if (svc) {
-          await svc.from('profiles').update({
-            plan: 'PRO',
-            is_pro: true,
-            subscription_status: 'active',
-            pro_status: 'active',
-            subscription_until: subscriptionUntil,
-            pro_expiry: subscriptionUntil,
-            has_ever_been_pro: true,
-            updated_at: new Date().toISOString(),
-          }).eq('id', userId)
-        }
-      } catch (syncErr) {
-        console.error('⚠️ [ADMIN] Supabase profiles sync failed (non-blocking):', syncErr)
+      // If BOTH failed, return error
+      if (profileError && updateError) {
+        return NextResponse.json({
+          error: 'Failed to activate PRO',
+          details: `Profiles: ${profileError.message}. Auth: ${updateError.message}`,
+        }, { status: 500 })
       }
 
+      // If only Auth failed, still return success (profiles table is source of truth)
       return NextResponse.json({
-        message: 'PRO activated successfully',
-        user: updatedUser.user,
-        subscription_until: subscriptionUntil
+        message: `PRO activated for ${days} days`,
+        subscription_until: subscriptionUntil,
+        warnings: updateError ? `Auth metadata sync failed: ${updateError.message}` : undefined,
+        user: updatedUser?.user,
       })
     } else {
       return NextResponse.json({ error: 'Invalid action. Use "activate" or "revoke"' }, { status: 400 })
