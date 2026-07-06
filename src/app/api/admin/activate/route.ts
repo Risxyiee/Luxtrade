@@ -73,22 +73,52 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================
-    // UPDATE SUPABASE PROFILES TABLE (PRIMARY — always works)
+    // FIND USER — profiles table first, then Auth fallback
     // ============================================
     const supabaseAdmin = getSupabaseAdmin()
     if (!supabaseAdmin) {
       return NextResponse.json({ error: 'Server not configured — missing Supabase service role key' }, { status: 500 })
     }
 
-    // Fetch user info first for the response
+    let userEmail = ''
+    let userName = ''
+
+    // Try Supabase profiles table first
     const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
       .select('email, full_name')
       .eq('id', userId)
       .single()
 
-    if (!existingProfile) {
-      return NextResponse.json({ error: 'User not found in profiles' }, { status: 404 })
+    if (existingProfile) {
+      userEmail = existingProfile.email || ''
+      userName = existingProfile.full_name || ''
+    } else {
+      // Fallback: get from Supabase Auth
+      const { getAdminAuth } = await import('@/lib/supabase-admin-alt')
+      const authAdmin = getAdminAuth()
+      if (!authAdmin) {
+        return NextResponse.json({ error: 'Server not configured — cannot access Auth admin' }, { status: 500 })
+      }
+      const { data: { user: authUser }, error: authErr } = await authAdmin.getUserById(userId)
+      if (authErr || !authUser) {
+        return NextResponse.json({ error: 'User not found in profiles or Auth', details: authErr?.message }, { status: 404 })
+      }
+      userEmail = authUser.email || ''
+      userName = authUser.user_metadata?.full_name || authUser.user_metadata?.name || ''
+
+      // Auto-create profile in Supabase profiles table
+      console.log(`📝 Auto-creating profile for: ${userEmail}`)
+      await supabaseAdmin.from('profiles').upsert({
+        id: userId,
+        email: userEmail,
+        full_name: userName,
+        plan: 'FREE',
+        is_pro: false,
+        subscription_status: 'FREE',
+        created_at: authUser.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' })
     }
 
     const { error: updateError } = await supabaseAdmin
@@ -110,7 +140,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update user profile', details: updateError.message }, { status: 500 })
     }
 
-    console.log(`✅ Supabase profile updated to PRO for: ${existingProfile.email}`)
+    console.log(`✅ Supabase profile updated to PRO for: ${userEmail}`)
 
     // ============================================
     // UPDATE PRISMA PROFILE (if DB available, non-blocking)
@@ -135,8 +165,8 @@ export async function POST(request: NextRequest) {
             await db.profile.create({
               data: {
                 id: userId,
-                email: existingProfile.email,
-                full_name: existingProfile.full_name,
+                email: existingProfile?.email || userEmail,
+                full_name: existingProfile?.full_name || userName,
                 plan: 'PRO',
                 is_pro: true,
                 subscription_until: subscriptionUntil ? new Date(subscriptionUntil) : null,
@@ -202,7 +232,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `${existingProfile.email} berhasil diaktifkan ke ${planConfig.name}!`,
+      message: `${userEmail} berhasil diaktifkan ke ${planConfig.name}!`,
       planType,
       subscription_until: subscriptionUntil,
       commission: commissionAmount,

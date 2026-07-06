@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, getAdminStatus, getAdminAuth } from '@/lib/supabase-admin-alt'
 import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
+import { createClient } from '@supabase/supabase-js'
+
+function getSupabaseSvc() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return null
+  return createClient(url, key)
+}
 
 /**
  * POST /api/admin/sync-users
@@ -125,11 +133,33 @@ export async function POST(request: NextRequest) {
     }
 
     const synced = created + updated
-    console.log(`✅ [SYNC] Done! Created: ${created}, Updated: ${updated}, Skipped: ${skipped}, Errors: ${errors.length}`)
+    console.log(`✅ [SYNC] Prisma done! Created: ${created}, Updated: ${updated}, Skipped: ${skipped}, Errors: ${errors.length}`)
+
+    // ── Step 4: Also sync to Supabase profiles table (ensure all Auth users have a row) ──
+    let supabaseSynced = 0
+    const svc = getSupabaseSvc()
+    if (svc) {
+      for (const authUser of allAuthUsers) {
+        const metadata = authUser.user_metadata || {}
+        try {
+          await svc.from('profiles').upsert({
+            id: authUser.id,
+            email: authUser.email || null,
+            full_name: metadata.full_name || metadata.name || null,
+            email_verified: authUser.email_confirmed_at != null,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'id' })
+          supabaseSynced++
+        } catch (err: any) {
+          console.warn(`⚠️ [SYNC] Supabase upsert failed for ${authUser.email}:`, err?.message?.substring(0, 80))
+        }
+      }
+      console.log(`✅ [SYNC] Supabase profiles synced: ${supabaseSynced}`)
+    }
 
     return NextResponse.json({
       success: true,
-      message: `Sinkronisasi selesai! ${created} user baru ditambahkan, ${updated} diperbarui.`,
+      message: `Sinkronisasi selesai! ${created} user baru (Prisma), ${updated} diperbarui. Supabase profiles: ${supabaseSynced} synced.`,
       auth_total: allAuthUsers.length,
       db_total: existingProfiles.length + created,
       created,
