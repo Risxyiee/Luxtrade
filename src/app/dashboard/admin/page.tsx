@@ -636,13 +636,13 @@ export default function AdminPanel() {
     }
   }
 
-  // Real-time auto-refresh every 10 seconds
+  // Auto-refresh every 60 seconds (only when tab is visible)
   useEffect(() => {
     const interval = setInterval(() => {
-      if (isAdminUser) {
+      if (isAdminUser && document.visibilityState === 'visible') {
         fetchUsers()
       }
-    }, 10000)
+    }, 60000)
 
     return () => clearInterval(interval)
   }, [isAdminUser])

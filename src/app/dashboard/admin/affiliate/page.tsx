@@ -172,6 +172,8 @@ export default function AffiliateManagementPage() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
   // ─── Auth check ────────────────────────────────────────────────────────
+  const ADMIN_EMAILS = ['luxtradee@gmail.com', 'riskiakbarp123@gmail.com']
+
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -183,18 +185,23 @@ export default function AffiliateManagementPage() {
           return
         }
 
-        // Fetch profile to verify role
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('subscription_status, email')
-          .eq('id', user.id)
-          .single()
-
-        const role = profile?.subscription_status
-        if (role === 'ADMIN') {
+        // Check admin by email (matches middleware + admin-auth.ts)
+        const email = user.email?.toLowerCase() || ''
+        if (ADMIN_EMAILS.includes(email)) {
           setIsAuthorized(true)
         } else {
-          setIsAuthorized(false)
+          // Fallback: check role in profile
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single()
+
+          if (profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN') {
+            setIsAuthorized(true)
+          } else {
+            setIsAuthorized(false)
+          }
         }
       } catch {
         setIsAuthorized(false)
