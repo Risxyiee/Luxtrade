@@ -351,3 +351,51 @@ model WatchlistItem {
   @@index([userId])
   @@map("watchlist")
 }
+
+model Affiliate {
+  id              String    @id @default(uuid())
+  userId          String    @unique @map("user_id")
+  referralCode    String    @unique @map("referral_code")
+  totalEarned     Float     @default(0) @map("total_earned")
+  totalPaid       Float     @default(0) @map("total_paid")
+  currentBalance  Float     @default(0) @map("current_balance")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  referrals       AffiliateReferral[]
+  withdrawals     AffiliateWithdrawal[]
+
+  @@map("affiliates")
+}
+
+model AffiliateReferral {
+  id                String    @id @default(uuid())
+  affiliateId       String    @map("affiliate_id")
+  referredUserId    String    @map("referred_user_id")
+  subscriptionType  String    @map("subscription_type")
+  commissionAmount  Float     @default(0) @map("commission_amount")
+  status            String    @default("PENDING") @map("status")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  affiliate         Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+
+  @@index([affiliateId])
+  @@index([referredUserId])
+  @@map("affiliate_referrals")
+}
+
+model AffiliateWithdrawal {
+  id                String    @id @default(uuid())
+  affiliateId       String    @map("affiliate_id")
+  amount            Float
+  status            String    @default("REQUESTED")
+  bankAccountInfo   String?   @map("bank_account_info")
+  requestedAt       DateTime  @default(now()) @map("requested_at")
+  paidAt            DateTime? @map("paid_at")
+
+  affiliate         Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+
+  @@index([affiliateId])
+  @@index([status])
+  @@map("affiliate_withdrawals")
+}
