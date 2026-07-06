@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/api-auth'
-import { db } from '@/lib/db'
+import { requireAdmin } from '@/lib/admin-auth'
 import { analyticsData, cleanupOldVisits } from '@/lib/analytics-memory'
 
 export async function GET(request: NextRequest) {
   try {
-    const authUser = await getAuthUser(request)
-    if (!authUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const profile = await db.profile.findUnique({ where: { id: authUser.id }, select: { role: true } })
-    if (profile?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 })
-    }
+    // Use requireAdmin (hardcoded emails first, no DB needed)
+    const { error } = await requireAdmin(request)
+    if (error) return error
 
     cleanupOldVisits()
 

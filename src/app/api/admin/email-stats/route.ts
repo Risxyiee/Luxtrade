@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, isDatabaseAvailable } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
 import { createClient } from '@supabase/supabase-js'
 
@@ -15,53 +14,48 @@ export async function GET(request: NextRequest) {
     const { error } = await requireAdmin(request)
     if (error) return error
 
-    // Default stats
     let stats = { total: 0, verified: 0, unverified: 0, pro: 0, free: 0 }
     let recentBroadcasts: any[] = []
 
-    // Try Prisma (single query to minimize connections)
-    if (isDatabaseAvailable()) {
+    const svc = getSupabaseAdmin()
+    if (svc) {
       try {
-        const allProfiles = await db.profile.findMany({
-          where: { email: { not: null } },
-          select: { emailVerified: true, is_pro: true },
-        })
+        // Single query to get all profiles, count in-memory (1 connection)
+        const { data: profiles } = await svc
+          .from('profiles')
+          .select('email_verified, is_pro')
+          .not('email', 'is', null)
 
-        stats.total = allProfiles.length
-        stats.verified = allProfiles.filter(p => p.emailVerified).length
-        stats.unverified = allProfiles.filter(p => !p.emailVerified).length
-        stats.pro = allProfiles.filter(p => p.is_pro).length
-        stats.free = allProfiles.filter(p => !p.is_pro && p.emailVerified).length
-      } catch (prismaErr: any) {
-        console.warn('⚠️ Prisma email-stats failed, falling back to Supabase:', prismaErr?.message?.substring(0, 100))
+        if (profiles && profiles.length > 0) {
+          stats.total = profiles.length
+          stats.verified = profiles.filter(p => p.email_verified).length
+          stats.unverified = profiles.filter(p => !p.email_verified).length
+          stats.pro = profiles.filter(p => p.is_pro).length
+          stats.free = profiles.filter(p => !p.is_pro && p.email_verified).length
+        }
+      } catch (err) {
+        console.warn('⚠️ Supabase email-stats profiles failed:', err)
       }
 
       try {
-        recentBroadcasts = await db.emailBroadcast.findMany({
-          orderBy: { createdAt: 'desc' },
-          take: 10,
-          select: { id: true, target: true, subject: true, sentCount: true, failedCount: true, sentBy: true, createdAt: true },
-        })
+        const { data: broadcasts } = await svc
+          .from('email_broadcasts')
+          .select('id, target, subject, sent_count, failed_count, sent_by, created_at')
+          .order('created_at', { ascending: false })
+          .limit(10)
+
+        if (broadcasts) {
+          recentBroadcasts = broadcasts.map(b => ({
+            id: b.id,
+            target: b.target,
+            subject: b.subject,
+            sentCount: b.sent_count,
+            failedCount: b.failed_count,
+            sentBy: b.sent_by,
+            createdAt: b.created_at,
+          }))
+        }
       } catch { /* table may not exist */ }
-    }
-
-    // If Prisma returned 0 (DB unavailable or empty), try Supabase
-    if (stats.total === 0) {
-      const svc = getSupabaseAdmin()
-      if (svc) {
-        try {
-          const { count: total } = await svc.from('profiles').select('*', { count: 'exact', head: true }).neq('email', null)
-          const { count: verified } = await svc.from('profiles').select('*', { count: 'exact', head: true }).eq('email_verified', true).neq('email', null)
-          const { count: pro } = await svc.from('profiles').select('*', { count: 'exact', head: true }).eq('is_pro', true)
-          stats = {
-            total: total || 0,
-            verified: verified || 0,
-            unverified: Math.max(0, (total || 0) - (verified || 0)),
-            pro: pro || 0,
-            free: Math.max(0, (verified || 0) - (pro || 0)),
-          }
-        } catch { /* skip */ }
-      }
     }
 
     return NextResponse.json({ ...stats, recentBroadcasts })
