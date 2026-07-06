@@ -3,9 +3,11 @@ import { db } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
 import { sendAdminNotification } from '@/lib/admin-notify'
 import { requireAdmin } from '@/lib/admin-auth'
+import { PRICING } from '@/lib/pricing'
 
-// Commission rate: 30% of Rp 49,000 = Rp 14,700
-const COMMISSION_PER_PRO = 14700
+// Commission rates — calculated dynamically from PRICING
+const AFFILIATE_COMMISSION_RATE = 0.20 // 20% for recurring PRO
+const LIFETIME_COMMISSION = Math.round(PRICING.PRO_LIFETIME * 0.15) // 15% of Rp299.000 = Rp44.850
 
 // POST activate a subscription
 export async function POST(
@@ -106,8 +108,14 @@ export async function POST(
     }
 
     // ============================================
-    // COMMISSION: Update referrer's balance
+    // COMMISSION: Update referrer's balance (dynamic from PRICING)
     // ============================================
+    // Calculate commission dynamically based on plan type
+    const planPrice = subscription.plan.price || 0
+    const commissionAmount = isLifetime
+      ? LIFETIME_COMMISSION
+      : Math.round(planPrice * AFFILIATE_COMMISSION_RATE)
+
     try {
       // Get user's profile to find referrer
       const { data: userProfile } = await supabase
@@ -127,19 +135,19 @@ export async function POST(
           await db.affiliateProfile.update({
             where: { userId: referrer.userId },
             data: {
-              affiliateBalance: { increment: COMMISSION_PER_PRO },
-              totalCommission: { increment: COMMISSION_PER_PRO },
+              affiliateBalance: { increment: commissionAmount },
+              totalCommission: { increment: commissionAmount },
               totalReferrals: { increment: 1 }
             }
           })
 
-          console.log('✅ Commission added to referrer:', referrer.email, 'Amount: Rp', COMMISSION_PER_PRO)
+          console.log('✅ Commission added to referrer:', referrer.email, 'Amount: Rp', commissionAmount)
 
           // Update referrer's Supabase profile
           await supabase
             .from('profiles')
             .update({
-              affiliate_balance: (referrer.affiliateBalance || 0) + COMMISSION_PER_PRO,
+              affiliate_balance: (referrer.affiliateBalance || 0) + commissionAmount,
               referral_count: { increment: 1 },
               updated_at: new Date().toISOString()
             })
@@ -158,7 +166,7 @@ export async function POST(
               .from('referral_tracking')
               .update({
                 status: 'paid',
-                commission_amount: COMMISSION_PER_PRO,
+                commission_amount: commissionAmount,
                 updated_at: new Date().toISOString()
               })
               .eq('id', trackingRecord.id)
@@ -166,7 +174,7 @@ export async function POST(
 
           // Send admin notification to referrer
           try {
-            const msg = `💰 <b>KOMISI DITERIMA!</b>\n\n🎯 Referal: ${userProfile.full_name || userProfile.email}\n💎 Upgrade ke: ${subscription.plan.name}\n💰 Komisi: Rp${COMMISSION_PER_PRO.toLocaleString('id-ID')}\n\nSaldo total: Rp${(referrer.affiliateBalance + COMMISSION_PER_PRO).toLocaleString('id-ID')}`
+            const msg = `💰 <b>KOMISI DITERIMA!</b>\n\n🎯 Referal: ${userProfile.full_name || userProfile.email}\n💎 Upgrade ke: ${subscription.plan.name}\n💰 Komisi: Rp${commissionAmount.toLocaleString('id-ID')}\n\nSaldo total: Rp${(referrer.affiliateBalance + commissionAmount).toLocaleString('id-ID')}`
             await sendAdminNotification(msg)
           } catch (e) {
             console.error('Failed to send admin notification:', e)
@@ -181,7 +189,7 @@ export async function POST(
     return NextResponse.json({
       subscription: updatedSubscription,
       message: 'Subscription activated successfully',
-      commissionPaid: COMMISSION_PER_PRO
+      commissionPaid: commissionAmount
     })
   } catch (error) {
     console.error('Error activating subscription:', error)
