@@ -128,23 +128,23 @@ export default function AdminPanel() {
     setShowDropdown(null)
 
     try {
-      const response = await authFetch('/api/admin/activate-pro', {
-        method: 'POST',
+      // months: 0 = lifetime (5 years), otherwise months * 30 days
+      const days = months === 0 ? 365 * 5 : months * 30
+      const planLabel = months === 0 ? 'Lifetime' : `${months} Bulan`
+
+      const response = await authFetch('/api/admin/users', {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          adminEmail: user?.email,
-          userId,
-          months,
-        }),
+        body: JSON.stringify({ userId, action: 'activate', days }),
       })
 
       const data = await response.json()
 
-      if (data.success) {
-        toast.success(`PRO activated for ${months === 0 ? 'lifetime' : months + ' month(s)'}!`)
+      if (response.ok) {
+        toast.success(`PRO activated for ${planLabel}!`)
         fetchUsers() // Refresh list
       } else {
-        toast.error(data.error || 'Failed to activate PRO')
+        toast.error(data.details || data.error || 'Failed to activate PRO')
       }
     } catch (error) {
       console.error('Error activating PRO:', error)
@@ -160,17 +160,19 @@ export default function AdminPanel() {
     setActivating(userId)
 
     try {
-      const response = await authFetch(`/api/admin/activate-pro?adminEmail=${encodeURIComponent(user?.email || '')}&userId=${userId}`, {
-        method: 'DELETE',
+      const response = await authFetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, action: 'revoke' }),
       })
 
       const data = await response.json()
 
-      if (data.success) {
+      if (response.ok) {
         toast.success('PRO status deactivated')
         fetchUsers() // Refresh list
       } else {
-        toast.error(data.error || 'Failed to deactivate PRO')
+        toast.error(data.details || data.error || 'Failed to deactivate PRO')
       }
     } catch (error) {
       console.error('Error deactivating PRO:', error)
