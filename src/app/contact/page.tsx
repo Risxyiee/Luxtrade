@@ -288,7 +288,7 @@ export default function ContactPage() {
 
                 {/* Discord */}
                 <a
-                  href="https://discord.gg/nkXpgMyzk"
+                  href="https://discord.gg/HDUNAsnW2R"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group flex flex-col items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#5865F2]/30 hover:bg-white/10 transition-all duration-300"

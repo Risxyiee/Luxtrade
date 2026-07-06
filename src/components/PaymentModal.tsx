@@ -465,7 +465,7 @@ export default function PaymentModal({
                                   <p className="text-[10px] text-white/50">a.n. RIZQI AKBAR PRATAMA</p>
                                 </div>
                                 <a
-                                  href="https://discord.gg/nkXpgMyzk"
+                                  href="https://discord.gg/HDUNAsnW2R"
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#5865F2]/20 text-[#5865F2] text-[11px] font-medium hover:bg-[#5865F2]/30 transition-colors"

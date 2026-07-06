@@ -102,7 +102,7 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
   // Pay — manual transfer via Discord
   const handlePay = () => {
     if (!selectedPlan) return
-    window.open('https://discord.gg/nkXpgMyzk', '_blank')
+    window.open('https://discord.gg/HDUNAsnW2R', '_blank')
   }
 
   if (success) return (

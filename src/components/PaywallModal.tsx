@@ -413,7 +413,7 @@ export default function PaywallModal({
                         </Button>
                       ) : (
                         <Button
-                          onClick={() => window.open('https://discord.gg/nkXpgMyzk', '_blank')}
+                          onClick={() => window.open('https://discord.gg/HDUNAsnW2R', '_blank')}
                           variant="outline"
                           className="w-full h-12 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50 font-semibold transition-all"
                         >
@@ -518,7 +518,7 @@ export default function PaywallModal({
 
                       <div className="pt-3">
                         <Button
-                          onClick={() => window.open('https://discord.gg/nkXpgMyzk', '_blank')}
+                          onClick={() => window.open('https://discord.gg/HDUNAsnW2R', '_blank')}
                           variant="ghost"
                           size="sm"
                           className="text-xs text-white/40 hover:text-white/60 hover:bg-white/5"

@@ -25,7 +25,7 @@ export default function PaymentConfirmationModal({
   }
 
   const handleDiscordClick = () => {
-    window.open('https://discord.gg/nkXpgMyzk', '_blank')
+    window.open('https://discord.gg/HDUNAsnW2R', '_blank')
   }
 
   if (!isOpen) return null
