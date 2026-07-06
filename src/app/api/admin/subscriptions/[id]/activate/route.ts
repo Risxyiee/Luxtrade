@@ -96,7 +96,7 @@ export async function POST(
         is_pro: true,
         subscription_until: subscriptionUntil,
         pro_status: 'active',
-        pro_expiry_date: subscriptionUntil,
+        pro_expiry: subscriptionUntil,
         updated_at: new Date().toISOString()
       })
       .eq('email', subscription.userEmail)

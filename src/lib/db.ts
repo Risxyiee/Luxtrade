@@ -163,11 +163,15 @@ function createDbProxy(prisma: PrismaClient | undefined): PrismaClient {
 export const db: PrismaClient = createDbProxy(_rawPrisma)
 
 /**
- * Auto-migration: creates missing tables/columns on first DB connection.
- * 
- * OPTIMIZED: All SQL is batched into a SINGLE transaction to use only 1 connection.
- * Uses CREATE TABLE IF NOT EXISTS + ADD COLUMN IF NOT EXISTS — safe to run repeatedly.
- * Runs once per process lifetime (singleton flag).
+ * DEPRECATED: ensureSchema() is kept as a minimal safety net only.
+ * Schema changes should be done via:
+ *   1. Supabase SQL Editor (manual)
+ *   2. Prisma migrations (proper)
+ *
+ * PgBouncer (used by Supabase pooler) does NOT support multi-statement
+ * queries or transactions via $executeRawUnsafe. This function now runs
+ * individual statements one-by-one, but callers should NOT rely on it
+ * for new schema changes going forward.
  */
 let _autoMigrated = false
 
@@ -175,28 +179,15 @@ export async function ensureSchema(): Promise<void> {
   if (_autoMigrated || !_dbAvailable || !_rawPrisma) return
   _autoMigrated = true
 
-  // Build ALL SQL statements as a single batch in one transaction
-  // This uses only 1 database connection instead of 40+
-  const sqlStatements = `
-    -- Fix tables (DROP+CREATE promo_codes and user_subscriptions)
-    DROP TABLE IF EXISTS public.user_subscriptions CASCADE;
-    DROP TABLE IF EXISTS public.promo_codes CASCADE;
-
-    CREATE TABLE IF NOT EXISTS "user_subscriptions" (
-      "id" TEXT NOT NULL,
-      "user_id" TEXT NOT NULL,
-      "plan" TEXT NOT NULL,
-      "status" TEXT NOT NULL DEFAULT 'active',
-      "start_date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "end_date" TIMESTAMP(3),
-      "promo_code_id" TEXT,
-      "discount_percent" DOUBLE PRECISION NOT NULL DEFAULT 0,
-      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      CONSTRAINT "user_subscriptions_pkey" PRIMARY KEY ("id")
-    );
-
-    CREATE TABLE IF NOT EXISTS "promo_codes" (
+  // Minimal: only ensure the promo_codes table exists and is seeded.
+  // All other tables/columns are assumed to already exist in production
+  // (created via Supabase SQL Editor or Prisma migrations).
+  // If you need a new column, add it manually in Supabase SQL Editor.
+  const statements = [
+    // Promo tables (these get DROP+CREATE'd so they must be re-created)
+    `DROP TABLE IF EXISTS public.user_subscriptions CASCADE`,
+    `DROP TABLE IF EXISTS public.promo_codes CASCADE`,
+    `CREATE TABLE IF NOT EXISTS "promo_codes" (
       "id" TEXT NOT NULL,
       "code" TEXT NOT NULL,
       "description" TEXT,
@@ -210,254 +201,32 @@ export async function ensureSchema(): Promise<void> {
       "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "promo_codes_pkey" PRIMARY KEY ("id")
-    );
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "promo_codes_code_key" ON "promo_codes"("code")`,
+    `INSERT INTO promo_codes (id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, is_active, created_at, updated_at)
+      VALUES (gen_random_uuid()::text, 'TRADERCEPAT', 'Diskon 100% — 3 Bulan PRO Gratis!', 100, 30, 0, 3, NOW(), true, NOW(), NOW())
+      ON CONFLICT (code) DO NOTHING`,
+    `UPDATE promo_codes SET discount_percent=100, max_quota=30, duration_months=3, is_active=true, end_date=NULL, updated_at=NOW() WHERE code='TRADERCEPAT'`,
+  ]
 
-    CREATE TABLE IF NOT EXISTS "email_broadcasts" (
-      "id" TEXT NOT NULL,
-      "target" TEXT NOT NULL,
-      "subject" TEXT NOT NULL,
-      "sent_count" INTEGER NOT NULL DEFAULT 0,
-      "failed_count" INTEGER NOT NULL DEFAULT 0,
-      "sent_by" TEXT,
-      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      CONSTRAINT "email_broadcasts_pkey" PRIMARY KEY ("id")
-    );
-
-    CREATE TABLE IF NOT EXISTS "payment_orders" (
-      "id" TEXT NOT NULL,
-      "user_id" TEXT NOT NULL,
-      "invoice_number" TEXT NOT NULL,
-      "amount" DOUBLE PRECISION NOT NULL,
-      "currency" TEXT NOT NULL DEFAULT 'IDR',
-      "plan" TEXT NOT NULL,
-      "duration_months" INTEGER,
-      "status" TEXT NOT NULL DEFAULT 'PENDING',
-      "payment_method" TEXT,
-      "payment_channel" TEXT,
-      "doku_transaction_id" TEXT,
-      "doku_payment_url" TEXT,
-      "customer_name" TEXT NOT NULL,
-      "customer_email" TEXT NOT NULL,
-      "paid_at" TIMESTAMP(3),
-      "expired_at" TIMESTAMP(3),
-      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      CONSTRAINT "payment_orders_pkey" PRIMARY KEY ("id")
-    );
-
-    CREATE TABLE IF NOT EXISTS "bug_reports" (
-      "id" TEXT NOT NULL,
-      "user_id" TEXT NOT NULL,
-      "description" TEXT NOT NULL,
-      "screenshot_url" TEXT,
-      "status" TEXT NOT NULL DEFAULT 'PENDING',
-      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      CONSTRAINT "bug_reports_pkey" PRIMARY KEY ("id")
-    );
-
-    CREATE TABLE IF NOT EXISTS "withdrawals" (
-      "id" TEXT NOT NULL,
-      "user_id" TEXT NOT NULL,
-      "amount" DOUBLE PRECISION NOT NULL,
-      "bank_name" TEXT NOT NULL,
-      "bank_account" TEXT NOT NULL,
-      "bank_holder" TEXT NOT NULL,
-      "status" TEXT NOT NULL DEFAULT 'pending',
-      "admin_note" TEXT,
-      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      CONSTRAINT "withdrawals_pkey" PRIMARY KEY ("id")
-    );
-
-    CREATE TABLE IF NOT EXISTS "social_links" (
-      "id" TEXT NOT NULL,
-      "user_id" TEXT NOT NULL,
-      "platform" TEXT NOT NULL,
-      "url" TEXT NOT NULL,
-      "username" TEXT,
-      "status" TEXT NOT NULL DEFAULT 'PENDING',
-      "reviewed_by" TEXT,
-      "reviewed_at" TIMESTAMP(3),
-      "rejection_reason" TEXT,
-      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      CONSTRAINT "social_links_pkey" PRIMARY KEY ("id")
-    );
-
-    CREATE TABLE IF NOT EXISTS "watchlist" (
-      "id" TEXT NOT NULL,
-      "user_id" TEXT NOT NULL,
-      "symbol" TEXT NOT NULL,
-      "name" TEXT,
-      "target_price" DOUBLE PRECISION,
-      "notes" TEXT,
-      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      CONSTRAINT "watchlist_pkey" PRIMARY KEY ("id")
-    );
-
-    -- ALTER TABLE: Add missing columns (IF NOT EXISTS = safe to repeat)
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "streak_count" INTEGER NOT NULL DEFAULT 0;
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "last_login_at" TIMESTAMP(3);
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "best_streak" INTEGER NOT NULL DEFAULT 0;
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "achievements" JSONB NOT NULL DEFAULT '[]';
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "plan" TEXT NOT NULL DEFAULT 'FREE';
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "pro_expiry" TIMESTAMP(3);
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "role" TEXT NOT NULL DEFAULT 'USER';
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "full_name" TEXT;
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "is_pro" BOOLEAN NOT NULL DEFAULT false;
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "subscription_until" TIMESTAMP(3);
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "email_verified" BOOLEAN NOT NULL DEFAULT false;
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "email_verify_token" TEXT;
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "email_verify_exp_at" TIMESTAMP(3);
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "device_id" TEXT;
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "my_referral_code" TEXT;
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "referred_by_code" TEXT;
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "has_ever_been_pro" BOOLEAN NOT NULL DEFAULT false;
-    ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "commission_paid" BOOLEAN NOT NULL DEFAULT false;
-
-    ALTER TABLE "email_broadcasts" ADD COLUMN IF NOT EXISTS "sent_count" INTEGER NOT NULL DEFAULT 0;
-    ALTER TABLE "email_broadcasts" ADD COLUMN IF NOT EXISTS "failed_count" INTEGER NOT NULL DEFAULT 0;
-    ALTER TABLE "email_broadcasts" ADD COLUMN IF NOT EXISTS "sent_by" TEXT;
-    ALTER TABLE "email_broadcasts" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
-
-    ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "invoice_number" TEXT NOT NULL DEFAULT '';
-    ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "amount" DOUBLE PRECISION NOT NULL DEFAULT 0;
-    ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'IDR';
-    ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "plan" TEXT NOT NULL DEFAULT '';
-    ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "duration_months" INTEGER;
-    ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'PENDING';
-    ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "payment_method" TEXT;
-    ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "payment_channel" TEXT;
-    ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "doku_transaction_id" TEXT;
-    ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "doku_payment_url" TEXT;
-    ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "customer_name" TEXT NOT NULL DEFAULT '';
-    ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "customer_email" TEXT NOT NULL DEFAULT '';
-    ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "paid_at" TIMESTAMP(3);
-    ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "expired_at" TIMESTAMP(3);
-    ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
-    ALTER TABLE "payment_orders" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
-
-    ALTER TABLE "bug_reports" ADD COLUMN IF NOT EXISTS "description" TEXT NOT NULL DEFAULT '';
-    ALTER TABLE "bug_reports" ADD COLUMN IF NOT EXISTS "screenshot_url" TEXT;
-    ALTER TABLE "bug_reports" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'PENDING';
-    ALTER TABLE "bug_reports" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
-    ALTER TABLE "bug_reports" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
-
-    ALTER TABLE "withdrawals" ADD COLUMN IF NOT EXISTS "amount" DOUBLE PRECISION NOT NULL DEFAULT 0;
-    ALTER TABLE "withdrawals" ADD COLUMN IF NOT EXISTS "bank_name" TEXT NOT NULL DEFAULT '';
-    ALTER TABLE "withdrawals" ADD COLUMN IF NOT EXISTS "bank_account" TEXT NOT NULL DEFAULT '';
-    ALTER TABLE "withdrawals" ADD COLUMN IF NOT EXISTS "bank_holder" TEXT NOT NULL DEFAULT '';
-    ALTER TABLE "withdrawals" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'pending';
-    ALTER TABLE "withdrawals" ADD COLUMN IF NOT EXISTS "admin_note" TEXT;
-    ALTER TABLE "withdrawals" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
-    ALTER TABLE "withdrawals" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
-
-    ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "platform" TEXT NOT NULL DEFAULT '';
-    ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "url" TEXT NOT NULL DEFAULT '';
-    ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "username" TEXT;
-    ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'PENDING';
-    ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "reviewed_by" TEXT;
-    ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "reviewed_at" TIMESTAMP(3);
-    ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "rejection_reason" TEXT;
-    ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
-    ALTER TABLE "social_links" ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
-
-    -- affiliates
-    ALTER TABLE "affiliates" ADD COLUMN IF NOT EXISTS "code_changed_at" TIMESTAMP(3);
-
-    -- Indexes
-    CREATE UNIQUE INDEX IF NOT EXISTS "profiles_email_verify_token_key" ON "profiles"("email_verify_token");
-    CREATE UNIQUE INDEX IF NOT EXISTS "profiles_my_referral_code_key" ON "profiles"("my_referral_code");
-    CREATE UNIQUE INDEX IF NOT EXISTS "promo_codes_code_key" ON "promo_codes"("code");
-    CREATE INDEX IF NOT EXISTS "promo_codes_is_active_start_date_end_date_idx" ON "promo_codes"("is_active", "start_date", "end_date");
-    CREATE UNIQUE INDEX IF NOT EXISTS "payment_orders_invoice_number_key" ON "payment_orders"("invoice_number");
-    CREATE INDEX IF NOT EXISTS "payment_orders_user_id_idx" ON "payment_orders"("user_id");
-    CREATE INDEX IF NOT EXISTS "payment_orders_status_idx" ON "payment_orders"("status");
-    CREATE INDEX IF NOT EXISTS "user_subscriptions_user_id_idx" ON "user_subscriptions"("user_id");
-    CREATE INDEX IF NOT EXISTS "user_subscriptions_promo_code_id_idx" ON "user_subscriptions"("promo_code_id");
-    CREATE INDEX IF NOT EXISTS "withdrawals_user_id_idx" ON "withdrawals"("user_id");
-    CREATE INDEX IF NOT EXISTS "social_links_user_id_idx" ON "social_links"("user_id");
-    CREATE INDEX IF NOT EXISTS "social_links_status_idx" ON "social_links"("status");
-    CREATE INDEX IF NOT EXISTS "bug_reports_user_id_idx" ON "bug_reports"("user_id");
-    CREATE INDEX IF NOT EXISTS "bug_reports_status_idx" ON "bug_reports"("status");
-    CREATE INDEX IF NOT EXISTS "watchlist_user_id_idx" ON "watchlist"("user_id");
-
-    -- Promo code setup
-    INSERT INTO promo_codes (id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, is_active, created_at, updated_at)
-    VALUES (
-      gen_random_uuid()::text,
-      'TRADERCEPAT',
-      'Diskon 100% — 3 Bulan PRO Gratis! Khusus 30 trader pertama.',
-      100, 30, 0, 3, NOW(), true, NOW(), NOW()
-    )
-    ON CONFLICT (code) DO NOTHING;
-
-    UPDATE promo_codes
-    SET
-      discount_percent = 100,
-      max_quota = 30,
-      duration_months = 3,
-      is_active = true,
-      end_date = NULL,
-      updated_at = NOW()
-    WHERE code = 'TRADERCEPAT';
-
-    UPDATE promo_codes
-    SET used_quota = (
-      SELECT COUNT(*) FROM user_subscriptions
-      WHERE user_subscriptions.promo_code_id = promo_codes.id
-        AND user_subscriptions.status = 'active'
-    ),
-    updated_at = NOW()
-    WHERE code = 'TRADERCEPAT';
-
-    UPDATE promo_codes
-    SET is_active = true, updated_at = NOW()
-    WHERE code = 'TRADERCEPAT' AND used_quota < max_quota AND is_active = false;
-
-    UPDATE promo_codes
-    SET is_active = false, updated_at = NOW()
-    WHERE code = 'TRADERCEPAT' AND used_quota >= max_quota AND is_active = true;
-  `
-
-  try {
-    console.log('🔄 [DB] Running auto-migration (ensureSchema) — single transaction...')
-    await _rawPrisma.$executeRawUnsafe(`BEGIN; ${sqlStatements} COMMIT;`)
-    console.log('✅ [DB] Auto-migration complete')
-  } catch (err) {
-    // If transaction fails (e.g. pgbouncer doesn't support transactions),
-    // fall back to individual statements grouped to minimize connections
-    console.warn('⚠️ [DB] Batch migration failed, trying grouped fallback:', err)
+  console.log('🔄 [DB] Running minimal ensureSchema...')
+  for (const sql of statements) {
     try {
-      // Split into ~5 groups to limit connection usage
-      const groups = chunkSql(sqlStatements, 5)
-      for (const group of groups) {
-        try {
-          await _rawPrisma.$executeRawUnsafe(group.join(' '))
-        } catch (groupErr: any) {
-          console.warn('⚠️ [DB] Migration group error:', groupErr?.message?.substring(0, 120))
-        }
-      }
-      console.log('✅ [DB] Auto-migration complete (fallback)')
-    } catch (fallbackErr) {
-      console.error('⚠️ [DB] Auto-migration had issues (non-critical):', fallbackErr)
+      await _rawPrisma.$executeRawUnsafe(sql)
+    } catch (e: any) {
+      // Silently ignore — column/table already exists, or pgbouncer quirk
     }
   }
+  console.log('✅ [DB] ensureSchema done')
 }
 
-/**
- * Split SQL statements into N roughly equal groups
- */
-function chunkSql(sql: string, groups: number): string[][] {
+// Keep chunkSql for backward compat but it's no longer used
+function _chunkSql(sql: string, groups: number): string[][] {
   const statements = sql
     .split('\n')
     .map(line => line.trim())
     .filter(line => line && !line.startsWith('--'))
     .reduce<string[]>((acc, line) => {
-      // Group lines into statements by detecting statement boundaries
       if (line.endsWith(';')) {
         acc.push(line)
       } else if (acc.length > 0) {
