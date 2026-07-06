@@ -359,6 +359,7 @@ model Affiliate {
   totalEarned     Float     @default(0) @map("total_earned")
   totalPaid       Float     @default(0) @map("total_paid")
   currentBalance  Float     @default(0) @map("current_balance")
+  codeChangedAt   DateTime?                              @map("code_changed_at")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 

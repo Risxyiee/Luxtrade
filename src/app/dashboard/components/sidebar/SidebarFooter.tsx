@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
   Settings, Shield, Crown, Zap, AlertCircle, Menu, X,
-  Gift, Send, Loader2
+  Gift, Send, Loader2, Users
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
@@ -101,6 +101,20 @@ export default function SidebarFooter({
             </span>
           </motion.div>
         )}
+
+        <Link href="/affiliate" className="block relative">
+          <motion.button
+            className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-purple-500/10 to-amber-500/10 text-purple-300 border border-purple-500/20 hover:from-purple-500/20 hover:to-amber-500/20 hover:border-purple-500/30 transition-all flex items-center justify-center gap-2 text-xs font-semibold relative overflow-hidden group"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-amber-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+            />
+            <Users className="w-3.5 h-3.5 relative z-10 group-hover:text-purple-400 transition-colors flex-shrink-0" />
+            {(sidebarOpen || mobileSidebarOpen) && <span className="relative z-10 overflow-hidden whitespace-nowrap">{language === 'id' ? 'Program Referral' : 'Referral Program'}</span>}
+          </motion.button>
+        </Link>
 
         <Link href="/settings" className="block relative">
           <motion.button

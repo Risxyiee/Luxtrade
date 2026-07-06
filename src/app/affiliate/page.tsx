@@ -14,6 +14,7 @@ import {
   Banknote,
   ArrowDownToLine,
   Loader2,
+  Pencil,
 } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -130,6 +131,12 @@ export default function AffiliatePage() {
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [bankInfo, setBankInfo] = useState('')
   const [withdrawSubmitting, setWithdrawSubmitting] = useState(false)
+
+  // Update referral code dialog
+  const [updateCodeDialogOpen, setUpdateCodeDialogOpen] = useState(false)
+  const [newReferralCode, setNewReferralCode] = useState('')
+  const [updateCodeSubmitting, setUpdateCodeSubmitting] = useState(false)
+  const [cooldownDaysLeft, setCooldownDaysLeft] = useState<number | null>(null)
 
   // ── Build referral link from code ──
   const referralLink = affiliateData
@@ -259,6 +266,52 @@ export default function AffiliatePage() {
     }
   }
 
+  // ── Update referral code submit ───────────────────────────────────
+  const handleUpdateCode = async () => {
+    const code = newReferralCode.toUpperCase().trim()
+    if (!code) {
+      toast.error('Kode referral baru wajib diisi')
+      return
+    }
+    if (!/^[A-Z0-9]{4,20}$/.test(code)) {
+      toast.error('Kode hanya boleh huruf dan angka, panjang 4-20 karakter')
+      return
+    }
+
+    setUpdateCodeSubmitting(true)
+    try {
+      const res = await fetch('/api/affiliate/update-code', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newCode: code }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        if (res.status === 429) {
+          setCooldownDaysLeft(data.cooldownDaysLeft)
+          toast.error(data.error)
+        } else {
+          toast.error(data.error || 'Gagal mengubah kode referral')
+        }
+        return
+      }
+      toast.success(data.message || 'Kode referral berhasil diubah!')
+      setUpdateCodeDialogOpen(false)
+      // Refresh affiliate data to show new code
+      try {
+        const meRes = await fetch('/api/affiliate/me')
+        if (meRes.ok) {
+          const meData: AffiliateMe = await meRes.json()
+          setAffiliateData(meData)
+        }
+      } catch { /* ignore */ }
+    } catch {
+      toast.error('Terjadi kesalahan saat mengubah kode')
+    } finally {
+      setUpdateCodeSubmitting(false)
+    }
+  }
+
   // ── Loading / auth gate ───────────────────────────────────────────
   if (authLoading) {
     return (
@@ -324,9 +377,18 @@ export default function AffiliatePage() {
             <CardContent className="space-y-4">
               {/* Referral Code */}
               <div>
-                <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-white/50">
-                  Kode
-                </p>
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-xs font-medium uppercase tracking-wider text-white/50">
+                    Kode
+                  </p>
+                  <button
+                    onClick={() => { setNewReferralCode(''); setCooldownDaysLeft(null); setUpdateCodeDialogOpen(true) }}
+                    className="flex items-center gap-1 text-xs text-purple-400/70 hover:text-purple-400 transition-colors"
+                  >
+                    <Pencil className="w-3 h-3" />
+                    Ganti Kode
+                  </button>
+                </div>
                 <div className="flex items-center gap-3">
                   <div className="flex-1 rounded-lg border border-purple-500/30 bg-purple-500/10 px-4 py-3">
                     <span className="font-mono text-xl font-bold tracking-widest text-purple-300 sm:text-2xl">
@@ -647,6 +709,80 @@ export default function AffiliatePage() {
           </Card>
         </motion.section>
       </div>
+
+      {/* Update Referral Code Dialog */}
+      <Dialog open={updateCodeDialogOpen} onOpenChange={setUpdateCodeDialogOpen}>
+        <DialogContent className="border-white/10 bg-[#130d1f] text-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="bg-gradient-to-r from-purple-400 to-amber-400 bg-clip-text text-transparent">
+              Ganti Kode Referral
+            </DialogTitle>
+            <DialogDescription className="text-white/60">
+              Kustomisasi kode referral kamu. Link lama yang sudah disebar tetap valid, tapi kode baru akan dipakai untuk link ke depannya.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="new-code">Kode Baru</Label>
+              <Input
+                id="new-code"
+                value={newReferralCode}
+                onChange={(e) => setNewReferralCode(e.target.value.toUpperCase())}
+                placeholder="contoh: BUDITRADER"
+                maxLength={20}
+                className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:ring-purple-500 font-mono tracking-wider"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleUpdateCode()
+                }}
+              />
+              <p className="text-xs text-white/40">
+                Hanya huruf &amp; angka, 4-20 karakter. Maksimal diganti 1x per 30 hari.
+              </p>
+            </div>
+
+            {cooldownDaysLeft !== null && cooldownDaysLeft > 0 && (
+              <p className="text-xs text-amber-400">
+                ⏰ Kode bisa diganti lagi dalam {cooldownDaysLeft} hari.
+              </p>
+            )}
+
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+              <p className="text-xs text-amber-300/80">
+                <strong>Catatan:</strong> Riwayat referral kamu (komisi, dll.) tidak akan hilang saat kode diganti, karena terhubung melalui ID akun, bukan kode referral.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setUpdateCodeDialogOpen(false)}
+              className="text-white/60 hover:text-white hover:bg-white/10"
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={handleUpdateCode}
+              disabled={updateCodeSubmitting || !newReferralCode.trim()}
+              className="bg-gradient-to-r from-purple-600 to-amber-500 text-white hover:from-purple-500 hover:to-amber-400"
+            >
+              {updateCodeSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Menyimpan...
+                </>
+              ) : (
+                <>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Simpan Kode Baru
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Custom scrollbar styles */}
       <style jsx global>{`
