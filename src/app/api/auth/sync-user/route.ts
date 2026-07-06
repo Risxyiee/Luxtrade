@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
+import { requireAuth } from '@/lib/api-auth'
+import { getSupabaseAdminAuthFromClient, supabaseAdmin } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Require authentication
+    const { error, user } = await requireAuth(request)
+    if (error) return error
+
     const body = await request.json()
     const { userId, email, fullName } = body
 
@@ -10,6 +15,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'userId and email are required' },
         { status: 400 }
+      )
+    }
+
+    // SECURITY: Only allow syncing the authenticated user's own data
+    if (userId !== user.id) {
+      return NextResponse.json(
+        { error: 'Forbidden: cannot sync another user' },
+        { status: 403 }
       )
     }
 
@@ -30,7 +43,7 @@ export async function POST(request: NextRequest) {
     //   2. Sends a confirmation email to the "old" address
     //   3. Blocks login with "Invalid login credentials"
     // Only update user_metadata.
-    const { data: user, error } = await authAdmin.updateUserById(
+    const { data: updatedData, error } = await authAdmin.updateUserById(
       userId,
       {
         user_metadata: {
@@ -49,8 +62,8 @@ export async function POST(request: NextRequest) {
       success: true,
       action: 'synced',
       user: {
-        id: user.user.id,
-        name: user.user.user_metadata?.full_name || email.split('@')[0]
+        id: updatedData.user.id,
+        name: updatedData.user.user_metadata?.full_name || email.split('@')[0]
       }
     })
   } catch (error) {

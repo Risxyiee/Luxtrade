@@ -1,31 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import crypto from 'crypto'
+import { requireAdmin } from '@/lib/admin-auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /**
  * POST /api/payment/callback-debug
- * Manual trigger for testing callback flow — simulates SakuraPay callback
+ * Admin-only: Manual trigger for testing callback flow — simulates SakuraPay callback
  *
  * Body: { invoiceNumber: string, status?: 'berhasil'|'pending'|'expired', status_kode?: number }
  *
- * This endpoint:
- * 1. Finds the order by invoiceNumber
- * 2. Updates status to SUCCESS (if berhasil)
- * 3. Activates subscription
- *
- * SECURITY: Only works in development or with admin auth
+ * SECURITY: Requires admin authentication in all environments
  */
 export async function POST(request: NextRequest) {
   try {
-    // Only allow in development or with debug key
-    const isDev = process.env.NODE_ENV === 'development'
-    const debugKey = request.headers.get('X-Debug-Key') || ''
-    if (!isDev && debugKey !== 'luxtrade-debug-2024') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    // SECURITY: Require admin authentication (replaces weak debug key check)
+    const { error: authError } = await requireAdmin(request)
+    if (authError) return authError
 
     const body = await request.json()
     const { invoiceNumber, status = 'berhasil', status_kode = 1 } = body
@@ -34,25 +26,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'invoiceNumber is required' }, { status: 400 })
     }
 
-    console.log('🔧 [Callback Debug] Manual trigger:', { invoiceNumber, status, status_kode })
-
     // Find order
     const existingOrder = await db.paymentOrder.findUnique({
       where: { invoiceNumber },
     })
 
     if (!existingOrder) {
-      console.warn('🔧 [Callback Debug] Order not found:', invoiceNumber)
       return NextResponse.json({ error: 'Order not found', invoiceNumber }, { status: 404 })
     }
-
-    console.log('🔧 [Callback Debug] Found order:', {
-      id: existingOrder.id,
-      status: existingOrder.status,
-      userId: existingOrder.userId,
-      plan: existingOrder.plan,
-      amount: existingOrder.amount,
-    })
 
     const isSuccess = status === 'berhasil' && Number(status_kode) === 1
     const ourStatus = isSuccess ? 'SUCCESS' : status === 'expired' ? 'EXPIRED' : 'PENDING'
@@ -64,12 +45,6 @@ export async function POST(request: NextRequest) {
         status: ourStatus,
         paidAt: isSuccess ? new Date() : null,
       },
-    })
-
-    console.log('🔧 [Callback Debug] Updated order:', {
-      oldStatus: existingOrder.status,
-      newStatus: updatedOrder.status,
-      paidAt: updatedOrder.paidAt,
     })
 
     // Activate subscription if success
@@ -98,8 +73,6 @@ export async function POST(request: NextRequest) {
           discountPercent: 0,
         },
       }).catch(() => {})
-
-      console.log('🔧 [Callback Debug] Activated subscription:', { userId: existingOrder.userId, plan: existingOrder.plan, until: endDate })
     }
 
     return NextResponse.json({
@@ -111,22 +84,20 @@ export async function POST(request: NextRequest) {
       previousStatus: existingOrder.status,
     })
   } catch (error: any) {
-    console.error('🔧 [Callback Debug] Error:', error.message)
+    console.error('[Callback Debug] Error:', error.message)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
 
 /**
  * GET /api/payment/callback-debug
- * Check recent orders for debugging
+ * Admin-only: Check recent orders for debugging
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const isDev = process.env.NODE_ENV === 'development'
-    const debugKey = new URL(process.env.APP_URL || 'http://localhost:3000').searchParams.get('debug') === 'true'
-    if (!isDev && !debugKey) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    // SECURITY: Require admin authentication (replaces weak debug key check)
+    const { error: authError } = await requireAdmin(request)
+    if (authError) return authError
 
     // Get recent orders
     const orders = await db.paymentOrder.findMany({

@@ -12,6 +12,9 @@ import path from 'path'
 
 const PORT = 3010
 
+// Shared secret for internal service auth (must match what Next.js API sends)
+const INTERNAL_SECRET = process.env.INTERNAL_SERVICE_SECRET || 'luxtrade-internal-2024'
+
 // Global ZAI instance to avoid creating multiple times
 let zaiInstance = null
 
@@ -68,6 +71,16 @@ async function handleRequest(req, res) {
     res.writeHead(200)
     res.end()
     return
+  }
+
+  // SECURITY: Verify internal service secret (health check exempt)
+  if (pathname !== '/health') {
+    const authHeader = req.headers['x-internal-secret']
+    if (authHeader !== INTERNAL_SECRET) {
+      res.writeHead(403, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Forbidden' }))
+      return
+    }
   }
 
   if (pathname === '/health') {

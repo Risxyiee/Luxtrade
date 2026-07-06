@@ -30,3 +30,27 @@ Stage Summary:
 - journal-entries 4 handler diperbaiki (sebelumnya 100% crash)
 - admin/users/[id] DELETE diperbaiki (sebelumnya crash karena db.user tidak ada)
 - Lint bersih, dev server jalan tanpa error
+---
+Task ID: 1
+Agent: main
+Task: Security fixes — add authentication to all unauthenticated dangerous endpoints
+
+Work Log:
+- Read and analyzed 8 vulnerable endpoints identified in the security audit
+- /api/auth/reset-password-admin: Added `requireAdmin()` check — was completely open, anyone could reset any user's password
+- /api/auth/ensure-profile: Added `requireAuth()` + userId ownership verification — was allowing profile creation for arbitrary userIds
+- /api/auth/sync-user: Added `requireAuth()` + userId ownership verification — was allowing Supabase metadata updates for arbitrary users
+- /api/achievements/onboarding: Added `requireAuth()` + userId ownership check — was allowing achievement awards to arbitrary users
+- /api/trading-accounts/cleanup-* (3 endpoints): Verified already have user auth scoped to authenticated user — NO CHANGES NEEDED
+- /api/promo/validate GET: Added `requireAdmin()` — was exposing all promo codes + quotas to unauthenticated users
+- /api/payment/callback-debug: Replaced weak `X-Debug-Key: luxtrade-debug-2024` with `requireAdmin()` for both POST and GET
+- mini-services (zai-vision:3010, ollama:3031): Added `x-internal-secret` header validation (defense-in-depth, no current callers from Next.js)
+- Fixed lint error in sync-user (variable shadowing `user`)
+- Verified lint passes clean
+
+Stage Summary:
+- 6 API endpoints secured with proper authentication
+- 3 cleanup endpoints confirmed already safe (user-scoped auth)
+- 2 mini-services hardened with shared secret
+- Caddyfile port restriction noted but not changed (platform-managed infrastructure)
+- All changes use existing `requireAdmin()` and `requireAuth()` helpers from the project
