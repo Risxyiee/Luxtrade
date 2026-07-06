@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { supabase } from '@/lib/supabase'
-import { sendAdminNotification as sendTelegramNotification } from '@/lib/admin-notify'
-import { PRICING, type PricingPlan } from '@/lib/pricing'
+import { db, isDatabaseAvailable } from '@/lib/db'
+import { requireAdmin } from '@/lib/admin-auth'
+import { sendAdminNotification } from '@/lib/admin-notify'
+import { PRICING } from '@/lib/pricing'
+import { createClient } from '@supabase/supabase-js'
 
-// Commission rates (will be used by affiliate system in Part 2)
+// Commission rates — dynamic from PRICING
 const AFFILIATE_COMMISSION_RATE = 0.20 // 20% for recurring PRO
 const AFFILIATE_LIFETIME_RATE = 0.15  // 15% one-time for Lifetime
+
+/** Get Supabase admin client (service role, bypasses RLS) */
+function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return null
+  return createClient(url, key)
+}
 
 interface ActivateRequestBody {
   userId: string
@@ -30,10 +39,14 @@ function getPlanConfig(planType: string) {
 // POST to activate user subscription
 export async function POST(request: NextRequest) {
   try {
+    // Auth check
+    const { error: authError, user: adminUser } = await requireAdmin(request)
+    if (authError) return authError
+
     const body: ActivateRequestBody = await request.json()
     const { userId, planType } = body
 
-    console.log('🚀 Activating user subscription:', { userId, planType })
+    console.log('🚀 Admin activating subscription:', { adminUser: adminUser?.email, userId, planType })
 
     if (!userId || !planType) {
       return NextResponse.json({ error: 'userId and planType are required' }, { status: 400 })
@@ -46,17 +59,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-
-    // Find user in Profile (PRIMARY data store for subscription)
-    const profile = await db.profile.findUnique({
-      where: { id: userId }
-    })
-
-    if (!profile) {
-      return NextResponse.json({ error: 'User not found in profiles' }, { status: 404 })
-    }
-
-    console.log(`✅ Found profile: ${profile.email}`)
 
     // Calculate subscription end date
     const isLifetime = planType === 'PRO_LIFETIME'
@@ -71,28 +73,30 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================
-    // UPDATE PRISMA PROFILE
+    // UPDATE SUPABASE PROFILES TABLE (PRIMARY — always works)
     // ============================================
-    await db.profile.update({
-      where: { id: userId },
-      data: {
-        plan: 'PRO',
-        is_pro: true,
-        subscription_until: subscriptionUntil ? new Date(subscriptionUntil) : null,
-        hasEverBeenPro: true,
-        updatedAt: new Date(),
-      }
-    })
-    console.log(`✅ Prisma profile updated to PRO for: ${profile.email}`)
+    const supabaseAdmin = getSupabaseAdmin()
+    if (!supabaseAdmin) {
+      return NextResponse.json({ error: 'Server not configured — missing Supabase service role key' }, { status: 500 })
+    }
 
-    // ============================================
-    // UPDATE SUPABASE PROFILES TABLE
-    // ============================================
-    const { error: profileUpdateError } = await supabase
+    // Fetch user info first for the response
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', userId)
+      .single()
+
+    if (!existingProfile) {
+      return NextResponse.json({ error: 'User not found in profiles' }, { status: 404 })
+    }
+
+    const { error: updateError } = await supabaseAdmin
       .from('profiles')
       .update({
         subscription_status: 'PRO',
         is_pro: true,
+        plan: 'PRO',
         subscription_until: subscriptionUntil,
         pro_status: 'active',
         pro_expiry_date: subscriptionUntil,
@@ -101,10 +105,51 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', userId)
 
-    if (profileUpdateError) {
-      console.error('❌ Failed to update Supabase profile (non-blocking):', profileUpdateError.message)
-    } else {
-      console.log('✅ Supabase profile updated to PRO for:', profile.email)
+    if (updateError) {
+      console.error('❌ Failed to update Supabase profile:', updateError.message)
+      return NextResponse.json({ error: 'Failed to update user profile', details: updateError.message }, { status: 500 })
+    }
+
+    console.log(`✅ Supabase profile updated to PRO for: ${existingProfile.email}`)
+
+    // ============================================
+    // UPDATE PRISMA PROFILE (if DB available, non-blocking)
+    // ============================================
+    if (isDatabaseAvailable()) {
+      try {
+        // Try update first
+        try {
+          await db.profile.update({
+            where: { id: userId },
+            data: {
+              plan: 'PRO',
+              is_pro: true,
+              subscription_until: subscriptionUntil ? new Date(subscriptionUntil) : null,
+              hasEverBeenPro: true,
+              updatedAt: new Date(),
+            }
+          })
+        } catch {
+          // Profile might not exist in Prisma yet — create it
+          try {
+            await db.profile.create({
+              data: {
+                id: userId,
+                email: existingProfile.email,
+                full_name: existingProfile.full_name,
+                plan: 'PRO',
+                is_pro: true,
+                subscription_until: subscriptionUntil ? new Date(subscriptionUntil) : null,
+                hasEverBeenPro: true,
+              }
+            })
+          } catch (createErr) {
+            console.error('⚠️ Prisma profile sync failed (non-blocking):', createErr)
+          }
+        }
+      } catch (prismaErr) {
+        console.error('⚠️ Prisma profile sync error (non-blocking):', prismaErr)
+      }
     }
 
     // ============================================
@@ -113,48 +158,41 @@ export async function POST(request: NextRequest) {
     const commissionAmount = Math.round(planConfig.price * planConfig.commissionRate)
 
     try {
-      const { data: userProfile } = await supabase
+      const { data: userProfile } = await supabaseAdmin
         .from('profiles')
         .select('referred_by_code, my_referral_code, full_name, email')
         .eq('id', userId)
         .single()
 
       if (userProfile?.referred_by_code) {
-        // Find referrer profile
-        const referrer = await db.profile.findFirst({
-          where: { myReferralCode: userProfile.referred_by_code }
-        })
+        // Find referrer profile in Supabase
+        const { data: referrerData } = await supabaseAdmin
+          .from('profiles')
+          .select('id, affiliate_balance, referral_count, email')
+          .eq('my_referral_code', userProfile.referred_by_code)
+          .single()
 
-        if (referrer) {
-          // Update referrer's Supabase affiliate balance
-          const { data: referrerData } = await supabase
+        if (referrerData) {
+          const newBalance = (referrerData.affiliate_balance || 0) + commissionAmount
+          const newRefCount = (referrerData.referral_count || 0) + 1
+
+          await supabaseAdmin
             .from('profiles')
-            .select('affiliate_balance, referral_count')
-            .eq('id', referrer.id)
-            .single()
+            .update({
+              affiliate_balance: newBalance,
+              referral_count: newRefCount,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', referrerData.id)
 
-          if (referrerData) {
-            const newBalance = (referrerData.affiliate_balance || 0) + commissionAmount
-            const newRefCount = (referrerData.referral_count || 0) + 1
+          console.log(`✅ Commission Rp${commissionAmount.toLocaleString('id-ID')} added to referrer: ${referrerData.email}`)
 
-            await supabase
-              .from('profiles')
-              .update({
-                affiliate_balance: newBalance,
-                referral_count: newRefCount,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', referrer.id)
-
-            console.log(`✅ Commission Rp${commissionAmount.toLocaleString('id-ID')} added to referrer: ${referrer.email}`)
-
-            // Send Telegram notification
-            try {
-              const msg = `💰 <b>KOMISI DITERIMA!</b>\n\n🎯 Referal: ${userProfile.full_name || userProfile.email}\n💎 Upgrade ke: ${planConfig.name}\n💰 Komisi: Rp${commissionAmount.toLocaleString('id-ID')}\n\nSaldo total: Rp${newBalance.toLocaleString('id-ID')}`
-              await sendTelegramNotification(msg)
-            } catch (e) {
-              console.error('Failed to send Telegram notification:', e)
-            }
+          // Send admin notification
+          try {
+            const msg = `💰 <b>KOMISI DITERIMA!</b>\n\n🎯 Referal: ${userProfile.full_name || userProfile.email}\n💎 Upgrade ke: ${planConfig.name}\n💰 Komisi: Rp${commissionAmount.toLocaleString('id-ID')}\n\nSaldo total: Rp${newBalance.toLocaleString('id-ID')}`
+            await sendAdminNotification(msg)
+          } catch (e) {
+            console.error('Failed to send admin notification:', e)
           }
         }
       }
@@ -164,7 +202,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `${profile.email} berhasil diaktifkan ke ${planConfig.name}!`,
+      message: `${existingProfile.email} berhasil diaktifkan ke ${planConfig.name}!`,
       planType,
       subscription_until: subscriptionUntil,
       commission: commissionAmount,

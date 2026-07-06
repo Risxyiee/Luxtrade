@@ -3,21 +3,29 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const PUBLIC_PATHS = ['/', '/about', '/blog', '/contact', '/faq', '/terms', '/privacy', '/disclaimer', '/refund-policy', '/not-found', '/upgrade']
 
+const ADMIN_EMAILS = ['luxtradee@gmail.com', 'riskiakbarp123@gmail.com']
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  
+
   // Allow auth pages
   if (pathname.startsWith('/auth/')) return NextResponse.next()
-  
+
   // Allow API routes (they handle their own auth)
   if (pathname.startsWith('/api/')) return NextResponse.next()
-  
+
   // Allow public static pages
   if (PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) return NextResponse.next()
-  
-  // For dashboard, settings, and admin pages — check session
-  const protectedPaths = ['/dashboard', '/settings', '/admin-secret', '/admin-email', '/admin-panel', '/admin-subscriptions']
-  if (protectedPaths.some(p => pathname === p || pathname.startsWith(p + '/'))) {
+
+  // Admin-only paths — require login + admin email
+  const adminPaths = ['/dashboard/admin', '/admin-email', '/admin-secret', '/admin-panel', '/admin-subscriptions']
+  const isAdminPath = adminPaths.some(p => pathname === p || pathname.startsWith(p + '/'))
+
+  // Protected paths — require login
+  const protectedPaths = ['/dashboard', '/settings']
+  const isProtectedPath = protectedPaths.some(p => pathname === p || pathname.startsWith(p + '/'))
+
+  if (isAdminPath || isProtectedPath) {
     const response = NextResponse.next()
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,7 +40,7 @@ export async function middleware(request: NextRequest) {
         },
       }
     )
-    
+
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       const url = request.nextUrl.clone()
@@ -40,11 +48,31 @@ export async function middleware(request: NextRequest) {
       url.searchParams.set('redirect', pathname)
       return NextResponse.redirect(url)
     }
+
+    // Admin paths: check if user is admin
+    if (isAdminPath) {
+      const userEmail = user.email?.toLowerCase() || ''
+      if (!ADMIN_EMAILS.includes(userEmail)) {
+        // Not admin — redirect to dashboard
+        const url = request.nextUrl.clone()
+        url.pathname = '/dashboard'
+        return NextResponse.redirect(url)
+      }
+    }
   }
-  
+
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/settings', '/auth/:path*', '/admin-secret', '/admin-email', '/admin-panel', '/admin-subscriptions', '/admin-subscriptions/:path*'],
+  matcher: [
+    '/dashboard/:path*',
+    '/settings',
+    '/auth/:path*',
+    '/admin-secret',
+    '/admin-email',
+    '/admin-panel',
+    '/admin-subscriptions',
+    '/admin-subscriptions/:path*',
+  ],
 }
