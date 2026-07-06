@@ -29,6 +29,7 @@ import {
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
+import { authFetch } from '@/lib/api-fetch'
 
 // Admin credentials - MUST match backend @/lib/admin-auth.ts
 const ADMIN_IDS: string[] = []
@@ -506,7 +507,7 @@ export default function AdminPanel() {
     setLoading(true)
     setFetchError(null)
     try {
-      const res = await fetch('/api/admin/users', {
+      const res = await authFetch('/api/admin/users', {
         credentials: 'include'
       })
 
@@ -561,7 +562,7 @@ export default function AdminPanel() {
     if (activatingPromo) return
     setActivatingPromo(true)
     try {
-      const res = await fetch('/api/admin/promo/activate', {
+      const res = await authFetch('/api/admin/promo/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-email': 'luxtradee@gmail.com' },
         body: JSON.stringify({ code: 'TRADERCEPAT' }),
@@ -586,7 +587,7 @@ export default function AdminPanel() {
     if (syncing) return
     setSyncing(true)
     try {
-      const res = await fetch('/api/admin/sync-users', {
+      const res = await authFetch('/api/admin/sync-users', {
         method: 'POST',
         credentials: 'include',
       })
@@ -616,20 +617,30 @@ export default function AdminPanel() {
 
     setUpdatingId(userId)
     try {
-      const res = await fetch('/api/admin/activate', {
+      console.log(`🔧 [ADMIN PANEL] Activating ${planLabel} for user: ${email} (${userId})`)
+
+      const res = await authFetch('/api/admin/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, planType }),
         credentials: 'include',
       })
       const data = await res.json()
+
+      console.log(`🔧 [ADMIN PANEL] Activate response:`, { status: res.status, data })
+
       if (res.ok) {
         toast.success(`${planLabel} activated for ${email}`)
+        if (data.warnings) {
+          console.warn(`⚠️ [ADMIN PANEL] Activate warnings:`, data.warnings)
+        }
         fetchUsers()
       } else {
-        toast.error(data.error || data.details || `Gagal mengaktifkan ${planLabel}`)
+        console.error(`🔧 [ADMIN PANEL] Activate failed (${res.status}):`, data)
+        toast.error(data.error || data.details || `Gagal mengaktifkan ${planLabel}`, { duration: 8000 })
       }
     } catch (error) {
+      console.error('Error activating plan:', error)
       toast.error('Network error saat upgrade')
     } finally {
       setUpdatingId(null)
@@ -653,7 +664,7 @@ export default function AdminPanel() {
     try {
       console.log('🔧 [ADMIN PANEL] Activating PRO for user:', userId)
 
-      const res = await fetch('/api/admin/users', {
+      const res = await authFetch('/api/admin/users', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
@@ -695,7 +706,7 @@ export default function AdminPanel() {
       console.log('🔧 [ADMIN PANEL] Revoking PRO for user:', userId)
 
       // Use PATCH with action: revoke instead of DELETE
-      const res = await fetch('/api/admin/users', {
+      const res = await authFetch('/api/admin/users', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
@@ -706,19 +717,18 @@ export default function AdminPanel() {
 
       const data = await res.json()
 
-      console.log('🔧 [ADMIN PANEL] Revoke response:', data)
+      console.log('🔧 [ADMIN PANEL] Revoke response:', { status: res.status, data })
 
       if (res.ok) {
         toast.success('PRO status revoked')
+        if (data.warnings) {
+          console.warn('⚠️ [ADMIN PANEL] Revoke warnings:', data.warnings)
+        }
         fetchUsers()
       } else {
         console.error('🔧 [ADMIN PANEL] Revoke failed:', data)
         const errorMessage = data.details || data.error || 'Failed to revoke PRO'
-        if (data.solution) {
-          toast.error(`${errorMessage}. ${data.solution}`, { duration: 8000 })
-        } else {
-          toast.error(errorMessage)
-        }
+        toast.error(errorMessage, { duration: 8000 })
       }
     } catch (error) {
       console.error('Error revoking PRO:', error)
@@ -748,40 +758,6 @@ export default function AdminPanel() {
     const until = new Date(subscriptionUntil)
     const diff = until.getTime() - now.getTime()
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
-  }
-
-  // Test PRO toggle (for debugging)
-  const testPROToggle = async (userId: string) => {
-    setUpdatingId(userId)
-    try {
-      console.log('🧪 [ADMIN PANEL] Testing PRO toggle for user:', userId)
-
-      const res = await fetch('/api/admin/test-pro', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ userId }),
-        credentials: 'include'
-      })
-
-      const data = await res.json()
-
-      console.log('🧪 [ADMIN PANEL] Test response:', data)
-
-      if (data.success) {
-        toast.success(`Test successful! PRO toggled from ${data.before.is_pro} to ${data.after.is_pro}`)
-        fetchUsers()
-      } else {
-        console.error('🧪 [ADMIN PANEL] Test failed:', data)
-        toast.error(`Test failed: ${data.error}${data.reason ? ` (${data.reason})` : ''}`, { duration: 10000 })
-      }
-    } catch (error) {
-      console.error('Error in PRO toggle test:', error)
-      toast.error('Test failed: ' + (error instanceof Error ? error.message : 'Unknown error'))
-    } finally {
-      setUpdatingId(null)
-    }
   }
 
   const filteredUsers = users.filter(u =>
@@ -854,7 +830,7 @@ export default function AdminPanel() {
               <Button
                 onClick={async () => {
                   try {
-                    const res = await fetch('/api/admin/debug')
+                    const res = await authFetch('/api/admin/debug')
                     const data = await res.json()
                     console.log('🔍 Debug Info:', data)
                     alert(JSON.stringify(data, null, 2))
@@ -1223,21 +1199,6 @@ export default function AdminPanel() {
                                   </td>
                                   <td className="py-3 px-2 text-right">
                                     <div className="flex items-center justify-end gap-1">
-                                      {/* Test Button (Debug) */}
-                                      <Button
-                                        onClick={() => testPROToggle(u?.id || '')}
-                                        disabled={updatingId === u?.id}
-                                        size="sm"
-                                        variant="outline"
-                                        className="border-amber-500/30 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 h-7 px-1.5 w-7"
-                                        title="Test PRO toggle (for debugging)"
-                                      >
-                                        {updatingId === u?.id ? (
-                                          <Loader2 className="w-3 h-3 animate-spin" />
-                                        ) : (
-                                          <Bug className="w-3 h-3" />
-                                        )}
-                                      </Button>
                                       {/* Upgrade/Downgrade Dropdown */}
                                       <DropdownMenu>
                                         <DropdownMenuTrigger asChild>

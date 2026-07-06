@@ -189,6 +189,28 @@ export async function POST(
     console.log(`✅ Supabase profile updated to PRO for: ${userProfile.email}`)
 
     // ============================================
+    // STEP 5b: Also update Auth metadata so GET /api/admin/users reflects the change
+    // ============================================
+    try {
+      const { getAdminAuth } = await import('@/lib/supabase-admin-alt')
+      const authAdmin = getAdminAuth()
+      if (authAdmin) {
+        await authAdmin.updateUserById(userId, {
+          user_metadata: {
+            is_pro: true,
+            subscription_status: 'active',
+            plan: 'PRO',
+            subscription_until: subscriptionUntil,
+            has_ever_been_pro: true,
+          }
+        })
+        console.log(`✅ Auth metadata updated to PRO for: ${userProfile.email}`)
+      }
+    } catch (metaErr) {
+      console.error('⚠️ Auth metadata sync failed (non-blocking):', metaErr)
+    }
+
+    // ============================================
     // STEP 6: Commission — affiliate lookup via db.affiliate
     // ============================================
     const commissionAmount = Math.round(planConfig.price * planConfig.commissionRate)
