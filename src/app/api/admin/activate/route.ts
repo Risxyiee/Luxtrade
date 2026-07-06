@@ -6,7 +6,7 @@ import { PRICING, type PricingPlan } from '@/lib/pricing'
 
 // Commission rates (will be used by affiliate system in Part 2)
 const AFFILIATE_COMMISSION_RATE = 0.20 // 20% for recurring PRO
-const LIFETIME_COMMISSION = 45000 // Rp45.000 flat for Lifetime (15% of Rp299k ≈ Rp44,850, rounded)
+const AFFILIATE_LIFETIME_RATE = 0.15  // 15% one-time for Lifetime
 
 interface ActivateRequestBody {
   userId: string
@@ -21,7 +21,7 @@ function getPlanConfig(planType: string) {
     case 'PRO_180_DAYS':
       return { price: PRICING.PRO_180_DAYS, days: 180, name: 'PRO 180 Hari', commissionRate: AFFILIATE_COMMISSION_RATE }
     case 'PRO_LIFETIME':
-      return { price: PRICING.PRO_LIFETIME, days: 365 * 5, name: 'PRO Lifetime', commission: LIFETIME_COMMISSION }
+      return { price: PRICING.PRO_LIFETIME, days: 365 * 5, name: 'PRO Lifetime', commissionRate: AFFILIATE_LIFETIME_RATE }
     default:
       return null
   }
@@ -110,9 +110,7 @@ export async function POST(request: NextRequest) {
     // ============================================
     // COMMISSION: Update referrer's balance
     // ============================================
-    const commissionAmount = isLifetime
-      ? planConfig.commission!
-      : Math.round(planConfig.price * planConfig.commissionRate)
+    const commissionAmount = Math.round(planConfig.price * planConfig.commissionRate)
 
     try {
       const { data: userProfile } = await supabase
