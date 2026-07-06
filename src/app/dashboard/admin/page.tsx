@@ -30,9 +30,9 @@ import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 
-// Admin credentials - MUST match backend
-const ADMIN_IDS = ['8f7fe295-2df0-412d-ba91-8e6060f3ab08']
-const ADMIN_EMAILS = ['luxtradee@gmail.com']
+// Admin credentials - MUST match backend @/lib/admin-auth.ts
+const ADMIN_IDS: string[] = []
+const ADMIN_EMAILS = ['luxtradee@gmail.com', 'riskiakbarp123@gmail.com']
 
 function checkIsAdmin(userId: string | undefined, email: string | undefined): boolean {
   if (userId && ADMIN_IDS.includes(userId)) return true
@@ -480,13 +480,12 @@ export default function AdminPanel() {
         return
       }
 
-      // TEMPORARY: Bypass strict admin role check for debugging
-      // if (!checkIsAdmin(user.id, user.email)) {
-      //   toast.error('Access denied. Admin only.')
-      //   router.push('/dashboard')
-      //   return
-      // }
-      console.log('⚠️ [ADMIN PANEL] Admin role check BYPASSED for debugging. User:', user.email, 'ID:', user.id)
+      // Admin check — must match ADMIN_EMAILS in @/lib/admin-auth.ts
+      if (!checkIsAdmin(user.id, user.email)) {
+        toast.error('Access denied. Admin only.')
+        router.push('/dashboard')
+        return
+      }
 
       setIsAdminUser(true)
       setCheckingAuth(false)
@@ -918,6 +917,15 @@ export default function AdminPanel() {
             <UserPen className="w-4 h-4 mr-2" />
             Manual Update
           </Button>
+          <Link href="/dashboard/admin/affiliate">
+            <Button
+              variant="outline"
+              className="border-emerald-500/30 text-white/50 hover:text-white hover:bg-emerald-500/10"
+            >
+              <Share2 className="w-4 h-4 mr-2" />
+              Affiliate
+            </Button>
+          </Link>
           <Link href="/admin-email">
             <Button
               variant="outline"

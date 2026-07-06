@@ -1,14 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/api-auth'
-import { db } from '@/lib/db'
+import { db, isDatabaseAvailable } from '@/lib/db'
+import { createClient } from '@supabase/supabase-js'
+
+// Hardcoded admin identifiers (used as ultimate fallback)
+const ADMIN_EMAILS = ['luxtradee@gmail.com', 'riskiakbarp123@gmail.com']
+const ADMIN_IDS: string[] = []
+
+/** Get Supabase admin client (service role, bypasses RLS) */
+function getSupabaseServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return null
+  return createClient(url, key)
+}
 
 /**
  * Require admin authentication.
- * Returns { error, user } — if error is non-null, return it immediately.
+ * Checks in order:
+ *   1. Hardcoded ADMIN_EMAILS / ADMIN_IDS list (fastest)
+ *   2. Prisma profile.role (if DB available)
+ *   3. Supabase profiles table via service role
  *
- * Usage:
- *   const { error, user } = await requireAdmin(request)
- *   if (error) return error
+ * Returns { error, user } — if error is non-null, return it immediately.
  */
 export async function requireAdmin(request: NextRequest) {
   const user = await getAuthUser(request)
@@ -20,24 +34,47 @@ export async function requireAdmin(request: NextRequest) {
     }
   }
 
-  try {
-    const profile = await db.profile.findUnique({
-      where: { id: user.id },
-      select: { role: true },
-    })
+  // Check 1: Hardcoded admin list (fastest, no DB call)
+  if (ADMIN_EMAILS.includes(user.email.toLowerCase()) || ADMIN_IDS.includes(user.id)) {
+    return { error: null, user }
+  }
 
-    if (!profile || (profile.role !== 'ADMIN' && profile.role !== 'SUPER_ADMIN')) {
-      return {
-        error: NextResponse.json({ error: 'Forbidden. Admin access required.' }, { status: 403 }),
-        user: null,
+  // Check 2: Prisma profile
+  if (isDatabaseAvailable()) {
+    try {
+      const profile = await db.profile.findUnique({
+        where: { id: user.id },
+        select: { role: true },
+      })
+
+      if (profile && (profile.role === 'ADMIN' || profile.role === 'SUPER_ADMIN')) {
+        return { error: null, user }
+      }
+    } catch {
+      // Prisma failed, fall through
+    }
+  }
+
+  // Check 3: Supabase profiles table via service role
+  try {
+    const supabaseSvc = getSupabaseServiceClient()
+    if (supabaseSvc) {
+      const { data: profile } = await supabaseSvc
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      if (profile && (profile.role === 'ADMIN' || profile.role === 'SUPER_ADMIN')) {
+        return { error: null, user }
       }
     }
-
-    return { error: null, user }
   } catch {
-    return {
-      error: NextResponse.json({ error: 'Internal error' }, { status: 500 }),
-      user: null,
-    }
+    // Supabase also failed
+  }
+
+  return {
+    error: NextResponse.json({ error: 'Forbidden. Admin access required.' }, { status: 403 }),
+    user: null,
   }
 }
