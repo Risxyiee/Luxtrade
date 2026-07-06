@@ -17,6 +17,9 @@ const PORT = 3031;
 const OLLAMA_BINARY = process.env.OLLAMA_PATH || '/home/z/ollama/ollama';
 const OLLAMA_HOST = 'http://127.0.0.1:11434';
 
+// Shared secret for internal service auth
+const INTERNAL_SECRET = process.env.INTERNAL_SERVICE_SECRET || 'luxtrade-internal-2024';
+
 // Log utilities
 function log(level, message, data = null) {
   const timestamp = new Date().toISOString();
@@ -191,6 +194,16 @@ const server = http.createServer(async (req, res) => {
   }
 
   const url = new URL(req.url, `http://${req.headers.host}`);
+
+  // SECURITY: Verify internal service secret (health check exempt)
+  if (url.pathname !== '/health') {
+    const authHeader = req.headers['x-internal-secret'];
+    if (authHeader !== INTERNAL_SECRET) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Forbidden' }));
+      return;
+    }
+  }
 
   // Health check
   if (req.method === 'GET' && url.pathname === '/health') {

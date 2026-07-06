@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { requireAuth } from '@/lib/api-auth'
 
 let _supabase: SupabaseClient | null = null
 function getSupabase(): SupabaseClient {
@@ -17,10 +18,22 @@ const ONBOARDING_ACHIEVEMENT_ID = 'newcomer_achievement'
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Require authentication
+    const { error, user } = await requireAuth(request)
+    if (error) return error
+
     const { userId, username } = await request.json()
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 })
+    }
+
+    // SECURITY: Only allow awarding achievements to the authenticated user
+    if (userId !== user.id) {
+      return NextResponse.json(
+        { error: 'Forbidden: cannot award achievements to another user' },
+        { status: 403 }
+      )
     }
 
     // Check if user already has this achievement

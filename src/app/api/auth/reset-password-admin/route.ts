@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
+import { requireAdmin } from '@/lib/admin-auth'
+import { getSupabaseAdminAuthFromClient } from '@/lib/supabase'
 
 /**
  * POST /api/auth/reset-password-admin
- * Admin fallback for password reset when client session is unavailable.
- * Uses supabaseAdmin which doesn't need a user session.
+ * Admin-only: reset any user's password via admin API.
+ * Requires admin authentication.
  *
  * Body: { password: string, email: string }
  */
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Require admin authentication
+    const { error: authError } = await requireAdmin(request)
+    if (authError) return authError
+
     const { password, email } = await request.json()
 
     if (!password || password.length < 8) {
@@ -63,11 +68,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('✅ Password updated via admin API for:', email)
-
     return NextResponse.json({
       success: true,
-      message: 'Password berhasil diubah! Silakan login dengan password baru.',
+      message: 'Password berhasil diubah!',
     })
   } catch (error) {
     console.error('Reset password admin API error:', error)
