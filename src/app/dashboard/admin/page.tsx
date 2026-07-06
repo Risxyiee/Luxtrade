@@ -588,7 +588,7 @@ export default function AdminPanel() {
     try {
       const res = await fetch('/api/admin/sync-users', {
         method: 'POST',
-        headers: { 'x-admin-email': 'luxtradee@gmail.com' },
+        credentials: 'include',
       })
       const data = await res.json()
       if (res.ok && data.success) {
