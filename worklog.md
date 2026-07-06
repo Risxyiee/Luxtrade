@@ -3350,3 +3350,26 @@ Stage Summary:
 - /affiliate page has "Ganti Kode" button with dialog
 - API validates, rate-limits, and preserves existing referral history
 - 5 files changed, committed and pushed to main
+
+---
+Task ID: 10
+Agent: Z.ai Code
+Task: Fix pro_expiry_date typo + gut ensureSchema
+
+Work Log:
+- Grep found 6 files with 'pro_expiry_date' (Supabase direct writes, not Prisma)
+- Fixed all 6: sync-auth-users, populate-profiles, setup, activate, cancel-subscription, subscriptions/[id]/activate
+- setup/route.ts also had wrong ALTER TABLE column name
+- Rewrote ensureSchema() from ~300 lines to ~50 lines:
+  - Removed all ALTER TABLE ADD COLUMN IF NOT EXISTS (40+ statements)
+  - Removed all CREATE TABLE IF NOT EXISTS (except promo_codes)
+  - Removed all CREATE INDEX IF NOT EXISTS
+  - Only keeps 6 individual statements for promo_codes
+  - Each runs individually (PgBouncer compatible)
+- Verified: 0 remaining 'pro_expiry_date' references in src/
+
+Stage Summary:
+- Root cause of /api/admin/activate 500: writing to non-existent column 'pro_expiry_date'
+- Correct column: 'pro_expiry' (as defined in Prisma schema: proExpiry @map("pro_expiry"))
+- ensureSchema() is now DEPRECATED for schema changes — use Supabase SQL Editor or Prisma migrations
+- 7 files changed, -271 lines, committed and pushed
