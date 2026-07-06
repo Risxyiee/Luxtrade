@@ -3324,3 +3324,29 @@ Stage Summary:
 - promo-quota reduced from 2 to 1 Prisma query
 - ensureSchema batched into single transaction as fallback defense
 - /api/admin/activate already has Auth fallback for users without profile rows (22 of 25 users)
+
+---
+Task ID: 9
+Agent: Z.ai Code
+Task: TUGAS 1 — Make affiliate visible to all users + TUGAS 2 — Custom referral code
+
+Work Log:
+- Investigated affiliate page location: /app/affiliate/page.tsx (standalone, NOT under /dashboard)
+- Sidebar is tab-based (SidebarNav.tsx), affiliate doesn't fit as tab — added as Link in SidebarFooter.tsx
+- Middleware does NOT block /affiliate (not in matcher) — already accessible to all
+- Added "Program Referral" button with Users icon in SidebarFooter (above Settings, purple-amber gradient)
+- Added "Ganti Kode" link next to referral code display on /affiliate page
+- Created PATCH /api/affiliate/update-code with full validation:
+  - Auth required (getAuthUser, not body param)
+  - Regex: only A-Z0-9, 4-20 chars
+  - Uniqueness check (409 conflict)
+  - Rate limit: 1 change per 30 days via codeChangedAt column (429 with cooldownDaysLeft)
+  - Referrals linked via affiliate_id, not code — safe to change
+- Added codeChangedAt field to Affiliate Prisma model + ensureSchema ALTER TABLE
+- Added Pencil icon import and update-code dialog with notes about referral safety
+
+Stage Summary:
+- All users (Free/PRO/Lifetime) can now see "Program Referral" in sidebar
+- /affiliate page has "Ganti Kode" button with dialog
+- API validates, rate-limits, and preserves existing referral history
+- 5 files changed, committed and pushed to main
