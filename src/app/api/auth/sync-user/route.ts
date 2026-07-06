@@ -5,8 +5,9 @@ import { getSupabaseAdminAuthFromClient, supabaseAdmin } from '@/lib/supabase'
 export async function POST(request: NextRequest) {
   try {
     // SECURITY: Require authentication
-    const { error, user } = await requireAuth(request)
-    if (error) return error
+    const authResult = await requireAuth(request)
+    if (authResult.error) return authResult.error
+    const user = authResult.user!
 
     const body = await request.json()
     const { userId, email, fullName } = body
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
     //   2. Sends a confirmation email to the "old" address
     //   3. Blocks login with "Invalid login credentials"
     // Only update user_metadata.
-    const { data: updatedData, error } = await authAdmin.updateUserById(
+    const { data: updatedData, error: updateErr } = await authAdmin.updateUserById(
       userId,
       {
         user_metadata: {
@@ -53,8 +54,8 @@ export async function POST(request: NextRequest) {
       }
     )
 
-    if (error) {
-      console.error('[sync-user] Error updating user in Supabase:', error)
+    if (updateErr) {
+      console.error('[sync-user] Error updating user in Supabase:', updateErr)
       return NextResponse.json({ success: true, action: 'skipped' })
     }
 
