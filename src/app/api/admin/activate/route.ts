@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
-import { sendTelegramNotification } from '@/lib/telegram'
+import { sendAdminNotification as sendTelegramNotification } from '@/lib/admin-notify'
 import { PRICING, type PricingPlan } from '@/lib/pricing'
 
 // Commission rates (will be used by affiliate system in Part 2)
