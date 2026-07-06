@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureSchema } from '@/lib/db'
+import { requireAdmin } from '@/lib/admin-auth'
 
 /**
  * Validate promo code
@@ -106,6 +107,10 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
+    // SECURITY: Require admin authentication — promo codes list is sensitive
+    const { error: authError } = await requireAdmin(request)
+    if (authError) return authError
+
     await ensureSchema()
     const results: any[] = await db.$queryRawUnsafe(`
       SELECT id, code, description, discount_percent, max_quota, used_quota,
