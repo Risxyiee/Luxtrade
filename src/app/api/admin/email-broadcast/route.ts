@@ -56,16 +56,18 @@ export async function POST(request: NextRequest) {
 
     // Auto-sync users from Supabase Auth → profiles DB before broadcast
     // This ensures all Auth users exist in the DB for targeting
+    let syncStats = { totalAuth: 0, existingDb: 0, syncedNew: 0, syncFailed: 0, error: '' as string }
     try {
       const { getAdminAuth } = await import('@/lib/supabase-admin-alt')
       const authAdmin = getAdminAuth()
       if (authAdmin && isDatabaseAvailable()) {
         const { data: { users } } = await authAdmin.listUsers({ perPage: 500 })
         if (users && users.length > 0) {
+          syncStats.totalAuth = users.length
           const existingIds = new Set(
             (await db.profile.findMany({ select: { id: true } })).map((p: any) => p.id)
           )
-          let created = 0
+          syncStats.existingDb = existingIds.size
           for (const u of users) {
             if (!existingIds.has(u.id)) {
               try {
@@ -77,15 +79,19 @@ export async function POST(request: NextRequest) {
                     emailVerified: u.email_confirmed_at != null,
                   },
                 })
-                created++
-              } catch (_e) { /* skip duplicates */ }
+                syncStats.syncedNew++
+              } catch (_e) {
+                syncStats.syncFailed++
+              }
             }
           }
-          if (created > 0) { /* auto-synced new users */ }
+          console.log(`📊 [email-broadcast] Sync: ${syncStats.totalAuth} auth users, ${syncStats.existingDb} in DB, ${syncStats.syncedNew} newly synced, ${syncStats.syncFailed} failed`)
         }
       }
-    } catch (_syncErr) {
-      // Auto-sync failed — non-critical, continue with broadcast
+    } catch (_syncErr: any) {
+      const errMsg = _syncErr instanceof Error ? _syncErr.message : String(_syncErr)
+      syncStats.error = errMsg
+      console.error(`❌ [email-broadcast] Auth→profiles sync FAILED: ${errMsg}`)
     }
 
     // Validate required fields
@@ -152,8 +158,13 @@ export async function POST(request: NextRequest) {
         sent: 0,
         failed: 0,
         errors: ['Tidak ada user yang cocok dengan target ini'],
+        sync: syncStats,
+        targetUserCount: 0,
       })
     }
+
+    // Log recipient count BEFORE sending, so admin can see it
+    console.log(`📢 [email-broadcast] Target "${target}": ${profiles.length} users will receive. Sync stats: auth=${syncStats.totalAuth}, db=${syncStats.existingDb}, new=${syncStats.syncedNew}${syncStats.error ? `, ERROR: ${syncStats.error}` : ''}`)
 
     // Send emails in parallel with concurrency limit
     let sent = 0
@@ -255,6 +266,8 @@ export async function POST(request: NextRequest) {
       sent,
       failed,
       errors,
+      sync: syncStats,
+      targetUserCount: profiles.length,
     })
   } catch (error: unknown) {
     console.error('[API /admin/email-broadcast POST] Error:', error)

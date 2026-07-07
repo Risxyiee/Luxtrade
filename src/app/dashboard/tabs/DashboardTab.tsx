@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import {
   DollarSign, Target, Activity, TrendingUp, TrendingDown,
   Sparkles, AlertTriangle, Clock, BarChart3, Plus,
-  Trophy, Flame, Loader2, Wallet, ArrowUpRight, ArrowDownRight, Gem, CircleDot
+  Trophy, Flame, Loader2, Wallet, ArrowUpRight, ArrowDownRight, Gem, CircleDot, Crown
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -631,6 +631,49 @@ function DashboardTab({
             language={language}
             chartAnimated={chartAnimated}
           />
+        </motion.div>
+      )}
+
+      {/* Equity Curve: Fallback when PRO but analytics failed to load */}
+      {hasData && !analytics?.equityCurve && isPro && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+          <Card className="bg-gradient-to-br from-[#0f0b18]/80 to-[#12091a]/80 backdrop-blur-md border-red-500/20">
+            <CardContent className="py-10 text-center">
+              <BarChart3 className="w-12 h-12 text-red-400/40 mx-auto mb-3" />
+              <p className="text-red-300 font-medium mb-1">{language === 'id' ? 'Gagal memuat data equity curve' : 'Failed to load equity curve data'}</p>
+              <p className="text-xs text-gray-500">{language === 'id' ? 'Coba refresh halaman. Jika masih gagal, hubungi admin.' : 'Try refreshing the page. If it persists, contact admin.'}</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Equity Curve: Info when user has trades but is not PRO (analytics 403) */}
+      {hasData && !analytics && !isPro && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+          <Card className="bg-gradient-to-br from-[#0f0b18]/80 to-[#12091a]/80 backdrop-blur-md border-purple-500/20 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-amber-500/5 pointer-events-none" />
+            <CardContent className="relative py-10 text-center">
+              <Gem className="w-12 h-12 text-purple-400/40 mx-auto mb-3" />
+              <p className="text-purple-200 font-medium mb-1">
+                {language === 'id' ? 'Equity Curve — Fitur PRO' : 'Equity Curve — PRO Feature'}
+              </p>
+              <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                {language === 'id'
+                  ? 'Upgrade ke PRO untuk melihat kurva ekuitas, analisis mendalam, dan insight AI.'
+                  : 'Upgrade to PRO to unlock equity curve, deep analytics, and AI insights.'}
+              </p>
+              <Button
+                onClick={() => {
+                  const event = new CustomEvent('open-plan-selection')
+                  window.dispatchEvent(event)
+                }}
+                className="mt-4 bg-gradient-to-r from-purple-500 to-violet-600 shadow-lg shadow-purple-500/20 text-sm"
+              >
+                <Crown className="w-4 h-4 mr-2" />
+                {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
+              </Button>
+            </CardContent>
+          </Card>
         </motion.div>
       )}
 

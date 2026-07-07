@@ -1083,7 +1083,138 @@ export default function AdminPanel() {
                       <p className="text-white/60">No users found</p>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
+                    <>
+                    {/* ═══ MOBILE: Card List ═══ */}
+                    <div className="md:hidden space-y-3">
+                      {paginatedUsers.map((u) => {
+                        const expired = u?.subscription_until ? isExpired(u.subscription_until) : true
+                        const daysLeft = getDaysRemaining(u?.subscription_until)
+                        const isActivePRO = u?.is_pro && !expired
+                        return (
+                          <motion.div
+                            key={u?.id || 'unknown'}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="bg-white/[0.03] border border-purple-500/10 rounded-xl p-4 space-y-3"
+                          >
+                            {/* Row 1: Email + Status Badge */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm text-white font-medium truncate">{u?.email || '-'}</p>
+                                <p className="text-xs text-white/40 truncate mt-0.5">{u?.full_name || u?.display_name || 'No Name'}</p>
+                              </div>
+                              {isActivePRO ? (
+                                <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs flex-shrink-0">
+                                  <CheckCircle className="w-3 h-3 mr-1" />PRO
+                                </Badge>
+                              ) : u.subscription_until && expired ? (
+                                <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-xs flex-shrink-0">
+                                  <XCircle className="w-3 h-3 mr-1" />Expired
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-white/10 text-white/60 border-white/10 text-xs flex-shrink-0">FREE</Badge>
+                              )}
+                            </div>
+
+                            {/* Row 2: Info grid */}
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <span className="text-white/40">Referral: </span>
+                                <span className="text-blue-400 font-mono">{u?.my_referral_code || '-'}</span>
+                              </div>
+                              <div>
+                                <span className="text-white/40">Device: </span>
+                                {u?.has_duplicate_device ? (
+                                  <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] px-1 py-0 ml-1">
+                                    <AlertTriangle className="w-2.5 h-2.5 mr-0.5" />DUP
+                                  </Badge>
+                                ) : u?.device_id ? (
+                                  <span className="text-emerald-400">OK</span>
+                                ) : (
+                                  <span className="text-white/30">-</span>
+                                )}
+                              </div>
+                              {u?.referred_by_code && (
+                                <div className="col-span-2">
+                                  <span className="text-white/40">Referred by: </span>
+                                  <span className="text-purple-300 font-mono">{u?.referred_by_code}</span>
+                                  {u?.referred_by?.email && (
+                                    <span className="text-white/30 ml-1">({u.referred_by.email})</span>
+                                  )}
+                                </div>
+                              )}
+                              {u?.subscription_until && (
+                                <div className="col-span-2">
+                                  <span className="text-white/40">Expires: </span>
+                                  <span className="text-white/60">{formatDate(u.subscription_until)}</span>
+                                  {isActivePRO && <span className="text-emerald-400 ml-1">({daysLeft}d left)</span>}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Row 3: Action Button — full width, 44px+ tap target */}
+                            <div className="pt-1 border-t border-white/[0.06]">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    disabled={updatingId === u?.id}
+                                    variant="outline"
+                                    className={`w-full h-11 min-h-[44px] text-sm gap-2 justify-center ${isActivePRO ? 'border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-500/10' : 'border-purple-500/30 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10'}`}
+                                    style={{ touchAction: 'manipulation' }}
+                                  >
+                                    {updatingId === u?.id ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <>
+                                        <Crown className="w-4 h-4" />
+                                        {isActivePRO ? 'Kelola PRO' : 'Upgrade ke PRO'}
+                                        <ChevronDown className="w-4 h-4 ml-auto" />
+                                      </>
+                                    )}
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="center" className="bg-[#1a0f2e] border-purple-500/20 min-w-[220px]">
+                                  {isActivePRO && (
+                                    <DropdownMenuItem
+                                      onClick={() => revokePRO(u?.id || '')}
+                                      className="text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer py-2.5"
+                                    >
+                                      <Ban className="w-4 h-4 mr-2" />
+                                      Downgrade ke Free
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuSeparator className="bg-purple-500/20" />
+                                  <DropdownMenuItem
+                                    onClick={() => activateWithPlan(u?.id || '', 'PRO_30_DAYS', 'PRO 30 Hari', u?.email || '')}
+                                    className="text-purple-300 focus:text-purple-200 focus:bg-purple-500/10 cursor-pointer py-2.5"
+                                  >
+                                    <Crown className="w-4 h-4 mr-2" />
+                                    Upgrade PRO — 30 Hari
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => activateWithPlan(u?.id || '', 'PRO_180_DAYS', 'PRO 180 Hari', u?.email || '')}
+                                    className="text-purple-300 focus:text-purple-200 focus:bg-purple-500/10 cursor-pointer py-2.5"
+                                  >
+                                    <Crown className="w-4 h-4 mr-2" />
+                                    Upgrade PRO — 180 Hari
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => activateWithPlan(u?.id || '', 'PRO_LIFETIME', 'PRO Lifetime', u?.email || '')}
+                                    className="text-amber-300 focus:text-amber-200 focus:bg-amber-500/10 cursor-pointer py-2.5"
+                                  >
+                                    <Crown className="w-4 h-4 mr-2" />
+                                    Upgrade PRO — Lifetime
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </motion.div>
+                        )
+                      })}
+                    </div>
+
+                    {/* ═══ DESKTOP: Table ═══ */}
+                    <div className="hidden md:block overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-purple-500/20">
@@ -1206,6 +1337,7 @@ export default function AdminPanel() {
                                             disabled={updatingId === u?.id}
                                             size="sm"
                                             variant="outline"
+                                            style={{ touchAction: 'manipulation' }}
                                             className={`h-7 text-xs px-2 gap-1 ${isActivePRO ? 'border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-500/10' : 'border-purple-500/30 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10'}`}
                                           >
                                             {updatingId === u?.id ? (
@@ -1262,6 +1394,7 @@ export default function AdminPanel() {
                         </tbody>
                       </table>
                       </div>
+                    </>
                     )}
                     {/* Pagination */}
                     {totalPages > 1 && (
