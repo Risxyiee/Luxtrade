@@ -65,7 +65,8 @@ async function resolveUser(supabaseAdmin: ReturnType<typeof createClient>, userI
       myReferralCode: null,
       referredByCode: null,
     }
-  } catch {
+  } catch (err) {
+    console.warn('[admin/subscription/activate] getUserInfo lookup failed:', err)
     return null
   }
 }
@@ -113,7 +114,8 @@ export async function POST(
       }
       userId = subscription.userId
       plan = overridePlanType || subscription.plan
-    } catch {
+    } catch (prismaSubErr) {
+      console.warn('[admin/subscription/activate] Prisma subscription lookup failed:', prismaSubErr)
       // If Prisma is unavailable, the caller must provide userId and planType in body
       if (!body.userId || !body.planType) {
         return NextResponse.json(

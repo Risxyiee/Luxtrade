@@ -73,8 +73,8 @@ export async function PATCH(request: NextRequest) {
     if (isDatabaseAvailable()) {
       try {
         withdrawal = await db.withdrawal.findUnique({ where: { id: withdrawalId } })
-      } catch {
-        // Fall through to Supabase
+      } catch (prismaWErr) {
+        console.warn('[admin/withdrawals] Prisma lookup failed, falling through to Supabase:', prismaWErr)
       }
     }
 

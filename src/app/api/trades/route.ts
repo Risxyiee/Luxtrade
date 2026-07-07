@@ -78,7 +78,8 @@ async function countUserTrades(userId: string): Promise<number> {
     })
 
     return count
-  } catch {
+  } catch (error) {
+    console.warn('[countUserTrades] Failed to count trades:', error)
     return 0
   }
 }
@@ -219,8 +220,8 @@ export async function POST(request: NextRequest) {
     let unlockedAchievements: any[] = []
     try {
       unlockedAchievements = await checkAchievementsAfterTrade(userId)
-    } catch {
-      // Don't fail the trade creation if achievement check fails
+    } catch (achErr) {
+      console.warn('[trades POST] Achievement check failed (non-critical):', achErr)
     }
 
     return NextResponse.json({

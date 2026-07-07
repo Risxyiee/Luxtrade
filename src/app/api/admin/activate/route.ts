@@ -193,7 +193,8 @@ export async function POST(request: NextRequest) {
               updatedAt: new Date(),
             }
           })
-        } catch {
+        } catch (prismaUpdateErr) {
+          console.warn('[admin/activate] Prisma profile update failed, creating new:', prismaUpdateErr)
           // Profile might not exist in Prisma yet — create it
           try {
             await db.profile.create({
