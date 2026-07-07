@@ -4,10 +4,10 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Crown, Mail, Lock, Eye, EyeOff, ArrowRight,
-  AlertCircle, Loader2, User, CheckCircle
+  AlertCircle, Loader2, User, CheckCircle, Tag
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -65,10 +65,12 @@ function generateDeviceId(): string {
 // ============================================
 function SignUpForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [deviceId, setDeviceId] = useState('')
+  const [referralCode, setReferralCode] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -77,12 +79,18 @@ function SignUpForm() {
   const [ageConfirmed, setAgeConfirmed] = useState(false)
 
   // ============================================
-  // Generate device ID
+  // Generate device ID & read referral code from URL
   // ============================================
   useEffect(() => {
     // Generate device fingerprint
     setDeviceId(generateDeviceId())
-  }, [])
+
+    // Auto-fill referral code from ?ref=CODE URL parameter
+    const ref = searchParams.get('ref')
+    if (ref) {
+      setReferralCode(ref.toUpperCase())
+    }
+  }, [searchParams])
 
   // Password strength check
   const hasMinLength = password.length >= 8
@@ -105,6 +113,7 @@ function SignUpForm() {
     console.log('👤 Full Name:', fullName)
     console.log('📧 Email:', email)
     console.log('📱 Device ID:', deviceId)
+    console.log('🏷️ Referral Code:', referralCode || null)
     console.log('================================')
 
     try {
@@ -117,7 +126,8 @@ function SignUpForm() {
           email,
           password,
           fullName,
-          deviceId: deviceId || null
+          deviceId: deviceId || null,
+          referralCode: referralCode || null
         })
       })
 
@@ -281,6 +291,24 @@ function SignUpForm() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
+                className="pl-10 h-12 bg-white/[0.03] border-white/10 text-white placeholder:text-white/30 focus:border-amber-500/50 focus:ring-amber-500/20"
+              />
+            </div>
+          </div>
+
+          {/* Kode Referral (Opsional) */}
+          <div className="space-y-2">
+            <Label htmlFor="referralCode" className="text-white/70 text-sm">
+              Kode Referral <span className="text-white/30">(Opsional)</span>
+            </Label>
+            <div className="relative">
+              <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
+              <Input
+                id="referralCode"
+                type="text"
+                placeholder="LUXABC123"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
                 className="pl-10 h-12 bg-white/[0.03] border-white/10 text-white placeholder:text-white/30 focus:border-amber-500/50 focus:ring-amber-500/20"
               />
             </div>
