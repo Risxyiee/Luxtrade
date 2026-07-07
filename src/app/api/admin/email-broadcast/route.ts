@@ -35,7 +35,8 @@ export async function GET(request: NextRequest) {
     } else {
       return NextResponse.json({ success: false, error: 'Gagal mengirim test email' }, { status: 500 })
     }
-  } catch (_error: unknown) {
+  } catch (error: unknown) {
+    console.error('[API /admin/email-broadcast GET] Error:', error)
     return NextResponse.json({ error: 'Gagal mengirim test email' }, { status: 500 })
   }
 }
@@ -255,7 +256,8 @@ export async function POST(request: NextRequest) {
       failed,
       errors,
     })
-  } catch (_error: unknown) {
+  } catch (error: unknown) {
+    console.error('[API /admin/email-broadcast POST] Error:', error)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
   }
 }

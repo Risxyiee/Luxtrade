@@ -323,7 +323,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       insight: response || 'Unable to generate insight'
     })
-  } catch (_error) {
+  } catch (error) {
+    console.error('[AI /insight] Error:', error)
     return NextResponse.json({
       error: 'Gagal generate insight. Coba lagi.',
       insight: null

@@ -23,7 +23,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ tags: data || [] })
-  } catch {
+  } catch (error) {
+    console.error('[API /tags GET] Error:', error)
     return NextResponse.json({ tags: [] })
   }
 }
@@ -60,7 +61,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ tag: data })
-  } catch {
+  } catch (error) {
+    console.error('[API /tags POST] Error:', error)
     return NextResponse.json({ error: 'Failed to create tag' }, { status: 500 })
   }
 }
