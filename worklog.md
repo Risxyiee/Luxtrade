@@ -112,3 +112,29 @@ KATEGORISASI SISA SILENT CATCH (client-side — AMAN diam-diam):
 - CookieConsent.tsx: localStorage read — aman
 - signup/page.tsx: canvas fingerprint fallback — aman
 - Self-healing schema (ensureDbMigrated): ALTER TABLE IF NOT EXISTS — idempotent, expected to fail
+
+---
+Task ID: 2
+Agent: main
+Task: Fix 3 critical security vulnerabilities + report on withdrawal systems
+
+Work Log:
+- MASALAH 1: /api/promo/reset used fake x-admin-email header auth
+  - Rewrote to use requireAdmin() from @/lib/admin-auth
+  - requireAdmin() verifies real Supabase session + checks hardcoded admin list + Prisma role + Supabase profiles role
+  - Removed ADMIN_EMAILS constant and header check entirely
+- MASALAH 2: /api/missions/claim had IDOR — no auth, userId from body
+  - Added getAuthUser() to POST handler, uses session userId instead of body userId
+  - Added getAuthUser() to GET handler (was previously unprotected — could read any user's achievements)
+  - Updated 3 frontend components to stop sending userId: AchievementNotification, AchievementCenter, AchievementProgress
+- MASALAH 3: Wrong column names in signup referral validation
+  - Changed .select('code, user_id, status') → .select('referral_code, user_id')
+  - Changed .eq('code', ...) → .eq('referral_code', ...)
+  - Removed affiliate.status === 'INACTIVE'/'BANNED' check (Affiliate model has no status column)
+  - Confirmed correct columns from prisma/schema.prisma: model Affiliate { referralCode String @map("referral_code") }
+- MASALAH 4: Reported to user — 2 withdrawal systems exist (withdrawals vs affiliate_withdrawals), NOT changed per instructions
+
+Stage Summary:
+- 3 critical security vulnerabilities fixed in 1 commit (2150752)
+- 6 files changed: promo/reset/route.ts, missions/claim/route.ts, signup/route.ts, AchievementNotification.tsx, AchievementCenter.tsx, AchievementProgress.tsx
+- Build: clean. Lint: clean. Pushed to main.
