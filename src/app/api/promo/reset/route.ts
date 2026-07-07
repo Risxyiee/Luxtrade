@@ -1,19 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
+import { requireAdmin } from '@/lib/admin-auth'
 
 /**
  * Reset promo code quota (Admin only)
  * POST /api/promo/reset
  * Body: { code: string, maxQuota?: number, isActive?: boolean }
  */
-const ADMIN_EMAILS = ['luxtradee@gmail.com']
-
 export async function POST(request: NextRequest) {
   try {
-    const adminEmail = request.headers.get('x-admin-email')
-    if (!adminEmail || !ADMIN_EMAILS.includes(adminEmail.toLowerCase())) {
-      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 })
-    }
+    // Real admin authentication — verifies Supabase session + role
+    const { error: authError } = await requireAdmin(request)
+    if (authError) return authError
 
     const body = await request.json()
     const { code, maxQuota, isActive } = body
@@ -62,6 +60,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Gagal reset promo'
+    console.error('[promo/reset] Error:', error)
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

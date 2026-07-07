@@ -229,17 +229,15 @@ export async function POST(request: NextRequest) {
       const normalizedCode = referralCode.trim().toUpperCase()
       try {
         // Check if the referral code exists in the affiliates table
+        // Column name is "referral_code" (not "code"), and Affiliate model has no "status" column
         const { data: affiliate, error: affErr } = await admin
           .from('affiliates')
-          .select('code, user_id, status')
-          .eq('code', normalizedCode)
+          .select('referral_code, user_id')
+          .eq('referral_code', normalizedCode)
           .single()
 
         if (affErr || !affiliate) {
           console.warn(`[signup] Referral code "${normalizedCode}" not found in affiliates table — saving anyway in referred_by_code`)
-          validatedReferralCode = normalizedCode
-        } else if (affiliate.status === 'INACTIVE' || affiliate.status === 'BANNED') {
-          console.warn(`[signup] Referral code "${normalizedCode}" belongs to ${affiliate.status} affiliate — saving anyway (non-blocking)`)
           validatedReferralCode = normalizedCode
         } else {
           console.log(`✅ [signup] Valid referral code "${normalizedCode}" from affiliate ${affiliate.user_id}`)

@@ -1,14 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ACHIEVEMENTS, getAchievementById } from '@/lib/achievements-data'
 import { db } from '@/lib/db'
+import { getAuthUser } from '@/lib/api-auth'
 
 export async function POST(request: NextRequest) {
   try {
-    const { missionId, proofUrl, userId } = await request.json()
+    // Auth: get the REAL user from session, NOT from request body
+    const authUser = await getAuthUser(request)
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-    if (!missionId || !userId) {
+    // Use authenticated user's ID — ignore any userId from body
+    const userId = authUser.id
+
+    const { missionId, proofUrl } = await request.json()
+
+    if (!missionId) {
       return NextResponse.json(
-        { error: 'Mission ID and User ID are required' },
+        { error: 'Mission ID is required' },
         { status: 400 }
       )
     }
@@ -148,7 +158,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error claiming achievement:', error)
+    console.error('[missions/claim] Error:', error)
     return NextResponse.json(
       { error: 'Failed to claim achievement' },
       { status: 500 }
@@ -211,7 +221,7 @@ async function validateAutomaticAchievement(
         return false
     }
   } catch (error) {
-    console.error('Error validating achievement:', error)
+    console.error('[Achievement Validator] Error validating achievement:', error)
     return false
   }
 }
@@ -266,15 +276,13 @@ async function applyReward(userId: string, achievement: any) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400 }
-      )
+    // Auth: require login to view own missions
+    const authUser = await getAuthUser(request)
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const userId = authUser.id
 
     const profile = await db.profile.findUnique({
       where: { id: userId }
@@ -370,7 +378,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error fetching mission status:', error)
+    console.error('[missions/claim GET] Error:', error)
     return NextResponse.json(
       { error: 'Failed to fetch mission status' },
       { status: 500 }
