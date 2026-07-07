@@ -748,6 +748,7 @@ function LuxTradeDashboardContent() {
           profile={profile}
           chartAnimated={chartAnimated}
           hasMounted={true}
+          tradingAccounts={tradingAccounts}
         />
       </main>
 

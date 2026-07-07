@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       })
     }
   } catch (error: any) {
-    // Search error
+    console.error('[AI /search] Error:', error)
     return NextResponse.json(
       { error: error.message || 'Failed to perform search' },
       { status: 500 }

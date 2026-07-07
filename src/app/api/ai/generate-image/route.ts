@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       image: imageUrl
     })
   } catch (error: any) {
-    // Image generation error
+    console.error('[AI /generate-image] Error:', error)
     return NextResponse.json(
       { error: error.message || 'Failed to generate image' },
       { status: 500 }

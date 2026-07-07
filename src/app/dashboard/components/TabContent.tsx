@@ -59,6 +59,7 @@ interface TabContentProps {
   profile?: any
   chartAnimated: boolean
   hasMounted: boolean
+  tradingAccounts?: any[]
 }
 
 export default function TabContent({
@@ -94,6 +95,7 @@ export default function TabContent({
   profile,
   chartAnimated,
   hasMounted,
+  tradingAccounts,
 }: TabContentProps) {
   return (
     <div className="w-full px-2 sm:px-4 lg:px-6 pb-24">
@@ -118,6 +120,7 @@ export default function TabContent({
             language={language}
             isPro={isPro}
             profile={profile}
+            tradingAccounts={tradingAccounts}
           />
         </motion.div>
       )}

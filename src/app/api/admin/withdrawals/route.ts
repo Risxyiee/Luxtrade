@@ -121,8 +121,8 @@ export async function PATCH(request: NextRequest) {
               .update({ current_balance: (affData.current_balance || 0) + withdrawal.amount })
               .eq('user_id', withdrawal.user_id)
           }
-        } catch {
-          // Non-critical
+        } catch (error) {
+          console.warn('[admin/withdrawals] Non-critical: failed to refund affiliate balance on rejection:', error)
         }
       }
     }
