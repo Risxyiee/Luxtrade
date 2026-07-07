@@ -45,7 +45,7 @@ export default function AchievementCenter({ userId }: AchievementCenterProps) {
     if (!userId) return
 
     try {
-      const response = await fetch(`/api/missions/claim?userId=${userId}`)
+      const response = await fetch(`/api/missions/claim`)
       if (response.ok) {
         const data = await response.json()
         setAchievements(data.achievements || [])
@@ -69,7 +69,6 @@ export default function AchievementCenter({ userId }: AchievementCenterProps) {
 
       const body: any = {
         missionId: achievementId,
-        userId
       }
 
       if (achievement.type === 'manual') {

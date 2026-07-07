@@ -42,7 +42,7 @@ export default function AchievementProgress({
     if (!userId) return
 
     try {
-      const response = await fetch(`/api/missions/claim?userId=${userId}`)
+      const response = await fetch(`/api/missions/claim`)
       if (response.ok) {
         const data = await response.json()
         setAchievements(data.achievements || [])

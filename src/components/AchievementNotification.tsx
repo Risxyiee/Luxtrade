@@ -32,8 +32,7 @@ export default function AchievementNotification({
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          missionId: achievementId,
-          userId
+          missionId: achievementId
         })
       })
 
