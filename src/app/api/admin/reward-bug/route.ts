@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       select: { role: true }
     });
 
-    if (!adminProfile || adminProfile.role !== 'ADMIN') {
+    if (!adminProfile || (adminProfile.role !== 'ADMIN' && adminProfile.role !== 'SUPER_ADMIN')) {
       return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 });
     }
 

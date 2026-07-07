@@ -62,7 +62,7 @@ export async function PATCH(
           select: {
             id: true,
             email: true,
-            name: true
+            full_name: true
           }
         }
       }

@@ -50,8 +50,8 @@ export async function POST(request: NextRequest) {
     })
     console.log('✅ [API] Trades deleted')
 
-    // Step 5: Delete user's journals
-    await db.journal.deleteMany({
+    // Step 5: Delete user's journal entries
+    await db.journalEntry.deleteMany({
       where: { user_id: userId }
     })
     console.log('✅ [API] Journals deleted')
@@ -68,13 +68,31 @@ export async function POST(request: NextRequest) {
     })
     console.log('✅ [API] Watchlist deleted')
 
-    // Step 8: Delete user's missions
-    await db.mission.deleteMany({
+    // Step 8: Delete user's mission progress
+    await db.missionProgress.deleteMany({
+      where: { userId: userId }
+    })
+    console.log('✅ [API] Mission progress deleted')
+
+    // Step 9: Delete user's weekly goals
+    await db.weeklyGoal.deleteMany({
       where: { user_id: userId }
     })
-    console.log('✅ [API] Missions deleted')
+    console.log('✅ [API] Weekly goals deleted')
 
-    // Step 9: Delete user's profile
+    // Step 10: Delete user's social links
+    await db.socialLink.deleteMany({
+      where: { userId: userId }
+    })
+    console.log('✅ [API] Social links deleted')
+
+    // Step 11: Delete user's tags
+    await db.tag.deleteMany({
+      where: { user_id: userId }
+    })
+    console.log('✅ [API] Tags deleted')
+
+    // Step 12: Delete user's profile
     await db.profile.delete({
       where: { id: userId }
     })

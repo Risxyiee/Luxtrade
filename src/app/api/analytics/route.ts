@@ -101,9 +101,23 @@ export async function GET(request: NextRequest) {
       : 0
     const sharpeRatio = variance > 0 ? (avgReturn / Math.sqrt(variance)) * Math.sqrt(252) : 0
 
-    // Equity Curve (chronological order - oldest to newest)
+    // Fetch user's default/first trading account for initial balance
+    let startBalance = 10000 // fallback
+    try {
+      const defaultAccount = await db.tradingAccount.findFirst({
+        where: { user_id: userId, is_active: true },
+        orderBy: [{ is_default: 'desc' }, { created_at: 'asc' }]
+      })
+      if (defaultAccount) {
+        startBalance = defaultAccount.initial_balance > 0 ? defaultAccount.initial_balance : 10000
+      }
+    } catch (e) {
+      console.warn('[analytics] Could not fetch trading account for initial balance:', e)
+    }
+
+    // Equity Curve (chronological order - oldest to newest, uses real account balance)
     const equityCurve = []
-    cumulative = 10000
+    cumulative = startBalance
 
     sortedByTime.forEach(trade => {
       cumulative += trade.profit_loss
