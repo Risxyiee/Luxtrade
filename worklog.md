@@ -77,3 +77,38 @@ Stage Summary:
 - Fix: GET users sekarang merge Auth + profiles table, profiles table = source of truth
 - Lint: clean, kompilasi OK
 - Browser verifikasi: tidak bisa full test (sandbox tanpa Supabase env vars), tapi kompilasi Next.js berhasil tanpa error
+
+---
+Task ID: 1
+Agent: main
+Task: Fix silent catch sistemik, referral validation, rate limiting (Audit Round 4)
+
+Work Log:
+- PRIORITAS 1: Fix 4 file kritis
+  - pro-check.ts: ALREADY properly logged (confirmed from previous session — isUserPro and countUserJournalsThisMonth both have console.error)
+  - midtrans/create-transaction: Fixed 3 silent catches (promo validation, DB save, promo consume)
+  - journal-entries/route.ts: Fixed 4 silent catches (GET, POST, PUT, DELETE)
+  - verify-email/route.ts: Fixed 8 silent catches (self-healing schema → console.debug, business logic → console.warn)
+- PRIORITAS 2: Fix 11 more files
+  - journal/route.ts, trades/route.ts, admin/activate, admin/affiliate-withdrawals, admin/withdrawals, admin/subscriptions/[id]/activate, admin/affiliates, watchlist, promo-quota, signup, rate-limit.ts
+- TUGAS 2: Referral validation
+  - Frontend was ALREADY implemented (field + ?ref= auto-fill confirmed in signup/page.tsx)
+  - Backend: Added affiliate table validation in /api/auth/signup — non-blocking, logs warnings
+  - All downstream referralCode references updated to use validatedReferralCode
+- RATE LIMITING: Added to 4 endpoints
+  - verify-email: 10 req/15min per IP
+  - journal-entries POST: 10 req/min per user
+  - midtrans/create-transaction: 5 req/5min per user
+  - midtrans/create-transaction-unverified: 5 req/5min per IP
+
+Stage Summary:
+- 30 silent catches fixed across 15 server-side files
+- 4 new rate limits added (total: signup, register, reset-password, resend-verification, verify-email, journal-write, trades, create-transaction, create-transaction-unverified, analyze-screenshot, vlm, ai-chat)
+- Referral code validation: non-blocking, validates against affiliates table, saves to referred_by_code
+- Build: clean, no errors. Lint: clean. Pushed to main as d0e3d9d.
+
+KATEGORISASI SISA SILENT CATCH (client-side — AMAN diam-diam):
+- UI components (toast.error sudah memberi feedback ke user): settings, admin-email, admin-panel, affiliate, upgrade, checkout, reset-password, verify, page.tsx, JournalTab, WatchlistTab, SidebarFooter, ScreenshotJournalModal, journalHandlers, importHandlers, watchlistHandlers
+- CookieConsent.tsx: localStorage read — aman
+- signup/page.tsx: canvas fingerprint fallback — aman
+- Self-healing schema (ensureDbMigrated): ALTER TABLE IF NOT EXISTS — idempotent, expected to fail
