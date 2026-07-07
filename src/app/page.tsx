@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 import { toast } from 'sonner'
 import { useLanguage } from '@/contexts/LanguageContext'
 import LegalPagesModal, { type LegalPageTab } from '@/components/LegalPagesModal'
-import ParticleBackground from '@/components/landing/ParticleBackground'
+import InteractiveNeuralVortex from '@/components/ui/interactive-neural-vortex-background'
 import AnnouncementBar from '@/components/landing/AnnouncementBar'
 import LandingNavbar from '@/components/landing/LandingNavbar'
 import LandingSidebar from '@/components/landing/LandingSidebar'
@@ -151,7 +151,7 @@ export default function LuxTradeLanding() {
 
   return (
     <div className="min-h-screen bg-lux-bg-primary text-lux-text-primary overflow-x-hidden flex flex-col">
-      <ParticleBackground />
+      <InteractiveNeuralVortex />
       <header>
         <AnnouncementBar language={language} />
         <LandingNavbar language={language} t={t} onSidebarOpen={() => setSidebarOpen(true)} />
