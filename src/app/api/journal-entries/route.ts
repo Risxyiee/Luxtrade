@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { getAuthUser } from '@/lib/api-auth'
 import { isUserPro, countUserJournalsThisMonth, FREE_JOURNAL_LIMIT } from '@/lib/pro-check'
+import { rateLimitByUser } from '@/lib/rate-limit'
 
 // GET - Fetch journal entries
 export async function GET(request: NextRequest) {
@@ -23,11 +24,13 @@ export async function GET(request: NextRequest) {
       .limit(limit)
 
     if (error) {
+      console.error('[journal-entries GET] Supabase query error:', error.message)
       return NextResponse.json({ entries: [] })
     }
 
     return NextResponse.json({ entries: data || [] })
-  } catch {
+  } catch (error) {
+    console.error('[journal-entries GET] Unexpected error:', error)
     return NextResponse.json({ entries: [] })
   }
 }
@@ -39,6 +42,14 @@ export async function POST(request: NextRequest) {
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Rate limit: 10 writes per minute per user
+    const rl = rateLimitByUser('journal-write', authUser.id, {
+      maxRequests: 10,
+      windowMs: 60_000,
+      message: 'Terlalu banyak permintaan. Tunggu 1 menit.',
+    })
+    if (rl) return rl
 
     const body = await request.json()
     const { title, content, mood, market_condition, tags, image_url } = body
@@ -82,7 +93,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ entry: data })
-  } catch {
+  } catch (error) {
+    console.error('[journal-entries POST] Failed to create journal entry:', error)
     return NextResponse.json({ error: 'Failed to create journal entry' }, { status: 500 })
   }
 }
@@ -120,7 +132,8 @@ export async function PUT(request: NextRequest) {
     }
 
     return NextResponse.json({ entry: data })
-  } catch {
+  } catch (error) {
+    console.error('[journal-entries PUT] Failed to update journal entry:', error)
     return NextResponse.json({ error: 'Failed to update journal entry' }, { status: 500 })
   }
 }
@@ -152,7 +165,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true })
-  } catch {
+  } catch (error) {
+    console.error('[journal-entries DELETE] Failed to delete entry:', error)
     return NextResponse.json({ error: 'Failed to delete entry' }, { status: 500 })
   }
 }

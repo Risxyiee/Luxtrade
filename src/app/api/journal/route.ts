@@ -89,7 +89,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ entries, analytics })
-  } catch {
+  } catch (error) {
+    console.error('[journal GET] Unexpected error:', error)
     return NextResponse.json({ entries: [] })
   }
 }
@@ -208,7 +209,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true })
-  } catch {
+  } catch (error) {
+    console.error('[journal DELETE] Failed to delete journal entry:', error)
     return NextResponse.json({ error: 'Failed to delete journal entry' }, { status: 500 })
   }
 }

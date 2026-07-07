@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
+import { checkRateLimit } from '@/lib/rate-limit'
 import crypto from 'crypto'
 
 // ============================================
@@ -25,7 +26,7 @@ async function ensureDbMigrated() {
   ]
   for (const colDef of columns) {
     try { await db.$executeRawUnsafe(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS ${colDef};`) }
-    catch { /* ignore */ }
+    catch (colErr: any) { console.debug(`[verify-email ensureDbMigrated] Column ${colDef.split(' ')[0]}:`, colErr?.code || colErr?.message?.slice(0, 60)) }
   }
 
   // Drop duplicate camelCase columns
@@ -36,7 +37,7 @@ async function ensureDbMigrated() {
   ]
   for (const col of duplicateCols) {
     try { await db.$executeRawUnsafe(`ALTER TABLE profiles DROP COLUMN IF EXISTS "${col}";`) }
-    catch { /* ignore */ }
+    catch (dropErr: any) { console.debug(`[verify-email ensureDbMigrated] Drop ${col}:`, dropErr?.code || dropErr?.message?.slice(0, 60)) }
   }
 
   // Drop NOT NULL on all columns dynamically
@@ -47,9 +48,11 @@ async function ensureDbMigrated() {
     `)
     for (const col of cols) {
       try { await db.$executeRawUnsafe(`ALTER TABLE profiles ALTER COLUMN "${col.column_name}" DROP NOT NULL;`) }
-      catch { /* ignore */ }
+      catch (notNullErr: any) { console.debug(`[verify-email ensureDbMigrated] DROP NOT NULL ${col.column_name}:`, notNullErr?.code) }
     }
-  } catch { /* ignore */ }
+  } catch (enumErr) {
+    console.warn('[verify-email ensureDbMigrated] Could not enumerate columns:', enumErr)
+  }
 
   // Set DEFAULTs and indexes
   try {
@@ -58,7 +61,9 @@ async function ensureDbMigrated() {
     await db.$executeRawUnsafe(`UPDATE profiles SET created_at = now() WHERE created_at IS NULL;`)
     await db.$executeRawUnsafe(`UPDATE profiles SET updated_at = now() WHERE updated_at IS NULL;`)
     await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS profiles_email_verify_token_key ON profiles(email_verify_token) WHERE email_verify_token IS NOT NULL;`)
-  } catch { /* ignore */ }
+  } catch (idxErr) {
+    console.debug('[verify-email ensureDbMigrated] Index creation:', idxErr)
+  }
 }
 
 /**
@@ -123,6 +128,14 @@ async function activateTrialIfNeeded(userId: string, email: string) {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 10 verify attempts per 15 minutes per IP
+    const rl = checkRateLimit(request, 'verify-email', {
+      maxRequests: 10,
+      windowMs: 15 * 60 * 1000,
+      message: 'Terlalu banyak percobaan verifikasi. Tunggu 15 menit.',
+    })
+    if (rl) return rl
+
     if (!supabaseAdmin) {
       return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
     }
@@ -206,7 +219,9 @@ export async function POST(request: NextRequest) {
                 email_verify_exp_at = NULL, updated_at = now()
               WHERE id = $1
             `, supabaseProfile.id)
-          } catch { /* ignore */ }
+          } catch (prismaFallback1Err) {
+            console.warn('[verify-email] Prisma fallback update failed (Supabase path):', prismaFallback1Err)
+          }
 
           console.log('✅ Email verified via Supabase fallback for:', supabaseProfile.email)
           return NextResponse.json({
@@ -241,7 +256,9 @@ export async function POST(request: NextRequest) {
                   email_verify_exp_at = NULL, updated_at = now()
                 WHERE id = $1
               `, matchedUser.id)
-            } catch { /* ignore */ }
+            } catch (prismaFallback2Err) {
+              console.warn('[verify-email] Prisma fallback update failed (admin listUsers path):', prismaFallback2Err)
+            }
             return NextResponse.json({
               success: true,
               message: 'Email berhasil diverifikasi! Kamu mendapat 7 hari PRO gratis! 🎉',
@@ -295,7 +312,9 @@ export async function POST(request: NextRequest) {
       await admin.from('profiles')
         .update({ email_verified: true, updated_at: new Date().toISOString() })
         .eq('id', profile.id)
-    } catch { /* ignore */ }
+    } catch (sbUpdateErr) {
+      console.warn('[verify-email] Supabase profiles update failed:', sbUpdateErr)
+    }
 
     console.log('✅ Email fully verified for user:', profile.id, profile.email)
 

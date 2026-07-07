@@ -78,8 +78,8 @@ export async function POST(request: NextRequest) {
         if (aff) {
           await svc.from('affiliates').update({ total_paid: (aff.total_paid || 0) + w.amount }).eq('id', w.affiliate_id)
         }
-      } catch {
-        // Non-critical
+      } catch (affUpdateErr) {
+        console.warn('[admin/affiliate-withdrawals] Failed to update affiliate total_paid:', affUpdateErr)
       }
     }
 

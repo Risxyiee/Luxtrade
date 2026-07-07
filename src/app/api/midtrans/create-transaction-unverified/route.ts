@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getMidtransConfig } from '@/lib/payment/midtrans'
 import { getPlanPrice, type PricingPlan } from '@/lib/pricing'
+import { checkRateLimit } from '@/lib/rate-limit'
 import crypto from 'crypto'
 
 export const runtime = 'nodejs'
@@ -17,6 +18,14 @@ export const dynamic = 'force-dynamic'
  */
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 5 transaction creation attempts per 5 minutes per IP
+    const rl = checkRateLimit(request, 'create-transaction-unverified', {
+      maxRequests: 5,
+      windowMs: 5 * 60 * 1000,
+      message: 'Terlalu banyak permintaan. Tunggu 5 menit.',
+    })
+    if (rl) return rl
+
     const body = await request.json()
     const { userId, email, fullName, plan } = body as {
       userId: string
