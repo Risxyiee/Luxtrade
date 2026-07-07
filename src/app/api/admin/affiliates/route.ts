@@ -41,7 +41,9 @@ export async function GET(request: NextRequest) {
         if (profiles) {
           emailMap = new Map(profiles.map((p: any) => [p.id, p.email]))
         }
-      } catch { /* skip */ }
+      } catch (emailMapErr) {
+        console.warn('[admin/affiliates] Failed to build email map:', emailMapErr)
+      }
     }
 
     const formatted = affiliates.map((a: any) => ({

@@ -221,6 +221,37 @@ export async function POST(request: NextRequest) {
     const admin = supabaseAdmin
 
     // ============================================
+    // REFERRAL CODE VALIDATION (non-blocking)
+    // Validates against affiliates table; logs warning if invalid but does NOT block signup
+    // ============================================
+    let validatedReferralCode: string | null = null
+    if (referralCode && typeof referralCode === 'string' && referralCode.trim().length > 0) {
+      const normalizedCode = referralCode.trim().toUpperCase()
+      try {
+        // Check if the referral code exists in the affiliates table
+        const { data: affiliate, error: affErr } = await admin
+          .from('affiliates')
+          .select('code, user_id, status')
+          .eq('code', normalizedCode)
+          .single()
+
+        if (affErr || !affiliate) {
+          console.warn(`[signup] Referral code "${normalizedCode}" not found in affiliates table — saving anyway in referred_by_code`)
+          validatedReferralCode = normalizedCode
+        } else if (affiliate.status === 'INACTIVE' || affiliate.status === 'BANNED') {
+          console.warn(`[signup] Referral code "${normalizedCode}" belongs to ${affiliate.status} affiliate — saving anyway (non-blocking)`)
+          validatedReferralCode = normalizedCode
+        } else {
+          console.log(`✅ [signup] Valid referral code "${normalizedCode}" from affiliate ${affiliate.user_id}`)
+          validatedReferralCode = normalizedCode
+        }
+      } catch (refErr) {
+        console.warn('[signup] Referral code validation failed (non-blocking):', refErr)
+        validatedReferralCode = normalizedCode
+      }
+    }
+
+    // ============================================
     // PRE-FLIGHT: Auto-migrate database
     // ============================================
     await ensureDbMigrated()
@@ -250,7 +281,9 @@ export async function POST(request: NextRequest) {
           if (!listErr && users) {
             userStillExists = users.some((u: any) => u.email?.toLowerCase() === emailLower)
           }
-        } catch { /* ignore */ }
+        } catch (listErr) {
+          console.warn('[signup] listUsers check failed:', listErr)
+        }
 
         if (!userStillExists) {
           // User sudah dihapus dari Supabase Auth, tapi profil masih di DB
@@ -277,7 +310,9 @@ export async function POST(request: NextRequest) {
               UPDATE profiles SET email_verify_token = $1, email_verify_exp_at = $2, updated_at = now()
               WHERE id = $3
             `, newToken, newExpAt, ep.id)
-          } catch { /* ignore */ }
+          } catch (tokenUpdateErr) {
+            console.warn('[signup] Failed to update verify token for existing profile:', tokenUpdateErr)
+          }
 
           const confirmationUrl = `${SITE_URL}/auth/verify?token=${newToken}`
           const name = ep.full_name || fullName || emailLower.split('@')[0]
@@ -289,7 +324,9 @@ export async function POST(request: NextRequest) {
               templateId: process.env.RESEND_TEMPLATE_CONFIRM || '',
               templateParams: { name, confirmationUrl }, fallbackHtml,
             })
-          } catch { /* ignore */ }
+          } catch (resendErr) {
+            console.warn('[signup] Failed to resend verification email:', resendErr)
+          }
 
           return NextResponse.json({
             success: true, code: 'RESENT_VERIFICATION',
@@ -297,7 +334,9 @@ export async function POST(request: NextRequest) {
           })
         }
       }
-    } catch { /* ignore, proceed to signup */ }
+    } catch (checkErr) {
+      console.warn('[signup] Pre-flight user-exists check failed:', checkErr)
+    }
 
     // ============================================
     // Step 1: Create user via admin API
@@ -314,7 +353,7 @@ export async function POST(request: NextRequest) {
         full_name: fullName,
         is_pro: false,
         my_referral_code: myReferralCode,
-        referred_by_code: referralCode || null,
+        referred_by_code: validatedReferralCode,
         has_ever_been_pro: false,
         commission_paid: false,
         device_id: deviceId || null,
@@ -354,7 +393,7 @@ export async function POST(request: NextRequest) {
     // ============================================
     const profileResult = await createOrUpdateProfile({
       id: userId, email: emailLower, full_name: fullName,
-      deviceId, myReferralCode, referredByCode: referralCode,
+      deviceId, myReferralCode, referredByCode: validatedReferralCode,
     })
 
     const savedToken = profileResult.token
@@ -408,7 +447,7 @@ export async function POST(request: NextRequest) {
         email_verify_exp_at: new Date(Date.now() + VERIFY_EXPIRY_MS).toISOString(),
         device_id: deviceId || null,
         my_referral_code: myReferralCode,
-        referred_by_code: referralCode || null,
+        referred_by_code: validatedReferralCode,
         has_ever_been_pro: false,
         commission_paid: false,
         created_at: now,

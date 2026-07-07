@@ -46,10 +46,12 @@ export async function GET(request: Request) {
         durationMonths: Number(promo.duration_months) || 3,
         isActive: promo.is_active
       })
-    } catch {
+    } catch (err) {
+      console.warn('[promo-quota] Query failed:', err)
       return NextResponse.json(DEFAULT_PROMO)
     }
-  } catch {
+  } catch (err) {
+    console.warn('[promo-quota] Outer catch:', err)
     return NextResponse.json(DEFAULT_PROMO)
   }
 }

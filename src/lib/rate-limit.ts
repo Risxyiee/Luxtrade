@@ -108,7 +108,9 @@ export function checkRateLimit(
       // For simplicity, use IP as fallback — the actual enforcement happens
       // in the route handler with async body parsing.
       // This helper is primarily for IP-based limiting.
-    } catch { /* fallback to IP */ }
+    } catch (e) {
+      // Cannot clone body or parse JSON — fallback to IP
+    }
     // Fall through to IP-based
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
                request.headers.get('x-real-ip') ||

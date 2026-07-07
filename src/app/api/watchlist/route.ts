@@ -72,8 +72,8 @@ export async function POST(request: NextRequest) {
           }
         })
       }
-    } catch {
-      // profile might already exist
+    } catch (ensureErr) {
+      console.warn('[watchlist POST] ensureProfile failed (may already exist):', ensureErr)
     }
 
     const item = await db.watchlistItem.create({

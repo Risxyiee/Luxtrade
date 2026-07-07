@@ -3,6 +3,7 @@ import { createClientForApi } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
 import { getMidtransConfig } from '@/lib/payment/midtrans'
 import { PRICING, getPlanPrice, type PricingPlan } from '@/lib/pricing'
+import { rateLimitByUser } from '@/lib/rate-limit'
 import crypto from 'crypto'
 
 export const runtime = 'nodejs'
@@ -27,6 +28,14 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Rate limit: 5 transaction creation attempts per 5 minutes per user
+    const rl = rateLimitByUser('create-transaction', user.id, {
+      maxRequests: 5,
+      windowMs: 5 * 60 * 1000,
+      message: 'Terlalu banyak permintaan pembayaran. Tunggu 5 menit.',
+    })
+    if (rl) return rl
 
     // ── 2. Check Midtrans config ───────────────────────────────
     const midtransConfig = getMidtransConfig()
@@ -74,8 +83,8 @@ export async function POST(request: NextRequest) {
           }
           grossAmount = Math.round(grossAmount * (1 - discountPercent / 100))
         }
-      } catch {
-        // Ignore promo errors — proceed without discount
+      } catch (promoErr) {
+        console.warn('[Midtrans create-transaction] Promo validation failed, proceeding without discount:', promoErr)
       }
     }
 
@@ -173,7 +182,9 @@ export async function POST(request: NextRequest) {
         } else if (errJson.status_message) {
           userMessage = errJson.status_message
         }
-      } catch { /* keep default message */ }
+      } catch (parseErr) {
+        console.warn('[Midtrans create-transaction] Failed to parse Snap error response:', parseErr)
+      }
       return NextResponse.json(
         { error: userMessage },
         { status: 500 }
@@ -198,8 +209,8 @@ export async function POST(request: NextRequest) {
           expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         },
       })
-    } catch (dbErr: any) {
-      // DB save skipped (non-critical)
+    } catch (dbErr) {
+      console.warn('[Midtrans create-transaction] Failed to save payment order to DB:', dbErr)
     }
 
     // ── 10. Consume promo quota if applied ─────────────────────
@@ -211,8 +222,8 @@ export async function POST(request: NextRequest) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code: promoCode, userId: user.id }),
         })
-      } catch {
-        // Non-critical
+      } catch (consumeErr) {
+        console.warn('[Midtrans create-transaction] Failed to consume promo quota:', consumeErr)
       }
     }
 
