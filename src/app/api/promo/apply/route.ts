@@ -194,14 +194,49 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Gagal membuat subscription. Coba lagi.' })
     }
 
-    // Update profile
+    // Update profile — CRITICAL: this is what actually enables PRO features
+    let profileUpdated = false
     try {
-      await db.$executeRawUnsafe(`
+      const profileResult = await db.$executeRawUnsafe(`
         UPDATE profiles SET plan = 'PRO', is_pro = true, subscription_until = $1, pro_expiry = $1, updated_at = NOW() WHERE id = $2;
       `, endDate, userId)
-      console.log(`✅ [promo/apply:${logId}] Profile → PRO`)
+      // $executeRawUnsafe returns the count of affected rows
+      // If 0 rows affected, the profile might not exist in DB
+      if (profileResult && profileResult.rowCount > 0) {
+        profileUpdated = true
+        console.log(`✅ [promo/apply:${logId}] Profile → PRO (userId=${userId})`)
+      } else {
+        console.error(`❌ [promo/apply:${logId}] Profile UPDATE affected 0 rows — user ${userId} may not exist in profiles table`)
+      }
     } catch (profErr: any) {
-      console.warn(`⚠️ [promo/apply:${logId}] Profile update warning: ${profErr?.message?.substring(0, 80)}`)
+      console.error(`❌ [promo/apply:${logId}] Profile UPDATE FAILED: ${profErr?.message}`)
+      console.error(`❌ [promo/apply:${logId}] This is CRITICAL — PRO will NOT be activated for user ${userId}`)
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // CRITICAL CHECK: If profile update failed, rollback and return error
+    // ══════════════════════════════════════════════════════════════
+    if (!profileUpdated) {
+      // Rollback: delete the subscription we just created
+      try {
+        await db.$executeRawUnsafe(`DELETE FROM user_subscriptions WHERE id = $1;`, subscriptionId)
+        console.log(`🔄 [promo/apply:${logId}] Rolled back subscription ${subscriptionId}`)
+      } catch (rollbackErr: any) {
+        console.error(`❌ [promo/apply:${logId}] Rollback failed: ${rollbackErr?.message}`)
+      }
+      // Rollback: decrement promo quota
+      try {
+        await db.$executeRawUnsafe(`UPDATE public.promo_codes SET used_quota = used_quota - 1, updated_at = NOW() WHERE id = $1;`, promo.id)
+        console.log(`🔄 [promo/apply:${logId}] Rolled back promo quota`)
+      } catch (quotaErr: any) {
+        console.error(`❌ [promo/apply:${logId}] Quota rollback failed: ${quotaErr?.message}`)
+      }
+
+      return NextResponse.json({
+        success: false,
+        message: 'Gagal mengaktifkan PRO. Silakan hubungi admin untuk bantuan manual.',
+        debugCode: 'PROFILE_UPDATE_FAILED'
+      })
     }
 
     // Sync Supabase Auth metadata (non-critical)
