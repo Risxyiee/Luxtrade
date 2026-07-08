@@ -22,6 +22,9 @@ interface ExtractedTrade {
   close_time: string
   session: string
   notes: string
+  stop_loss?: number
+  take_profit?: number
+  order_id?: string
 }
 
 interface ExtractedJournal {
@@ -167,6 +170,9 @@ export default function ScreenshotJournalDialog({
             profit_loss: editTrade.profit_loss,
             open_time: editTrade.open_time || new Date().toISOString(),
             close_time: editTrade.close_time || new Date().toISOString(),
+            stop_loss: editTrade.stop_loss || null,
+            take_profit: editTrade.take_profit || null,
+            ticket_number: editTrade.order_id || null,
             session: editTrade.session,
             notes: editTrade.notes || 'Auto-generated from screenshot',
             account_id: selectedAccountId || null

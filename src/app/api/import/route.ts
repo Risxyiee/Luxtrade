@@ -28,6 +28,9 @@ export async function POST(request: NextRequest) {
       open_time: string;
       close_time: string;
       session: string | null;
+      stop_loss?: number | null;
+      take_profit?: number | null;
+      ticket_number?: string | null;
     }) => ({
       user_id: authUser.id,
       symbol: trade.symbol.toUpperCase(),
@@ -38,6 +41,9 @@ export async function POST(request: NextRequest) {
       profit_loss: parseFloat(String(trade.profit_loss)) || 0,
       open_time: trade.open_time || new Date().toISOString(),
       close_time: trade.close_time || new Date().toISOString(),
+      stop_loss: trade.stop_loss ? parseFloat(String(trade.stop_loss)) : null,
+      take_profit: trade.take_profit ? parseFloat(String(trade.take_profit)) : null,
+      ticket_number: trade.ticket_number || null,
       session: trade.session || null,
     }))
     

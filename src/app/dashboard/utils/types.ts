@@ -19,6 +19,9 @@ export interface TradeFormData {
   emotion: string
   account_id: string
   account_type: string
+  stop_loss: string
+  take_profit: string
+  ticket_number: string
 }
 
 export interface MTReportPreview {
@@ -48,4 +51,7 @@ export const emptyFormData: TradeFormData = {
   emotion: '',
   account_id: '',
   account_type: 'STANDARD',
+  stop_loss: '',
+  take_profit: '',
+  ticket_number: '',
 }

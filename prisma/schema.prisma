@@ -154,6 +154,9 @@ model Trade {
   emotion           String?
   setup_type        String?
   tags              String?
+  stop_loss         Float?                              @map("stop_loss")
+  take_profit       Float?                              @map("take_profit")
+  ticket_number     String?                             @map("ticket_number")
   risk_reward_ratio Float?
   trade_duration    Int?
   linked_journal_id String?
