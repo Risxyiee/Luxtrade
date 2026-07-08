@@ -193,6 +193,9 @@ export async function POST(request: NextRequest) {
         emotion: body.emotion ? String(body.emotion) : null,
         setup_type: body.setup_type ? String(body.setup_type) : null,
         tags: body.tags ? JSON.stringify(body.tags) : null,
+        stop_loss: body.stop_loss != null && body.stop_loss !== '' ? parseFloat(String(body.stop_loss)) : null,
+        take_profit: body.take_profit != null && body.take_profit !== '' ? parseFloat(String(body.take_profit)) : null,
+        ticket_number: body.ticket_number ? String(body.ticket_number) : null,
         risk_reward_ratio: body.risk_reward_ratio ? parseFloat(String(body.risk_reward_ratio)) : null,
         trade_duration: body.trade_duration ? parseInt(String(body.trade_duration)) : null,
         linked_journal_id: body.linked_journal_id ? String(body.linked_journal_id) : null,
@@ -298,6 +301,8 @@ export async function PUT(request: NextRequest) {
     if (updates.close_price !== undefined) updateData.close_price = parseFloat(String(updates.close_price))
     if (updates.lot_size !== undefined) updateData.lot_size = parseFloat(String(updates.lot_size))
     if (updates.profit_loss !== undefined) updateData.profit_loss = parseFloat(String(updates.profit_loss))
+    if (updates.stop_loss !== undefined) updateData.stop_loss = parseFloat(String(updates.stop_loss))
+    if (updates.take_profit !== undefined) updateData.take_profit = parseFloat(String(updates.take_profit))
     if (updates.risk_reward_ratio !== undefined) updateData.risk_reward_ratio = parseFloat(String(updates.risk_reward_ratio))
     if (updates.trade_duration !== undefined) updateData.trade_duration = parseInt(String(updates.trade_duration))
     if (updates.open_time !== undefined) updateData.open_time = new Date(String(updates.open_time))
