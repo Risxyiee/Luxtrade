@@ -129,6 +129,15 @@ export const createTradeHandlers = ({
       if (formData.emotion) {
         payload.emotion = formData.emotion
       }
+      if (formData.stop_loss) {
+        payload.stop_loss = parseFloat(formData.stop_loss)
+      }
+      if (formData.take_profit) {
+        payload.take_profit = parseFloat(formData.take_profit)
+      }
+      if (formData.ticket_number) {
+        payload.ticket_number = formData.ticket_number
+      }
 
       console.log('📤 [handleAddTrade] Sending payload:', payload)
       console.log('🔑 [handleAddTrade] Auth headers:', getAuthHeaders())
@@ -198,6 +207,9 @@ export const createTradeHandlers = ({
           session: formData.session || null,
           notes: formData.notes || null,
           image_url: formData.image_url || null,
+          stop_loss: formData.stop_loss ? parseFloat(formData.stop_loss) : null,
+          take_profit: formData.take_profit ? parseFloat(formData.take_profit) : null,
+          ticket_number: formData.ticket_number || null,
         }),
       })
 
@@ -258,8 +270,13 @@ export const createTradeHandlers = ({
       session: trade.session || '',
       notes: trade.notes || '',
       image_url: trade.image_url || '',
-      screenshot_url: trade.screenshot_url || '', // New field
-      emotion: trade.emotion || '', // New field
+      screenshot_url: trade.screenshot_url || '',
+      emotion: trade.emotion || '',
+      account_id: (trade as any).account_id || '',
+      account_type: (trade as any).account_type || 'STANDARD',
+      stop_loss: (trade as any).stop_loss ? trade.stop_loss.toString() : '',
+      take_profit: (trade as any).take_profit ? trade.take_profit.toString() : '',
+      ticket_number: (trade as any).ticket_number || '',
     })
     setEditTradeOpen(true)
   }
@@ -292,6 +309,9 @@ export const createTradeHandlers = ({
       emotion: (trade as any).emotion || '',
       account_id: (trade as any).account_id || '',
       account_type: (trade as any).account_type || 'STANDARD',
+      stop_loss: (trade as any).stop_loss ? trade.stop_loss.toString() : '',
+      take_profit: (trade as any).take_profit ? trade.take_profit.toString() : '',
+      ticket_number: (trade as any).ticket_number || '',
     })
     setAddTradeOpen(true)
   }
