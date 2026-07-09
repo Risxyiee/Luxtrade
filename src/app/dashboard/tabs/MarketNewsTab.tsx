@@ -15,6 +15,7 @@ interface FullNewsItem {
   snippet: string
   date: string
   type: 'high' | 'medium' | 'low'
+  isMock?: boolean
 }
 
 interface MarketNewsTabProps {
@@ -193,17 +194,22 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
             const Icon = cfg.icon
             const isExpanded = expandedId === `${item.url}-${index}`
             const isInvesting = item.source?.toLowerCase().includes('investing')
+            const isClickable = !item.isMock && item.url
+            const Wrapper = isClickable ? motion.a : motion.div
+            const linkProps = isClickable ? {
+              href: item.url,
+              target: '_blank' as const,
+              rel: 'noopener noreferrer' as const,
+            } : {}
             return (
-              <motion.a
+              <Wrapper
                 key={`${item.url}-${index}`}
-                href={item.url || '#'}
-                target={item.url ? '_blank' : undefined}
-                rel={item.url ? 'noopener noreferrer' : undefined}
+                {...linkProps}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, delay: index * 0.03 }}
                 onClick={() => setExpandedId(isExpanded ? null : `${item.url}-${index}`)}
-                className={`block rounded-xl border p-4 transition-all hover:scale-[1.005] ${isInvesting ? 'bg-purple-500/5 border-purple-500/20' : cfg.bg} ${!item.url ? 'pointer-events-none' : 'cursor-pointer'}`}
+                className={`block rounded-xl border p-4 transition-all ${isClickable ? 'cursor-pointer hover:scale-[1.005]' : ''} ${isInvesting ? 'bg-purple-500/5 border-purple-500/20' : cfg.bg}`}
               >
                 <div className="flex items-start gap-3">
                   <div className="mt-0.5">
@@ -226,14 +232,14 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
                     {item.snippet && (
                       <p className={`mt-2 text-xs leading-relaxed text-gray-400 transition-all ${isExpanded ? '' : 'line-clamp-2'}`}>{item.snippet}</p>
                     )}
-                    {item.url && (
+                    {isClickable && (
                       <span className="inline-flex items-center gap-1 mt-2 text-[11px] text-purple-400/70 hover:text-purple-400">
                         {t.clickToRead} <ExternalLink className="w-3 h-3" />
                       </span>
                     )}
                   </div>
                 </div>
-              </motion.a>
+              </Wrapper>
             )
           })}
         </div>
