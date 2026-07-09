@@ -32,16 +32,21 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
   const [filter, setFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [lastFetched, setLastFetched] = useState<string>('')
+  const [unavailableMsg, setUnavailableMsg] = useState<string | null>(null)
 
   // Fetch news
   const fetchNews = useCallback(async () => {
     setNewsLoading(true)
+    setUnavailableMsg(null)
     try {
       const res = await fetch('/api/news?format=full')
       if (res.ok) {
         const data = await res.json()
         setNews(data.news || [])
         setLastFetched(data.fetchedAt || '')
+        if (data.unavailable) {
+          setUnavailableMsg(data.message || 'Data berita sedang tidak tersedia.')
+        }
       }
     } catch { /* keep existing */ } finally { setNewsLoading(false) }
   }, [])
@@ -174,15 +179,22 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
       {newsLoading && (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
           <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
-          <span className="text-sm text-gray-500">{language === 'id' ? 'Mengambil berita dari Investing.com...' : 'Fetching news from Investing.com...'}</span>
+          <span className="text-sm text-gray-500">{language === 'id' ? 'Mengambil berita dari Bloomberg...' : 'Fetching news from Bloomberg...'}</span>
         </div>
       )}
 
-      {/* Empty */}
+      {/* Empty / Unavailable */}
       {!newsLoading && filtered.length === 0 && (
         <div className="text-center py-16">
           <Newspaper className="w-12 h-12 text-gray-700 mx-auto mb-3" />
-          <p className="text-gray-500">{filter === 'all' ? t.noNewsAll : t.noNews}</p>
+          {unavailableMsg ? (
+            <>
+              <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+              <p className="text-gray-400">{unavailableMsg}</p>
+            </>
+          ) : (
+            <p className="text-gray-500">{filter === 'all' ? t.noNewsAll : t.noNews}</p>
+          )}
         </div>
       )}
 

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { CalendarDays, RefreshCw, Crown, Lock } from 'lucide-react'
+import { CalendarDays, RefreshCw, Crown, Lock, AlertTriangle } from 'lucide-react'
 
 // Interface
 interface CalendarEvent {
@@ -32,15 +32,20 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
   const [calFilter, setCalFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all')
   const [currencyFilter, setCurrencyFilter] = useState<string>('all')
   const [lastFetched, setLastFetched] = useState<string>('')
+  const [unavailableMsg, setUnavailableMsg] = useState<string | null>(null)
 
   const fetchCalendar = useCallback(async () => {
     setCalLoading(true)
+    setUnavailableMsg(null)
     try {
       const res = await fetch('/api/news/calendar')
       if (res.ok) {
         const data = await res.json()
         setEvents(data.events || [])
         setLastFetched(data.fetchedAt || '')
+        if (data.unavailable) {
+          setUnavailableMsg(data.message || 'Data kalender ekonomi sedang tidak tersedia.')
+        }
       }
     } catch { /* keep existing */ } finally { setCalLoading(false) }
   }, [])
@@ -250,11 +255,18 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
         </div>
       )}
 
-      {/* Empty */}
+      {/* Empty / Unavailable */}
       {!calLoading && filtered.length === 0 && (
         <div className="text-center py-16">
           <CalendarDays className="w-12 h-12 text-gray-700 mx-auto mb-3" />
-          <p className="text-gray-500">{t.noEvents}</p>
+          {unavailableMsg ? (
+            <>
+              <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+              <p className="text-gray-400">{unavailableMsg}</p>
+            </>
+          ) : (
+            <p className="text-gray-500">{t.noEvents}</p>
+          )}
         </div>
       )}
 
