@@ -3,6 +3,7 @@ import { getAuthUser } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { isUserPro } from '@/lib/pro-check'
 import { extractTradeData, saveTrade, uploadScreenshot } from '@/lib/extractTradeData'
+import { checkAchievementsAfterTrade } from '@/lib/achievement-checker'
 import { analyzeImageWithAiml, analyzeTextWithZyloo } from '@/lib/aiml-vision'
 
 // ==================== TYPES ====================
@@ -308,17 +309,31 @@ export async function POST(request: NextRequest) {
         mood: journal.mood,
         market_condition: journal.market_condition,
         tags: journal.tags.join(','),
-        linked_journal_id: tradeRecord.id
       }
     })
 
+    // Link trade → journal (FK is on Trade model, not JournalEntry)
+    await db.trade.update({
+      where: { id: tradeRecord.id },
+      data: { linked_journal_id: journalRecord.id }
+    })
+
     console.log('✅ [Auto Journal] Journal created:', journalRecord.id)
+
+    // Check achievements after AI-upload trade (same as manual trade flow)
+    let unlockedAchievements: any[] = []
+    try {
+      unlockedAchievements = await checkAchievementsAfterTrade(authUser.id)
+    } catch (achErr) {
+      console.warn('[Auto Journal] Achievement check failed (non-critical):', achErr)
+    }
 
     return NextResponse.json({
       success: true,
       data: {
         trade: tradeRecord,
         journal: journalRecord,
+        unlockedAchievements,
         extraction: {
           confidence: extractionResult.confidence,
           validFieldCount: extractionResult.validFieldCount,
