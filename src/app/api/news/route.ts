@@ -14,100 +14,9 @@ interface FullNewsItem {
   isMock?: boolean;
 }
 
-// Mock news data for fallback — URLs point to category pages (not fake article URLs)
-const mockNewsData: FullNewsItem[] = [
-  {
-    title: 'Federal Reserve Signals Potential Rate Cuts in 2024',
-    source: 'Investing.com',
-    url: 'https://www.investing.com/news/forex-news',
-    snippet: 'The Federal Reserve has indicated that interest rate cuts could be on the horizon for 2024, as inflation shows signs of cooling down. Markets are watching closely for the next FOMC meeting.',
-    date: new Date().toISOString(),
-    type: 'high',
-    isMock: true
-  },
-  {
-    title: 'EURUSD Strengthens as Eurozone Economic Data Improves',
-    source: 'Investing.com',
-    url: 'https://www.investing.com/news/forex-news',
-    snippet: 'The Euro has gained against the US Dollar following better-than-expected economic data from the Eurozone. Traders are monitoring the currency pair for potential breakout opportunities.',
-    date: new Date(Date.now() - 3600000).toISOString(),
-    type: 'medium',
-    isMock: true
-  },
-  {
-    title: 'Gold Prices Surge to Record High Amid Geopolitical Tensions',
-    source: 'Investing.com',
-    url: 'https://www.investing.com/news/commodities-news',
-    snippet: 'XAUUSD has reached a new record high as investors seek safe-haven assets amid rising geopolitical tensions. Technical analysts are watching for resistance levels.',
-    date: new Date(Date.now() - 7200000).toISOString(),
-    type: 'high',
-    isMock: true
-  },
-  {
-    title: 'Bank of Japan Maintains Ultra-Loose Monetary Policy',
-    source: 'Investing.com',
-    url: 'https://www.investing.com/news/economy',
-    snippet: 'The Bank of Japan has decided to maintain its ultra-loose monetary policy stance, despite global central banks tightening. This decision is expected to keep the Yen under pressure.',
-    date: new Date(Date.now() - 10800000).toISOString(),
-    type: 'high',
-    isMock: true
-  },
-  {
-    title: 'USDJPY Eyes Key Support Level as Market Sentiment Shifts',
-    source: 'FXStreet',
-    url: 'https://www.fxstreet.com/currencies/usdjpy',
-    snippet: 'The USDJPY pair is approaching a critical support level as market sentiment shifts. Technical analysts suggest a breakout could lead to significant moves.',
-    date: new Date(Date.now() - 14400000).toISOString(),
-    type: 'medium',
-    isMock: true
-  },
-  {
-    title: 'UK Inflation Data Exceeds Expectations, GBP Gains Momentum',
-    source: 'DailyFX',
-    url: 'https://www.dailyfx.com/gbp-usd',
-    snippet: 'UK inflation data has come in above expectations, giving the British Pound a boost. The Bank of England may need to consider further rate hikes.',
-    date: new Date(Date.now() - 18000000).toISOString(),
-    type: 'high',
-    isMock: true
-  },
-  {
-    title: 'Australian Dollar Weakens on Commodity Price Decline',
-    source: 'Investing.com',
-    url: 'https://www.investing.com/news/forex-news',
-    snippet: 'The Australian Dollar has weakened following a decline in commodity prices. AUDUSD traders are monitoring support levels for potential reversals.',
-    date: new Date(Date.now() - 21600000).toISOString(),
-    type: 'medium',
-    isMock: true
-  },
-  {
-    title: 'ECB President Lagarde Speech Focuses on Inflation Control',
-    source: 'Reuters',
-    url: 'https://www.reuters.com/markets/europe/',
-    snippet: 'European Central Bank President Christine Lagarde has emphasized the importance of controlling inflation in her latest speech. Markets are analyzing the impact on monetary policy.',
-    date: new Date(Date.now() - 25200000).toISOString(),
-    type: 'high',
-    isMock: true
-  },
-  {
-    title: 'Technical Analysis: GBPUSD Approaches Major Resistance Zone',
-    source: 'Investing.com',
-    url: 'https://www.investing.com/news/forex-news',
-    snippet: 'Technical analysis suggests GBPUSD is approaching a major resistance zone. Traders should watch for a potential breakout or rejection at this level.',
-    date: new Date(Date.now() - 28800000).toISOString(),
-    type: 'low',
-    isMock: true
-  },
-  {
-    title: 'Forex Market Volatility Expected During NFP Release',
-    source: 'ForexFactory',
-    url: 'https://www.forexfactory.com/calendar',
-    snippet: 'Forex traders are bracing for increased volatility during the upcoming Non-Farm Payrolls release. Risk management is crucial during high-impact events.',
-    date: new Date(Date.now() - 32400000).toISOString(),
-    type: 'high',
-    isMock: true
-  }
-];
-
+/**
+ * Classify impact level based on title and snippet keywords
+ */
 function classifyImpact(title: string, snippet: string): 'high' | 'medium' | 'low' {
   const text = `${title} ${snippet}`.toLowerCase();
 
@@ -120,8 +29,12 @@ function classifyImpact(title: string, snippet: string): 'high' | 'medium' | 'lo
     'flash crash', 'market crash', 'rally', 'surge',
     'brexit', 'trade war', 'sanctions', 'opec',
     'rate decision', 'policy rate', 'hawkish', 'dovish',
-    'tsl', 'tariff', 'geopolitical',
+    'tariff', 'geopolitical', 'iran', 'war',
     'breaking', 'urgent', 'record high', 'record low',
+    'oil rises', 'oil climbs', 'oil surges', 'oil jumps',
+    'gold rises', 'gold climbs', 'gold surges',
+    'strikes', 'escalat', 'ceasefire', ' Hormuz',
+    'rate hike', 'rate cut',
   ];
 
   const mediumKeywords = [
@@ -134,8 +47,11 @@ function classifyImpact(title: string, snippet: string): 'high' | 'medium' | 'lo
     'currency', 'exchange rate', 'fx', 'pip',
     'trading', 'trader', 'strategy', 'outlook',
     'weekly preview', 'daily outlook', 'market wrap',
-    'ppi', 'isk', 'retail',
-    's&p', 'nasdaq', 'dow',
+    'ppi', 'retail',
+    's&p', 'nasdaq', 'dow', 'bond', 'yield', 'treasury',
+    'rupee', 'yuan', 'won', 'yen',
+    'copper', 'commodity', 'commodit',
+    'inflation', 'rate', 'bank',
   ];
 
   for (const kw of highKeywords) {
@@ -149,11 +65,87 @@ function classifyImpact(title: string, snippet: string): 'high' | 'medium' | 'lo
   return 'low';
 }
 
+/**
+ * Parse Bloomberg RSS XML and convert to FullNewsItem[]
+ */
+function parseBloombergRss(xml: string): FullNewsItem[] {
+  const items: FullNewsItem[] = [];
+
+  // Simple regex-based XML parsing (no xml2js dependency needed)
+  const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
+  let match;
+
+  while ((match = itemRegex.exec(xml)) !== null) {
+    const itemXml = match[1];
+
+    const titleMatch = itemXml.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i)
+      || itemXml.match(/<title>([\s\S]*?)<\/title>/i);
+    const linkMatch = itemXml.match(/<link><!\[CDATA\[([\s\S]*?)\]\]><\/link>/i)
+      || itemXml.match(/<link>([\s\S]*?)<\/link>/i);
+    const descMatch = itemXml.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i)
+      || itemXml.match(/<description>([\s\S]*?)<\/description>/i);
+    const dateMatch = itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/i);
+
+    if (!titleMatch?.[1] || !linkMatch?.[1]) continue;
+
+    const title = titleMatch[1].trim();
+    const url = linkMatch[1].trim();
+
+    // Skip non-news items (videos, certain opinion pieces, non-market content)
+    if (url.includes('/news/videos/')) continue;
+    if (url.includes('/news/audio/')) continue;
+
+    let snippet = descMatch?.[1]?.trim() || '';
+    // Strip HTML tags from description
+    snippet = snippet.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+    if (snippet.length > 200) snippet = snippet.substring(0, 200) + '...';
+
+    const date = dateMatch?.[1] || new Date().toISOString();
+    const type = classifyImpact(title, snippet);
+
+    items.push({ title, source: 'Bloomberg', url, snippet, date, type });
+  }
+
+  return items;
+}
+
+/**
+ * Fetch real news from Bloomberg Markets RSS feed
+ * Free, no API key needed, real article URLs
+ */
+async function fetchBloombergNews(): Promise<FullNewsItem[]> {
+  const BLOOMBERG_RSS = 'https://feeds.bloomberg.com/markets/news.rss';
+
+  const response = await fetch(BLOOMBERG_RSS, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
+      'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Bloomberg RSS returned ${response.status}`);
+  }
+
+  const xml = await response.text();
+  return parseBloombergRss(xml);
+}
+
+/**
+ * Fetch real news — primary from Bloomberg RSS
+ */
 async function fetchFullNews(): Promise<FullNewsItem[]> {
-  // ZAI SDK removed - using mock data for now
-  // TODO: Implement proper news API in the future
-  console.log('Using mock news data (ZAI SDK removed)');
-  return mockNewsData;
+  console.log('[News] Fetching from Bloomberg Markets RSS...');
+
+  try {
+    const items = await fetchBloombergNews();
+    console.log(`[News] Bloomberg returned ${items.length} articles`);
+    return items;
+  } catch (err: any) {
+    console.error('[News] Bloomberg RSS failed:', err.message);
+    throw err;
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -163,7 +155,7 @@ export async function GET(request: NextRequest) {
   try {
     // Check cache
     if (fullNewsCache && Date.now() - fullNewsCache.timestamp < CACHE_DURATION) {
-      console.log('Returning cached news');
+      console.log('[News] Returning cached news');
       if (format === 'full') {
         return NextResponse.json({
           success: true,
@@ -184,10 +176,9 @@ export async function GET(request: NextRequest) {
       timestamp: Date.now(),
     };
 
-    console.log(`Fetched ${allResults.length} news items`);
+    console.log(`[News] Fetched ${allResults.length} news items`);
 
     if (format === 'full') {
-      // Return structured news items for dedicated news page
       return NextResponse.json({
         success: true,
         cached: false,
@@ -230,27 +221,32 @@ export async function GET(request: NextRequest) {
       totalSources: allResults.length,
     });
   } catch (error) {
-    console.error('News API error:', error);
+    console.error('[News] API error:', error);
 
+    // Fallback: show "unavailable" message instead of fake mock data
     if (format === 'full') {
       return NextResponse.json({
         success: true,
         fallback: true,
-        news: mockNewsData,
+        unavailable: true,
+        news: [],
+        message: 'Data berita sedang tidak tersedia. Silakan coba beberapa menit lagi.',
         fetchedAt: new Date().toISOString(),
       });
     }
 
     const fallbackNews = [
-      { text: '🔴 HIGH IMPACT: Perhatikan jadwal economic calendar hari ini', type: 'high' as const, url: '' },
-      { text: '🟡 MEDIUM: Pantau pergerakan major currency pairs', type: 'medium' as const, url: '' },
+      { text: '🔴 Berita forex sedang tidak tersedia — coba beberapa menit lagi', type: 'high' as const, url: '' },
+      { text: '🟡 Kunjungi Bloomberg.com untuk berita pasar terkini', type: 'medium' as const, url: 'https://www.bloomberg.com/markets' },
       { text: '💡 TIP: Gunakan Stop Loss di setiap trade untuk proteksi modal', type: 'low' as const, url: '' },
     ];
 
     return NextResponse.json({
       success: true,
       fallback: true,
+      unavailable: true,
       news: fallbackNews,
+      message: 'Data berita sedang tidak tersedia.',
       fetchedAt: new Date().toISOString(),
     });
   }
