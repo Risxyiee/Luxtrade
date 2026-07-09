@@ -4,6 +4,14 @@ import { NextRequest, NextResponse } from 'next/server';
 let fullNewsCache: { items: FullNewsItem[]; timestamp: number } | null = null;
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
+// TradingEconomics RapidAPI config
+const TE_API_HOST = 'trading-econmics-scraper.p.rapidapi.com';
+const TE_API_KEY = process.env.RAPIDAPI_TRADING_ECONOMICS_KEY || '';
+const TE_ENDPOINT = 'https://trading-econmics-scraper.p.rapidapi.com/get_trading_economics_news';
+
+// Bloomberg RSS (free fallback, no key needed)
+const BLOOMBERG_RSS = 'https://feeds.bloomberg.com/markets/news.rss';
+
 interface FullNewsItem {
   title: string;
   source: string;
@@ -11,11 +19,21 @@ interface FullNewsItem {
   snippet: string;
   date: string;
   type: 'high' | 'medium' | 'low';
-  isMock?: boolean;
 }
 
 /**
- * Classify impact level based on title and snippet keywords
+ * Map TradingEconomics importance (1/2/3) to our type
+ */
+function mapTeImportance(importance: string): 'high' | 'medium' | 'low' {
+  switch (importance) {
+    case '3': return 'high';
+    case '2': return 'medium';
+    default: return 'low';
+  }
+}
+
+/**
+ * Classify impact level based on title and snippet keywords (for Bloomberg fallback)
  */
 function classifyImpact(title: string, snippet: string): 'high' | 'medium' | 'low' {
   const text = `${title} ${snippet}`.toLowerCase();
@@ -33,8 +51,7 @@ function classifyImpact(title: string, snippet: string): 'high' | 'medium' | 'lo
     'breaking', 'urgent', 'record high', 'record low',
     'oil rises', 'oil climbs', 'oil surges', 'oil jumps',
     'gold rises', 'gold climbs', 'gold surges',
-    'strikes', 'escalat', 'ceasefire', ' Hormuz',
-    'rate hike', 'rate cut',
+    'strikes', 'escalat', 'ceasefire', 'hormuz',
   ];
 
   const mediumKeywords = [
@@ -47,31 +64,117 @@ function classifyImpact(title: string, snippet: string): 'high' | 'medium' | 'lo
     'currency', 'exchange rate', 'fx', 'pip',
     'trading', 'trader', 'strategy', 'outlook',
     'weekly preview', 'daily outlook', 'market wrap',
-    'ppi', 'retail',
-    's&p', 'nasdaq', 'dow', 'bond', 'yield', 'treasury',
-    'rupee', 'yuan', 'won', 'yen',
-    'copper', 'commodity', 'commodit',
-    'inflation', 'rate', 'bank',
+    'ppi', 'retail', 'bond', 'yield', 'treasury',
+    'rupee', 'yuan', 'won', 'copper', 'commodity',
   ];
 
   for (const kw of highKeywords) {
     if (text.includes(kw)) return 'high';
   }
-
   for (const kw of mediumKeywords) {
     if (text.includes(kw)) return 'medium';
   }
-
   return 'low';
 }
+
+// ==================== PRIMARY: TradingEconomics RapidAPI ====================
+
+interface TEResponse {
+  title: string;
+  description: string;
+  url: string;
+  country: string;
+  category: string;
+  importance: string;
+  date: string;
+  time: string;
+}
+
+/**
+ * Fetch today's news from TradingEconomics via RapidAPI
+ * Returns forex-relevant news sorted by importance (high first)
+ */
+async function fetchTradingEconomicsNews(): Promise<FullNewsItem[]> {
+  if (!TE_API_KEY) {
+    throw new Error('RAPIDAPI_TRADING_ECONOMICS_KEY not configured');
+  }
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const day = now.getDate();
+
+  const url = `${TE_ENDPOINT}?year=${year}&month=${month}&day=${day}`;
+
+  const response = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      'x-rapidapi-host': TE_API_HOST,
+      'x-rapidapi-key': TE_API_KEY,
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!response.ok) {
+    // 429 = rate limit, don't retry immediately
+    if (response.status === 429) {
+      throw new Error('TradingEconomics rate limit (429)');
+    }
+    throw new Error(`TradingEconomics returned ${response.status}`);
+  }
+
+  const data: TEResponse[] = await response.json();
+  if (!Array.isArray(data) || data.length === 0) {
+    throw new Error('TradingEconomics returned empty data');
+  }
+
+  // Map to FullNewsItem, prioritize forex-relevant categories
+  const FOREX_RELEVANT_CATEGORIES = new Set([
+    'Currency', 'Interest Rate', 'Inflation Rate', 'Central Bank',
+    'Balance of Trade', 'Consumer Confidence', 'Employment',
+    'Producer Prices Change', 'Retail Sales', 'GDP Growth Rate',
+  ]);
+
+  const items: FullNewsItem[] = data
+    .filter((item) => item.title && item.url)
+    .map((item) => ({
+      title: item.title,
+      source: `TradingEconomics · ${item.country || 'Global'}`,
+      url: item.url,
+      snippet: (item.description || '').substring(0, 200) + ((item.description || '').length > 200 ? '...' : ''),
+      date: item.date && item.time ? `${item.date}T${item.time}` : new Date().toISOString(),
+      type: mapTeImportance(item.importance),
+    }));
+
+  // Sort: forex-relevant categories first, then by importance (high→low), then by date (newest)
+  const importanceOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  items.sort((a, b) => {
+    const aForex = a.source.toLowerCase().includes('currency') ||
+      a.source.toLowerCase().includes('interest rate') ||
+      a.source.toLowerCase().includes('inflation');
+    const bForex = b.source.toLowerCase().includes('currency') ||
+      b.source.toLowerCase().includes('interest rate') ||
+      b.source.toLowerCase().includes('inflation');
+    if (aForex !== bForex) return aForex ? -1 : 1;
+
+    const aImp = importanceOrder[a.type] ?? 99;
+    const bImp = importanceOrder[b.type] ?? 99;
+    if (aImp !== bImp) return aImp - bImp;
+
+    return b.date.localeCompare(a.date);
+  });
+
+  console.log(`[News] TradingEconomics returned ${items.length} articles`);
+  return items;
+}
+
+// ==================== FALLBACK: Bloomberg RSS ====================
 
 /**
  * Parse Bloomberg RSS XML and convert to FullNewsItem[]
  */
 function parseBloombergRss(xml: string): FullNewsItem[] {
   const items: FullNewsItem[] = [];
-
-  // Simple regex-based XML parsing (no xml2js dependency needed)
   const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
   let match;
 
@@ -91,12 +194,11 @@ function parseBloombergRss(xml: string): FullNewsItem[] {
     const title = titleMatch[1].trim();
     const url = linkMatch[1].trim();
 
-    // Skip non-news items (videos, certain opinion pieces, non-market content)
+    // Skip non-news items
     if (url.includes('/news/videos/')) continue;
     if (url.includes('/news/audio/')) continue;
 
     let snippet = descMatch?.[1]?.trim() || '';
-    // Strip HTML tags from description
     snippet = snippet.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
     if (snippet.length > 200) snippet = snippet.substring(0, 200) + '...';
 
@@ -110,12 +212,10 @@ function parseBloombergRss(xml: string): FullNewsItem[] {
 }
 
 /**
- * Fetch real news from Bloomberg Markets RSS feed
- * Free, no API key needed, real article URLs
+ * Fetch news from Bloomberg Markets RSS feed
+ * Free, no API key needed, no quota limit
  */
 async function fetchBloombergNews(): Promise<FullNewsItem[]> {
-  const BLOOMBERG_RSS = 'https://feeds.bloomberg.com/markets/news.rss';
-
   const response = await fetch(BLOOMBERG_RSS, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
@@ -132,21 +232,38 @@ async function fetchBloombergNews(): Promise<FullNewsItem[]> {
   return parseBloombergRss(xml);
 }
 
+// ==================== MAIN FETCH LOGIC ====================
+
 /**
- * Fetch real news — primary from Bloomberg RSS
+ * Fetch news with cascade: TradingEconomics → Bloomberg RSS → unavailable
  */
 async function fetchFullNews(): Promise<FullNewsItem[]> {
-  console.log('[News] Fetching from Bloomberg Markets RSS...');
-
-  try {
-    const items = await fetchBloombergNews();
-    console.log(`[News] Bloomberg returned ${items.length} articles`);
-    return items;
-  } catch (err: any) {
-    console.error('[News] Bloomberg RSS failed:', err.message);
-    throw err;
+  // PRIMARY: TradingEconomics RapidAPI (forex-focused, with importance)
+  if (TE_API_KEY) {
+    try {
+      console.log('[News] Fetching from TradingEconomics RapidAPI...');
+      const items = await fetchTradingEconomicsNews();
+      if (items.length > 0) return items;
+    } catch (err: any) {
+      console.warn(`[News] TradingEconomics failed: ${err.message}, falling back to Bloomberg...`);
+    }
+  } else {
+    console.log('[News] RAPIDAPI_TRADING_ECONOMICS_KEY not set, using Bloomberg RSS');
   }
+
+  // FALLBACK: Bloomberg RSS (free, unlimited, general markets)
+  try {
+    console.log('[News] Fetching from Bloomberg Markets RSS...');
+    const items = await fetchBloombergNews();
+    if (items.length > 0) return items;
+  } catch (err: any) {
+    console.error(`[News] Bloomberg RSS also failed: ${err.message}`);
+  }
+
+  throw new Error('All news sources failed');
 }
+
+// ==================== API ROUTE ====================
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -207,7 +324,7 @@ export async function GET(request: NextRequest) {
     };
 
     const tickerItems = newsItems.map(item => ({
-      text: `${impactEmoji(item.type)} ${item.title} — ${item.source}`,
+      text: `${impactEmoji(item.type)} ${item.title} — ${item.source.split('·')[0].trim()}`,
       type: item.type,
       url: item.url,
     }));
@@ -223,7 +340,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[News] API error:', error);
 
-    // Fallback: show "unavailable" message instead of fake mock data
     if (format === 'full') {
       return NextResponse.json({
         success: true,
@@ -237,7 +353,7 @@ export async function GET(request: NextRequest) {
 
     const fallbackNews = [
       { text: '🔴 Berita forex sedang tidak tersedia — coba beberapa menit lagi', type: 'high' as const, url: '' },
-      { text: '🟡 Kunjungi Bloomberg.com untuk berita pasar terkini', type: 'medium' as const, url: 'https://www.bloomberg.com/markets' },
+      { text: '🟡 Kunjungi TradingEconomics.com untuk berita terkini', type: 'medium' as const, url: 'https://tradingeconomics.com' },
       { text: '💡 TIP: Gunakan Stop Loss di setiap trade untuk proteksi modal', type: 'low' as const, url: '' },
     ];
 
