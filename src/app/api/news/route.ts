@@ -11,89 +11,100 @@ interface FullNewsItem {
   snippet: string;
   date: string;
   type: 'high' | 'medium' | 'low';
+  isMock?: boolean;
 }
 
-// Mock news data for fallback
+// Mock news data for fallback — URLs point to category pages (not fake article URLs)
 const mockNewsData: FullNewsItem[] = [
   {
     title: 'Federal Reserve Signals Potential Rate Cuts in 2024',
     source: 'Investing.com',
-    url: 'https://www.investing.com/news/fed-rate-cuts-2024',
+    url: 'https://www.investing.com/news/forex-news',
     snippet: 'The Federal Reserve has indicated that interest rate cuts could be on the horizon for 2024, as inflation shows signs of cooling down. Markets are watching closely for the next FOMC meeting.',
     date: new Date().toISOString(),
-    type: 'high'
+    type: 'high',
+    isMock: true
   },
   {
     title: 'EURUSD Strengthens as Eurozone Economic Data Improves',
     source: 'Investing.com',
-    url: 'https://www.investing.com/news/eurusd-strengthens',
+    url: 'https://www.investing.com/news/forex-news',
     snippet: 'The Euro has gained against the US Dollar following better-than-expected economic data from the Eurozone. Traders are monitoring the currency pair for potential breakout opportunities.',
     date: new Date(Date.now() - 3600000).toISOString(),
-    type: 'medium'
+    type: 'medium',
+    isMock: true
   },
   {
     title: 'Gold Prices Surge to Record High Amid Geopolitical Tensions',
     source: 'Investing.com',
-    url: 'https://www.investing.com/news/gold-prices-surge',
+    url: 'https://www.investing.com/news/commodities-news',
     snippet: 'XAUUSD has reached a new record high as investors seek safe-haven assets amid rising geopolitical tensions. Technical analysts are watching for resistance levels.',
     date: new Date(Date.now() - 7200000).toISOString(),
-    type: 'high'
+    type: 'high',
+    isMock: true
   },
   {
     title: 'Bank of Japan Maintains Ultra-Loose Monetary Policy',
     source: 'Investing.com',
-    url: 'https://www.investing.com/news/boj-monetary-policy',
+    url: 'https://www.investing.com/news/economy',
     snippet: 'The Bank of Japan has decided to maintain its ultra-loose monetary policy stance, despite global central banks tightening. This decision is expected to keep the Yen under pressure.',
     date: new Date(Date.now() - 10800000).toISOString(),
-    type: 'high'
+    type: 'high',
+    isMock: true
   },
   {
     title: 'USDJPY Eyes Key Support Level as Market Sentiment Shifts',
     source: 'FXStreet',
-    url: 'https://www.fxstreet.com/news/usdjpy-support-level',
+    url: 'https://www.fxstreet.com/currencies/usdjpy',
     snippet: 'The USDJPY pair is approaching a critical support level as market sentiment shifts. Technical analysts suggest a breakout could lead to significant moves.',
     date: new Date(Date.now() - 14400000).toISOString(),
-    type: 'medium'
+    type: 'medium',
+    isMock: true
   },
   {
     title: 'UK Inflation Data Exceeds Expectations, GBP Gains Momentum',
     source: 'DailyFX',
-    url: 'https://www.dailyfx.com/news/uk-inflation-gbp',
+    url: 'https://www.dailyfx.com/gbp-usd',
     snippet: 'UK inflation data has come in above expectations, giving the British Pound a boost. The Bank of England may need to consider further rate hikes.',
     date: new Date(Date.now() - 18000000).toISOString(),
-    type: 'high'
+    type: 'high',
+    isMock: true
   },
   {
     title: 'Australian Dollar Weakens on Commodity Price Decline',
     source: 'Investing.com',
-    url: 'https://www.investing.com/news/audusd-commodities',
+    url: 'https://www.investing.com/news/forex-news',
     snippet: 'The Australian Dollar has weakened following a decline in commodity prices. AUDUSD traders are monitoring support levels for potential reversals.',
     date: new Date(Date.now() - 21600000).toISOString(),
-    type: 'medium'
+    type: 'medium',
+    isMock: true
   },
   {
     title: 'ECB President Lagarde Speech Focuses on Inflation Control',
     source: 'Reuters',
-    url: 'https://www.reuters.com/news/ecb-lagarde-inflation',
+    url: 'https://www.reuters.com/markets/europe/',
     snippet: 'European Central Bank President Christine Lagarde has emphasized the importance of controlling inflation in her latest speech. Markets are analyzing the impact on monetary policy.',
     date: new Date(Date.now() - 25200000).toISOString(),
-    type: 'high'
+    type: 'high',
+    isMock: true
   },
   {
     title: 'Technical Analysis: GBPUSD Approaches Major Resistance Zone',
     source: 'Investing.com',
-    url: 'https://www.investing.com/analysis/gbpusd-technical',
+    url: 'https://www.investing.com/news/forex-news',
     snippet: 'Technical analysis suggests GBPUSD is approaching a major resistance zone. Traders should watch for a potential breakout or rejection at this level.',
     date: new Date(Date.now() - 28800000).toISOString(),
-    type: 'low'
+    type: 'low',
+    isMock: true
   },
   {
     title: 'Forex Market Volatility Expected During NFP Release',
     source: 'ForexFactory',
-    url: 'https://www.forexfactory.com/news/nfp-volatility',
+    url: 'https://www.forexfactory.com/calendar',
     snippet: 'Forex traders are bracing for increased volatility during the upcoming Non-Farm Payrolls release. Risk management is crucial during high-impact events.',
     date: new Date(Date.now() - 32400000).toISOString(),
-    type: 'high'
+    type: 'high',
+    isMock: true
   }
 ];
 
