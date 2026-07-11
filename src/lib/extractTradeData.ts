@@ -270,7 +270,7 @@ export async function saveTrade(entry: any) {
       close_time: entry.closeTime,
       stop_loss: entry.stopLoss,
       take_profit: entry.takeProfit,
-      volume: entry.volume,
+      lot_size: entry.volume,
       ticket_number: entry.ticketNumber,
       screenshot_url: entry.screenshotUrl,
       notes: entry.notes,
