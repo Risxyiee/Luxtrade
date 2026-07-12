@@ -25,3 +25,25 @@ Stage Summary:
 - All AI routes now log errors properly
 - SUPER_ADMIN access fixed in 2 admin routes
 - Equity curve is now luxurious with real account data and saldo display
+
+---
+Task ID: repo-cleanup
+Agent: Main Agent
+Task: Clean up LuxTrade repo root — archive .sql files, delete junk, update .gitignore
+
+Work Log:
+- Surveyed root directory: found 17 loose .sql files, 3 screenshot .png files, 4 test/debug scripts, tool-results/ (7.4MB, 96 log files), skills/ (61MB, AI agent tools)
+- Created _archive/sql-history/ directory and moved all 17 root .sql files there
+- Created _archive/sql-history/README.md with Prisma migration workflow guidance
+- Deleted: screenshot-01-hero.png, screenshot-02-after-wait.png, signup-page.png, test-screenshot-api.js, test-zai-debug.mjs, test-zai-vision-node.js, check-metaapi.js
+- Deleted: tool-results/ directory (AI agent logs, not app code)
+- Deleted: skills/ directory (61MB, AI coding agent tooling, not part of LuxTrade app)
+- Investigated and reported on: funderblu.json, upload/, mini-services/, examples/
+- Updated .gitignore: added upload/, skills/, root test/debug patterns, screenshot patterns, root .sql pattern, funderblu.json, sakura-docs.json
+- Verified build passes cleanly after all changes
+
+Stage Summary:
+- Root directory is now clean — no more loose .sql, .png, test scripts
+- 17 SQL files preserved in _archive/sql-history/ for reference
+- .gitignore updated to prevent future clutter
+- Build verified: successful
