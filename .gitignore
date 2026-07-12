@@ -50,18 +50,30 @@ prompt
 
 server.log
 
-# Upload folder (user uploads)
-upload/*.png
-upload/*.jpg
-upload/*.jpeg
-upload/*.gif
+# Upload folder (user uploads — should never be in git)
+upload/
 
 # Database files
 *.db
 *.sqlite
 *.sqlite3
 
-# Skills directory
-/skills/.env
-.env.production-template
+# Skills directory (AI coding agent tools, not part of the app)
+skills/
 tool-results/
+
+# Root-level test/debug scripts (not part of the official test suite)
+/test-*.js
+/test-*.mjs
+/check-*.js
+
+# Root-level screenshot files (debug/testing artifacts)
+/screenshot-*.png
+/signup-page.png
+
+# Root-level loose SQL files (use Prisma migrations instead)
+/*.sql
+
+# AI agent data dumps (not part of the app)
+funderblu.json
+sakura-docs.json
