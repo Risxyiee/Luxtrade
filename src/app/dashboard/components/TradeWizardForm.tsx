@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { calculateForexProfitLoss, getPipInfo, formatTradingInput, AccountType } from '@/lib/trading-helpers'
 import { isoToDatetimeLocal, datetimeLocalToISO } from '../utils/helpers'
+import { convertHeicToJpeg, isHeicFile } from '@/lib/heic-converter'
 
 // Emotion options with emoji
 const emotionOptions = [
@@ -170,7 +171,7 @@ export default function TradeWizardForm({
 
   // Handle screenshot upload with AI analysis
   const handleScreenshotAnalysis = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+    let file = e.target.files?.[0]
     if (!file) return
 
     // Validate file size (10MB max)
@@ -179,8 +180,18 @@ export default function TradeWizardForm({
       return
     }
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
+    // Convert HEIC to JPEG client-side (iPhone photos)
+    if (isHeicFile(file)) {
+      setAnalyzingScreenshot(true)
+      try {
+        file = await convertHeicToJpeg(file) as File
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to convert HEIC image.')
+        setAnalyzingScreenshot(false)
+        e.target.value = ''
+        return
+      }
+    } else if (!file.type.startsWith('image/')) {
       toast.error('Invalid file type. Please upload an image.')
       return
     }
@@ -225,7 +236,7 @@ export default function TradeWizardForm({
 
   // Handle auto-journal creation with AI analysis
   const handleAutoJournal = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+    let file = e.target.files?.[0]
     if (!file) return
 
     // Validate file size (10MB max)
@@ -234,14 +245,28 @@ export default function TradeWizardForm({
       return
     }
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
+    // Convert HEIC to JPEG client-side (iPhone photos)
+    if (isHeicFile(file)) {
+      setAnalyzingScreenshot(true)
+      toast.loading('🔄 Converting HEIC to JPEG...', { id: 'auto-journal' })
+      try {
+        file = await convertHeicToJpeg(file) as File
+        toast.loading('🤖 AI is analyzing your screenshot...', { id: 'auto-journal' })
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to convert HEIC image.', { id: 'auto-journal' })
+        setAnalyzingScreenshot(false)
+        e.target.value = ''
+        return
+      }
+    } else if (!file.type.startsWith('image/')) {
       toast.error('Invalid file type. Please upload an image.')
       return
     }
 
     setAnalyzingScreenshot(true)
-    toast.loading('🤖 AI is analyzing your screenshot...', { id: 'auto-journal' })
+    if (!toast.isActive('auto-journal')) {
+      toast.loading('🤖 AI is analyzing your screenshot...', { id: 'auto-journal' })
+    }
     try {
       const formData = new FormData()
       formData.append('image', file)

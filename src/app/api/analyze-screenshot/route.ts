@@ -160,6 +160,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Detect HEIC/HEIF format — not supported by sharp in serverless environments
+    const fn = image.name.toLowerCase()
+    const ft = (image.type || '').toLowerCase()
+    if (fn.endsWith('.heic') || fn.endsWith('.heif') || ft.includes('heic') || ft.includes('heif')) {
+      return NextResponse.json({
+        error: 'Format HEIC/HEIF belum didukung. Silakan screenshot ulang atau export foto sebagai JPEG/PNG sebelum upload.',
+        code: 'HEIC_NOT_SUPPORTED',
+      }, { status: 400 })
+    }
+
     // Validate file type
     if (!image.type.startsWith('image/')) {
       console.error('❌ [Analyze Screenshot] Invalid file type:', image.type)
