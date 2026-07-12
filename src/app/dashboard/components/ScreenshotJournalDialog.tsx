@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Camera, Loader2, Sparkles, Check, BookOpen, TrendingUp, Save, X, Image as ImageIcon } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
+import { convertHeicToJpeg, isHeicFile } from '@/lib/heic-converter'
 
 interface ExtractedTrade {
   symbol: string
@@ -77,12 +78,26 @@ export default function ScreenshotJournalDialog({
   }
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+    let file = e.target.files?.[0]
     if (!file) return
 
     if (file.size > 10 * 1024 * 1024) {
       toast.error('File terlalu besar', { description: 'Maksimal 10MB' })
       return
+    }
+
+    // Convert HEIC to JPEG client-side (iPhone photos)
+    if (isHeicFile(file)) {
+      setAnalyzing(true)
+      toast.loading('🔄 Converting HEIC to JPEG...')
+      try {
+        file = await convertHeicToJpeg(file) as File
+      } catch (err: any) {
+        toast.error(err.message || 'Gagal konversi HEIC. Export foto sebagai JPEG/PNG lalu coba lagi.')
+        setAnalyzing(false)
+        e.target.value = ''
+        return
+      }
     }
 
     // Show preview

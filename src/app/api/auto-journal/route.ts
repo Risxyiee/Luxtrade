@@ -186,7 +186,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Image file is required' }, { status: 400 })
     }
 
-    console.log('📷 [Auto Journal] Processing image:', imageFile.name, imageFile.size, 'bytes')
+    // Detect HEIC/HEIF format — sharp doesn't support it in serverless environments
+    const fileName = imageFile.name.toLowerCase()
+    const fileType = (imageFile.type || '').toLowerCase()
+    const isHeic = fileName.endsWith('.heic') || fileName.endsWith('.heif')
+      || fileType === 'image/heic' || fileType === 'image/heif'
+      || fileType.includes('heic') || fileType.includes('heif')
+    if (isHeic) {
+      return NextResponse.json({
+        error: 'Format HEIC/HEIF belum didukung. Silakan screenshot ulang atau export foto sebagai JPEG/PNG sebelum upload.',
+        code: 'HEIC_NOT_SUPPORTED',
+      }, { status: 400 })
+    }
+
+    console.log('📷 [Auto Journal] Processing image:', imageFile.name, imageFile.size, 'bytes', `type: ${imageFile.type || 'unknown'}`)
 
     // Convert image to buffer
     const bytes = await imageFile.arrayBuffer()
@@ -267,20 +280,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Save trade to database using the new saveTrade function
+    // All fields use null-safe fallbacks — AI extraction may return null for any field
     console.log('💾 [Auto Journal] Saving trade to database...')
+    const d = extractionResult.data!
     const tradeData = {
       userId: authUser.id,
-      symbol: extractionResult.data!.symbol.toUpperCase(),
-      type: extractionResult.data!.type.toUpperCase(),
-      openPrice: extractionResult.data!.openPrice,
-      closePrice: extractionResult.data!.closePrice,
-      profitLoss: extractionResult.data!.profitLoss,
-      openTime: extractionResult.data!.openTime,
-      closeTime: extractionResult.data!.closeTime,
-      stopLoss: extractionResult.data!.stopLoss,
-      takeProfit: extractionResult.data!.takeProfit,
-      volume: extractionResult.data!.volume,
-      ticketNumber: extractionResult.data!.ticketNumber,
+      symbol: (d.symbol || 'UNKNOWN').toUpperCase(),
+      type: (d.type || 'buy').toUpperCase(),
+      openPrice: d.openPrice ?? 0,
+      closePrice: d.closePrice ?? 0,
+      profitLoss: d.profitLoss ?? 0,
+      openTime: d.openTime || new Date().toISOString(),
+      closeTime: d.closeTime || new Date().toISOString(),
+      stopLoss: d.stopLoss ?? null,
+      takeProfit: d.takeProfit ?? null,
+      volume: d.volume ?? null,
+      ticketNumber: d.ticketNumber || null,
       screenshotUrl: screenshotUrl,
       notes: journal.content,
     }
