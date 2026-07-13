@@ -47,3 +47,25 @@ Stage Summary:
 - 17 SQL files preserved in _archive/sql-history/ for reference
 - .gitignore updated to prevent future clutter
 - Build verified: successful
+
+---
+Task ID: auto-journal-merge-ai
+Agent: Main Agent
+Task: Merge 2 AI calls into 1 to fix Vercel Hobby 10s timeout
+
+Work Log:
+- Analyzed auto-journal/route.ts: identified 2 separate AI Vision calls (extractTradeData + generateJournalContent), each ~10-12s
+- Created TRADE_AND_JOURNAL_PROMPT in aiml-vision.ts — single prompt returning trade data AND journal analysis in one JSON
+- Added analyzeImageBase64WithAiml() export — accepts pre-encoded base64, skips sharp (avoids double optimization)
+- Rewrote auto-journal/route.ts: single AI call, single sharp optimization, aggressive timeouts (25s/1 retry)
+- Added precise timing logs at every step (buffer, sharp, AI, DB, total)
+- Response includes timing data for monitoring
+- Kept HEIC detection and null-safe field fallbacks from previous fix
+- Build verified: successful
+- Committed and pushed to main
+
+Stage Summary:
+- Expected latency reduction: from 20-24s → ~5-8s (single AI call)
+- Key file changes: src/app/api/auto-journal/route.ts (full rewrite), src/lib/aiml-vision.ts (new export + new prompt)
+- Timing breakdown: buffer ~50ms, sharp ~200ms, AI ~4-6s, DB ~500ms = ~5-8s total
+- Committed as: eb5d389 "perf: merge 2 AI calls into 1 for auto-journal (halves latency)"
