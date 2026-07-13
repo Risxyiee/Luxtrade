@@ -209,6 +209,7 @@ async function callOpenRouter(
 
 /**
  * Analyze image with vision model — tries Gemini first, then OpenRouter
+ * Accepts raw buffer, does sharp optimization internally.
  */
 export async function analyzeImageWithAiml(
   imageBuffer: Buffer,
@@ -222,7 +223,19 @@ export async function analyzeImageWithAiml(
     .toBuffer()
 
   const base64Image = optimized.toString('base64')
+  return analyzeImageBase64WithAiml(base64Image, prompt, options)
+}
 
+/**
+ * Analyze image with vision model using pre-encoded base64.
+ * Skips sharp optimization — use when image is already optimized.
+ * This avoids running sharp multiple times for the same image.
+ */
+export async function analyzeImageBase64WithAiml(
+  base64Image: string,
+  prompt: string,
+  options: VisionOptions = {}
+): Promise<VisionResult> {
   // === Provider 1: Gemini 2.5 Flash ===
   let geminiError: Error | null = null
   try {
@@ -398,3 +411,44 @@ Example outputs:
 
 Return the JSON now:
 `
+
+/**
+ * COMBINED prompt: extracts trade data AND generates journal analysis in ONE call.
+ * This halves the AI latency for the auto-journal feature (critical for Vercel Hobby 10s limit).
+ */
+export const TRADE_AND_JOURNAL_PROMPT = `You are an expert trading analyst. Analyze this trading screenshot and return a SINGLE JSON object with TWO parts.
+
+PART 1 — Extract trade data:
+- symbol: Currency pair (e.g., XAUUSD, EURUSD)
+- type: "buy" or "sell" (lowercase)
+- openPrice: Entry price (number)
+- closePrice: Exit price (number)
+- profitLoss: P/L amount (number, negative for loss)
+- openTime: "YYYY-MM-DD HH:mm:ss"
+- closeTime: "YYYY-MM-DD HH:mm:ss"
+- stopLoss: SL price if visible (number or null)
+- takeProfit: TP price if visible (number or null)
+- volume: Lot size if visible (number or null)
+- ticketNumber: Ticket number if visible (string or null)
+
+PART 2 — Generate a brief trading journal analysis (3-4 sentences):
+- journalTitle: Short descriptive title (e.g., "Gold Short at Resistance Level")
+- journalContent: 3-4 sentence analysis covering: setup/strategy used, market condition, key takeaway
+- mood: One of: confident, nervous, calm, fearful, greedy, neutral
+- marketCondition: One of: trending, ranging, volatile, bullish, bearish
+- tags: 2-4 relevant tags as comma-separated string (e.g., "gold,breakout,loss")
+- setupType: Strategy name (e.g., breakout, pullback, momentum, scalping, swing)
+
+RULES:
+1. Return ONLY a single JSON object, no markdown, no explanation, no backticks
+2. All prices must be numbers
+3. type must be exactly "buy" or "sell"
+4. Missing fields → null
+5. Journal content must be concise (3-4 sentences max) to keep response fast
+6. Tags must be lowercase, comma-separated
+7. If multiple trades visible, analyze the most recent one
+
+Example:
+{"symbol":"XAUUSD","type":"buy","openPrice":4140.35,"closePrice":4120.40,"profitLoss":-99.75,"openTime":"2026-06-23 06:04:10","closeTime":"2026-06-23 07:59:11","stopLoss":4120.40,"takeProfit":4182.15,"volume":0.05,"ticketNumber":"918673848","journalTitle":"Gold Long Rejected at Resistance","journalContent":"Entered long on XAUUSD at 4140.35 after a bullish breakout attempt. Price was rejected at resistance and reversed sharply, hitting stop loss at 4120.40. The setup lacked confirmation from higher timeframe — avoid trading against strong resistance without confluence.","mood":"nervous","marketCondition":"ranging","tags":"gold,breakout,loss,resistance","setupType":"breakout"}
+
+Return the JSON now:`
