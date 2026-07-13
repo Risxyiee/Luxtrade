@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { isUserPro } from '@/lib/pro-check'
-import { extractTradeData, saveTrade, uploadScreenshot } from '@/lib/extractTradeData'
+import { saveTrade, uploadScreenshot } from '@/lib/extractTradeData'
 import { checkAchievementsAfterTrade } from '@/lib/achievement-checker'
-import { analyzeImageWithAiml, analyzeTextWithZyloo } from '@/lib/aiml-vision'
+import {
+  analyzeImageBase64WithAiml,
+  TRADE_AND_JOURNAL_PROMPT,
+} from '@/lib/aiml-vision'
+import sharp from 'sharp'
 
 // ==================== TYPES ====================
 
@@ -18,145 +22,33 @@ interface GeneratedJournal {
   risk_reward_ratio?: number
 }
 
-// ==================== HELPERS ====================
-
-/**
- * Generate journal content using Gemini 2.5 Flash Vision with OpenRouter fallback
- */
-async function generateJournalContent(
-  tradeData: any,
-  imageBuffer: Buffer
-): Promise<GeneratedJournal> {
-  const journalPrompt = `Based on this trading screenshot with the following extracted data:
-- Symbol: ${tradeData.symbol}
-- Type: ${tradeData.type}
-- Open Price: ${tradeData.openPrice}
-- Close Price: ${tradeData.closePrice}
-- Profit/Loss: ${tradeData.profitLoss}
-- Open Time: ${tradeData.openTime}
-- Close Time: ${tradeData.closeTime}
-- Stop Loss: ${tradeData.stopLoss || 'N/A'}
-- Take Profit: ${tradeData.takeProfit || 'N/A'}
-- Volume: ${tradeData.volume || 'N/A'}
-
-Create a detailed trading journal entry including:
-1. Setup/strategy used
-2. Market condition analysis
-3. Trading psychology/emotions
-4. Risk management assessment
-5. Lessons learned
-6. What went well
-7. What could be improved
-
-Format as:
-Title: [Short descriptive title]
-Content: [Detailed analysis in paragraphs]
-Mood: [confident/nervous/calm/fearful/greedy/neutral]
-Market Condition: [trending/ranging/volatile/bullish/bearish]
-Tags: [comma-separated relevant tags]
-Setup Type: [strategy name like breakout/pullback/momentum etc.]`
-
-  let journalContent = ''
-
-  // Try Gemini Vision first (image + prompt)
-  try {
-    const journalResponse = await analyzeImageWithAiml(imageBuffer, journalPrompt, {
-      timeout: 90000,
-      maxRetries: 2
-    })
-    journalContent = journalResponse.text || ''
-    console.log('📝 [Auto Journal] Journal analysis completed (Gemini Vision)')
-  } catch (visionError: any) {
-    console.warn(`⚠️ [Auto Journal] Vision failed for journal: ${visionError.message}. Trying text-only...`)
-  }
-
-  // Fallback to text-only (Gemini → OpenRouter)
-  if (!journalContent.trim()) {
-    try {
-      const textResponse = await analyzeTextWithZyloo(journalPrompt, {
-        timeout: 60000,
-        maxRetries: 2
-      })
-      journalContent = textResponse.text || ''
-      console.log('📝 [Auto Journal] Journal analysis completed (text fallback via OpenRouter)')
-    } catch (textError: any) {
-      console.error('❌ [Auto Journal] Both vision and text failed for journal generation')
-      // Generate a basic journal entry as last resort
-      journalContent = `Title: ${tradeData.symbol} ${tradeData.type} Trade
-Content: ${tradeData.type === 'buy' ? 'Long' : 'Short'} position on ${tradeData.symbol}. Entry at ${tradeData.openPrice}, exit at ${tradeData.closePrice}. P/L: ${tradeData.profitLoss}.
-Mood: neutral
-Market Condition: ranging
-Tags: ${tradeData.symbol.toLowerCase()}, ${tradeData.type}
-Setup Type: manual`
-    }
-  }
-
-  // Parse journal response
-  const journal = parseJournalResponse(journalContent)
-
-  // Calculate risk-reward ratio if SL and TP exist
-  if (tradeData.stopLoss && tradeData.takeProfit) {
-    const risk = Math.abs(tradeData.openPrice - tradeData.stopLoss)
-    const reward = Math.abs(tradeData.closePrice - tradeData.openPrice)
-    journal.risk_reward_ratio = reward > 0 ? reward / risk : 0
-  }
-
-  return journal
-}
-
-/**
- * Parse journal text response into structured format
- */
-function parseJournalResponse(text: string): GeneratedJournal {
-  const lines = text.split('\n')
-  const journal: Partial<GeneratedJournal> = {
-    title: 'Trading Entry',
-    content: text,
-    mood: 'neutral',
-    market_condition: 'ranging',
-    tags: ['trade'],
-    setup_type: ''
-  }
-
-  let currentSection = ''
-  let contentLines: string[] = []
-
-  for (const line of lines) {
-    const lowerLine = line.toLowerCase().trim()
-
-    if (lowerLine.startsWith('title:')) {
-      journal.title = line.replace(/^title:\s*/i, '').trim()
-    } else if (lowerLine.startsWith('mood:')) {
-      journal.mood = line.replace(/^mood:\s*/i, '').trim().toLowerCase()
-    } else if (lowerLine.startsWith('market condition:')) {
-      journal.market_condition = line.replace(/^market condition:\s*/i, '').trim().toLowerCase()
-    } else if (lowerLine.startsWith('tags:')) {
-      const tagsStr = line.replace(/^tags:\s*/i, '').trim()
-      journal.tags = tagsStr.split(',').map(t => t.trim().toLowerCase()).filter(t => t)
-    } else if (lowerLine.startsWith('setup type:')) {
-      journal.setup_type = line.replace(/^setup type:\s*/i, '').trim()
-    } else if (lowerLine.includes('##') || lowerLine.includes('content:')) {
-      currentSection = 'content'
-    } else if (currentSection === 'content' && line.trim()) {
-      contentLines.push(line.trim())
-    }
-  }
-
-  if (contentLines.length > 0) {
-    journal.content = contentLines.join('\n')
-  }
-
-  // Add symbol to tags
-  if (!journal.tags!.includes('trade')) {
-    journal.tags!.push('trade')
-  }
-
-  return journal as GeneratedJournal
+/** Combined AI response — trade data + journal in one object */
+interface CombinedAIResponse {
+  // Trade data
+  symbol?: string
+  type?: string
+  openPrice?: number
+  closePrice?: number
+  profitLoss?: number
+  openTime?: string
+  closeTime?: string
+  stopLoss?: number | null
+  takeProfit?: number | null
+  volume?: number | null
+  ticketNumber?: string | null
+  // Journal data
+  journalTitle?: string
+  journalContent?: string
+  mood?: string
+  marketCondition?: string
+  tags?: string
+  setupType?: string
 }
 
 // ==================== MAIN API ====================
 
 export async function POST(request: NextRequest) {
+  const t0 = performance.now()
   try {
     console.log('🚀 [Auto Journal] Starting auto-journal creation...')
 
@@ -165,8 +57,6 @@ export async function POST(request: NextRequest) {
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    // User authenticated
 
     // PRO check - auto-journal is a PRO feature (AI-powered)
     const pro = await isUserPro(authUser.id)
@@ -202,64 +92,95 @@ export async function POST(request: NextRequest) {
     console.log('📷 [Auto Journal] Processing image:', imageFile.name, imageFile.size, 'bytes', `type: ${imageFile.type || 'unknown'}`)
 
     // Convert image to buffer
+    const t1 = performance.now()
     const bytes = await imageFile.arrayBuffer()
     const buffer = Buffer.from(bytes)
+    console.log(`⏱️ [Auto Journal] Buffer conversion: ${(performance.now() - t1).toFixed(0)}ms`)
 
-    console.log('🤖 [Auto Journal] Extracting trade data with AI (Vision + OpenRouter fallback)...')
+    // Optimize image ONCE with sharp — reuse base64 for both AI call and upload
+    const t2 = performance.now()
+    const optimizedBuffer = await sharp(buffer)
+      .resize(1920, 1080, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 85 })
+      .toBuffer()
+    const base64Image = optimizedBuffer.toString('base64')
+    console.log(`⏱️ [Auto Journal] Sharp optimize + base64: ${(performance.now() - t2).toFixed(0)}ms`)
 
-    // Extract trade data using Gemini Vision
-    const extractionResult = await extractTradeData(buffer)
+    // ═══════════════════════════════════════════════════════════
+    // SINGLE AI CALL — trade data extraction + journal analysis
+    // ═══════════════════════════════════════════════════════════
+    const t3 = performance.now()
+    console.log('🤖 [Auto Journal] Single combined AI call (extract + journal)...')
 
-    if (!extractionResult.success) {
-      console.error('❌ [Auto Journal] Failed to extract trade data:', extractionResult.errors)
+    const aiResult = await analyzeImageBase64WithAiml(
+      base64Image,
+      TRADE_AND_JOURNAL_PROMPT,
+      { timeout: 25000, maxRetries: 1 }  // aggressive: 25s timeout, 1 retry only
+    )
+    console.log(`⏱️ [Auto Journal] AI call completed: ${(performance.now() - t3).toFixed(0)}ms (${aiResult.provider})`)
+
+    // Parse the combined JSON response
+    const t4 = performance.now()
+    const jsonMatch = aiResult.text.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      return NextResponse.json(
+        { error: 'AI failed to return valid JSON from screenshot.' },
+        { status: 400 }
+      )
+    }
+
+    const ai: CombinedAIResponse = JSON.parse(jsonMatch[0])
+    console.log(`⏱️ [Auto Journal] JSON parse: ${(performance.now() - t4).toFixed(0)}ms`)
+
+    // ── Validate trade data (minimum 3 fields: symbol + type + price) ──
+    const validFields = [
+      ai.symbol, ai.type, ai.openPrice, ai.closePrice,
+      ai.profitLoss, ai.openTime, ai.closeTime,
+    ].filter(f => f != null).length
+    if (validFields < 3) {
       return NextResponse.json(
         {
-          error: 'Failed to extract trade data from screenshot',
-          details: extractionResult.errors,
-          validFieldCount: extractionResult.validFieldCount,
-          confidence: extractionResult.confidence
+          error: 'Insufficient trade data extracted. Please upload a clearer screenshot.',
+          validFieldCount: validFields,
         },
         { status: 400 }
       )
     }
 
-    console.log('✅ [Auto Journal] Trade data extracted successfully')
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📊 [Auto Journal] Trade:', JSON.stringify(extractionResult.data))
-    }
-    console.log('📈 [Auto Journal] Confidence:', extractionResult.confidence.toFixed(1), '%')
+    console.log('✅ [Auto Journal] Trade data extracted:', {
+      symbol: ai.symbol, type: ai.type, pl: ai.profitLoss,
+    })
 
-    // Check if we have minimum required fields
-    if (extractionResult.validFieldCount < 5) {
-      return NextResponse.json(
-        {
-          error: 'Insufficient trade data extracted. Please upload a clearer screenshot showing trade details.',
-          details: extractionResult.errors,
-          validFieldCount: extractionResult.validFieldCount,
-          confidence: extractionResult.confidence
-        },
-        { status: 400 }
-      )
+    // ── Parse journal fields from the same response ──
+    const journal: GeneratedJournal = {
+      title: ai.journalTitle || `${ai.symbol || 'Trade'} ${ai.type || ''} Entry`,
+      content: ai.journalContent || `${ai.type === 'sell' ? 'Short' : 'Long'} position on ${ai.symbol || 'unknown'}. Entry at ${ai.openPrice ?? '?'}, exit at ${ai.closePrice ?? '?'}. P/L: ${ai.profitLoss ?? 0}.`,
+      mood: ai.mood || 'neutral',
+      market_condition: ai.marketCondition || 'ranging',
+      tags: ai.tags ? ai.tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean) : ['trade'],
+      setup_type: ai.setupType || '',
+    }
+    // Always ensure 'trade' is in tags
+    if (!journal.tags.includes('trade')) journal.tags.push('trade')
+
+    // Calculate risk-reward ratio if SL and TP exist
+    if (ai.stopLoss && ai.takeProfit && ai.openPrice) {
+      const risk = Math.abs(ai.openPrice - ai.stopLoss)
+      const reward = Math.abs((ai.closePrice ?? ai.openPrice) - ai.openPrice)
+      journal.risk_reward_ratio = risk > 0 ? reward / risk : 0
     }
 
-    // Upload screenshot to Supabase Storage
-    console.log('📤 [Auto Journal] Uploading screenshot...')
+    // ── Upload screenshot to Supabase Storage (parallel-ready, but sequential is fine) ──
+    const t5 = performance.now()
     let screenshotUrl: string | undefined
     try {
-      screenshotUrl = await uploadScreenshot(buffer, authUser.id)
-      console.log('✅ [Auto Journal] Screenshot uploaded')
+      screenshotUrl = await uploadScreenshot(optimizedBuffer, authUser.id)
+      console.log(`⏱️ [Auto Journal] Screenshot upload: ${(performance.now() - t5).toFixed(0)}ms`)
     } catch (uploadError: any) {
       console.warn('⚠️ [Auto Journal] Failed to upload screenshot:', uploadError.message)
-      // Continue without screenshot URL
     }
 
-    // Generate journal content using Gemini Vision
-    console.log('📝 [Auto Journal] Generating journal content...')
-    const journal = await generateJournalContent(extractionResult.data, buffer)
-
-    console.log('✅ [Auto Journal] Journal generated')
-
-    // Ensure profile exists
+    // ── Ensure profile exists ──
     const existingProfile = await db.profile.findUnique({
       where: { id: authUser.id }
     })
@@ -279,30 +200,28 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Save trade to database using the new saveTrade function
-    // All fields use null-safe fallbacks — AI extraction may return null for any field
-    console.log('💾 [Auto Journal] Saving trade to database...')
-    const d = extractionResult.data!
+    // ── Save trade to database (all fields null-safe) ──
+    const t6 = performance.now()
     const tradeData = {
       userId: authUser.id,
-      symbol: (d.symbol || 'UNKNOWN').toUpperCase(),
-      type: (d.type || 'buy').toUpperCase(),
-      openPrice: d.openPrice ?? 0,
-      closePrice: d.closePrice ?? 0,
-      profitLoss: d.profitLoss ?? 0,
-      openTime: d.openTime || new Date().toISOString(),
-      closeTime: d.closeTime || new Date().toISOString(),
-      stopLoss: d.stopLoss ?? null,
-      takeProfit: d.takeProfit ?? null,
-      volume: d.volume ?? null,
-      ticketNumber: d.ticketNumber || null,
+      symbol: (ai.symbol || 'UNKNOWN').toUpperCase(),
+      type: (ai.type || 'buy').toUpperCase(),
+      openPrice: ai.openPrice ?? 0,
+      closePrice: ai.closePrice ?? 0,
+      profitLoss: ai.profitLoss ?? 0,
+      openTime: ai.openTime || new Date().toISOString(),
+      closeTime: ai.closeTime || new Date().toISOString(),
+      stopLoss: ai.stopLoss ?? null,
+      takeProfit: ai.takeProfit ?? null,
+      volume: ai.volume ?? null,
+      ticketNumber: ai.ticketNumber || null,
       screenshotUrl: screenshotUrl,
       notes: journal.content,
     }
 
     const savedTrade = await saveTrade(tradeData)
 
-    // Update the trade record with additional journal data
+    // Update the trade record with journal metadata
     const tradeRecord = await db.trade.update({
       where: { id: savedTrade.id },
       data: {
@@ -312,10 +231,9 @@ export async function POST(request: NextRequest) {
         risk_reward_ratio: journal.risk_reward_ratio
       }
     })
+    console.log(`⏱️ [Auto Journal] DB save: ${(performance.now() - t6).toFixed(0)}ms`)
 
-    console.log('✅ [Auto Journal] Trade created:', tradeRecord.id)
-
-    // Create journal entry
+    // ── Create journal entry ──
     const journalRecord = await db.journalEntry.create({
       data: {
         user_id: authUser.id,
@@ -333,9 +251,7 @@ export async function POST(request: NextRequest) {
       data: { linked_journal_id: journalRecord.id }
     })
 
-    console.log('✅ [Auto Journal] Journal created:', journalRecord.id)
-
-    // Check achievements after AI-upload trade (same as manual trade flow)
+    // ── Check achievements (non-critical) ──
     let unlockedAchievements: any[] = []
     try {
       unlockedAchievements = await checkAchievementsAfterTrade(authUser.id)
@@ -343,27 +259,31 @@ export async function POST(request: NextRequest) {
       console.warn('[Auto Journal] Achievement check failed (non-critical):', achErr)
     }
 
+    const totalTime = ((performance.now() - t0) / 1000).toFixed(2)
+    console.log(`🏁 [Auto Journal] Total time: ${totalTime}s`)
+
     return NextResponse.json({
       success: true,
       data: {
         trade: tradeRecord,
         journal: journalRecord,
         unlockedAchievements,
-        extraction: {
-          confidence: extractionResult.confidence,
-          validFieldCount: extractionResult.validFieldCount,
-          errors: extractionResult.errors
+        timing: {
+          totalMs: Math.round(performance.now() - t0),
+          aiProvider: aiResult.provider,
         }
       },
       message: 'Auto-journal created successfully!'
     })
 
   } catch (error: any) {
-    console.error('❌ [Auto Journal] Error:', error)
+    const totalTime = ((performance.now() - t0) / 1000).toFixed(2)
+    console.error(`❌ [Auto Journal] Error after ${totalTime}s:`, error)
     return NextResponse.json(
       {
         error: 'Failed to create auto-journal',
-        details: error.message
+        details: error.message,
+        timing: { totalMs: Math.round(performance.now() - t0) }
       },
       { status: 500 }
     )
