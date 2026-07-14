@@ -288,19 +288,17 @@ export async function saveTrade(entry: any) {
 }
 
 /**
- * Upload screenshot to Supabase Storage
+ * Upload screenshot to Supabase Storage.
+ * Accepts a pre-optimized buffer (already resized/compressed by caller).
+ * Runs sharp webp conversion only — caller should NOT pre-optimize for this.
  */
 export async function uploadScreenshot(
   imageBuffer: Buffer,
   userId: string
 ): Promise<string> {
-  // Optimize image before upload
-  const optimizedImage = await sharp(imageBuffer)
-    .resize(1920, 1080, {
-      fit: "inside",
-      withoutEnlargement: true,
-    })
-    .webp({ quality: 85 })
+  // Only convert to webp for storage — caller already resized
+  const webpBuffer = await sharp(imageBuffer)
+    .webp({ quality: 80 })
     .toBuffer();
 
   const path = `${userId}/${Date.now()}.webp`;
@@ -308,7 +306,7 @@ export async function uploadScreenshot(
   try {
     const { error: uploadError } = await supabase.storage
       .from("trade-screenshots")
-      .upload(path, optimizedImage, {
+      .upload(path, webpBuffer, {
         upsert: true,
         contentType: "image/webp",
       });
