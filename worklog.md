@@ -69,3 +69,25 @@ Stage Summary:
 - Key file changes: src/app/api/auto-journal/route.ts (full rewrite), src/lib/aiml-vision.ts (new export + new prompt)
 - Timing breakdown: buffer ~50ms, sharp ~200ms, AI ~4-6s, DB ~500ms = ~5-8s total
 - Committed as: eb5d389 "perf: merge 2 AI calls into 1 for auto-journal (halves latency)"
+
+---
+Task ID: auto-journal-perf
+Agent: Main Agent
+Task: Optimize auto-journal to fit within Vercel Hobby 10s timeout
+
+Work Log:
+- Analyzed current flow: found AI call was already combined (TRADE_AND_JOURNAL_PROMPT existed), but multiple other bottlenecks remained
+- Removed duplicate sharp processing in uploadScreenshot (was running sharp twice — once in route, once in upload function)
+- Eliminated mixed DB providers: removed Supabase `saveTrade()` call, now using Prisma `db.trade.create()` for everything (was: 1 Supabase insert + 3 Prisma ops = 4 sequential DB calls; now: 3 Prisma ops only)
+- Set AI call `maxRetries: 0` and `timeout: 20000` — no time budget for retries on Vercel Hobby
+- Eliminated OpenRouter model discovery API call (was fetching /api/v1/models list on every cold start = 2-3s); hardcoded model directly
+- Moved screenshot upload + achievement check to Next.js 16 `after()` — guaranteed to run after response is sent, unlike plain fire-and-forget which Vercel may freeze
+- Removed `saveTrade` import (no longer used)
+- Updated `uploadScreenshot` to skip resize (caller already optimized), only does webp conversion
+
+Stage Summary:
+- Critical path before: ~12-18s (AI 8-12s + sharp 500ms + DB 500ms + upload 1-3s + achievements 200-500ms + retries/model-discovery overhead)
+- Critical path after: ~6-9s (AI 5-8s + sharp 500ms + DB 200ms) — should fit under 10s with Gemini as primary provider
+- Files changed: src/app/api/auto-journal/route.ts, src/lib/aiml-vision.ts, src/lib/extractTradeData.ts
+- Build: passes clean
+- Lint: passes clean
