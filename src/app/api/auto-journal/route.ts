@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { after } from 'next/server'
 import { getAuthUser } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { isUserPro } from '@/lib/pro-check'
-import { saveTrade, uploadScreenshot } from '@/lib/extractTradeData'
+import { uploadScreenshot } from '@/lib/extractTradeData'
 import { checkAchievementsAfterTrade } from '@/lib/achievement-checker'
 import {
   analyzeImageBase64WithAiml,
@@ -91,98 +92,22 @@ export async function POST(request: NextRequest) {
 
     console.log('📷 [Auto Journal] Processing image:', imageFile.name, imageFile.size, 'bytes', `type: ${imageFile.type || 'unknown'}`)
 
-    // Convert image to buffer
+    // ── Step 1: Convert + optimize image with sharp (single pass) ──
     const t1 = performance.now()
     const bytes = await imageFile.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    console.log(`⏱️ [Auto Journal] Buffer conversion: ${(performance.now() - t1).toFixed(0)}ms`)
-
-    // Optimize image ONCE with sharp — reuse base64 for both AI call and upload
-    const t2 = performance.now()
     const optimizedBuffer = await sharp(buffer)
       .resize(1920, 1080, { fit: 'inside', withoutEnlargement: true })
       .jpeg({ quality: 85 })
       .toBuffer()
     const base64Image = optimizedBuffer.toString('base64')
-    console.log(`⏱️ [Auto Journal] Sharp optimize + base64: ${(performance.now() - t2).toFixed(0)}ms`)
+    console.log(`⏱️ [Auto Journal] Sharp + base64: ${(performance.now() - t1).toFixed(0)}ms`)
 
-    // ═══════════════════════════════════════════════════════════
-    // SINGLE AI CALL — trade data extraction + journal analysis
-    // ═══════════════════════════════════════════════════════════
-    const t3 = performance.now()
-    console.log('🤖 [Auto Journal] Single combined AI call (extract + journal)...')
-
-    const aiResult = await analyzeImageBase64WithAiml(
-      base64Image,
-      TRADE_AND_JOURNAL_PROMPT,
-      { timeout: 25000, maxRetries: 1 }  // aggressive: 25s timeout, 1 retry only
-    )
-    console.log(`⏱️ [Auto Journal] AI call completed: ${(performance.now() - t3).toFixed(0)}ms (${aiResult.provider})`)
-
-    // Parse the combined JSON response
-    const t4 = performance.now()
-    const jsonMatch = aiResult.text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) {
-      return NextResponse.json(
-        { error: 'AI failed to return valid JSON from screenshot.' },
-        { status: 400 }
-      )
-    }
-
-    const ai: CombinedAIResponse = JSON.parse(jsonMatch[0])
-    console.log(`⏱️ [Auto Journal] JSON parse: ${(performance.now() - t4).toFixed(0)}ms`)
-
-    // ── Validate trade data (minimum 3 fields: symbol + type + price) ──
-    const validFields = [
-      ai.symbol, ai.type, ai.openPrice, ai.closePrice,
-      ai.profitLoss, ai.openTime, ai.closeTime,
-    ].filter(f => f != null).length
-    if (validFields < 3) {
-      return NextResponse.json(
-        {
-          error: 'Insufficient trade data extracted. Please upload a clearer screenshot.',
-          validFieldCount: validFields,
-        },
-        { status: 400 }
-      )
-    }
-
-    console.log('✅ [Auto Journal] Trade data extracted:', {
-      symbol: ai.symbol, type: ai.type, pl: ai.profitLoss,
-    })
-
-    // ── Parse journal fields from the same response ──
-    const journal: GeneratedJournal = {
-      title: ai.journalTitle || `${ai.symbol || 'Trade'} ${ai.type || ''} Entry`,
-      content: ai.journalContent || `${ai.type === 'sell' ? 'Short' : 'Long'} position on ${ai.symbol || 'unknown'}. Entry at ${ai.openPrice ?? '?'}, exit at ${ai.closePrice ?? '?'}. P/L: ${ai.profitLoss ?? 0}.`,
-      mood: ai.mood || 'neutral',
-      market_condition: ai.marketCondition || 'ranging',
-      tags: ai.tags ? ai.tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean) : ['trade'],
-      setup_type: ai.setupType || '',
-    }
-    // Always ensure 'trade' is in tags
-    if (!journal.tags.includes('trade')) journal.tags.push('trade')
-
-    // Calculate risk-reward ratio if SL and TP exist
-    if (ai.stopLoss && ai.takeProfit && ai.openPrice) {
-      const risk = Math.abs(ai.openPrice - ai.stopLoss)
-      const reward = Math.abs((ai.closePrice ?? ai.openPrice) - ai.openPrice)
-      journal.risk_reward_ratio = risk > 0 ? reward / risk : 0
-    }
-
-    // ── Upload screenshot to Supabase Storage (parallel-ready, but sequential is fine) ──
-    const t5 = performance.now()
-    let screenshotUrl: string | undefined
-    try {
-      screenshotUrl = await uploadScreenshot(optimizedBuffer, authUser.id)
-      console.log(`⏱️ [Auto Journal] Screenshot upload: ${(performance.now() - t5).toFixed(0)}ms`)
-    } catch (uploadError: any) {
-      console.warn('⚠️ [Auto Journal] Failed to upload screenshot:', uploadError.message)
-    }
-
-    // ── Ensure profile exists ──
+    // ── Step 2: Ensure profile exists (parallel with AI call would be ideal but needs auth) ──
+    const t1b = performance.now()
     const existingProfile = await db.profile.findUnique({
-      where: { id: authUser.id }
+      where: { id: authUser.id },
+      select: { id: true }
     })
     if (!existingProfile) {
       await db.profile.create({
@@ -199,41 +124,93 @@ export async function POST(request: NextRequest) {
         }
       })
     }
+    console.log(`⏱️ [Auto Journal] Profile check: ${(performance.now() - t1b).toFixed(0)}ms`)
 
-    // ── Save trade to database (all fields null-safe) ──
-    const t6 = performance.now()
-    const tradeData = {
-      userId: authUser.id,
-      symbol: (ai.symbol || 'UNKNOWN').toUpperCase(),
-      type: (ai.type || 'buy').toUpperCase(),
-      openPrice: ai.openPrice ?? 0,
-      closePrice: ai.closePrice ?? 0,
-      profitLoss: ai.profitLoss ?? 0,
-      openTime: ai.openTime || new Date().toISOString(),
-      closeTime: ai.closeTime || new Date().toISOString(),
-      stopLoss: ai.stopLoss ?? null,
-      takeProfit: ai.takeProfit ?? null,
-      volume: ai.volume ?? null,
-      ticketNumber: ai.ticketNumber || null,
-      screenshotUrl: screenshotUrl,
-      notes: journal.content,
+    // ═══════════════════════════════════════════════════════════
+    // SINGLE AI CALL — trade data extraction + journal analysis
+    // ═══════════════════════════════════════════════════════════
+    const t2 = performance.now()
+    console.log('🤖 [Auto Journal] Single combined AI call (extract + journal)...')
+
+    const aiResult = await analyzeImageBase64WithAiml(
+      base64Image,
+      TRADE_AND_JOURNAL_PROMPT,
+      { timeout: 20000, maxRetries: 0 }  // NO retries — we have no time budget
+    )
+    console.log(`⏱️ [Auto Journal] AI call: ${(performance.now() - t2).toFixed(0)}ms (${aiResult.provider})`)
+
+    // Parse the combined JSON response
+    const t3 = performance.now()
+    const jsonMatch = aiResult.text.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      return NextResponse.json(
+        { error: 'AI failed to return valid JSON from screenshot.' },
+        { status: 400 }
+      )
     }
 
-    const savedTrade = await saveTrade(tradeData)
+    const ai: CombinedAIResponse = JSON.parse(jsonMatch[0])
+    console.log(`⏱️ [Auto Journal] JSON parse: ${(performance.now() - t3).toFixed(0)}ms`)
 
-    // Update the trade record with journal metadata
-    const tradeRecord = await db.trade.update({
-      where: { id: savedTrade.id },
+    // ── Validate trade data (minimum 3 fields: symbol + type + price) ──
+    const validFields = [
+      ai.symbol, ai.type, ai.openPrice, ai.closePrice,
+      ai.profitLoss, ai.openTime, ai.closeTime,
+    ].filter(f => f != null).length
+    if (validFields < 3) {
+      return NextResponse.json(
+        {
+          error: 'Insufficient trade data extracted. Please upload a clearer screenshot.',
+          validFieldCount: validFields,
+        },
+        { status: 400 }
+      )
+    }
+
+    // ── Parse journal fields from the same response ──
+    const journal: GeneratedJournal = {
+      title: ai.journalTitle || `${ai.symbol || 'Trade'} ${ai.type || ''} Entry`,
+      content: ai.journalContent || `${ai.type === 'sell' ? 'Short' : 'Long'} position on ${ai.symbol || 'unknown'}. Entry at ${ai.openPrice ?? '?'}, exit at ${ai.closePrice ?? '?'}. P/L: ${ai.profitLoss ?? 0}.`,
+      mood: ai.mood || 'neutral',
+      market_condition: ai.marketCondition || 'ranging',
+      tags: ai.tags ? ai.tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean) : ['trade'],
+      setup_type: ai.setupType || '',
+    }
+    if (!journal.tags.includes('trade')) journal.tags.push('trade')
+
+    // Calculate risk-reward ratio if SL and TP exist
+    if (ai.stopLoss && ai.takeProfit && ai.openPrice) {
+      const risk = Math.abs(ai.openPrice - ai.stopLoss)
+      const reward = Math.abs((ai.closePrice ?? ai.openPrice) - ai.openPrice)
+      journal.risk_reward_ratio = risk > 0 ? reward / risk : 0
+    }
+
+    // ── Step 3: Save to database — use Prisma for EVERYTHING (single DB provider) ──
+    const t4 = performance.now()
+
+    const tradeRecord = await db.trade.create({
       data: {
+        user_id: authUser.id,
+        symbol: (ai.symbol || 'UNKNOWN').toUpperCase(),
+        type: (ai.type || 'buy').toUpperCase(),
+        open_price: ai.openPrice ?? 0,
+        close_price: ai.closePrice ?? 0,
+        profit_loss: ai.profitLoss ?? 0,
+        open_time: ai.openTime ? new Date(ai.openTime) : new Date(),
+        close_time: ai.closeTime ? new Date(ai.closeTime) : new Date(),
+        stop_loss: ai.stopLoss ?? null,
+        take_profit: ai.takeProfit ?? null,
+        lot_size: ai.volume ?? 0,
+        ticket_number: ai.ticketNumber || null,
         emotion: journal.mood,
         setup_type: journal.setup_type,
         tags: journal.tags.join(','),
-        risk_reward_ratio: journal.risk_reward_ratio
+        risk_reward_ratio: journal.risk_reward_ratio,
+        notes: journal.content,
       }
     })
-    console.log(`⏱️ [Auto Journal] DB save: ${(performance.now() - t6).toFixed(0)}ms`)
 
-    // ── Create journal entry ──
+    // Create journal entry + link in one conceptual step
     const journalRecord = await db.journalEntry.create({
       data: {
         user_id: authUser.id,
@@ -245,19 +222,43 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Link trade → journal (FK is on Trade model, not JournalEntry)
+    // Link trade → journal (FK on Trade model)
     await db.trade.update({
       where: { id: tradeRecord.id },
       data: { linked_journal_id: journalRecord.id }
     })
 
-    // ── Check achievements (non-critical) ──
-    let unlockedAchievements: any[] = []
-    try {
-      unlockedAchievements = await checkAchievementsAfterTrade(authUser.id)
-    } catch (achErr) {
-      console.warn('[Auto Journal] Achievement check failed (non-critical):', achErr)
-    }
+    console.log(`⏱️ [Auto Journal] DB save (3 ops): ${(performance.now() - t4).toFixed(0)}ms`)
+
+    // ── Step 4: Background tasks (using Next.js `after()` for serverless safety) ──
+    // These run AFTER the response is sent but are guaranteed to complete
+    // (unlike plain fire-and-forget which Vercel may freeze).
+    const tradeId = tradeRecord.id
+    after(async () => {
+      // Screenshot upload + link to trade
+      if (optimizedBuffer.length > 0) {
+        try {
+          const url = await uploadScreenshot(optimizedBuffer, authUser.id)
+          await db.trade.update({
+            where: { id: tradeId },
+            data: { screenshot_url: url }
+          })
+          console.log(`✅ [Auto Journal BG] Screenshot uploaded + linked`)
+        } catch (err: any) {
+          console.warn('⚠️ [Auto Journal BG] Screenshot upload failed:', err.message)
+        }
+      }
+
+      // Achievement check (non-critical)
+      try {
+        const achievements = await checkAchievementsAfterTrade(authUser.id)
+        if (achievements && achievements.length > 0) {
+          console.log(`🏆 [Auto Journal BG] Achievements unlocked:`, achievements.map((a: any) => a.key))
+        }
+      } catch (achErr) {
+        console.warn('[Auto Journal BG] Achievement check failed (non-critical):', achErr)
+      }
+    })
 
     const totalTime = ((performance.now() - t0) / 1000).toFixed(2)
     console.log(`🏁 [Auto Journal] Total time: ${totalTime}s`)
@@ -267,7 +268,6 @@ export async function POST(request: NextRequest) {
       data: {
         trade: tradeRecord,
         journal: journalRecord,
-        unlockedAchievements,
         timing: {
           totalMs: Math.round(performance.now() - t0),
           aiProvider: aiResult.provider,

@@ -100,48 +100,12 @@ async function callGemini(
 
 // ==================== OPENROUTER FREE VISION ====================
 
-const OPENROUTER_MODELS = [
-  'meta-llama/llama-4-scout:free',
-  'google/gemma-3-27b-it:free',
-  'qwen/qwen3-235b-a22b:free',
-]
+// OpenRouter free vision models — just use the first one directly.
+// No model discovery API call (saves 2-3s on cold start / fallback).
+const OPENROUTER_MODEL = 'meta-llama/llama-4-scout:free'
 
-let cachedOpenRouterModel: string | null = null
-
-async function getOpenRouterModel(): Promise<string> {
-  if (cachedOpenRouterModel) return cachedOpenRouterModel
-
-  const apiKey = process.env.OPENROUTER_API_KEY
-  if (!apiKey) throw new Error('OPENROUTER_API_KEY is not configured')
-
-  // Try to find a working free vision model
-  for (const model of OPENROUTER_MODELS) {
-    try {
-      console.log(`🔍 [OpenRouter] Checking model: ${model}`)
-      const res = await fetch('https://openrouter.ai/api/v1/models', {
-        headers: { 'Authorization': `Bearer ${apiKey}` },
-        signal: AbortSignal.timeout(10000),
-      })
-      if (!res.ok) {
-        console.warn(`⚠️ [OpenRouter] Failed to fetch models list`)
-        break
-      }
-      const data = await res.json()
-      const found = data.data?.find((m: any) => m.id === model)
-      if (found) {
-        cachedOpenRouterModel = model
-        console.log(`✅ [OpenRouter] Using model: ${model}`)
-        return model
-      }
-    } catch {
-      // Continue to next model
-    }
-  }
-
-  // Fallback to first model even if we couldn't verify
-  cachedOpenRouterModel = OPENROUTER_MODELS[0]
-  console.log(`⚠️ [OpenRouter] Using unverified model: ${cachedOpenRouterModel}`)
-  return cachedOpenRouterModel!
+function getOpenRouterModel(): string {
+  return OPENROUTER_MODEL
 }
 
 async function callOpenRouter(
