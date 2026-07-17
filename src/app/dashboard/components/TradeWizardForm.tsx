@@ -265,16 +265,22 @@ export default function TradeWizardForm({
 
     setAnalyzingScreenshot(true)
     if (!toast.isActive('auto-journal')) {
-      toast.loading('🤖 AI is analyzing your screenshot...', { id: 'auto-journal' })
+      toast.loading('🤖 AI sedang menganalisis screenshot kamu...', { id: 'auto-journal' })
     }
     try {
       const formData = new FormData()
       formData.append('image', file)
 
+      // 30s timeout — jangan muter selamanya kalau server bermasalah
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000)
+
       const res = await fetch('/api/auto-journal', {
         method: 'POST',
         body: formData,
+        signal: controller.signal,
       })
+      clearTimeout(timeoutId)
 
       const data = await res.json()
 
@@ -333,9 +339,13 @@ export default function TradeWizardForm({
       } else {
         toast.error(data.error || 'Failed to create auto-journal', { id: 'auto-journal' })
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [TradeWizardForm] Auto-journal error:', error)
-      toast.error('Failed to create auto-journal. Please try again.', { id: 'auto-journal' })
+      if (error.name === 'AbortError') {
+        toast.error('⏱️ Analisis AI terlalu lama (>30 detik). Coba lagi atau gunakan screenshot yang lebih jelas.', { id: 'auto-journal', duration: 5000 })
+      } else {
+        toast.error('Gagal membuat auto-journal. Silakan coba lagi.', { id: 'auto-journal' })
+      }
     } finally {
       setAnalyzingScreenshot(false)
       e.target.value = ''
