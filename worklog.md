@@ -178,3 +178,21 @@ Stage Summary:
 - Auto-journal now actually CALLS Gemini (was silently skipped before)
 - Import file endpoint no longer crashes on FormData upload
 - Client MT5 import now correctly reads server response
+
+---
+Task ID: fix-promo-slot-bug
+Agent: Main Agent
+Task: Fix promo code 30-slot limit not working + active traders count
+
+Work Log:
+- CRITICAL BUG FOUND: /api/promo/apply DROP+CREATE-d promo_codes table on EVERY request, re-seeding TRADERCEPAT with used_quota=0. This made the 30-slot limit completely ineffective — unlimited redemptions possible.
+- Rewrote /api/promo/apply: removed all DROP+CREATE logic, kept only the atomic UPDATE ... WHERE used_quota < max_quota RETURNING pattern
+- Rewrote /api/promo-simple/apply: was using non-atomic Prisma read→write (race condition vulnerable), now uses raw SQL atomic UPDATE like the main endpoint
+- Fixed landing-stats activeUsers: changed from COUNT(DISTINCT user_id in trades) to COUNT(profiles WHERE last_login_at > NOW() - 30 days) — more accurate measure of active users
+- Fixed promo-quota fallback: when DB unavailable, now returns remainingQuota:0 isActive:false (was returning 30 remaining = lying to users)
+
+Stage Summary:
+- 4 files changed, 71 insertions, 170 deletions
+- Promo code TRADERCEPAT now properly enforces 30-slot limit
+- Active traders now shows users active in last 30 days (not just who has trades)
+- promo-quota no longer shows fake availability when DB is down
