@@ -13,15 +13,26 @@ export async function GET() {
       return NextResponse.json(cache.data)
     }
 
-    const [totalUsers, activeUsersData, tradesLogged] = await Promise.all([
+    // Run queries in parallel for speed
+    const [totalUsers, activeUsersResult, tradesLogged] = await Promise.all([
+      // Total registered users (all profiles)
       db.profile.count(),
-      db.trade.groupBy({ by: ['user_id'] }),
+
+      // Active users = logged in within last 30 days
+      db.$queryRawUnsafe<{ count: bigint }[]>(`
+        SELECT COUNT(*)::bigint as count FROM profiles
+        WHERE last_login_at > NOW() - INTERVAL '30 days'
+      `),
+
+      // Total trades logged
       db.trade.count(),
     ])
 
+    const activeUsers = Number(activeUsersResult[0]?.count || 0)
+
     const data = {
       totalUsers,
-      activeUsers: activeUsersData.length,
+      activeUsers,
       tradesLogged,
     }
 
