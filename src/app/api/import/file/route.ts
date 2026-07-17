@@ -379,8 +379,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { fileBase64, fileType, fileName } = body
+    // Accept both FormData (from client) and JSON (from legacy callers)
+    const contentType = request.headers.get('content-type') || ''
+    let fileBase64: string | null = null
+    let fileType = ''
+    let fileName = ''
+
+    if (contentType.includes('multipart/form-data')) {
+      const form = await request.formData()
+      const uploadedFile = form.get('file') as File | null
+      if (!uploadedFile) {
+        return NextResponse.json({ 
+          success: false, error: 'No file provided', message: 'Please upload a file.'
+        }, { status: 400 })
+      }
+      fileName = uploadedFile.name
+      fileType = uploadedFile.type || ''
+      const arrayBuffer = await uploadedFile.arrayBuffer()
+      fileBase64 = Buffer.from(arrayBuffer).toString('base64')
+    } else {
+      const body = await request.json()
+      fileBase64 = body.fileBase64
+      fileType = body.fileType || ''
+      fileName = body.fileName || ''
+    }
     
     if (!fileBase64) {
       return NextResponse.json({ 

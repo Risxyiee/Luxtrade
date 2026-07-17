@@ -158,3 +158,23 @@ Stage Summary:
 - On sandbox (no DB): skeleton loading shows, then falls back to zeros
 - "Data Terenkripsi 100%" remains intentionally static
 - Hero "20+" now dynamically shows real totalUsers count from DB
+
+---
+Task ID: fix-auto-journal-spinning
+Agent: Main Agent
+Task: Fix auto-journal infinite loading + import/file JSON crash
+
+Work Log:
+- ROOT CAUSE 1: `callGemini()` in aiml-vision.ts used `for (attempt < maxRetries)` loop. When auto-journal passed `maxRetries: 0`, the loop ran ZERO times → Gemini was NEVER called → immediately threw "All Gemini API attempts failed" → fell back to OpenRouter (slow/missing) → total time exceeded Vercel 10s → function killed → client saw infinite spinner
+  - Fix: Changed to `const attempts = Math.max(1, options.maxRetries ?? 2)` — minimum 1 attempt guaranteed
+  - Changed auto-journal route: `maxRetries: 0` → `maxRetries: 1` (1 attempt, no retry)
+- ROOT CAUSE 2: `/api/import/file` server used `request.json()` but client sent `FormData` (multipart/form-data). JSON.parse on multipart boundary string → "No number after minus sign in JSON at position 1"
+  - Fix: Server now checks content-type header — uses `request.formData()` for multipart, `request.json()` for JSON
+- BONUS FIX: Client MT5 import handler read `data.data.symbol` but server returned `data.trades[0].symbol` — response structure mismatch
+  - Fix: Client now correctly reads from `data.trades[0]`
+
+Stage Summary:
+- Files changed: aiml-vision.ts (loop fix), auto-journal/route.ts (maxRetries 1), import/file/route.ts (FormData support), TradeWizardForm.tsx (response structure fix)
+- Auto-journal now actually CALLS Gemini (was silently skipped before)
+- Import file endpoint no longer crashes on FormData upload
+- Client MT5 import now correctly reads server response
