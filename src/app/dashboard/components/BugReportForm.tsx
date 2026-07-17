@@ -189,7 +189,7 @@ export function BugReportForm({ open, onClose }: BugReportFormProps) {
                     htmlFor="screenshot"
                     className="cursor-pointer flex flex-col items-center gap-3"
                   >
-                    <Upload className="w-12 h-12 text-gray-400" />
+                    <Upload className="w-12 h-12 text-lux-text-secondary dark:text-gray-400" />
                     <div>
                       <p className="font-medium text-sm">
                         Klik untuk upload screenshot

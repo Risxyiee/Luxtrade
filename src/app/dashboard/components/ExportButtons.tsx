@@ -46,24 +46,24 @@ export function ExportButtons({ journalEntries = [], trades = [], isDisabled = f
         {/* Journal Exports */}
         {journalEntries.length > 0 && (
           <>
-            <div className="px-2 py-1.5 text-xs font-semibold text-gray-400 uppercase">Journal</div>
+            <div className="px-2 py-1.5 text-xs font-semibold text-lux-text-secondary dark:text-gray-400 uppercase">Journal</div>
             <DropdownMenuItem
               onClick={() => exportJournalToPDF(journalEntries, `journal-${new Date().toISOString().split('T')[0]}.pdf`)}
-              className="cursor-pointer text-gray-300 hover:text-white"
+              className="cursor-pointer text-lux-text-primary dark:text-gray-300 hover:text-lux-text-primary dark:hover:text-white"
             >
               <FileText className="w-4 h-4 mr-2 text-purple-400" />
               <span>Download as PDF</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => exportJournalToCSV(journalEntries, `journal-${new Date().toISOString().split('T')[0]}.csv`)}
-              className="cursor-pointer text-gray-300 hover:text-white"
+              className="cursor-pointer text-lux-text-primary dark:text-gray-300 hover:text-lux-text-primary dark:hover:text-white"
             >
               <BarChart3 className="w-4 h-4 mr-2 text-emerald-400" />
               <span>Download as CSV</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => printJournal(journalEntries)}
-              className="cursor-pointer text-gray-300 hover:text-white"
+              className="cursor-pointer text-lux-text-primary dark:text-gray-300 hover:text-lux-text-primary dark:hover:text-white"
             >
               <FileText className="w-4 h-4 mr-2 text-blue-400" />
               <span>Print</span>
@@ -75,10 +75,10 @@ export function ExportButtons({ journalEntries = [], trades = [], isDisabled = f
         {/* Trades Exports */}
         {trades.length > 0 && (
           <>
-            <div className="px-2 py-1.5 text-xs font-semibold text-gray-400 uppercase">Trades</div>
+            <div className="px-2 py-1.5 text-xs font-semibold text-lux-text-secondary dark:text-gray-400 uppercase">Trades</div>
             <DropdownMenuItem
               onClick={() => exportTradesToCSV(trades, `trades-${new Date().toISOString().split('T')[0]}.csv`)}
-              className="cursor-pointer text-gray-300 hover:text-white"
+              className="cursor-pointer text-lux-text-primary dark:text-gray-300 hover:text-lux-text-primary dark:hover:text-white"
             >
               <BarChart3 className="w-4 h-4 mr-2 text-emerald-400" />
               <span>Download as CSV</span>
@@ -90,7 +90,7 @@ export function ExportButtons({ journalEntries = [], trades = [], isDisabled = f
         {/* Full Backup */}
         {hasData && (
           <>
-            <div className="px-2 py-1.5 text-xs font-semibold text-gray-400 uppercase">Backup</div>
+            <div className="px-2 py-1.5 text-xs font-semibold text-lux-text-secondary dark:text-gray-400 uppercase">Backup</div>
             <DropdownMenuItem
               onClick={() =>
                 exportAllDataAsJSON(
@@ -99,7 +99,7 @@ export function ExportButtons({ journalEntries = [], trades = [], isDisabled = f
                   `luxtrade-backup-${new Date().toISOString().split('T')[0]}.json`
                 )
               }
-              className="cursor-pointer text-gray-300 hover:text-white"
+              className="cursor-pointer text-lux-text-primary dark:text-gray-300 hover:text-lux-text-primary dark:hover:text-white"
             >
               <FileJson className="w-4 h-4 mr-2 text-cyan-400" />
               <span>Full Backup (JSON)</span>

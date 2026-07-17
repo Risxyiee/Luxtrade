@@ -42,7 +42,7 @@ function fmtPct(value: number): string {
 
 function SkeletonCard() {
   return (
-    <Card className="bg-gradient-to-br from-[#0f0b18]/80 to-[#12091a]/80 backdrop-blur-sm border border-white/10">
+    <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-sm border border-lux-border dark:border-white/10">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="h-4 w-20 bg-white/10 rounded animate-pulse" />
         <div className="w-10 h-10 bg-white/10 rounded-xl animate-pulse" />
@@ -57,7 +57,7 @@ function SkeletonCard() {
 
 function SkeletonEquityCurve() {
   return (
-    <Card className="bg-gradient-to-br from-[#0f0b18]/80 to-[#12091a]/80 backdrop-blur-md border-purple-500/20">
+    <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-purple-500/20">
       <CardHeader className="flex flex-row items-center justify-between">
         <div className="h-5 w-40 bg-white/10 rounded animate-pulse" />
         <div className="h-4 w-20 bg-white/10 rounded animate-pulse" />
@@ -79,10 +79,10 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: s
   }
   const c = colorMap[color]
   return (
-    <Card className="bg-[#0a0712] border-purple-900/30 overflow-hidden relative group hover:border-purple-500/50 transition-all duration-300">
+    <Card className="bg-lux-bg-card dark:bg-[#0a0712] border-lux-border dark:border-purple-900/30 overflow-hidden relative group hover:border-purple-500/50 transition-all duration-300">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium text-gray-400">{label}</CardTitle>
+          <CardTitle className="text-sm font-medium text-lux-text-secondary dark:text-gray-400">{label}</CardTitle>
           {Icon && <div className={`p-2 rounded-lg ${c.iconBg}`}><Icon className={`w-4 h-4 ${c.iconText}`} /></div>}
         </div>
       </CardHeader>
@@ -106,8 +106,8 @@ function EquityTooltipContent({ active, payload, label }: any) {
     const prevEquity = prevIdx >= 0 ? curve[prevIdx].equity : first
     const change = equity - prevEquity
     return (
-      <div className="bg-gradient-to-br from-[#0f0b18] to-[#1a1030] border border-purple-500/40 rounded-xl p-3 shadow-2xl shadow-purple-500/10">
-        <p className="text-xs text-gray-400 mb-1.5">{label}</p>
+      <div className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#1a1030] border border-purple-500/40 rounded-xl p-3 shadow-2xl shadow-purple-500/10">
+        <p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1.5">{label}</p>
         <p className="text-lg font-bold bg-gradient-to-r from-purple-300 to-amber-300 bg-clip-text text-transparent">
           ${equity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </p>
@@ -164,7 +164,7 @@ function LuxuryEquityCurve({
   }
 
   return (
-    <Card className="relative overflow-hidden bg-gradient-to-br from-[#0f0b18] via-[#110d1f] to-[#0d0820] backdrop-blur-xl border border-purple-500/20 transition-all duration-500 hover:border-purple-500/40 hover:shadow-2xl hover:shadow-purple-500/10">
+    <Card className="relative overflow-hidden bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:via-[#110d1f] dark:to-[#0d0820] backdrop-blur-xl border border-lux-border dark:border-purple-500/20 transition-all duration-500 hover:border-purple-500/40 hover:shadow-2xl hover:shadow-purple-500/10">
       {/* Background ambient effects */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <motion.div
@@ -188,7 +188,7 @@ function LuxuryEquityCurve({
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <div className={`p-2.5 rounded-xl bg-gradient-to-br ${isPositive ? 'from-emerald-500/20 to-emerald-600/10' : 'from-red-500/20 to-red-600/10'} border ${isPositive ? 'border-emerald-500/20' : 'border-red-500/20'}`}>
+              <div className={`p-2.5 rounded-xl bg-gradient-to-br ${isPositive ? 'from-emerald-500/20 to-emerald-600/10' : 'from-red-500/20 to-red-600/10'} border ${isPositive ? 'border-emerald-500/20' : 'border-lux-border dark:border-red-500/20'}`}>
                 <Gem className={`w-5 h-5 ${isPositive ? 'text-emerald-400' : 'text-red-400'}`} />
               </div>
               <motion.div
@@ -202,19 +202,19 @@ function LuxuryEquityCurve({
               <CardTitle className="text-lg font-bold bg-gradient-to-r from-white via-purple-200 to-amber-200 bg-clip-text text-transparent">
                 {language === 'id' ? 'Kurva Ekuitas' : 'Equity Curve'}
               </CardTitle>
-              <p className="text-xs text-gray-500 mt-0.5">{equityCurve.length} {language === 'id' ? 'data poin' : 'data points'}</p>
+              <p className="text-xs text-lux-text-muted dark:text-gray-500 mt-0.5">{equityCurve.length} {language === 'id' ? 'data poin' : 'data points'}</p>
             </div>
           </div>
 
           {/* Summary badges */}
           <div className="flex items-center gap-2">
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${isPositive ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${isPositive ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-lux-border dark:border-red-500/20'}`}>
               {isPositive ? <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" /> : <ArrowDownRight className="w-3.5 h-3.5 text-red-400" />}
               <span className={`text-sm font-bold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
                 {fmtPL(equityChange)}
               </span>
             </div>
-            <div className={`px-3 py-1.5 rounded-lg border bg-purple-500/10 border-purple-500/20`}>
+            <div className={`px-3 py-1.5 rounded-lg border bg-purple-500/10 border-lux-border dark:border-purple-500/20`}>
               <span className="text-sm font-bold text-purple-300">
                 {equityChangePct >= 0 ? '+' : ''}{equityChangePct.toFixed(1)}%
               </span>
@@ -229,12 +229,12 @@ function LuxuryEquityCurve({
           <div className="mb-4 p-3.5 rounded-xl bg-gradient-to-r from-white/[0.03] to-white/[0.01] border border-white/[0.06]">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-500/20 to-violet-500/20 border border-purple-500/20 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-500/20 to-violet-500/20 border border-lux-border dark:border-purple-500/20 flex items-center justify-center">
                   <Wallet className="w-4 h-4 text-purple-400" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-white/90">{defaultAccount.name}</span>
+                    <span className="text-sm font-semibold text-lux-text-primary dark:text-white/90">{defaultAccount.name}</span>
                     <Badge className={`text-[10px] px-1.5 py-0 h-4 ${
                       defaultAccount.account_type === 'BACKTEST' ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' :
                       defaultAccount.account_type === 'DEMO' ? 'bg-blue-500/15 text-blue-400 border-blue-500/30' :
@@ -248,7 +248,7 @@ function LuxuryEquityCurve({
                       </Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
+                  <div className="flex items-center gap-3 mt-0.5 text-xs text-lux-text-muted dark:text-gray-500">
                     {defaultAccount.broker && <span>{defaultAccount.broker}</span>}
                     {defaultAccount.account_number && <span>#{defaultAccount.account_number}</span>}
                     <span>1:{defaultAccount.leverage}</span>
@@ -256,11 +256,11 @@ function LuxuryEquityCurve({
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-0.5">{language === 'id' ? 'Saldo Saat Ini' : 'Current Balance'}</p>
+                <p className="text-[10px] uppercase tracking-wider text-lux-text-muted dark:text-gray-500 mb-0.5">{language === 'id' ? 'Saldo Saat Ini' : 'Current Balance'}</p>
                 <p className="text-xl font-bold bg-gradient-to-r from-emerald-300 via-white to-purple-200 bg-clip-text text-transparent">
                   {defaultAccount.currency || 'USD'} {lastEquity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
-                <div className="flex items-center gap-3 mt-1 text-[10px] text-gray-500 justify-end">
+                <div className="flex items-center gap-3 mt-1 text-[10px] text-lux-text-muted dark:text-gray-500 justify-end">
                   <span>{language === 'id' ? 'Awal' : 'Initial'}: {defaultAccount.currency || 'USD'} {firstEquity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   <span className="text-gray-700">|</span>
                   <span>DD: <span className="text-red-400/80">{maxDD.toFixed(1)}%</span></span>
@@ -276,11 +276,11 @@ function LuxuryEquityCurve({
                     const accEquity = acc.current_balance || acc.initial_balance || 0
                     const isAccDefault = acc.is_default
                     return (
-                      <div key={acc.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border flex-shrink-0 transition-all ${isAccDefault ? 'bg-purple-500/10 border-purple-500/30' : 'bg-white/[0.02] border-white/[0.06] hover:border-white/[0.12]'}`}>
+                      <div key={acc.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border flex-shrink-0 transition-all ${isAccDefault ? 'bg-purple-500/10 border-purple-500/30' : 'bg-lux-surface-hover dark:bg-white/[0.02] border-lux-border dark:border-white/[0.06] hover:border-lux-border dark:hover:border-white/[0.12]'}`}>
                         <CircleDot className={`w-3 h-3 ${isAccDefault ? 'text-purple-400' : 'text-gray-600'}`} />
                         <div>
-                          <p className="text-xs font-medium text-white/70 truncate max-w-[120px]">{acc.name}</p>
-                          <p className="text-[10px] text-gray-500">{acc.currency || 'USD'} {accEquity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                          <p className="text-xs font-medium text-lux-text-secondary dark:text-white/70 truncate max-w-[120px]">{acc.name}</p>
+                          <p className="text-[10px] text-lux-text-muted dark:text-gray-500">{acc.currency || 'USD'} {accEquity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
                       </div>
                     )
@@ -394,20 +394,20 @@ function LuxuryEquityCurve({
         <div className="mt-4 flex items-center justify-between flex-wrap gap-3 pt-3 border-t border-white/[0.06]">
           <div className="flex items-center gap-5">
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-gray-500">{language === 'id' ? 'Ekuitas Tertinggi' : 'Peak Equity'}</p>
+              <p className="text-[10px] uppercase tracking-wider text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Ekuitas Tertinggi' : 'Peak Equity'}</p>
               <p className="text-sm font-bold text-emerald-400">${peakEquity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-gray-500">{language === 'id' ? 'Ekuitas Terendah' : 'Trough Equity'}</p>
+              <p className="text-[10px] uppercase tracking-wider text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Ekuitas Terendah' : 'Trough Equity'}</p>
               <p className="text-sm font-bold text-red-400">${troughEquity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-gray-500">{language === 'id' ? 'Max Drawdown' : 'Max Drawdown'}</p>
+              <p className="text-[10px] uppercase tracking-wider text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Max Drawdown' : 'Max Drawdown'}</p>
               <p className="text-sm font-bold text-amber-400">-{maxDD.toFixed(1)}%</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-[10px] uppercase tracking-wider text-gray-500">{language === 'id' ? 'Total Return' : 'Total Return'}</p>
+            <p className="text-[10px] uppercase tracking-wider text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Total Return' : 'Total Return'}</p>
             <p className={`text-sm font-bold flex items-center gap-1 justify-end ${equityChangePct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {equityChangePct >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
               {equityChangePct >= 0 ? '+' : ''}{equityChangePct.toFixed(2)}%
@@ -428,7 +428,7 @@ function PerformanceSection({ trades, language }: { trades: Trade[]; language: '
   const perf = tab === 'today' ? todayPerf : weeklyPerf
 
   return (
-    <Card className="bg-gradient-to-br from-[#0f0b18]/80 to-[#12091a]/80 backdrop-blur-md border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10">
+    <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
@@ -440,13 +440,13 @@ function PerformanceSection({ trades, language }: { trades: Trade[]; language: '
           <div className="flex gap-1 bg-white/5 rounded-lg p-0.5">
             <button
               onClick={() => setTab('today')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${tab === 'today' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'text-gray-500 hover:text-gray-300'}`}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${tab === 'today' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'text-lux-text-muted dark:text-gray-500 dark:hover:text-gray-300'}`}
             >
               {language === 'id' ? 'Hari Ini' : 'Today'}
             </button>
             <button
               onClick={() => setTab('weekly')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${tab === 'weekly' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'text-gray-500 hover:text-gray-300'}`}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${tab === 'weekly' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'text-lux-text-muted dark:text-gray-500 dark:hover:text-gray-300'}`}
             >
               {language === 'id' ? 'Minggu Ini' : 'Weekly'}
             </button>
@@ -455,15 +455,15 @@ function PerformanceSection({ trades, language }: { trades: Trade[]; language: '
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-4 gap-3">
-          <div><p className="text-xs text-gray-400 mb-1">{language === 'id' ? 'Transaksi' : 'Trades'}</p><p className="text-lg font-bold text-purple-300">{perf.trades}</p></div>
-          <div><p className="text-xs text-gray-400 mb-1">P/L</p><p className={`text-lg font-bold ${perf.totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtPL(perf.totalPL)}</p></div>
-          <div><p className="text-xs text-gray-400 mb-1">Win Rate</p><p className="text-lg font-bold text-purple-300">{fmtPct(perf.winRate)}</p></div>
-          <div><p className="text-xs text-gray-400 mb-1">W/L</p><p className="text-lg font-bold text-purple-300">{perf.wins}/{perf.losses}</p></div>
+          <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">{language === 'id' ? 'Transaksi' : 'Trades'}</p><p className="text-lg font-bold text-purple-300">{perf.trades}</p></div>
+          <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">P/L</p><p className={`text-lg font-bold ${perf.totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtPL(perf.totalPL)}</p></div>
+          <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">Win Rate</p><p className="text-lg font-bold text-purple-300">{fmtPct(perf.winRate)}</p></div>
+          <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">W/L</p><p className="text-lg font-bold text-purple-300">{perf.wins}/{perf.losses}</p></div>
         </div>
         {tab === 'weekly' && (
           <div className="mt-4 pt-4 border-t border-white/10">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-gray-400">{language === 'id' ? 'Target Mingguan' : 'Weekly Target'}</p>
+              <p className="text-sm text-lux-text-secondary dark:text-gray-400">{language === 'id' ? 'Target Mingguan' : 'Weekly Target'}</p>
               <p className="text-sm font-bold text-purple-300">{weeklyPerf.trades} / 10 {language === 'id' ? 'transaksi' : 'trades'}</p>
             </div>
             <div className="h-2 bg-white/10 rounded-full overflow-hidden">
@@ -580,7 +580,7 @@ function DashboardTab({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
       >
-        <Card className="relative overflow-hidden bg-gradient-to-br from-purple-600/15 via-violet-600/10 to-amber-500/10 backdrop-blur-md border border-purple-500/20">
+        <Card className="relative overflow-hidden bg-gradient-to-br from-purple-600/15 via-violet-600/10 to-amber-500/10 backdrop-blur-md border border-lux-border dark:border-purple-500/20">
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <motion.div className="absolute -top-12 -right-12 w-40 h-40 bg-purple-500/15 rounded-full blur-3xl" animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 6, repeat: Infinity }} />
           </div>
@@ -605,7 +605,7 @@ function DashboardTab({
               {/* Single highlight: Total P/L */}
               {hasData && (
                 <div className="hidden sm:block text-right flex-shrink-0">
-                  <p className="text-xs text-gray-400 mb-0.5">{language === 'id' ? 'Total P/L' : 'Total P/L'}</p>
+                  <p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-0.5">{language === 'id' ? 'Total P/L' : 'Total P/L'}</p>
                   <p className={`text-xl font-bold ${totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtPL(totalPL)}</p>
                 </div>
               )}
@@ -637,11 +637,11 @@ function DashboardTab({
       {/* Equity Curve: Fallback when PRO but analytics failed to load */}
       {hasData && !analytics?.equityCurve && isPro && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <Card className="bg-gradient-to-br from-[#0f0b18]/80 to-[#12091a]/80 backdrop-blur-md border-red-500/20">
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-red-500/20">
             <CardContent className="py-10 text-center">
               <BarChart3 className="w-12 h-12 text-red-400/40 mx-auto mb-3" />
               <p className="text-red-300 font-medium mb-1">{language === 'id' ? 'Gagal memuat data equity curve' : 'Failed to load equity curve data'}</p>
-              <p className="text-xs text-gray-500">{language === 'id' ? 'Coba refresh halaman. Jika masih gagal, hubungi admin.' : 'Try refreshing the page. If it persists, contact admin.'}</p>
+              <p className="text-xs text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Coba refresh halaman. Jika masih gagal, hubungi admin.' : 'Try refreshing the page. If it persists, contact admin.'}</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -650,14 +650,14 @@ function DashboardTab({
       {/* Equity Curve: Info when user has trades but is not PRO (analytics 403) */}
       {hasData && !analytics && !isPro && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <Card className="bg-gradient-to-br from-[#0f0b18]/80 to-[#12091a]/80 backdrop-blur-md border-purple-500/20 relative overflow-hidden">
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-purple-500/20 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-amber-500/5 pointer-events-none" />
             <CardContent className="relative py-10 text-center">
               <Gem className="w-12 h-12 text-purple-400/40 mx-auto mb-3" />
               <p className="text-purple-200 font-medium mb-1">
                 {language === 'id' ? 'Equity Curve — Fitur PRO' : 'Equity Curve — PRO Feature'}
               </p>
-              <p className="text-xs text-gray-500 max-w-sm mx-auto">
+              <p className="text-xs text-lux-text-muted dark:text-gray-500 max-w-sm mx-auto">
                 {language === 'id'
                   ? 'Upgrade ke PRO untuk melihat kurva ekuitas, analisis mendalam, dan insight AI.'
                   : 'Upgrade to PRO to unlock equity curve, deep analytics, and AI insights.'}
@@ -778,7 +778,7 @@ function DashboardTab({
       {/* Active Streak Banner */}
       {hasData && activeStreak.count > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.12 }}>
-          <Card className={`relative overflow-hidden bg-gradient-to-br backdrop-blur-md transition-all duration-300 hover:-translate-y-1 ${activeStreak.type === 'win' ? 'from-emerald-500/20 to-green-500/10 border-emerald-500/20' : 'from-red-500/20 to-rose-500/10 border-red-500/20'}`}>
+          <Card className={`relative overflow-hidden bg-gradient-to-br backdrop-blur-md transition-all duration-300 hover:-translate-y-1 ${activeStreak.type === 'win' ? 'from-emerald-500/20 to-green-500/10 border-emerald-500/20' : 'from-red-500/20 to-rose-500/10 border-lux-border dark:border-red-500/20'}`}>
             <CardContent className="relative p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Flame className={`w-5 h-5 ${activeStreak.type === 'win' ? 'text-emerald-400' : 'text-red-400'}`} />
@@ -788,7 +788,7 @@ function DashboardTab({
                       ? (language === 'id' ? `Win Streak Aktif: ${activeStreak.count} 🔥` : `Active Win Streak: ${activeStreak.count} 🔥`)
                       : (language === 'id' ? `Lose Streak Aktif: ${activeStreak.count} 🧘` : `Active Lose Streak: ${activeStreak.count} 🧘`)}
                   </p>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-lux-text-secondary dark:text-gray-400">
                     {activeStreak.type === 'win'
                       ? (language === 'id' ? 'Pertahankan momentum!' : 'Keep the momentum going!')
                       : (language === 'id' ? 'Istirahat sejenak dan reset mindset.' : 'Take a break and reset your mindset.')}
@@ -806,8 +806,8 @@ function DashboardTab({
       {/* ============================================ */}
       {hasData && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
-            <CardHeader className="flex flex-row items-center justify-between"><CardTitle className="text-lg">{language === 'id' ? 'Transaksi Terbaru' : 'Recent Trades'}</CardTitle><span className="text-xs text-gray-400">{trades.length} {language === 'id' ? 'total' : 'total'}</span></CardHeader>
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+            <CardHeader className="flex flex-row items-center justify-between"><CardTitle className="text-lg">{language === 'id' ? 'Transaksi Terbaru' : 'Recent Trades'}</CardTitle><span className="text-xs text-lux-text-secondary dark:text-gray-400">{trades.length} {language === 'id' ? 'total' : 'total'}</span></CardHeader>
             <CardContent>
               <div className="space-y-2">
                 {trades.slice(0, 5).map((trade, index) => (
@@ -816,7 +816,7 @@ function DashboardTab({
                       <motion.div className={`w-2 h-2 rounded-full ${trade.profit_loss >= 0 ? 'bg-emerald-400' : 'bg-red-400'}`} animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 2, repeat: Infinity, delay: index * 0.2 }} />
                       <span className="font-bold">{trade.symbol}</span>
                       <Badge variant={trade.type === 'BUY' ? 'default' : 'destructive'} className="text-xs">{trade.type}</Badge>
-                      <span className="text-xs text-gray-500 hidden sm:inline">{trade.session || '-'}</span>
+                      <span className="text-xs text-lux-text-muted dark:text-gray-500 hidden sm:inline">{trade.session || '-'}</span>
                     </div>
                     <span className={`font-bold ${trade.profit_loss >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtPL(trade.profit_loss)}</span>
                   </motion.div>
@@ -832,7 +832,7 @@ function DashboardTab({
       {/* ============================================ */}
       {hasData && analytics?.sessionPerformance && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.25 }} aria-label="Trading session performance chart">
-          <Card className="bg-gradient-to-br from-[#0f0b18]/80 to-[#12091a]/80 backdrop-blur-md border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10">
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10">
             <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Clock className="w-5 h-5 text-purple-400" /> {language === 'id' ? 'Performa Sesi' : 'Session Performance'}</CardTitle></CardHeader>
             <CardContent>
               <div className="h-[220px]">
@@ -858,7 +858,7 @@ function DashboardTab({
       {/* ============================================ */}
       {hasData && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
             <CardHeader className="flex flex-row items-center justify-between"><CardTitle className="text-lg flex items-center gap-2"><Activity className="w-5 h-5 text-purple-400" />{language === 'id' ? 'Aktivitas Terbaru' : 'Recent Activity'}</CardTitle></CardHeader>
             <CardContent><ActivityFeed trades={trades} journalEntries={journalEntries} language={language} /></CardContent>
           </Card>
@@ -870,11 +870,11 @@ function DashboardTab({
       {/* ============================================ */}
       {!hasData && (
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}>
-          <Card className="bg-gradient-to-br from-[#0f0b18]/80 to-[#12091a]/80 backdrop-blur-md border-purple-500/20 transition-all duration-300 hover:border-purple-500/40">
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-purple-500/20 transition-all duration-300 hover:border-purple-500/40">
             <CardContent className="py-16 lg:py-20 text-center">
               <motion.div className="w-16 h-16 lg:w-20 lg:h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-violet-500/20 flex items-center justify-center mx-auto mb-6" animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 2, repeat: Infinity }}><BarChart3 className="w-8 h-8 lg:w-10 lg:h-10 text-purple-400" /></motion.div>
               <h3 className="text-xl lg:text-2xl font-bold mb-3 bg-gradient-to-r from-purple-200 to-purple-400 bg-clip-text text-transparent">Welcome to LuxTrade!</h3>
-              <p className="text-gray-400 mb-6 max-w-md mx-auto">Start tracking your trades to see powerful analytics and insights.</p>
+              <p className="text-lux-text-secondary dark:text-gray-400 mb-6 max-w-md mx-auto">Start tracking your trades to see powerful analytics and insights.</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button onClick={() => setAddTradeOpen(true)} className="bg-gradient-to-r from-purple-500 to-violet-600 shadow-lg shadow-purple-500/20"><Plus className="w-4 h-4 mr-2" />Add Your First Trade</Button>
               </div>

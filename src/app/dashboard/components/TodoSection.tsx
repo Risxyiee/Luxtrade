@@ -37,7 +37,7 @@ export const TodoSection: React.FC<TodoSectionProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.25 }}
     >
-      <Card className="bg-gradient-to-br from-[#0f0b18]/80 to-[#12091a]/80 backdrop-blur-md border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10">
+      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-purple-400" />
@@ -57,7 +57,7 @@ export const TodoSection: React.FC<TodoSectionProps> = ({
             {displayTodos.map((todo, index) => (
               <motion.div
                 key={todo.id}
-                className="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-all cursor-pointer group"
+                className="flex items-center gap-3 p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5 hover:bg-lux-surface-hover dark:hover:bg-white/10 transition-all cursor-pointer group"
                 onClick={() => onToggle?.(todo.id)}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -72,7 +72,7 @@ export const TodoSection: React.FC<TodoSectionProps> = ({
                     <CheckCircle2 className="w-3 h-3 text-white" />
                   )}
                 </div>
-                <span className={`text-sm ${todo.completed ? 'text-gray-500 line-through' : 'text-gray-200'}`}>
+                <span className={`text-sm ${todo.completed ? 'text-lux-text-muted dark:text-gray-500 line-through' : 'text-gray-200'}`}>
                   {todo.text}
                 </span>
               </motion.div>

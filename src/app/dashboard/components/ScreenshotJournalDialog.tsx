@@ -235,7 +235,7 @@ export default function ScreenshotJournalDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o) }}>
-      <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-lg max-h-[92vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="bg-lux-bg-card dark:bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-lux-border dark:border-purple-900/30 text-white max-w-lg max-h-[92vh] overflow-hidden flex flex-col p-0">
         {/* Header */}
         <DialogHeader className="shrink-0 px-5 pt-5 pb-3">
           <DialogTitle className="text-lg flex items-center gap-2">
@@ -244,7 +244,7 @@ export default function ScreenshotJournalDialog({
             </div>
             <div>
               <span>SS Auto Journal</span>
-              <p className="text-xs text-gray-400 font-normal">Upload screenshot trading, AI auto buat trade & jurnal</p>
+              <p className="text-xs text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 font-normal">Upload screenshot trading, AI auto buat trade & jurnal</p>
             </div>
           </DialogTitle>
         </DialogHeader>
@@ -268,8 +268,8 @@ export default function ScreenshotJournalDialog({
                     <Camera className="w-8 h-8 text-amber-400" />
                   </div>
                   <p className="text-white font-medium mb-1">Tap untuk upload screenshot</p>
-                  <p className="text-sm text-gray-400">Screenshot close trade dari MT4/MT5</p>
-                  <p className="text-xs text-gray-500 mt-3">JPEG, PNG - Maks 10MB</p>
+                  <p className="text-sm text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400">Screenshot close trade dari MT4/MT5</p>
+                  <p className="text-xs text-lux-text-muted dark:text-lux-text-muted dark:text-gray-500 mt-3">JPEG, PNG - Maks 10MB</p>
                 </div>
 
                 <input
@@ -301,7 +301,7 @@ export default function ScreenshotJournalDialog({
                 className="py-8"
               >
                 {imagePreview && (
-                  <div className="rounded-xl overflow-hidden border border-purple-900/30 mb-6">
+                  <div className="rounded-xl overflow-hidden border border-lux-border dark:border-lux-border dark:border-purple-900/30 mb-6">
                     <img src={imagePreview} alt="Screenshot" className="w-full max-h-40 object-contain bg-black/50" />
                   </div>
                 )}
@@ -312,8 +312,8 @@ export default function ScreenshotJournalDialog({
                   </div>
                   <div className="text-center">
                     <p className="text-white font-semibold">AI sedang membaca screenshot...</p>
-                    <p className="text-sm text-gray-400 mt-1">Mengekstrak data trading & membuat jurnal</p>
-                    <p className="text-xs text-gray-500 mt-3">Proses 10-30 detik</p>
+                    <p className="text-sm text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 mt-1">Mengekstrak data trading & membuat jurnal</p>
+                    <p className="text-xs text-lux-text-muted dark:text-lux-text-muted dark:text-gray-500 mt-3">Proses 10-30 detik</p>
                   </div>
                 </div>
               </motion.div>
@@ -337,7 +337,7 @@ export default function ScreenshotJournalDialog({
 
                 {/* Screenshot Preview (small) */}
                 {imagePreview && (
-                  <div className="rounded-lg overflow-hidden border border-purple-900/20">
+                  <div className="rounded-lg overflow-hidden border border-lux-border dark:border-purple-900/20">
                     <img src={imagePreview} alt="Screenshot" className="w-full max-h-28 object-contain bg-black/30" />
                   </div>
                 )}
@@ -347,7 +347,7 @@ export default function ScreenshotJournalDialog({
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <TrendingUp className="w-4 h-4 text-emerald-400" />
-                      <h4 className="text-sm font-semibold text-white">Trade Data</h4>
+                      <h4 className="text-sm font-semibold text-lux-text-primary dark:text-white">Trade Data</h4>
                       <Badge variant={editTrade.type === 'BUY' ? 'default' : 'destructive'} className="text-[10px] ml-auto">
                         {editTrade.type}
                       </Badge>
@@ -355,7 +355,7 @@ export default function ScreenshotJournalDialog({
 
                     <div className="grid grid-cols-2 gap-2">
                       <div className="p-2.5 rounded-lg bg-white/5">
-                        <div className="text-[10px] text-gray-400 uppercase tracking-wider">Symbol</div>
+                        <div className="text-[10px] text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 uppercase tracking-wider">Symbol</div>
                         <Input
                           value={editTrade.symbol}
                           onChange={(e) => setEditTrade({ ...editTrade, symbol: e.target.value.toUpperCase() })}
@@ -363,7 +363,7 @@ export default function ScreenshotJournalDialog({
                         />
                       </div>
                       <div className="p-2.5 rounded-lg bg-white/5">
-                        <div className="text-[10px] text-gray-400 uppercase tracking-wider">Lot Size</div>
+                        <div className="text-[10px] text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 uppercase tracking-wider">Lot Size</div>
                         <Input
                           type="number"
                           step="0.01"
@@ -373,7 +373,7 @@ export default function ScreenshotJournalDialog({
                         />
                       </div>
                       <div className="p-2.5 rounded-lg bg-white/5">
-                        <div className="text-[10px] text-gray-400 uppercase tracking-wider">Open Price</div>
+                        <div className="text-[10px] text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 uppercase tracking-wider">Open Price</div>
                         <Input
                           type="number"
                           step="0.01"
@@ -383,7 +383,7 @@ export default function ScreenshotJournalDialog({
                         />
                       </div>
                       <div className="p-2.5 rounded-lg bg-white/5">
-                        <div className="text-[10px] text-gray-400 uppercase tracking-wider">Close Price</div>
+                        <div className="text-[10px] text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 uppercase tracking-wider">Close Price</div>
                         <Input
                           type="number"
                           step="0.01"
@@ -396,7 +396,7 @@ export default function ScreenshotJournalDialog({
 
                     {/* Profit/Loss highlight */}
                     <div className={`p-3 rounded-xl ${editTrade.profit_loss >= 0 ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-red-500/10 border border-red-500/30'}`}>
-                      <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Profit / Loss</div>
+                      <div className="text-[10px] text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 uppercase tracking-wider mb-1">Profit / Loss</div>
                       <Input
                         type="number"
                         step="0.01"
@@ -408,7 +408,7 @@ export default function ScreenshotJournalDialog({
 
                     {/* Session */}
                     {editTrade.session && (
-                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <div className="flex items-center gap-2 text-xs text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400">
                         <span>Session:</span>
                         <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-300">
                           {editTrade.session}
@@ -416,7 +416,7 @@ export default function ScreenshotJournalDialog({
                         {editTrade.open_time && (
                           <>
                             <span className="ml-2">Open:</span>
-                            <span className="text-white">{new Date(editTrade.open_time).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="text-lux-text-primary dark:text-white">{new Date(editTrade.open_time).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                           </>
                         )}
                       </div>
@@ -429,24 +429,24 @@ export default function ScreenshotJournalDialog({
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <BookOpen className="w-4 h-4 text-amber-400" />
-                      <h4 className="text-sm font-semibold text-white">AI Journal</h4>
+                      <h4 className="text-sm font-semibold text-lux-text-primary dark:text-white">AI Journal</h4>
                     </div>
 
                     <div>
-                      <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Judul</div>
+                      <div className="text-[10px] text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 uppercase tracking-wider mb-1">Judul</div>
                       <Input
                         value={editJournal.title}
                         onChange={(e) => setEditJournal({ ...editJournal, title: e.target.value })}
-                        className="h-8 text-sm font-medium bg-white/5 border-purple-900/30"
+                        className="h-8 text-sm font-medium bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-lux-border dark:border-purple-900/30"
                       />
                     </div>
 
                     <div>
-                      <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Isi Jurnal</div>
+                      <div className="text-[10px] text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 uppercase tracking-wider mb-1">Isi Jurnal</div>
                       <Textarea
                         value={editJournal.content}
                         onChange={(e) => setEditJournal({ ...editJournal, content: e.target.value })}
-                        className="bg-white/5 border-purple-900/30 text-sm resize-none min-h-[80px]"
+                        className="bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-lux-border dark:border-purple-900/30 text-sm resize-none min-h-[80px]"
                         rows={4}
                       />
                     </div>
@@ -468,9 +468,9 @@ export default function ScreenshotJournalDialog({
 
                 {/* Raw Analysis (if no structured data) */}
                 {!editTrade?.symbol && !editJournal?.title && rawAnalysis && (
-                  <div className="bg-white/5 rounded-xl p-4">
-                    <div className="text-xs text-gray-400 mb-2">AI Analysis:</div>
-                    <p className="text-sm text-gray-300 whitespace-pre-wrap">{rawAnalysis}</p>
+                  <div className="bg-lux-surface-hover dark:bg-white/5 rounded-xl p-4">
+                    <div className="text-xs text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 mb-2">AI Analysis:</div>
+                    <p className="text-sm text-lux-text-primary dark:text-lux-text-primary dark:text-gray-300 whitespace-pre-wrap">{rawAnalysis}</p>
                   </div>
                 )}
 
@@ -494,7 +494,7 @@ export default function ScreenshotJournalDialog({
                     <Button
                       variant="outline"
                       onClick={() => { reset() }}
-                      className="border-purple-900/30 h-11"
+                      className="border-lux-border dark:border-lux-border dark:border-purple-900/30 h-11"
                     >
                       <ImageIcon className="w-4 h-4" />
                     </Button>
@@ -506,7 +506,7 @@ export default function ScreenshotJournalDialog({
                   <Button
                     variant="outline"
                     onClick={reset}
-                    className="w-full border-purple-900/30 h-11"
+                    className="w-full border-lux-border dark:border-lux-border dark:border-purple-900/30 h-11"
                   >
                     <Camera className="w-4 h-4 mr-2" />
                     Coba Screenshot Lain
