@@ -136,3 +136,25 @@ Stage Summary:
 - ensureSchema() disabled (no more race conditions on cold start)
 - hallmark installed
 - Build passes clean
+
+---
+Task ID: landing-stats-real-data
+Agent: Main Agent
+Task: Fix landing page stats to show real data from database instead of hardcoded values
+
+Work Log:
+- Analyzed existing code: StatsStrip.tsx already fetched from /api/landing-stats API (real Prisma queries)
+- Found hardcoded "20+" in HeroSection.tsx line 82 — now fetches real totalUsers from same API
+- Updated StatsStrip.tsx fallback from fake numbers (20, 7, 300) to zeros with skeleton loading state
+- Added StatSkeleton component for loading state (animated pulse placeholders)
+- Added 60-second in-memory cache to /api/landing-stats to avoid DB hits on every page visit
+- Changed 3 sequential DB queries to Promise.all for parallel execution
+- Verified: page compiles with HTTP 200, lint passes clean
+- Verified: 3 production bugs (DOMMatrix, ensureSchema, hallmark) were already fixed in previous session
+
+Stage Summary:
+- Files changed: StatsStrip.tsx (rewrite with skeleton + loading state), HeroSection.tsx (fetch real user count), landing-stats/route.ts (cache + parallel queries)
+- On production (with DATABASE_URL): stats show real DB counts from Prisma
+- On sandbox (no DB): skeleton loading shows, then falls back to zeros
+- "Data Terenkripsi 100%" remains intentionally static
+- Hero "20+" now dynamically shows real totalUsers count from DB
