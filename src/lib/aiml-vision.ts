@@ -231,9 +231,16 @@ export async function analyzeImageBase64WithAiml(
     console.error(`❌ [Fallback] OpenRouter also failed: ${error.message}`)
   }
 
-  // All providers failed
+  // All providers failed — give specific error message
+  const geminiMsg = geminiError?.message || 'unknown error'
+  const isKeyMissing = geminiMsg.includes('not configured')
+  if (isKeyMissing) {
+    throw new Error(
+      'API key AI belum dikonfigurasi (GEMINI_API_KEY). Hubungi admin atau cek pengaturan environment.'
+    )
+  }
   throw new Error(
-    'Semua provider AI gagal. Coba lagi nanti (biasanya karena rate limit sementara).'
+    `AI analysis gagal: ${geminiMsg}. Coba lagi dalam beberapa detik.`
   )
 }
 
@@ -299,6 +306,9 @@ export async function analyzeTextWithZyloo(
     'Semua provider AI gagal. Coba lagi nanti.'
   )
 }
+
+// Re-export for any code that was using the old name
+export const analyzeImageBase64 = analyzeImageBase64WithAiml
 
 /**
  * Unified fallback: tries vision (image + prompt), falls back to text-only.

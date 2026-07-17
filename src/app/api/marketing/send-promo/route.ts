@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { sendPremiumEmail } from '@/lib/email'
+import { sendEmail } from '@/lib/email'
 
 /**
  * POST /api/marketing/send-promo
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     // ============================================
     // Send promo email
     // ============================================
-    const result = await sendPremiumEmail({
+    const result = await sendEmail({
       to: email.toLowerCase(),
       type: 'promo',
       name,
