@@ -34,10 +34,10 @@ export const UpgradeBanner: React.FC<UpgradeBannerProps> = ({
               </div>
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-bold text-amber-200 mb-1">
+              <h3 className="text-lg font-bold text-amber-800 dark:text-amber-200 mb-1">
                 {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
               </h3>
-              <p className="text-sm text-amber-100/80">
+              <p className="text-sm text-amber-800/70 dark:text-amber-100/80">
                 {language === 'id'
                   ? 'Buka fitur premium tanpa batas - analisis AI lanjutan, unlimited trades, dan banyak lagi!'
                   : 'Unlock unlimited premium features - advanced AI analytics, unlimited trades, and more!'}

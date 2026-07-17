@@ -165,10 +165,10 @@ export default function DashboardModals({
           setFormData(emptyFormData)
         }
       }}>
-        <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader className="shrink-0">
             <DialogTitle className="text-xl flex items-center gap-2">
-              <Edit className="w-5 h-5 text-purple-400" />
+              <Edit className="w-5 h-5 text-purple-500 dark:text-purple-400" />
               Edit Trade
             </DialogTitle>
           </DialogHeader>
@@ -194,7 +194,7 @@ export default function DashboardModals({
         setViewTradeOpen(open)
         if (!open) setSelectedTrade(null)
       }}>
-        <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-md">
+        <DialogContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white max-w-md">
           <DialogHeader><DialogTitle className="text-xl">Trade Details</DialogTitle></DialogHeader>
           {selectedTrade && (
             <div className="space-y-4">
@@ -211,43 +211,43 @@ export default function DashboardModals({
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 rounded-lg bg-white/5">
-                  <div className="text-xs text-gray-400">Open Price</div>
+                <div className="p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5">
+                  <div className="text-xs text-lux-text-secondary dark:text-gray-400">Open Price</div>
                   <div className="font-bold">{selectedTrade.open_price}</div>
                 </div>
-                <div className="p-3 rounded-lg bg-white/5">
-                  <div className="text-xs text-gray-400">Close Price</div>
+                <div className="p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5">
+                  <div className="text-xs text-lux-text-secondary dark:text-gray-400">Close Price</div>
                   <div className="font-bold">{selectedTrade.close_price}</div>
                 </div>
-                <div className="p-3 rounded-lg bg-white/5">
-                  <div className="text-xs text-gray-400">Lot Size</div>
+                <div className="p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5">
+                  <div className="text-xs text-lux-text-secondary dark:text-gray-400">Lot Size</div>
                   <div className="font-bold">{selectedTrade.lot_size}</div>
                 </div>
-                <div className="p-3 rounded-lg bg-white/5">
-                  <div className="text-xs text-gray-400">Session</div>
+                <div className="p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5">
+                  <div className="text-xs text-lux-text-secondary dark:text-gray-400">Session</div>
                   <div className="font-bold">{selectedTrade.session || '-'}</div>
                 </div>
               </div>
 
               {selectedTrade.notes && (
-                <div className="p-3 rounded-lg bg-white/5">
-                  <div className="text-xs text-gray-400 mb-1">Notes</div>
+                <div className="p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5">
+                  <div className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">Notes</div>
                   <div className="text-sm">{selectedTrade.notes}</div>
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 rounded-lg bg-white/5 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-400" />
+                <div className="p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-lux-text-secondary dark:text-gray-400" />
                   <div>
-                    <div className="text-xs text-gray-400">Open Time</div>
+                    <div className="text-xs text-lux-text-secondary dark:text-gray-400">Open Time</div>
                     <div className="text-sm">{new Date(selectedTrade.open_time).toLocaleString()}</div>
                   </div>
                 </div>
-                <div className="p-3 rounded-lg bg-white/5 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-gray-400" />
+                <div className="p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-lux-text-secondary dark:text-gray-400" />
                   <div>
-                    <div className="text-xs text-gray-400">Close Time</div>
+                    <div className="text-xs text-lux-text-secondary dark:text-gray-400">Close Time</div>
                     <div className="text-sm">{new Date(selectedTrade.close_time).toLocaleString()}</div>
                   </div>
                 </div>
@@ -293,10 +293,10 @@ export default function DashboardModals({
         setShareCardOpen(open)
         if (!open) setSelectedTrade(null)
       }}>
-        <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-lg">
+        <DialogContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-xl flex items-center gap-2">
-              <Share2 className="w-5 h-5 text-purple-400" />
+              <Share2 className="w-5 h-5 text-purple-500 dark:text-purple-400" />
               Share Trade Card
             </DialogTitle>
           </DialogHeader>
@@ -317,7 +317,7 @@ export default function DashboardModals({
                   year: 'numeric'
                 })}
               />
-              <p className="text-xs text-gray-500 text-center">
+              <p className="text-xs text-lux-text-muted dark:text-gray-500 text-center">
                 Take a screenshot to share your trade on social media
               </p>
             </div>
@@ -330,14 +330,14 @@ export default function DashboardModals({
         setDeleteTradeOpen(open)
         if (!open) setSelectedTrade(null)
       }}>
-        <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-sm">
-          <DialogHeader><DialogTitle className="text-xl text-red-400">Delete Trade?</DialogTitle></DialogHeader>
+        <DialogContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white max-w-sm">
+          <DialogHeader><DialogTitle className="text-xl text-red-500 dark:text-red-400">Delete Trade?</DialogTitle></DialogHeader>
           {selectedTrade && (
             <div className="space-y-4">
-              <p className="text-gray-400">
+              <p className="text-lux-text-secondary dark:text-gray-400">
                 Are you sure you want to delete this trade?
               </p>
-              <div className="p-3 rounded-lg bg-white/5 flex items-center justify-between">
+              <div className="p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5 flex items-center justify-between">
                 <div>
                   <span className="font-bold">{selectedTrade.symbol}</span>
                   <Badge variant={selectedTrade.type === 'BUY' ? 'default' : 'destructive'} className="ml-2">
@@ -378,14 +378,14 @@ export default function DashboardModals({
         setAddJournalOpen(open)
         if (!open) setJournalForm({ title: '', content: '', mood: '', market_condition: '' })
       }}>
-        <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-lg">
+        <DialogContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white max-w-lg">
           <DialogHeader><DialogTitle className="text-xl">New Journal Entry</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Title *</Label>
               <Input
                 placeholder="Market Recap - Monday"
-                className="bg-[#0a0712] border-purple-900/30 mt-1"
+                className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1"
                 value={journalForm.title}
                 onChange={(e) => setJournalForm({ ...journalForm, title: e.target.value })}
               />
@@ -394,7 +394,7 @@ export default function DashboardModals({
               <Label>Content *</Label>
               <Textarea
                 placeholder="Write your thoughts about today's trading session..."
-                className="bg-[#0a0712] border-purple-900/30 mt-1 resize-none"
+                className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1 resize-none"
                 rows={5}
                 value={journalForm.content}
                 onChange={(e) => setJournalForm({ ...journalForm, content: e.target.value })}
@@ -404,10 +404,10 @@ export default function DashboardModals({
               <div>
                 <Label>Mood</Label>
                 <Select value={journalForm.mood} onValueChange={(v) => setJournalForm({ ...journalForm, mood: v })}>
-                  <SelectTrigger className="bg-[#0a0712] border-purple-900/30 mt-1">
+                  <SelectTrigger className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1">
                     <SelectValue placeholder="How do you feel?" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#0f0b18] border-purple-900/30">
+                  <SelectContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30">
                     {moodOptions.map(opt => (
                       <SelectItem key={opt.value} value={opt.value}>
                         <span className={opt.color}>{opt.label}</span>
@@ -419,10 +419,10 @@ export default function DashboardModals({
               <div>
                 <Label>Market Condition</Label>
                 <Select value={journalForm.market_condition} onValueChange={(v) => setJournalForm({ ...journalForm, market_condition: v })}>
-                  <SelectTrigger className="bg-[#0a0712] border-purple-900/30 mt-1">
+                  <SelectTrigger className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1">
                     <SelectValue placeholder="Market state" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#0f0b18] border-purple-900/30">
+                  <SelectContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30">
                     {marketConditions.map(opt => (
                       <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                     ))}
@@ -455,7 +455,7 @@ export default function DashboardModals({
         setAddWatchlistOpen(open)
         if (!open) setWatchlistForm({ symbol: '', name: '', target_price: '', notes: '' })
       }}>
-        <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-md">
+        <DialogContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white max-w-md">
           <DialogHeader><DialogTitle className="text-xl">Add to Watchlist</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -463,7 +463,7 @@ export default function DashboardModals({
                 <Label>Symbol *</Label>
                 <Input
                   placeholder="EURUSD"
-                  className="bg-[#0a0712] border-purple-900/30 mt-1"
+                  className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1"
                   value={watchlistForm.symbol}
                   onChange={(e) => setWatchlistForm({ ...watchlistForm, symbol: e.target.value.toUpperCase() })}
                 />
@@ -472,7 +472,7 @@ export default function DashboardModals({
                 <Label>Name</Label>
                 <Input
                   placeholder="Euro/USD"
-                  className="bg-[#0a0712] border-purple-900/30 mt-1"
+                  className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1"
                   value={watchlistForm.name}
                   onChange={(e) => setWatchlistForm({ ...watchlistForm, name: e.target.value })}
                 />
@@ -484,7 +484,7 @@ export default function DashboardModals({
                 type="text"
                 inputMode="decimal"
                 placeholder="1.0950"
-                className="bg-[#0a0712] border-purple-900/30 mt-1"
+                className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1"
                 value={watchlistForm.target_price}
                 onChange={(e) => setWatchlistForm({ ...watchlistForm, target_price: e.target.value })}
               />
@@ -493,7 +493,7 @@ export default function DashboardModals({
               <Label>Notes</Label>
               <Textarea
                 placeholder="Why watching this pair..."
-                className="bg-[#0a0712] border-purple-900/30 mt-1 resize-none"
+                className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1 resize-none"
                 rows={3}
                 value={watchlistForm.notes}
                 onChange={(e) => setWatchlistForm({ ...watchlistForm, notes: e.target.value })}
@@ -538,10 +538,10 @@ export default function DashboardModals({
         setAddTradeOpen(open)
         if (!open) setFormData(emptyFormData)
       }}>
-        <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader className="shrink-0">
             <DialogTitle className="text-xl flex items-center gap-2">
-              <Plus className="w-5 h-5 text-purple-400" />
+              <Plus className="w-5 h-5 text-purple-500 dark:text-purple-400" />
               {language === 'id' ? 'Tambah Trade Baru' : 'Add New Trade'}
             </DialogTitle>
           </DialogHeader>

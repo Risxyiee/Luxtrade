@@ -81,7 +81,7 @@ function HeatmapTab({ isPro, onUpgrade, trades }: HeatmapTabProps) {
               <Lock className="w-12 h-12 mx-auto mb-4 text-purple-400" />
             </motion.div>
             <h3 className="text-lg font-bold text-purple-400 mb-2">Market Heatmap - PRO Feature</h3>
-            <p className="text-gray-400 mb-4">Visualize market strength across all pairs</p>
+            <p className="text-lux-text-secondary dark:text-gray-400 mb-4">Visualize market strength across all pairs</p>
             <Button onClick={onUpgrade} className="bg-gradient-to-r from-purple-500 to-violet-600">
               <Zap className="w-4 h-4 mr-2" /> Upgrade to PRO
             </Button>
@@ -90,7 +90,7 @@ function HeatmapTab({ isPro, onUpgrade, trades }: HeatmapTabProps) {
       ) : (
         <div className="space-y-6">
           {/* Day/Session Heatmap */}
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Grid3X3 className="w-5 h-5 text-purple-400" />
@@ -103,16 +103,16 @@ function HeatmapTab({ isPro, onUpgrade, trades }: HeatmapTabProps) {
                 <table className="w-full text-xs">
                   <thead>
                     <tr>
-                      <th className="p-2 text-left text-gray-400">Day / Session</th>
+                      <th className="p-2 text-left text-lux-text-secondary dark:text-gray-400">Day / Session</th>
                       {sessions.map(s => (
-                        <th key={s} className="p-2 text-center text-gray-400">{s}</th>
+                        <th key={s} className="p-2 text-center text-lux-text-secondary dark:text-gray-400">{s}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {dayNames.map((day, dayIndex) => (
                       <tr key={day}>
-                        <td className="p-2 text-gray-300 font-medium">{day}</td>
+                        <td className="p-2 text-lux-text-primary dark:text-gray-300 font-medium">{day}</td>
                         {sessions.map(session => {
                           const key = `${dayIndex}-${session}`
                           const data = heatmapData[key]
@@ -142,7 +142,7 @@ function HeatmapTab({ isPro, onUpgrade, trades }: HeatmapTabProps) {
                                     <span className={`font-bold ${pl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                                       {pl >= 0 ? '+' : ''}{pl.toFixed(0)}
                                     </span>
-                                    <span className="text-gray-400 text-[10px]">{data.count} trades</span>
+                                    <span className="text-lux-text-secondary dark:text-gray-400 text-[10px]">{data.count} trades</span>
                                   </>
                                 )}
                               </div>
@@ -156,7 +156,7 @@ function HeatmapTab({ isPro, onUpgrade, trades }: HeatmapTabProps) {
               </div>
 
               {/* Legend */}
-              <div className="flex items-center justify-center gap-4 mt-4 text-xs text-gray-400">
+              <div className="flex items-center justify-center gap-4 mt-4 text-xs text-lux-text-secondary dark:text-gray-400">
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded bg-red-500/30" />
                   <span>Loss</span>
@@ -174,7 +174,7 @@ function HeatmapTab({ isPro, onUpgrade, trades }: HeatmapTabProps) {
           </Card>
 
           {/* Symbol Performance */}
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-purple-400" />
@@ -197,7 +197,7 @@ function HeatmapTab({ isPro, onUpgrade, trades }: HeatmapTabProps) {
                           {isProfitable ? '+' : ''}{stats.totalPL.toFixed(0)}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between text-xs text-gray-400">
+                      <div className="flex items-center justify-between text-xs text-lux-text-secondary dark:text-gray-400">
                         <span>{stats.count} trades</span>
                         <span>{winRate}% WR</span>
                       </div>

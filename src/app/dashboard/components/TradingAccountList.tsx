@@ -117,7 +117,7 @@ export default function TradingAccountList({ accounts, loading, onRefresh }: Tra
             <div className="flex items-center justify-between">
               <div>
                 <div className="h-5 bg-white/10 rounded w-32 mb-2 animate-pulse" />
-                <div className="h-4 bg-white/5 rounded w-24 animate-pulse" />
+                <div className="h-4 bg-lux-surface-hover dark:bg-white/5 rounded w-24 animate-pulse" />
               </div>
               <div className="h-8 bg-white/10 rounded w-8 animate-pulse" />
             </div>
@@ -140,12 +140,12 @@ export default function TradingAccountList({ accounts, loading, onRefresh }: Tra
     <>
       <div className="space-y-4">
         {accounts.map((account) => (
-          <Card key={account.id} className="bg-[#0f0b18] border-purple-900/30">
+          <Card key={account.id} className="bg-lux-bg-card dark:bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-lux-border dark:border-purple-900/30">
             <CardContent className="p-4">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-lg font-semibold text-white">{account.name}</h3>
+                    <h3 className="text-lg font-semibold text-lux-text-primary dark:text-white">{account.name}</h3>
                     {account.is_default && (
                       <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px] px-2 py-0.5">
                         <Star className="w-3 h-3 mr-1" />
@@ -212,7 +212,7 @@ export default function TradingAccountList({ accounts, loading, onRefresh }: Tra
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-[#0f0b18] border-red-500/30 text-white max-w-md">
+        <AlertDialogContent className="bg-lux-bg-card dark:bg-lux-bg-card dark:bg-[#0f0b18] border-red-500/30 text-white max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-red-400">
               <AlertTriangle className="w-5 h-5" />
@@ -255,7 +255,7 @@ export default function TradingAccountList({ accounts, loading, onRefresh }: Tra
           <AlertDialogFooter>
             <AlertDialogCancel
               disabled={deleting}
-              className="border-white/10 text-white hover:bg-white/5"
+              className="border-white/10 text-white hover:bg-lux-surface-hover dark:hover:bg-white/5"
             >
               Batal
             </AlertDialogCancel>

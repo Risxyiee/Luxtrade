@@ -102,7 +102,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
           <Crown className="w-8 h-8 text-white" />
         </div>
         <h3 className="text-xl font-bold text-white mb-2">{language === 'id' ? 'Fitur Premium' : 'Premium Feature'}</h3>
-        <p className="text-gray-400 text-center max-w-sm mb-6">{language === 'id' ? 'Kalender ekonomi hanya tersedia untuk pengguna PRO' : 'Economic calendar is only available for PRO users'}</p>
+        <p className="text-lux-text-secondary dark:text-gray-400 text-center max-w-sm mb-6">{language === 'id' ? 'Kalender ekonomi hanya tersedia untuk pengguna PRO' : 'Economic calendar is only available for PRO users'}</p>
         <button onClick={onUpgrade} className="px-6 py-2.5 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity">
           {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
         </button>
@@ -157,7 +157,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
       {/* Source Badge */}
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.05] w-fit">
         <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-        <span className="text-xs text-gray-500">{t.source}</span>
+        <span className="text-xs text-lux-text-muted dark:text-gray-500">{t.source}</span>
       </div>
 
       {/* Header */}
@@ -167,7 +167,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
             <CalendarDays className="w-5 h-5 text-purple-400" />
             {t.title}
           </h2>
-          <p className="text-sm text-gray-500 mt-1">{t.subtitle}</p>
+          <p className="text-sm text-lux-text-muted dark:text-gray-500 mt-1">{t.subtitle}</p>
         </div>
         <div className="flex items-center gap-3">
           {lastFetched && (
@@ -175,7 +175,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
               {t.lastUpdated}: {new Date(lastFetched).toLocaleTimeString(language === 'id' ? 'id-ID' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
-          <Button variant="outline" size="sm" onClick={fetchCalendar} disabled={calLoading} className="border-purple-900/30 hover:bg-purple-500/10">
+          <Button variant="outline" size="sm" onClick={fetchCalendar} disabled={calLoading} className="border-lux-border dark:border-purple-900/30 hover:bg-purple-500/10">
             <RefreshCw className={`w-4 h-4 mr-1.5 ${calLoading ? 'animate-spin' : ''}`} />
             {t.refresh}
           </Button>
@@ -193,8 +193,8 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
             <div className="w-2 h-2 rounded-full bg-amber-500" />
             <span className="text-sm font-medium text-amber-400">{medCount} {t.medium}</span>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06]">
-            <span className="text-sm font-medium text-gray-400">{events.length} {t.events}</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-lux-surface-hover dark:bg-white/[0.03] border border-lux-border dark:border-white/[0.06]">
+            <span className="text-sm font-medium text-lux-text-secondary dark:text-gray-400">{events.length} {t.events}</span>
           </div>
         </div>
       )}
@@ -210,7 +210,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
                 calFilter === f
                   ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
-                  : 'bg-white/[0.03] text-gray-400 border border-white/[0.06] hover:bg-white/[0.06] hover:text-gray-300'
+                  : 'bg-lux-surface-hover dark:bg-white/[0.03] text-lux-text-secondary dark:text-gray-400 border border-lux-border dark:border-white/[0.06] hover:bg-lux-surface-hover dark:bg-white/[0.06] hover:text-lux-text-primary dark:text-gray-300'
               }`}
             >
               {f === 'all' ? t.all : impactConfig[f].label}
@@ -224,8 +224,8 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
             onClick={() => setCurrencyFilter('all')}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
               currencyFilter === 'all'
-                ? 'bg-white/[0.08] text-gray-200 border border-white/[0.15]'
-                : 'bg-white/[0.02] text-gray-500 border border-white/[0.05] hover:bg-white/[0.05]'
+                ? 'bg-lux-surface-hover dark:bg-white/[0.08] text-lux-text-primary dark:text-gray-200 border border-lux-border dark:border-white/[0.15]'
+                : 'bg-white/[0.02] text-lux-text-muted dark:text-gray-500 border border-white/[0.05] hover:bg-white/[0.05]'
             }`}
           >
             {t.allCurrencies}
@@ -236,8 +236,8 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
               onClick={() => setCurrencyFilter(c)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
                 currencyFilter === c
-                  ? 'bg-white/[0.08] text-gray-200 border border-white/[0.15]'
-                  : 'bg-white/[0.02] text-gray-500 border border-white/[0.05] hover:bg-white/[0.05]'
+                  ? 'bg-lux-surface-hover dark:bg-white/[0.08] text-lux-text-primary dark:text-gray-200 border border-lux-border dark:border-white/[0.15]'
+                  : 'bg-white/[0.02] text-lux-text-muted dark:text-gray-500 border border-white/[0.05] hover:bg-white/[0.05]'
               }`}
             >
               <span>{getCurrencyFlag(c)}</span>
@@ -251,7 +251,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
       {calLoading && (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
           <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
-          <span className="text-sm text-gray-500">{t.fetching}</span>
+          <span className="text-sm text-lux-text-muted dark:text-gray-500">{t.fetching}</span>
         </div>
       )}
 
@@ -262,10 +262,10 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
           {unavailableMsg ? (
             <>
               <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-              <p className="text-gray-400">{unavailableMsg}</p>
+              <p className="text-lux-text-secondary dark:text-gray-400">{unavailableMsg}</p>
             </>
           ) : (
-            <p className="text-gray-500">{t.noEvents}</p>
+            <p className="text-lux-text-muted dark:text-gray-500">{t.noEvents}</p>
           )}
         </div>
       )}
@@ -280,7 +280,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
                 <div className={`w-2 h-2 rounded-full ${
                   day === dayOrder[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1] ? 'bg-purple-500 animate-pulse' : 'bg-white/20'
                 }`} />
-                <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider">{day}</h3>
+                <h3 className="text-sm font-bold text-lux-text-primary dark:text-gray-300 uppercase tracking-wider">{day}</h3>
                 <span className="text-xs text-gray-600">({eventsByDay[day].length} {t.events})</span>
               </div>
 
@@ -309,16 +309,16 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
                         className={`grid grid-cols-[60px_40px_1fr_80px_80px_80px] gap-2 items-center px-3 py-2.5 rounded-lg border ${cfg.bg} hover:bg-white/[0.02] transition-all`}
                       >
                         {/* Time */}
-                        <span className="text-xs font-mono text-gray-400">{evt.time || '--:--'}</span>
+                        <span className="text-xs font-mono text-lux-text-secondary dark:text-gray-400">{evt.time || '--:--'}</span>
                         {/* Flag */}
                         <span className="text-base">{getCurrencyFlag(evt.currency)}</span>
                         {/* Event Name */}
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className={`${cfg.badge} text-[9px] px-1.5 py-0 border-0 flex-shrink-0`}>{cfg.label}</Badge>
-                            <span className="text-[11px] font-mono text-gray-500 flex-shrink-0">{evt.currency}</span>
+                            <span className="text-[11px] font-mono text-lux-text-muted dark:text-gray-500 flex-shrink-0">{evt.currency}</span>
                           </div>
-                          <p className={`text-sm font-medium mt-0.5 truncate ${evt.impact === 'high' ? 'text-white' : 'text-gray-200'}`}>
+                          <p className={`text-sm font-medium mt-0.5 truncate ${evt.impact === 'high' ? 'text-white' : 'text-lux-text-primary dark:text-gray-200'}`}>
                             {evt.event}
                           </p>
                         </div>
@@ -341,7 +341,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
                         {/* Previous */}
                         <div className="text-right">
                           {evt.previous ? (
-                            <span className="text-xs font-mono text-gray-400">{evt.previous}</span>
+                            <span className="text-xs font-mono text-lux-text-secondary dark:text-gray-400">{evt.previous}</span>
                           ) : (
                             <span className="text-xs text-gray-600">—</span>
                           )}
@@ -369,16 +369,16 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
                         <div className="text-lg flex-shrink-0">{getCurrencyFlag(evt.currency)}</div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-mono text-gray-400">{evt.time || '--:--'}</span>
+                            <span className="text-xs font-mono text-lux-text-secondary dark:text-gray-400">{evt.time || '--:--'}</span>
                             <Badge variant="outline" className={`${cfg.badge} text-[9px] px-1.5 py-0 border-0`}>{cfg.label}</Badge>
                           </div>
-                          <p className={`text-sm font-medium truncate ${evt.impact === 'high' ? 'text-white' : 'text-gray-200'}`}>
+                          <p className={`text-sm font-medium truncate ${evt.impact === 'high' ? 'text-white' : 'text-lux-text-primary dark:text-gray-200'}`}>
                             {evt.event}
                           </p>
                           <div className="flex items-center gap-3 mt-1.5 text-[11px]">
-                            {evt.actual && <span className="text-gray-500">{t.aktual}: <span className="text-white font-mono">{evt.actual}</span></span>}
-                            {evt.forecast && <span className="text-gray-500">{t.perkiraan}: <span className="text-amber-400/80 font-mono">{evt.forecast}</span></span>}
-                            {evt.previous && <span className="text-gray-500">{t.sebelumnya}: <span className="text-gray-400 font-mono">{evt.previous}</span></span>}
+                            {evt.actual && <span className="text-lux-text-muted dark:text-gray-500">{t.aktual}: <span className="text-white font-mono">{evt.actual}</span></span>}
+                            {evt.forecast && <span className="text-lux-text-muted dark:text-gray-500">{t.perkiraan}: <span className="text-amber-400/80 font-mono">{evt.forecast}</span></span>}
+                            {evt.previous && <span className="text-lux-text-muted dark:text-gray-500">{t.sebelumnya}: <span className="text-lux-text-secondary dark:text-gray-400 font-mono">{evt.previous}</span></span>}
                           </div>
                         </div>
                       </div>

@@ -52,7 +52,7 @@ export default function Header({
       <div className="flex items-center gap-3">
         <button
           onClick={() => setMobileSidebarOpen(true)}
-          className="lg:hidden p-2 text-gray-400 hover:text-white transition-colors"
+          className="lg:hidden p-2 text-lux-text-secondary dark:text-gray-400 hover:text-lux-text-primary dark:hover:text-white transition-colors"
           aria-label={language === 'id' ? 'Buka menu' : 'Open menu'}
         >
           <Menu className="w-5 h-5" />
@@ -62,7 +62,7 @@ export default function Header({
         </h2>
         <button
           onClick={fetchData}
-          className="p-2 text-gray-400 hover:text-purple-400 transition-colors"
+          className="p-2 text-lux-text-secondary dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
           aria-label={language === 'id' ? 'Muat ulang data' : 'Refresh data'}
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -76,20 +76,20 @@ export default function Header({
         <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
           <DialogTrigger asChild>
             <button
-              className="p-2 text-gray-400 hover:text-white hover:bg-white/5 transition-colors rounded-md"
+              className="p-2 text-lux-text-secondary dark:text-gray-400 hover:text-lux-text-primary dark:hover:text-white hover:bg-lux-surface-hover dark:hover:bg-white/5 transition-colors rounded-md"
               aria-label={language === 'id' ? 'Pintasan keyboard' : 'Keyboard shortcuts'}
             >
               <Keyboard className="w-5 h-5" />
             </button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md bg-[#0f0b18] border-purple-900/30 text-white">
+          <DialogContent className="sm:max-w-md bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white">
             <DialogHeader>
-              <DialogTitle className="text-white">Keyboard Shortcuts</DialogTitle>
+              <DialogTitle className="text-lux-text-primary dark:text-white">Keyboard Shortcuts</DialogTitle>
             </DialogHeader>
             <div className="space-y-2 pt-2">
               {shortcuts.map((s, i) => (
-                <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg bg-white/5">
-                  <span className="text-sm text-gray-300">{s.action}</span>
+                <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg bg-lux-surface-hover dark:bg-white/5">
+                  <span className="text-sm text-lux-text-secondary dark:text-gray-300">{s.action}</span>
                   <kbd className="px-2 py-1 text-xs font-mono bg-purple-500/20 text-purple-300 rounded border border-purple-500/30">
                     {s.combo}
                   </kbd>
@@ -113,7 +113,7 @@ export default function Header({
         {user && (
           <button
             onClick={handleSignOut}
-            className="p-2 text-gray-400 hover:text-white transition-colors"
+            className="p-2 text-lux-text-secondary dark:text-gray-400 hover:text-lux-text-primary dark:hover:text-white transition-colors"
             aria-label={language === 'id' ? 'Keluar' : 'Sign out'}
           >
             <LogOut className="w-5 h-5" />

@@ -81,13 +81,13 @@ export function JournalFilterPanel({ entries, onFilterChange }: JournalFilterPan
     <div className="space-y-4">
       {/* Search Bar */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-lux-text-secondary dark:text-gray-400" />
         <Input
           type="text"
           placeholder="Search journal entries..."
           value={filters.searchQuery || ''}
           onChange={(e) => handleSearchChange(e.target.value)}
-          className="pl-10 bg-[#0a0712] border-purple-500/20 text-white placeholder-gray-500"
+          className="pl-10 bg-lux-input-bg dark:bg-[#0a0712] border-lux-border dark:border-purple-500/20 text-white placeholder-gray-500"
         />
       </div>
 
@@ -107,7 +107,7 @@ export function JournalFilterPanel({ entries, onFilterChange }: JournalFilterPan
             onClick={clearFilters}
             variant="ghost"
             size="sm"
-            className="text-gray-400 hover:text-red-400"
+            className="text-lux-text-secondary dark:text-gray-400 hover:text-red-400"
           >
             <X className="w-4 h-4 mr-1" />
             Clear
@@ -117,7 +117,7 @@ export function JournalFilterPanel({ entries, onFilterChange }: JournalFilterPan
 
       {/* Filters Panel */}
       {showFilters && (
-        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
           <CardHeader>
             <CardTitle className="text-sm">Advanced Filters</CardTitle>
           </CardHeader>
@@ -125,7 +125,7 @@ export function JournalFilterPanel({ entries, onFilterChange }: JournalFilterPan
             {/* Mood Filter */}
             {filterOptions.moods.length > 0 && (
               <div>
-                <p className="text-sm font-medium text-gray-400 mb-2">Mood</p>
+                <p className="text-sm font-medium text-lux-text-secondary dark:text-gray-400 mb-2">Mood</p>
                 <div className="flex flex-wrap gap-2">
                   {filterOptions.moods.map(mood => (
                     <Badge
@@ -148,7 +148,7 @@ export function JournalFilterPanel({ entries, onFilterChange }: JournalFilterPan
             {/* Market Condition Filter */}
             {filterOptions.marketConditions.length > 0 && (
               <div>
-                <p className="text-sm font-medium text-gray-400 mb-2">Market Condition</p>
+                <p className="text-sm font-medium text-lux-text-secondary dark:text-gray-400 mb-2">Market Condition</p>
                 <div className="flex flex-wrap gap-2">
                   {filterOptions.marketConditions.map(condition => (
                     <Badge
@@ -171,7 +171,7 @@ export function JournalFilterPanel({ entries, onFilterChange }: JournalFilterPan
             {/* Tags Filter */}
             {filterOptions.tags.length > 0 && (
               <div>
-                <p className="text-sm font-medium text-gray-400 mb-2">Tags</p>
+                <p className="text-sm font-medium text-lux-text-secondary dark:text-gray-400 mb-2">Tags</p>
                 <div className="flex flex-wrap gap-2">
                   {filterOptions.tags.map(tag => (
                     <Badge
@@ -193,25 +193,25 @@ export function JournalFilterPanel({ entries, onFilterChange }: JournalFilterPan
 
             {/* Date Range Filter */}
             <div>
-              <p className="text-sm font-medium text-gray-400 mb-2">Date Range</p>
+              <p className="text-sm font-medium text-lux-text-secondary dark:text-gray-400 mb-2">Date Range</p>
               <div className="flex gap-2 items-center">
                 <div className="flex-1 relative">
-                  <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-lux-text-muted dark:text-gray-500" />
                   <input
                     type="date"
                     value={filters.dateFrom?.toISOString().split('T')[0] || ''}
                     onChange={(e) => handleDateFromChange(e.target.value)}
-                    className="pl-8 w-full px-3 py-2 rounded-lg bg-white/5 border border-purple-500/20 text-sm text-white"
+                    className="pl-8 w-full px-3 py-2 rounded-lg bg-lux-surface-hover dark:bg-white/5 border border-lux-border dark:border-purple-500/20 text-sm text-lux-text-primary dark:text-white"
                   />
                 </div>
-                <span className="text-gray-500">to</span>
+                <span className="text-lux-text-muted dark:text-gray-500">to</span>
                 <div className="flex-1 relative">
-                  <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-lux-text-muted dark:text-gray-500" />
                   <input
                     type="date"
                     value={filters.dateTo?.toISOString().split('T')[0] || ''}
                     onChange={(e) => handleDateToChange(e.target.value)}
-                    className="pl-8 w-full px-3 py-2 rounded-lg bg-white/5 border border-purple-500/20 text-sm text-white"
+                    className="pl-8 w-full px-3 py-2 rounded-lg bg-lux-surface-hover dark:bg-white/5 border border-lux-border dark:border-purple-500/20 text-sm text-lux-text-primary dark:text-white"
                   />
                 </div>
               </div>
@@ -219,7 +219,7 @@ export function JournalFilterPanel({ entries, onFilterChange }: JournalFilterPan
 
             {/* Results Count */}
             <div className="pt-2 border-t border-purple-500/10">
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-lux-text-secondary dark:text-gray-400">
                 Showing <span className="font-bold text-purple-400">{filteredEntries.length}</span> of <span className="font-bold">{entries.length}</span> entries
               </p>
             </div>

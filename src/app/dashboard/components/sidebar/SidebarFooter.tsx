@@ -53,12 +53,12 @@ export default function SidebarFooter({
 
   return (
     <>
-      <div className="relative p-3 pt-2 lg:pt-3 border-t border-purple-500/20 space-y-1.5 lg:space-y-2 pb-safe">
+      <div className="relative p-3 pt-2 lg:pt-3 border-t border-lux-border dark:border-purple-500/20 space-y-1.5 lg:space-y-2 pb-safe">
         {/* Promo Code Claim Button */}
         {!isPro && (sidebarOpen || mobileSidebarOpen) && (
           <motion.button
             onClick={() => { setPromoDialogOpen(true); setPromoCode('') }}
-            className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-green-600/20 to-emerald-600/20 text-green-300 border border-green-500/30 hover:from-green-600/30 hover:to-emerald-600/30 transition-all flex items-center justify-center gap-2 text-xs font-semibold shadow-lg shadow-green-500/10 group"
+            className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-green-600/20 to-emerald-600/20 text-green-700 dark:text-green-300 border border-green-500/30 hover:from-green-600/30 hover:to-emerald-600/30 transition-all flex items-center justify-center gap-2 text-xs font-semibold shadow-lg shadow-green-500/10 group"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             aria-label="Klaim kode promo"
@@ -104,7 +104,7 @@ export default function SidebarFooter({
 
         <Link href="/affiliate" className="block relative">
           <motion.button
-            className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-purple-500/10 to-amber-500/10 text-purple-300 border border-purple-500/20 hover:from-purple-500/20 hover:to-amber-500/20 hover:border-purple-500/30 transition-all flex items-center justify-center gap-2 text-xs font-semibold relative overflow-hidden group"
+            className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-purple-500/10 to-amber-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20 hover:from-purple-500/20 hover:to-amber-500/20 hover:border-purple-500/30 transition-all flex items-center justify-center gap-2 text-xs font-semibold relative overflow-hidden group"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -118,7 +118,7 @@ export default function SidebarFooter({
 
         <Link href="/settings" className="block relative">
           <motion.button
-            className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-white/5 to-white/10 text-gray-300 border border-white/10 hover:from-white/10 hover:to-white/15 hover:border-white/20 transition-all flex items-center justify-center gap-2 text-xs font-semibold relative overflow-hidden group"
+            className="w-full py-2 px-3 rounded-xl bg-lux-surface-hover dark:from-white/5 dark:to-white/10 text-lux-text-secondary dark:text-gray-300 border border-lux-border dark:border-white/10 hover:from-lux-inline-hover-bg-2 dark:hover:from-white/10 hover:to-lux-inline-hover-bg-3 dark:to-white/15 hover:border-lux-border dark:hover:border-white/20 transition-all flex items-center justify-center gap-2 text-xs font-semibold relative overflow-hidden group"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -135,7 +135,7 @@ export default function SidebarFooter({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.1 }}
-            className="relative bg-gradient-to-br from-white/5 to-white/[0.02] rounded-xl p-2.5 border border-white/10 overflow-hidden"
+            className="relative bg-gradient-to-br from-lux-surface-hover to-lux-inline-hover-bg rounded-xl p-2.5 border border-lux-border dark:border-white/10 overflow-hidden"
           >
             <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-purple-500/5 to-pink-500/5 opacity-0 hover:opacity-100 transition-opacity" />
             <div className="relative flex items-center gap-3">
@@ -148,7 +148,7 @@ export default function SidebarFooter({
               </motion.div>
               <div className="min-w-0 flex-1 overflow-hidden">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold truncate text-white">
+                  <span className="text-xs font-semibold truncate text-lux-text-primary dark:text-white">
                     {profile?.full_name || user?.email || 'User'}
                   </span>
                   {isPro ? (
@@ -156,12 +156,12 @@ export default function SidebarFooter({
                       PRO
                     </Badge>
                   ) : (
-                    <Badge className="bg-white/10 text-gray-400 border-white/10 text-[10px] px-1.5 py-0 flex-shrink-0">
+                    <Badge className="bg-lux-surface-hover dark:bg-white/10 text-lux-text-secondary dark:text-gray-400 border-lux-border dark:border-white/10 text-[10px] px-1.5 py-0 flex-shrink-0">
                       Free
                     </Badge>
                   )}
                 </div>
-                <Link href="/settings" className="text-[11px] text-gray-500 hover:text-purple-400 transition-colors">
+                <Link href="/settings" className="text-[11px] text-lux-text-muted dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
                   {language === 'id' ? 'Pengaturan' : 'Settings'}
                 </Link>
               </div>
@@ -172,7 +172,7 @@ export default function SidebarFooter({
         {isAdmin && (sidebarOpen || mobileSidebarOpen) && (
           <Link href="/dashboard/admin" className="block">
             <motion.button
-              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-purple-600/20 to-violet-600/20 text-purple-300 border border-purple-500/30 hover:from-purple-600/30 hover:to-violet-600/30 transition-all flex items-center justify-center gap-2 text-sm font-bold shadow-lg shadow-purple-500/10"
+              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-purple-600/20 to-violet-600/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 hover:from-purple-600/30 hover:to-violet-600/30 transition-all flex items-center justify-center gap-2 text-sm font-bold shadow-lg shadow-purple-500/10"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -188,7 +188,7 @@ export default function SidebarFooter({
         {isAdmin && (sidebarOpen || mobileSidebarOpen) && (
           <Link href="/admin-email" className="block mt-2">
             <motion.button
-              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-600/20 to-orange-600/20 text-amber-300 border border-amber-500/30 hover:from-amber-600/30 hover:to-orange-600/30 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-600/20 to-orange-600/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:from-amber-600/30 hover:to-orange-600/30 transition-all flex items-center justify-center gap-2 text-sm font-medium"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -206,7 +206,7 @@ export default function SidebarFooter({
             transition={{ duration: 0.3 }}
           >
             <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
-            <span className="text-xs text-amber-300 overflow-hidden whitespace-nowrap">
+            <span className="text-xs text-amber-700 dark:text-amber-300 overflow-hidden whitespace-nowrap">
               {tradeCount}/{FREE_TRADE_LIMIT} {language === 'id' ? 'trade digunakan' : 'trades used'}
             </span>
           </motion.div>
@@ -231,7 +231,7 @@ export default function SidebarFooter({
                 Komunitas Discord
               </span>
             </div>
-            <p className="text-[10px] lg:text-[11px] text-white/50 leading-relaxed">
+            <p className="text-[10px] lg:text-[11px] text-lux-text-muted dark:text-white/50 leading-relaxed">
               Beri masukan & dapatkan insentif. Gabung komunitas riset kami!
             </p>
           </motion.a>
@@ -249,7 +249,7 @@ export default function SidebarFooter({
             }
           }}
           aria-label={sidebarOpen ? (language === 'id' ? 'Tutup sidebar' : 'Collapse sidebar') : (language === 'id' ? 'Buka sidebar' : 'Expand sidebar')}
-          className="relative w-full flex items-center justify-center py-2 text-gray-400 hover:text-white transition-colors rounded-xl hover:bg-white/5 active:bg-white/10 group"
+          className="relative w-full flex items-center justify-center py-2 text-lux-text-secondary dark:text-gray-400 hover:text-lux-text-primary dark:hover:text-white transition-colors rounded-xl hover:bg-lux-surface-hover dark:hover:bg-white/5 active:bg-lux-surface-hover dark:active:bg-white/10 group"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
@@ -264,13 +264,13 @@ export default function SidebarFooter({
 
       {/* Promo Code Dialog */}
       <Dialog open={promoDialogOpen} onOpenChange={setPromoDialogOpen}>
-        <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-md">
+        <DialogContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl flex items-center gap-2 text-green-400">
               <Gift className="w-5 h-5" />
               Klaim Kode Promo
             </DialogTitle>
-            <DialogDescription className="text-gray-400 mt-2">
+            <DialogDescription className="text-lux-text-secondary dark:text-gray-400 mt-2">
               Masukkan kode promo untuk mendapatkan akses PRO gratis.
             </DialogDescription>
           </DialogHeader>
@@ -280,7 +280,7 @@ export default function SidebarFooter({
               value={promoCode}
               onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
               placeholder="Masukkan kode promo"
-              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-purple-500/30 text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+              className="w-full px-4 py-3 rounded-xl bg-lux-surface-hover dark:bg-white/5 border border-lux-input-border dark:border-purple-500/30 text-lux-text-primary dark:text-white placeholder:text-lux-text-muted dark:placeholder:text-gray-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -294,7 +294,7 @@ export default function SidebarFooter({
             <Button
               variant="outline"
               onClick={() => setPromoDialogOpen(false)}
-              className="border-gray-600 text-gray-300 hover:bg-gray-700"
+              className="border-lux-border dark:border-gray-600 text-lux-text-secondary dark:text-gray-300 hover:bg-lux-surface-hover dark:hover:bg-gray-700"
             >
               Batal
             </Button>

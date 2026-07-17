@@ -106,7 +106,7 @@ function PsychologyTab({ isPro, onUpgrade, trades }: PsychologyTabProps) {
               <Lock className="w-12 h-12 mx-auto mb-4 text-purple-400" />
             </motion.div>
             <h3 className="text-lg font-bold text-purple-400 mb-2">Psychology Tracking - PRO Feature</h3>
-            <p className="text-gray-400 mb-4">Track your emotional patterns and improve trading discipline</p>
+            <p className="text-lux-text-secondary dark:text-gray-400 mb-4">Track your emotional patterns and improve trading discipline</p>
             <Button onClick={onUpgrade} className="bg-gradient-to-r from-purple-500 to-violet-600">
               <Zap className="w-4 h-4 mr-2" /> Upgrade to PRO
             </Button>
@@ -115,7 +115,7 @@ function PsychologyTab({ isPro, onUpgrade, trades }: PsychologyTabProps) {
       ) : (
         <div className="space-y-6">
           {/* Psychology Score */}
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Heart className="w-5 h-5 text-pink-400" />
@@ -125,24 +125,24 @@ function PsychologyTab({ isPro, onUpgrade, trades }: PsychologyTabProps) {
             <CardContent>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                  <div className="text-sm text-gray-400 mb-1">Win Streak</div>
+                  <div className="text-sm text-lux-text-secondary dark:text-gray-400 mb-1">Win Streak</div>
                   <div className="text-2xl font-bold text-emerald-400">{longestWinStreak}</div>
-                  <p className="text-xs text-gray-500 mt-1">Best consecutive wins</p>
+                  <p className="text-xs text-lux-text-muted dark:text-gray-500 mt-1">Best consecutive wins</p>
                 </div>
                 <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
-                  <div className="text-sm text-gray-400 mb-1">Lose Streak</div>
+                  <div className="text-sm text-lux-text-secondary dark:text-gray-400 mb-1">Lose Streak</div>
                   <div className="text-2xl font-bold text-red-400">{longestLoseStreak}</div>
-                  <p className="text-xs text-gray-500 mt-1">Worst consecutive losses</p>
+                  <p className="text-xs text-lux-text-muted dark:text-gray-500 mt-1">Worst consecutive losses</p>
                 </div>
-                <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
-                  <div className="text-sm text-gray-400 mb-1">Best Session</div>
+                <div className="p-4 rounded-xl bg-purple-500/10 border border-lux-border dark:border-purple-500/20">
+                  <div className="text-sm text-lux-text-secondary dark:text-gray-400 mb-1">Best Session</div>
                   <div className="text-xl font-bold text-purple-400">{bestSession?.[0] || '-'}</div>
-                  <p className="text-xs text-gray-500 mt-1">{bestSession ? `+${bestSession[1].totalPL.toFixed(0)} P/L` : ''}</p>
+                  <p className="text-xs text-lux-text-muted dark:text-gray-500 mt-1">{bestSession ? `+${bestSession[1].totalPL.toFixed(0)} P/L` : ''}</p>
                 </div>
-                <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
-                  <div className="text-sm text-gray-400 mb-1">Revenge Trades</div>
+                <div className="p-4 rounded-xl bg-purple-500/10 border border-lux-border dark:border-purple-500/20">
+                  <div className="text-sm text-lux-text-secondary dark:text-gray-400 mb-1">Revenge Trades</div>
                   <div className="text-2xl font-bold text-purple-400">{revengeTrades.length}</div>
-                  <p className="text-xs text-gray-500 mt-1">Trades within 1hr after loss</p>
+                  <p className="text-xs text-lux-text-muted dark:text-gray-500 mt-1">Trades within 1hr after loss</p>
                 </div>
               </div>
 
@@ -156,19 +156,19 @@ function PsychologyTab({ isPro, onUpgrade, trades }: PsychologyTabProps) {
                   const winRate = ((stats.wins / (stats.wins + stats.losses)) * 100) || 0
                   const isProfitable = stats.totalPL >= 0
                   return (
-                    <div key={session} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-purple-900/30">
+                    <div key={session} className="flex items-center justify-between p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5 border border-lux-border dark:border-purple-900/30">
                       <div className="flex items-center gap-3">
                         <div className={`w-3 h-3 rounded-full ${isProfitable ? 'bg-emerald-400' : 'bg-red-400'}`} />
                         <span className="font-medium">{session}</span>
                       </div>
                       <div className="flex items-center gap-4 text-sm">
-                        <span className="text-gray-400">{stats.wins + stats.losses} trades</span>
+                        <span className="text-lux-text-secondary dark:text-gray-400">{stats.wins + stats.losses} trades</span>
                         <span className={`font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
                           {isProfitable ? '+' : ''}{stats.totalPL.toFixed(0)}
                         </span>
                         <div className="w-16">
                           <Progress value={winRate} className="h-2" />
-                          <span className="text-xs text-gray-500">{winRate.toFixed(0)}% WR</span>
+                          <span className="text-xs text-lux-text-muted dark:text-gray-500">{winRate.toFixed(0)}% WR</span>
                         </div>
                       </div>
                     </div>
@@ -183,7 +183,7 @@ function PsychologyTab({ isPro, onUpgrade, trades }: PsychologyTabProps) {
                     <Brain className="w-4 h-4" />
                     Psychology Tips
                   </h4>
-                  <ul className="text-sm text-gray-300 space-y-2">
+                  <ul className="text-sm text-lux-text-primary dark:text-gray-300 space-y-2">
                     {revengeTrades.length > 2 && (
                       <li className="flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 text-purple-400 mt-0.5" />

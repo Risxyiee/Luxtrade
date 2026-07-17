@@ -81,10 +81,10 @@ export default function SidebarNav({
               >
                 <span className={`text-[10px] font-bold tracking-wider ${
                   category === 'utama'
-                    ? 'text-gray-500'
+                    ? 'text-lux-text-muted dark:text-gray-500'
                     : category === 'alat'
-                      ? 'text-purple-400'
-                      : 'text-pink-400'
+                      ? 'text-purple-600 dark:text-purple-400'
+                      : 'text-pink-600 dark:text-pink-400'
                 }`}>
                   {catInfo.label}
                 </span>
@@ -134,10 +134,10 @@ export default function SidebarNav({
                       aria-current={activeTab === item.id ? 'page' : undefined}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 relative overflow-hidden group ${
                         activeTab === item.id
-                          ? 'bg-gradient-to-r from-purple-500/20 via-violet-500/15 to-pink-500/10 text-white shadow-lg shadow-purple-500/20'
+                          ? 'bg-gradient-to-r from-purple-500/20 via-violet-500/15 to-pink-500/10 text-white dark:text-white shadow-lg shadow-purple-500/20'
                           : isLocked
-                            ? 'text-gray-500/50 hover:text-gray-400'
-                            : 'text-gray-400 hover:text-white hover:bg-white/5 active:bg-white/10'
+                            ? 'text-lux-text-muted/50 dark:text-gray-500/50 hover:text-lux-text-secondary dark:hover:text-gray-400'
+                            : 'text-lux-text-secondary dark:text-gray-400 hover:text-lux-text-primary dark:hover:text-white hover:bg-lux-surface-hover dark:hover:bg-white/5 active:bg-lux-surface-hover dark:active:bg-white/10'
                       }`}
                     >
                       {/* Active State Glow */}
@@ -154,10 +154,10 @@ export default function SidebarNav({
                       <motion.div
                         className={`relative flex-shrink-0 ${
                           activeTab === item.id
-                            ? 'text-purple-400'
+                            ? 'text-purple-600 dark:text-purple-400'
                             : isLocked
-                              ? 'text-gray-600'
-                              : 'text-gray-500 group-hover:text-purple-400'
+                              ? 'text-lux-text-muted dark:text-gray-600'
+                              : 'text-lux-text-muted dark:text-gray-500 group-hover:text-purple-600 dark:group-hover:text-purple-400'
                         }`}
                         whileHover={{ scale: 1.1, rotate: 5 }}
                         transition={{ type: "spring", stiffness: 300 }}
@@ -182,7 +182,7 @@ export default function SidebarNav({
                       {/* Menu Text - SHOW WHEN SIDEBAR OPEN (DESKTOP OR MOBILE) */}
                       {(sidebarOpen || mobileSidebarOpen) && (
                         <span className={`text-sm font-medium flex-1 text-left truncate relative z-10 overflow-hidden ${
-                          activeTab === item.id ? 'text-white' : ''
+                          activeTab === item.id ? 'text-white dark:text-white' : ''
                         }`}>
                           {language === 'id' ? item.labelId : item.label}
                         </span>

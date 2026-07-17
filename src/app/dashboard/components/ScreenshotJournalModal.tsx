@@ -67,7 +67,7 @@ const MOOD_OPTIONS = [
   { value: 'greedy', label: 'Greedy', icon: '🤑', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
   { value: 'frustrated', label: 'Frustrated', icon: '😤', color: 'bg-rose-500/20 text-rose-400 border-rose-500/30' },
   { value: 'regretful', label: 'Regretful', icon: '😔', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
-  { value: 'neutral', label: 'Neutral', icon: '😐', color: 'bg-gray-500/20 text-gray-400 border-gray-500/30' },
+  { value: 'neutral', label: 'Neutral', icon: '😐', color: 'bg-gray-500/20 text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 border-gray-500/30' },
 ]
 
 const MARKET_CONDITIONS = [
@@ -246,13 +246,13 @@ export default function ScreenshotJournalModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-lg w-[95vw] max-h-[92vh] overflow-hidden flex flex-col">
+      <DialogContent className="bg-lux-bg-card dark:bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-lux-border dark:border-purple-900/30 text-white max-w-lg w-[95vw] max-h-[92vh] overflow-hidden flex flex-col">
         <DialogHeader className="shrink-0">
           <DialogTitle className="text-xl flex items-center gap-2">
             <Camera className="w-5 h-5 text-purple-400" />
             Screenshot → Auto Journal
           </DialogTitle>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-sm text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 mt-1">
             Upload screenshot trading, AI akan otomatis membuat jurnal
           </p>
         </DialogHeader>
@@ -266,16 +266,16 @@ export default function ScreenshotJournalModal({
                 className="w-full border-2 border-dashed border-emerald-500/30 rounded-xl p-6 text-center cursor-pointer hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all"
               >
                 <Camera className="w-10 h-10 text-emerald-400 mx-auto mb-2" />
-                <p className="text-sm font-medium text-gray-300">
+                <p className="text-sm font-medium text-lux-text-primary dark:text-lux-text-primary dark:text-gray-300">
                   Buka Kamera
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-lux-text-muted dark:text-lux-text-muted dark:text-gray-500 mt-1">
                   Ambil screenshot langsung
                 </p>
               </button>
               <div className="flex items-center gap-3">
                 <div className="flex-1 h-px bg-white/10" />
-                <span className="text-xs text-gray-500">atau</span>
+                <span className="text-xs text-lux-text-muted dark:text-lux-text-muted dark:text-gray-500">atau</span>
                 <div className="flex-1 h-px bg-white/10" />
               </div>
               <button
@@ -283,10 +283,10 @@ export default function ScreenshotJournalModal({
                 className="w-full border-2 border-dashed border-purple-500/30 rounded-xl p-6 text-center cursor-pointer hover:border-purple-500/50 hover:bg-purple-500/5 transition-all"
               >
                 <Upload className="w-10 h-10 text-purple-400 mx-auto mb-2" />
-                <p className="text-sm font-medium text-gray-300">
+                <p className="text-sm font-medium text-lux-text-primary dark:text-lux-text-primary dark:text-gray-300">
                   Pilih dari Galeri
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-lux-text-muted dark:text-lux-text-muted dark:text-gray-500 mt-1">
                   PNG, JPG, JPEG — Maks 10MB
                 </p>
               </button>
@@ -294,7 +294,7 @@ export default function ScreenshotJournalModal({
           ) : (
             <div className="space-y-3">
               {/* Image Preview */}
-              <div className="relative rounded-xl overflow-hidden border border-purple-500/20">
+              <div className="relative rounded-xl overflow-hidden border border-lux-border dark:border-purple-500/20">
                 <img
                   src={imagePreview}
                   alt="Screenshot"
@@ -331,8 +331,8 @@ export default function ScreenshotJournalModal({
                     <Loader2 className="w-10 h-10 text-purple-400 animate-spin" />
                     <Sparkles className="w-4 h-4 text-yellow-400 absolute -top-1 -right-1 animate-pulse" />
                   </div>
-                  <p className="text-sm text-gray-400">AI sedang menganalisis screenshot...</p>
-                  <p className="text-xs text-gray-500">Membaca data trading & membuat jurnal</p>
+                  <p className="text-sm text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400">AI sedang menganalisis screenshot...</p>
+                  <p className="text-xs text-lux-text-muted dark:text-lux-text-muted dark:text-gray-500">Membaca data trading & membuat jurnal</p>
                 </div>
               )}
 
@@ -341,7 +341,7 @@ export default function ScreenshotJournalModal({
                 <div className="space-y-3">
                   {/* Trade Info Card */}
                   {aiResult.trade?.symbol && (
-                    <div className="rounded-xl bg-gradient-to-br from-purple-500/10 to-violet-500/10 border border-purple-500/20 p-3 space-y-2">
+                    <div className="rounded-xl bg-gradient-to-br from-purple-500/10 to-violet-500/10 border border-lux-border dark:border-purple-500/20 p-3 space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Badge variant={aiResult.trade.type === 'BUY' ? 'default' : 'destructive'}
@@ -362,12 +362,12 @@ export default function ScreenshotJournalModal({
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         {aiResult.trade.open_price > 0 && (
-                          <div className="flex items-center gap-1 text-gray-400">
+                          <div className="flex items-center gap-1 text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400">
                             <Target className="w-3 h-3" /> Entry: {aiResult.trade.open_price}
                           </div>
                         )}
                         {aiResult.trade.close_price > 0 && aiResult.trade.close_price !== aiResult.trade.open_price && (
-                          <div className="flex items-center gap-1 text-gray-400">
+                          <div className="flex items-center gap-1 text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400">
                             <Target className="w-3 h-3" /> Close: {aiResult.trade.close_price}
                           </div>
                         )}
@@ -382,7 +382,7 @@ export default function ScreenshotJournalModal({
                           </div>
                         )}
                         {aiResult.trade.lot_size > 0 && (
-                          <div className="flex items-center gap-1 text-gray-400">
+                          <div className="flex items-center gap-1 text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400">
                             <DollarSign className="w-3 h-3" /> Lot: {aiResult.trade.lot_size}
                           </div>
                         )}
@@ -408,25 +408,25 @@ export default function ScreenshotJournalModal({
                     /* Edit Mode */
                     <div className="space-y-3">
                       <div>
-                        <Label className="text-xs text-gray-400 mb-1">Judul</Label>
+                        <Label className="text-xs text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 mb-1">Judul</Label>
                         <Input
                           value={editTitle}
                           onChange={(e) => setEditTitle(e.target.value)}
-                          className="bg-white/5 border-purple-500/20"
+                          className="bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-purple-500/20"
                           placeholder="Judul jurnal..."
                         />
                       </div>
                       <div>
-                        <Label className="text-xs text-gray-400 mb-1">Konten Jurnal</Label>
+                        <Label className="text-xs text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 mb-1">Konten Jurnal</Label>
                         <Textarea
                           value={editContent}
                           onChange={(e) => setEditContent(e.target.value)}
-                          className="bg-white/5 border-purple-500/20 min-h-[120px]"
+                          className="bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-purple-500/20 min-h-[120px]"
                           placeholder="Tulis jurnal trading..."
                         />
                       </div>
                       <div>
-                        <Label className="text-xs text-gray-400 mb-1.5 block">Mood</Label>
+                        <Label className="text-xs text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 mb-1.5 block">Mood</Label>
                         <div className="flex flex-wrap gap-1.5">
                           {MOOD_OPTIONS.map((m) => (
                             <button
@@ -435,7 +435,7 @@ export default function ScreenshotJournalModal({
                               className={`px-2 py-1 rounded-lg text-xs border transition-all ${
                                 editMood === m.value
                                   ? m.color
-                                  : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                  : 'bg-lux-surface-hover dark:bg-white/5 border-white/10 text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 hover:bg-lux-surface-hover dark:hover:bg-white/10'
                               }`}
                             >
                               {m.icon} {m.label}
@@ -444,7 +444,7 @@ export default function ScreenshotJournalModal({
                         </div>
                       </div>
                       <div>
-                        <Label className="text-xs text-gray-400 mb-1.5 block">Kondisi Market</Label>
+                        <Label className="text-xs text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 mb-1.5 block">Kondisi Market</Label>
                         <div className="flex flex-wrap gap-1.5">
                           {MARKET_CONDITIONS.map((m) => (
                             <button
@@ -453,7 +453,7 @@ export default function ScreenshotJournalModal({
                               className={`px-2 py-1 rounded-lg text-xs border transition-all ${
                                 editMarketCondition === m.value
                                   ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
-                                  : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                  : 'bg-lux-surface-hover dark:bg-white/5 border-white/10 text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 hover:bg-lux-surface-hover dark:hover:bg-white/10'
                               }`}
                             >
                               {m.icon} {m.label}
@@ -462,11 +462,11 @@ export default function ScreenshotJournalModal({
                         </div>
                       </div>
                       <div>
-                        <Label className="text-xs text-gray-400 mb-1 block">Tags (pisahkan dengan koma)</Label>
+                        <Label className="text-xs text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400 mb-1 block">Tags (pisahkan dengan koma)</Label>
                         <Input
                           value={editTags}
                           onChange={(e) => setEditTags(e.target.value)}
-                          className="bg-white/5 border-purple-500/20"
+                          className="bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-purple-500/20"
                           placeholder="gold, breakout, tp_hit..."
                         />
                       </div>
@@ -476,7 +476,7 @@ export default function ScreenshotJournalModal({
                     <div className="space-y-3">
                       {/* Title */}
                       <div>
-                        <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-1">
+                        <div className="flex items-center gap-1.5 text-xs text-lux-text-muted dark:text-lux-text-muted dark:text-gray-500 mb-1">
                           <BookOpen className="w-3 h-3" /> Judul
                         </div>
                         <h3 className="font-semibold text-base">{editTitle}</h3>
@@ -486,13 +486,13 @@ export default function ScreenshotJournalModal({
                       <div className="flex flex-wrap gap-2">
                         {editMood && (
                           <Badge className={
-                            MOOD_OPTIONS.find(m => m.value === editMood)?.color || 'bg-gray-500/20 text-gray-400'
+                            MOOD_OPTIONS.find(m => m.value === editMood)?.color || 'bg-gray-500/20 text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400'
                           }>
                             {MOOD_OPTIONS.find(m => m.value === editMood)?.icon} {MOOD_OPTIONS.find(m => m.value === editMood)?.label}
                           </Badge>
                         )}
                         {editMarketCondition && (
-                          <Badge className="bg-white/10 text-gray-300 border-white/10">
+                          <Badge className="bg-white/10 text-lux-text-primary dark:text-lux-text-primary dark:text-gray-300 border-white/10">
                             {MARKET_CONDITIONS.find(m => m.value === editMarketCondition)?.icon}{' '}
                             {MARKET_CONDITIONS.find(m => m.value === editMarketCondition)?.label}
                           </Badge>
@@ -507,9 +507,9 @@ export default function ScreenshotJournalModal({
                       {/* Tags */}
                       {editTags && (
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <Tag className="w-3 h-3 text-gray-500" />
+                          <Tag className="w-3 h-3 text-lux-text-muted dark:text-lux-text-muted dark:text-gray-500" />
                           {editTags.split(',').map((tag, i) => (
-                            <Badge key={i} variant="outline" className="text-xs bg-white/5 border-white/10">
+                            <Badge key={i} variant="outline" className="text-xs bg-lux-surface-hover dark:bg-white/5 border-white/10">
                               {tag.trim()}
                             </Badge>
                           ))}
@@ -518,10 +518,10 @@ export default function ScreenshotJournalModal({
 
                       {/* Content */}
                       <div>
-                        <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-1">
+                        <div className="flex items-center gap-1.5 text-xs text-lux-text-muted dark:text-lux-text-muted dark:text-gray-500 mb-1">
                           <BookOpen className="w-3 h-3" /> Jurnal
                         </div>
-                        <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap bg-white/5 rounded-lg p-3">
+                        <div className="text-sm text-lux-text-primary dark:text-lux-text-primary dark:text-gray-300 leading-relaxed whitespace-pre-wrap bg-lux-surface-hover dark:bg-white/5 rounded-lg p-3">
                           {editContent}
                         </div>
                       </div>
@@ -534,7 +534,7 @@ export default function ScreenshotJournalModal({
         </div>
 
         {/* Footer */}
-        <DialogFooter className="shrink-0 pt-3 border-t border-purple-900/20 flex flex-col sm:flex-row gap-2">
+        <DialogFooter className="shrink-0 pt-3 border-t border-lux-border dark:border-purple-900/20 flex flex-col sm:flex-row gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -562,7 +562,7 @@ export default function ScreenshotJournalModal({
           <Button
             variant="ghost"
             onClick={handleClose}
-            className="text-gray-400 hover:text-white"
+            className="text-lux-text-secondary dark:text-gray-400 hover:text-lux-text-primary dark:hover:text-white"
           >
             Batal
           </Button>
