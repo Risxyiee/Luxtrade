@@ -235,7 +235,7 @@ export default function PaymentInvoiceModal({
   // Helpers
   // ============================================
   // Discord admin link
-  const DISCORD_ADMIN_LINK = 'https://discord.gg/HDUNAsnW2R'
+  const DISCORD_ADMIN_LINK = 'https://discord.gg/KkYYFP9nC'
   const tgMessage = encodeURIComponent(`Halo admin LuxTrade, saya butuh bantuan terkait pembayaran. Invoice: ${invoiceNumber}. Paket: ${planName} (${formatRupiah(amount)}). Terima kasih.`)
 
   const getMethodsForCategory = (catType: string) => {
@@ -1141,7 +1141,7 @@ export default function PaymentInvoiceModal({
                                   <p className="text-xs text-white/50">a.n. RIZQI AKBAR PRATAMA</p>
                                 </div>
                                 <a
-                                  href="https://discord.gg/HDUNAsnW2R"
+                                  href="https://discord.gg/KkYYFP9nC"
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#5865F2]/20 text-[#5865F2] text-xs font-medium hover:bg-[#5865F2]/30 transition-colors"

@@ -259,7 +259,7 @@ export default function DisclaimerPage() {
               </p>
               <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 mt-4 space-y-2">
                 <p className="text-white/70"><strong className="text-purple-400">Email:</strong> luxtradee@gmail.com</p>
-                <p className="text-white/70"><strong className="text-purple-400">Discord:</strong> <a href="https://discord.gg/HDUNAsnW2R" target="_blank" rel="noopener noreferrer" className="text-[#5865F2] hover:underline">LuxTrade Server</a></p>
+                <p className="text-white/70"><strong className="text-purple-400">Discord:</strong> <a href="https://discord.gg/KkYYFP9nC" target="_blank" rel="noopener noreferrer" className="text-[#5865F2] hover:underline">LuxTrade Server</a></p>
                 <p className="text-white/70"><strong className="text-purple-400">Website:</strong> <a href="https://luxtradee.web.id" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">luxtradee.web.id</a></p>
               </div>
             </section>

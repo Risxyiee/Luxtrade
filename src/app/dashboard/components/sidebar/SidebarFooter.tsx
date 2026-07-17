@@ -215,7 +215,7 @@ export default function SidebarFooter({
         {/* Discord Community Banner */}
         {(sidebarOpen || mobileSidebarOpen) && (
           <motion.a
-            href="https://discord.gg/HDUNAsnW2R"
+            href="https://discord.gg/KkYYFP9nC"
             target="_blank"
             rel="noopener noreferrer"
             initial={{ opacity: 0, y: 10 }}

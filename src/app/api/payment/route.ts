@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
         accountHolder: PAYMENT_CONFIG.accountHolder,
         amount: PAYMENT_CONFIG.amount,
       },
-      discordLink: 'https://discord.gg/HDUNAsnW2R',
+      discordLink: 'https://discord.gg/KkYYFP9nC',
       message: 'Payment details generated successfully',
     })
   } catch (error) {
