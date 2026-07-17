@@ -375,20 +375,23 @@ export default function TradeWizardForm({
 
       const data = await res.json()
 
-      if (res.ok && data.success) {
-        // Auto-fill form with imported data
-        if (data.data.symbol) onFormChange('symbol', data.data.symbol)
-        if (data.data.type) onTypeChange(data.data.type)
-        if (data.data.lot_size) onFormChange('lot_size', data.data.lot_size.toString())
-        if (data.data.open_price) onFormChange('open_price', data.data.open_price.toString())
-        if (data.data.close_price) onFormChange('close_price', data.data.close_price.toString())
-        if (data.data.profit_loss) onFormChange('profit_loss', data.data.profit_loss.toString())
-        if (data.data.open_time) onFormChange('open_time', data.data.open_time)
-        if (data.data.close_time) onFormChange('close_time', data.data.close_time)
+      if (res.ok && data.success && data.trades?.length > 0) {
+        // Auto-fill form with the first imported trade
+        const trade = data.trades[0]
+        if (trade.symbol) onFormChange('symbol', trade.symbol)
+        if (trade.type) onTypeChange(trade.type)
+        if (trade.lot_size) onFormChange('lot_size', trade.lot_size.toString())
+        if (trade.open_price) onFormChange('open_price', trade.open_price.toString())
+        if (trade.close_price) onFormChange('close_price', trade.close_price.toString())
+        if (trade.profit_loss) onFormChange('profit_loss', trade.profit_loss.toString())
+        if (trade.open_time) onFormChange('open_time', trade.open_time)
+        if (trade.close_time) onFormChange('close_time', trade.close_time)
 
-        toast.success('✅ MT5 file imported successfully! Form auto-filled.')
+        toast.success((data.count || data.trades.length) + ' trade(s) imported!')
+      } else if (res.ok && data.success) {
+        toast.error(data.error || 'No trades found in file.')
       } else {
-        toast.error(data.error || 'Failed to import MT5 file')
+        toast.error(data.error || data.message || 'Failed to import MT5 file')
       }
     } catch (error) {
       console.error('❌ [TradeWizardForm] MT5 import error:', error)
