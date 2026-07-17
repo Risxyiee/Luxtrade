@@ -1,19 +1,18 @@
 /**
  * Next.js Instrumentation Hook
- * Runs once on server startup (cold start) — perfect for auto-migration.
- * https://nextjs.org/docs/app/building-your-application/configuring/instrumentation
+ * Runs once on server startup (cold start).
+ * 
+ * NOTE: Auto-migration (ensureSchema) has been DISABLED to prevent
+ * race conditions when multiple Vercel instances cold-start simultaneously
+ * (causes "already exists" vs "does not exist" conflicts on promo_codes).
+ * 
+ * Schema changes should now be done via:
+ *   1. Supabase SQL Editor (manual)
+ *   2. Prisma migrations (proper)
  */
 
 export async function register() {
-  // Only run on server-side
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
-    // Dynamic import to avoid bundling issues
-    const { ensureSchema } = await import('@/lib/db')
-    // Fire-and-forget: don't block server startup, but log completion
-    ensureSchema().then(() => {
-      console.log('✅ [Instrumentation] Auto-migration completed on server startup')
-    }).catch((err: any) => {
-      console.error('⚠️ [Instrumentation] Auto-migration failed (non-critical):', err?.message)
-    })
-  }
+  // Auto-migration disabled — run migrations manually via Supabase SQL Editor
+  // or Prisma migrate deploy.
+  console.log('✅ [Instrumentation] Server started (auto-migration disabled)')
 }
