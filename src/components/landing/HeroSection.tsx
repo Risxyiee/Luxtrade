@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Sparkles, ArrowRight, Play, Star, Users, Shield, VolumeX } from 'lucide-react'
@@ -13,6 +13,14 @@ interface HeroSectionProps {
 }
 
 export default function HeroSection({ language, t }: HeroSectionProps) {
+  const [totalUsers, setTotalUsers] = useState<number | null>(null)
+
+  useEffect(() => {
+    fetch('/api/landing-stats')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data) setTotalUsers(data.totalUsers) })
+      .catch(() => {})
+  }, [])
   return (
     <section className="relative w-full pt-28 sm:pt-32 pb-12">
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row">
@@ -79,7 +87,7 @@ export default function HeroSection({ language, t }: HeroSectionProps) {
               <div className="w-px h-4 bg-[var(--lux-inline-border)]" />
               <div className="flex items-center gap-1.5 text-sm text-[var(--lux-text-body)]">
                 <Users className="w-4 h-4 text-purple-400" />
-                <span className="font-semibold text-[var(--lux-text-body-2)]">20+</span>
+                <span className="font-semibold text-[var(--lux-text-body-2)]">{totalUsers !== null ? `${totalUsers}+` : '20+'}</span>
                 <span>{language === 'id' ? 'trader' : 'traders'}</span>
               </div>
               <div className="w-px h-4 bg-[var(--lux-inline-border)]" />
