@@ -10,8 +10,8 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const DEFAULT_PROMO = {
-  code: 'TRADERCEPAT', maxQuota: 30, usedQuota: 0, remainingQuota: 30,
-  discountPercent: 100, durationMonths: 3, isActive: true
+  code: 'TRADERCEPAT', maxQuota: 30, usedQuota: 30, remainingQuota: 0,
+  discountPercent: 100, durationMonths: 3, isActive: false
 }
 
 export async function GET(request: Request) {

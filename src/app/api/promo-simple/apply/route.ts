@@ -21,12 +21,9 @@ export async function POST(request: NextRequest) {
     const code = body.promoCode || body.promo_code || body.code
     const plan = body.plan || 'PRO'
 
-    console.log('🎯 [Simple Promo] Body:', JSON.stringify(body))
-    console.log('🎯 [Simple Promo] code:', code, 'plan:', plan)
-
     if (!code) {
       return NextResponse.json(
-        { error: 'promoCode is required', received: Object.keys(body) },
+        { error: 'promoCode is required' },
         { status: 400 }
       )
     }
@@ -45,54 +42,47 @@ export async function POST(request: NextRequest) {
     const userId = user.id
     const normalizedCode = code.trim().toUpperCase()
 
-    // Get promo code
-    const promoCode = await db.promoCode.findUnique({
-      where: { code: normalizedCode }
-    })
+    // ════════════════════════════════════════════════════════
+    // ATOMIC claim — same pattern as /api/promo/apply
+    // Prevents race condition: concurrent requests can't both claim
+    // ════════════════════════════════════════════════════════
+    const promoRows: any[] = await db.$queryRawUnsafe(`
+      UPDATE promo_codes
+      SET used_quota = used_quota + 1, updated_at = NOW()
+      WHERE code = $1
+        AND is_active = true
+        AND (end_date IS NULL OR end_date > NOW())
+        AND start_date <= NOW()
+        AND used_quota < max_quota
+      RETURNING id, code, discount_percent, max_quota, used_quota, duration_months;
+    `, normalizedCode)
 
-    if (!promoCode) {
-      return NextResponse.json({ success: false, message: 'Kode promo tidak valid' })
-    }
-
-    if (!promoCode.isActive) {
-      return NextResponse.json({ success: false, message: 'Kode promo tidak aktif' })
-    }
-
-    if (promoCode.usedQuota >= promoCode.maxQuota) {
+    if (!promoRows || promoRows.length === 0) {
       return NextResponse.json({ success: false, message: 'Kuota kode promo sudah habis' })
     }
 
-    // Check existing
-    const existing = await db.userSubscription.findFirst({
-      where: { userId, promoCodeId: promoCode.id, status: 'active' }
-    })
+    const promo = promoRows[0]
 
-    if (existing) {
+    // Check duplicate using raw SQL (same connection context)
+    const existingSub: any[] = await db.$queryRawUnsafe(`
+      SELECT id FROM user_subscriptions WHERE user_id = $1 AND promo_code_id = $2 AND status = 'active' LIMIT 1;
+    `, userId, promo.id)
+
+    if (existingSub && existingSub.length > 0) {
+      // Rollback quota
+      await db.$executeRawUnsafe(`UPDATE promo_codes SET used_quota = used_quota - 1 WHERE id = $1;`, promo.id)
       return NextResponse.json({ success: false, message: 'Anda sudah menggunakan kode promo ini' })
     }
 
     // Create subscription
     const startDate = new Date()
-    const months = promoCode.durationMonths || 3
+    const months = promo.duration_months || 3
     const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + months, startDate.getDate(), 23, 59, 59, 999)
 
-    const subscription = await db.userSubscription.create({
-      data: {
-        userId,
-        plan,
-        status: 'active',
-        startDate,
-        endDate,
-        promoCodeId: promoCode.id,
-        discountPercent: promoCode.discountPercent
-      }
-    })
-
-    // Update quota
-    await db.promoCode.update({
-      where: { id: promoCode.id },
-      data: { usedQuota: promoCode.usedQuota + 1 }
-    })
+    await db.$executeRawUnsafe(`
+      INSERT INTO user_subscriptions (id, user_id, plan, status, start_date, end_date, promo_code_id, discount_percent, created_at, updated_at)
+      VALUES (gen_random_uuid()::text, $1, $2, 'active', NOW(), $3, $4, $5, NOW(), NOW());
+    `, userId, plan, endDate, promo.id, promo.discount_percent)
 
     // Update profile
     try {
@@ -109,19 +99,19 @@ export async function POST(request: NextRequest) {
       console.warn('⚠️ [Simple Promo] Could not update profile:', e.message)
     }
 
+    const remainingQuota = Number(promo.max_quota) - Number(promo.used_quota)
+
+    // Auto-deactivate when full
+    if (remainingQuota <= 0) {
+      try { await db.$executeRawUnsafe(`UPDATE promo_codes SET is_active = false WHERE id = $1;`, promo.id) } catch { /* ok */ }
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Kode promo berhasil! Anda mendapatkan akses ${plan} selama ${promoCode.durationMonths} bulan.`,
-      subscription: {
-        id: subscription.id,
-        plan: subscription.plan,
-        status: subscription.status,
-        startDate: subscription.startDate,
-        endDate: subscription.endDate
-      },
+      message: `Kode promo berhasil! Anda mendapatkan akses ${plan} selama ${months} bulan.`,
       promoCode: {
-        code: promoCode.code,
-        remainingQuota: promoCode.maxQuota - (promoCode.usedQuota + 1)
+        code: promo.code,
+        remainingQuota
       }
     })
   } catch (error: any) {
