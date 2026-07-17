@@ -91,3 +91,26 @@ Stage Summary:
 - Files changed: src/app/api/auto-journal/route.ts, src/lib/aiml-vision.ts, src/lib/extractTradeData.ts
 - Build: passes clean
 - Lint: passes clean
+
+---
+Task ID: auto-journal-loading-fix
+Agent: Main Agent
+Task: Fix auto-journal loading forever without result
+
+Work Log:
+- Diagnosed root cause: NO AI API keys configured in .env (GEMINI_API_KEY missing)
+  → Gemini throws 'not configured', falls back to OpenRouter (also no key), throws generic error
+  → User sees loading spinner forever with no clear error
+- Added 30s AbortController timeout on client-side fetch
+  → Shows 'Analisis AI terlalu lama (>30 detik)' message instead of infinite loading
+- Improved server error messages:
+  → When API key missing: 'API key AI belum dikonfigurasi (GEMINI_API_KEY). Hubungi admin.'
+  → Other failures: shows the actual Gemini error message instead of generic text
+- Fixed pre-existing build error: sendPremiumEmail → sendEmail in marketing/send-promo/route.ts
+
+Stage Summary:
+- ROOT CAUSE: GEMINI_API_KEY not in .env or .env.production
+- UI fix: 30s client timeout prevents infinite loading
+- Server fix: specific error messages instead of misleading "rate limit" text
+- Build error fix: marketing/send-promo route had wrong import name
+- Files: TradeWizardForm.tsx, aiml-vision.ts, marketing/send-promo/route.ts
