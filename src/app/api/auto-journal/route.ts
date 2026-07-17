@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
     const aiResult = await analyzeImageBase64WithAiml(
       base64Image,
       TRADE_AND_JOURNAL_PROMPT,
-      { timeout: 20000, maxRetries: 0 }  // NO retries — we have no time budget
+      { timeout: 20000, maxRetries: 1 }  // 1 attempt only — no time for retries on Vercel Hobby
     )
     console.log(`⏱️ [Auto Journal] AI call: ${(performance.now() - t2).toFixed(0)}ms (${aiResult.provider})`)
 

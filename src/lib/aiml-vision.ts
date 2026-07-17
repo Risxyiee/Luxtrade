@@ -31,16 +31,18 @@ async function callGemini(
   messages: any[],
   options: VisionOptions = {}
 ): Promise<VisionResult> {
-  const { timeout = 90000, maxRetries = 2 } = options
+  // maxRetries means total attempts (must be >= 1)
+  const attempts = Math.max(1, options.maxRetries ?? 2)
+  const timeout = options.timeout ?? 90000
 
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured')
   }
 
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
     try {
-      console.log(`🤖 [Gemini 2.5 Flash] Attempt ${attempt + 1}/${maxRetries}`)
+      console.log(`🤖 [Gemini 2.5 Flash] Attempt ${attempt + 1}/${attempts}`)
 
       const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
         method: 'POST',
@@ -60,7 +62,7 @@ async function callGemini(
         console.error(`❌ [Gemini 2.5 Flash] Error ${response.status}:`, errText.slice(0, 200))
 
         // Rate limit / quota — retry with backoff
-        if (response.status === 429 && attempt < maxRetries - 1) {
+        if (response.status === 429 && attempt < attempts - 1) {
           const wait = 3000 * (attempt + 1)
           console.log(`⏳ [Gemini 2.5 Flash] Rate limited, waiting ${wait}ms...`)
           await new Promise(r => setTimeout(r, wait))
@@ -81,14 +83,14 @@ async function callGemini(
       return { text, raw: data, provider: 'gemini-2.5-flash' }
     } catch (error: any) {
       if (error.name === 'AbortError' || error.name === 'TimeoutError') {
-        if (attempt < maxRetries - 1) {
+        if (attempt < attempts - 1) {
           await new Promise(r => setTimeout(r, 3000))
           continue
         }
         throw new Error('Gemini API timeout.')
       }
 
-      if (attempt === maxRetries - 1) throw error
+      if (attempt === attempts - 1) throw error
 
       console.warn(`⚠️ [Gemini 2.5 Flash] Retrying...`, error.message)
       await new Promise(r => setTimeout(r, 2000 * (attempt + 1)))
