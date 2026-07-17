@@ -181,7 +181,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
   const value = payload[0].value
   return (
     <div className="bg-[#1a1028] border border-purple-900/40 rounded-lg px-3 py-2 shadow-xl">
-      <p className="text-xs text-gray-400">{label}</p>
+      <p className="text-xs text-lux-text-secondary dark:text-gray-400">{label}</p>
       <p className={`text-sm font-bold ${value >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
         {formatCurrency(value)}
       </p>
@@ -416,7 +416,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
     } else if (hasTrades) {
       classes += ' bg-purple-500/10 text-purple-300/90 hover:bg-purple-500/20'
     } else {
-      classes += ' text-gray-500 hover:bg-white/5 hover:text-gray-300'
+      classes += ' text-lux-text-muted dark:text-gray-500 hover:bg-lux-surface-hover dark:hover:bg-lux-surface-hover dark:bg-white/5 hover:text-lux-text-primary dark:text-gray-300'
     }
 
     return classes
@@ -425,7 +425,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
   return (
     <div className="space-y-6">
       {/* ── Calendar Card ──────────────────────────────────────────────── */}
-      <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
@@ -459,7 +459,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={goToPrevMonth}
-                className="p-2 rounded-lg text-gray-400 hover:text-purple-300 hover:bg-purple-500/15 transition-colors"
+                className="p-2 rounded-lg text-lux-text-secondary dark:text-gray-400 hover:text-purple-300 hover:bg-purple-500/15 transition-colors"
                 aria-label="Previous month"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -468,7 +468,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={goToNextMonth}
-                className="p-2 rounded-lg text-gray-400 hover:text-purple-300 hover:bg-purple-500/15 transition-colors"
+                className="p-2 rounded-lg text-lux-text-secondary dark:text-gray-400 hover:text-purple-300 hover:bg-purple-500/15 transition-colors"
                 aria-label="Next month"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -479,7 +479,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
 
         <CardContent>
           {/* Day-of-week headers */}
-          <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-500 mb-2">
+          <div className="grid grid-cols-7 gap-1 text-center text-xs text-lux-text-muted dark:text-gray-500 mb-2">
             {dayLabels.map((day) => (
               <div key={day} className="py-2 font-medium">
                 {day}
@@ -556,19 +556,19 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
           <div className="flex items-center justify-center gap-4 mt-4 pt-3 border-t border-white/5">
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-sm bg-emerald-500/30 border border-emerald-500/40" />
-              <span className="text-[11px] text-gray-500">{t('legendProfit', lang)}</span>
+              <span className="text-[11px] text-lux-text-muted dark:text-gray-500">{t('legendProfit', lang)}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-sm bg-red-500/30 border border-red-500/40" />
-              <span className="text-[11px] text-gray-500">{t('legendLoss', lang)}</span>
+              <span className="text-[11px] text-lux-text-muted dark:text-gray-500">{t('legendLoss', lang)}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-sm bg-purple-500/30 border border-purple-500/40" />
-              <span className="text-[11px] text-gray-500">{t('legendBreakeven', lang)}</span>
+              <span className="text-[11px] text-lux-text-muted dark:text-gray-500">{t('legendBreakeven', lang)}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm bg-white/5 border border-white/10" />
-              <span className="text-[11px] text-gray-500">{t('legendNoTrades', lang)}</span>
+              <div className="w-3 h-3 rounded-sm bg-lux-surface-hover dark:bg-white/5 border border-white/10" />
+              <span className="text-[11px] text-lux-text-muted dark:text-gray-500">{t('legendNoTrades', lang)}</span>
             </div>
           </div>
         </CardContent>
@@ -585,7 +585,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
             exit="exit"
             className="overflow-hidden"
           >
-            <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+            <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -615,10 +615,10 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
                 {/* Day summary row */}
                 {selectedDayStats && (
                   <div className="flex items-center gap-4 mt-2">
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-lux-text-secondary dark:text-gray-400">
                       {selectedDayStats.count} {t('daySummaryTrades', lang)}
                     </span>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-lux-text-secondary dark:text-gray-400">
                       {t('daySummaryWinRate', lang)}: <span className="text-purple-300 font-medium">{selectedDayStats.winRate}%</span>
                     </span>
                   </div>
@@ -626,7 +626,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
               </CardHeader>
               <CardContent>
                 {selectedTrades.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 text-gray-500">
+                  <div className="flex flex-col items-center justify-center py-10 text-lux-text-muted dark:text-gray-500">
                     <Calendar className="w-10 h-10 mb-3 text-gray-600" />
                     <p className="text-sm font-medium">{t('noTrades', lang)}</p>
                     <p className="text-xs mt-1">{t('noTradesDesc', lang)}</p>
@@ -700,11 +700,11 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
                                   >
                                     {t(trade.type.toLowerCase(), lang)}
                                   </Badge>
-                                  <span className="text-[11px] text-gray-500">
+                                  <span className="text-[11px] text-lux-text-muted dark:text-gray-500">
                                     {trade.lot_size} {t('lots', lang)}
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-gray-500">
+                                <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-lux-text-muted dark:text-gray-500">
                                   <Clock className="w-3 h-3" />
                                   <span>
                                     {formatTime(trade.open_time)}
@@ -738,12 +738,12 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
       </AnimatePresence>
 
       {/* ── Month Summary Card (enhanced) ──────────────────────────────── */}
-      <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <BarChart3 className="w-4 h-4 text-purple-400" />
             {t('monthActivity', lang)}
-            <span className="text-xs font-normal text-gray-500 ml-1">
+            <span className="text-xs font-normal text-lux-text-muted dark:text-gray-500 ml-1">
               ({monthName} {currentYear})
             </span>
           </CardTitle>
@@ -756,7 +756,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
               <div className="text-2xl sm:text-3xl font-bold text-purple-400">
                 {monthStats.total}
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs text-lux-text-muted dark:text-gray-500 mt-1">
                 {t('totalTrades', lang)}
               </div>
             </div>
@@ -767,7 +767,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
                 <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
                 {monthStats.wins}
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs text-lux-text-muted dark:text-gray-500 mt-1">
                 {t('profit', lang)}
               </div>
             </div>
@@ -778,7 +778,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
                 <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />
                 {monthStats.losses}
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs text-lux-text-muted dark:text-gray-500 mt-1">
                 {t('loss', lang)}
               </div>
             </div>
@@ -793,7 +793,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
                 {formatCurrency(monthStats.netPL)}
               </div>
               <div className="flex items-center justify-center gap-2 mt-1">
-                <span className="text-xs text-gray-500">{t('winRate', lang)}</span>
+                <span className="text-xs text-lux-text-muted dark:text-gray-500">{t('winRate', lang)}</span>
                 <span className="text-xs font-semibold text-purple-300">
                   {monthStats.winRate}%
                 </span>
@@ -807,14 +807,14 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
             <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
               <div className="flex items-center gap-2 mb-1">
                 <Trophy className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs text-gray-500">{t('bestDay', lang)}</span>
+                <span className="text-xs text-lux-text-muted dark:text-gray-500">{t('bestDay', lang)}</span>
               </div>
               {bestDay ? (
                 <>
                   <div className="text-lg font-bold text-emerald-400">
                     {formatCurrency(bestDay.pl)}
                   </div>
-                  <div className="text-[11px] text-gray-500">
+                  <div className="text-[11px] text-lux-text-muted dark:text-gray-500">
                     {bestDay.day} {monthName} {currentYear}
                   </div>
                 </>
@@ -827,14 +827,14 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
             <div className="p-3 rounded-xl bg-red-500/5 border border-red-500/10">
               <div className="flex items-center gap-2 mb-1">
                 <Skull className="w-4 h-4 text-red-400" />
-                <span className="text-xs text-gray-500">{t('worstDay', lang)}</span>
+                <span className="text-xs text-lux-text-muted dark:text-gray-500">{t('worstDay', lang)}</span>
               </div>
               {worstDay ? (
                 <>
                   <div className="text-lg font-bold text-red-400">
                     {formatCurrency(worstDay.pl)}
                   </div>
-                  <div className="text-[11px] text-gray-500">
+                  <div className="text-[11px] text-lux-text-muted dark:text-gray-500">
                     {worstDay.day} {monthName} {currentYear}
                   </div>
                 </>
@@ -847,17 +847,17 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
             <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
               <div className="flex items-center gap-2 mb-1">
                 <Flame className="w-4 h-4 text-amber-400" />
-                <span className="text-xs text-gray-500">{t('tradingStreak', lang)}</span>
+                <span className="text-xs text-lux-text-muted dark:text-gray-500">{t('tradingStreak', lang)}</span>
               </div>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-lg font-bold text-amber-400">
                   {tradingStreak}
                 </span>
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-lux-text-muted dark:text-gray-500">
                   {t('days', lang)}
                 </span>
               </div>
-              <div className="text-[11px] text-gray-500">
+              <div className="text-[11px] text-lux-text-muted dark:text-gray-500">
                 🔥 {tradingStreak > 0 ? 'Keep going!' : 'Start trading!'}
               </div>
             </div>
@@ -868,7 +868,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <BarChart3 className="w-4 h-4 text-purple-400" />
-                <span className="text-sm font-medium text-gray-300">{t('dailyPL', lang)}</span>
+                <span className="text-sm font-medium text-lux-text-primary dark:text-gray-300">{t('dailyPL', lang)}</span>
               </div>
               <div className="h-40 sm:h-52">
                 <ResponsiveContainer width="100%" height="100%">

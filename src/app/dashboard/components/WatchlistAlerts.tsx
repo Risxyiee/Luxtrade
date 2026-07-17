@@ -129,7 +129,7 @@ export function WatchlistAlerts({ watchlistItems }: WatchlistAlertsProps) {
         <AlertDialogContent className="bg-[#12091a] border-purple-500/30">
           <AlertDialogHeader>
             <AlertDialogTitle>Set Price Alert</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-400">
+            <AlertDialogDescription className="text-lux-text-secondary dark:text-gray-400">
               Get notified when a symbol reaches your target price
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -137,11 +137,11 @@ export function WatchlistAlerts({ watchlistItems }: WatchlistAlertsProps) {
           <div className="space-y-4">
             {/* Symbol Select */}
             <div>
-              <label className="text-sm text-gray-400 block mb-2">Symbol</label>
+              <label className="text-sm text-lux-text-secondary dark:text-gray-400 block mb-2">Symbol</label>
               <select
                 value={selectedSymbol}
                 onChange={(e) => setSelectedSymbol(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-white/5 border border-purple-500/20 text-white text-sm"
+                className="w-full px-3 py-2 rounded-lg bg-lux-surface-hover dark:bg-white/5 border border-lux-border dark:border-purple-500/20 text-white text-sm"
               >
                 <option value="">Select a symbol...</option>
                 {watchlistItems.map(item => (
@@ -154,20 +154,20 @@ export function WatchlistAlerts({ watchlistItems }: WatchlistAlertsProps) {
 
             {/* Price Target */}
             <div>
-              <label className="text-sm text-gray-400 block mb-2">Price Target</label>
+              <label className="text-sm text-lux-text-secondary dark:text-gray-400 block mb-2">Price Target</label>
               <Input
                 type="number"
                 placeholder="Enter target price"
                 value={priceTarget}
                 onChange={(e) => setPriceTarget(e.target.value)}
                 step="0.01"
-                className="bg-white/5 border-purple-500/20 text-white"
+                className="bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-purple-500/20 text-white"
               />
             </div>
 
             {/* Alert Type */}
             <div>
-              <label className="text-sm text-gray-400 block mb-2">Alert When Price</label>
+              <label className="text-sm text-lux-text-secondary dark:text-gray-400 block mb-2">Alert When Price</label>
               <div className="flex gap-2">
                 <Button
                   onClick={() => setAlertType('above')}
@@ -189,10 +189,10 @@ export function WatchlistAlerts({ watchlistItems }: WatchlistAlertsProps) {
             {/* Active Alerts List */}
             {activeAlerts.length > 0 && (
               <div className="pt-2 border-t border-purple-500/10">
-                <p className="text-xs text-gray-400 mb-2">Active Alerts:</p>
+                <p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-2">Active Alerts:</p>
                 {activeAlerts.map(alert => (
-                  <div key={alert.symbol} className="flex items-center justify-between text-xs bg-white/5 p-2 rounded mb-1">
-                    <span className="text-gray-300">
+                  <div key={alert.symbol} className="flex items-center justify-between text-xs bg-lux-surface-hover dark:bg-white/5 p-2 rounded mb-1">
+                    <span className="text-lux-text-primary dark:text-gray-300">
                       {alert.symbol} {alert.alertType === 'above' ? '↑' : '↓'} ${alert.priceTarget.toFixed(2)}
                     </span>
                     <button

@@ -85,7 +85,7 @@ function TargetsTab({ isPro, onUpgrade, language, analytics, trades }: TargetsTa
             <Lock className="w-12 h-12 mx-auto mb-4 text-purple-400" />
           </motion.div>
           <h3 className="text-lg font-bold text-purple-400 mb-2">{language === "id" ? "Target - Fitur PRO" : "Targets - PRO Feature"}</h3>
-          <p className="text-gray-400 mb-4">{language === "id" ? "Tetapkan dan lacak target trading Anda" : "Set and track your trading goals"}</p>
+          <p className="text-lux-text-secondary dark:text-gray-400 mb-4">{language === "id" ? "Tetapkan dan lacak target trading Anda" : "Set and track your trading goals"}</p>
           <Button onClick={onUpgrade} className="bg-gradient-to-r from-purple-500 to-violet-600">
             <Zap className="w-4 h-4 mr-2" /> {language === "id" ? "Upgrade ke PRO" : "Upgrade to PRO"}
           </Button>
@@ -102,7 +102,7 @@ function TargetsTab({ isPro, onUpgrade, language, analytics, trades }: TargetsTa
 
         return (
           <motion.div key={target.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <Card className={"bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30 " + (isCompleted ? "border-emerald-500/50" : "")}>
+            <Card className={"bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30 " + (isCompleted ? "border-emerald-500/50" : "")}>
               <CardContent className="py-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-medium">{target.name}</span>
@@ -112,7 +112,7 @@ function TargetsTab({ isPro, onUpgrade, language, analytics, trades }: TargetsTa
                 </div>
                 <Progress value={percentage} className="h-2" />
                 <div className="flex items-center justify-between mt-1">
-                  <span className="text-xs text-gray-500">{percentage.toFixed(0)}%</span>
+                  <span className="text-xs text-lux-text-muted dark:text-gray-500">{percentage.toFixed(0)}%</span>
                   {isCompleted && (
                     <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
                       ✓ {language === "id" ? "Tercapai" : "Completed"}

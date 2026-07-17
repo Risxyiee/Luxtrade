@@ -109,7 +109,7 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white border-0">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 bg-gradient-to-br from-slate-100 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 text-lux-text-primary dark:text-white border-0">
         <div className="relative">
           {/* Close Button */}
           <button
@@ -139,7 +139,7 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
                 Premium Feature
               </Badge>
             )}
-            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+            <p className="text-lux-text-secondary dark:text-gray-300 text-lg max-w-2xl mx-auto">
               {feature ? currentContent.subtitle : currentContent.description}
             </p>
           </div>
@@ -188,7 +188,7 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
                   <p className="text-sm text-gray-400 mb-4">
                     /{language === 'id' ? 'bulan' : 'month'}
                   </p>
-                  <Button className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/20">
+                  <Button className="w-full bg-lux-surface-hover dark:bg-white/10 hover:bg-lux-inline-hover-bg-2 dark:hover:bg-white/20 text-lux-text-primary dark:text-white border border-lux-border dark:border-white/20">
                     {currentContent.cta.primary}
                   </Button>
                 </div>
@@ -211,7 +211,7 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
                   <div className="text-4xl font-bold mb-1">
                     {currentContent.price.yearly}
                   </div>
-                  <p className="text-sm text-white/80 mb-4">
+                  <p className="text-sm text-lux-text-secondary dark:text-white/80 mb-4">
                     /{language === 'id' ? 'tahun' : 'year'}
                   </p>
                   <Button className="w-full bg-white text-amber-600 hover:bg-gray-100 font-semibold">
@@ -265,7 +265,7 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
               <Button 
                 size="lg" 
                 variant="outline" 
-                className="flex-1 max-w-md border-white/20 text-white hover:bg-white/10"
+                className="flex-1 max-w-md border-lux-border dark:border-white/20 text-lux-text-primary dark:text-white hover:bg-lux-surface-hover dark:hover:bg-white/10"
                 onClick={onClose}
               >
                 {currentContent.cta.secondary}

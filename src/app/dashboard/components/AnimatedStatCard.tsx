@@ -73,9 +73,9 @@ function AnimatedStatCard({
   decimals = 2,
   subtitle,
   icon: Icon,
-  iconColor = 'text-purple-400',
+  iconColor = 'text-purple-500 dark:text-purple-400',
   iconBgColor = 'bg-purple-500/20',
-  valueColor = 'text-white',
+  valueColor = 'text-lux-text-primary dark:text-white',
   trend,
   color = 'purple'
 }: AnimatedStatCardProps) {
@@ -98,13 +98,13 @@ function AnimatedStatCard({
   const gradientColor = gradientColors[color] || gradientColors.purple
 
   return (
-    <Card className="bg-[#0a0712] border-purple-900/30 overflow-hidden relative group hover:border-purple-500/50 transition-all duration-300">
+    <Card className="bg-lux-bg-card dark:bg-[#0a0712] border-lux-border dark:border-purple-900/30 overflow-hidden relative group hover:border-purple-500/50 transition-all duration-300">
       {/* Gradient accent line at top */}
       <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${gradientColor} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
 
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium text-gray-400">{title}</CardTitle>
+          <CardTitle className="text-sm font-medium text-lux-text-secondary dark:text-gray-400">{title}</CardTitle>
           {Icon && (
             <div className={`p-2 rounded-lg ${iconBgColor}`}>
               <Icon className={`w-5 h-5 ${iconColor}`} />
@@ -122,7 +122,7 @@ function AnimatedStatCard({
             {!isFinite(value) ? '∞' : <>{prefix}{animatedValue.toFixed(decimals)}{suffix}</>}
           </div>
           {subtitle && (
-            <p className="text-xs text-gray-500">{subtitle}</p>
+            <p className="text-xs text-lux-text-muted dark:text-gray-500">{subtitle}</p>
           )}
           {trend && (
             <div className={`text-xs flex items-center gap-1 ${trend.positive ? 'text-emerald-400' : 'text-red-400'}`}>

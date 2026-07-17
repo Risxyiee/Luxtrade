@@ -544,7 +544,7 @@ export default function TradeWizardForm({
             className="space-y-4"
           >
             {/* Quick Import Section - Show First in Step 1 */}
-            <div className="bg-gradient-to-r from-purple-500/10 to-violet-600/10 rounded-lg border border-purple-900/30 p-4">
+            <div className="bg-gradient-to-r from-purple-500/10 to-violet-600/10 rounded-lg border border-lux-input-border dark:border-purple-900/30 p-4">
               <Label className="text-sm font-semibold text-purple-300 mb-3 block flex items-center gap-2">
                 <Sparkles className="w-4 h-4" />
                 Quick Import - Choose One
@@ -556,7 +556,7 @@ export default function TradeWizardForm({
                     id="screenshot"
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
-                    className="bg-[#0a0712] border-purple-900/30 text-xs"
+                    className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 text-xs"
                     onChange={handleScreenshotAnalysis}
                     disabled={analyzingScreenshot}
                   />
@@ -611,7 +611,7 @@ export default function TradeWizardForm({
                     id="mt5-file"
                     type="file"
                     accept=".csv,.txt,.xlsx,.xls"
-                    className="bg-[#0a0712] border-purple-900/30 text-xs"
+                    className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 text-xs"
                     onChange={handleMT5Upload}
                     disabled={uploadingMT5}
                   />
@@ -637,10 +637,10 @@ export default function TradeWizardForm({
 
             <div className="space-y-4">
               <div>
-                <Label className="text-white font-semibold">Trading Pair *</Label>
+                <Label className="text-lux-text-primary dark:text-white font-semibold">Trading Pair *</Label>
                 <Input
                   placeholder="EURUSD"
-                  className={`bg-[#0a0712] border-purple-900/30 mt-2 text-white uppercase ${errors.symbol ? 'border-red-500' : ''}`}
+                  className={`bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-2 text-white uppercase ${errors.symbol ? 'border-red-500' : ''}`}
                   value={formData.symbol}
                   onChange={(e) => {
                     onFormChange('symbol', e.target.value.toUpperCase())
@@ -684,15 +684,15 @@ export default function TradeWizardForm({
               </div>
 
               <div>
-                <Label className="text-white font-semibold">Trade Type *</Label>
+                <Label className="text-lux-text-primary dark:text-white font-semibold">Trade Type *</Label>
                 <Select value={formData.type} onValueChange={(value) => {
                   onTypeChange(value)
                   if (errors.type) setErrors({ ...errors, type: '' })
                 }}>
-                  <SelectTrigger className={`bg-[#0a0712] border-purple-900/30 mt-2 text-white ${errors.type ? 'border-red-500' : ''}`}>
+                  <SelectTrigger className={`bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-2 text-white ${errors.type ? 'border-red-500' : ''}`}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#0f0b18] border-purple-900/30">
+                  <SelectContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-input-border dark:border-purple-900/30">
                     <SelectItem value="BUY" className="text-green-400">📈 BUY (Long)</SelectItem>
                     <SelectItem value="SELL" className="text-red-400">📉 SELL (Short)</SelectItem>
                   </SelectContent>
@@ -714,10 +714,10 @@ export default function TradeWizardForm({
                   }
                   if (errors.account_id) setErrors({ ...errors, account_id: '' })
                 }}>
-                  <SelectTrigger className={`bg-[#0a0712] border-purple-900/30 mt-2 text-white ${errors.account_id ? 'border-red-500' : ''}`}>
+                  <SelectTrigger className={`bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-2 text-white ${errors.account_id ? 'border-red-500' : ''}`}>
                     <SelectValue placeholder="Select account" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#0f0b18] border-purple-900/30">
+                  <SelectContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-input-border dark:border-purple-900/30">
                     {tradingAccounts.length === 0 ? (
                       <div className="p-2 text-center text-gray-400 text-xs">
                         No accounts found
@@ -736,13 +736,13 @@ export default function TradeWizardForm({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-white font-semibold">Lot Size *</Label>
+                  <Label className="text-lux-text-primary dark:text-white font-semibold">Lot Size *</Label>
                   <Input
                     type="number"
                     step="0.01"
                     min="0.01"
                     placeholder="0.1"
-                    className={`bg-[#0a0712] border-purple-900/30 mt-2 text-white ${errors.lot_size ? 'border-red-500' : ''}`}
+                    className={`bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-2 text-white ${errors.lot_size ? 'border-red-500' : ''}`}
                     value={formData.lot_size}
                     onChange={(e) => {
                       onFormChange('lot_size', e.target.value)
@@ -752,14 +752,14 @@ export default function TradeWizardForm({
                   {errors.lot_size && <p className="text-red-400 text-xs mt-1">{errors.lot_size}</p>}
                 </div>
                 <div>
-                  <Label className="text-white font-semibold">Trading Session</Label>
+                  <Label className="text-lux-text-primary dark:text-white font-semibold">Trading Session</Label>
                   <Select value={formData.session || ''} onValueChange={(value) => {
                     onSessionChange(value)
                   }}>
-                    <SelectTrigger className="bg-[#0a0712] border-purple-900/30 mt-2 text-white">
+                    <SelectTrigger className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-2 text-white">
                       <SelectValue placeholder="Select session" />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#0f0b18] border-purple-900/30">
+                    <SelectContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-input-border dark:border-purple-900/30">
                       {tradingSessions.map((session) => (
                         <SelectItem key={session.value} value={session.value} className="flex items-center gap-2">
                           <span>{session.emoji}</span>
@@ -795,7 +795,7 @@ export default function TradeWizardForm({
                     step="0.0001"
                     min="0"
                     placeholder="1.0850"
-                    className="bg-[#0a0712] border-green-900/30 mt-2 text-green-300"
+                    className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-green-900/30 mt-2 text-green-300"
                     value={formData.open_price}
                     onChange={(e) => {
                       onFormChange('open_price', e.target.value)
@@ -822,7 +822,7 @@ export default function TradeWizardForm({
                     step="0.0001"
                     min="0"
                     placeholder="1.0890"
-                    className="bg-[#0a0712] border-red-900/30 mt-2 text-red-300"
+                    className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-red-900/30 mt-2 text-red-300"
                     value={formData.close_price}
                     onChange={(e) => {
                       onFormChange('close_price', e.target.value)
@@ -848,7 +848,7 @@ export default function TradeWizardForm({
                     type="number"
                     step="0.01"
                     placeholder="Enter profit/loss amount"
-                    className="bg-[#0a0712] border-purple-900/30 mt-2 text-purple-300"
+                    className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-2 text-purple-300"
                     value={formData.profit_loss}
                     onChange={(e) => {
                       onFormChange('profit_loss', e.target.value)
@@ -878,7 +878,7 @@ export default function TradeWizardForm({
                 </Label>
                 <Input
                   type="datetime-local"
-                  className="bg-[#0a0712] border-purple-900/30 text-xs h-9"
+                  className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 text-xs h-9"
                   value={isoToDatetimeLocal(formData.open_time || '')}
                   onChange={(e) => onFormChange('open_time', datetimeLocalToISO(e.target.value))}
                 />
@@ -889,7 +889,7 @@ export default function TradeWizardForm({
                 </Label>
                 <Input
                   type="datetime-local"
-                  className="bg-[#0a0712] border-purple-900/30 text-xs h-9"
+                  className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 text-xs h-9"
                   value={isoToDatetimeLocal(formData.close_time || '')}
                   onChange={(e) => onFormChange('close_time', datetimeLocalToISO(e.target.value))}
                 />
@@ -922,7 +922,7 @@ export default function TradeWizardForm({
                     className={`p-3 rounded-xl border-2 transition-all ${
                       selectedEmotion === emotion.value
                         ? 'border-purple-500 bg-purple-500/20 shadow-lg shadow-purple-500/20'
-                        : 'border-purple-900/30 bg-white/5 hover:border-purple-500/50'
+                        : 'border-lux-input-border dark:border-purple-900/30 bg-white/5 hover:border-purple-500/50'
                     }`}
                   >
                     <div className={`text-3xl mb-1 ${emotion.color}`}>{emotion.emoji}</div>
@@ -940,7 +940,7 @@ export default function TradeWizardForm({
                 <Upload className="w-4 h-4 text-blue-400" />
                 Trade Screenshot (Optional)
               </Label>
-              <div className="border-2 border-dashed border-purple-900/30 rounded-xl p-6 text-center hover:border-purple-500/50 transition-colors">
+              <div className="border-2 border-dashed border-lux-input-border dark:border-purple-900/30 rounded-xl p-6 text-center hover:border-purple-500/50 transition-colors">
                 {uploading ? (
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
@@ -982,7 +982,7 @@ export default function TradeWizardForm({
               <Label className="text-gray-300 text-sm">Additional Notes</Label>
               <Textarea
                 placeholder="Trade setup, lessons learned, any other thoughts..."
-                className="bg-[#0a0712] border-purple-900/30 resize-none text-white"
+                className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 resize-none text-lux-text-primary dark:text-white"
                 rows={3}
                 value={formData.notes}
                 onChange={(e) => onFormChange('notes', e.target.value)}
@@ -994,13 +994,13 @@ export default function TradeWizardForm({
       </div>
 
       {/* Navigation Buttons */}
-      <div className="flex gap-3 pt-4 border-t border-purple-900/30 shrink-0">
+      <div className="flex gap-3 pt-4 border-t border-lux-input-border dark:border-purple-900/30 shrink-0">
         {currentStep > 1 ? (
           <Button
             variant="outline"
             onClick={handlePrevious}
             disabled={saving || uploading || analyzingScreenshot || uploadingMT5}
-            className="border-purple-900/30 flex-1"
+            className="border-lux-input-border dark:border-purple-900/30 flex-1"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Previous
@@ -1010,7 +1010,7 @@ export default function TradeWizardForm({
             variant="outline"
             onClick={onCancel}
             disabled={saving || uploading || analyzingScreenshot || uploadingMT5}
-            className="border-purple-900/30 flex-1"
+            className="border-lux-input-border dark:border-purple-900/30 flex-1"
           >
             Cancel
           </Button>

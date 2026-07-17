@@ -100,7 +100,7 @@ export default function AITab({
               <Lock className="w-12 h-12 mx-auto mb-4 text-purple-400" />
             </motion.div>
             <h3 className="text-lg font-bold text-purple-400 mb-2">AI Insights - PRO Feature</h3>
-            <p className="text-gray-400 mb-4">Unlock AI-powered trading insights and recommendations</p>
+            <p className="text-lux-text-secondary dark:text-gray-400 mb-4">Unlock AI-powered trading insights and recommendations</p>
             <Button onClick={onUpgrade} className="bg-gradient-to-r from-purple-500 to-violet-600">
               <Sparkles className="w-4 h-4 mr-2" /> Upgrade to PRO
             </Button>
@@ -110,7 +110,7 @@ export default function AITab({
 
       {/* AI Content - Only render for PRO users */}
       {isPro && (<>
-      <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
         <CardHeader>
           <CardTitle className="flex items-center gap-3 text-xl">
             <motion.div
@@ -124,7 +124,7 @@ export default function AITab({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-400 mb-4">
+          <p className="text-lux-text-secondary dark:text-gray-400 mb-4">
             Get personalized insights powered by AI to improve your trading performance.
           </p>
 
@@ -211,7 +211,7 @@ export default function AITab({
           </div>
 
           {!hasEnoughTrades && (
-            <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20 mt-4">
+            <div className="p-3 rounded-lg bg-purple-500/10 border border-lux-border dark:border-purple-500/20 mt-4">
               <p className="text-sm text-purple-400 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" />
                 Add at least 5 closed trades to unlock AI-powered performance tips.
@@ -223,7 +223,7 @@ export default function AITab({
 
       {/* Chart Analysis Result */}
       {chartImage && (
-        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <ImageIcon className="w-5 h-5 text-cyan-400" />
@@ -243,8 +243,8 @@ export default function AITab({
                   <Upload className="w-4 h-4" />
                 </Button>
               </div>
-              <div className="bg-black/20 rounded-lg p-4 border border-purple-500/20">
-                <p className="text-sm text-gray-400 mb-2">AI Analysis:</p>
+              <div className="bg-black/20 rounded-lg p-4 border border-lux-border dark:border-purple-500/20">
+                <p className="text-sm text-lux-text-secondary dark:text-gray-400 mb-2">AI Analysis:</p>
                 <p className="text-gray-200 text-sm leading-relaxed">
                   {loading ? (
                     <div className="flex items-center gap-2">
@@ -263,14 +263,14 @@ export default function AITab({
 
       {/* AI Response */}
       {insight && (
-        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
           <CardContent className="p-6">
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
                 <Sparkles className="w-4 h-4 text-purple-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-400 mb-1">AI Insight</p>
+                <p className="text-sm text-lux-text-secondary dark:text-gray-400 mb-1">AI Insight</p>
                 <p className="text-gray-200 whitespace-pre-wrap">{insight}</p>
               </div>
             </div>
@@ -280,7 +280,7 @@ export default function AITab({
 
       {/* AI Chat Section */}
       {isPro && (
-        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <MessageCircle className="w-5 h-5 text-purple-400" />
@@ -291,10 +291,10 @@ export default function AITab({
             {/* Chat Messages */}
             <div
               ref={chatContainerRef}
-              className="h-64 overflow-y-auto space-y-3 mb-4 p-3 rounded-lg bg-black/20 border border-purple-900/20"
+              className="h-64 overflow-y-auto space-y-3 mb-4 p-3 rounded-lg bg-black/20 border border-lux-border dark:border-purple-900/20"
             >
               {chatMessages.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-gray-500 text-sm">
+                <div className="h-full flex items-center justify-center text-lux-text-muted dark:text-gray-500 text-sm">
                   <div className="text-center">
                     <Bot className="w-8 h-8 mx-auto mb-2 text-purple-400/50" />
                     <p>Ask me anything about your trading!</p>
@@ -369,7 +369,7 @@ export default function AITab({
                   }
                 }}
                 placeholder="Ask about your trading performance..."
-                className="bg-black/30 border-purple-900/30 focus:border-purple-500/50 text-gray-200 placeholder-gray-500"
+                className="bg-black/30 border-lux-border dark:border-purple-900/30 focus:border-purple-500/50 text-gray-200 placeholder-gray-500"
                 disabled={loading}
               />
               <Button

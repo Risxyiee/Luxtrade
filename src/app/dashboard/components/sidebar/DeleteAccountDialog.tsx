@@ -21,13 +21,13 @@ export default function DeleteAccountDialog({
 }: DeleteAccountDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-md">
+      <DialogContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center gap-2 text-red-400">
             <Trash2 className="w-5 h-5" />
             Hapus Akun Trading
           </DialogTitle>
-          <DialogDescription className="text-gray-400 mt-2">
+          <DialogDescription className="text-lux-text-secondary dark:text-gray-400 mt-2">
             Apakah Anda yakin ingin menghapus akun trading "{accountToDelete?.name}"?
           </DialogDescription>
         </DialogHeader>
@@ -35,7 +35,7 @@ export default function DeleteAccountDialog({
         <div className="space-y-3 py-4">
           {accountToDelete?.is_default && (
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
-              <p className="text-sm text-amber-300 flex items-start gap-2">
+              <p className="text-sm text-amber-700 dark:text-amber-300 flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <span>Ini adalah akun default. Setelah dihapus, akun lain akan otomatis dijadikan default.</span>
               </p>
@@ -43,16 +43,16 @@ export default function DeleteAccountDialog({
           )}
 
           <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-            <p className="text-sm text-red-300 flex items-start gap-2">
+            <p className="text-sm text-red-700 dark:text-red-300 flex items-start gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <span>Tindakan ini tidak dapat dibatalkan. Semua data trading yang terkait dengan akun ini akan tetap tersimpan.</span>
             </p>
           </div>
 
-          <div className="text-sm text-gray-400">
-            <p>Account: <span className="text-white font-medium">{accountToDelete?.name}</span></p>
-            <p>Currency: <span className="text-white font-medium">{accountToDelete?.currency}</span></p>
-            <p>Type: <span className="text-white font-medium">{accountToDelete?.account_type}</span></p>
+          <div className="text-sm text-lux-text-secondary dark:text-gray-400">
+            <p>Account: <span className="text-lux-text-primary dark:text-white font-medium">{accountToDelete?.name}</span></p>
+            <p>Currency: <span className="text-lux-text-primary dark:text-white font-medium">{accountToDelete?.currency}</span></p>
+            <p>Type: <span className="text-lux-text-primary dark:text-white font-medium">{accountToDelete?.account_type}</span></p>
             {accountToDelete?.is_default && (
               <p className="text-amber-400 font-medium">⚠️ Akun Default</p>
             )}
@@ -65,7 +65,7 @@ export default function DeleteAccountDialog({
             onClick={() => {
               onOpenChange(false)
             }}
-            className="border-gray-600 text-gray-300 hover:bg-gray-700"
+            className="border-lux-border dark:border-gray-600 text-lux-text-secondary dark:text-gray-300 hover:bg-lux-surface-hover dark:hover:bg-gray-700"
           >
             Batal
           </Button>

@@ -67,7 +67,7 @@ export default function AccountsTab() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Akun Trading</h2>
+          <h2 className="text-2xl font-bold text-lux-text-primary dark:text-white">Akun Trading</h2>
           <p className="text-white/60 mt-1">Kelola akun trading Anda</p>
         </div>
         <Button
@@ -80,7 +80,7 @@ export default function AccountsTab() {
       </div>
 
       {/* Accounts List */}
-      <Card className="bg-[#0f0b18] border-purple-900/30">
+      <Card className="bg-lux-bg-card dark:bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-lux-border dark:border-purple-900/30">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <Wallet className="w-5 h-5 text-purple-400" />

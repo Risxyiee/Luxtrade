@@ -62,7 +62,7 @@ export default function WatchlistTab({
           <Crown className="w-8 h-8 text-white" />
         </div>
         <h3 className="text-xl font-bold text-white mb-2">Premium Feature</h3>
-        <p className="text-gray-400 text-center max-w-sm mb-6">Watchlist is only available for PRO users</p>
+        <p className="text-lux-text-secondary dark:text-gray-400 text-center max-w-sm mb-6">Watchlist is only available for PRO users</p>
         <button onClick={onUpgrade} className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity">
           Upgrade to PRO
         </button>
@@ -83,7 +83,7 @@ export default function WatchlistTab({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-bold">Watchlist</h3>
-          <p className="text-sm text-gray-400">Track potential opportunities</p>
+          <p className="text-sm text-lux-text-secondary dark:text-gray-400">Track potential opportunities</p>
         </div>
         <Button onClick={onAdd} className="bg-gradient-to-r from-emerald-500 to-teal-600">
           <Plus className="w-4 h-4 mr-2" />Add Symbol
@@ -91,11 +91,11 @@ export default function WatchlistTab({
       </div>
 
       {items.length === 0 ? (
-        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
           <CardContent className="py-16 text-center">
-            <Eye className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+            <Eye className="w-12 h-12 mx-auto mb-4 text-lux-text-muted dark:text-gray-500" />
             <h3 className="text-lg font-semibold mb-2">No Watchlist Items</h3>
-            <p className="text-gray-400 mb-4">Add symbols to track potential setups!</p>
+            <p className="text-lux-text-secondary dark:text-gray-400 mb-4">Add symbols to track potential setups!</p>
             <Button onClick={onAdd} variant="outline" className="border-emerald-500/30 text-emerald-400">
               <Plus className="w-4 h-4 mr-2" /> Add First Symbol
             </Button>
@@ -107,7 +107,7 @@ export default function WatchlistTab({
             {items.map((item) => {
               const isAlertOn = alertItems.has(item.id)
               return (
-                <Card key={item.id} className={`bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30 hover:border-emerald-500/30 transition-colors group ${isAlertOn ? 'ring-1 ring-amber-500/30' : ''}`}>
+                <Card key={item.id} className={`bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30 hover:border-emerald-500/30 transition-colors group ${isAlertOn ? 'ring-1 ring-amber-500/30' : ''}`}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
@@ -116,14 +116,14 @@ export default function WatchlistTab({
                         </div>
                         <div>
                           <h4 className="font-bold">{item.symbol}</h4>
-                          {item.name && <p className="text-xs text-gray-500">{item.name}</p>}
+                          {item.name && <p className="text-xs text-lux-text-muted dark:text-gray-500">{item.name}</p>}
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
                         {/* Alert toggle button */}
                         <button
                           onClick={() => toggleAlert(item.id)}
-                          className={`p-1.5 rounded-lg transition-all ${isAlertOn ? 'text-amber-400 bg-amber-500/15 hover:bg-amber-500/25' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5 opacity-0 group-hover:opacity-100'}`}
+                          className={`p-1.5 rounded-lg transition-all ${isAlertOn ? 'text-amber-400 bg-amber-500/15 hover:bg-amber-500/25' : 'text-lux-text-muted dark:text-gray-500 hover:text-lux-text-primary dark:text-gray-300 hover:bg-lux-surface-hover dark:hover:bg-lux-surface-hover dark:bg-white/5 opacity-0 group-hover:opacity-100'}`}
                           title={isAlertOn ? 'Alert ON' : 'Alert OFF'}
                         >
                           {isAlertOn ? (
@@ -135,7 +135,7 @@ export default function WatchlistTab({
                         {/* Delete button */}
                         <button
                           onClick={() => onDelete(item.id)}
-                          className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-all"
+                          className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-lux-text-secondary dark:text-gray-400 hover:text-red-400 transition-all"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -143,12 +143,12 @@ export default function WatchlistTab({
                     </div>
                     {item.target_price && (
                       <div className="mb-2">
-                        <span className="text-xs text-gray-500">Target: </span>
+                        <span className="text-xs text-lux-text-muted dark:text-gray-500">Target: </span>
                         <span className="text-sm font-bold text-emerald-400">{item.target_price}</span>
                       </div>
                     )}
                     {item.notes && (
-                      <p className="text-xs text-gray-400 line-clamp-2">{item.notes}</p>
+                      <p className="text-xs text-lux-text-secondary dark:text-gray-400 line-clamp-2">{item.notes}</p>
                     )}
                     <div className="flex items-center justify-between mt-2">
                       <p className="text-xs text-gray-600">Added {new Date(item.created_at).toLocaleDateString()}</p>
@@ -166,7 +166,7 @@ export default function WatchlistTab({
           </div>
 
           {/* Alert notice */}
-          <p className="text-xs text-gray-500 text-center mt-2">
+          <p className="text-xs text-lux-text-muted dark:text-gray-500 text-center mt-2">
             🔔 Alerts require real-time price data (coming soon) / Alert membutuhkan data harga real-time (segera hadir)
           </p>
         </>

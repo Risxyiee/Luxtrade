@@ -53,7 +53,7 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((i) => (
-          <Card key={i} className="bg-gradient-to-br from-[#0f0b18]/80 to-[#12091a]/80 backdrop-blur-sm border border-white/10">
+          <Card key={i} className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-sm border border-white/10">
             <CardContent className="p-6">
               <div className="h-4 w-24 bg-white/10 rounded animate-pulse mb-3" />
               <div className="h-8 w-32 bg-white/10 rounded animate-pulse" />
@@ -66,11 +66,11 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
 
   if (!analytics) {
     return (
-      <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
         <CardContent className="py-20 text-center">
           <Activity className="w-12 h-12 text-purple-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">No Data Available</h3>
-          <p className="text-gray-400">Start logging trades to see analytics</p>
+          <p className="text-lux-text-secondary dark:text-gray-400">Start logging trades to see analytics</p>
         </CardContent>
       </Card>
     )
@@ -90,7 +90,7 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               period === p
                 ? 'bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg shadow-purple-500/30'
-                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                : 'bg-lux-surface-hover dark:bg-white/5 text-lux-text-secondary dark:text-gray-400 hover:bg-lux-surface-hover dark:hover:bg-white/10 hover:text-white'
             }`}
           >
             {language === 'id' ?
@@ -116,17 +116,17 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
           <CardContent>
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <p className="text-xs text-gray-400 mb-1">{language === 'id' ? 'Jumlah Trade' : 'Trades'}</p>
-                <p className="text-2xl font-bold text-white">{analytics.today.trades}</p>
+                <p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">{language === 'id' ? 'Jumlah Trade' : 'Trades'}</p>
+                <p className="text-2xl font-bold text-lux-text-primary dark:text-white">{analytics.today.trades}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 mb-1">{language === 'id' ? 'Profit/Loss' : 'P/L'}</p>
+                <p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">{language === 'id' ? 'Profit/Loss' : 'P/L'}</p>
                 <p className={`text-2xl font-bold ${analytics.today.pl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                   ${analytics.today.pl.toFixed(2)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 mb-1">{language === 'id' ? 'Win Rate' : 'Win Rate'}</p>
+                <p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">{language === 'id' ? 'Win Rate' : 'Win Rate'}</p>
                 <p className="text-2xl font-bold text-amber-400">{analytics.today.winRate.toFixed(1)}%</p>
               </div>
             </div>
@@ -152,7 +152,7 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
               <TrendingDown className="w-6 h-6 text-red-400" />
             )}
             <div>
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-lux-text-secondary dark:text-gray-400">
                 {language === 'id' ? 'Streak Aktif' : 'Active Streak'}
               </p>
               <p className={`text-xl font-bold ${
@@ -178,7 +178,7 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <BarChart3 className="w-4 h-4 text-purple-400" />
-                  <p className="text-xs text-gray-400">{language === 'id' ? 'Faktor Profit' : 'Profit Factor'}</p>
+                  <p className="text-xs text-lux-text-secondary dark:text-gray-400">{language === 'id' ? 'Faktor Profit' : 'Profit Factor'}</p>
                 </div>
                 <p className={`text-2xl font-bold ${getRatioColor(analytics.profitFactor || 0)}`}>
                   {analytics.profitFactor === Infinity
@@ -186,7 +186,7 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
                     : (analytics.profitFactor || 0).toFixed(2)
                   }
                 </p>
-                <p className="text-[10px] text-gray-500 mt-1">
+                <p className="text-[10px] text-lux-text-muted dark:text-gray-500 mt-1">
                   {analytics.profitFactor >= 2
                     ? language === 'id' ? 'Sangat Baik' : 'Excellent'
                     : analytics.profitFactor >= 1
@@ -208,12 +208,12 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Zap className="w-4 h-4 text-purple-400" />
-                  <p className="text-xs text-gray-400">Sharpe Ratio</p>
+                  <p className="text-xs text-lux-text-secondary dark:text-gray-400">Sharpe Ratio</p>
                 </div>
                 <p className={`text-2xl font-bold ${getRatioColor(analytics.sharpeRatio || 0)}`}>
                   {(analytics.sharpeRatio || 0).toFixed(2)}
                 </p>
-                <p className="text-[10px] text-gray-500 mt-1">
+                <p className="text-[10px] text-lux-text-muted dark:text-gray-500 mt-1">
                   {analytics.sharpeRatio >= 2
                     ? language === 'id' ? 'Sangat Baik' : 'Excellent'
                     : analytics.sharpeRatio >= 1
@@ -235,12 +235,12 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <ArrowDownCircle className="w-4 h-4 text-red-400" />
-                  <p className="text-xs text-gray-400">{language === 'id' ? 'Max Drawdown' : 'Max Drawdown'}</p>
+                  <p className="text-xs text-lux-text-secondary dark:text-gray-400">{language === 'id' ? 'Max Drawdown' : 'Max Drawdown'}</p>
                 </div>
                 <p className="text-2xl font-bold text-red-400">
                   -${(analytics.maxDrawdown || 0).toFixed(2)}
                 </p>
-                <p className="text-[10px] text-gray-500 mt-1">
+                <p className="text-[10px] text-lux-text-muted dark:text-gray-500 mt-1">
                   {language === 'id' ? 'Kerugian Maksimal' : 'Maximum Loss'}
                 </p>
               </CardContent>
@@ -253,22 +253,22 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+            <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <DollarSign className="w-4 h-4 text-purple-400" />
-                  <p className="text-xs text-gray-400">{language === 'id' ? 'Rata-rata Win/Loss' : 'Avg Win / Loss'}</p>
+                  <p className="text-xs text-lux-text-secondary dark:text-gray-400">{language === 'id' ? 'Rata-rata Win/Loss' : 'Avg Win / Loss'}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div>
-                    <p className="text-xs text-gray-500">{language === 'id' ? 'Menang' : 'Win'}</p>
+                    <p className="text-xs text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Menang' : 'Win'}</p>
                     <p className="text-lg font-bold text-emerald-400">
                       +${(analytics.avgProfit || 0).toFixed(2)}
                     </p>
                   </div>
                   <div className="w-px h-8 bg-white/10" />
                   <div>
-                    <p className="text-xs text-gray-500">{language === 'id' ? 'Kalah' : 'Loss'}</p>
+                    <p className="text-xs text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Kalah' : 'Loss'}</p>
                     <p className="text-lg font-bold text-red-400">
                       ${(analytics.avgLoss || 0).toFixed(2)}
                     </p>
@@ -287,7 +287,7 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
         >
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Activity className="w-5 h-5 text-purple-400" />
@@ -354,7 +354,7 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Globe className="w-5 h-5 text-purple-400" />
@@ -379,13 +379,13 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2">
                           <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: barColor }} />
-                          <span className="text-gray-300 font-medium">{session.session}</span>
-                          <span className="text-gray-500 text-xs">
+                          <span className="text-lux-text-primary dark:text-gray-300 font-medium">{session.session}</span>
+                          <span className="text-lux-text-muted dark:text-gray-500 text-xs">
                             ({session.trades} {language === 'id' ? 'trade' : 'trades'})
                           </span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-xs text-gray-400">
+                          <span className="text-xs text-lux-text-secondary dark:text-gray-400">
                             {session.winRate.toFixed(1)}% WR
                           </span>
                           <span className={`font-bold ${session.pl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -393,7 +393,7 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
                           </span>
                         </div>
                       </div>
-                      <div className="h-3 bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-3 bg-lux-surface-hover dark:bg-white/5 rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-500"
                           style={{
@@ -414,7 +414,7 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
 
       {/* Symbol Performance */}
       {analytics.symbolPerformance && analytics.symbolPerformance.length > 0 && (
-        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Target className="w-5 h-5 text-purple-400" />
@@ -458,7 +458,7 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
 
       {/* Monthly Performance */}
       {analytics.monthlyPerformance && analytics.monthlyPerformance.length > 0 && (
-        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-purple-400" />
@@ -502,7 +502,7 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
 
       {/* Day of Week Performance */}
       {analytics.dayOfWeekPerformance && analytics.dayOfWeekPerformance.length > 0 && (
-        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Activity className="w-5 h-5 text-purple-400" />
@@ -546,7 +546,7 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
 
       {/* Trade Duration & R:R Ratio */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Clock className="w-5 h-5 text-purple-400" />
@@ -554,7 +554,7 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-white">
+            <p className="text-3xl font-bold text-lux-text-primary dark:text-white">
               {analytics.avgTradeDuration > 0
                 ? `${Math.round(analytics.avgTradeDuration)} min`
                 : language === 'id' ? 'N/A' : 'N/A'
@@ -563,7 +563,7 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Target className="w-5 h-5 text-purple-400" />
@@ -571,7 +571,7 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-white">
+            <p className="text-3xl font-bold text-lux-text-primary dark:text-white">
               {analytics.avgRRRatio > 0
                 ? analytics.avgRRRatio.toFixed(2)
                 : language === 'id' ? 'N/A' : 'N/A'
@@ -583,7 +583,7 @@ export default function AnalyticsTab({ language }: AnalyticsTabProps) {
 
       {/* Setup Type Performance */}
       {analytics.setupTypePerformance && analytics.setupTypePerformance.length > 0 && (
-        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Target className="w-5 h-5 text-purple-400" />
