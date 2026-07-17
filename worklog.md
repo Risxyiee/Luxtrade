@@ -114,3 +114,25 @@ Stage Summary:
 - Server fix: specific error messages instead of misleading "rate limit" text
 - Build error fix: marketing/send-promo route had wrong import name
 - Files: TradeWizardForm.tsx, aiml-vision.ts, marketing/send-promo/route.ts
+
+---
+Task ID: fix-3-prod-bugs
+Agent: Main Agent
+Task: Fix 3 production bugs — DOMMatrix crash, ensureSchema race, install hallmark
+
+Work Log:
+- MASALAH 1: pdf-parse v2.4.5 uses pdf.js which requires browser-only DOMMatrix API → crash in Node.js/Vercel
+  - Replaced with pdf-parse-fixed v1.1.1 (fork with older pdf.js that works in Node.js)
+  - Updated import and API call in /api/import/file/route.ts
+- MASALAH 2: ensureSchema() called on every cold start, multiple Vercel instances race → promo_codes table conflicts
+  - Made ensureSchema() a no-op (all 14 callers still work, just returns immediately)
+  - Disabled auto-migration in instrumentation.ts
+  - Schema changes must now be done via Supabase SQL Editor or Prisma migrations
+- MASALAH 3: Installed hallmark v5.0.2
+- Also fixed recurrent: sendPremiumEmail → sendEmail in marketing/send-promo/route.ts
+
+Stage Summary:
+- pdf-parse → pdf-parse-fixed (no more DOMMatrix dependency)
+- ensureSchema() disabled (no more race conditions on cold start)
+- hallmark installed
+- Build passes clean
