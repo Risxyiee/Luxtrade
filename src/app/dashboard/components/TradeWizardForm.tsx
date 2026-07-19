@@ -873,6 +873,56 @@ export default function TradeWizardForm({
               </Card>
             </div>
 
+            {/* Stop Loss / Take Profit / Ticket Number */}
+            <div className="grid grid-cols-3 gap-3 pt-2">
+              <div className="space-y-1">
+                <Label className="text-gray-400 text-xs font-medium flex items-center gap-1">
+                  <span className="text-red-400">▸</span> Stop Loss
+                </Label>
+                <Input
+                  type="number"
+                  step="0.0001"
+                  min="0"
+                  placeholder="0.0000"
+                  className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 text-xs h-9"
+                  value={formData.stop_loss}
+                  onChange={(e) => {
+                    onFormChange('stop_loss', e.target.value)
+                  }}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-gray-400 text-xs font-medium flex items-center gap-1">
+                  <span className="text-green-400">▸</span> Take Profit
+                </Label>
+                <Input
+                  type="number"
+                  step="0.0001"
+                  min="0"
+                  placeholder="0.0000"
+                  className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 text-xs h-9"
+                  value={formData.take_profit}
+                  onChange={(e) => {
+                    onFormChange('take_profit', e.target.value)
+                  }}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-gray-400 text-xs font-medium flex items-center gap-1">
+                  <span className="text-blue-400">▸</span> Ticket #
+                </Label>
+                <Input
+                  type="text"
+                  placeholder="e.g. 918673848"
+                  className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 text-xs h-9"
+                  value={formData.ticket_number}
+                  onChange={(e) => {
+                    onFormChange('ticket_number', e.target.value)
+                  }}
+                />
+              </div>
+            </div>
+
             {/* Compact Time Section */}
             <div className="grid grid-cols-2 gap-3 pt-2">
               <div className="space-y-1">
