@@ -275,16 +275,54 @@ export default function TradeWizardForm({
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 30000)
 
-      const res = await fetch('/api/auto-journal', {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-      })
+      let res: Response
+      try {
+        res = await fetch('/api/auto-journal', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        })
+      } catch (fetchErr: any) {
+        clearTimeout(timeoutId)
+        // Network error — server might not be reachable at all
+        toast.error(`Jaringan gagal: ${fetchErr.message}. Pastikan server berjalan.`, { id: 'auto-journal', duration: 6000 })
+        throw fetchErr
+      }
       clearTimeout(timeoutId)
 
-      const data = await res.json()
+      // Parse response — handle non-JSON responses gracefully
+      let data: any
+      const responseText = await res.text()
+      try {
+        data = JSON.parse(responseText)
+      } catch {
+        toast.error(`Server mengembalikan response tidak valid (HTTP ${res.status}). Coba lagi.`, { id: 'auto-journal', duration: 6000 })
+        console.error('❌ [Auto-Journal] Non-JSON response:', responseText.slice(0, 500))
+        return
+      }
 
-      if (res.ok && data.success) {
+      if (!res.ok) {
+        // Server returned an error — show the specific message
+        const errorMessage = data.error || data.details || `HTTP Error ${res.status}`
+        const errorCode = data.code || ''
+        let hint = ''
+
+        if (res.status === 401) {
+          hint = ' — Kamu belum login atau session sudah expired. Coba logout lalu login ulang.'
+        } else if (res.status === 403) {
+          hint = ' — Auto-journal adalah fitur PRO. Gunakan kode promo untuk upgrade.'
+        } else if (res.status === 400 && errorCode === 'HEIC_NOT_SUPPORTED') {
+          hint = ' — Export fotonya sebagai JPEG/PNG dulu.'
+        } else if (data.details) {
+          hint = ` — ${data.details}`
+        }
+
+        toast.error(`${errorMessage}${hint}`, { id: 'auto-journal', duration: 8000 })
+        console.error('❌ [Auto-Journal] API error:', res.status, data)
+        return
+      }
+
+      if (data.success) {
         // Auto-fill form with extracted trade data
         const trade = data.data.trade
         const journal = data.data.journal
@@ -336,8 +374,6 @@ export default function TradeWizardForm({
         setTimeout(() => {
           onCancel()
         }, 1500)
-      } else {
-        toast.error(data.error || 'Failed to create auto-journal', { id: 'auto-journal' })
       }
     } catch (error: any) {
       console.error('❌ [TradeWizardForm] Auto-journal error:', error)
