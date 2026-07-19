@@ -215,3 +215,24 @@ Stage Summary:
 - 3 files changed: TradeWizardForm.tsx (new SL/TP/Ticket fields), tradeHandlers.ts (fixed PUT payload), RecentTrades.tsx (added edit button)
 - Edit flow already existed but was incomplete — now all fields are properly editable and persisted
 - Build passes clean
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix auto-journal tidak jalan tanpa error di Vercel
+
+Work Log:
+- Investigasi alur: frontend handleAutoJournal → POST /api/auto-journal → auth → pro check → sharp → AI → DB save
+- Temukan: setiap step bisa fail silently karena error handling tidak verbose
+- Temukan: profile.create di line 113-126 punya field camelCase yang tidak perlu (schema sudah punya default)
+- Temukan: frontend tidak menampilkan error dari API dengan jelas (cuma toast.error generik)
+- Rewrite /api/auto-journal/route.ts dengan verbose logging di SETIAP step (emoji + timestamp)
+- Setiap error response sekarang punya field `step` supaya tahu di mana gagal
+- Perbaiki frontend handleAutoJournal: parse response text, handle non-JSON, tampilkan error spesifik (401=login, 403=PRO, dsb)
+- Buat GET /api/auto-journal/debug endpoint untuk diagnostic (bisa dibuka di browser)
+
+Stage Summary:
+- /api/auto-journal/route.ts — full rewrite dengan step-by-step logging
+- /api/auto-journal/debug/route.ts — diagnostic endpoint baru (GET)
+- TradeWizardForm.tsx — error handling diperbaiki (line 278-323)
+- User tinggal buka /api/auto-journal/debug di browser (setelah login) untuk lihat step mana yang gagal
