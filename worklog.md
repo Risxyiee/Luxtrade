@@ -196,3 +196,22 @@ Stage Summary:
 - Promo code TRADERCEPAT now properly enforces 30-slot limit
 - Active traders now shows users active in last 30 days (not just who has trades)
 - promo-quota no longer shows fake availability when DB is down
+
+---
+Task ID: trade-edit-integration
+Agent: Main Agent
+Task: Integrate trade editing - add SL/TP/Ticket fields, fix edit handler
+
+Work Log:
+- Discovered EditTradeModal.tsx is dead code (never imported) — the REAL edit flow uses TradeWizardForm with isEdit=true via DashboardModals + tradeHandlers
+- handleEditTrade in tradeHandlers.ts was missing open_time, close_time, emotion in PUT payload — these fields would be silently dropped on save
+- Added Stop Loss, Take Profit, Ticket Number input fields to TradeWizardForm Step 2 (grid of 3, same style as time fields)
+- Added optional onEdit prop to RecentTrades widget with pencil icon button on hover
+- Verified: TradesTab already has Edit button per row, View modal has Edit button, both call openEditModal
+- PUT /api/trades already handles all fields including dates, SL, TP
+- After edit, fetchData() re-fetches everything (trades, analytics, journal) so all dashboard views update
+
+Stage Summary:
+- 3 files changed: TradeWizardForm.tsx (new SL/TP/Ticket fields), tradeHandlers.ts (fixed PUT payload), RecentTrades.tsx (added edit button)
+- Edit flow already existed but was incomplete — now all fields are properly editable and persisted
+- Build passes clean
