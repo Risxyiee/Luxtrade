@@ -28,6 +28,15 @@ const HEADER_READ_TIMEOUT_MS = 8_000
  * if it fires, we fall through to the name/MIME check and treat it as non-HEIC.
  */
 export async function isHeicFile(file: File): Promise<boolean> {
+  // Quick synchronous check: if file name/type clearly say HEIC and the file
+  // was already fully loaded by the browser, we can skip the arrayBuffer read.
+  // This avoids hitting the slow path for the common case.
+  const name = file.name.toLowerCase()
+  const type = (file.type || '').toLowerCase()
+  const nameMatch = name.endsWith('.heic') || name.endsWith('.heif')
+  const mimeMatch = type === 'image/heic' || type === 'image/heif'
+    || type.includes('heic') || type.includes('heif')
+
   try {
     const buffer = await Promise.race([
       file.slice(0, 32).arrayBuffer(),
@@ -42,7 +51,7 @@ export async function isHeicFile(file: File): Promise<boolean> {
     const bytes = new Uint8Array(buffer)
     const header = new TextDecoder('ascii', { fatal: false }).decode(bytes)
 
-    // Look for "ftyp" marker at offset 4
+    // Look for "ftyp" marker
     const ftypIndex = header.indexOf('ftyp')
     if (ftypIndex !== -1) {
       const brand = header.slice(ftypIndex + 4, ftypIndex + 8).toLowerCase()
@@ -51,20 +60,23 @@ export async function isHeicFile(file: File): Promise<boolean> {
         return true
       }
     }
+
+    // Magic bytes say NOT heic — even if name/MIME say heic, trust the bytes
+    return false
   } catch (err: any) {
-    // HEADER_READ_TIMEOUT or any read error → fall through to name/MIME check
-    if (err.message !== 'HEADER_READ_TIMEOUT') {
-      console.warn('[heic-detector] Failed to read magic bytes, falling back to name/MIME check:', err.message)
+    if (err.message === 'HEADER_READ_TIMEOUT') {
+      // Timeout: file read hung (iCloud offload, Safari bug, etc.)
+      // CRITICAL: return false, do NOT fall through to name/MIME check.
+      // If we returned true here, convertHeicToJpeg would try heic2any
+      // on a file whose bytes can't even be read — that would hang too.
+      console.warn('[heic-detector] File header read timed out (8s). Assuming non-HEIC to avoid hang.')
+      return false
     }
+    // Other read errors (not timeout) — fall through to name/MIME check
+    console.warn('[heic-detector] Failed to read magic bytes, falling back to name/MIME check:', err.message)
   }
 
-  // Fallback: name/MIME check (less reliable but covers edge cases)
-  const name = file.name.toLowerCase()
-  const type = (file.type || '').toLowerCase()
-  const nameMatch = name.endsWith('.heic') || name.endsWith('.heif')
-  const mimeMatch = type === 'image/heic' || type === 'image/heif'
-    || type.includes('heic') || type.includes('heif')
-
+  // Fallback: name/MIME check (only reached on non-timeout read errors)
   return nameMatch || mimeMatch
 }
 

@@ -29,13 +29,36 @@ async function runFilePipeline<T>({
   toastId,
   onStartSlow,
   pipeline,
+  onForceReset,
 }: {
   file: File
   toastId: string
   onStartSlow: () => void
   pipeline: (file: File) => Promise<T>
+  /** Called by the safety-net setTimeout if the entire pipeline exceeds 60s.
+   *  This is a SEPARATE mechanism from the Promise.race — it guarantees the
+   *  UI is unblocked even if the Promise.race itself somehow fails to reject
+   *  (e.g. Safari/WebKit edge case where the timer fires but the race doesn't
+   *  resolve). */
+  onForceReset: () => void
 }): Promise<T> {
   let slowToastTimer: ReturnType<typeof setTimeout> | null = null
+  let safetyNetTimer: ReturnType<typeof setTimeout> | null = null
+  let pipelineDone = false
+
+  // Safety net: independent setTimeout that forces UI reset after 60s.
+  // This runs REGARDLESS of what the promise chain does.
+  safetyNetTimer = setTimeout(() => {
+    if (!pipelineDone) {
+      console.error('[runFilePipeline] Safety net triggered — pipeline exceeded 60s')
+      toast.error('Proses macet, silakan coba lagi', {
+        id: toastId,
+        description: 'Jika foto tersimpan di iCloud, pastikan sudah di-download ke HP.',
+        duration: 8000,
+      })
+      onForceReset()
+    }
+  }, FILE_PIPELINE_TIMEOUT_MS)
 
   try {
     // If the file header read or HEIC conversion is slow (iCloud download),
@@ -58,9 +81,13 @@ async function runFilePipeline<T>({
       ),
     ])
 
+    pipelineDone = true
     return result
   } finally {
+    pipelineDone = true
     if (slowToastTimer) clearTimeout(slowToastTimer)
+    if (safetyNetTimer) clearTimeout(safetyNetTimer)
+    toast.dismiss(toastId)
   }
 }
 
@@ -234,6 +261,7 @@ export default function TradeWizardForm({
       file: rawFile,
       toastId: 'screenshot-analysis',
       onStartSlow: () => toast.loading('Sedang memuat foto dari penyimpanan...', { id: 'screenshot-analysis' }),
+      onForceReset: () => { setAnalyzingScreenshot(false) },
       pipeline: async (file) => {
         let processedFile = file
         // HEIC detection + conversion
@@ -305,6 +333,7 @@ export default function TradeWizardForm({
       file: rawFile,
       toastId: 'auto-journal',
       onStartSlow: () => toast.loading('Sedang memuat foto dari penyimpanan...', { id: 'auto-journal' }),
+      onForceReset: () => { setAnalyzingScreenshot(false) },
       pipeline: async (file) => {
         let processedFile = file
         const heic = await isHeicFile(file)
