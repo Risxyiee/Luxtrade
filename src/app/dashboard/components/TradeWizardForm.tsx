@@ -64,9 +64,7 @@ async function runFilePipeline<T>({
     // If the file header read or HEIC conversion is slow (iCloud download),
     // show a reassuring toast so the user knows it's not frozen.
     slowToastTimer = setTimeout(() => {
-      if (!toast.isActive(toastId)) {
-        onStartSlow()
-      }
+      onStartSlow()
     }, SLOW_FILE_TOAST_MS)
 
     const result = await Promise.race([
@@ -367,9 +365,7 @@ export default function TradeWizardForm({
           throw new Error('Invalid file type. Please upload an image.')
         }
 
-        if (!toast.isActive('auto-journal')) {
-          toast.loading('AI sedang menganalisis screenshot kamu...', { id: 'auto-journal' })
-        }
+        toast.loading('AI sedang menganalisis screenshot kamu...', { id: 'auto-journal' })
 
         const formData = new FormData()
         formData.append('image', processedFile)
