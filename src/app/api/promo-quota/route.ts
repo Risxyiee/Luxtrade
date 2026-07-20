@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
-import { db, isDatabaseAvailable } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 
 /**
  * GET /api/promo-quota?code=TRADERCEPAT
  * Returns remaining quota for a promo code (public, no auth needed).
- * Optimized: single query, no table-existence check.
+ * Uses Supabase client directly — no Prisma (avoids connection pool exhaustion).
  */
-export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const DEFAULT_PROMO = {
@@ -16,42 +15,40 @@ const DEFAULT_PROMO = {
 
 export async function GET(request: Request) {
   try {
-    if (!isDatabaseAvailable()) {
+    const svc = getSupabaseAdmin()
+    if (!svc) {
       return NextResponse.json(DEFAULT_PROMO)
     }
 
     const { searchParams } = new URL(request.url)
     const code = (searchParams.get('code') || 'TRADERCEPAT').toUpperCase()
 
-    // Single query — if table doesn't exist, catch and return defaults
-    try {
-      const promoRows: any[] = await db.$queryRawUnsafe(
-        `SELECT code, discount_percent, max_quota, used_quota, duration_months, is_active
-         FROM promo_codes WHERE code = $1`,
-        code
-      )
+    const { data, error } = await svc
+      .from('promo_codes')
+      .select('code, discount_percent, max_quota, used_quota, duration_months, is_active')
+      .eq('code', code)
+      .limit(1)
 
-      if (!promoRows || promoRows.length === 0) {
-        return NextResponse.json({ error: 'Promo code not found' }, { status: 404 })
-      }
-
-      const promo = promoRows[0]
-      const usedQuota = Number(promo.used_quota)
-      const maxQuota = Number(promo.max_quota)
-
-      return NextResponse.json({
-        code: promo.code, maxQuota, usedQuota,
-        remainingQuota: Math.max(0, maxQuota - usedQuota),
-        discountPercent: Number(promo.discount_percent) || 100,
-        durationMonths: Number(promo.duration_months) || 3,
-        isActive: promo.is_active
-      })
-    } catch (err) {
-      console.warn('[promo-quota] Query failed:', err)
+    if (error || !data || data.length === 0) {
+      console.warn('[promo-quota] Query failed or not found:', error?.message)
       return NextResponse.json(DEFAULT_PROMO)
     }
+
+    const promo = data[0]
+    const usedQuota = Number(promo.used_quota)
+    const maxQuota = Number(promo.max_quota)
+
+    return NextResponse.json({
+      code: promo.code,
+      maxQuota,
+      usedQuota,
+      remainingQuota: Math.max(0, maxQuota - usedQuota),
+      discountPercent: Number(promo.discount_percent) || 100,
+      durationMonths: Number(promo.duration_months) || 3,
+      isActive: promo.is_active,
+    })
   } catch (err) {
-    console.warn('[promo-quota] Outer catch:', err)
+    console.warn('[promo-quota] Error:', err)
     return NextResponse.json(DEFAULT_PROMO)
   }
 }

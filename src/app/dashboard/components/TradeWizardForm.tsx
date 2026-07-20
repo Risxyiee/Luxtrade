@@ -180,31 +180,42 @@ export default function TradeWizardForm({
       return
     }
 
-    // Convert HEIC to JPEG client-side (iPhone photos)
-    if (isHeicFile(file)) {
-      setAnalyzingScreenshot(true)
-      try {
+    // Convert HEIC to JPEG client-side (iPhone photos) — magic bytes detection
+    setAnalyzingScreenshot(true)
+    try {
+      const heic = await isHeicFile(file)
+      if (heic) {
+        toast.loading('Converting HEIC to JPEG...', { id: 'screenshot-analysis' })
         file = await convertHeicToJpeg(file) as File
-      } catch (err: any) {
-        toast.error(err.message || 'Failed to convert HEIC image.')
-        setAnalyzingScreenshot(false)
-        e.target.value = ''
-        return
       }
-    } else if (!file.type.startsWith('image/')) {
-      toast.error('Invalid file type. Please upload an image.')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to convert HEIC image.', { id: 'screenshot-analysis', duration: 6000 })
+      setAnalyzingScreenshot(false)
+      e.target.value = ''
       return
     }
 
-    setAnalyzingScreenshot(true)
+    if (!file.type.startsWith('image/') && !file.name.match(/\.(jpe?g|png|webp|gif|bmp)$/i)) {
+      toast.error('Invalid file type. Please upload an image.', { id: 'screenshot-analysis' })
+      setAnalyzingScreenshot(false)
+      e.target.value = ''
+      return
+    }
+
     try {
       const formData = new FormData()
       formData.append('image', file)
 
+      // 45s safety timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 45000)
+
       const res = await fetch('/api/analyze-screenshot', {
         method: 'POST',
         body: formData,
+        signal: controller.signal,
       })
+      clearTimeout(timeoutId)
 
       const data = await res.json()
 
@@ -245,25 +256,28 @@ export default function TradeWizardForm({
       return
     }
 
-    // Convert HEIC to JPEG client-side (iPhone photos)
-    if (isHeicFile(file)) {
-      setAnalyzingScreenshot(true)
-      toast.loading('🔄 Converting HEIC to JPEG...', { id: 'auto-journal' })
-      try {
+    // Convert HEIC to JPEG client-side (iPhone photos) — magic bytes detection
+    setAnalyzingScreenshot(true)
+    try {
+      const heic = await isHeicFile(file)
+      if (heic) {
+        toast.loading('Converting HEIC to JPEG...', { id: 'auto-journal' })
         file = await convertHeicToJpeg(file) as File
-        toast.loading('🤖 AI is analyzing your screenshot...', { id: 'auto-journal' })
-      } catch (err: any) {
-        toast.error(err.message || 'Failed to convert HEIC image.', { id: 'auto-journal' })
-        setAnalyzingScreenshot(false)
-        e.target.value = ''
-        return
       }
-    } else if (!file.type.startsWith('image/')) {
-      toast.error('Invalid file type. Please upload an image.')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to convert HEIC image.', { id: 'auto-journal', duration: 6000 })
+      setAnalyzingScreenshot(false)
+      e.target.value = ''
       return
     }
 
-    setAnalyzingScreenshot(true)
+    if (!file.type.startsWith('image/') && !file.name.match(/\.(jpe?g|png|webp|gif|bmp)$/i)) {
+      toast.error('Invalid file type. Please upload an image.', { id: 'auto-journal' })
+      setAnalyzingScreenshot(false)
+      e.target.value = ''
+      return
+    }
+
     if (!toast.isActive('auto-journal')) {
       toast.loading('🤖 AI sedang menganalisis screenshot kamu...', { id: 'auto-journal' })
     }
@@ -271,9 +285,9 @@ export default function TradeWizardForm({
       const formData = new FormData()
       formData.append('image', file)
 
-      // 30s timeout — jangan muter selamanya kalau server bermasalah
+      // 45s timeout — jaring pengaman kalau ada hang di masa depan
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000)
+      const timeoutId = setTimeout(() => controller.abort(), 45000)
 
       let res: Response
       try {
