@@ -32,13 +32,15 @@ async function runFilePipeline<T>({
   let safetyNetTimer: ReturnType<typeof setTimeout> | null = null
   let pipelineDone = false
 
+  const safetyToastId = `${toastId}-safety`
+
   safetyNetTimer = setTimeout(() => {
     if (!pipelineDone) {
       console.error('[runFilePipeline] Safety net triggered — pipeline exceeded 60s')
       toast.error('Proses macet, silakan coba lagi', {
-        id: toastId,
+        id: safetyToastId,
         description: 'Jika foto tersimpan di iCloud, pastikan sudah di-download ke HP.',
-        duration: 8000,
+        duration: 10000,
       })
       onForceReset()
     }
@@ -66,6 +68,7 @@ async function runFilePipeline<T>({
     if (slowToastTimer) clearTimeout(slowToastTimer)
     if (safetyNetTimer) clearTimeout(safetyNetTimer)
     toast.dismiss(toastId)
+    toast.dismiss(safetyToastId)
   }
 }
 
@@ -220,7 +223,7 @@ export default function ScreenshotJournalDialog({
         }
       },
     }).catch((err) => {
-      console.error('Screenshot analysis error:', err)
+      console.error('[ScreenshotJournalDialog] Pipeline error:', err.name, err.message)
       if (err.name === 'AbortError') {
         setError('Analisis terlalu lama. Coba screenshot yang lebih jelas.')
       } else {
