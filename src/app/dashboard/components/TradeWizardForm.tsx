@@ -37,9 +37,7 @@ async function runFilePipeline<T>({
   pipeline: (file: File) => Promise<T>
   /** Called by the safety-net setTimeout if the entire pipeline exceeds 60s.
    *  This is a SEPARATE mechanism from the Promise.race — it guarantees the
-   *  UI is unblocked even if the Promise.race itself somehow fails to reject
-   *  (e.g. Safari/WebKit edge case where the timer fires but the race doesn't
-   *  resolve). */
+   *  UI is unblocked even if the Promise.race itself somehow fails to reject. */
   onForceReset: () => void
 }): Promise<T> {
   let slowToastTimer: ReturnType<typeof setTimeout> | null = null
@@ -47,14 +45,16 @@ async function runFilePipeline<T>({
   let pipelineDone = false
 
   // Safety net: independent setTimeout that forces UI reset after 60s.
-  // This runs REGARDLESS of what the promise chain does.
+  // Uses a DIFFERENT toast ID so it won't collide with error toasts.
+  const safetyToastId = `${toastId}-safety`
+
   safetyNetTimer = setTimeout(() => {
     if (!pipelineDone) {
       console.error('[runFilePipeline] Safety net triggered — pipeline exceeded 60s')
       toast.error('Proses macet, silakan coba lagi', {
-        id: toastId,
+        id: safetyToastId,
         description: 'Jika foto tersimpan di iCloud, pastikan sudah di-download ke HP.',
-        duration: 8000,
+        duration: 10000,
       })
       onForceReset()
     }
@@ -87,7 +87,10 @@ async function runFilePipeline<T>({
     pipelineDone = true
     if (slowToastTimer) clearTimeout(slowToastTimer)
     if (safetyNetTimer) clearTimeout(safetyNetTimer)
+    // Only dismiss the SLOW-LOADING toast (it's informational, not an error).
+    // Do NOT dismiss error toasts — they have their own duration.
     toast.dismiss(toastId)
+    toast.dismiss(safetyToastId)
   }
 }
 
@@ -257,6 +260,8 @@ export default function TradeWizardForm({
 
     setAnalyzingScreenshot(true)
 
+    console.log('[handleScreenshotAnalysis] Starting pipeline for:', rawFile.name, 'size:', rawFile.size, 'type:', rawFile.type)
+
     await runFilePipeline({
       file: rawFile,
       toastId: 'screenshot-analysis',
@@ -265,7 +270,9 @@ export default function TradeWizardForm({
       pipeline: async (file) => {
         let processedFile = file
         // HEIC detection + conversion
+        console.log('[handleScreenshotAnalysis] Checking HEIC...')
         const heic = await isHeicFile(file)
+        console.log('[handleScreenshotAnalysis] isHeic:', heic)
         if (heic) {
           toast.loading('Converting HEIC to JPEG...', { id: 'screenshot-analysis' })
           processedFile = await convertHeicToJpeg(file) as File
@@ -278,16 +285,25 @@ export default function TradeWizardForm({
         const formData = new FormData()
         formData.append('image', processedFile)
 
+        console.log('[handleScreenshotAnalysis] Fetching /api/analyze-screenshot...')
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 45000)
 
-        const res = await fetch('/api/analyze-screenshot', {
-          method: 'POST',
-          body: formData,
-          signal: controller.signal,
-        })
+        let res: Response
+        try {
+          res = await fetch('/api/analyze-screenshot', {
+            method: 'POST',
+            body: formData,
+            signal: controller.signal,
+          })
+        } catch (fetchErr: any) {
+          clearTimeout(timeoutId)
+          console.error('[handleScreenshotAnalysis] Fetch failed:', fetchErr.message)
+          throw new Error(`Jaringan gagal: ${fetchErr.message}`)
+        }
         clearTimeout(timeoutId)
 
+        console.log('[handleScreenshotAnalysis] Response status:', res.status)
         const data = await res.json()
         if (res.ok && data.success) {
           if (data.data.symbol) onFormChange('symbol', data.data.symbol)
@@ -306,10 +322,11 @@ export default function TradeWizardForm({
         }
       },
     }).catch((err) => {
+      console.error('[handleScreenshotAnalysis] Pipeline error:', err.name, err.message)
       if (err.name === 'AbortError') {
-        toast.error('Analisis terlalu lama (>45 detik). Coba lagi.', { id: 'screenshot-analysis', duration: 6000 })
+        toast.error('Analisis terlalu lama (>45 detik). Coba lagi.', { id: 'screenshot-analysis-err', duration: 8000 })
       } else {
-        toast.error(err.message || 'Failed to analyze screenshot.', { id: 'screenshot-analysis', duration: 6000 })
+        toast.error(err.message || 'Failed to analyze screenshot.', { id: 'screenshot-analysis-err', duration: 8000 })
       }
     }).finally(() => {
       setAnalyzingScreenshot(false)
@@ -329,6 +346,8 @@ export default function TradeWizardForm({
 
     setAnalyzingScreenshot(true)
 
+    console.log('[handleAutoJournal] Starting pipeline for:', rawFile.name, 'size:', rawFile.size, 'type:', rawFile.type)
+
     await runFilePipeline({
       file: rawFile,
       toastId: 'auto-journal',
@@ -336,7 +355,9 @@ export default function TradeWizardForm({
       onForceReset: () => { setAnalyzingScreenshot(false) },
       pipeline: async (file) => {
         let processedFile = file
+        console.log('[handleAutoJournal] Checking HEIC...')
         const heic = await isHeicFile(file)
+        console.log('[handleAutoJournal] isHeic:', heic)
         if (heic) {
           toast.loading('Converting HEIC to JPEG...', { id: 'auto-journal' })
           processedFile = await convertHeicToJpeg(file) as File
@@ -422,10 +443,11 @@ export default function TradeWizardForm({
         }
       },
     }).catch((err) => {
+      console.error('[handleAutoJournal] Pipeline error:', err.name, err.message)
       if (err.name === 'AbortError') {
-        toast.error('Analisis AI terlalu lama. Coba screenshot yang lebih jelas.', { id: 'auto-journal', duration: 6000 })
+        toast.error('Analisis AI terlalu lama. Coba screenshot yang lebih jelas.', { id: 'auto-journal-err', duration: 8000 })
       } else {
-        toast.error(err.message || 'Gagal membuat auto-journal.', { id: 'auto-journal', duration: 8000 })
+        toast.error(err.message || 'Gagal membuat auto-journal.', { id: 'auto-journal-err', duration: 10000 })
       }
     }).finally(() => {
       setAnalyzingScreenshot(false)
