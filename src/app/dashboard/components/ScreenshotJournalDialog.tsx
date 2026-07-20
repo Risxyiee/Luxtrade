@@ -86,18 +86,26 @@ export default function ScreenshotJournalDialog({
       return
     }
 
-    // Convert HEIC to JPEG client-side (iPhone photos)
-    if (isHeicFile(file)) {
-      setAnalyzing(true)
-      toast.loading('🔄 Converting HEIC to JPEG...')
-      try {
+    // Convert HEIC to JPEG client-side (iPhone photos) — magic bytes detection
+    setAnalyzing(true)
+    try {
+      const heic = await isHeicFile(file)
+      if (heic) {
+        toast.loading('Converting HEIC to JPEG...')
         file = await convertHeicToJpeg(file) as File
-      } catch (err: any) {
-        toast.error(err.message || 'Gagal konversi HEIC. Export foto sebagai JPEG/PNG lalu coba lagi.')
-        setAnalyzing(false)
-        e.target.value = ''
-        return
       }
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal konversi HEIC. Export foto sebagai JPEG/PNG lalu coba lagi.', { duration: 6000 })
+      setAnalyzing(false)
+      e.target.value = ''
+      return
+    }
+
+    if (!file.type.startsWith('image/') && !file.name.match(/\.(jpe?g|png|webp|gif|bmp)$/i)) {
+      toast.error('Tipe file tidak valid. Upload gambar.')
+      setAnalyzing(false)
+      e.target.value = ''
+      return
     }
 
     // Show preview
@@ -117,10 +125,15 @@ export default function ScreenshotJournalDialog({
       formData.append('image', file)
       if (selectedAccountId) formData.append('accountId', selectedAccountId)
 
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 45000)
+
       const res = await fetch('/api/screenshot-journal', {
         method: 'POST',
-        body: formData
+        body: formData,
+        signal: controller.signal,
       })
+      clearTimeout(timeoutId)
 
       const data = await res.json()
 
