@@ -14,31 +14,48 @@ import heic2any from 'heic2any'
  */
 const HEIC_BRANDS = ['heic', 'heix', 'mif1', 'heim', 'hevc', 'hevx']
 
+/** Timeout for reading file header bytes (iCloud offload can be slow) */
+const HEADER_READ_TIMEOUT_MS = 8_000
+
 /**
  * Check if a file is HEIC/HEIF by reading magic bytes.
- * Falls back to name/MIME check if file reading fails.
+ * Falls back to name/MIME check if file reading fails or times out.
+ *
+ * The file.slice().arrayBuffer() call is wrapped in a timeout because
+ * on iOS with "Optimize iPhone Storage", selecting a photo that lives
+ * only in iCloud triggers a download — this can take many seconds and
+ * blocks the arrayBuffer() read. The timeout ensures we don't hang forever;
+ * if it fires, we fall through to the name/MIME check and treat it as non-HEIC.
  */
 export async function isHeicFile(file: File): Promise<boolean> {
   try {
-    const slice = file.slice(0, 32)
-    const buffer = await slice.arrayBuffer()
-    const bytes = new Uint8Array(buffer)
+    const buffer = await Promise.race([
+      file.slice(0, 32).arrayBuffer(),
+      new Promise<ArrayBuffer>((_resolve, reject) =>
+        setTimeout(
+          () => reject(new Error('HEADER_READ_TIMEOUT')),
+          HEADER_READ_TIMEOUT_MS
+        )
+      ),
+    ])
 
-    // Convert to string for pattern matching (ASCII-safe portion)
+    const bytes = new Uint8Array(buffer)
     const header = new TextDecoder('ascii', { fatal: false }).decode(bytes)
 
     // Look for "ftyp" marker at offset 4
     const ftypIndex = header.indexOf('ftyp')
     if (ftypIndex !== -1) {
-      // Brand starts right after "ftyp" (4 chars)
       const brand = header.slice(ftypIndex + 4, ftypIndex + 8).toLowerCase()
       if (HEIC_BRANDS.includes(brand)) {
         console.log(`[heic-detector] Magic bytes match: ftyp/${brand}`)
         return true
       }
     }
-  } catch (err) {
-    console.warn('[heic-detector] Failed to read magic bytes, falling back to name/MIME check:', err)
+  } catch (err: any) {
+    // HEADER_READ_TIMEOUT or any read error → fall through to name/MIME check
+    if (err.message !== 'HEADER_READ_TIMEOUT') {
+      console.warn('[heic-detector] Failed to read magic bytes, falling back to name/MIME check:', err.message)
+    }
   }
 
   // Fallback: name/MIME check (less reliable but covers edge cases)
@@ -90,7 +107,6 @@ export async function convertHeicToJpeg(file: File): Promise<File | Blob> {
     return new File([result], fileName, { type: 'image/jpeg' })
   } catch (err: any) {
     console.error('[heic2any] Conversion failed:', err.message)
-    // Re-throw with user-friendly message (preserves timeout message if that was the cause)
     throw new Error(err.message || 'Gagal mengkonversi foto HEIC ke JPEG. Silakan export foto sebagai JPEG/PNG secara manual, lalu coba upload lagi.')
   }
 }
