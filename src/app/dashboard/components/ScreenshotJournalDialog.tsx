@@ -20,18 +20,36 @@ async function runFilePipeline<T>({
   toastId,
   onStartSlow,
   pipeline,
+  onForceReset,
 }: {
   file: File
   toastId: string
   onStartSlow: () => void
   pipeline: (file: File) => Promise<T>
+  onForceReset: () => void
 }): Promise<T> {
   let slowToastTimer: ReturnType<typeof setTimeout> | null = null
+  let safetyNetTimer: ReturnType<typeof setTimeout> | null = null
+  let pipelineDone = false
+
+  safetyNetTimer = setTimeout(() => {
+    if (!pipelineDone) {
+      console.error('[runFilePipeline] Safety net triggered — pipeline exceeded 60s')
+      toast.error('Proses macet, silakan coba lagi', {
+        id: toastId,
+        description: 'Jika foto tersimpan di iCloud, pastikan sudah di-download ke HP.',
+        duration: 8000,
+      })
+      onForceReset()
+    }
+  }, FILE_PIPELINE_TIMEOUT_MS)
+
   try {
     slowToastTimer = setTimeout(() => {
       if (!toast.isActive(toastId)) onStartSlow()
     }, SLOW_FILE_TOAST_MS)
-    return await Promise.race([
+
+    const result = await Promise.race([
       pipeline(file),
       new Promise<never>((_resolve, reject) =>
         setTimeout(
@@ -40,8 +58,14 @@ async function runFilePipeline<T>({
         )
       ),
     ])
+
+    pipelineDone = true
+    return result
   } finally {
+    pipelineDone = true
     if (slowToastTimer) clearTimeout(slowToastTimer)
+    if (safetyNetTimer) clearTimeout(safetyNetTimer)
+    toast.dismiss(toastId)
   }
 }
 
@@ -126,6 +150,7 @@ export default function ScreenshotJournalDialog({
       file: rawFile,
       toastId: 'screenshot-journal',
       onStartSlow: () => toast.loading('Sedang memuat foto dari penyimpanan...', { id: 'screenshot-journal' }),
+      onForceReset: () => { setAnalyzing(false) },
       pipeline: async (file) => {
         let processedFile = file
         const heic = await isHeicFile(file)
