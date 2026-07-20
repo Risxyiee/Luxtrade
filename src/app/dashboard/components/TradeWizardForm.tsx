@@ -434,8 +434,8 @@ export default function TradeWizardForm({
           if (journal.setup_type) onFormChange('setup_type', journal.setup_type)
           if (journal.risk_reward_ratio) onFormChange('risk_reward_ratio', journal.risk_reward_ratio.toString())
 
-          toast.success('Auto-journal created!', { id: 'auto-journal' })
-          setTimeout(() => onCancel(), 1500)
+          toast.success('Auto-journal created! Trade & journal tersimpan.', { id: 'auto-journal', duration: 3000 })
+          setTimeout(() => onSave(), 1500)
         }
       },
     }).catch((err) => {
