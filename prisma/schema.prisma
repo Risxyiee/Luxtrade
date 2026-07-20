@@ -143,7 +143,7 @@ model Trade {
   type              String
   open_price        Float
   close_price       Float
-  lot_size          Float
+  lot_size          Float     @default(0)
   profit_loss       Float
   open_time         DateTime
   close_time        DateTime
