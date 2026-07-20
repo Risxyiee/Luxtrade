@@ -48,7 +48,7 @@ async function runFilePipeline<T>({
 
   try {
     slowToastTimer = setTimeout(() => {
-      if (!toast.isActive(toastId)) onStartSlow()
+      onStartSlow()
     }, SLOW_FILE_TOAST_MS)
 
     const result = await Promise.race([
