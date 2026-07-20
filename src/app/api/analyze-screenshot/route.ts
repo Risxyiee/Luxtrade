@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
-import { analyzeImageWithOllama } from '@/lib/ollama-vision'
-import { analyzeImageWithZAIVision } from '@/lib/zai-vision'
+import { analyzeImageWithAiml } from '@/lib/aiml-vision'
 import { createClientForApi } from '@/lib/supabase/server'
 import { isUserPro } from '@/lib/pro-check'
 import { rateLimitByUser } from '@/lib/rate-limit'
 
 /**
  * API Route: Analyze Trading Screenshot
- * Extracts trading data from screenshot using AI Vision
+ * Extracts trading data from screenshot using AI Vision (Gemini → OpenRouter)
  * Uploads image to Supabase Storage and returns URL
  */
 
@@ -95,28 +94,28 @@ function normalizeTradingData(data: any): any {
     result.type = data.type.toUpperCase() === 'BUY' ? 'BUY' : 'SELL'
   }
 
-  if (data.size || data.lot_size) {
-    result.lot_size = data.size || data.lot_size
+  if (data.size || data.lot_size || data.volume) {
+    result.lot_size = data.size || data.lot_size || data.volume
   }
 
-  if (data.entry_price || data.open_price) {
-    result.open_price = data.entry_price || data.open_price
+  if (data.entry_price || data.openPrice || data.open_price) {
+    result.open_price = data.entry_price || data.openPrice || data.open_price
   }
 
-  if (data.exit_price || data.close_price) {
-    result.close_price = data.exit_price || data.close_price
+  if (data.exit_price || data.closePrice || data.close_price) {
+    result.close_price = data.exit_price || data.closePrice || data.close_price
   }
 
-  if (data.stop_loss) {
-    result.stop_loss = data.stop_loss
+  if (data.stop_loss || data.stopLoss) {
+    result.stop_loss = data.stop_loss || data.stopLoss
   }
 
-  if (data.take_profit) {
-    result.take_profit = data.take_profit
+  if (data.take_profit || data.takeProfit) {
+    result.take_profit = data.take_profit || data.takeProfit
   }
 
-  if (data.profit || data.profit_loss) {
-    result.profit_loss = data.profit || data.profit_loss
+  if (data.profit || data.profit_loss || data.profitLoss) {
+    result.profit_loss = data.profit || data.profit_loss || data.profitLoss
   }
 
   return result
@@ -124,7 +123,7 @@ function normalizeTradingData(data: any): any {
 
 export async function POST(request: NextRequest) {
   try {
-    // Auth check — uses service-role client for storage, but user must be authenticated
+    // Auth check
     const { supabase: authClient } = createClientForApi(request)
     const { data: { user } } = await authClient.auth.getUser()
     if (!user) {
@@ -160,7 +159,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Detect HEIC/HEIF format — not supported by sharp in serverless environments
+    // Detect HEIC/HEIF format
     const fn = image.name.toLowerCase()
     const ft = (image.type || '').toLowerCase()
     if (fn.endsWith('.heic') || fn.endsWith('.heif') || ft.includes('heic') || ft.includes('heif')) {
@@ -180,7 +179,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate file size (10MB max)
-    const maxSize = 10 * 1024 * 1024 // 10MB
+    const maxSize = 10 * 1024 * 1024
     if (image.size > maxSize) {
       console.error('❌ [Analyze Screenshot] File too large:', image.size)
       return NextResponse.json(
@@ -189,7 +188,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate unique file name with timestamp
+    // Generate unique file name
     const timestamp = Date.now()
     const randomString = Math.random().toString(36).substring(2, 10)
     const fileExt = image.name.split('.').pop()
@@ -206,7 +205,7 @@ export async function POST(request: NextRequest) {
       .from(BUCKET_NAME)
       .upload(fileName, buffer, {
         contentType: image.type,
-        cacheControl: '31536000', // 1 year cache
+        cacheControl: '31536000',
         upsert: false
       })
 
@@ -228,10 +227,7 @@ export async function POST(request: NextRequest) {
     const publicUrl = urlData.publicUrl
     console.log(`🔗 [Analyze Screenshot] Public URL: ${publicUrl}`)
 
-    // Convert image to base64 for AI analysis
-    const base64Image = buffer.toString('base64')
-
-    // Create prompt for AI Vision
+    // AI Vision Analysis — Gemini 2.5 Flash → OpenRouter (same chain as auto-journal)
     const prompt = `Analyze this trading platform screenshot and extract the following trading data in JSON format:
 {
   "pair": "Trading pair/symbol (e.g., XAUUSD, EURUSD)",
@@ -252,37 +248,19 @@ Important guidelines:
 - Type must be exactly 'BUY' or 'SELL'
 - Profit should be negative for losses, positive for gains`
 
-    console.log('🤖 [Analyze Screenshot] Starting AI analysis with FREE services...')
+    console.log('🤖 [Analyze Screenshot] Starting AI analysis (Gemini → OpenRouter)...')
 
     let aiResponse: string
-
-    // Try Ollama first (FREE - local installation)
     try {
-      console.log('🔄 [Analyze Screenshot] Trying Ollama (FREE)...')
-      const ollamaResult = await analyzeImageWithOllama(
-        base64Image,
-        image.type,
-        prompt
+      const result = await analyzeImageWithAiml(buffer, prompt, { timeout: 90000 })
+      aiResponse = result.text
+      console.log(`✅ [Analyze Screenshot] AI analysis completed via ${result.provider}`)
+    } catch (aiError: any) {
+      console.error(`❌ [Analyze Screenshot] AI Vision failed: ${aiError.message}`)
+      return NextResponse.json(
+        { error: `AI Vision gagal: ${aiError.message}` },
+        { status: 503 }
       )
-      // Convert Ollama result to JSON string
-      aiResponse = JSON.stringify(ollamaResult)
-      console.log('✅ [Analyze Screenshot] Ollama analysis completed')
-    } catch (ollamaError: any) {
-      console.log('⚠️ [Analyze Screenshot] Ollama failed:', ollamaError.message)
-      console.log('🔄 [Analyze Screenshot] Trying Z.ai Vision (FREE)...')
-
-      // Fallback to Z.ai Vision (FREE - SDK built-in)
-      try {
-        const zaiResult = await analyzeImageWithZAIVision(base64Image, prompt, {})
-        aiResponse = zaiResult.text
-        console.log('✅ [Analyze Screenshot] Z.ai Vision analysis completed')
-      } catch (zaiError: any) {
-        console.error('❌ [Analyze Screenshot] Z.ai Vision also failed:', zaiError.message)
-        return NextResponse.json(
-          { error: 'AI Vision service tidak tersedia. Pastikan Ollama terinstall atau konfigurasi Z.ai benar.' },
-          { status: 503 }
-        )
-      }
     }
 
     // Parse trading data from AI response
@@ -301,38 +279,20 @@ Important guidelines:
 
     console.log('📊 [Analyze Screenshot] Extracted data:', normalizedData)
 
-    // Return success response with extracted data
     return NextResponse.json({
       success: true,
       data: normalizedData,
       image_url: publicUrl,
-      raw_response: aiResponse // Include for debugging
+      raw_response: aiResponse
     })
 
   } catch (error: any) {
     console.error('❌ [Analyze Screenshot] Error:', error)
 
-    // Handle timeout errors
-    if (error.message?.includes('timeout') || error.message?.includes('AbortError') || error.message?.includes('took too long')) {
+    if (error.message?.includes('timeout') || error.name === 'AbortError' || error.name === 'TimeoutError') {
       return NextResponse.json(
-        { error: 'Analisis timeout. Screenshot terlalu kompleks. Silakan coba lagi atau gunakan screenshot yang lebih sederhana.' },
+        { error: 'Analisis timeout. Screenshot terlalu kompleks. Silakan coba lagi.' },
         { status: 504 }
-      )
-    }
-
-    // Handle rate limit errors (hanya untuk OpenAI fallback)
-    if (error.message?.includes('rate limit')) {
-      return NextResponse.json(
-        { error: 'AI service rate limit exceeded. Silakan coba lagi dalam beberapa saat.' },
-        { status: 429 }
-      )
-    }
-
-    // Handle Ollama specific errors
-    if (error.message?.includes('Ollama server is not running')) {
-      return NextResponse.json(
-        { error: 'Ollama server tidak berjalan. Silakan jalankan Ollama atau hubungi admin.' },
-        { status: 503 }
       )
     }
 
