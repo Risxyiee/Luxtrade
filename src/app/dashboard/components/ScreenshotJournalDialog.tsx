@@ -12,6 +12,39 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { convertHeicToJpeg, isHeicFile } from '@/lib/heic-converter'
 
+const FILE_PIPELINE_TIMEOUT_MS = 60_000
+const SLOW_FILE_TOAST_MS = 5_000
+
+async function runFilePipeline<T>({
+  file,
+  toastId,
+  onStartSlow,
+  pipeline,
+}: {
+  file: File
+  toastId: string
+  onStartSlow: () => void
+  pipeline: (file: File) => Promise<T>
+}): Promise<T> {
+  let slowToastTimer: ReturnType<typeof setTimeout> | null = null
+  try {
+    slowToastTimer = setTimeout(() => {
+      if (!toast.isActive(toastId)) onStartSlow()
+    }, SLOW_FILE_TOAST_MS)
+    return await Promise.race([
+      pipeline(file),
+      new Promise<never>((_resolve, reject) =>
+        setTimeout(
+          () => reject(new Error('Gagal memuat foto. Coba pilih foto lain atau pastikan foto sudah tersimpan penuh di HP (bukan hanya di iCloud).')),
+          FILE_PIPELINE_TIMEOUT_MS
+        )
+      ),
+    ])
+  } finally {
+    if (slowToastTimer) clearTimeout(slowToastTimer)
+  }
+}
+
 interface ExtractedTrade {
   symbol: string
   type: string
@@ -78,103 +111,99 @@ export default function ScreenshotJournalDialog({
   }
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    let file = e.target.files?.[0]
-    if (!file) return
+    const rawFile = e.target.files?.[0]
+    if (!rawFile) return
 
-    if (file.size > 10 * 1024 * 1024) {
+    if (rawFile.size > 10 * 1024 * 1024) {
       toast.error('File terlalu besar', { description: 'Maksimal 10MB' })
       return
     }
 
-    // Convert HEIC to JPEG client-side (iPhone photos) — magic bytes detection
-    setAnalyzing(true)
-    try {
-      const heic = await isHeicFile(file)
-      if (heic) {
-        toast.loading('Converting HEIC to JPEG...')
-        file = await convertHeicToJpeg(file) as File
-      }
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal konversi HEIC. Export foto sebagai JPEG/PNG lalu coba lagi.', { duration: 6000 })
-      setAnalyzing(false)
-      e.target.value = ''
-      return
-    }
-
-    if (!file.type.startsWith('image/') && !file.name.match(/\.(jpe?g|png|webp|gif|bmp)$/i)) {
-      toast.error('Tipe file tidak valid. Upload gambar.')
-      setAnalyzing(false)
-      e.target.value = ''
-      return
-    }
-
-    // Show preview
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      setImagePreview(ev.target?.result as string)
-      setStep('preview')
-    }
-    reader.readAsDataURL(file)
-
-    // Start analysis
     setAnalyzing(true)
     setError(null)
 
-    try {
-      const formData = new FormData()
-      formData.append('image', file)
-      if (selectedAccountId) formData.append('accountId', selectedAccountId)
-
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 45000)
-
-      const res = await fetch('/api/screenshot-journal', {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-      })
-      clearTimeout(timeoutId)
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Gagal menganalisis screenshot')
-      }
-
-      if (data.success) {
-        const t = data.trade
-        const j = data.journal
-        const raw = data.raw_analysis || ''
-
-        const hasTradeData = t && t.symbol && t.symbol.length > 0
-        const hasJournalData = j && j.title && j.title.length > 0
-
-        if (hasTradeData || hasJournalData) {
-          setTrade(t)
-          setJournal(j)
-          setEditTrade({ ...t })
-          setEditJournal({ ...j })
-          setRawAnalysis(raw)
-          setStep('result')
-        } else if (raw) {
-          // Only got raw analysis, no structured data
-          setRawAnalysis(raw)
-          setError('AI tidak bisa mengenali data trading di screenshot ini. Coba screenshot yang lebih jelas.')
-          setStep('result')
-        } else {
-          setError('Tidak ada data trading yang terdeteksi di screenshot.')
+    await runFilePipeline({
+      file: rawFile,
+      toastId: 'screenshot-journal',
+      onStartSlow: () => toast.loading('Sedang memuat foto dari penyimpanan...', { id: 'screenshot-journal' }),
+      pipeline: async (file) => {
+        let processedFile = file
+        const heic = await isHeicFile(file)
+        if (heic) {
+          toast.loading('Converting HEIC to JPEG...', { id: 'screenshot-journal' })
+          processedFile = await convertHeicToJpeg(file) as File
         }
-      } else if (data.warning) {
-        setRawAnalysis(data.raw_analysis || '')
-        setError(data.warning)
-        setStep('result')
-      }
-    } catch (err) {
+
+        if (!processedFile.type.startsWith('image/') && !processedFile.name.match(/\.(jpe?g|png|webp|gif|bmp)$/i)) {
+          throw new Error('Tipe file tidak valid. Upload gambar.')
+        }
+
+        // Show preview
+        const reader = new FileReader()
+        reader.onload = (ev) => {
+          setImagePreview(ev.target?.result as string)
+          setStep('preview')
+        }
+        reader.readAsDataURL(processedFile)
+
+        const formData = new FormData()
+        formData.append('image', processedFile)
+        if (selectedAccountId) formData.append('accountId', selectedAccountId)
+
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 45000)
+
+        const res = await fetch('/api/screenshot-journal', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        })
+        clearTimeout(timeoutId)
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Gagal menganalisis screenshot')
+        }
+
+        if (data.success) {
+          const t = data.trade
+          const j = data.journal
+          const raw = data.raw_analysis || ''
+
+          const hasTradeData = t && t.symbol && t.symbol.length > 0
+          const hasJournalData = j && j.title && j.title.length > 0
+
+          if (hasTradeData || hasJournalData) {
+            setTrade(t)
+            setJournal(j)
+            setEditTrade({ ...t })
+            setEditJournal({ ...j })
+            setRawAnalysis(raw)
+            setStep('result')
+          } else if (raw) {
+            setRawAnalysis(raw)
+            setError('AI tidak bisa mengenali data trading di screenshot ini. Coba screenshot yang lebih jelas.')
+            setStep('result')
+          } else {
+            setError('Tidak ada data trading yang terdeteksi di screenshot.')
+          }
+        } else if (data.warning) {
+          setRawAnalysis(data.raw_analysis || '')
+          setError(data.warning)
+          setStep('result')
+        }
+      },
+    }).catch((err) => {
       console.error('Screenshot analysis error:', err)
-      setError(err instanceof Error ? err.message : 'Gagal menganalisis screenshot. Coba lagi.')
-    } finally {
+      if (err.name === 'AbortError') {
+        setError('Analisis terlalu lama. Coba screenshot yang lebih jelas.')
+      } else {
+        setError(err instanceof Error ? err.message : 'Gagal menganalisis screenshot. Coba lagi.')
+      }
+    }).finally(() => {
       setAnalyzing(false)
-    }
+    })
   }
 
   const handleSave = async () => {

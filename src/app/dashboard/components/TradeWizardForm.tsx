@@ -15,6 +15,55 @@ import { calculateForexProfitLoss, getPipInfo, formatTradingInput, AccountType }
 import { isoToDatetimeLocal, datetimeLocalToISO } from '../utils/helpers'
 import { convertHeicToJpeg, isHeicFile } from '@/lib/heic-converter'
 
+// Total timeout for the entire file-select-to-fetch pipeline (catches iCloud download hangs)
+const FILE_PIPELINE_TIMEOUT_MS = 60_000
+const SLOW_FILE_TOAST_MS = 5_000 // Show "loading from storage" toast after this long
+
+/**
+ * Wraps the entire file-read + detect + upload pipeline in a total timeout.
+ * Shows a "loading from storage" toast if the initial file read takes > 5s
+ * (common on iOS with iCloud-offloaded photos).
+ */
+async function runFilePipeline<T>({
+  file,
+  toastId,
+  onStartSlow,
+  pipeline,
+}: {
+  file: File
+  toastId: string
+  onStartSlow: () => void
+  pipeline: (file: File) => Promise<T>
+}): Promise<T> {
+  let slowToastTimer: ReturnType<typeof setTimeout> | null = null
+
+  try {
+    // If the file header read or HEIC conversion is slow (iCloud download),
+    // show a reassuring toast so the user knows it's not frozen.
+    slowToastTimer = setTimeout(() => {
+      if (!toast.isActive(toastId)) {
+        onStartSlow()
+      }
+    }, SLOW_FILE_TOAST_MS)
+
+    const result = await Promise.race([
+      pipeline(file),
+      new Promise<never>((_resolve, reject) =>
+        setTimeout(
+          () => reject(new Error(
+            'Gagal memuat foto. Coba pilih foto lain atau pastikan foto sudah tersimpan penuh di HP (bukan hanya di iCloud).'
+          )),
+          FILE_PIPELINE_TIMEOUT_MS
+        )
+      ),
+    ])
+
+    return result
+  } finally {
+    if (slowToastTimer) clearTimeout(slowToastTimer)
+  }
+}
+
 // Emotion options with emoji
 const emotionOptions = [
   { value: 'confident', emoji: '😎', label: 'Confident', color: 'text-yellow-400' },
@@ -171,235 +220,188 @@ export default function TradeWizardForm({
 
   // Handle screenshot upload with AI analysis
   const handleScreenshotAnalysis = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    let file = e.target.files?.[0]
-    if (!file) return
+    const rawFile = e.target.files?.[0]
+    if (!rawFile) return
 
-    // Validate file size (10MB max)
-    if (file.size > 10 * 1024 * 1024) {
+    if (rawFile.size > 10 * 1024 * 1024) {
       toast.error('File too large. Maximum size is 10MB.')
       return
     }
 
-    // Convert HEIC to JPEG client-side (iPhone photos) — magic bytes detection
     setAnalyzingScreenshot(true)
-    try {
-      const heic = await isHeicFile(file)
-      if (heic) {
-        toast.loading('Converting HEIC to JPEG...', { id: 'screenshot-analysis' })
-        file = await convertHeicToJpeg(file) as File
-      }
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to convert HEIC image.', { id: 'screenshot-analysis', duration: 6000 })
-      setAnalyzingScreenshot(false)
-      e.target.value = ''
-      return
-    }
 
-    if (!file.type.startsWith('image/') && !file.name.match(/\.(jpe?g|png|webp|gif|bmp)$/i)) {
-      toast.error('Invalid file type. Please upload an image.', { id: 'screenshot-analysis' })
-      setAnalyzingScreenshot(false)
-      e.target.value = ''
-      return
-    }
+    await runFilePipeline({
+      file: rawFile,
+      toastId: 'screenshot-analysis',
+      onStartSlow: () => toast.loading('Sedang memuat foto dari penyimpanan...', { id: 'screenshot-analysis' }),
+      pipeline: async (file) => {
+        let processedFile = file
+        // HEIC detection + conversion
+        const heic = await isHeicFile(file)
+        if (heic) {
+          toast.loading('Converting HEIC to JPEG...', { id: 'screenshot-analysis' })
+          processedFile = await convertHeicToJpeg(file) as File
+        }
 
-    try {
-      const formData = new FormData()
-      formData.append('image', file)
+        if (!processedFile.type.startsWith('image/') && !processedFile.name.match(/\.(jpe?g|png|webp|gif|bmp)$/i)) {
+          throw new Error('Invalid file type. Please upload an image.')
+        }
 
-      // 45s safety timeout
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 45000)
+        const formData = new FormData()
+        formData.append('image', processedFile)
 
-      const res = await fetch('/api/analyze-screenshot', {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-      })
-      clearTimeout(timeoutId)
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 45000)
 
-      const data = await res.json()
-
-      if (res.ok && data.success) {
-        // Auto-fill form with extracted data
-        if (data.data.symbol) onFormChange('symbol', data.data.symbol)
-        if (data.data.type) onTypeChange(data.data.type)
-        if (data.data.lot_size) onFormChange('lot_size', data.data.lot_size.toString())
-        if (data.data.open_price) onFormChange('open_price', data.data.open_price.toString())
-        if (data.data.close_price) onFormChange('close_price', data.data.close_price.toString())
-        if (data.data.profit_loss) onFormChange('profit_loss', data.data.profit_loss.toString())
-        if (data.data.stop_loss) onFormChange('stop_loss', data.data.stop_loss.toString())
-        if (data.data.take_profit) onFormChange('take_profit', data.data.take_profit.toString())
-        if (data.image_url) onFormChange('screenshot_url', data.image_url)
-        if (data.image_url) setUploadedImage(data.image_url)
-
-        toast.success('✨ Screenshot analyzed! Form auto-filled with trading data.')
-      } else {
-        toast.error(data.error || 'Failed to analyze screenshot')
-      }
-    } catch (error) {
-      console.error('❌ [TradeWizardForm] Screenshot analysis error:', error)
-      toast.error('Failed to analyze screenshot. Please try again.')
-    } finally {
-      setAnalyzingScreenshot(false)
-      e.target.value = ''
-    }
-  }
-
-  // Handle auto-journal creation with AI analysis
-  const handleAutoJournal = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    let file = e.target.files?.[0]
-    if (!file) return
-
-    // Validate file size (10MB max)
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('File too large. Maximum size is 10MB.')
-      return
-    }
-
-    // Convert HEIC to JPEG client-side (iPhone photos) — magic bytes detection
-    setAnalyzingScreenshot(true)
-    try {
-      const heic = await isHeicFile(file)
-      if (heic) {
-        toast.loading('Converting HEIC to JPEG...', { id: 'auto-journal' })
-        file = await convertHeicToJpeg(file) as File
-      }
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to convert HEIC image.', { id: 'auto-journal', duration: 6000 })
-      setAnalyzingScreenshot(false)
-      e.target.value = ''
-      return
-    }
-
-    if (!file.type.startsWith('image/') && !file.name.match(/\.(jpe?g|png|webp|gif|bmp)$/i)) {
-      toast.error('Invalid file type. Please upload an image.', { id: 'auto-journal' })
-      setAnalyzingScreenshot(false)
-      e.target.value = ''
-      return
-    }
-
-    if (!toast.isActive('auto-journal')) {
-      toast.loading('🤖 AI sedang menganalisis screenshot kamu...', { id: 'auto-journal' })
-    }
-    try {
-      const formData = new FormData()
-      formData.append('image', file)
-
-      // 45s timeout — jaring pengaman kalau ada hang di masa depan
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 45000)
-
-      let res: Response
-      try {
-        res = await fetch('/api/auto-journal', {
+        const res = await fetch('/api/analyze-screenshot', {
           method: 'POST',
           body: formData,
           signal: controller.signal,
         })
-      } catch (fetchErr: any) {
         clearTimeout(timeoutId)
-        // Network error — server might not be reachable at all
-        toast.error(`Jaringan gagal: ${fetchErr.message}. Pastikan server berjalan.`, { id: 'auto-journal', duration: 6000 })
-        throw fetchErr
-      }
-      clearTimeout(timeoutId)
 
-      // Parse response — handle non-JSON responses gracefully
-      let data: any
-      const responseText = await res.text()
-      try {
-        data = JSON.parse(responseText)
-      } catch {
-        toast.error(`Server mengembalikan response tidak valid (HTTP ${res.status}). Coba lagi.`, { id: 'auto-journal', duration: 6000 })
-        console.error('❌ [Auto-Journal] Non-JSON response:', responseText.slice(0, 500))
-        return
-      }
-
-      if (!res.ok) {
-        // Server returned an error — show the specific message
-        const errorMessage = data.error || data.details || `HTTP Error ${res.status}`
-        const errorCode = data.code || ''
-        let hint = ''
-
-        if (res.status === 401) {
-          hint = ' — Kamu belum login atau session sudah expired. Coba logout lalu login ulang.'
-        } else if (res.status === 403) {
-          hint = ' — Auto-journal adalah fitur PRO. Gunakan kode promo untuk upgrade.'
-        } else if (res.status === 400 && errorCode === 'HEIC_NOT_SUPPORTED') {
-          hint = ' — Export fotonya sebagai JPEG/PNG dulu.'
-        } else if (data.details) {
-          hint = ` — ${data.details}`
+        const data = await res.json()
+        if (res.ok && data.success) {
+          if (data.data.symbol) onFormChange('symbol', data.data.symbol)
+          if (data.data.type) onTypeChange(data.data.type)
+          if (data.data.lot_size) onFormChange('lot_size', data.data.lot_size.toString())
+          if (data.data.open_price) onFormChange('open_price', data.data.open_price.toString())
+          if (data.data.close_price) onFormChange('close_price', data.data.close_price.toString())
+          if (data.data.profit_loss) onFormChange('profit_loss', data.data.profit_loss.toString())
+          if (data.data.stop_loss) onFormChange('stop_loss', data.data.stop_loss.toString())
+          if (data.data.take_profit) onFormChange('take_profit', data.data.take_profit.toString())
+          if (data.image_url) onFormChange('screenshot_url', data.image_url)
+          if (data.image_url) setUploadedImage(data.image_url)
+          toast.success('Screenshot analyzed! Form auto-filled.', { id: 'screenshot-analysis' })
+        } else {
+          throw new Error(data.error || 'Failed to analyze screenshot')
         }
-
-        toast.error(`${errorMessage}${hint}`, { id: 'auto-journal', duration: 8000 })
-        console.error('❌ [Auto-Journal] API error:', res.status, data)
-        return
-      }
-
-      if (data.success) {
-        // Auto-fill form with extracted trade data
-        const trade = data.data.trade
-        const journal = data.data.journal
-
-        // Count extracted fields - minimum 3 fields required (Symbol, P/L, Time)
-        const extractedFields = [
-          trade.symbol,
-          trade.type,
-          trade.open_price,
-          trade.close_price,
-          trade.lot_size,
-          trade.profit_loss,
-          trade.open_time,
-          trade.close_time
-        ].filter(field => field !== undefined && field !== null && field !== '').length
-
-        console.log(`📊 [Auto-Journal] Extracted ${extractedFields} fields from image`)
-
-        if (extractedFields < 3) {
-          toast.error('❌ Maaf, hasil scan tidak lengkap. Mohon unggah screenshot halaman History (tabel) yang lebih jelas.', {
-            id: 'auto-journal',
-            duration: 6000
-          })
-          return
-        }
-
-        if (trade.symbol) onFormChange('symbol', trade.symbol)
-        if (trade.type) onTypeChange(trade.type)
-        if (trade.lot_size) onFormChange('lot_size', trade.lot_size.toString())
-        if (trade.open_price) onFormChange('open_price', trade.open_price.toString())
-        if (trade.close_price) onFormChange('close_price', trade.close_price.toString())
-        if (trade.profit_loss) onFormChange('profit_loss', trade.profit_loss.toString())
-        if (trade.stop_loss) onFormChange('stop_loss', trade.stop_loss.toString())
-        if (trade.take_profit) onFormChange('take_profit', trade.take_profit.toString())
-
-        // Auto-fill journal data
-        if (journal.content) onFormChange('notes', journal.content)
-        if (journal.mood) {
-          setSelectedEmotion(journal.mood)
-          onFormChange('emotion', journal.mood)
-        }
-        if (journal.setup_type) onFormChange('setup_type', journal.setup_type)
-        if (journal.risk_reward_ratio) onFormChange('risk_reward_ratio', journal.risk_reward_ratio.toString())
-
-        toast.success('✨ Auto-journal created! Trade and journal have been saved automatically.', { id: 'auto-journal' })
-        toast.success('📝 AI analyzed: ' + journal.setup_type + ' setup in ' + journal.market_condition + ' market')
-
-        // Close modal after successful auto-journal
-        setTimeout(() => {
-          onCancel()
-        }, 1500)
-      }
-    } catch (error: any) {
-      console.error('❌ [TradeWizardForm] Auto-journal error:', error)
-      if (error.name === 'AbortError') {
-        toast.error('⏱️ Analisis AI terlalu lama (>30 detik). Coba lagi atau gunakan screenshot yang lebih jelas.', { id: 'auto-journal', duration: 5000 })
+      },
+    }).catch((err) => {
+      if (err.name === 'AbortError') {
+        toast.error('Analisis terlalu lama (>45 detik). Coba lagi.', { id: 'screenshot-analysis', duration: 6000 })
       } else {
-        toast.error('Gagal membuat auto-journal. Silakan coba lagi.', { id: 'auto-journal' })
+        toast.error(err.message || 'Failed to analyze screenshot.', { id: 'screenshot-analysis', duration: 6000 })
       }
-    } finally {
+    }).finally(() => {
       setAnalyzingScreenshot(false)
       e.target.value = ''
+    })
+  }
+
+  // Handle auto-journal creation with AI analysis
+  const handleAutoJournal = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFile = e.target.files?.[0]
+    if (!rawFile) return
+
+    if (rawFile.size > 10 * 1024 * 1024) {
+      toast.error('File too large. Maximum size is 10MB.')
+      return
     }
+
+    setAnalyzingScreenshot(true)
+
+    await runFilePipeline({
+      file: rawFile,
+      toastId: 'auto-journal',
+      onStartSlow: () => toast.loading('Sedang memuat foto dari penyimpanan...', { id: 'auto-journal' }),
+      pipeline: async (file) => {
+        let processedFile = file
+        const heic = await isHeicFile(file)
+        if (heic) {
+          toast.loading('Converting HEIC to JPEG...', { id: 'auto-journal' })
+          processedFile = await convertHeicToJpeg(file) as File
+        }
+
+        if (!processedFile.type.startsWith('image/') && !processedFile.name.match(/\.(jpe?g|png|webp|gif|bmp)$/i)) {
+          throw new Error('Invalid file type. Please upload an image.')
+        }
+
+        if (!toast.isActive('auto-journal')) {
+          toast.loading('AI sedang menganalisis screenshot kamu...', { id: 'auto-journal' })
+        }
+
+        const formData = new FormData()
+        formData.append('image', processedFile)
+
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 45000)
+
+        let res: Response
+        try {
+          res = await fetch('/api/auto-journal', {
+            method: 'POST',
+            body: formData,
+            signal: controller.signal,
+          })
+        } catch (fetchErr: any) {
+          clearTimeout(timeoutId)
+          throw new Error(`Jaringan gagal: ${fetchErr.message}`)
+        }
+        clearTimeout(timeoutId)
+
+        let data: any
+        const responseText = await res.text()
+        try {
+          data = JSON.parse(responseText)
+        } catch {
+          throw new Error(`Server response tidak valid (HTTP ${res.status})`)
+        }
+
+        if (!res.ok) {
+          const errorMessage = data.error || data.details || `HTTP Error ${res.status}`
+          const errorCode = data.code || ''
+          let hint = ''
+          if (res.status === 401) hint = ' — Session expired. Coba logout lalu login ulang.'
+          else if (res.status === 403) hint = ' — Fitur PRO. Gunakan kode promo untuk upgrade.'
+          else if (res.status === 400 && errorCode === 'HEIC_NOT_SUPPORTED') hint = ' — Export sebagai JPEG/PNG dulu.'
+          else if (data.details) hint = ` — ${data.details}`
+          throw new Error(`${errorMessage}${hint}`)
+        }
+
+        if (data.success) {
+          const trade = data.data.trade
+          const journal = data.data.journal
+
+          const extractedFields = [
+            trade.symbol, trade.type, trade.open_price, trade.close_price,
+            trade.lot_size, trade.profit_loss, trade.open_time, trade.close_time
+          ].filter(field => field !== undefined && field !== null && field !== '').length
+
+          if (extractedFields < 3) {
+            throw new Error('Hasil scan tidak lengkap. Upload screenshot History (tabel) yang lebih jelas.')
+          }
+
+          if (trade.symbol) onFormChange('symbol', trade.symbol)
+          if (trade.type) onTypeChange(trade.type)
+          if (trade.lot_size) onFormChange('lot_size', trade.lot_size.toString())
+          if (trade.open_price) onFormChange('open_price', trade.open_price.toString())
+          if (trade.close_price) onFormChange('close_price', trade.close_price.toString())
+          if (trade.profit_loss) onFormChange('profit_loss', trade.profit_loss.toString())
+          if (trade.stop_loss) onFormChange('stop_loss', trade.stop_loss.toString())
+          if (trade.take_profit) onFormChange('take_profit', trade.take_profit.toString())
+          if (journal.content) onFormChange('notes', journal.content)
+          if (journal.mood) {
+            setSelectedEmotion(journal.mood)
+            onFormChange('emotion', journal.mood)
+          }
+          if (journal.setup_type) onFormChange('setup_type', journal.setup_type)
+          if (journal.risk_reward_ratio) onFormChange('risk_reward_ratio', journal.risk_reward_ratio.toString())
+
+          toast.success('Auto-journal created!', { id: 'auto-journal' })
+          setTimeout(() => onCancel(), 1500)
+        }
+      },
+    }).catch((err) => {
+      if (err.name === 'AbortError') {
+        toast.error('Analisis AI terlalu lama. Coba screenshot yang lebih jelas.', { id: 'auto-journal', duration: 6000 })
+      } else {
+        toast.error(err.message || 'Gagal membuat auto-journal.', { id: 'auto-journal', duration: 8000 })
+      }
+    }).finally(() => {
+      setAnalyzingScreenshot(false)
+      e.target.value = ''
+    })
   }
 
   // Handle MT5 file upload
