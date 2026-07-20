@@ -120,6 +120,7 @@ export async function GET(request: NextRequest) {
         open_price: 0,
         close_price: 0,
         profit_loss: 0,
+        lot_size: 0,
         open_time: new Date(),
         close_time: new Date(),
       }
