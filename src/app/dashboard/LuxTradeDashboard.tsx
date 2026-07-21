@@ -257,13 +257,6 @@ function LuxTradeDashboardContent() {
     toast.success('Selamat! Akun PRO Anda sedang diproses. Refresh halaman dalam beberapa menit.')
   }, [refreshProfile])
 
-  const handleLoadSampleData = useCallback(async () => {
-    const res = await fetch('/api/sample-data', { method: 'POST' })
-    if (res.ok) {
-      fetchData()
-    }
-  }, [fetchData])
-
   const handleOnAddFirstTrade = useCallback(() => setAddTradeOpen(true), [])
 
   useEffect(() => {
@@ -409,6 +402,13 @@ function LuxTradeDashboardContent() {
       setChartAnimated(true)
     }
   }, [])
+
+  const handleLoadSampleData = useCallback(async () => {
+    const res = await fetch('/api/sample-data', { method: 'POST' })
+    if (res.ok) {
+      fetchData()
+    }
+  }, [fetchData])
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
