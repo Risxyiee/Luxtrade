@@ -40,3 +40,19 @@ Work Log:
 Stage Summary:
 - ~7 files modified: LuxTradeDashboard.tsx, DashboardModals.tsx, Header.tsx, Sidebar.tsx, JournalTab.tsx, JournalFilterPanel.tsx, globals.css
 - Key perf wins: eliminated cascade re-renders, reduced initial JS bundle ~200KB+, stopped 30+ infinite animations on mobile, removed GPU-heavy backdrop-blur on mobile, O(1) calendar lookups
+
+---
+Task ID: 2
+Agent: main
+Task: Create lightweight equity curve API endpoint
+
+Work Log:
+- Created /api/equity-curve GET endpoint
+- No PRO gating (available for all users)
+- Smart downsampling: max 80 data points using bucket-based min/max selection
+- Returns minimal payload: equityCurve, initialBalance, currentBalance, totalPL, peak/trough, maxDD, totalReturnPct
+- Uses Prisma db + getAuthUser for auth
+
+Stage Summary:
+- Created src/app/api/equity-curve/route.ts
+- Lightweight alternative to /api/analytics for equity curve display
