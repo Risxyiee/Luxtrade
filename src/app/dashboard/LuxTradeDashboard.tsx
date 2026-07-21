@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react'
 import { useRouter } from 'next/navigation'
 import { registerKeyboardShortcuts, type ShortcutAction } from '@/lib/keyboard-shortcuts'
 import {
@@ -12,19 +12,9 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { motion } from 'framer-motion'
 import { useAuth } from '@/lib/auth-context'
 import { useLanguage } from '@/contexts/LanguageContext'
-import PlanSelectionModal from '@/components/PlanSelectionModal'
-import PNLShareCard from '@/components/PNLShareCard'
-// TradingScore, AIWeeklyReport, TradingStreaks are now lazy-loaded via next/dynamic in TabContent.tsx
-import NotificationCenter from '@/components/NotificationCenter'
-import ActivityFeed from '@/components/ActivityFeed'
-import QuickStats from '@/components/QuickStats'
-import WelcomeOnboarding from '@/components/WelcomeOnboarding'
 import { ChartErrorBoundary } from '@/components/ChartErrorBoundary'
-// AchievementCenter is now lazy-loaded via next/dynamic in TabContent.tsx
-import PaywallModal from '@/components/PaywallModal'
 import { ContextGuideProvider } from '@/components/ContextGuide'
 
 // Tab components are now lazy-loaded via next/dynamic in TabContent.tsx
@@ -238,22 +228,43 @@ function LuxTradeDashboardContent() {
   }, [isPro])
 
   
-  const handleSelectPlan = (plan: any) => {
-    // For free plan, just close modal
+  // Stable journal handlers to prevent TabContent re-renders
+  const handleJournalView = useCallback((entry: JournalEntry) => {
+    setSelectedJournal(entry)
+    setViewJournalOpen(true)
+  }, [])
+
+  const handleJournalEdit = useCallback((entry: JournalEntry) => {
+    setSelectedJournal(entry)
+    setEditJournalOpen(true)
+  }, [])
+
+  const handleSignOut = useCallback(async () => {
+    await signOut()
+    router.push('/')
+  }, [signOut, router])
+
+  const handleSelectPlan = useCallback((plan: any) => {
     if (plan.price === 0) {
       setPlanSelectionModalOpen(false)
       toast.success('Anda menggunakan paket Free!')
-      return
     }
-    // For paid plans, the PlanSelectionModal now handles payment internally
-    // No need to do anything here — payment flow is triggered inside the modal
-  }
+  }, [])
 
-  const handlePaymentSuccess = () => {
+  const handlePaymentSuccess = useCallback(() => {
     setPlanSelectionModalOpen(false)
     refreshProfile()
     toast.success('Selamat! Akun PRO Anda sedang diproses. Refresh halaman dalam beberapa menit.')
-  }
+  }, [refreshProfile])
+
+  const handleLoadSampleData = useCallback(async () => {
+    const res = await fetch('/api/sample-data', { method: 'POST' })
+    if (res.ok) {
+      fetchData()
+    }
+  }, [fetchData])
+
+  const handleOnAddFirstTrade = useCallback(() => setAddTradeOpen(true), [])
 
   useEffect(() => {
     const checkMobile = () => {
@@ -262,7 +273,6 @@ function LuxTradeDashboardContent() {
       const isMobileCheck = /android|iphone|ipad|mobile/i.test(userAgent) || screenWidth < 1024
       setIsMobile(isMobileCheck)
 
-      // Auto-open sidebar on desktop, keep closed on mobile
       if (!isMobileCheck) {
         setSidebarOpen(true)
       } else {
@@ -271,9 +281,23 @@ function LuxTradeDashboardContent() {
     }
 
     checkMobile()
-    const handleResize = () => checkMobile()
+    let rafId: number
+    let lastTime = 0
+    const THROTTLE_MS = 200
+    const handleResize = () => {
+      const now = Date.now()
+      if (now - lastTime < THROTTLE_MS) {
+        rafId = requestAnimationFrame(handleResize)
+        return
+      }
+      lastTime = now
+      checkMobile()
+    }
     window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      if (rafId) cancelAnimationFrame(rafId)
+    }
   }, [])
 
   
@@ -554,7 +578,7 @@ function LuxTradeDashboardContent() {
 
   // ==================== AI INSIGHTS ====================
 
-  const getPerformanceTips = async () => {
+  const getPerformanceTips = useCallback(async () => {
     if (!analytics || analytics.totalTrades < 5) {
       toast.error('Add at least 5 trades to get AI insights')
       return
@@ -565,10 +589,7 @@ function LuxTradeDashboardContent() {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'performance_tips',
-          data: analytics
-        })
+        body: JSON.stringify({ type: 'performance_tips', data: analytics })
       })
       
       const data = await res.json()
@@ -582,18 +603,15 @@ function LuxTradeDashboardContent() {
     } finally {
       setAiLoading(false)
     }
-  }
+  }, [analytics])
   
-  const getMarketInsight = async () => {
+  const getMarketInsight = useCallback(async () => {
     setAiLoading(true)
     try {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'market_insight',
-          data: {}
-        })
+        body: JSON.stringify({ type: 'market_insight', data: {} })
       })
       
       const data = await res.json()
@@ -605,9 +623,9 @@ function LuxTradeDashboardContent() {
     } finally {
       setAiLoading(false)
     }
-  }
+  }, [])
   
-  const sendAiChat = async () => {
+  const sendAiChat = useCallback(async () => {
     if (!aiChatInput.trim()) return
     
     const userMessage = aiChatInput
@@ -637,12 +655,7 @@ function LuxTradeDashboardContent() {
     } finally {
       setAiLoading(false)
     }
-  }
-
-  const handleSignOut = async () => {
-    await signOut()
-    router.push('/')
-  }
+  }, [aiChatInput, trades, analytics])
 
   // User initials with hydration safety check
   const userInitials = profile?.full_name
@@ -734,8 +747,8 @@ function LuxTradeDashboardContent() {
           onEdit={openEditModal}
           onDelete={openDeleteModal}
           onDuplicate={openDuplicateModal}
-          onJournalView={(entry) => { setSelectedJournal(entry); setViewJournalOpen(true) }}
-          onJournalEdit={(entry) => { setSelectedJournal(entry); setEditJournalOpen(true) }}
+          onJournalView={handleJournalView}
+          onJournalEdit={handleJournalEdit}
           onJournalDelete={handleDeleteJournal}
           onWatchlistDelete={handleDeleteWatchlist}
           onGetTips={getPerformanceTips}
@@ -775,13 +788,8 @@ function LuxTradeDashboardContent() {
         setPaywallModalOpen={setPaywallModalOpen}
         showOnboarding={showOnboarding}
         setShowOnboarding={setShowOnboarding}
-        onAddFirstTrade={() => setAddTradeOpen(true)}
-        onLoadSampleData={async () => {
-          const res = await fetch('/api/sample-data', { method: 'POST' })
-          if (res.ok) {
-            fetchData()
-          }
-        }}
+        onAddFirstTrade={handleOnAddFirstTrade}
+        onLoadSampleData={handleLoadSampleData}
         addTradeOpen={addTradeOpen}
         setAddTradeOpen={setAddTradeOpen}
         addAccountOpen={isAddAccountOpen}
@@ -816,6 +824,7 @@ function LuxTradeDashboardContent() {
 
         // User & Plan
         user={user}
+        handleSignOut={handleSignOut}
         handleSelectPlan={handleSelectPlan}
         handlePaymentSuccess={handlePaymentSuccess}
         proTrialCount={proTrialCount}

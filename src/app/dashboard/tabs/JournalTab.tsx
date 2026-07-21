@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   BookOpen, Plus, Edit, Trash2, Smile, Meh, Frown, Sparkles,
   BarChart3, Brain, Zap, Crown, RefreshCw, Calendar, Tag, Image as ImageIcon, Link2, ChevronLeft, ChevronRight, FileText, Printer, X, PenLine
@@ -82,6 +82,18 @@ interface CalendarViewProps {
 }
 
 function CalendarView({ entries, currentMonth, setCurrentMonth, onView }: CalendarViewProps) {
+  // Pre-compute a lookup map: date string → entries (O(1) per lookup instead of O(N) filter)
+  const entriesByDate = useMemo(() => {
+    const map = new Map<string, JournalEntry[]>()
+    for (const e of entries) {
+      const key = new Date(e.created_at).toDateString()
+      const arr = map.get(key) || []
+      arr.push(e)
+      map.set(key, arr)
+    }
+    return map
+  }, [entries])
+
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear()
     const month = date.getMonth()
@@ -93,8 +105,7 @@ function CalendarView({ entries, currentMonth, setCurrentMonth, onView }: Calend
   }
 
   const getEntriesForDate = (date: Date) => {
-    const dateStr = date.toDateString()
-    return entries.filter(e => new Date(e.created_at).toDateString() === dateStr)
+    return entriesByDate.get(date.toDateString()) || []
   }
 
   const { startDayOfWeek, totalDays } = getDaysInMonth(currentMonth)
@@ -235,10 +246,10 @@ function JournalTab({
     sessionStorage.setItem('journal-reminder-dismissed', new Date().toDateString())
   }
 
-  // Filter state for advanced search
+  // Filter state from JournalFilterPanel — single source of truth, no duplicate state
   const [filteredEntries, setFilteredEntries] = useState<JournalEntry[]>(entries)
 
-  // Keep filteredEntries in sync when entries prop changes
+  // Reset filter when entries prop changes (e.g. after add/delete)
   useEffect(() => {
     setFilteredEntries(entries)
   }, [entries])
@@ -480,6 +491,34 @@ function JournalTab({
     }
   }, [showAnalytics, journalAnalytics, entries.length])
 
+  // Memoized computed values (must be before any conditional returns)
+  const todayStr = new Date().toDateString()
+  const hasTodayEntry = useMemo(
+    () => filteredEntries.some(e => new Date(e.created_at).toDateString() === todayStr),
+    [filteredEntries, todayStr]
+  )
+
+  const quickStreak = useMemo(() => {
+    const uniqueDates = [...new Set(entries.map(e => new Date(e.created_at).toDateString()))]
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+    if (uniqueDates.length === 0) return 0
+    const firstDate = new Date(uniqueDates[0])
+    firstDate.setHours(0, 0, 0, 0)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const diffDays = Math.floor((today.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24))
+    if (diffDays > 1) return 0
+    let streak = 1
+    for (let i = 1; i < uniqueDates.length; i++) {
+      const prev = new Date(uniqueDates[i - 1])
+      const curr = new Date(uniqueDates[i])
+      prev.setHours(0, 0, 0, 0)
+      curr.setHours(0, 0, 0, 0)
+      if (Math.floor((prev.getTime() - curr.getTime()) / (1000 * 60 * 60 * 24)) === 1) { streak++ } else break
+    }
+    return streak
+  }, [entries])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -489,32 +528,6 @@ function JournalTab({
   }
 
   const todayPrompt = getDailyPrompt()
-  const todayStr = new Date().toDateString()
-  const hasTodayEntry = filteredEntries.some(e => new Date(e.created_at).toDateString() === todayStr)
-
-  // Calculate quick streak locally
-  const uniqueDates = [...new Set(entries.map(e => new Date(e.created_at).toDateString()))]
-    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-  let quickStreak = 0
-  if (uniqueDates.length > 0) {
-    const firstDate = new Date(uniqueDates[0])
-    firstDate.setHours(0, 0, 0, 0)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const diffDays = Math.floor((today.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24))
-    if (diffDays <= 1) {
-      quickStreak = 1
-      for (let i = 1; i < uniqueDates.length; i++) {
-        const prev = new Date(uniqueDates[i - 1])
-        const curr = new Date(uniqueDates[i])
-        prev.setHours(0, 0, 0, 0)
-        curr.setHours(0, 0, 0, 0)
-        if (Math.floor((prev.getTime() - curr.getTime()) / (1000 * 60 * 60 * 24)) === 1) {
-          quickStreak++
-        } else break
-      }
-    }
-  }
 
   // Calendar helpers
   const getDaysInMonth = (date: Date) => {
