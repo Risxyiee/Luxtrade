@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import {
   DollarSign, Target, Activity, TrendingUp, TrendingDown,
   Sparkles, AlertTriangle, Clock, BarChart3, Plus,
-  Trophy, Flame, Loader2, Wallet, ArrowUpRight, ArrowDownRight, Gem, CircleDot, Crown
+  Trophy, Flame, Loader2
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -16,8 +17,14 @@ import { useConfetti } from '@/hooks/useConfetti'
 import AnimatedStatCard from '../components/AnimatedStatCard'
 import type { Trade, JournalEntry, Analytics } from '@/types'
 import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, CartesianGrid, ReferenceLine
+  BarChart, Bar, Cell, CartesianGrid, Tooltip, ResponsiveContainer, XAxis, YAxis
 } from 'recharts'
+
+// Lightweight equity curve - lazy loaded, zero recharts/framer-motion dependency
+const EquityCurveCard = dynamic(() => import('../components/EquityCurveCard'), {
+  ssr: false,
+  loading: () => <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#0d0820] border border-lux-border dark:border-purple-500/20"><CardContent className="py-16 flex items-center justify-center"><Loader2 className="w-6 h-6 text-purple-400 animate-spin" /></CardContent></Card>
+})
 
 // Helpers extracted to dashboard/helpers.ts
 import {
@@ -88,332 +95,6 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: s
       </CardHeader>
       <CardContent>
         <div className={`text-xl font-bold ${c.valueText}`}>{value}</div>
-      </CardContent>
-    </Card>
-  )
-}
-
-// ==================== LUXURIOUS EQUITY CURVE COMPONENT ====================
-
-// Custom tooltip uses a ref pattern
-const equityTooltipRef = { current: { curve: [] as { date: string; equity: number }[], first: 0 } }
-
-function EquityTooltipContent({ active, payload, label }: any) {
-  if (active && payload && payload.length) {
-    const { curve, first } = equityTooltipRef.current
-    const equity = payload[0].value
-    const prevIdx = curve.findIndex((d) => d.date === label) - 1
-    const prevEquity = prevIdx >= 0 ? curve[prevIdx].equity : first
-    const change = equity - prevEquity
-    return (
-      <div className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#1a1030] border border-purple-500/40 rounded-xl p-3 shadow-2xl shadow-purple-500/10">
-        <p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1.5">{label}</p>
-        <p className="text-lg font-bold bg-gradient-to-r from-purple-300 to-amber-300 bg-clip-text text-transparent">
-          ${equity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </p>
-        {prevIdx >= 0 && (
-          <p className={`text-xs mt-1 flex items-center gap-1 ${change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            {change >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-            {change >= 0 ? '+' : ''}{change.toFixed(2)} ({((change / prevEquity) * 100).toFixed(1)}%)
-          </p>
-        )}
-      </div>
-    )
-  }
-  return null
-}
-
-function LuxuryEquityCurve({
-  equityCurve,
-  tradingAccounts,
-  totalPL,
-  language,
-  chartAnimated
-}: {
-  equityCurve: { date: string; equity: number }[]
-  tradingAccounts?: any[]
-  totalPL: number
-  language: 'id' | 'en'
-  chartAnimated: boolean
-}) {
-  const lastEquity = equityCurve.length > 0 ? equityCurve[equityCurve.length - 1].equity : 0
-  const firstEquity = equityCurve.length > 0 ? equityCurve[0].equity : 0
-  const equityChange = lastEquity - firstEquity
-  const equityChangePct = firstEquity > 0 ? ((equityChange / firstEquity) * 100) : 0
-  const isPositive = totalPL >= 0
-
-  // Find peak and trough
-  const peakEquity = equityCurve.length > 0 ? Math.max(...equityCurve.map(d => d.equity)) : 0
-  const troughEquity = equityCurve.length > 0 ? Math.min(...equityCurve.map(d => d.equity)) : 0
-  const maxDD = peakEquity > 0 ? ((peakEquity - troughEquity) / peakEquity) * 100 : 0
-
-  // Get default account
-  const defaultAccount = tradingAccounts?.find((a: any) => a.is_default) || tradingAccounts?.[0]
-
-  // Keep tooltip data in sync via effect
-  useEffect(() => {
-    equityTooltipRef.current = { curve: equityCurve, first: firstEquity }
-  }, [equityCurve, firstEquity])
-
-  const chartTooltipStyle = {
-    background: 'linear-gradient(135deg, #0f0b18 0%, #1a1030 100%)',
-    border: '1px solid rgba(139,92,246,0.4)',
-    borderRadius: 12,
-    boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(139,92,246,0.15)',
-    padding: '12px 16px'
-  }
-
-  return (
-    <Card className="relative overflow-hidden bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:via-[#110d1f] dark:to-[#0d0820] backdrop-blur-xl border border-lux-border dark:border-purple-500/20 transition-all duration-500 hover:border-purple-500/40 hover:shadow-2xl hover:shadow-purple-500/10">
-      {/* Background ambient effects */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <motion.div
-          className="absolute -top-20 -left-20 w-60 h-60 bg-purple-500/8 rounded-full blur-3xl"
-          animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.5, 0.3] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute -bottom-16 -right-16 w-48 h-48 bg-amber-500/6 rounded-full blur-3xl"
-          animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-        />
-        {/* Subtle grid pattern */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: 'linear-gradient(rgba(139,92,246,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.3) 1px, transparent 1px)',
-          backgroundSize: '40px 40px'
-        }} />
-      </div>
-
-      <CardHeader className="relative z-10 pb-2">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className={`p-2.5 rounded-xl bg-gradient-to-br ${isPositive ? 'from-emerald-500/20 to-emerald-600/10' : 'from-red-500/20 to-red-600/10'} border ${isPositive ? 'border-emerald-500/20' : 'border-lux-border dark:border-red-500/20'}`}>
-                <Gem className={`w-5 h-5 ${isPositive ? 'text-emerald-400' : 'text-red-400'}`} />
-              </div>
-              <motion.div
-                className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full"
-                style={{ backgroundColor: isPositive ? '#22c55e' : '#ef4444' }}
-                animate={{ scale: [1, 1.4, 1], opacity: [1, 0.5, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-            </div>
-            <div>
-              <CardTitle className="text-lg font-bold bg-gradient-to-r from-white via-purple-200 to-amber-200 bg-clip-text text-transparent">
-                {language === 'id' ? 'Kurva Ekuitas' : 'Equity Curve'}
-              </CardTitle>
-              <p className="text-xs text-lux-text-muted dark:text-gray-500 mt-0.5">{equityCurve.length} {language === 'id' ? 'data poin' : 'data points'}</p>
-            </div>
-          </div>
-
-          {/* Summary badges */}
-          <div className="flex items-center gap-2">
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${isPositive ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-lux-border dark:border-red-500/20'}`}>
-              {isPositive ? <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" /> : <ArrowDownRight className="w-3.5 h-3.5 text-red-400" />}
-              <span className={`text-sm font-bold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-                {fmtPL(equityChange)}
-              </span>
-            </div>
-            <div className={`px-3 py-1.5 rounded-lg border bg-purple-500/10 border-lux-border dark:border-purple-500/20`}>
-              <span className="text-sm font-bold text-purple-300">
-                {equityChangePct >= 0 ? '+' : ''}{equityChangePct.toFixed(1)}%
-              </span>
-            </div>
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent className="relative z-10">
-        {/* Account Info Bar */}
-        {defaultAccount && (
-          <div className="mb-4 p-3.5 rounded-xl bg-gradient-to-r from-white/[0.03] to-white/[0.01] border border-white/[0.06]">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-500/20 to-violet-500/20 border border-lux-border dark:border-purple-500/20 flex items-center justify-center">
-                  <Wallet className="w-4 h-4 text-purple-400" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-lux-text-primary dark:text-white/90">{defaultAccount.name}</span>
-                    <Badge className={`text-[10px] px-1.5 py-0 h-4 ${
-                      defaultAccount.account_type === 'BACKTEST' ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' :
-                      defaultAccount.account_type === 'DEMO' ? 'bg-blue-500/15 text-blue-400 border-blue-500/30' :
-                      'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                    }`}>
-                      {defaultAccount.account_type}
-                    </Badge>
-                    {defaultAccount.is_default && (
-                      <Badge className="text-[10px] px-1.5 py-0 h-4 bg-purple-500/15 text-purple-300 border-purple-500/30">
-                        DEFAULT
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 mt-0.5 text-xs text-lux-text-muted dark:text-gray-500">
-                    {defaultAccount.broker && <span>{defaultAccount.broker}</span>}
-                    {defaultAccount.account_number && <span>#{defaultAccount.account_number}</span>}
-                    <span>1:{defaultAccount.leverage}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] uppercase tracking-wider text-lux-text-muted dark:text-gray-500 mb-0.5">{language === 'id' ? 'Saldo Saat Ini' : 'Current Balance'}</p>
-                <p className="text-xl font-bold bg-gradient-to-r from-emerald-300 via-white to-purple-200 bg-clip-text text-transparent">
-                  {defaultAccount.currency || 'USD'} {lastEquity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-                <div className="flex items-center gap-3 mt-1 text-[10px] text-lux-text-muted dark:text-gray-500 justify-end">
-                  <span>{language === 'id' ? 'Awal' : 'Initial'}: {defaultAccount.currency || 'USD'} {firstEquity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  <span className="text-gray-700">|</span>
-                  <span>DD: <span className="text-red-400/80">{maxDD.toFixed(1)}%</span></span>
-                </div>
-              </div>
-            </div>
-
-            {/* All accounts summary row */}
-            {tradingAccounts && tradingAccounts.length > 1 && (
-              <div className="mt-3 pt-3 border-t border-white/[0.06]">
-                <div className="flex items-center gap-4 overflow-x-auto pb-1 scrollbar-none">
-                  {tradingAccounts.map((acc: any) => {
-                    const accEquity = acc.current_balance || acc.initial_balance || 0
-                    const isAccDefault = acc.is_default
-                    return (
-                      <div key={acc.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border flex-shrink-0 transition-all ${isAccDefault ? 'bg-purple-500/10 border-purple-500/30' : 'bg-lux-surface-hover dark:bg-white/[0.02] border-lux-border dark:border-white/[0.06] hover:border-lux-border dark:hover:border-white/[0.12]'}`}>
-                        <CircleDot className={`w-3 h-3 ${isAccDefault ? 'text-purple-400' : 'text-gray-600'}`} />
-                        <div>
-                          <p className="text-xs font-medium text-lux-text-secondary dark:text-white/70 truncate max-w-[120px]">{acc.name}</p>
-                          <p className="text-[10px] text-lux-text-muted dark:text-gray-500">{acc.currency || 'USD'} {accEquity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Chart Area */}
-        <div className="h-[300px] lg:h-[380px] relative">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={equityCurve} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <defs>
-                {/* Main gradient stroke */}
-                <linearGradient id="luxEquityStroke" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#a78bfa" stopOpacity={1} />
-                  <stop offset="30%" stopColor="#c084fc" stopOpacity={1} />
-                  <stop offset="60%" stopColor="#f59e0b" stopOpacity={1} />
-                  <stop offset="100%" stopColor="#fbbf24" stopOpacity={1} />
-                </linearGradient>
-                {/* Fill gradient - top to bottom fade */}
-                <linearGradient id="luxEquityFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={isPositive ? '#22c55e' : '#ef4444'} stopOpacity={0.25} />
-                  <stop offset="40%" stopColor="#8b5cf6" stopOpacity={0.12} />
-                  <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
-                </linearGradient>
-                {/* Glow filter */}
-                <filter id="glow">
-                  <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-                  <feMerge>
-                    <feMergeNode in="coloredBlur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-                {/* Dot glow */}
-                <radialGradient id="dotGlow" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="#c084fc" stopOpacity={0.8} />
-                  <stop offset="100%" stopColor="#c084fc" stopOpacity={0} />
-                </radialGradient>
-              </defs>
-
-              {/* Reference line at starting balance */}
-              <ReferenceLine
-                y={firstEquity}
-                stroke="rgba(255,255,255,0.08)"
-                strokeDasharray="6 4"
-              />
-
-              <CartesianGrid
-                strokeDasharray="3 6"
-                stroke="rgba(255,255,255,0.04)"
-                vertical={false}
-              />
-
-              <XAxis
-                dataKey="date"
-                tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v: number) => `$${(v / 1000).toFixed(1)}k`}
-                width={55}
-                domain={['auto', 'auto']}
-              />
-
-              <Tooltip content={EquityTooltipContent} />
-
-              {/* Glow layer behind the main line */}
-              <Area
-                type="monotone"
-                dataKey="equity"
-                stroke="url(#luxEquityStroke)"
-                strokeWidth={1}
-                fill="transparent"
-                filter="url(#glow)"
-                animationDuration={chartAnimated ? 2000 : 0}
-                animationEasing="ease-out"
-                isAnimationActive={chartAnimated}
-              />
-              {/* Main area */}
-              <Area
-                type="monotone"
-                dataKey="equity"
-                stroke="url(#luxEquityStroke)"
-                strokeWidth={2.5}
-                fill="url(#luxEquityFill)"
-                animationDuration={chartAnimated ? 2000 : 0}
-                animationEasing="ease-out"
-                isAnimationActive={chartAnimated}
-                dot={false}
-                activeDot={{
-                  r: 6,
-                  fill: '#c084fc',
-                  stroke: '#fff',
-                  strokeWidth: 2,
-                  filter: 'url(#glow)'
-                }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Bottom stats bar */}
-        <div className="mt-4 flex items-center justify-between flex-wrap gap-3 pt-3 border-t border-white/[0.06]">
-          <div className="flex items-center gap-5">
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Ekuitas Tertinggi' : 'Peak Equity'}</p>
-              <p className="text-sm font-bold text-emerald-400">${peakEquity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Ekuitas Terendah' : 'Trough Equity'}</p>
-              <p className="text-sm font-bold text-red-400">${troughEquity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Max Drawdown' : 'Max Drawdown'}</p>
-              <p className="text-sm font-bold text-amber-400">-{maxDD.toFixed(1)}%</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] uppercase tracking-wider text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Total Return' : 'Total Return'}</p>
-            <p className={`text-sm font-bold flex items-center gap-1 justify-end ${equityChangePct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {equityChangePct >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-              {equityChangePct >= 0 ? '+' : ''}{equityChangePct.toFixed(2)}%
-            </p>
-          </div>
-        </div>
       </CardContent>
     </Card>
   )
@@ -615,65 +296,19 @@ function DashboardTab({
       </motion.div>
 
       {/* ============================================ */}
-      {/* 2. LUXURIOUS EQUITY CURVE                    */}
+      {/* 2. LIGHTWEIGHT EQUITY CURVE (SVG, no recharts) */}
       {/* ============================================ */}
-      {hasData && analytics?.equityCurve && analytics.equityCurve.length >= 1 && (
+      {hasData && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.05 }}
+          transition={{ duration: 0.4, delay: 0.05 }}
           aria-label="Equity curve chart"
         >
-          <LuxuryEquityCurve
-            equityCurve={analytics.equityCurve}
-            tradingAccounts={tradingAccounts}
-            totalPL={totalPL}
+          <EquityCurveCard
             language={language}
-            chartAnimated={chartAnimated}
+            tradingAccounts={tradingAccounts}
           />
-        </motion.div>
-      )}
-
-      {/* Equity Curve: Fallback when PRO but analytics failed to load */}
-      {hasData && !analytics?.equityCurve && isPro && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-red-500/20">
-            <CardContent className="py-10 text-center">
-              <BarChart3 className="w-12 h-12 text-red-400/40 mx-auto mb-3" />
-              <p className="text-red-300 font-medium mb-1">{language === 'id' ? 'Gagal memuat data equity curve' : 'Failed to load equity curve data'}</p>
-              <p className="text-xs text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Coba refresh halaman. Jika masih gagal, hubungi admin.' : 'Try refreshing the page. If it persists, contact admin.'}</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      {/* Equity Curve: Info when user has trades but is not PRO (analytics 403) */}
-      {hasData && !analytics && !isPro && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-purple-500/20 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-amber-500/5 pointer-events-none" />
-            <CardContent className="relative py-10 text-center">
-              <Gem className="w-12 h-12 text-purple-400/40 mx-auto mb-3" />
-              <p className="text-purple-200 font-medium mb-1">
-                {language === 'id' ? 'Equity Curve — Fitur PRO' : 'Equity Curve — PRO Feature'}
-              </p>
-              <p className="text-xs text-lux-text-muted dark:text-gray-500 max-w-sm mx-auto">
-                {language === 'id'
-                  ? 'Upgrade ke PRO untuk melihat kurva ekuitas, analisis mendalam, dan insight AI.'
-                  : 'Upgrade to PRO to unlock equity curve, deep analytics, and AI insights.'}
-              </p>
-              <Button
-                onClick={() => {
-                  const event = new CustomEvent('open-plan-selection')
-                  window.dispatchEvent(event)
-                }}
-                className="mt-4 bg-gradient-to-r from-purple-500 to-violet-600 shadow-lg shadow-purple-500/20 text-sm"
-              >
-                <Crown className="w-4 h-4 mr-2" />
-                {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
-              </Button>
-            </CardContent>
-          </Card>
         </motion.div>
       )}
 
