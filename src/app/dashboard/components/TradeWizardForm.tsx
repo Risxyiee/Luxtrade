@@ -116,6 +116,8 @@ interface TradeWizardFormProps {
   onSessionChange: (value: string) => void
   onSave: () => void
   onCancel: () => void
+  /** Called after auto-journal API succeeds — should refresh dashboard data */
+  onAutoJournalSuccess?: () => void
   isEdit?: boolean
   saving?: boolean
   tradingAccounts?: TradingAccountOption[]
@@ -151,6 +153,7 @@ export default function TradeWizardForm({
   onSessionChange,
   onSave,
   onCancel,
+  onAutoJournalSuccess,
   isEdit = false,
   saving = false,
   tradingAccounts = []
@@ -435,7 +438,13 @@ export default function TradeWizardForm({
           if (journal.risk_reward_ratio) onFormChange('risk_reward_ratio', journal.risk_reward_ratio.toString())
 
           toast.success('Auto-journal created! Trade & journal tersimpan.', { id: 'auto-journal', duration: 3000 })
-          setTimeout(() => onSave(), 1500)
+          // The API already saved trade + journal to DB. Just refresh the dashboard
+          // — do NOT call onSave() which would try to create a duplicate trade
+          // via /api/trades and fail validation (no account_id in auto-journal flow).
+          if (onAutoJournalSuccess) {
+            onAutoJournalSuccess()
+          }
+          onCancel() // close the add-trade modal
         }
       },
     }).catch((err) => {
