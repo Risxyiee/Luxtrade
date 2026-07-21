@@ -554,6 +554,7 @@ export default function DashboardModals({
               onNumberInput={handleNumberInput}
               onSave={handleAddTrade}
               onCancel={() => { setAddTradeOpen(false); setFormData(emptyFormData) }}
+              onAutoJournalSuccess={() => { setAddTradeOpen(false); setFormData(emptyFormData); fetchData() }}
               saving={saving}
               tradingAccounts={tradingAccounts}
             />
