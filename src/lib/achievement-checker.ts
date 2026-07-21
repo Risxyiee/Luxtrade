@@ -13,25 +13,25 @@ export interface AchievementResult {
  * Check achievements after a trade is created/updated
  * Returns list of achievements that are now complete and can be claimed
  */
-export async function checkAchievementsAfterTrade(userId: string): Promise<AchievementResult[]> {
+export async function checkAchievementsAfterTrade(userId: string | undefined | null): Promise<AchievementResult[]> {
   try {
     if (!userId) {
       console.log('[Achievement Checker] No userId provided')
       return []
     }
 
-    // Get user's profile
+    // Verify profile exists before any DB writes
     const profile = await db.profile.findUnique({
       where: { id: userId }
     })
 
     if (!profile) {
-      console.log('[Achievement Checker] Failed to get profile')
+      console.log(`[Achievement Checker] No profile found for userId=${userId}`)
       return []
     }
 
     // Get user's claimed achievement IDs from profile.achievements array
-    const claimedAchievementIds = profile.achievements || []
+    const claimedAchievementIds: string[] = Array.isArray(profile.achievements) ? profile.achievements : []
 
     // Check each automatic achievement
     const unlockedAchievements: AchievementResult[] = []
