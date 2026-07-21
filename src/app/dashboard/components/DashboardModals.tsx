@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -9,16 +10,18 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Share2, Edit, Trash2, Calendar, Clock, Plus, Wallet } from 'lucide-react'
-import PNLShareCard from '@/components/PNLShareCard'
 import PaymentConfirmationModal from '@/components/PaymentConfirmationModal'
-import PlanSelectionModal from '@/components/PlanSelectionModal'
-import PaywallModal from '@/components/PaywallModal'
-import WelcomeOnboarding from '@/components/WelcomeOnboarding'
-import TradeWizardForm from './TradeWizardForm'
-import AddAccountForm from './AddAccountForm'
 import { formatCurrency } from '@/lib/supabase'
 import { Trade, TradeFormData } from '../utils/types'
 import { emptyFormData, moodOptions, marketConditions } from '../utils/helpers'
+
+// Lazy-load heavy modal children — they only render when their Dialog is open
+const PNLShareCard = dynamic(() => import('@/components/PNLShareCard').then(m => ({ default: m.default })), { ssr: false })
+const PlanSelectionModal = dynamic(() => import('@/components/PlanSelectionModal').then(m => ({ default: m.default })), { ssr: false })
+const PaywallModal = dynamic(() => import('@/components/PaywallModal').then(m => ({ default: m.default })), { ssr: false })
+const WelcomeOnboarding = dynamic(() => import('@/components/WelcomeOnboarding').then(m => ({ default: m.default })), { ssr: false })
+const TradeWizardForm = dynamic(() => import('./TradeWizardForm').then(m => ({ default: m.default })), { ssr: false })
+import AddAccountForm from './AddAccountForm'
 
 interface DashboardModalsProps {
   // Modal states
