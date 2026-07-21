@@ -163,7 +163,7 @@ export default function Sidebar({
       {/* Mobile Overlay Background - Click to close with better feedback */}
       {mobileSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300"
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden transition-opacity duration-300"
           onClick={() => {
             setMobileSidebarOpen(false)
             // Add haptic feedback if available
@@ -196,7 +196,7 @@ export default function Sidebar({
         flex flex-col overflow-hidden
       `}>
         {/* Glassmorphism Background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-lux-bg-sidebar via-lux-bg-tertiary to-lux-bg-sidebar dark:from-[#0d0a1a]/98 dark:via-[#0f0b18]/98 dark:to-[#0d0a1a]/98 backdrop-blur-3xl border-r border-lux-border dark:border-purple-500/20" />
+        <div className="absolute inset-0 bg-gradient-to-b from-lux-bg-sidebar via-lux-bg-tertiary to-lux-bg-sidebar dark:from-[#0d0a1a]/98 dark:via-[#0f0b18]/98 dark:to-[#0d0a1a]/98 lg:backdrop-blur-xl max-lg:backdrop-blur-none border-r border-lux-border dark:border-purple-500/20" />
 
         {/* Animated Glow Border */}
         <div className="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-purple-500/30 to-transparent" />

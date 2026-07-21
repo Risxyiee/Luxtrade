@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,31 +19,35 @@ export function JournalFilterPanel({ entries, onFilterChange }: JournalFilterPan
 
   const filterOptions = useMemo(() => getFilterOptions(entries), [entries])
 
+  // Compute filtered entries without side effects
   const filteredEntries = useMemo(() => {
-    const result = filterJournalEntries(entries, filters)
-    onFilterChange(result)
-    return result
-  }, [entries, filters, onFilterChange])
+    return filterJournalEntries(entries, filters)
+  }, [entries, filters])
 
-  const handleSearchChange = (query: string) => {
+  // Notify parent when filtered entries change (via useEffect, not inside useMemo)
+  useEffect(() => {
+    onFilterChange(filteredEntries)
+  }, [filteredEntries, onFilterChange])
+
+  const handleSearchChange = useCallback((query: string) => {
     setFilters(prev => ({ ...prev, searchQuery: query }))
-  }
+  }, [])
 
-  const handleMoodChange = (mood: string) => {
+  const handleMoodChange = useCallback((mood: string) => {
     setFilters(prev => ({
       ...prev,
       mood: prev.mood === mood ? undefined : mood
     }))
-  }
+  }, [])
 
-  const handleMarketConditionChange = (condition: string) => {
+  const handleMarketConditionChange = useCallback((condition: string) => {
     setFilters(prev => ({
       ...prev,
       marketCondition: prev.marketCondition === condition ? undefined : condition
     }))
-  }
+  }, [])
 
-  const handleTagToggle = (tag: string) => {
+  const handleTagToggle = useCallback((tag: string) => {
     setFilters(prev => {
       const tags = prev.tags || []
       if (tags.includes(tag)) {
@@ -52,30 +56,32 @@ export function JournalFilterPanel({ entries, onFilterChange }: JournalFilterPan
         return { ...prev, tags: [...tags, tag] }
       }
     })
-  }
+  }, [])
 
-  const handleDateFromChange = (date: string) => {
+  const handleDateFromChange = useCallback((date: string) => {
     setFilters(prev => ({
       ...prev,
       dateFrom: date ? new Date(date) : undefined
     }))
-  }
+  }, [])
 
-  const handleDateToChange = (date: string) => {
+  const handleDateToChange = useCallback((date: string) => {
     setFilters(prev => ({
       ...prev,
       dateTo: date ? new Date(date) : undefined
     }))
-  }
+  }, [])
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setFilters({})
-  }
+  }, [])
 
-  const activeFilterCount = Object.values(filters).filter(v => {
-    if (Array.isArray(v)) return v.length > 0
-    return v !== undefined && v !== ''
-  }).length
+  const activeFilterCount = useMemo(() => {
+    return Object.values(filters).filter(v => {
+      if (Array.isArray(v)) return v.length > 0
+      return v !== undefined && v !== ''
+    }).length
+  }, [filters])
 
   return (
     <div className="space-y-4">

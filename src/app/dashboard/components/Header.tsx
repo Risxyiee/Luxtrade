@@ -1,10 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { memo, useState, useMemo } from 'react'
 import { Menu, RefreshCw, LogOut, Keyboard } from 'lucide-react'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
-import NotificationCenter from '@/components/NotificationCenter'
+import dynamic from 'next/dynamic'
 import { ThemeToggle } from './ThemeToggle'
 import {
   Dialog,
@@ -14,6 +13,9 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { getShortcutsList } from '@/lib/keyboard-shortcuts'
+
+// Lazy-loaded to reduce initial bundle
+const NotificationCenter = dynamic(() => import('@/components/NotificationCenter').then(m => ({ default: m.default })), { ssr: false })
 
 interface HeaderProps {
   sidebarOpen: boolean
@@ -30,7 +32,7 @@ interface HeaderProps {
   language: 'id' | 'en'
 }
 
-export default function Header({
+const Header = memo(function Header({
   sidebarOpen,
   setMobileSidebarOpen,
   activeTab,
@@ -45,10 +47,10 @@ export default function Header({
   language = 'id'
 }: HeaderProps) {
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
-  const shortcuts = getShortcutsList()
+  const shortcuts = useMemo(() => getShortcutsList(), [])
 
   return (
-    <header className="h-16 border-b border-lux-border flex items-center justify-between px-4 lg:px-6 bg-lux-bg-tertiary/90 backdrop-blur-md sticky top-0 z-30">
+    <header className="h-16 border-b border-lux-border flex items-center justify-between px-4 lg:px-6 bg-lux-bg-tertiary/95 max-lg:backdrop-blur-none lg:backdrop-blur-md sticky top-0 z-30">
       <div className="flex items-center gap-3">
         <button
           onClick={() => setMobileSidebarOpen(true)}
@@ -102,11 +104,7 @@ export default function Header({
         <NotificationCenter trades={trades} isPro={isPro} />
 
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-          <motion.div
-            className="w-2 h-2 rounded-full bg-emerald-400"
-            animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          />
+          <span className="w-2 h-2 rounded-full bg-emerald-400" />
           <span className="text-xs text-emerald-400">Connected</span>
         </div>
 
@@ -126,4 +124,6 @@ export default function Header({
       </div>
     </header>
   )
-}
+})
+
+export default Header
