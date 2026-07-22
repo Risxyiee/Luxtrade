@@ -56,3 +56,23 @@ Work Log:
 Stage Summary:
 - Created src/app/api/equity-curve/route.ts
 - Lightweight alternative to /api/analytics for equity curve display
+
+---
+Task ID: 3
+Agent: main
+Task: Fix auto-journal account_id, session/broker_gmt_offset, and TradeWizardForm i18n
+
+Work Log:
+- FIX 1a: Verified auto-journal/route.ts already had account_id extraction and validation (lines 126-134), account_id in trade create (line 309), and broker_gmt_offset fetch + session/duration calculation (lines 272-298)
+- FIX 1b: Verified TradeWizardForm already had account_id validation before auto-journal (lines 344-348), dedicated FormData with account_id appended (lines 380-382)
+- FIX 2a: Added `broker_gmt_offset Int @default(0)` to TradingAccount model in prisma/schema.prisma after currency field
+- FIX 2b: Added broker_gmt_offset to AddAccountForm: initial state, POST body, form resets, and new GMT Offset input field with helper text
+- FIX 2c: Added broker_gmt_offset to /api/trading-accounts POST handler
+- FIX 3: Added `language?: 'id' | 'en'` prop to TradeWizardFormProps, destructured with default 'id', passed from DashboardModals. Translated 30+ hardcoded English strings to Indonesian/English ternaries
+- Ran `bunx prisma generate` (schema uses remote PostgreSQL, no local db:push possible). Ran `bun run lint` — clean, no errors.
+
+Stage Summary:
+- 4 files modified: prisma/schema.prisma, AddAccountForm.tsx, TradeWizardForm.tsx, DashboardModals.tsx, api/trading-accounts/route.ts
+- Auto-journal now properly requires and stores account_id
+- broker_gmt_offset field added to schema + form + API for session calculation
+- TradeWizardForm fully i18n'd with Indonesian/English language support

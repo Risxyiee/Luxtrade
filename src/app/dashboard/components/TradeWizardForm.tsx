@@ -118,9 +118,11 @@ interface TradeWizardFormProps {
   onCancel: () => void
   /** Called after auto-journal API succeeds — should refresh dashboard data */
   onAutoJournalSuccess?: () => void
+  onNumberInput?: (field: string, e: React.ChangeEvent<HTMLInputElement>) => void
   isEdit?: boolean
   saving?: boolean
   tradingAccounts?: TradingAccountOption[]
+  language?: 'id' | 'en'
 }
 
 // Quick pairs for easy selection
@@ -154,10 +156,13 @@ export default function TradeWizardForm({
   onSave,
   onCancel,
   onAutoJournalSuccess,
+  onNumberInput,
   isEdit = false,
   saving = false,
-  tradingAccounts = []
+  tradingAccounts = [],
+  language = 'id',
 }: TradeWizardFormProps) {
+  const L = language === 'id'
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedEmotion, setSelectedEmotion] = useState<string>(formData.emotion || '')
   const [uploadedImage, setUploadedImage] = useState<string | null>(formData.screenshot_url || null)
@@ -173,7 +178,7 @@ export default function TradeWizardForm({
 
     if (Object.keys(stepErrors).length > 0) {
       setErrors(stepErrors)
-      toast.error('Please fix the errors before proceeding')
+      toast.error(L ? 'Perbaiki error dulu sebelum lanjut' : 'Please fix the errors before proceeding')
       return
     }
 
@@ -200,13 +205,13 @@ export default function TradeWizardForm({
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      toast.error('Please upload an image file')
+      toast.error(L ? 'Upload file gambar' : 'Please upload an image file')
       return
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size must be less than 5MB')
+      toast.error(L ? 'Ukuran file maksimal 5MB' : 'File size must be less than 5MB')
       return
     }
 
@@ -246,7 +251,7 @@ export default function TradeWizardForm({
   const handleRemoveImage = () => {
     setUploadedImage(null)
     onFormChange('screenshot_url', '')
-    toast.success('Image removed')
+    toast.success(L ? 'Gambar dihapus' : 'Image removed')
   }
 
   // Handle screenshot upload with AI analysis
@@ -255,7 +260,7 @@ export default function TradeWizardForm({
     if (!rawFile) return
 
     if (rawFile.size > 10 * 1024 * 1024) {
-      toast.error('File too large. Maximum size is 10MB.')
+      toast.error(L ? 'File terlalu besar. Maksimal 10MB.' : 'File too large. Maximum size is 10MB.')
       return
     }
 
@@ -280,11 +285,11 @@ export default function TradeWizardForm({
         }
 
         if (!processedFile.type.startsWith('image/') && !processedFile.name.match(/\.(jpe?g|png|webp|gif|bmp)$/i)) {
-          throw new Error('Invalid file type. Please upload an image.')
+          throw new Error(L ? 'Tipe file tidak valid. Upload gambar.' : 'Invalid file type. Please upload an image.')
         }
 
-        const formData = new FormData()
-        formData.append('image', processedFile)
+        const fd = new FormData()
+        fd.append('image', processedFile)
 
         console.log('[handleScreenshotAnalysis] Fetching /api/analyze-screenshot...')
         const controller = new AbortController()
@@ -294,7 +299,7 @@ export default function TradeWizardForm({
         try {
           res = await fetch('/api/analyze-screenshot', {
             method: 'POST',
-            body: formData,
+            body: fd,
             signal: controller.signal,
           })
         } catch (fetchErr: any) {
@@ -340,8 +345,15 @@ export default function TradeWizardForm({
     const rawFile = e.target.files?.[0]
     if (!rawFile) return
 
+    // Validate account selection before proceeding
+    if (!formData.account_id) {
+      toast.error(L ? 'Pilih akun trading terlebih dahulu!' : 'Please select a trading account first!', { id: 'auto-journal', duration: 3000 })
+      e.target.value = ''
+      return
+    }
+
     if (rawFile.size > 10 * 1024 * 1024) {
-      toast.error('File too large. Maximum size is 10MB.')
+      toast.error(L ? 'File terlalu besar. Maksimal 10MB.' : 'File too large. Maximum size is 10MB.')
       return
     }
 
@@ -365,13 +377,14 @@ export default function TradeWizardForm({
         }
 
         if (!processedFile.type.startsWith('image/') && !processedFile.name.match(/\.(jpe?g|png|webp|gif|bmp)$/i)) {
-          throw new Error('Invalid file type. Please upload an image.')
+          throw new Error(L ? 'Tipe file tidak valid. Upload gambar.' : 'Invalid file type. Please upload an image.')
         }
 
-        toast.loading('AI sedang menganalisis screenshot kamu...', { id: 'auto-journal' })
+        toast.loading(L ? 'AI sedang menganalisis screenshot kamu...' : 'Analyzing with AI...', { id: 'auto-journal' })
 
-        const formData = new FormData()
-        formData.append('image', processedFile)
+        const reqFormData = new FormData()
+        reqFormData.append('image', processedFile)
+        reqFormData.append('account_id', formData.account_id || '')
 
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 45000)
@@ -380,7 +393,7 @@ export default function TradeWizardForm({
         try {
           res = await fetch('/api/auto-journal', {
             method: 'POST',
-            body: formData,
+            body: reqFormData,
             signal: controller.signal,
           })
         } catch (fetchErr: any) {
@@ -437,7 +450,7 @@ export default function TradeWizardForm({
           if (journal.setup_type) onFormChange('setup_type', journal.setup_type)
           if (journal.risk_reward_ratio) onFormChange('risk_reward_ratio', journal.risk_reward_ratio.toString())
 
-          toast.success('Auto-journal created! Trade & journal tersimpan.', { id: 'auto-journal', duration: 3000 })
+          toast.success(L ? 'Auto-journal berhasil! Trade & journal tersimpan.' : 'Auto-journal created! Trade & journal saved.', { id: 'auto-journal', duration: 3000 })
           // The API already saved trade + journal to DB. Just refresh the dashboard
           // — do NOT call onSave() which would try to create a duplicate trade
           // via /api/trades and fail validation (no account_id in auto-journal flow).
@@ -467,18 +480,18 @@ export default function TradeWizardForm({
 
     // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('File too large. Maximum size is 5MB.')
+      toast.error(L ? 'File terlalu besar. Maksimal 5MB.' : 'File too large. Maximum size is 5MB.')
       return
     }
 
     setUploadingMT5(true)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
+      const mt5FormData = new FormData()
+      mt5FormData.append('file', file)
 
       const res = await fetch('/api/import/file', {
         method: 'POST',
-        body: formData,
+        body: mt5FormData,
       })
 
       const data = await res.json()
@@ -517,29 +530,29 @@ export default function TradeWizardForm({
       if (step === 1) {
         // Validate symbol, type, lot_size, account_id
         if (!formData.symbol || formData.symbol.length < 3) {
-          stepErrors.symbol = 'Symbol must be at least 3 characters'
+          stepErrors.symbol = L ? 'Symbol minimal 3 karakter' : 'Symbol must be at least 3 characters'
         }
         if (!formData.type || !['BUY', 'SELL'].includes(formData.type)) {
-          stepErrors.type = 'Please select a trade type'
+          stepErrors.type = L ? 'Pilih tipe trade' : 'Please select a trade type'
         }
         const lot = formatTradingInput(formData.lot_size || '')
         if (!formData.lot_size || lot <= 0) {
-          stepErrors.lot_size = 'Invalid lot size'
+          stepErrors.lot_size = L ? 'Ukuran lot tidak valid' : 'Invalid lot size'
         }
         if (!formData.account_id) {
-          stepErrors.account_id = 'Please select a trading account'
+          stepErrors.account_id = L ? 'Pilih akun trading' : 'Please select a trading account'
         }
       } else if (step === 2) {
         // Validate open_price (required), close_price and profit_loss (optional for open positions)
         const openPrice = formatTradingInput(formData.open_price || '')
         if (!formData.open_price || openPrice <= 0) {
-          stepErrors.open_price = 'Invalid entry price'
+          stepErrors.open_price = L ? 'Harga masuk tidak valid' : 'Invalid entry price'
         }
         // close_price and profit_loss are optional
         if (formData.close_price) {
           const closePrice = formatTradingInput(formData.close_price || '')
           if (closePrice <= 0) {
-            stepErrors.close_price = 'Invalid exit price'
+            stepErrors.close_price = L ? 'Harga keluar tidak valid' : 'Invalid exit price'
           }
         }
       }
@@ -569,7 +582,7 @@ export default function TradeWizardForm({
 
     if (Object.keys(allErrors).length > 0) {
       setErrors(allErrors)
-      toast.error('Please fix all errors before saving')
+      toast.error(L ? 'Perbaiki semua error sebelum menyimpan' : 'Please fix all errors before saving')
       return
     }
 
@@ -577,7 +590,7 @@ export default function TradeWizardForm({
 
     // Validate account_id is set (required for multi-account system)
     if (!formData.account_id) {
-      toast.error('Please select a trading account')
+      toast.error(L ? 'Pilih akun trading' : 'Please select a trading account')
       return
     }
 
@@ -588,12 +601,12 @@ export default function TradeWizardForm({
     const profitLoss = formatTradingInput(formData.profit_loss || '')
 
     if (lot <= 0) {
-      toast.error('Lot size must be greater than 0')
+      toast.error(L ? 'Ukuran lot harus lebih dari 0' : 'Lot size must be greater than 0')
       return
     }
 
     if (openPrice <= 0) {
-      toast.error('Entry price must be greater than 0')
+      toast.error(L ? 'Harga masuk harus lebih dari 0' : 'Entry price must be greater than 0')
       return
     }
 
@@ -636,8 +649,8 @@ export default function TradeWizardForm({
       {/* Progress Bar */}
       <div className="space-y-2 shrink-0"> {/* Added shrink-0 */}
         <div className="flex items-center justify-between text-sm">
-          <span className="text-purple-300 font-medium">Step {currentStep} of {totalSteps}</span>
-          <span className="text-gray-400">{Math.round(progress)}% Complete</span>
+          <span className="text-purple-300 font-medium">{L ? `Langkah ${currentStep} dari ${totalSteps}` : `Step ${currentStep} of ${totalSteps}`}</span>
+          <span className="text-gray-400">{Math.round(progress)}% {L ? 'Selesai' : 'Complete'}</span>
         </div>
         <Progress value={progress} className="h-2 bg-purple-900/30" />
       </div>
@@ -658,7 +671,7 @@ export default function TradeWizardForm({
             <div className="bg-gradient-to-r from-purple-500/10 to-violet-600/10 rounded-lg border border-lux-input-border dark:border-purple-900/30 p-4">
               <Label className="text-sm font-semibold text-purple-300 mb-3 block flex items-center gap-2">
                 <Sparkles className="w-4 h-4" />
-                Quick Import - Choose One
+                {L ? 'Impor Cepat - Pilih Satu' : 'Quick Import - Choose One'}
               </Label>
               <div className="grid grid-cols-2 gap-3">
                 {/* Screenshot AI Analysis */}
@@ -675,12 +688,12 @@ export default function TradeWizardForm({
                     {analyzingScreenshot ? (
                       <>
                         <Loader2 className="w-3 h-3 animate-spin text-purple-400" />
-                        <span className="text-purple-400">Analyzing with AI...</span>
+                        <span className="text-purple-400">{L ? 'Menganalisis dengan AI...' : 'Analyzing with AI...'}</span>
                       </>
                     ) : (
                       <>
                         <Upload className="w-3 h-3" />
-                        <span>Screenshot (AI Auto-fill)</span>
+                        <span>{L ? 'Screenshot (AI Isi Otomatis)' : 'Screenshot (AI Auto-fill)'}</span>
                       </>
                     )}
                   </div>
@@ -700,12 +713,12 @@ export default function TradeWizardForm({
                     {analyzingScreenshot ? (
                       <>
                         <Loader2 className="w-3 h-3 animate-spin text-purple-400" />
-                        <span className="text-purple-400">Creating Auto-Journal...</span>
+                        <span className="text-purple-400">{L ? 'Membuat Auto-Journal...' : 'Creating Auto-Journal...'}</span>
                       </>
                     ) : (
                       <>
                         <Sparkles className="w-3 h-3" />
-                        <span className="font-semibold">Auto-Journal (AI Complete)</span>
+                        <span className="font-semibold">{L ? 'Auto-Journal (AI Lengkap)' : 'Auto-Journal (AI Complete)'}</span>
                       </>
                     )}
                   </div>
@@ -730,25 +743,27 @@ export default function TradeWizardForm({
                     {uploadingMT5 ? (
                       <>
                         <Loader2 className="w-3 h-3 animate-spin text-purple-400" />
-                        <span className="text-purple-400">Importing...</span>
+                        <span className="text-purple-400">{L ? 'Mengimpor...' : 'Importing...'}</span>
                       </>
                     ) : (
                       <>
                         <FileText className="w-3 h-3" />
-                        <span>MT5 Statement</span>
+                        <span>{L ? 'Statement MT5' : 'MT5 Statement'}</span>
                       </>
                     )}
                   </div>
                 </div>
               </div>
               <p className="text-[10px] text-gray-500 mt-2">
-                Upload a screenshot for AI extraction OR MT5 file for direct import. You can also fill the form manually below.
+                {L
+                  ? 'Upload screenshot untuk ekstraksi AI ATAU file MT5 untuk impor langsung. Kamu juga bisa isi form manual di bawah.'
+                  : 'Upload a screenshot for AI extraction OR MT5 file for direct import. You can also fill the form manually below.'}
               </p>
             </div>
 
             <div className="space-y-4">
               <div>
-                <Label className="text-lux-text-primary dark:text-white font-semibold">Trading Pair *</Label>
+                <Label className="text-lux-text-primary dark:text-white font-semibold">{L ? 'Pair Trading *' : 'Trading Pair *'}</Label>
                 <Input
                   placeholder="EURUSD"
                   className={`bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-2 text-white uppercase ${errors.symbol ? 'border-red-500' : ''}`}
@@ -761,7 +776,7 @@ export default function TradeWizardForm({
                 {errors.symbol && <p className="text-red-400 text-xs mt-1">{errors.symbol}</p>}
                 {/* Quick Pair Selector */}
                 <div className="space-y-2 mt-2">
-                  <p className="text-xs text-gray-500">Quick select:</p>
+                  <p className="text-xs text-gray-500">{L ? 'Pilih cepat:' : 'Quick select:'}</p>
                   <div className="flex flex-wrap gap-2">
                     {quickPairs.map((pair) => {
                       const isSelected = formData.symbol === pair.symbol
@@ -795,7 +810,7 @@ export default function TradeWizardForm({
               </div>
 
               <div>
-                <Label className="text-lux-text-primary dark:text-white font-semibold">Trade Type *</Label>
+                <Label className="text-lux-text-primary dark:text-white font-semibold">{L ? 'Tipe Trade *' : 'Trade Type *'}</Label>
                 <Select value={formData.type} onValueChange={(value) => {
                   onTypeChange(value)
                   if (errors.type) setErrors({ ...errors, type: '' })
@@ -814,7 +829,7 @@ export default function TradeWizardForm({
               <div>
                 <Label className="text-white font-semibold flex items-center gap-2">
                   <Wallet className="w-4 h-4" />
-                  Trading Account *
+                  {L ? 'Akun Trading *' : 'Trading Account *'}
                 </Label>
                 <Select value={formData.account_id} onValueChange={(value) => {
                   onFormChange('account_id', value)
@@ -826,12 +841,12 @@ export default function TradeWizardForm({
                   if (errors.account_id) setErrors({ ...errors, account_id: '' })
                 }}>
                   <SelectTrigger className={`bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-2 text-white ${errors.account_id ? 'border-red-500' : ''}`}>
-                    <SelectValue placeholder="Select account" />
+                    <SelectValue placeholder={L ? 'Pilih akun' : 'Select account'} />
                   </SelectTrigger>
                   <SelectContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-input-border dark:border-purple-900/30">
                     {tradingAccounts.length === 0 ? (
                       <div className="p-2 text-center text-gray-400 text-xs">
-                        No accounts found
+                        {L ? 'Belum ada akun' : 'No accounts found'}
                       </div>
                     ) : (
                       tradingAccounts.map((account) => (
@@ -847,7 +862,7 @@ export default function TradeWizardForm({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-lux-text-primary dark:text-white font-semibold">Lot Size *</Label>
+                  <Label className="text-lux-text-primary dark:text-white font-semibold">{L ? 'Ukuran Lot *' : 'Lot Size *'}</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -863,12 +878,12 @@ export default function TradeWizardForm({
                   {errors.lot_size && <p className="text-red-400 text-xs mt-1">{errors.lot_size}</p>}
                 </div>
                 <div>
-                  <Label className="text-lux-text-primary dark:text-white font-semibold">Trading Session</Label>
+                  <Label className="text-lux-text-primary dark:text-white font-semibold">{L ? 'Sesi Trading' : 'Trading Session'}</Label>
                   <Select value={formData.session || ''} onValueChange={(value) => {
                     onSessionChange(value)
                   }}>
                     <SelectTrigger className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-2 text-white">
-                      <SelectValue placeholder="Select session" />
+                      <SelectValue placeholder={L ? 'Pilih sesi' : 'Select session'} />
                     </SelectTrigger>
                     <SelectContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-input-border dark:border-purple-900/30">
                       {tradingSessions.map((session) => (
@@ -899,7 +914,7 @@ export default function TradeWizardForm({
               <Card className={`bg-gradient-to-br from-green-500/10 to-transparent border-green-500/30 ${errors.open_price ? 'border-red-500' : ''}`}>
                 <CardContent className="p-4">
                   <Label className="text-green-400 font-semibold flex items-center gap-2">
-                    <span className="text-lg">📥</span> Entry Price *
+                    <span className="text-lg">📥</span> {L ? 'Harga Masuk *' : 'Entry Price *'}
                   </Label>
                   <Input
                     type="number"
@@ -914,9 +929,9 @@ export default function TradeWizardForm({
                     }}
                   />
                   <div className="flex items-center justify-between mt-1">
-                    <p className="text-xs text-gray-500">Price when you opened the position</p>
+                    <p className="text-xs text-gray-500">{L ? 'Harga saat kamu membuka posisi' : 'Price when you opened the position'}</p>
                     {formData.open_price && (
-                      <span className="text-xs text-green-400 font-medium">✓ Entry set</span>
+                      <span className="text-xs text-green-400 font-medium">{L ? '✓ Harga masuk sudah diisi' : '✓ Entry set'}</span>
                     )}
                   </div>
                   {errors.open_price && <p className="text-red-400 text-xs mt-1">{errors.open_price}</p>}
@@ -926,7 +941,7 @@ export default function TradeWizardForm({
               <Card className={`bg-gradient-to-br from-red-500/10 to-transparent border-red-500/30 ${errors.close_price ? 'border-red-500' : ''}`}>
                 <CardContent className="p-4">
                   <Label className="text-red-400 font-semibold flex items-center gap-2">
-                    <span className="text-lg">📤</span> Exit Price (Optional)
+                    <span className="text-lg">📤</span> {L ? 'Harga Keluar (Opsional)' : 'Exit Price (Optional)'}
                   </Label>
                   <Input
                     type="number"
@@ -941,9 +956,9 @@ export default function TradeWizardForm({
                     }}
                   />
                   <div className="flex items-center justify-between mt-1">
-                    <p className="text-xs text-gray-500">Leave empty if position is still open</p>
+                    <p className="text-xs text-gray-500">{L ? 'Kosongkan jika posisi masih terbuka' : 'Leave empty if position is still open'}</p>
                     {formData.close_price && (
-                      <span className="text-xs text-red-400 font-medium">✓ Exit set</span>
+                      <span className="text-xs text-red-400 font-medium">{L ? '✓ Harga keluar sudah diisi' : '✓ Exit set'}</span>
                     )}
                   </div>
                   {errors.close_price && <p className="text-red-400 text-xs mt-1">{errors.close_price}</p>}
@@ -958,7 +973,7 @@ export default function TradeWizardForm({
                   <Input
                     type="number"
                     step="0.01"
-                    placeholder="Enter profit/loss amount"
+                    placeholder={L ? 'Masukkan jumlah profit/loss' : 'Enter profit/loss amount'}
                     className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-2 text-purple-300"
                     value={formData.profit_loss}
                     onChange={(e) => {
@@ -967,7 +982,7 @@ export default function TradeWizardForm({
                     }}
                   />
                   <div className="flex items-center justify-between mt-1">
-                    <p className="text-xs text-gray-500">Enter the profit (positive) or loss (negative) amount</p>
+                    <p className="text-xs text-gray-500">{L ? 'Masukkan profit (positif) atau loss (negatif)' : 'Enter the profit (positive) or loss (negative) amount'}</p>
                     {formData.profit_loss && (
                       <span className={`text-xs font-medium ${
                         parseFloat(formData.profit_loss) >= 0 ? 'text-green-400' : 'text-red-400'
@@ -1017,7 +1032,7 @@ export default function TradeWizardForm({
               </div>
               <div className="space-y-1">
                 <Label className="text-gray-400 text-xs font-medium flex items-center gap-1">
-                  <span className="text-blue-400">▸</span> Ticket #
+                  <span className="text-blue-400">▸</span> {L ? 'No. Tiket' : 'Ticket #'}
                 </Label>
                 <Input
                   type="text"
@@ -1035,7 +1050,7 @@ export default function TradeWizardForm({
             <div className="grid grid-cols-2 gap-3 pt-2">
               <div className="space-y-1">
                 <Label className="text-gray-400 text-xs font-medium flex items-center gap-1">
-                  <span className="text-green-400">▸</span> Open Time (WIB)
+                  <span className="text-green-400">▸</span> {L ? 'Waktu Buka (WIB)' : 'Open Time (WIB)'}
                 </Label>
                 <Input
                   type="datetime-local"
@@ -1046,7 +1061,7 @@ export default function TradeWizardForm({
               </div>
               <div className="space-y-1">
                 <Label className="text-gray-400 text-xs font-medium flex items-center gap-1">
-                  <span className="text-red-400">▸</span> Close Time (WIB)
+                  <span className="text-red-400">▸</span> {L ? 'Waktu Tutup (WIB)' : 'Close Time (WIB)'}
                 </Label>
                 <Input
                   type="datetime-local"
@@ -1073,7 +1088,7 @@ export default function TradeWizardForm({
             <div className="space-y-3">
               <Label className="text-white font-semibold flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-purple-400" />
-                How did you feel during this trade?
+                {L ? 'Bagaimana perasaanmu saat trade ini?' : 'How did you feel during this trade?'}
               </Label>
               <div className="grid grid-cols-3 gap-2">
                 {emotionOptions.map((emotion) => (
@@ -1099,13 +1114,13 @@ export default function TradeWizardForm({
             <div className="space-y-3">
               <Label className="text-white font-semibold flex items-center gap-2">
                 <Upload className="w-4 h-4 text-blue-400" />
-                Trade Screenshot (Optional)
+                {L ? 'Screenshot Trade (Opsional)' : 'Trade Screenshot (Optional)'}
               </Label>
               <div className="border-2 border-dashed border-lux-input-border dark:border-purple-900/30 rounded-xl p-6 text-center hover:border-purple-500/50 transition-colors">
                 {uploading ? (
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
-                    <p className="text-gray-400">Uploading to Supabase Storage...</p>
+                    <p className="text-gray-400">{L ? 'Mengunggah ke penyimpanan...' : 'Uploading to Supabase Storage...'}</p>
                   </div>
                 ) : uploadedImage ? (
                   <div className="space-y-3">
@@ -1120,7 +1135,7 @@ export default function TradeWizardForm({
                       onClick={handleRemoveImage}
                       className="border-red-500/30 text-red-400 hover:bg-red-500/10"
                     >
-                      <X className="w-4 h-4 mr-2" /> Remove Image
+                      <X className="w-4 h-4 mr-2" /> {L ? 'Hapus Gambar' : 'Remove Image'}
                     </Button>
                   </div>
                 ) : (
@@ -1132,7 +1147,7 @@ export default function TradeWizardForm({
                       className="max-w-sm mx-auto"
                       disabled={uploading}
                     />
-                    <p className="text-xs text-gray-500 mt-2">Upload MT5/MT4 screenshot as proof (max 5MB)</p>
+                    <p className="text-xs text-gray-500 mt-2">{L ? 'Upload screenshot MT5/MT4 sebagai bukti (maks 5MB)' : 'Upload MT5/MT4 screenshot as proof (max 5MB)'}</p>
                   </div>
                 )}
               </div>
@@ -1140,9 +1155,9 @@ export default function TradeWizardForm({
 
             {/* Notes */}
             <div className="space-y-2">
-              <Label className="text-gray-300 text-sm">Additional Notes</Label>
+              <Label className="text-gray-300 text-sm">{L ? 'Catatan Tambahan' : 'Additional Notes'}</Label>
               <Textarea
-                placeholder="Trade setup, lessons learned, any other thoughts..."
+                placeholder={L ? 'Setup trade, pelajaran, pikiran lain...' : 'Trade setup, lessons learned, any other thoughts...'}
                 className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 resize-none text-lux-text-primary dark:text-white"
                 rows={3}
                 value={formData.notes}
@@ -1164,7 +1179,7 @@ export default function TradeWizardForm({
             className="border-lux-input-border dark:border-purple-900/30 flex-1"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Previous
+            {L ? 'Sebelumnya' : 'Previous'}
           </Button>
         ) : (
           <Button
@@ -1173,7 +1188,7 @@ export default function TradeWizardForm({
             disabled={saving || uploading || analyzingScreenshot || uploadingMT5}
             className="border-lux-input-border dark:border-purple-900/30 flex-1"
           >
-            Cancel
+            {L ? 'Batal' : 'Cancel'}
           </Button>
         )}
 
@@ -1183,7 +1198,7 @@ export default function TradeWizardForm({
             disabled={saving || uploading || analyzingScreenshot || uploadingMT5}
             className="flex-1 bg-gradient-to-r from-purple-500 to-violet-600"
           >
-            Next
+            {L ? 'Selanjutnya' : 'Next'}
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         ) : (
@@ -1195,12 +1210,12 @@ export default function TradeWizardForm({
             {saving ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
+                {L ? 'Menyimpan...' : 'Saving...'}
               </>
             ) : (
               <>
                 <CheckCircle className="w-4 h-4 mr-2" />
-                {isEdit ? 'Update Trade' : 'Save Trade'}
+                {isEdit ? (L ? 'Update Trade' : 'Update Trade') : (L ? 'Simpan Trade' : 'Save Trade')}
               </>
             )}
           </Button>

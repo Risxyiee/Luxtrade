@@ -187,6 +187,7 @@ export default function DashboardModals({
               isEdit
               saving={saving}
               tradingAccounts={tradingAccounts}
+              language={language}
             />
           </div>
         </DialogContent>
@@ -560,6 +561,7 @@ export default function DashboardModals({
               onAutoJournalSuccess={() => { setAddTradeOpen(false); setFormData(emptyFormData); fetchData() }}
               saving={saving}
               tradingAccounts={tradingAccounts}
+              language={language}
             />
           </div>
         </DialogContent>

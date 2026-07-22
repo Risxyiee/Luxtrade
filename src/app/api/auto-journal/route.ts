@@ -122,6 +122,17 @@ export async function POST(request: NextRequest) {
     }
     log('📷', `Image received: ${imageFile.name}, ${imageFile.size} bytes, type=${imageFile.type || 'unknown'}`)
 
+    // ── STEP 3b: Extract & validate account_id ──
+    const accountId = formData.get('account_id') as string | null
+    if (!accountId) {
+      log('⛔', 'No account_id provided — required for auto-journal')
+      return NextResponse.json(
+        { error: 'Pilih akun trading terlebih dahulu sebelum auto-journal.', step: 'validation' },
+        { status: 400 }
+      )
+    }
+    log('✅', `account_id: ${accountId}`)
+
     // ── STEP 4: HEIC check ──
     const fileName = imageFile.name.toLowerCase()
     const fileType = (imageFile.type || '').toLowerCase()
@@ -258,6 +269,34 @@ export async function POST(request: NextRequest) {
       journal.risk_reward_ratio = risk > 0 ? reward / risk : 0
     }
 
+    // ── STEP 10b: Fetch trading account for broker_gmt_offset & calculate session ──
+    log('🌐', 'Fetching trading account for GMT offset...')
+    const account = await db.tradingAccount.findUnique({
+      where: { id: accountId },
+      select: { broker_gmt_offset: true },
+    })
+    const gmtOffset = account?.broker_gmt_offset ?? 0
+    log('✅', `broker_gmt_offset: ${gmtOffset}`)
+
+    const openTime = ai.openTime ? new Date(ai.openTime) : new Date()
+    const closeTime = ai.closeTime ? new Date(ai.closeTime) : new Date()
+
+    // Calculate session from broker time + GMT offset
+    function calculateSession(ot: Date, gmtOff: number): string {
+      // Convert broker time to UTC: brokerTime = UTC + gmtOffset, so UTC = brokerTime - gmtOffset
+      const utcHour = (ot.getUTCHours() + ot.getUTCMinutes() / 60) - gmtOff
+      // Normalize to 0-24 range
+      const normalizedHour = ((utcHour % 24) + 24) % 24
+      if (normalizedHour >= 0 && normalizedHour < 7) return 'Asia'
+      if (normalizedHour >= 7 && normalizedHour < 15) return 'London'
+      if (normalizedHour >= 15 && normalizedHour < 24) return 'New York'
+      return 'Unknown'
+    }
+
+    const session = calculateSession(openTime, gmtOffset)
+    const tradeDuration = Math.round((closeTime.getTime() - openTime.getTime()) / 60000) // minutes
+    log('✅', `Session: ${session}, Duration: ${tradeDuration}min`)
+
     // ── STEP 11: Save trade + journal to DB ──
     log('💾', 'Saving trade to database...')
     const t4 = performance.now()
@@ -267,13 +306,14 @@ export async function POST(request: NextRequest) {
       tradeRecord = await db.trade.create({
         data: {
           user_id: authUser.id,
+          account_id: accountId,
           symbol: (ai.symbol || 'UNKNOWN').toUpperCase(),
           type: (ai.type || 'buy').toUpperCase(),
           open_price: ai.openPrice ?? 0,
           close_price: ai.closePrice ?? 0,
           profit_loss: ai.profitLoss ?? 0,
-          open_time: ai.openTime ? new Date(ai.openTime) : new Date(),
-          close_time: ai.closeTime ? new Date(ai.closeTime) : new Date(),
+          open_time: openTime,
+          close_time: closeTime,
           stop_loss: ai.stopLoss ?? null,
           take_profit: ai.takeProfit ?? null,
           lot_size: ai.volume ?? 0,
@@ -283,6 +323,8 @@ export async function POST(request: NextRequest) {
           tags: journal.tags.join(','),
           risk_reward_ratio: journal.risk_reward_ratio,
           notes: journal.content,
+          session,
+          trade_duration: tradeDuration,
         }
       })
     } catch (err: any) {
