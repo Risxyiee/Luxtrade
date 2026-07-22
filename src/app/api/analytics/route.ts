@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     const userId = authUser.id
     const searchParams = request.nextUrl.searchParams
     const period = searchParams.get('period') || 'all'
+    const accountId = searchParams.get('account_id') || null
 
     // Build date filter
     let dateFilter: any = {}
@@ -46,6 +47,10 @@ export async function GET(request: NextRequest) {
 
     if (period !== 'all') {
       whereClause.close_time = dateFilter
+    }
+
+    if (accountId) {
+      whereClause.account_id = accountId
     }
 
     const trades = await db.trade.findMany({

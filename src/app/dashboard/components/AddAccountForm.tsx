@@ -21,7 +21,8 @@ export default function AddAccountForm({ open, onOpenChange, onSuccess }: AddAcc
     broker: '',
     account_type: '',
     initial_balance: '',
-    currency: ''
+    currency: '',
+    broker_gmt_offset: ''
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -97,6 +98,7 @@ export default function AddAccountForm({ open, onOpenChange, onSuccess }: AddAcc
         initial_balance: balance,
         current_balance: balance, // Same as initial_balance when creating
         currency: formData.currency, // "USD" or "IDR"
+        broker_gmt_offset: formData.broker_gmt_offset ? parseInt(formData.broker_gmt_offset) : 0,
         is_default: false,
         is_active: true
       }
@@ -128,7 +130,8 @@ export default function AddAccountForm({ open, onOpenChange, onSuccess }: AddAcc
         broker: '',
         account_type: '',
         initial_balance: '',
-        currency: ''
+        currency: '',
+        broker_gmt_offset: ''
       })
       setErrors({})
 
@@ -158,7 +161,8 @@ export default function AddAccountForm({ open, onOpenChange, onSuccess }: AddAcc
           broker: '',
           account_type: '',
           initial_balance: '',
-          currency: ''
+          currency: '',
+          broker_gmt_offset: ''
         })
         setErrors({})
       }, 300)
@@ -322,6 +326,24 @@ export default function AddAccountForm({ open, onOpenChange, onSuccess }: AddAcc
                 </p>
               )}
             </div>
+          </div>
+
+          {/* GMT Offset */}
+          <div className="space-y-2">
+            <Label htmlFor="gmt_offset" className="text-lux-text-primary dark:text-white font-medium">
+              GMT Offset Server Broker
+            </Label>
+            <Input
+              id="gmt_offset"
+              type="number"
+              placeholder="0"
+              value={formData.broker_gmt_offset}
+              onChange={(e) => handleInputChange('broker_gmt_offset', e.target.value)}
+              className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 text-white placeholder:text-lux-text-muted dark:placeholder:text-gray-600 focus:border-purple-500"
+            />
+            <p className="text-[10px] text-gray-500">
+              Cek di platform MT4/5 kamu: Menu &gt; Options &gt; biasanya tertulis di sana
+            </p>
           </div>
 
           {/* Action Buttons */}
