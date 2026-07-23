@@ -87,18 +87,20 @@ export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNav
                 )
               })}
             </div>
-            <div className="flex items-center gap-2 sm:gap-3">
-              <button onClick={toggleTheme} className="w-11 h-11 flex items-center justify-center rounded-xl bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] hover:bg-[var(--lux-inline-hover-bg-3)] transition-colors" aria-label="Toggle theme">
-                {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-purple-400" />}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <button onClick={toggleTheme} className="w-9 h-9 sm:w-11 sm:h-11 flex items-center justify-center rounded-lg sm:rounded-xl bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] hover:bg-[var(--lux-inline-hover-bg-3)] transition-colors shrink-0" aria-label="Toggle theme">
+                {isDark ? <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" /> : <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400" />}
               </button>
-              <button onClick={onSidebarOpen} className="lg:hidden w-11 h-11 flex items-center justify-center rounded-xl bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] hover:bg-[var(--lux-inline-hover-bg-3)] transition-colors" aria-label="Menu">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-[var(--lux-text-body-2)]"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+              <button onClick={onSidebarOpen} className="lg:hidden w-9 h-9 sm:w-11 sm:h-11 flex items-center justify-center rounded-lg sm:rounded-xl bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] hover:bg-[var(--lux-inline-hover-bg-3)] transition-colors shrink-0" aria-label="Menu">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-[var(--lux-text-body-2)]"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
               </button>
-              <LanguageSwitcher />
-              <Link href="/auth/login" prefetch={false}><Button variant="ghost" className="text-[var(--lux-text-body-2)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg-3)] transition-all font-semibold hidden sm:inline-flex">{t('nav.login')}</Button></Link>
-              <Link href="/auth/signup" prefetch={false}>
-                <Button className="h-10 px-5 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 transition-all">
-                  {t('nav.signup')} <ArrowRight className="w-4 h-4 ml-1.5" />
+              <div className="hidden sm:flex items-center gap-2">
+                <LanguageSwitcher />
+              </div>
+              <Link href="/auth/login" prefetch={false} className="inline-flex shrink-0 max-[360px]:hidden"><Button variant="ghost" size="sm" className="text-[var(--lux-text-body-2)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg-3)] transition-all font-semibold px-2.5 sm:px-3">{t('nav.login')}</Button></Link>
+              <Link href="/auth/signup" prefetch={false} className="shrink-0">
+                <Button size="sm" className="h-8 sm:h-10 px-2.5 sm:px-5 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 transition-all text-xs sm:text-sm">
+                  {t('nav.signup')} <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
                 </Button>
               </Link>
             </div>
