@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useMemo } from 'react'
 import {
   ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown,
   Gem, Wallet, Loader2
@@ -168,7 +168,7 @@ function Tooltip({
 
 // ==================== MAIN COMPONENT ====================
 
-export default function EquityCurveCard({ language = 'id', tradingAccounts, className }: EquityCurveCardProps) {
+function EquityCurveCardInner({ language = 'id', tradingAccounts, className }: EquityCurveCardProps) {
   const [data, setData] = useState<EquityData | null>(null)
   const [loading, setLoading] = useState(true)
   const [hoveredPoint, setHoveredPoint] = useState<{ x: number; y: number; data: { date: string; equity: number } } | null>(null)
@@ -207,10 +207,11 @@ export default function EquityCurveCard({ language = 'id', tradingAccounts, clas
   const isPositive = data ? data.totalPL >= 0 : true
   const defaultAccount = tradingAccounts?.find((a: any) => a.is_default) || tradingAccounts?.[0]
 
-  // Compute chart geometry
-  const chart = data && data.equityCurve.length > 0
-    ? computeChartPoints(data.equityCurve, dimensions.w, dimensions.h, { top: 12, right: 12, bottom: 28, left: 50 })
-    : null
+  // Compute chart geometry (memoized — expensive SVG path computation)
+  const chart = useMemo(() => {
+    if (!data || data.equityCurve.length === 0) return null
+    return computeChartPoints(data.equityCurve, dimensions.w, dimensions.h, { top: 12, right: 12, bottom: 28, left: 50 })
+  }, [data, dimensions.w, dimensions.h])
 
   // Y-axis labels
   const yLabels = chart ? [
@@ -580,3 +581,7 @@ export default function EquityCurveCard({ language = 'id', tradingAccounts, clas
     </Card>
   )
 }
+
+// Wrap with React.memo to prevent re-renders when parent state changes
+const EquityCurveCard = React.memo(EquityCurveCardInner)
+export default EquityCurveCard
