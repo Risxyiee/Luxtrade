@@ -46,21 +46,12 @@ function StatSkeleton() {
 interface StatsStripProps {
   language: 'id' | 'en'
   t: (key: string) => string
+  landingStats?: { totalUsers: number; activeUsers: number; tradesLogged: number } | null
 }
 
-export default function StatsStrip({ language, t }: StatsStripProps) {
-  const [stats, setStats] = useState({ totalUsers: 0, activeUsers: 0, tradesLogged: 0 })
-  const [loaded, setLoaded] = useState(false)
-
-  useEffect(() => {
-    fetch('/api/landing-stats')
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data) setStats(data)
-        setLoaded(true)
-      })
-      .catch(() => setLoaded(true))
-  }, [])
+export default function StatsStrip({ language, t, landingStats }: StatsStripProps) {
+  const stats = landingStats ?? { totalUsers: 0, activeUsers: 0, tradesLogged: 0 }
+  const loaded = landingStats !== null
 
   const items = [
     { value: stats.totalUsers, suffix: '+', label: language === 'id' ? 'Trader Terdaftar' : 'Registered Traders', icon: Users, color: 'text-purple-400' },

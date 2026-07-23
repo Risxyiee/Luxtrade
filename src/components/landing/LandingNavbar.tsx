@@ -95,8 +95,8 @@ export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNav
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-[var(--lux-text-body-2)]"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
               </button>
               <LanguageSwitcher />
-              <Link href="/auth/login"><Button variant="ghost" className="text-[var(--lux-text-body-2)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg-3)] transition-all font-semibold hidden sm:inline-flex">{t('nav.login')}</Button></Link>
-              <Link href="/auth/signup">
+              <Link href="/auth/login" prefetch={false}><Button variant="ghost" className="text-[var(--lux-text-body-2)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg-3)] transition-all font-semibold hidden sm:inline-flex">{t('nav.login')}</Button></Link>
+              <Link href="/auth/signup" prefetch={false}>
                 <Button className="h-10 px-5 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 transition-all">
                   {t('nav.signup')} <ArrowRight className="w-4 h-4 ml-1.5" />
                 </Button>

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Lexend, Inter } from "next/font/google";
+import { Inter, Lexend } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
@@ -8,16 +8,6 @@ import CookieConsent from '@/components/CookieConsent';
 import GlobalErrorBoundary from "@/components/GlobalErrorBoundary";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { Analytics } from '@vercel/analytics/react';
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 const lexend = Lexend({
   variable: "--font-lexend",
@@ -80,7 +70,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${lexend.variable} ${inter.variable} antialiased font-sans`}
+        className={`${inter.variable} ${lexend.variable} antialiased font-sans`}
       >
         <a
           href="#main-content"
@@ -97,7 +87,7 @@ export default function RootLayout({
           </LanguageProvider>
           <Toaster position="top-right" />
 
-          {/* AI Chat Widget - Chatbase */}
+          {/* AI Chat Widget - Chatbase (deferred: load only after page is idle + 3s delay) */}
           <Script
             id="chatbase-widget"
             strategy="afterInteractive"
@@ -116,27 +106,29 @@ export default function RootLayout({
                       }
                     })
                   }
-                  const onLoad=function(){
-                    const script=document.createElement("script");
+                  // Delay 3s after page load to avoid blocking critical rendering
+                  var loadChatbase=function(){
+                    var script=document.createElement("script");
                     script.src="https://www.chatbase.co/embed.min.js";
                     script.id="g6SMFqtY0p-Vv9YdiGWZT";
                     script.domain="www.chatbase.co";
                     document.body.appendChild(script)
                   };
-                  if(document.readyState==="complete"){
-                    onLoad()
+                  // Use requestIdleCallback if available, fallback to setTimeout
+                  if("requestIdleCallback" in window){
+                    requestIdleCallback(function(){setTimeout(loadChatbase,3000)})
                   }else{
-                    window.addEventListener("load",onLoad)
+                    window.addEventListener("load",function(){setTimeout(loadChatbase,3000)})
                   }
                 })();
               `,
             }}
           />
 
-          {/* Page View Tracker */}
+          {/* Page View Tracker (non-blocking, deferred) */}
           <Script
             id="page-view-tracker"
-            strategy="afterInteractive"
+            strategy="lazyOnload"
             dangerouslySetInnerHTML={{
               __html: `
                 (function(){
@@ -147,11 +139,16 @@ export default function RootLayout({
                       userAgent: navigator.userAgent,
                       screenWidth: screen.width
                     };
-                    fetch('/api/track', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(data)
-                    }).catch(function(){});
+                    if(navigator.sendBeacon){
+                      navigator.sendBeacon('/api/track', new Blob([JSON.stringify(data)],{type:'application/json'}));
+                    }else{
+                      fetch('/api/track', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data),
+                        keepalive: true
+                      }).catch(function(){});
+                    }
                   } catch(e) {}
                 })();
               `,

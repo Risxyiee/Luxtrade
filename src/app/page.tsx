@@ -28,6 +28,12 @@ const TestimonialSection = dynamic(() => import('@/components/landing/Testimonia
 const RoadmapSection = dynamic(() => import('@/components/landing/RoadmapSection').then(m => ({ default: m.default })), { ssr: false })
 const NewsletterSection = dynamic(() => import('@/components/landing/NewsletterSection').then(m => ({ default: m.default })), { ssr: false })
 
+interface LandingStats {
+  totalUsers: number
+  activeUsers: number
+  tradesLogged: number
+}
+
 export default function LuxTradeLanding() {
   const { language, t } = useLanguage()
   const [showLegalModal, setShowLegalModal] = useState(false)
@@ -46,17 +52,22 @@ export default function LuxTradeLanding() {
   const [newsletterLoading, setNewsletterLoading] = useState(false)
   const [newsletterSuccess, setNewsletterSuccess] = useState(false)
 
+  // Fetch landing stats ONCE and share with HeroSection + StatsStrip
+  const [landingStats, setLandingStats] = useState<LandingStats | null>(null)
+
   useEffect(() => {
-    fetch('/api/promo-quota?code=TRADERCEPAT')
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data && data.maxQuota > 0) {
-          setPromoRemaining(data.remainingQuota)
-          setPromoMax(data.maxQuota)
-          setPromoActive(data.isActive)
-        }
-      })
-      .catch(() => {})
+    // Fetch landing stats + promo quota in parallel
+    Promise.all([
+      fetch('/api/landing-stats').then(res => res.ok ? res.json() : null).catch(() => null),
+      fetch('/api/promo-quota?code=TRADERCEPAT').then(res => res.ok ? res.json() : null).catch(() => null),
+    ]).then(([statsData, promoData]) => {
+      if (statsData) setLandingStats(statsData)
+      if (promoData && promoData.maxQuota > 0) {
+        setPromoRemaining(promoData.remainingQuota)
+        setPromoMax(promoData.maxQuota)
+        setPromoActive(promoData.isActive)
+      }
+    })
   }, [])
 
   // Lazily load Midtrans Snap.js only when payment is initiated
@@ -159,8 +170,8 @@ export default function LuxTradeLanding() {
       <LandingSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} language={language} t={t} openLegalPage={openLegalPage} />
 
       <main id="main-content" className="flex-1">
-        <HeroSection language={language} t={t} />
-        <StatsStrip language={language} t={t} />
+        <HeroSection language={language} t={t} landingStats={landingStats} />
+        <StatsStrip language={language} t={t} landingStats={landingStats} />
         <SectionDivider />
         <PricingSection language={language} t={t} payLoading={payLoading} handleProUpgrade={handleProUpgrade} handleLifetimeUpgrade={handleLifetimeUpgrade} promoRemaining={promoRemaining} />
         <PromoCodeSection language={language} promoRemaining={promoRemaining} promoMax={promoMax} promoActive={promoActive} />
