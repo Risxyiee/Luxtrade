@@ -107,7 +107,7 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
 
           {/* Lifetime Ultra */}
           <div className="flex-1 min-w-[280px]">
-            <LifetimeUltraCard onButtonClick={handleLifetimeUpgrade} language={language} t={t} promoRemaining={promoRemaining} />
+            <LifetimeUltraCard onButtonClick={handleLifetimeUpgrade} language={language} t={t} />
           </div>
         </div>
 
