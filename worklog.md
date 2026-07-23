@@ -47,3 +47,22 @@ Stage Summary:
 - Build and lint both verified clean — no application code affected
 - PR creation link: https://github.com/Risxyiee/Luxtrade/pull/new/cleanup/remove-old-md-docs
 - Awaiting user confirmation on Vercel preview before merging to main
+
+---
+Task ID: 3
+Agent: Main
+Task: Fix landing navbar mobile buttons clipped + smooth dashboard sidebar transition
+
+Work Log:
+- Analyzed LandingNavbar.tsx: buttons too large on mobile (w-11 h-11), Login hidden below sm, all cramped in flex row
+- Analyzed Sidebar.tsx: mobile used plain CSS transition (no exit animation), overlay had no fade
+- Fixed LandingNavbar: reduced toggle sizes, tighter gaps, responsive visibility breakpoints, shrink-0 on all items
+- Rewrote Sidebar.tsx: added Framer Motion AnimatePresence for mobile overlay + panel, spring animation for slide, separate desktop/mobile render paths
+- Ran npm run lint — passed
+- Ran npm run build — passed (195/195 pages)
+- Committed and pushed to main
+
+Stage Summary:
+- Landing page: Masuk/Daftar buttons now fit on all mobile screen sizes (320px+)
+- Dashboard: sidebar slides in/out with spring animation, overlay fades smoothly
+- Commit: 121b077 pushed to main
