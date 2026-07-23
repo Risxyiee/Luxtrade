@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { TabSkeleton } from '@/components/TabSkeleton'
 import { Trade, JournalEntry, WatchlistItem, Analytics } from '../utils/types'
 
@@ -99,261 +99,133 @@ export default function TabContent({
 }: TabContentProps) {
   return (
     <div className="w-full px-2 sm:px-4 lg:px-6 pb-24">
-      {activeTab === 'dashboard' && (
+      <AnimatePresence mode="wait">
         <motion.div
-          key="dashboard"
-          initial={{ opacity: 0, y: 20 }}
+          key={activeTab}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
         >
-          <DashboardTab
-            analytics={analytics}
-            trades={trades}
-            journalEntries={journalEntries}
-            loading={loading}
-            setAddTradeOpen={setAddTradeOpen}
-            onView={onView}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            chartAnimated={chartAnimated}
-            language={language}
-            isPro={isPro}
-            profile={profile}
-            tradingAccounts={tradingAccounts}
-          />
-        </motion.div>
-      )}
+          {activeTab === 'dashboard' && (
+            <DashboardTab
+              analytics={analytics}
+              trades={trades}
+              journalEntries={journalEntries}
+              loading={loading}
+              setAddTradeOpen={setAddTradeOpen}
+              onView={onView}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              chartAnimated={chartAnimated}
+              language={language}
+              isPro={isPro}
+              profile={profile}
+              tradingAccounts={tradingAccounts}
+            />
+          )}
 
-      {activeTab === 'trades' && (
-        <motion.div
-          key="trades"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <TradesTab
-            trades={trades}
-            loading={loading}
-            onView={onView}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            onDuplicate={onDuplicate}
-          />
-        </motion.div>
-      )}
+          {activeTab === 'trades' && (
+            <TradesTab
+              trades={trades}
+              loading={loading}
+              onView={onView}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onDuplicate={onDuplicate}
+            />
+          )}
 
-      {activeTab === 'journal' && (
-        <motion.div
-          key="journal"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <JournalTab
-            entries={journalEntries}
-            loading={loading}
-            onAdd={() => setAddJournalOpen(true)}
-            onView={onJournalView}
-            onEdit={onJournalEdit}
-            onDelete={onJournalDelete}
-            isPro={isPro}
-            onUpgrade={() => setPlanSelectionModalOpen(true)}
-          />
-        </motion.div>
-      )}
+          {activeTab === 'journal' && (
+            <JournalTab
+              entries={journalEntries}
+              loading={loading}
+              onAdd={() => setAddJournalOpen(true)}
+              onView={onJournalView}
+              onEdit={onJournalEdit}
+              onDelete={onJournalDelete}
+              isPro={isPro}
+              onUpgrade={() => setPlanSelectionModalOpen(true)}
+            />
+          )}
 
-      {activeTab === 'watchlist' && (
-        <motion.div
-          key="watchlist"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <WatchlistTab
-            items={watchlistItems}
-            loading={loading}
-            onAdd={() => setAddWatchlistOpen(true)}
-            onDelete={onWatchlistDelete}
-            isPro={isPro}
-            onUpgrade={() => setPlanSelectionModalOpen(true)}
-          />
-        </motion.div>
-      )}
+          {activeTab === 'watchlist' && (
+            <WatchlistTab
+              items={watchlistItems}
+              loading={loading}
+              onAdd={() => setAddWatchlistOpen(true)}
+              onDelete={onWatchlistDelete}
+              isPro={isPro}
+              onUpgrade={() => setPlanSelectionModalOpen(true)}
+            />
+          )}
 
-      {activeTab === 'analytics' && (
-        <motion.div
-          key="analytics"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <AnalyticsTab language={language} />
-        </motion.div>
-      )}
+          {activeTab === 'analytics' && (
+            <AnalyticsTab language={language} />
+          )}
 
-      {activeTab === 'ai' && (
-        <motion.div
-          key="ai"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <AITab
-            analytics={analytics}
-            trades={trades}
-            insight={aiInsight}
-            loading={aiLoading}
-            onGetTips={onGetTips}
-            onGetMarket={onGetMarket}
-            chatMessages={aiChatMessages}
-            chatInput={aiChatInput}
-            onChatChange={onChatChange}
-            onSendChat={onSendChat}
-            isPro={isPro}
-            onUpgrade={() => setPlanSelectionModalOpen(true)}
-          />
-        </motion.div>
-      )}
+          {activeTab === 'ai' && (
+            <AITab
+              analytics={analytics}
+              trades={trades}
+              insight={aiInsight}
+              loading={aiLoading}
+              onGetTips={onGetTips}
+              onGetMarket={onGetMarket}
+              chatMessages={aiChatMessages}
+              chatInput={aiChatInput}
+              onChatChange={onChatChange}
+              onSendChat={onSendChat}
+              isPro={isPro}
+              onUpgrade={() => setPlanSelectionModalOpen(true)}
+            />
+          )}
 
-      {activeTab === 'score' && (
-        <motion.div
-          key="score"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <TradingScore analytics={analytics} trades={trades} isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
-        </motion.div>
-      )}
+          {activeTab === 'score' && (
+            <TradingScore analytics={analytics} trades={trades} isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
+          )}
 
-      {activeTab === 'report' && (
-        <motion.div
-          key="report"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <AIWeeklyReport analytics={analytics} trades={trades} isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
-        </motion.div>
-      )}
+          {activeTab === 'report' && (
+            <AIWeeklyReport analytics={analytics} trades={trades} isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
+          )}
 
-      {activeTab === 'streaks' && (
-        <motion.div
-          key="streaks"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <TradingStreaks trades={trades} isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
-        </motion.div>
-      )}
+          {activeTab === 'streaks' && (
+            <TradingStreaks trades={trades} isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
+          )}
 
-      {activeTab === 'psychology' && (
-        <motion.div
-          key="psychology"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <PsychologyTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} trades={trades} />
-        </motion.div>
-      )}
+          {activeTab === 'psychology' && (
+            <PsychologyTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} trades={trades} />
+          )}
 
-      {activeTab === 'heatmap' && (
-        <motion.div
-          key="heatmap"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <HeatmapTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} trades={trades} />
-        </motion.div>
-      )}
+          {activeTab === 'heatmap' && (
+            <HeatmapTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} trades={trades} />
+          )}
 
-      {activeTab === 'calendar' && (
-        <motion.div
-          key="calendar"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <CalendarTab trades={trades} language={language} />
-        </motion.div>
-      )}
+          {activeTab === 'calendar' && (
+            <CalendarTab trades={trades} language={language} />
+          )}
 
-      {activeTab === 'news' && (
-        <motion.div
-          key="news"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <MarketNewsTab language={language} isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
-        </motion.div>
-      )}
+          {activeTab === 'news' && (
+            <MarketNewsTab language={language} isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
+          )}
 
-      {activeTab === 'economic-calendar' && (
-        <motion.div
-          key="economic-calendar"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <EconomicCalendarTab language={language} isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
-        </motion.div>
-      )}
+          {activeTab === 'economic-calendar' && (
+            <EconomicCalendarTab language={language} isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
+          )}
 
-      {activeTab === 'risk' && (
-        <motion.div
-          key="risk"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <RiskCalculatorTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} language={language} />
-        </motion.div>
-      )}
+          {activeTab === 'risk' && (
+            <RiskCalculatorTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} language={language} />
+          )}
 
-      {activeTab === 'targets' && (
-        <motion.div
-          key="targets"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <TargetsTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} language={language} analytics={analytics} trades={trades} />
-        </motion.div>
-      )}
+          {activeTab === 'targets' && (
+            <TargetsTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} language={language} analytics={analytics} trades={trades} />
+          )}
 
-      {activeTab === 'achievements' && (
-        <motion.div
-          key="achievements"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          {hasMounted && (
+          {activeTab === 'achievements' && hasMounted && (
             <AchievementCenter userId={user?.id || profile?.id || ''} />
           )}
         </motion.div>
-      )}
+      </AnimatePresence>
     </div>
   )
 }
