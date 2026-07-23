@@ -45,14 +45,15 @@ export default function EquityWidget() {
       const gradient = ctx.createLinearGradient(0, 0, 0, height)
       const isPositive = chartData[chartData.length - 1].value >= chartData[0].value
       if (isPositive) {
-        gradient.addColorStop(0, 'rgba(147, 51, 234, 0.4)')
-        gradient.addColorStop(0.5, 'rgba(59, 130, 246, 0.3)')
+        gradient.addColorStop(0, 'rgba(147, 51, 234, 0.3)')
+        gradient.addColorStop(0.5, 'rgba(59, 130, 246, 0.2)')
         gradient.addColorStop(1, 'rgba(59, 130, 246, 0)')
       } else {
-        gradient.addColorStop(0, 'rgba(239, 68, 68, 0.3)')
+        gradient.addColorStop(0, 'rgba(239, 68, 68, 0.2)')
         gradient.addColorStop(1, 'rgba(239, 68, 68, 0)')
       }
 
+      // Area fill
       ctx.beginPath()
       ctx.moveTo(0, height)
       chartData.forEach((point, i) => {
@@ -65,6 +66,7 @@ export default function EquityWidget() {
       ctx.fillStyle = gradient
       ctx.fill()
 
+      // Line
       ctx.beginPath()
       chartData.forEach((point, i) => {
         const x = (i / (chartData.length - 1)) * width
@@ -78,16 +80,13 @@ export default function EquityWidget() {
       lineGradient.addColorStop(0.5, '#3b82f6')
       lineGradient.addColorStop(1, '#06b6d4')
       ctx.strokeStyle = isPositive ? lineGradient : '#ef4444'
-      ctx.lineWidth = 2.5
+      ctx.lineWidth = 2
       ctx.stroke()
-      ctx.shadowColor = isPositive ? '#8b5cf6' : '#ef4444'
-      ctx.shadowBlur = 15
-      ctx.stroke()
-      ctx.shadowBlur = 0
     }
 
     drawChart(dataRef.current)
 
+    // Update every 2s instead of 1s to reduce CPU usage
     const interval = setInterval(() => {
       const prevData = dataRef.current
       const newData = [...prevData.slice(1)]
@@ -99,7 +98,7 @@ export default function EquityWidget() {
       newData.push({ time: lastPoint.time + 1, value: newValue, change })
       dataRef.current = newData
       drawChart(newData)
-    }, 1000)
+    }, 2000)
 
     return () => clearInterval(interval)
   }, [])
@@ -108,12 +107,7 @@ export default function EquityWidget() {
   const changePercent = ((changeAmount / 10500) * 100).toFixed(2)
 
   return (
-    <motion.div
-      className="rounded-2xl backdrop-blur-xl bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] p-6 hover:shadow-[0_0_40px_rgba(139,92,246,0.3)] transition-shadow duration-500"
-      initial={{ opacity: 0, y: 20, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.8, delay: 0.4, ease: 'easeOut' }}
-    >
+    <div className="rounded-2xl backdrop-blur-xl bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] p-6 hover:shadow-[0_0_40px_rgba(139,92,246,0.3)] transition-shadow duration-500">
       <div className="flex items-center justify-between mb-4">
         <div>
           <p className="text-sm text-purple-300/80 font-semibold tracking-wide uppercase text-xs">Portfolio Equity</p>
@@ -121,29 +115,17 @@ export default function EquityWidget() {
             <span className="text-3xl font-extrabold text-[var(--lux-text-primary)] tracking-tight">
               ${currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-            <AnimatePresence mode="wait">
-              <motion.span
-                key={isUp ? 'up' : 'down'}
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className={`flex items-center gap-1 text-sm font-bold ${isUp ? 'text-emerald-400' : 'text-red-400'}`}
-              >
-                {isUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                {isUp ? '+' : ''}{changePercent}%
-              </motion.span>
-            </AnimatePresence>
+            <span className={`flex items-center gap-1 text-sm font-bold ${isUp ? 'text-emerald-400' : 'text-red-400'}`}>
+              {isUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              {isUp ? '+' : ''}{changePercent}%
+            </span>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <div className={`px-3 py-1.5 rounded-full text-xs font-bold ${isUp ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'} backdrop-blur-sm`}>
             DEMO
           </div>
-          <motion.div
-            className="w-2 h-2 rounded-full bg-emerald-400"
-            animate={{ boxShadow: ['0 0 0 0 rgba(16, 185, 129, 0.7)', '0 0 0 10px rgba(16, 185, 129, 0)', '0 0 0 0 rgba(16, 185, 129, 0.7)'] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          />
+          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
         </div>
       </div>
       <canvas ref={canvasRef} width={500} height={160} className="w-full h-40" />
@@ -151,6 +133,6 @@ export default function EquityWidget() {
         <span>Start: $10,500.00</span>
         <span>Updated just now</span>
       </div>
-    </motion.div>
+    </div>
   )
 }

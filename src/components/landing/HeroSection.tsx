@@ -4,23 +4,22 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Sparkles, ArrowRight, Play, Star, Users, Shield, VolumeX } from 'lucide-react'
-import EquityWidget from './EquityWidget'
-import AnimatedForexTrades from './AnimatedForexTrades'
+import dynamic from 'next/dynamic'
+
+// Lazy load heavy hero widgets
+const EquityWidget = dynamic(() => import('./EquityWidget'), { ssr: false })
+const AnimatedForexTrades = dynamic(() => import('./AnimatedForexTrades'), { ssr: false })
 
 interface HeroSectionProps {
   language: 'id' | 'en'
   t: (key: string) => string
+  landingStats?: { totalUsers: number; activeUsers: number; tradesLogged: number } | null
 }
 
-export default function HeroSection({ language, t }: HeroSectionProps) {
-  const [totalUsers, setTotalUsers] = useState<number | null>(null)
+export default function HeroSection({ language, t, landingStats }: HeroSectionProps) {
+  // Use stats from parent instead of separate fetch
+  const totalUsers = landingStats?.totalUsers ?? null
 
-  useEffect(() => {
-    fetch('/api/landing-stats')
-      .then(res => res.ok ? res.json() : null)
-      .then(data => { if (data) setTotalUsers(data.totalUsers) })
-      .catch(() => {})
-  }, [])
   return (
     <section className="relative w-full pt-28 sm:pt-32 pb-12">
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row">
@@ -51,7 +50,7 @@ export default function HeroSection({ language, t }: HeroSectionProps) {
             </p>
 
             <div className="flex flex-col sm:flex-row items-start gap-4 w-full sm:w-max">
-              <Link href="/auth/signup" className="w-full sm:w-max">
+              <Link href="/auth/signup" prefetch={false}>
                 <button className="flex items-center justify-center w-full h-14 rounded-2xl bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 transition shadow-lg shadow-purple-500/20 active:scale-95 group">
                   <div className="w-6 h-full" />
                   <div className="flex items-center gap-2 text-[15px] font-bold text-white">
@@ -132,10 +131,10 @@ export default function HeroSection({ language, t }: HeroSectionProps) {
             <div className="absolute -inset-px rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20" style={{ zIndex: -1 }} />
           </motion.div>
 
-          {/* Equity Widget */}
+          {/* Equity Widget (lazy loaded) */}
           <EquityWidget />
 
-          {/* Animated Forex Trades */}
+          {/* Animated Forex Trades (lazy loaded) */}
           <AnimatedForexTrades />
 
           <p className="text-center text-[var(--lux-text-label-3)] text-xs">
