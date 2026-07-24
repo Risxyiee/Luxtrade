@@ -89,3 +89,23 @@ Stage Summary:
 - Sentry fully integrated: @sentry/nextjs installed, next.config.ts wrapped, 3 config files ready
 - /api/sentry-test endpoint ready for verification after deploy
 - Commit: 75ddb29 pushed to main
+
+---
+Task ID: 5
+Agent: Main
+Task: Final cleanup — remove legacy withdrawals + sentry test endpoint
+
+Work Log:
+- Deleted /api/admin/withdrawals/route.ts (old withdrawal system)
+- Deleted /api/sentry-test/route.ts (Sentry verified working)
+- Removed Withdrawal model from Prisma schema
+- Removed User.withdrawals relation from Prisma schema
+- Verified no other code references db.withdrawal or /api/admin/withdrawals
+- Ran lint ✅ and build ✅ (194/194 pages)
+- Committed and pushed to main
+
+Stage Summary:
+- Single active withdrawal system: /dashboard/admin/affiliate → /api/admin/affiliate-withdrawals → affiliate_withdrawals table
+- Legacy /admin-panel redirects to /dashboard/admin
+- Sentry fully operational
+- Commit: 3812d22 pushed to main
