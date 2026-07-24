@@ -92,7 +92,6 @@ model User {
   updatedAt         DateTime  @updatedAt
 
   subscriptions     UserSubscription[]
-  withdrawals       Withdrawal[]
 
   @@map("users")
 }
@@ -115,24 +114,6 @@ model UserSubscription {
   @@index([userId])
   @@index([promoCodeId])
   @@map("user_subscriptions")
-}
-
-model Withdrawal {
-  id                String    @id @default(uuid())
-  userId            String    @map("user_id")
-  amount            Float
-  bankName          String    @map("bank_name")
-  bankAccount       String    @map("bank_account")
-  bankHolder        String    @map("bank_holder")
-  status            String    @default("pending")
-  adminNote         String?   @map("admin_note")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt   @map("updated_at")
-
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@map("withdrawals")
 }
 
 model Trade {
