@@ -66,3 +66,26 @@ Stage Summary:
 - Landing page: Masuk/Daftar buttons now fit on all mobile screen sizes (320px+)
 - Dashboard: sidebar slides in/out with spring animation, overlay fades smoothly
 - Commit: 121b077 pushed to main
+
+---
+Task ID: 4
+Agent: Main
+Task: Legacy admin-panel redirect + Sentry integration
+
+Work Log:
+- Investigated /admin-panel: confirmed legacy — no inbound links anywhere, fully redundant with /dashboard/admin
+- Replaced /admin-panel/page.tsx (811 lines) with 9-line server-side redirect to /dashboard/admin
+- Removed '/admin-panel' from src/middleware.ts adminPaths array and matcher config
+- Installed @sentry/nextjs package
+- Wrapped next.config.ts with withSentryConfig (hideSourceMaps, widenClientFileUpload, automaticVercelMonitorsIntegration)
+- Verified existing sentry.client/server/edge.config.ts files are properly configured
+- Created /api/sentry-test temporary endpoint for Sentry verification
+- Ran lint ✅ and build ✅ (196/196 pages, no deprecation warnings)
+- Committed and pushed to main
+
+Stage Summary:
+- /admin-panel now redirects to /dashboard/admin
+- /api/admin/withdrawals still active — PENDING user confirmation on data before removal
+- Sentry fully integrated: @sentry/nextjs installed, next.config.ts wrapped, 3 config files ready
+- /api/sentry-test endpoint ready for verification after deploy
+- Commit: 75ddb29 pushed to main
