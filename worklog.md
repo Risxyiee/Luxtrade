@@ -109,3 +109,25 @@ Stage Summary:
 - Legacy /admin-panel redirects to /dashboard/admin
 - Sentry fully operational
 - Commit: 3812d22 pushed to main
+
+---
+Task ID: 2
+Agent: Main
+Task: Security audit - Supabase ANON key access context per route/page + Sentry wizard run
+
+Work Log:
+- Ran Sentry wizard (npx @sentry/wizard@latest) - FAILED due to timeout/network, existing Sentry config is already in place
+- Comprehensive grep of entire src/ for all Supabase client creation patterns (createClient, createBrowserClient, createServerClient, createClientForApi, createSupabaseClient, legacy supabase singleton)
+- Identified 49 total files using Supabase ANON key
+- Classified ~29 files that use ANON key to read/write Supabase tables (RLS-dependent)
+- Read and audited each of the 9 API routes + 4 pages that use ANON key for table data access
+- Verified auth checks, user_id filtering, and access scope for each route
+
+Stage Summary:
+- ALL 9 API routes have auth checks (getAuthUser, requireAuth, or supabase.auth.getUser)
+- ALL 9 API routes filter by user_id of the authenticated user
+- 2 admin pages use supabase.auth.getUser() for auth + supabase.from('profiles') only for role check
+- BugReportForm uses supabase.auth.getSession() for auth + supabase.storage only (no table queries)
+- RewardBugButton uses authFetch() wrapper for API calls (no direct supabase queries)
+- CRITICAL BUGS FOUND: tags/route.ts calls createClientForApi() without passing request param (will crash)
+- CRITICAL: admin/simple-activate falls back to ANON key for profile updates
