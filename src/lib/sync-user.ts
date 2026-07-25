@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { supabase } from '@/lib/supabase'
+import { supabase, supabaseAdmin } from '@/lib/supabase'
 
 /**
  * Sync Supabase Auth user to Prisma User table
@@ -20,7 +20,9 @@ export async function syncUserToDatabase(authUserId: string, email: string, disp
     }
 
     // Get user from Supabase Auth to get fresh metadata
-    const { data: authUser } = await supabase.auth.admin.getUser(authUserId)
+    // MUST use supabaseAdmin (service_role) for auth.admin API — anon client will fail
+    const adminClient = supabaseAdmin || supabase
+    const { data: authUser } = await adminClient.auth.admin.getUser(authUserId)
 
     if (!authUser?.user) {
       console.error('❌ User not found in Supabase Auth:', authUserId)
