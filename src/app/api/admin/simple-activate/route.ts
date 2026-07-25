@@ -18,11 +18,12 @@ export async function POST(request: NextRequest) {
     const altKey2 = process.env.SUPABASE_ADMIN_KEY
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-    let adminKey = serviceRoleKey || altKey1 || altKey2 || anonKey
-    let method = serviceRoleKey ? 'SERVICE_ROLE_KEY' : altKey1 ? 'SERVICE_ROLE_KEY (alt)' : altKey2 ? 'ADMIN_KEY' : 'ANON_KEY'
+    // SECURITY: Admin operations MUST use service_role key — never fall back to ANON key
+    let adminKey = serviceRoleKey || altKey1 || altKey2
+    let method = serviceRoleKey ? 'SERVICE_ROLE_KEY' : altKey1 ? 'SERVICE_ROLE_KEY (alt)' : altKey2 ? 'ADMIN_KEY' : 'NONE'
 
     if (!adminKey) {
-      return NextResponse.json({ error: 'No Supabase credentials found' }, { status: 500 })
+      return NextResponse.json({ error: 'Service role key is required for admin operations' }, { status: 500 })
     }
 
     const adminClient = createClient(supabaseUrl, adminKey, {

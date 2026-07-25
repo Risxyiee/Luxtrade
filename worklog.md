@@ -131,3 +131,22 @@ Stage Summary:
 - RewardBugButton uses authFetch() wrapper for API calls (no direct supabase queries)
 - CRITICAL BUGS FOUND: tags/route.ts calls createClientForApi() without passing request param (will crash)
 - CRITICAL: admin/simple-activate falls back to ANON key for profile updates
+
+---
+Task ID: 3
+Agent: Main
+Task: Fix 3 bugs (tags/route, admin/simple-activate, sync-user) + Sentry config update
+
+Work Log:
+- Fixed tags/route.ts: createClientForApi() called without `request` param → added `request` parameter to both GET and POST handlers
+- Fixed admin/simple-activate/route.ts: removed ANON key fallback → admin operations now REQUIRE service_role key, returns 500 if not available
+- Fixed sync-user.ts: replaced `supabase.auth.admin.getUser()` (ANON client, always fails) with `supabaseAdmin || supabase` (prefers service_role)
+- Updated sentry.properties: defaults.org=luxtradee, defaults.project=sentry-emerald-river
+- Added NEXT_PUBLIC_SENTRY_DSN and SENTRY_AUTH_TOKEN to .env.example
+- Ran bun run lint — clean, no errors
+- Dev server started successfully
+
+Stage Summary:
+- 3 bugs fixed, all passing lint
+- Sentry config ready, user needs to set NEXT_PUBLIC_SENTRY_DSN and SENTRY_AUTH_TOKEN in Vercel (user confirmed done)
+- sentry-test endpoint exists at /api/sentry-test for verification
