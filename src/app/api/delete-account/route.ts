@@ -129,10 +129,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      {
-        error: 'Failed to delete account',
-        details: err instanceof Error ? err.message : 'Unknown error'
-      },
+      { error: 'Failed to delete account. Please try again or contact support.' },
       { status: 500 }
     )
   }

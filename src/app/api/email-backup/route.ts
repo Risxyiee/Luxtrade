@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { getAuthUser } from '@/lib/api-auth'
 import { sendEmail } from '@/lib/email'
+import { rateLimitByUser } from '@/lib/rate-limit'
 
 // POST - Send email backup of trading data
 export async function POST(request: NextRequest) {
@@ -10,6 +11,14 @@ export async function POST(request: NextRequest) {
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Rate limit: max 3 backup emails per hour per user (prevents email abuse / Resend quota burn)
+    const limited = rateLimitByUser('email-backup', authUser.id, {
+      maxRequests: 3,
+      windowMs: 60 * 60 * 1000,
+      message: 'Terlalu banyak permintaan backup email. Coba lagi dalam 1 jam.',
+    })
+    if (limited) return limited
 
     const { supabase } = createClientForApi(request)
 

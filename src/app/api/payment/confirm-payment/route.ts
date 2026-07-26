@@ -104,11 +104,16 @@ export async function POST(request: NextRequest) {
 
     // ===== HANDLE RESULTS =====
     if (sakuraStatus === 'berhasil') {
-      // Payment confirmed by SakuraPay! Update local DB
+      // Payment confirmed by SakuraPay! Update local DB atomically.
+      // RACE CONDITION FIX: Use updateMany with conditional WHERE to ensure only
+      // ONE request (webhook OR confirm-payment) can transition to SUCCESS.
       console.log('🎉 [Confirm Payment] SakuraPay confirms BERHASIL — activating!')
 
-      await db.paymentOrder.update({
-        where: { invoiceNumber },
+      const updateResult = await db.paymentOrder.updateMany({
+        where: {
+          invoiceNumber,
+          status: { not: 'SUCCESS' }, // Only update if not already SUCCESS
+        },
         data: {
           status: 'SUCCESS',
           paidAt: new Date(),
@@ -117,7 +122,18 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Activate subscription
+      if (updateResult.count === 0) {
+        // Another concurrent request (likely the webhook) already processed this
+        console.log('✅ [Confirm Payment] Order already processed by concurrent request:', invoiceNumber)
+        return NextResponse.json({
+          success: true,
+          status: 'SUCCESS',
+          message: 'Pembayaran sudah dikonfirmasi',
+          paidAt: order.paidAt?.toISOString() || new Date().toISOString(),
+        })
+      }
+
+      // Now safe to activate — only one request reaches here
       if (order.userId) {
         await activateSubscription(order.userId, order.plan, order.durationMonths)
       }
@@ -167,7 +183,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('❌ [Confirm Payment] Error:', error.message)
     return NextResponse.json(
-      { error: error.message || 'Terjadi kesalahan saat konfirmasi pembayaran' },
+      { error: 'Terjadi kesalahan saat konfirmasi pembayaran' },
       { status: 500 }
     )
   }

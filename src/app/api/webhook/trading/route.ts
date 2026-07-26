@@ -227,16 +227,24 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    // Webhook secret verification
+    // SECURITY: Webhook secret is REQUIRED — fail-safe if not configured.
+    // Without this, anyone could POST fake trades to any user's account.
     const webhookSecret = process.env.WEBHOOK_SECRET
-    if (webhookSecret) {
-      const authHeader = req.headers.get('authorization') || req.headers.get('x-webhook-secret')
-      if (authHeader !== `Bearer ${webhookSecret}`) {
-        return NextResponse.json({ error: 'Invalid webhook secret' }, { status: 401 })
-      }
+    if (!webhookSecret) {
+      console.error('🚨 [WEBHOOK] WEBHOOK_SECRET env var is not set — rejecting all webhook calls')
+      return NextResponse.json(
+        { error: 'Webhook not configured' },
+        { status: 503 }
+      )
     }
 
-    // Log incoming request
+    const authHeader = req.headers.get('authorization') || req.headers.get('x-webhook-secret')
+    if (authHeader !== `Bearer ${webhookSecret}`) {
+      console.warn('⚠️ [WEBHOOK] Invalid or missing webhook secret')
+      return NextResponse.json({ error: 'Invalid webhook secret' }, { status: 401 })
+    }
+
+    // Log incoming request (after auth — no PII leak to unauthenticated callers)
     console.log('[WEBHOOK] Received POST request')
 
     // Get source from query parameter or header
@@ -447,11 +455,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('[WEBHOOK] Error processing webhook:', error)
     return NextResponse.json(
-      {
-        error: 'Internal server error',
-        details: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
