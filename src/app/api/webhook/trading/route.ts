@@ -442,7 +442,6 @@ export async function POST(req: NextRequest) {
       processed: results.length,
       errors: errors.length,
       trades: results,
-      errorDetails: errors
     })
 
   } catch (error: any) {
