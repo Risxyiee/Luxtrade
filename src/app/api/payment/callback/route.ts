@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { verifyCallbackSignature, getSakuraConfig } from '@/lib/payment/sakura'
+import { verifyCallbackSignature } from '@/lib/payment/sakura'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -30,23 +30,12 @@ export async function POST(request: NextRequest) {
     const callbackEvent = request.headers.get('X-Callback-Event') || ''
     const contentType = request.headers.get('content-type') || ''
 
-    // ===== COMPREHENSIVE DEBUG LOGGING =====
-    console.log('═══════════════════════════════════════════')
-    console.log('📩 [SakuraPay Callback] REQUEST RECEIVED')
-    console.log('📩 [Callback] Headers:')
-    console.log('   X-Callback-Signature:', callbackSignature ? `${callbackSignature.substring(0, 20)}...` : '(EMPTY)')
-    console.log('   X-Callback-Event:', callbackEvent || '(EMPTY)')
-    console.log('   Content-Type:', contentType)
-    console.log('📩 [Callback] Raw Body:', rawBody.substring(0, 500))
-    console.log('📩 [Callback] Body Length:', rawBody.length)
-
-    // Log SakuraPay config status
-    const sakuraConfig = getSakuraConfig()
-    console.log('📩 [Callback] SakuraPay Config:', {
-      apiIdSet: !!process.env.SAKURA_API_ID,
-      apiKeySet: !!process.env.SAKURA_API_KEY,
-      apiKeyLen: process.env.SAKURA_API_KEY?.length || 0,
-      callbackUrl: process.env.SAKURA_CALLBACK_URL || '(NOT SET)',
+    // ===== STRUCTURED LOGGING (no secrets) =====
+    console.log('📩 [SakuraPay Callback] REQUEST RECEIVED', {
+      hasSignature: !!callbackSignature,
+      event: callbackEvent || '(EMPTY)',
+      contentType,
+      bodyLength: rawBody.length,
       env: process.env.SAKURA_ENV || 'sandbox',
     })
 
@@ -58,31 +47,43 @@ export async function POST(request: NextRequest) {
     }
 
     // ===== SIGNATURE VERIFICATION =====
-    // In sandbox mode, SakuraPay sometimes sends invalid or missing signatures.
-    // Allow signature skip in sandbox, enforce in production.
-    const isSandbox = process.env.SAKURA_ENV === 'sandbox'
-    const skipSignatureCheck = process.env.SAKURA_SKIP_SIGNATURE === 'true' || isSandbox
+    // SECURITY: In production (SAKURA_ENV=production), signature is REQUIRED.
+    // Without this, attackers could POST fake payment notifications and get
+    // free PRO subscriptions. Sandbox mode still allows skip for dev/testing.
+    const isSandbox = process.env.SAKURA_ENV !== 'production' // fail-safe: treat unknown as sandbox
+    const skipSignatureCheck = isSandbox
 
-    if (!skipSignatureCheck && callbackSignature) {
+    if (skipSignatureCheck) {
+      // Sandbox only — log loudly so we never accidentally run prod this way
+      console.warn('⚠️ [Callback] Signature verification SKIPPED (sandbox mode). DO NOT use in production.')
+    } else {
+      // Production mode — signature is MANDATORY
+      if (!callbackSignature) {
+        console.error('🚨 [Callback] REJECTED: No X-Callback-Signature header in production mode')
+        return NextResponse.json(
+          { success: false, message: 'Missing signature' },
+          { status: 401 }
+        )
+      }
+
       if (!verifyCallbackSignature(rawBody, callbackSignature)) {
+        console.error('🚨 [Callback] REJECTED: Signature mismatch')
+        // Log expected vs received for debugging (server-side only, not in response)
         const crypto = await import('crypto')
         const apiKey = process.env.SAKURA_API_KEY || ''
         if (apiKey) {
           const expected = crypto.createHmac('sha256', apiKey).update(rawBody).digest('hex')
-          console.error('❌ [Callback] SIGNATURE MISMATCH!')
-          console.error('   Expected:', expected)
-          console.error('   Received:', callbackSignature)
-          console.error('   Body used for HMAC:', rawBody.substring(0, 200))
+          console.error('   Expected:', expected.substring(0, 16) + '...')
+          console.error('   Received:', callbackSignature.substring(0, 16) + '...')
         } else {
-          console.error('❌ [Callback] SAKURA_API_KEY is not set! Cannot verify signature.')
+          console.error('🚨 [Callback] SAKURA_API_KEY is not set! Cannot verify signature.')
         }
-        return NextResponse.json({ success: false, message: 'Invalid signature' }, { status: 400 })
+        return NextResponse.json(
+          { success: false, message: 'Invalid signature' },
+          { status: 401 }
+        )
       }
       console.log('✅ [Callback] Signature verified OK')
-    } else if (!skipSignatureCheck && !callbackSignature) {
-      console.warn('⚠️ [Callback] No signature in request — skipping verification')
-    } else {
-      console.log('⚠️ [Callback] Signature verification SKIPPED (sandbox/SAKURA_SKIP_SIGNATURE=true)')
     }
 
     // Parse body
@@ -154,27 +155,46 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, message: 'Already processed' })
       }
 
-      // Update existing order
-      const updatedOrder = await db.paymentOrder.update({
-        where: { invoiceNumber: merchantRef },
-        data: {
-          status: ourStatus,
-          dokuTransactionId: trxId || existingOrder.dokuTransactionId,
-          paidAt: isSuccess ? new Date() : null,
-          paymentChannel: data.payment_kode || existingOrder.paymentChannel,
-        },
-      })
+      // RACE CONDITION FIX: Use updateMany with conditional WHERE clause to ensure
+      // only ONE request can transition an order to SUCCESS atomically.
+      // If another concurrent request already set it to SUCCESS, count will be 0
+      // and we skip activation (preventing duplicate subscription records).
+      if (isSuccess) {
+        const updateResult = await db.paymentOrder.updateMany({
+          where: {
+            invoiceNumber: merchantRef,
+            status: { not: 'SUCCESS' }, // Only update if not already SUCCESS
+          },
+          data: {
+            status: 'SUCCESS',
+            dokuTransactionId: trxId || existingOrder.dokuTransactionId,
+            paidAt: new Date(),
+            paymentChannel: data.payment_kode || existingOrder.paymentChannel,
+          },
+        })
 
-      console.log('✅ [Callback] Order updated:', {
-        invoiceNumber: updatedOrder.invoiceNumber,
-        oldStatus: existingOrder.status,
-        newStatus: updatedOrder.status,
-        paidAt: updatedOrder.paidAt,
-      })
+        if (updateResult.count === 0) {
+          // Another request already processed this order — skip activation
+          console.log('✅ [Callback] Order already processed by concurrent request:', merchantRef)
+          return NextResponse.json({ success: true, message: 'Already processed' })
+        }
 
-      // If payment successful, upgrade user
-      if (isSuccess && existingOrder.userId) {
-        await activateSubscription(existingOrder.userId, existingOrder.plan, existingOrder.durationMonths)
+        console.log('✅ [Callback] Order atomically transitioned to SUCCESS:', merchantRef)
+
+        // Now safe to activate — only one request reaches here
+        if (existingOrder.userId) {
+          await activateSubscription(existingOrder.userId, existingOrder.plan, existingOrder.durationMonths)
+        }
+      } else {
+        // Non-success status (PENDING / EXPIRED) — safe to update normally
+        await db.paymentOrder.update({
+          where: { invoiceNumber: merchantRef },
+          data: {
+            status: ourStatus,
+            dokuTransactionId: trxId || existingOrder.dokuTransactionId,
+            paymentChannel: data.payment_kode || existingOrder.paymentChannel,
+          },
+        })
       }
 
       console.log('✅ [Callback] FULLY PROCESSED:', merchantRef, '→', ourStatus)
@@ -197,8 +217,9 @@ export async function POST(request: NextRequest) {
     console.error('❌ [SakuraPay Callback] FATAL ERROR:', error.message)
     console.error('❌ [Callback] Stack:', error.stack?.substring(0, 500))
     console.error('═══════════════════════════════════════════')
-    // Still return 200 to prevent SakuraPay from retrying with errors
-    return NextResponse.json({ success: false, message: error.message })
+    // Still return 200 to prevent SakuraPay from retrying with errors,
+    // but do NOT leak internal error details to the caller.
+    return NextResponse.json({ success: false, message: 'Internal error processing callback' })
   }
 }
 
@@ -267,21 +288,12 @@ async function activateSubscription(
 
 /**
  * GET /api/payment/callback
- * Health check + config debug
+ * Minimal health check — no config leak.
  */
 export async function GET() {
-  const sakuraConfig = getSakuraConfig()
   return NextResponse.json({
     status: 'OK',
     message: 'SakuraPay callback endpoint is active',
-    config: sakuraConfig,
-    envCheck: {
-      SAKURA_API_ID_SET: !!process.env.SAKURA_API_ID,
-      SAKURA_API_KEY_SET: !!process.env.SAKURA_API_KEY,
-      SAKURA_API_KEY_LEN: process.env.SAKURA_API_KEY?.length || 0,
-      SAKURA_CALLBACK_URL: process.env.SAKURA_CALLBACK_URL || '(not set)',
-      SAKURA_ENV: process.env.SAKURA_ENV || 'sandbox',
-    },
-    tip: 'If SAKURA_API_KEY is not set, add it in Vercel Environment Variables and redeploy.',
+    env: process.env.SAKURA_ENV || 'sandbox',
   })
 }

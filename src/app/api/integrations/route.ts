@@ -37,10 +37,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Ambil semua integrasi user
+    // Ambil semua integrasi user — exclude investor_password from response
+    // (password is stored server-side for broker connections, never sent to client)
     const { data: integrations, error } = await getSupabaseAdmin()
       .from('trading_integrations')
-      .select('*')
+      .select('id,user_id,name,provider,account_id,broker_server,account_type,status,webhook_url,last_sync,sync_settings,created_at,updated_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
 
@@ -53,7 +54,7 @@ export async function GET(req: Request) {
   } catch (error: any) {
     console.error('[INTEGRATIONS GET] Error:', error)
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
@@ -128,6 +129,8 @@ export async function POST(req: Request) {
     const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com'}/api/webhook/trading?source=${provider}`
 
     // Insert integrasi baru
+    // NOTE: investor_password is stored as-is for now (TODO: encrypt with pgcrypto in production).
+    // It is NEVER returned in any API response — only used server-side for broker connections.
     const { data: integration, error } = await getSupabaseAdmin()
       .from('trading_integrations')
       .insert({
@@ -135,7 +138,7 @@ export async function POST(req: Request) {
         name,
         provider,
         account_id,
-        investor_password, // Akan dienkripsi di database (gunakan pgcrypto di production)
+        investor_password,
         broker_server,
         account_type: account_type || 'MT5',
         status: 'active',
@@ -145,7 +148,7 @@ export async function POST(req: Request) {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
-      .select()
+      .select('id,user_id,name,provider,account_id,broker_server,account_type,status,webhook_url,last_sync,sync_settings,created_at,updated_at')
       .single()
 
     if (error) throw error
@@ -159,7 +162,7 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error('[INTEGRATIONS POST] Error:', error)
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }

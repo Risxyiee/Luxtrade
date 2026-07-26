@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sendEmail } from '@/lib/email'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 /**
  * POST /api/marketing/send-promo
@@ -22,6 +23,14 @@ import { sendEmail } from '@/lib/email'
  */
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 10 promo emails per minute per IP (prevents abuse even with valid secret)
+    const limited = checkRateLimit(request, 'send-promo', {
+      maxRequests: 10,
+      windowMs: 60 * 1000,
+      message: 'Terlalu banyak permintaan. Coba lagi dalam beberapa saat.',
+    })
+    if (limited) return limited
+
     const body = await request.json()
     const {
       email,
@@ -54,8 +63,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Admin auth
-    const ADMIN_SECRET = process.env.ADMIN_SECRET || 'luxtrade-admin-2025'
+    // Admin auth — SECURITY: no hardcoded fallback. ADMIN_SECRET must be set in env.
+    const ADMIN_SECRET = process.env.ADMIN_SECRET
+    if (!ADMIN_SECRET) {
+      console.error('🚨 [send-promo] ADMIN_SECRET env var is not set — rejecting request')
+      return NextResponse.json(
+        { error: 'Server not configured for admin operations' },
+        { status: 503 }
+      )
+    }
     if (adminSecret !== ADMIN_SECRET) {
       return NextResponse.json(
         { error: 'Unauthorized — admin secret salah' },
@@ -93,7 +109,7 @@ export async function POST(request: NextRequest) {
     if (!result.success) {
       console.error('❌ Promo email failed:', result.error)
       return NextResponse.json(
-        { error: 'Gagal mengirim email promo', details: result.error },
+        { error: 'Gagal mengirim email promo' },
         { status: 500 }
       )
     }
@@ -127,7 +143,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('❌ Send promo error:', error)
     return NextResponse.json(
-      { error: 'Terjadi kesalahan server', details: error.message },
+      { error: 'Terjadi kesalahan server' },
       { status: 500 }
     )
   }

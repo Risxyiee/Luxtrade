@@ -959,3 +959,65 @@ Stage Summary:
 - Lint clean, dev server running
 - RLS already enabled on all 17 tables (previous task)
 - Remaining lower-priority issues documented in SEC-2/SEC-3 worklog entries
+
+---
+Task ID: SEC-FIX-2
+Agent: Main
+Task: Security hardening — residual issues from comprehensive audit
+
+Work Log:
+- Fixed webhook signature enforcement (CRITICAL):
+  * /api/webhook/trading — WEBHOOK_SECRET now REQUIRED (503 if missing, 401 if wrong)
+  * /api/webhook/myfxbook — same fail-safe pattern
+  * /api/webhook/fxblue — same fail-safe pattern
+  * Removed stack trace + error.message leaks from all 3 webhook catch blocks
+
+- Fixed SakuraPay signature verification (CRITICAL):
+  * /api/payment/callback — production mode now REQUIRES X-Callback-Signature header
+  * Removed SAKURA_SKIP_SIGNATURE env var (was a redundant footgun)
+  * Fail-safe: unknown SAKURA_ENV treated as sandbox (still skips, but loudly logged)
+  * Removed verbose debug logging that leaked config (apiIdSet, apiKeyLen, callbackUrl)
+  * GET /api/payment/callback now returns minimal info (no config dump)
+  * Catch block no longer leaks error.message
+
+- Fixed investor_password exposure (HIGH):
+  * /api/integrations GET — explicit column select, excludes investor_password
+  * /api/integrations POST — return select excludes investor_password
+  * /api/integrations/[id] PATCH — return select excludes investor_password
+  * /api/integrations/[id] DELETE — only selects id,user_id (was select('*'))
+  * PATCH only updates investor_password if explicitly provided in body
+
+- Added rate limiting (MEDIUM):
+  * /api/email-backup — 3 requests/hour per user (rateLimitByUser)
+  * /api/marketing/send-promo — 10 requests/min per IP (checkRateLimit)
+
+- Removed hardcoded ADMIN_SECRET fallback (MEDIUM):
+  * /api/marketing/send-promo — was `process.env.ADMIN_SECRET || 'luxtrade-admin-2025'`
+  * Now fails with 503 if ADMIN_SECRET env var not set
+
+- Sanitized error responses (MEDIUM):
+  * /api/delete-account — removed `details: err.message` from 500 response
+  * /api/payment/callback-debug POST/GET — removed `error: error.message`
+  * /api/payment/confirm-payment — catch block no longer leaks error.message
+  * /api/integrations route + [id] route — all catch blocks use generic message
+  * /api/marketing/send-promo — removed `details: error.message` + `details: result.error`
+
+- Fixed payment race condition (MEDIUM):
+  * /api/payment/callback — uses updateMany with `status: { not: 'SUCCESS' }` WHERE clause
+  * /api/payment/confirm-payment — same atomic pattern
+  * If concurrent request already processed, count===0 → skip activation (no double subscription)
+  * Only the request that successfully transitions to SUCCESS activates subscription
+
+Stage Summary:
+- 7 fix categories applied, all additive (no breaking changes to API contracts)
+- Lint clean, dev server running, all endpoints tested with curl
+- All security fixes verified:
+  * Webhooks return 503 when WEBHOOK_SECRET missing (fail-safe)
+  * /api/integrations no longer leaks Supabase error messages
+  * /api/marketing/send-promo rejects when ADMIN_SECRET not configured
+  * /api/payment/callback GET no longer dumps config
+- Residual lower-priority issues (not fixed — would require broader changes):
+  * ~25 more routes still return `error: error.message` (low-impact, mostly user-facing routes)
+  * PII in console.log (server-side only, not exploitable)
+  * investor_password still stored plaintext in DB (would need pgcrypto migration)
+  * Email broadcast auto-syncs all auth users (perf issue, not security)

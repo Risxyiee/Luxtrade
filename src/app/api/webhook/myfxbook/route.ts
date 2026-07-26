@@ -35,13 +35,20 @@ interface MyfxbookWebhookPayload {
 // POST: Receive webhook from Myfxbook
 export async function POST(req: NextRequest) {
   try {
-    // Webhook secret verification
+    // SECURITY: Webhook secret is REQUIRED — fail-safe if not configured.
     const webhookSecret = process.env.WEBHOOK_SECRET
-    if (webhookSecret) {
-      const authHeader = req.headers.get('authorization') || req.headers.get('x-webhook-secret')
-      if (authHeader !== `Bearer ${webhookSecret}`) {
-        return NextResponse.json({ error: 'Invalid webhook secret' }, { status: 401 })
-      }
+    if (!webhookSecret) {
+      console.error('🚨 [MYFXBOOK WEBHOOK] WEBHOOK_SECRET env var is not set — rejecting all webhook calls')
+      return NextResponse.json(
+        { error: 'Webhook not configured' },
+        { status: 503 }
+      )
+    }
+
+    const authHeader = req.headers.get('authorization') || req.headers.get('x-webhook-secret')
+    if (authHeader !== `Bearer ${webhookSecret}`) {
+      console.warn('⚠️ [MYFXBOOK WEBHOOK] Invalid or missing webhook secret')
+      return NextResponse.json({ error: 'Invalid webhook secret' }, { status: 401 })
     }
 
     console.log('🔔 [MYFXBOOK WEBHOOK] Received webhook request')
@@ -179,10 +186,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('❌ [MYFXBOOK WEBHOOK] Error processing webhook:', error)
     return NextResponse.json(
-      {
-        error: 'Failed to process webhook',
-        details: error.message
-      },
+      { error: 'Failed to process webhook' },
       { status: 500 }
     )
   }
