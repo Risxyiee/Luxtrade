@@ -1021,3 +1021,94 @@ Stage Summary:
   * PII in console.log (server-side only, not exploitable)
   * investor_password still stored plaintext in DB (would need pgcrypto migration)
   * Email broadcast auto-syncs all auth users (perf issue, not security)
+
+---
+Task ID: FIX-LEAK-3
+Agent: code-fixer-batch-3
+Task: Fix error.message leaks in 7 API route files (batch 3)
+
+Work Log:
+- Fixed file 1: ai/search/route.ts — replaced error.message with generic message
+- Fixed file 2: payment/create-order/route.ts — replaced error.message with generic message
+- Fixed file 3: payment/order-status/route.ts — replaced error.message with generic message
+- Fixed file 4: ai/chat/route.ts — replaced error.message with generic message
+- Fixed file 5: ai/tts/route.ts — replaced error.message with generic message
+- Fixed file 6: ai/generate-image/route.ts — replaced error.message with generic message
+- Fixed file 7: webhook/trading/route.ts — replaced error.message with "Database error" in batch loop
+- Verified: no error: error.message patterns remain in the 7 targeted files
+- Lint: clean (no output, no errors)
+
+Stage Summary:
+- 7 files edited, 7 error.message leaks removed
+- All changes are additive (only sanitized error response messages)
+- console.error calls preserved for server-side debugging
+- Status codes, function signatures, and exports unchanged
+- Lint status: clean
+- ~17 routes still have error: error.message patterns (not in this batch scope)
+
+
+---
+Task ID: FIX-LEAK-1
+Agent: code-fixer-batch-1
+Task: Fix error.message leaks in 13 API route files
+
+Work Log:
+- Fixed file 1: trading-accounts/route.ts (3 leaks: 2x `details: err.message` removed, 1x `details: err instanceof Error ? err.message : 'Unknown error'` removed)
+- Fixed file 2: trading-accounts/cleanup-orphan/route.ts (removed `details: error.message`)
+- Fixed file 3: trading-accounts/auto-fix-all/route.ts (replaced `error: error.message` with `'Internal server error'`)
+- Fixed file 4: trading-accounts/fix-status/route.ts (replaced `error: error.message` with `'Internal server error'`)
+- Fixed file 5: trading-accounts/cleanup-pending/route.ts (removed `details: error.message`)
+- Fixed file 6: setup-db/route.ts (replaced `err.message` with `'Database setup failed'`)
+- Fixed file 7: cron/downgrade-expired-pro/route.ts (replaced `error: error.message` with `'Cron job failed'`)
+- Fixed file 8: watchlist/route.ts (2 leaks: POST and DELETE catch blocks)
+- Fixed file 9: analyze-screenshot/route.ts (removed `error.message ||` fallback)
+- Fixed file 10: edge/huggingface/route.ts (removed `error.message ||` fallback)
+- Fixed file 11: profile/me/route.ts (removed `error.message ||` fallback)
+- Fixed file 12: promo-simple/apply/route.ts (replaced `error.message` with `'Failed to apply promo code'`, kept `code: error.code`)
+- Fixed file 13: tags/route.ts (replaced `error.message` with `'Failed to fetch tags'`)
+- Verified: all 13 files confirmed clean of `error: error.message` patterns
+- Lint: clean
+
+Stage Summary:
+- 13 files edited, 16 error.message leaks removed
+- All changes are additive (only error response messages changed)
+- console.error calls preserved for server-side debugging
+- Status codes, function signatures, and exports unchanged
+- Lint status: clean
+
+---
+Task ID: SEC-FIX-3
+Agent: Main + 2 subagents (FIX-LEAK-1, FIX-LEAK-3)
+Task: Hardening batch 3 — error.message leaks, PII redaction, setup endpoint auth
+
+Work Log:
+- Deleted /api/test-supabase (unused debug endpoint that dumped Supabase config)
+- Fixed error.message leaks in ~35 API route files (3 batches):
+  * Batch 1 (subagent FIX-LEAK-1): 13 files, 16 leaks — trading-accounts/*, setup-db,
+    cron/downgrade, watchlist, analyze-screenshot, edge/huggingface, profile/me,
+    promo-simple/apply, tags
+  * Batch 2 (manual): 13 files, 15 leaks — trades, proxy/huggingface-vision, journal,
+    voice/transcribe, journal-entries (3), auto-journal (also removed stack trace leak),
+    auth/ensure-profile, midtrans/* (2), promo/downgrade-expired, seed, ai/analyze-trade, ai/vlm
+  * Batch 3 (subagent FIX-LEAK-3): 7 files, 7 leaks — ai/search, payment/create-order,
+    payment/order-status, ai/chat, ai/tts, ai/generate-image, webhook/trading (batch loop)
+- Redacted PII (email) from console.log in 6 admin/cron routes:
+  * cron/downgrade-expired-pro: log user ID instead of email
+  * marketing/send-promo: don't log recipient email
+  * admin/cancel-subscription: 2 logs use user ID
+  * admin/users: 4 logs use user ID (revoke/activate flows)
+  * admin/activate: 2 logs use user ID (admin + referrer)
+  * admin/subscriptions/[id]/activate: 3 logs use user ID
+- Added requireAdmin() to unprotected setup endpoints:
+  * /api/setup GET — was returning full SQL setup script to anyone
+  * /api/setup POST — was running DB checks without auth
+  * /api/seed-plans GET — was creating subscription plans without auth
+
+Stage Summary:
+- ~38 error.message leaks removed across 33 files (all additive, no logic changes)
+- 11 PII redactions in console.log (server-side hardening)
+- 3 setup endpoints now require admin auth (was fully open)
+- 1 debug endpoint deleted (test-supabase)
+- Lint: clean
+- Dev server: running, all tested endpoints return 401 without auth
+- Total files touched: 41 modified + 1 deleted

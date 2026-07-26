@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ entry: journalData })
   } catch (error: any) {
     console.error('Journal creation error:', error)
-    return NextResponse.json({ error: error.message || 'Failed to create journal entry' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to create journal entry' }, { status: 500 })
   }
 }
 
@@ -208,7 +208,7 @@ export async function DELETE(request: NextRequest) {
       .eq('user_id', user.id)
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to update journal entry' }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })

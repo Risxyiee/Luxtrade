@@ -421,8 +421,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'Failed to create auto-journal',
-        details: error.message,
-        stack: error?.stack?.slice(0, 500),
         timing: { totalMs: Math.round(performance.now() - t0) }
       },
       { status: 500 }

@@ -91,8 +91,7 @@ export async function POST(req: NextRequest) {
     console.error('🔴 [CLEANUP PENDING] Error during cleanup:', error)
     return NextResponse.json(
       {
-        error: 'Failed to cleanup PENDING accounts',
-        details: error.message
+        error: 'Failed to cleanup PENDING accounts'
       },
       { status: 500 }
     )

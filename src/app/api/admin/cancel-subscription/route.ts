@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('✅ User found:', profile.email)
+    console.log('✅ User found:', profile.id) // PII redacted
 
     // ========================================
     // STEP 2: Update Supabase profile back to FREE
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('✅ Supabase profile updated to FREE for:', profile.email)
+    console.log('✅ Supabase profile updated to FREE for user:', profile.id) // PII redacted
     console.log('   Updated data:', updatedData)
 
     console.log('✅ Subscription cancelled successfully!')

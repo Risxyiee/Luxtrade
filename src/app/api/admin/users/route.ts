@@ -226,7 +226,7 @@ export async function PATCH(request: NextRequest) {
     const svc = getSupabaseAdmin()
 
     if (action === 'revoke') {
-      console.log(`🔓 [ADMIN PATCH] Revoking PRO for user: ${user.email} (${userId})`)
+      console.log(`🔓 [ADMIN PATCH] Revoking PRO for user: ${userId}`) // PII redacted
 
       // 1. Update profiles table (PRIMARY — source of truth)
       let profileError: any = null
@@ -244,7 +244,7 @@ export async function PATCH(request: NextRequest) {
         if (error) {
           console.error('❌ [ADMIN PATCH] Profiles table revoke failed:', error.message)
         } else {
-          console.log(`✅ [ADMIN PATCH] Profiles table updated to FREE for: ${user.email}`)
+          console.log(`✅ [ADMIN PATCH] Profiles table updated to FREE for user: ${userId}`) // PII redacted
         }
       } else {
         console.error('❌ [ADMIN PATCH] Supabase admin client not available for profiles table')
@@ -283,7 +283,7 @@ export async function PATCH(request: NextRequest) {
         user: updatedUser?.user,
       })
     } else if (action === 'activate') {
-      console.log(`👑 [ADMIN PATCH] Activating PRO for ${days} days for user: ${user.email} (${userId})`)
+      console.log(`👑 [ADMIN PATCH] Activating PRO for ${days} days for user: ${userId}`) // PII redacted
 
       const now = new Date()
       // Check profiles table first for current subscription
@@ -331,7 +331,7 @@ export async function PATCH(request: NextRequest) {
         if (error) {
           console.error('❌ [ADMIN PATCH] Profiles table activate failed:', error.message)
         } else {
-          console.log(`✅ [ADMIN PATCH] Profiles table updated to PRO for: ${user.email} until ${subscriptionUntil}`)
+          console.log(`✅ [ADMIN PATCH] Profiles table updated to PRO for user: ${userId} until ${subscriptionUntil}`) // PII redacted
         }
       } else {
         console.error('❌ [ADMIN PATCH] Supabase admin client not available for profiles table')

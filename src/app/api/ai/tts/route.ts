@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('[AI /tts] Error:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to generate speech' },
+      { error: 'Failed to generate speech' },
       { status: 500 }
     )
   }

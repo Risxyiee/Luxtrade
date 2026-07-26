@@ -92,6 +92,6 @@ export async function POST() {
     })
   } catch (error: any) {
     console.error('[promo/downgrade] Error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to downgrade expired promos' }, { status: 500 })
   }
 }

@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAdmin } from '@/lib/admin-auth'
 
 export async function GET(request: NextRequest) {
   try {
+    // SECURITY: Only admins can trigger plan seeding
+    const { error: authError } = await requireAdmin(request)
+    if (authError) return authError
+
     // Check if plans already exist
     const existingPlans = await db.subscriptionPlan.findMany()
 

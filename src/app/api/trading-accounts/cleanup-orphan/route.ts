@@ -92,8 +92,7 @@ export async function DELETE(req: NextRequest) {
     console.error('🔴 [CLEANUP ORPHAN] Error during cleanup:', error)
     return NextResponse.json(
       {
-        error: 'Failed to cleanup orphan accounts',
-        details: error.message
+        error: 'Failed to cleanup orphan accounts'
       },
       { status: 500 }
     )

@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: error.message || 'Proxy error occurred' },
+      { error: 'Proxy error occurred' },
       { status: 500 }
     )
   }

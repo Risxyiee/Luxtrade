@@ -434,7 +434,7 @@ export async function POST(req: NextRequest) {
           .single()
 
         if (error) {
-          errors.push({ error: error.message, trade: parsedTrade })
+          errors.push({ error: 'Database error', trade: parsedTrade })
           continue
         }
 

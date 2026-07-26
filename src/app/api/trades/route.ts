@@ -237,7 +237,7 @@ export async function POST(request: NextRequest) {
     if (err instanceof Error) {
       if (err.message.includes('Foreign key constraint')) {
         return NextResponse.json(
-          { error: 'Profile not found. Please refresh and try again.', details: err.message },
+          { error: 'Profile not found. Please refresh and try again.' },
           { status: 400 }
         )
       }
