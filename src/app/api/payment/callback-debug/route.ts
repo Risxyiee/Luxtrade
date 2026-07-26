@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error: any) {
     console.error('[Callback Debug] Error:', error.message)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -121,6 +121,7 @@ export async function GET(request: NextRequest) {
       orders,
     })
   } catch (error: any) {
-    return NextResponse.json({ error: error.message, orders: [] }, { status: 500 })
+    console.error('[Callback Debug GET] Error:', error.message)
+    return NextResponse.json({ error: 'Internal server error', orders: [] }, { status: 500 })
   }
 }

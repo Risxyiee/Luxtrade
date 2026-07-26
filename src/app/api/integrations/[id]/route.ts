@@ -37,10 +37,10 @@ export async function PATCH(
 
     const body = await req.json()
 
-    // Cek apakah integrasi milik user ini
+    // Cek apakah integrasi milik user ini — exclude investor_password from response
     const { data: existing } = await getSupabaseAdmin()
       .from('trading_integrations')
-      .select('*')
+      .select('id,user_id,name,provider,account_id,broker_server,account_type,status,webhook_url,last_sync,sync_settings,created_at,updated_at')
       .eq('id', params.id)
       .eq('user_id', user.id)
       .single()
@@ -49,19 +49,23 @@ export async function PATCH(
       return NextResponse.json({ error: 'Integration not found' }, { status: 404 })
     }
 
-    // Update integrasi
+    // Update integrasi — investor_password only updated if explicitly provided
+    const updateData: Record<string, unknown> = {
+      name: body.name ?? existing.name,
+      status: body.status ?? existing.status,
+      sync_settings: body.sync_settings ?? existing.sync_settings,
+      last_sync: body.last_sync ?? existing.last_sync,
+      updated_at: new Date().toISOString()
+    }
+    if (body.investor_password) {
+      updateData.investor_password = body.investor_password
+    }
+
     const { data: integration, error } = await getSupabaseAdmin()
       .from('trading_integrations')
-      .update({
-        name: body.name ?? existing.name,
-        status: body.status ?? existing.status,
-        sync_settings: body.sync_settings ?? existing.sync_settings,
-        investor_password: body.investor_password ?? existing.investor_password,
-        last_sync: body.last_sync ?? existing.last_sync,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', params.id)
-      .select()
+      .select('id,user_id,name,provider,account_id,broker_server,account_type,status,webhook_url,last_sync,sync_settings,created_at,updated_at')
       .single()
 
     if (error) throw error
@@ -74,7 +78,7 @@ export async function PATCH(
   } catch (error: any) {
     console.error('[INTEGRATIONS PATCH] Error:', error)
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
@@ -100,7 +104,7 @@ export async function DELETE(
     // Cek apakah integrasi milik user ini
     const { data: existing } = await getSupabaseAdmin()
       .from('trading_integrations')
-      .select('*')
+      .select('id,user_id')
       .eq('id', params.id)
       .eq('user_id', user.id)
       .single()
@@ -124,7 +128,7 @@ export async function DELETE(
   } catch (error: any) {
     console.error('[INTEGRATIONS DELETE] Error:', error)
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
