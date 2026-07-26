@@ -108,14 +108,23 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { id, ...updates } = body
+    const { id, title, content, mood, market_condition, tags, image_url } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Entry ID is required' }, { status: 400 })
     }
 
-    if (updates.tags) {
-      updates.tags = JSON.stringify(updates.tags)
+    // SECURITY: Only allow updating specific fields (prevent mass assignment)
+    const updates: Record<string, unknown> = {}
+    if (title !== undefined) updates.title = title
+    if (content !== undefined) updates.content = content
+    if (mood !== undefined) updates.mood = mood
+    if (market_condition !== undefined) updates.market_condition = market_condition
+    if (tags !== undefined) updates.tags = JSON.stringify(tags)
+    if (image_url !== undefined) updates.image_url = image_url
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
     }
 
     const { supabase } = createClientForApi(request)

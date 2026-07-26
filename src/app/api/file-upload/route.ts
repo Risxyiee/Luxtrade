@@ -4,45 +4,47 @@ import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 
 /**
- * Upload file example to server
- * Saves files to /home/z/my-project/upload/{file_name}
+ * Upload file to server local disk.
+ * Files are stored with random unique names (not user-supplied names) to prevent path traversal.
+ * GET method is disabled for security — no cross-tenant file listing.
  */
 export async function POST(request: NextRequest) {
   try {
-    console.log('📤 [File Upload] Starting file upload...')
-
     // Authenticate user
     const authUser = await getAuthUser(request)
     if (!authUser) {
-      console.log('❌ [File Upload] Unauthorized')
       return NextResponse.json(
         { error: 'Unauthorized - Please login' },
         { status: 401 }
       )
     }
 
-    // User authenticated
-
     // Get form data
     const formData = await request.formData()
     const file = formData.get('file') as File
 
     if (!file) {
-      console.log('❌ [File Upload] No file provided')
       return NextResponse.json(
         { error: 'No file provided' },
         { status: 400 }
       )
     }
 
-    console.log(`📷 [File Upload] Processing file: ${file.name} (${file.size} bytes, ${file.type})`)
-
-    // Validate file type
+    // Validate file type (strict allowlist)
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
     if (!allowedTypes.includes(file.type)) {
-      console.log(`❌ [File Upload] Invalid file type: ${file.type}`)
       return NextResponse.json(
         { error: 'Invalid file type. Only JPEG, PNG, and WebP are allowed.' },
+        { status: 400 }
+      )
+    }
+
+    // Validate file extension (defense in depth)
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp']
+    const fileExtension = path.extname(file.name).toLowerCase()
+    if (!allowedExtensions.includes(fileExtension)) {
+      return NextResponse.json(
+        { error: 'Invalid file extension.' },
         { status: 400 }
       )
     }
@@ -50,7 +52,6 @@ export async function POST(request: NextRequest) {
     // Validate file size (max 10MB)
     const maxSize = 10 * 1024 * 1024 // 10MB
     if (file.size > maxSize) {
-      console.log(`❌ [File Upload] File too large: ${file.size} bytes`)
       return NextResponse.json(
         { error: 'File too large. Maximum size is 10MB.' },
         { status: 400 }
@@ -61,27 +62,32 @@ export async function POST(request: NextRequest) {
     const uploadDir = path.join(process.cwd(), 'upload')
     await mkdir(uploadDir, { recursive: true })
 
-    // Generate unique filename to avoid conflicts
+    // Generate unique filename — DO NOT use user-supplied filename to prevent path traversal
     const timestamp = Date.now()
-    const randomString = Math.random().toString(36).substring(2, 8)
-    const fileExtension = path.extname(file.name) || '.jpg'
+    const randomString = Math.random().toString(36).substring(2, 12)
     const uniqueFileName = `${timestamp}_${randomString}${fileExtension}`
     const filePath = path.join(uploadDir, uniqueFileName)
+
+    // SECURITY: Ensure resolved path is still within uploadDir (prevent escape)
+    const resolvedPath = path.resolve(filePath)
+    const resolvedUploadDir = path.resolve(uploadDir)
+    if (!resolvedPath.startsWith(resolvedUploadDir + path.sep)) {
+      return NextResponse.json(
+        { error: 'Invalid file path' },
+        { status: 400 }
+      )
+    }
 
     // Save file to server
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    await writeFile(filePath, buffer)
+    await writeFile(resolvedPath, buffer)
 
-    console.log(`✅ [File Upload] File saved to: ${filePath}`)
-
-    // Return file info
+    // Return file info — do NOT expose full server path
     return NextResponse.json({
       success: true,
       file: {
         name: uniqueFileName,
-        originalName: file.name,
-        path: filePath,
         size: file.size,
         type: file.type
       },
@@ -89,65 +95,21 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('❌ [File Upload] Error:', error)
+    console.error('[File Upload] Error:', error)
     return NextResponse.json(
-      {
-        error: 'Failed to upload file',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to upload file' },
       { status: 500 }
     )
   }
 }
 
 /**
- * Get list of uploaded files
+ * GET method disabled — listing all files would expose cross-tenant data.
+ * Use Supabase Storage for per-user file management instead.
  */
-export async function GET(request: NextRequest) {
-  try {
-    // Authenticate user
-    const authUser = await getAuthUser(request)
-    if (!authUser) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Read upload directory
-    const { readdir } = await import('fs/promises')
-    const uploadDir = path.join(process.cwd(), 'upload')
-    const files = await readdir(uploadDir)
-
-    // Get file stats
-    const { stat } = await import('fs/promises')
-    const fileList = await Promise.all(
-      files.map(async (fileName) => {
-        const filePath = path.join(uploadDir, fileName)
-        const stats = await stat(filePath)
-        return {
-          name: fileName,
-          path: filePath,
-          size: stats.size,
-          createdAt: stats.birthtime,
-          modifiedAt: stats.mtime
-        }
-      })
-    )
-
-    return NextResponse.json({
-      success: true,
-      files: fileList.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    })
-
-  } catch (error) {
-    console.error('❌ [File Upload] Error listing files:', error)
-    return NextResponse.json(
-      {
-        error: 'Failed to list files',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    )
-  }
+export async function GET() {
+  return NextResponse.json(
+    { error: 'Method Not Allowed' },
+    { status: 405 }
+  )
 }

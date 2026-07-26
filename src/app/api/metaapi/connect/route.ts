@@ -112,18 +112,10 @@ export async function POST(req: NextRequest) {
     } catch (metaApiError) {
       console.error('🔴 METAAPI ERROR DETAIL:', metaApiError)
 
-      // Get detailed error information
-      const errorDetails = {
-        name: metaApiError instanceof Error ? metaApiError.name : 'Unknown',
-        message: metaApiError instanceof Error ? metaApiError.message : String(metaApiError),
-        stack: metaApiError instanceof Error ? metaApiError.stack : undefined,
-        fullError: metaApiError
-      }
-
-      console.error('🔴 [METAAPI CONNECT] Error details:', errorDetails)
+      // Get detailed error information (internal logging only — do not expose to client)
+      console.error('🔴 [METAAPI CONNECT] Error:', metaApiError instanceof Error ? metaApiError.message : String(metaApiError))
 
       // ROLLBACK: Delete the trading account record to avoid duplicate key error on retry
-      // Rolling back - deleting trading account record
       const { error: deleteError } = await supabaseAdmin
         .from('trading_accounts')
         .delete()
@@ -131,15 +123,12 @@ export async function POST(req: NextRequest) {
 
       if (deleteError) {
         console.error('🔴 [METAAPI CONNECT] Failed to delete trading account during rollback:', deleteError)
-      } else {
-        // Successfully deleted trading account during rollback
       }
 
       return NextResponse.json(
         {
           error: 'Failed to connect to MetaApi',
           message: metaApiError instanceof Error ? metaApiError.message : 'Unknown error',
-          details: errorDetails
         },
         { status: 500 }
       )
@@ -188,12 +177,11 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('🔴 METAAPI ERROR DETAIL:', error)
 
-    // Get detailed error information
+    // Get detailed error information (internal logging only — do not expose to client)
     const errorDetails = {
       name: error instanceof Error ? error.name : 'Unknown',
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
-      fullError: error
     }
 
     console.error('🔴 [METAAPI CONNECT] Main error details:', errorDetails)
@@ -220,7 +208,6 @@ export async function POST(req: NextRequest) {
       {
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
-        details: errorDetails
       },
       { status: 500 }
     )
