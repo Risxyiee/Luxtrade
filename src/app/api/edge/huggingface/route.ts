@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('[Edge HF] Error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to process request' },
+      { error: 'Failed to process request' },
       { status: 500 }
     );
   }

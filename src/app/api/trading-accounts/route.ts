@@ -116,21 +116,21 @@ export async function POST(request: NextRequest) {
       if (err.message.includes('Foreign key constraint')) {
         console.error('❌ [API] Foreign key constraint violation - profile may not exist')
         return NextResponse.json(
-          { error: 'User profile not found. Please try logging out and in again.', details: err.message },
+          { error: 'User profile not found. Please try logging out and in again.' },
           { status: 400 }
         )
       }
 
       if (err.message.includes('Unique constraint')) {
         return NextResponse.json(
-          { error: 'Account number already exists', details: err.message },
+          { error: 'Account number already exists' },
           { status: 409 }
         )
       }
     }
 
     return NextResponse.json(
-      { error: 'Failed to create account', details: err instanceof Error ? err.message : 'Unknown error' },
+      { error: 'Failed to create account' },
       { status: 500 }
     )
   }

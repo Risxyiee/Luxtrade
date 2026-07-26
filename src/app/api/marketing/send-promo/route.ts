@@ -127,7 +127,8 @@ export async function POST(request: NextRequest) {
       })
     } catch {}
 
-    console.log(`✅ Promo email sent to ${email.toLowerCase()} with code ${promoCode.toUpperCase()}`)
+    // PII redacted: do not log recipient email in server logs
+    console.log(`✅ Promo email sent with code ${promoCode.toUpperCase()}`)
 
     return NextResponse.json({
       success: true,

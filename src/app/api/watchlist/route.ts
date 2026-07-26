@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error: any) {
     console.error('[watchlist POST] Error:', error)
-    return NextResponse.json({ error: error.message || 'Failed to add to watchlist' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to add to watchlist' }, { status: 500 })
   }
 }
 
@@ -128,6 +128,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true })
   } catch (error: any) {
     console.error('[watchlist DELETE] Error:', error)
-    return NextResponse.json({ error: error.message || 'Failed to remove from watchlist' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to remove from watchlist' }, { status: 500 })
   }
 }

@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('❌ [Simple Promo] Error:', error)
     return NextResponse.json(
-      { error: error.message, code: error.code },
+      { error: 'Failed to apply promo code', code: error.code },
       { status: 500 }
     )
   }

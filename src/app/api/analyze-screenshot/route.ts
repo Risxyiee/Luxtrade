@@ -297,7 +297,7 @@ Important guidelines:
     }
 
     return NextResponse.json(
-      { error: error.message || 'Gagal menganalisis screenshot' },
+      { error: 'Gagal menganalisis screenshot' },
       { status: 500 }
     )
   }

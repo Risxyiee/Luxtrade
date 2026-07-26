@@ -89,7 +89,8 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error('[journal-entries] DB error:', error.message)
+      return NextResponse.json({ error: 'Failed to process journal entry' }, { status: 500 })
     }
 
     return NextResponse.json({ entry: data })
@@ -137,7 +138,8 @@ export async function PUT(request: NextRequest) {
       .single()
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error('[journal-entries] DB error:', error.message)
+      return NextResponse.json({ error: 'Failed to process journal entry' }, { status: 500 })
     }
 
     return NextResponse.json({ entry: data })
@@ -170,7 +172,8 @@ export async function DELETE(request: NextRequest) {
       .eq('user_id', authUser.id)
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error('[journal-entries] DB error:', error.message)
+      return NextResponse.json({ error: 'Failed to process journal entry' }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })

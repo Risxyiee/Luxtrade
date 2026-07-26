@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('❌ [Payment] Create order error:', error.message)
     return NextResponse.json(
-      { error: error.message || 'Failed to create payment order' },
+      { error: 'Failed to create payment order' },
       { status: 500 }
     )
   }

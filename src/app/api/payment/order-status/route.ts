@@ -159,7 +159,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('❌ [Order Status] Error:', error.message)
     return NextResponse.json(
-      { error: error.message || 'Failed to check order status' },
+      { error: 'Failed to check order status' },
       { status: 500 }
     )
   }
