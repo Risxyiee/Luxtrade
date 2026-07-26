@@ -58,9 +58,9 @@ export async function GET() {
         AND end_date < NOW();
     `, userIds)
 
-    // Log
+    // Log (PII redacted — only log user ID, not email)
     for (const u of expiredUsers) {
-      console.log(`⬇️ [cron/downgrade] ${u.email || u.id} downgraded from PRO → FREE (expired ${u.pro_expiry})`)
+      console.log(`⬇️ [cron/downgrade] user=${u.id} downgraded from PRO → FREE (expired ${u.pro_expiry})`)
     }
 
     return NextResponse.json({
@@ -70,7 +70,7 @@ export async function GET() {
     })
   } catch (error: any) {
     console.error('[cron/downgrade-expired-pro] Error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: 'Cron job failed' }, { status: 500 })
   }
 }
 

@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { requireAdmin } from '@/lib/admin-auth'
 
 // One-time setup script for LuxTrade
 // Run this endpoint to check database status
@@ -142,7 +143,11 @@ DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
 -- After this, registration will work but profiles won't auto-create.
 -- Then run the full setup.sql to recreate with correct trigger.`
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // SECURITY: Only admins can view setup SQL + DB status
+  const { error: authError } = await requireAdmin(request)
+  if (authError) return authError
+
   const results = {
     success: false,
     checks: [] as { name: string; status: 'ok' | 'error' | 'warning'; message: string }[],
@@ -261,7 +266,11 @@ export async function GET() {
 }
 
 // POST to trigger setup checks
-export async function POST() {
+export async function POST(request: NextRequest) {
+  // SECURITY: Only admins can run setup checks
+  const { error: authError } = await requireAdmin(request)
+  if (authError) return authError
+
   const results = {
     success: false,
     actions: [] as string[],

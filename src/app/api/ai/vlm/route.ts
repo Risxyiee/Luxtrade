@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('[AI /vlm] Error:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to analyze image' },
+      { error: 'Failed to analyze image' },
       { status: 500 }
     )
   }

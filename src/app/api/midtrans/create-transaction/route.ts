@@ -236,7 +236,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('❌ [Midtrans] Create transaction error:', error)
     return NextResponse.json(
-      { error: error.message || 'Gagal membuat transaksi' },
+      { error: 'Gagal membuat transaksi' },
       { status: 500 }
     )
   }

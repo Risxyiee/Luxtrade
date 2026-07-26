@@ -149,7 +149,7 @@ export async function POST(
       )
     }
 
-    console.log(`✅ Resolved user: ${userProfile.email}, Plan: ${planConfig.name}`)
+    console.log(`✅ Resolved user: ${userProfile.id}, Plan: ${planConfig.name}`) // PII redacted
 
     // ============================================
     // STEP 4: Calculate subscription end date
@@ -188,7 +188,7 @@ export async function POST(
       )
     }
 
-    console.log(`✅ Supabase profile updated to PRO for: ${userProfile.email}`)
+    console.log(`✅ Supabase profile updated to PRO for user: ${userProfile.id}`) // PII redacted
 
     // ============================================
     // STEP 5b: Also update Auth metadata so GET /api/admin/users reflects the change
@@ -206,7 +206,7 @@ export async function POST(
             has_ever_been_pro: true,
           }
         })
-        console.log(`✅ Auth metadata updated to PRO for: ${userProfile.email}`)
+        console.log(`✅ Auth metadata updated to PRO for user: ${userProfile.id}`) // PII redacted
       }
     } catch (metaErr) {
       console.error('⚠️ Auth metadata sync failed (non-blocking):', metaErr)

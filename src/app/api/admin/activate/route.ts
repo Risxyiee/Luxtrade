@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     const body: ActivateRequestBody = await request.json()
     const { userId, planType } = body
 
-    console.log(`🚀 [ACTIVATE] Admin ${adminUser?.email} activating: userId=${userId}, planType=${planType}`)
+    console.log(`🚀 [ACTIVATE] Admin ${adminUser?.id} activating: userId=${userId}, planType=${planType}`) // PII redacted
 
     if (!userId || !planType) {
       return NextResponse.json({ error: 'userId and planType are required' }, { status: 400 })
@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
             })
             .eq('id', referrerData.id)
 
-          console.log(`✅ Commission Rp${commissionAmount.toLocaleString('id-ID')} added to referrer: ${referrerData.email}`)
+          console.log(`✅ Commission Rp${commissionAmount.toLocaleString('id-ID')} added to referrer: ${referrerData.id}`) // PII redacted
 
           // Send admin notification
           try {

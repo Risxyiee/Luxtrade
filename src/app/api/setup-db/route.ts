@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
       results,
     })
   } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Database setup failed' }, { status: 500 })
   }
 }
 

@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
         }, { status: 500 })
       }
       
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Seed operation failed' }, { status: 500 })
     }
     
     // Calculate totals
