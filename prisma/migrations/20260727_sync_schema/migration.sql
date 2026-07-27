@@ -1,8 +1,8 @@
 -- Migration: Sync production DB with current schema.prisma
 --
 -- Two things happening here:
---   1) DROP trading_accounts.broker_gmt_offset (removed from schema — feature dropped)
---   2) ADD missing columns that were added to schema.prisma but never migrated
+--   1) ADD trading_accounts.broker_gmt_offset (re-added as OPTIONAL, default 0)
+--   2) ADD other missing columns that were added to schema.prisma but never migrated
 --      (causing Prisma P2022 "column does not exist" errors in production)
 --
 -- IMPORTANT: Prisma @@map() maps model names to actual table names:
@@ -17,20 +17,20 @@
 -- Run via: Supabase SQL Editor
 
 -- ==========================================================
--- 1) DROP trading_accounts.broker_gmt_offset
---    Column was removed from schema.prisma (feature dropped).
---    Session calc in auto-journal now uses UTC time directly (offset = 0).
+-- 1) trading_accounts.broker_gmt_offset (INTEGER NOT NULL, default 0)
+--    Re-added as OPTIONAL field — form allows empty, API defaults to 0.
+--    Idempotent: cek dulu apakah kolom sudah ada sebelum ADD.
 -- ==========================================================
 DO $$
 BEGIN
-  IF EXISTS (
+  IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_name = 'trading_accounts' AND column_name = 'broker_gmt_offset'
   ) THEN
-    ALTER TABLE "trading_accounts" DROP COLUMN "broker_gmt_offset";
-    RAISE NOTICE 'Dropped column: trading_accounts.broker_gmt_offset';
+    ALTER TABLE "trading_accounts" ADD COLUMN "broker_gmt_offset" INTEGER NOT NULL DEFAULT 0;
+    RAISE NOTICE 'Added column: trading_accounts.broker_gmt_offset';
   ELSE
-    RAISE NOTICE 'Column already absent: trading_accounts.broker_gmt_offset (skipped)';
+    RAISE NOTICE 'Column already exists: trading_accounts.broker_gmt_offset (skipped)';
   END IF;
 END $$;
 

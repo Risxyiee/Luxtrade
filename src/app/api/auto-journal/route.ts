@@ -269,18 +269,24 @@ export async function POST(request: NextRequest) {
       journal.risk_reward_ratio = risk > 0 ? reward / risk : 0
     }
 
-    // ── STEP 10b: Calculate session from trade open time ──
-    // Note: broker_gmt_offset column was removed; session is calculated from UTC time directly.
-    log('🌐', 'Calculating session from trade open time (UTC)...')
+    // ── STEP 10b: Calculate session from trade open time + broker GMT offset ──
+    // broker_gmt_offset is optional on the account (default 0). If user didn't set it,
+    // session calc falls back to treating trade time as UTC.
+    log('🌐', 'Fetching trading account for broker_gmt_offset...')
+
+    const tradingAccount = await db.tradingAccount.findUnique({
+      where: { id: accountId },
+      select: { broker_gmt_offset: true },
+    })
+    const gmtOffset = tradingAccount?.broker_gmt_offset ?? 0
+    log('✅', `broker_gmt_offset: ${gmtOffset}`)
 
     const openTime = ai.openTime ? new Date(ai.openTime) : new Date()
     const closeTime = ai.closeTime ? new Date(ai.closeTime) : new Date()
 
-    // Calculate session from UTC time (gmtOffset = 0)
+    // Calculate session: convert broker time to UTC by subtracting GMT offset.
     function calculateSession(ot: Date, gmtOff: number): string {
-      // Convert broker time to UTC: brokerTime = UTC + gmtOffset, so UTC = brokerTime - gmtOffset
       const utcHour = (ot.getUTCHours() + ot.getUTCMinutes() / 60) - gmtOff
-      // Normalize to 0-24 range
       const normalizedHour = ((utcHour % 24) + 24) % 24
       if (normalizedHour >= 0 && normalizedHour < 7) return 'Asia'
       if (normalizedHour >= 7 && normalizedHour < 15) return 'London'
@@ -288,7 +294,6 @@ export async function POST(request: NextRequest) {
       return 'Unknown'
     }
 
-    const gmtOffset = 0
     const session = calculateSession(openTime, gmtOffset)
     const tradeDuration = Math.round((closeTime.getTime() - openTime.getTime()) / 60000) // minutes
     log('✅', `Session: ${session}, Duration: ${tradeDuration}min`)
