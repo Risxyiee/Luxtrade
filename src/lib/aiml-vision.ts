@@ -391,8 +391,55 @@ Return the JSON now:
 /**
  * COMBINED prompt: extracts trade data AND generates journal analysis in ONE call.
  * This halves the AI latency for the auto-journal feature (critical for Vercel Hobby 10s limit).
+ *
+ * Language support:
+ *   - 'id' (default): Indonesian — semua field teks (journalTitle, journalContent, tags)
+ *                     ditulis dalam Bahasa Indonesia yang natural & professional.
+ *   - 'en'          : English.
+ * Trade data fields (symbol/type/prices/etc) tetap konsisten regardless of language.
+ *
+ * @param lang 'id' | 'en' (default 'id')
  */
-export const TRADE_AND_JOURNAL_PROMPT = `You are an expert trading analyst. Analyze this trading screenshot and return a SINGLE JSON object with TWO parts.
+export function buildTradeAndJournalPrompt(lang: 'id' | 'en' = 'id'): string {
+  const isId = lang === 'id'
+
+  const titleExample = isId
+    ? 'Gold Long Ditolak di Resistance'
+    : 'Gold Long Rejected at Resistance'
+
+  const contentExample = isId
+    ? 'Entry long XAUUSD di 4140.35 setelah breakout bullish. Harga ditolak di resistance dan berbalik tajam, menyentuh stop loss di 4120.40. Setup kurang konfirmasi dari timeframe lebih besar — hindari trading melawan resistance kuat tanpa konfluence. Contoh baik untuk belajar menahan diri saat belum ada konfirmasi jelas.'
+    : 'Entered long on XAUUSD at 4140.35 after a bullish breakout attempt. Price was rejected at resistance and reversed sharply, hitting stop loss at 4120.40. The setup lacked confirmation from higher timeframe — avoid trading against strong resistance without confluence.'
+
+  const tagsExample = isId
+    ? 'gold,breakout,loss,resistance'
+    : 'gold,breakout,loss,resistance'
+
+  const part2Header = isId
+    ? `PART 2 — Buat analisis jurnal trading singkat (3-4 kalimat) DALAM BAHASA INDONESIA:
+- journalTitle: Judul singkat deskriptif (contoh: "Gold Short di Area Resistance")
+- journalContent: Analisis 3-4 kalimat mencakup: setup/strategi yang dipakai, kondisi market, pelajaran utama. WAJIB ditulis dalam Bahasa Indonesia yang natural dan professional — bukan terjemahan kaku. Gunakan istilah trading yang umum dipakai trader Indonesia (entry, stop loss, take profit, breakout, pullback, dll).
+- mood: Salah satu dari: confident, nervous, calm, fearful, greedy, neutral
+- marketCondition: Salah satu dari: trending, ranging, volatile, bullish, bearish
+- tags: 2-4 tag relevan sebagai string dipisah koma (contoh: "gold,breakout,loss")
+- setupType: Nama strategi (contoh: breakout, pullback, momentum, scalping, swing)`
+    : `PART 2 — Generate a brief trading journal analysis (3-4 sentences):
+- journalTitle: Short descriptive title (e.g., "Gold Short at Resistance Level")
+- journalContent: 3-4 sentence analysis covering: setup/strategy used, market condition, key takeaway
+- mood: One of: confident, nervous, calm, fearful, greedy, neutral
+- marketCondition: One of: trending, ranging, volatile, bullish, bearish
+- tags: 2-4 relevant tags as comma-separated string (e.g., "gold,breakout,loss")
+- setupType: Strategy name (e.g., breakout, pullback, momentum, scalping, swing)`
+
+  const rule5 = isId
+    ? '5. Journal content harus ringkas (maks 3-4 kalimat) agar respons tetap cepat. WAJIB dalam Bahasa Indonesia.'
+    : '5. Journal content must be concise (3-4 sentences max) to keep response fast'
+
+  const languageInstruction = isId
+    ? `\nIMPORTANT: All text fields (journalTitle, journalContent, tags) MUST be written in Bahasa Indonesia. Trade data fields (symbol, type, prices, dates) tetap apa adanya sesuai screenshot.`
+    : `\nAll journal text fields should be written in English.`
+
+  return `You are an expert trading analyst. Analyze this trading screenshot and return a SINGLE JSON object with TWO parts.
 
 PART 1 — Extract trade data:
 - symbol: Currency pair (e.g., XAUUSD, EURUSD)
@@ -407,24 +454,26 @@ PART 1 — Extract trade data:
 - volume: Lot size if visible (number or null)
 - ticketNumber: Ticket number if visible (string or null)
 
-PART 2 — Generate a brief trading journal analysis (3-4 sentences):
-- journalTitle: Short descriptive title (e.g., "Gold Short at Resistance Level")
-- journalContent: 3-4 sentence analysis covering: setup/strategy used, market condition, key takeaway
-- mood: One of: confident, nervous, calm, fearful, greedy, neutral
-- marketCondition: One of: trending, ranging, volatile, bullish, bearish
-- tags: 2-4 relevant tags as comma-separated string (e.g., "gold,breakout,loss")
-- setupType: Strategy name (e.g., breakout, pullback, momentum, scalping, swing)
+${part2Header}
 
 RULES:
 1. Return ONLY a single JSON object, no markdown, no explanation, no backticks
 2. All prices must be numbers
 3. type must be exactly "buy" or "sell"
 4. Missing fields → null
-5. Journal content must be concise (3-4 sentences max) to keep response fast
+${rule5}
 6. Tags must be lowercase, comma-separated
 7. If multiple trades visible, analyze the most recent one
+${languageInstruction}
 
 Example:
-{"symbol":"XAUUSD","type":"buy","openPrice":4140.35,"closePrice":4120.40,"profitLoss":-99.75,"openTime":"2026-06-23 06:04:10","closeTime":"2026-06-23 07:59:11","stopLoss":4120.40,"takeProfit":4182.15,"volume":0.05,"ticketNumber":"918673848","journalTitle":"Gold Long Rejected at Resistance","journalContent":"Entered long on XAUUSD at 4140.35 after a bullish breakout attempt. Price was rejected at resistance and reversed sharply, hitting stop loss at 4120.40. The setup lacked confirmation from higher timeframe — avoid trading against strong resistance without confluence.","mood":"nervous","marketCondition":"ranging","tags":"gold,breakout,loss,resistance","setupType":"breakout"}
+{"symbol":"XAUUSD","type":"buy","openPrice":4140.35,"closePrice":4120.40,"profitLoss":-99.75,"openTime":"2026-06-23 06:04:10","closeTime":"2026-06-23 07:59:11","stopLoss":4120.40,"takeProfit":4182.15,"volume":0.05,"ticketNumber":"918673848","journalTitle":"${titleExample}","journalContent":"${contentExample}","mood":"nervous","marketCondition":"ranging","tags":"${tagsExample}","setupType":"breakout"}
 
 Return the JSON now:`
+}
+
+/**
+ * Default export kept for backwards compatibility — defaults to Indonesian.
+ * New code should call buildTradeAndJournalPrompt(lang) explicitly.
+ */
+export const TRADE_AND_JOURNAL_PROMPT = buildTradeAndJournalPrompt('id')

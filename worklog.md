@@ -1112,3 +1112,37 @@ Stage Summary:
 - Lint: clean
 - Dev server: running, all tested endpoints return 401 without auth
 - Total files touched: 41 modified + 1 deleted
+
+---
+Task ID: LANG-AUTOJOURNAL-1
+Agent: Main
+Task: Auto-journal notes generated in English regardless of language toggle — make notes respect the ID/EN toggle (default Indonesian).
+
+Work Log:
+- Analyzed screenshot IMG_7817.png provided by user via VLM:
+  * Trade Details modal showed notes in English ("Entered long position on XAUUSD, anticipating a bullish continuation...")
+  * Language toggle showed "EN" but the journal notes were still English even when toggle should be ID
+- Root cause: TRADE_AND_JOURNAL_PROMPT in src/lib/aiml-vision.ts was hardcoded in English (example + instructions all English). AI followed the example language regardless of toggle.
+- Fix 1 (aiml-vision.ts): Converted TRADE_AND_JOURNAL_PROMPT constant into buildTradeAndJournalPrompt(lang: 'id'|'en') function.
+  * When lang='id': PART 2 instructions in Bahasa Indonesia, example title/content in Indonesian, explicit instruction "WAJIB ditulis dalam Bahasa Indonesia"
+  * When lang='en': original English instructions
+  * Trade data fields (symbol, type, prices, dates) stay consistent regardless of language
+  * Kept TRADE_AND_JOURNAL_PROMPT as default export (calls build with 'id') for backwards compatibility
+- Fix 2 (auto-journal/route.ts):
+  * Changed import: TRADE_AND_JOURNAL_PROMPT → buildTradeAndJournalPrompt
+  * Added STEP 3c: read `language` field from FormData (defaults to 'id' if missing or invalid)
+  * Pass buildTradeAndJournalPrompt(lang) to analyzeImageBase64WithAiml
+- Fix 3 (TradeWizardForm.tsx):
+  * In handleAutoJournal, append `reqFormData.append('language', language)` to send current toggle state to backend
+  * `language` prop already exists on the component (defaults to 'id')
+- Lint: clean
+- Dev server: running, no compile errors
+- Agent Browser verification: homepage renders cleanly in Indonesian (default), language toggle (ID/EN buttons) visible and clickable, no console errors
+
+Stage Summary:
+- 3 files modified: src/lib/aiml-vision.ts, src/app/api/auto-journal/route.ts, src/app/dashboard/components/TradeWizardForm.tsx
+- Auto-journal notes will now be generated in Bahasa Indonesia by default (matching the app's primary audience)
+- When user toggles to EN, notes will be in English
+- Backwards compatible: TRADE_AND_JOURNAL_PROMPT constant still exported (defaults to 'id')
+- No DB schema changes, no migrations needed
+- Not yet committed/pushed (waiting for user confirmation)
