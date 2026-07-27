@@ -3,55 +3,77 @@
 import { useEffect, useRef, useCallback } from 'react'
 
 /**
- * Interactive Neural Mesh Background — Canvas 2D (OPTIMIZED)
- * Reduced particles, spatial grid for O(n) connections, visibility-based throttling.
+ * Lightning-on-Click Background — Canvas 2D (ULTRA LIGHT)
+ *
+ * Behavior:
+ *   - Idle state: NO requestAnimationFrame loop running, canvas is empty.
+ *     Zero CPU/GPU cost when user is not interacting. Perfect for perf.
+ *   - On `pointerdown` anywhere on the page: spawn a lightning bolt at the
+ *     click point. The bolt "follows" the cursor for ~650ms — jagged forks
+ *     are drawn from the click origin to the current cursor position.
+ *   - After the bolt expires, the RAF loop cancels itself and the canvas
+ *     is cleared — back to idle.
+ *   - Mobile: tap spawns a single burst at the tap point (no follow since
+ *     there's no hover on touch).
+ *
+ * Why this is light:
+ *   - No continuous animation loop. RAF only runs for ~650ms after a click.
+ *   - No particle system, no spatial grid, no per-frame connection checks.
+ *   - Bolt geometry is regenerated per frame but only ~12 segments.
  */
 
-interface Particle {
-  x: number
-  y: number
-  vx: number
-  vy: number
-  radius: number
-  baseRadius: number
-  color: string
+interface Bolt {
+  /** Origin point of the strike (where user clicked) */
+  ox: number
+  oy: number
+  /** Timestamp when the bolt was spawned */
+  born: number
+  /** Duration of the bolt in ms */
+  life: number
+  /** Seed for jagged noise so each bolt looks different */
+  seed: number
 }
 
-const CONNECTION_DISTANCE = 150
-const MOUSE_RADIUS = 200
-const PARTICLE_COUNT_DESKTOP = 60
-const PARTICLE_COUNT_MOBILE = 30
-const CELL_SIZE = CONNECTION_DISTANCE
-const NODE_COLORS = [
-  { r: 148, g: 80, b: 235 },
-  { r: 59, g: 210, b: 228 },
-  { r: 168, g: 85, b: 247 },
-]
+const BOLT_LIFE_MS = 650
+const BOLT_SEGMENTS = 14
+const FORK_PROBABILITY = 0.35
+const MAX_BOLTS = 3 // hard cap to prevent runaway if user spam-clicks
 
 const InteractiveNeuralVortex = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const pointer = useRef({ x: -9999, y: -9999 })
-  const animationRef = useRef<number>(0)
-  const particlesRef = useRef<Particle[]>([])
-  const visibleRef = useRef(true)
+  const boltsRef = useRef<Bolt[]>([])
+  const pointerRef = useRef({ x: 0, y: 0 })
+  const animationRef = useRef<number | null>(null)
+  const dprRef = useRef(1)
 
-  const createParticles = useCallback((width: number, height: number, count: number): Particle[] => {
-    const particles: Particle[] = []
-    for (let i = 0; i < count; i++) {
-      const colorDef = NODE_COLORS[Math.floor(Math.random() * NODE_COLORS.length)]
-      const baseRadius = 1 + Math.random() * 2
-      particles.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: (Math.random() - 0.5) * 0.3,
-        radius: baseRadius,
-        baseRadius,
-        color: `rgba(${colorDef.r}, ${colorDef.g}, ${colorDef.b}, `,
-      })
-    }
-    return particles
+  /** Pseudo-random generator seeded per-bolt so jaggedness is stable per frame */
+  const seededRand = useCallback((seed: number, i: number) => {
+    const x = Math.sin(seed * 9999 + i * 17.13) * 43758.5453
+    return x - Math.floor(x)
   }, [])
+
+  /** Generate jagged points from (x1,y1) to (x2,y2) */
+  const generateJaggedPath = useCallback(
+    (x1: number, y1: number, x2: number, y2: number, seed: number, displacement: number) => {
+      const points: { x: number; y: number }[] = [{ x: x1, y: y1 }]
+      for (let i = 1; i < BOLT_SEGMENTS; i++) {
+        const t = i / BOLT_SEGMENTS
+        const baseX = x1 + (x2 - x1) * t
+        const baseY = y1 + (y2 - y1) * t
+        // Perpendicular offset for jaggedness
+        const dx = x2 - x1
+        const dy = y2 - y1
+        const len = Math.sqrt(dx * dx + dy * dy) || 1
+        const nx = -dy / len
+        const ny = dx / len
+        const offset = (seededRand(seed, i) - 0.5) * 2 * displacement
+        points.push({ x: baseX + nx * offset, y: baseY + ny * offset })
+      }
+      points.push({ x: x2, y: y2 })
+      return points
+    },
+    [seededRand]
+  )
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -60,10 +82,10 @@ const InteractiveNeuralVortex = () => {
     if (!ctx) return
 
     const isMobile = window.innerWidth < 768
-    const particleCount = isMobile ? PARTICLE_COUNT_MOBILE : PARTICLE_COUNT_DESKTOP
 
     const resize = () => {
       const dpr = isMobile ? 1 : Math.min(window.devicePixelRatio, 2)
+      dprRef.current = dpr
       const w = window.innerWidth
       const h = window.innerHeight
       canvas.width = w * dpr
@@ -71,167 +93,214 @@ const InteractiveNeuralVortex = () => {
       canvas.style.width = `${w}px`
       canvas.style.height = `${h}px`
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      particlesRef.current = createParticles(w, h, particleCount)
     }
     resize()
     window.addEventListener('resize', resize)
 
+    // Track cursor position (used as the "target" the lightning follows)
     const onPointerMove = (e: PointerEvent) => {
-      pointer.current.x = e.clientX
-      pointer.current.y = e.clientY
-    }
-    const onPointerLeave = () => {
-      pointer.current.x = -9999
-      pointer.current.y = -9999
+      pointerRef.current.x = e.clientX
+      pointerRef.current.y = e.clientY
     }
     window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerleave', onPointerLeave)
 
-    // Visibility detection — skip rendering when tab is hidden
-    const onVisibilityChange = () => { visibleRef.current = !document.hidden }
-    document.addEventListener('visibilitychange', onVisibilityChange)
+    // Spawn a bolt on click/tap
+    const onPointerDown = (e: PointerEvent) => {
+      pointerRef.current.x = e.clientX
+      pointerRef.current.y = e.clientY
 
-    // Spatial grid for O(n) neighbor lookup
-    let gridCols = 0
-    let gridRows = 0
-    const buildGrid = (w: number, h: number, particles: Particle[]): Map<string, number[]> => {
-      gridCols = Math.max(1, Math.ceil(w / CELL_SIZE))
-      gridRows = Math.max(1, Math.ceil(h / CELL_SIZE))
-      const grid = new Map<string, number[]>()
-      for (let i = 0; i < particles.length; i++) {
-        const col = Math.floor(particles[i].x / CELL_SIZE)
-        const row = Math.floor(particles[i].y / CELL_SIZE)
-        const key = `${Math.max(0, Math.min(col, gridCols - 1))},${Math.max(0, Math.min(row, gridRows - 1))}`
-        if (!grid.has(key)) grid.set(key, [])
-        grid.get(key)!.push(i)
+      const newBolt: Bolt = {
+        ox: e.clientX,
+        oy: e.clientY,
+        born: performance.now(),
+        life: BOLT_LIFE_MS,
+        seed: Math.random() * 10000,
       }
-      return grid
+
+      // Cap total active bolts to prevent memory growth from spam clicks
+      const bolts = boltsRef.current
+      bolts.push(newBolt)
+      if (bolts.length > MAX_BOLTS) {
+        bolts.splice(0, bolts.length - MAX_BOLTS)
+      }
+
+      // Start RAF loop if not already running
+      if (animationRef.current === null) {
+        animationRef.current = requestAnimationFrame(render)
+      }
     }
 
-    let lastFrame = 0
     const render = (now: number) => {
-      animationRef.current = requestAnimationFrame(render)
-
-      // Skip when tab is hidden
-      if (!visibleRef.current) return
-
-      // Throttle: ~30fps desktop, ~20fps mobile
-      const minInterval = isMobile ? 50 : 33
-      if (now - lastFrame < minInterval) return
-      lastFrame = now
-
       const w = window.innerWidth
       const h = window.innerHeight
-      const particles = particlesRef.current
-      const mx = pointer.current.x
-      const my = pointer.current.y
+      const bolts = boltsRef.current
 
+      // Filter out expired bolts
+      const alive: Bolt[] = []
+      for (let i = 0; i < bolts.length; i++) {
+        const age = now - bolts[i].born
+        if (age < bolts[i].life) alive.push(bolts[i])
+      }
+      boltsRef.current = alive
+
+      // Clear and redraw
       ctx.clearRect(0, 0, w, h)
 
-      // Update particles
-      for (let i = 0; i < particles.length; i++) {
-        const p = particles[i]
-        p.vx += (Math.random() - 0.5) * 0.015
-        p.vy += (Math.random() - 0.5) * 0.015
-        p.vx *= 0.99
-        p.vy *= 0.99
+      // Don't darken background — keep canvas transparent over page bg
 
-        const dxMouse = mx - p.x
-        const dyMouse = my - p.y
-        const distMouse = Math.sqrt(dxMouse * dxMouse + dyMouse * dyMouse)
-        if (distMouse < MOUSE_RADIUS && distMouse > 1) {
-          const force = (1 - distMouse / MOUSE_RADIUS) * 0.005
-          p.vx += dxMouse * force
-          p.vy += dyMouse * force
-          p.radius = p.baseRadius * (1 + (1 - distMouse / MOUSE_RADIUS) * 1.2)
-        } else {
-          p.radius += (p.baseRadius - p.radius) * 0.05
+      const targetX = pointerRef.current.x
+      const targetY = pointerRef.current.y
+
+      for (let i = 0; i < alive.length; i++) {
+        const bolt = alive[i]
+        const age = now - bolt.born
+        const progress = age / bolt.life // 0 → 1
+        // Fade out: full opacity for first 30%, then linear fade
+        const alpha = progress < 0.3 ? 1 : 1 - (progress - 0.3) / 0.7
+
+        // Target point moves with cursor (lightning "follows" cursor)
+        // On mobile there's no hover, so target stays at origin (burst effect)
+        const tx = isMobile ? bolt.ox : targetX
+        const ty = isMobile ? bolt.oy : targetY
+
+        // Main bolt path — displacement decreases as bolt ages (settles down)
+        const displacement = 35 * (1 - progress * 0.5)
+        const mainPath = generateJaggedPath(bolt.ox, bolt.oy, tx, ty, bolt.seed, displacement)
+
+        // Draw main bolt with glow (multiple passes for bloom effect)
+        // Pass 1: wide soft glow
+        ctx.strokeStyle = `rgba(168, 85, 247, ${alpha * 0.25})`
+        ctx.lineWidth = 8
+        ctx.lineCap = 'round'
+        ctx.lineJoin = 'round'
+        ctx.beginPath()
+        ctx.moveTo(mainPath[0].x, mainPath[0].y)
+        for (let p = 1; p < mainPath.length; p++) {
+          ctx.lineTo(mainPath[p].x, mainPath[p].y)
         }
+        ctx.stroke()
 
-        p.x += p.vx
-        p.y += p.vy
+        // Pass 2: medium glow
+        ctx.strokeStyle = `rgba(196, 132, 252, ${alpha * 0.5})`
+        ctx.lineWidth = 3
+        ctx.beginPath()
+        ctx.moveTo(mainPath[0].x, mainPath[0].y)
+        for (let p = 1; p < mainPath.length; p++) {
+          ctx.lineTo(mainPath[p].x, mainPath[p].y)
+        }
+        ctx.stroke()
 
-        const pad = 20
-        if (p.x < -pad) p.x = w + pad
-        if (p.x > w + pad) p.x = -pad
-        if (p.y < -pad) p.y = h + pad
-        if (p.y > h + pad) p.y = -pad
-      }
+        // Pass 3: bright core
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.95})`
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(mainPath[0].x, mainPath[0].y)
+        for (let p = 1; p < mainPath.length; p++) {
+          ctx.lineTo(mainPath[p].x, mainPath[p].y)
+        }
+        ctx.stroke()
 
-      // Draw connections using spatial grid
-      const grid = buildGrid(w, h, particles)
-      ctx.lineWidth = 0.5
-      const connected = new Set<string>()
+        // Forks — secondary branches off the main bolt
+        const forkCount = 2
+        for (let f = 0; f < forkCount; f++) {
+          // Only spawn forks if probability check passes AND bolt is still fresh
+          if (seededRand(bolt.seed, f * 100) > FORK_PROBABILITY) continue
+          if (progress > 0.6) continue
 
-      for (let i = 0; i < particles.length; i++) {
-        const a = particles[i]
-        const col = Math.floor(a.x / CELL_SIZE)
-        const row = Math.floor(a.y / CELL_SIZE)
+          // Pick a point along the main path to branch from
+          const branchIdx = Math.floor(seededRand(bolt.seed, f * 50 + 7) * (BOLT_SEGMENTS - 2)) + 1
+          const branchPoint = mainPath[branchIdx]
+          // Fork goes off in a random direction with limited length
+          const forkLen = 40 + seededRand(bolt.seed, f * 30 + 3) * 60
+          const forkAngle = seededRand(bolt.seed, f * 40 + 11) * Math.PI * 2
+          const fx = branchPoint.x + Math.cos(forkAngle) * forkLen
+          const fy = branchPoint.y + Math.sin(forkAngle) * forkLen
 
-        // Check 3x3 neighborhood
-        for (let dr = -1; dr <= 1; dr++) {
-          for (let dc = -1; dc <= 1; dc++) {
-            const key = `${Math.max(0, Math.min(col + dc, gridCols - 1))},${Math.max(0, Math.min(row + dr, gridRows - 1))}`
-            const cell = grid.get(key)
-            if (!cell) continue
-            for (let ci = 0; ci < cell.length; ci++) {
-              const j = cell[ci]
-              if (j <= i) continue
-              const pairKey = i < j ? `${i}-${j}` : `${j}-${i}`
-              if (connected.has(pairKey)) continue
+          const forkPath = generateJaggedPath(
+            branchPoint.x,
+            branchPoint.y,
+            fx,
+            fy,
+            bolt.seed + f * 1000,
+            displacement * 0.6
+          )
 
-              const b = particles[j]
-              const dx = a.x - b.x
-              const dy = a.y - b.y
-              const dist = Math.sqrt(dx * dx + dy * dy)
-
-              if (dist < CONNECTION_DISTANCE) {
-                connected.add(pairKey)
-                const alpha = (1 - dist / CONNECTION_DISTANCE) * 0.3
-                ctx.strokeStyle = `rgba(148, 120, 240, ${alpha})`
-                ctx.beginPath()
-                ctx.moveTo(a.x, a.y)
-                ctx.lineTo(b.x, b.y)
-                ctx.stroke()
-              }
-            }
+          // Fork glow
+          ctx.strokeStyle = `rgba(196, 132, 252, ${alpha * 0.3})`
+          ctx.lineWidth = 2
+          ctx.beginPath()
+          ctx.moveTo(forkPath[0].x, forkPath[0].y)
+          for (let p = 1; p < forkPath.length; p++) {
+            ctx.lineTo(forkPath[p].x, forkPath[p].y)
           }
+          ctx.stroke()
+
+          // Fork core
+          ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.7})`
+          ctx.lineWidth = 0.8
+          ctx.beginPath()
+          ctx.moveTo(forkPath[0].x, forkPath[0].y)
+          for (let p = 1; p < forkPath.length; p++) {
+            ctx.lineTo(forkPath[p].x, forkPath[p].y)
+          }
+          ctx.stroke()
+        }
+
+        // Impact flash at origin (fades fast)
+        const flashRadius = 30 * (1 - progress)
+        if (flashRadius > 0) {
+          const flashGrad = ctx.createRadialGradient(
+            bolt.ox,
+            bolt.oy,
+            0,
+            bolt.ox,
+            bolt.oy,
+            flashRadius
+          )
+          flashGrad.addColorStop(0, `rgba(255, 255, 255, ${alpha * 0.4})`)
+          flashGrad.addColorStop(0.5, `rgba(196, 132, 252, ${alpha * 0.2})`)
+          flashGrad.addColorStop(1, 'rgba(168, 85, 247, 0)')
+          ctx.fillStyle = flashGrad
+          ctx.beginPath()
+          ctx.arc(bolt.ox, bolt.oy, flashRadius, 0, Math.PI * 2)
+          ctx.fill()
+        }
+
+        // Tip glow at cursor (where bolt is currently striking)
+        if (!isMobile && progress < 0.8) {
+          const tipRadius = 20 * (1 - progress)
+          const tipGrad = ctx.createRadialGradient(tx, ty, 0, tx, ty, tipRadius)
+          tipGrad.addColorStop(0, `rgba(255, 255, 255, ${alpha * 0.6})`)
+          tipGrad.addColorStop(0.5, `rgba(196, 132, 252, ${alpha * 0.3})`)
+          tipGrad.addColorStop(1, 'rgba(168, 85, 247, 0)')
+          ctx.fillStyle = tipGrad
+          ctx.beginPath()
+          ctx.arc(tx, ty, tipRadius, 0, Math.PI * 2)
+          ctx.fill()
         }
       }
 
-      // Draw nodes (simplified: 2 draws instead of 4)
-      for (let i = 0; i < particles.length; i++) {
-        const p = particles[i]
-        const dxM = mx - p.x
-        const dyM = my - p.y
-        const distM = Math.sqrt(dxM * dxM + dyM * dyM)
-        const proximity = distM < MOUSE_RADIUS ? 1 - distM / MOUSE_RADIUS : 0
-
-        // Glow
-        const glowRadius = p.radius * (2 + proximity * 1.5)
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, glowRadius, 0, Math.PI * 2)
-        ctx.fillStyle = p.color + (0.05 + proximity * 0.1) + ')'
-        ctx.fill()
-
-        // Core
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2)
-        ctx.fillStyle = p.color + (0.5 + proximity * 0.5) + ')'
-        ctx.fill()
+      // Continue loop only if there are alive bolts; otherwise go idle
+      if (alive.length > 0) {
+        animationRef.current = requestAnimationFrame(render)
+      } else {
+        animationRef.current = null
       }
     }
 
-    animationRef.current = requestAnimationFrame(render)
+    // Attach pointerdown AFTER render is defined (so closure can reference it)
+    window.addEventListener('pointerdown', onPointerDown, { passive: true })
 
     return () => {
-      cancelAnimationFrame(animationRef.current)
       window.removeEventListener('resize', resize)
       window.removeEventListener('pointermove', onPointerMove)
-      window.removeEventListener('pointerleave', onPointerLeave)
-      document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('pointerdown', onPointerDown)
+      if (animationRef.current !== null) {
+        cancelAnimationFrame(animationRef.current)
+        animationRef.current = null
+      }
     }
-  }, [createParticles])
+  }, [generateJaggedPath, seededRand])
 
   return (
     <canvas
