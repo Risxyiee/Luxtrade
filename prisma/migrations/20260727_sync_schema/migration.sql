@@ -1,34 +1,35 @@
--- Migration: Add missing columns that were added to schema.prisma but never migrated
+-- Migration: Sync production DB with current schema.prisma
 --
--- Root cause: schema.prisma was updated in several commits but no corresponding
--- migration SQL was created. Production DB is missing columns, causing Prisma
--- P2022 errors: "The column X does not exist in the current database".
+-- Two things happening here:
+--   1) DROP TradingAccount.broker_gmt_offset (removed from schema — feature dropped)
+--   2) ADD missing columns that were added to schema.prisma but never migrated
+--      (causing Prisma P2022 "column does not exist" errors in production)
 --
 -- Commits that added schema fields without migration:
---   - fa12a50: TradingAccount.broker_gmt_offset
 --   - 8c0a572: Trade.stop_loss, Trade.take_profit, Trade.ticket_number
 --   - 18153c1 / 8d95ee5: Profile.email_verified, email_verify_token, email_verify_exp_at, device_id
 --   - 51e77be / 27f2c1b: Profile.my_referral_code, referred_by_code, has_ever_been_pro, commission_paid
 --
--- All ALTER statements are idempotent (use DO $$ + information_schema check),
+-- All statements are idempotent (use DO $$ + information_schema check),
 -- so this migration is safe to run multiple times.
 --
 -- Run via: Supabase SQL Editor, or `bun run db:migrate:deploy`
 
 -- ==========================================================
--- 1) TradingAccount.broker_gmt_offset (INTEGER NOT NULL, default 0)
---    Added in commit fa12a50
+-- 1) DROP TradingAccount.broker_gmt_offset
+--    Column was removed from schema.prisma (feature dropped).
+--    Session calc in auto-journal now uses UTC time directly (offset = 0).
 -- ==========================================================
 DO $$
 BEGIN
-  IF NOT EXISTS (
+  IF EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_name = 'TradingAccount' AND column_name = 'broker_gmt_offset'
   ) THEN
-    ALTER TABLE "TradingAccount" ADD COLUMN "broker_gmt_offset" INTEGER NOT NULL DEFAULT 0;
-    RAISE NOTICE 'Added column: TradingAccount.broker_gmt_offset';
+    ALTER TABLE "TradingAccount" DROP COLUMN "broker_gmt_offset";
+    RAISE NOTICE 'Dropped column: TradingAccount.broker_gmt_offset';
   ELSE
-    RAISE NOTICE 'Column already exists: TradingAccount.broker_gmt_offset (skipped)';
+    RAISE NOTICE 'Column already absent: TradingAccount.broker_gmt_offset (skipped)';
   END IF;
 END $$;
 
