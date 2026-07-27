@@ -18,8 +18,6 @@ interface Profile {
   subscription_status: 'FREE' | 'PRO' | 'active' | 'expired';
   is_pro: boolean;
   subscription_until: string | null;
-  // Province (Indonesia) — used to derive GMT offset for session calculation
-  province?: string | null;
   // Affiliate fields
   device_id?: string | null;
   my_referral_code?: string | null;
