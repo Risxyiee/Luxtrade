@@ -252,4 +252,4 @@ END $$;
 -- ==========================================================
 -- DONE
 -- ==========================================================
-RAISE NOTICE 'Migration 20260727_add_missing_columns completed successfully.';
+-- (Final notice is emitted by the last DO block above.)
