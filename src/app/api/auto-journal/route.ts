@@ -9,7 +9,6 @@ import {
   analyzeImageBase64WithAiml,
   TRADE_AND_JOURNAL_PROMPT,
 } from '@/lib/aiml-vision'
-import { provinceToGmtOffset, provinceTimezoneLabel } from '@/lib/indonesia-timezone'
 import sharp from 'sharp'
 
 // ==================== TYPES ====================
@@ -270,23 +269,18 @@ export async function POST(request: NextRequest) {
       journal.risk_reward_ratio = risk > 0 ? reward / risk : 0
     }
 
-    // ── STEP 10b: Calculate session from trade open time + user's province ──
-    // Province → GMT offset (WIB=+7, WITA=+8, WIT=+9). Falls back to UTC if unset.
-    log('🌐', 'Calculating session from trade open time + user province...')
-
-    const userProfile = await db.profile.findUnique({
-      where: { id: authUser.id },
-      select: { province: true },
-    })
-    const gmtOffset = provinceToGmtOffset(userProfile?.province)
-    log('✅', `Province: ${userProfile?.province || '(unset)'}, GMT offset: +${gmtOffset} (${provinceTimezoneLabel(userProfile?.province)})`)
+    // ── STEP 10b: Calculate session from trade open time ──
+    // Note: broker_gmt_offset column was removed; session is calculated from UTC time directly.
+    log('🌐', 'Calculating session from trade open time (UTC)...')
 
     const openTime = ai.openTime ? new Date(ai.openTime) : new Date()
     const closeTime = ai.closeTime ? new Date(ai.closeTime) : new Date()
 
-    // Calculate session: convert broker time to UTC by subtracting user's GMT offset.
+    // Calculate session from UTC time (gmtOffset = 0)
     function calculateSession(ot: Date, gmtOff: number): string {
+      // Convert broker time to UTC: brokerTime = UTC + gmtOffset, so UTC = brokerTime - gmtOffset
       const utcHour = (ot.getUTCHours() + ot.getUTCMinutes() / 60) - gmtOff
+      // Normalize to 0-24 range
       const normalizedHour = ((utcHour % 24) + 24) % 24
       if (normalizedHour >= 0 && normalizedHour < 7) return 'Asia'
       if (normalizedHour >= 7 && normalizedHour < 15) return 'London'
@@ -294,6 +288,7 @@ export async function POST(request: NextRequest) {
       return 'Unknown'
     }
 
+    const gmtOffset = 0
     const session = calculateSession(openTime, gmtOffset)
     const tradeDuration = Math.round((closeTime.getTime() - openTime.getTime()) / 60000) // minutes
     log('✅', `Session: ${session}, Duration: ${tradeDuration}min`)
