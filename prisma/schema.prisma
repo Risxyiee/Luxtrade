@@ -214,6 +214,7 @@ model TradingAccount {
   current_balance   Float     @default(0)
   leverage          Int       @default(100)
   currency          String    @default("USD")
+  broker_gmt_offset Int       @default(0)
   is_default        Boolean   @default(false)
   is_active         Boolean   @default(true)
   created_at        DateTime  @default(now())
