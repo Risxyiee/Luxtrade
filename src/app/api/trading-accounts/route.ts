@@ -96,7 +96,6 @@ export async function POST(request: NextRequest) {
           ? parseFloat(String(body.current_balance))
           : (body.initial_balance ? parseFloat(String(body.initial_balance)) : 0),
         leverage: body.leverage ? parseInt(String(body.leverage)) : 100,
-        broker_gmt_offset: body.broker_gmt_offset != null ? parseInt(String(body.broker_gmt_offset)) : 0,
         currency: body.currency ? String(body.currency) : 'USD',
         is_default: Boolean(isDefault),
         is_active: true,
