@@ -7,7 +7,7 @@ import { uploadScreenshot } from '@/lib/extractTradeData'
 import { checkAchievementsAfterTrade } from '@/lib/achievement-checker'
 import {
   analyzeImageBase64WithAiml,
-  TRADE_AND_JOURNAL_PROMPT,
+  buildTradeAndJournalPrompt,
 } from '@/lib/aiml-vision'
 import sharp from 'sharp'
 
@@ -133,6 +133,13 @@ export async function POST(request: NextRequest) {
     }
     log('✅', `account_id: ${accountId}`)
 
+    // ── STEP 3c: Extract language preference (default: Indonesian) ──
+    // Frontend sends the current language toggle value ('id' | 'en').
+    // Default to 'id' (Bahasa Indonesia) because that's the app's primary audience.
+    const rawLang = (formData.get('language') as string | null)?.toLowerCase()
+    const lang: 'id' | 'en' = rawLang === 'en' ? 'en' : 'id'
+    log('🌐', `Journal language: ${lang}`)
+
     // ── STEP 4: HEIC check ──
     const fileName = imageFile.name.toLowerCase()
     const fileType = (imageFile.type || '').toLowerCase()
@@ -203,7 +210,7 @@ export async function POST(request: NextRequest) {
     try {
       aiResult = await analyzeImageBase64WithAiml(
         base64Image,
-        TRADE_AND_JOURNAL_PROMPT,
+        buildTradeAndJournalPrompt(lang),
         { timeout: 20000, maxRetries: 1 }
       )
     } catch (err: any) {

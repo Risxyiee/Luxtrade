@@ -385,6 +385,9 @@ export default function TradeWizardForm({
         const reqFormData = new FormData()
         reqFormData.append('image', processedFile)
         reqFormData.append('account_id', formData.account_id || '')
+        // Send current language toggle so AI writes journal notes in the user's language.
+        // Backend defaults to 'id' if missing.
+        reqFormData.append('language', language)
 
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 45000)
