@@ -236,21 +236,3 @@ BEGIN
     RAISE NOTICE 'Column already exists: profiles.commission_paid (skipped)';
   END IF;
 END $$;
-
--- ==========================================================
--- 13) profiles.province (TEXT, nullable)
---     New: replaces broker_gmt_offset. User picks their province
---     in Settings; auto-journal derives GMT offset from it.
--- ==========================================================
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'profiles' AND column_name = 'province'
-  ) THEN
-    ALTER TABLE "profiles" ADD COLUMN "province" TEXT;
-    RAISE NOTICE 'Added column: profiles.province';
-  ELSE
-    RAISE NOTICE 'Column already exists: profiles.province (skipped)';
-  END IF;
-END $$;
