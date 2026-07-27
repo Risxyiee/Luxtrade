@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     console.error('❌ [API /api/trading-accounts GET] Error:', err)
     return NextResponse.json(
-      { error: 'Failed to fetch accounts', details: err instanceof Error ? err.message : 'Unknown error' },
+      { error: 'Failed to fetch accounts' },
       { status: 500 }
     )
   }
