@@ -266,9 +266,11 @@ function JournalTab({
     try {
       const jsPDFModule = await import('jspdf')
       const jsPDF = jsPDFModule.default
-      await import('jspdf-autotable')
+      const autoTableModule = await import('jspdf-autotable')
 
       const doc = new jsPDF()
+      // jspdf-autotable v5 does NOT auto-extend jsPDF prototype — must pass doc explicitly
+      const autoTable = (autoTableModule as any).default || autoTableModule
       const exportDate = new Date().toLocaleDateString('id-ID', {
         day: 'numeric', month: 'long', year: 'numeric'
       })
@@ -312,7 +314,7 @@ function JournalTab({
           entry.tags ? entry.tags.split(',').map((t: string) => t.trim()).join(', ') : '-'
         ])
 
-        ;(doc as any).autoTable({
+        autoTable(doc, {
           startY: yPos,
           head: [['#', 'Date', 'Title', 'Mood', 'Market', 'Tags']],
           body: tableData,
@@ -343,7 +345,9 @@ function JournalTab({
           }
         })
 
-        yPos = (doc as any).lastAutoTable.finalY + 10
+        yPos = (doc as any).lastAutoTable?.finalY
+          ? (doc as any).lastAutoTable.finalY + 10
+          : yPos + 10
 
         // Each entry content section
         filteredEntries.forEach((entry) => {
