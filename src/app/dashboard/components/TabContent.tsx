@@ -52,6 +52,7 @@ interface TabContentProps {
   onGetMarket: () => void
   onChatChange: (value: string) => void
   onSendChat: () => void
+  onAnalyzeTrade?: (tradeId: string) => void
   isPro: boolean
   language: 'id' | 'en'
   user?: any
@@ -88,6 +89,7 @@ export default function TabContent({
   onGetMarket,
   onChatChange,
   onSendChat,
+  onAnalyzeTrade,
   isPro,
   language,
   user,
@@ -167,6 +169,7 @@ export default function TabContent({
               chatInput={aiChatInput}
               onChatChange={onChatChange}
               onSendChat={onSendChat}
+              onAnalyzeTrade={onAnalyzeTrade}
               isPro={isPro}
               onUpgrade={() => setPlanSelectionModalOpen(true)}
             />

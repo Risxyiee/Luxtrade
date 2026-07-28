@@ -37,8 +37,18 @@ interface VLMResponse {
   raw_analysis: string
 }
 
-// ==================== VLM PROMPT ====================
-const VLM_PROMPT = `Analyze this trading screenshot. Extract ALL trading data and return ONLY valid JSON (no markdown, no code blocks, no explanation). The JSON must have this exact structure:
+// ==================== VLM PROMPT (language-aware) ====================
+function buildScreenshotPrompt(lang: 'id' | 'en' = 'id'): string {
+  const isId = lang === 'id'
+  const journalLang = isId
+    ? 'Detailed journal entry in Bahasa Indonesia (natural, bukan terjemahan kaku) describing the trade setup, entry reason, exit reason, risk management, emotional state, and lessons learned. Write 3-5 sentences. Gunakan istilah trading umum: entry, stop loss, take profit, breakout, pullback, dll.'
+    : 'Detailed journal entry in English describing the trade setup, entry reason, exit reason, risk management, emotional state, and lessons learned. Write 3-5 sentences.'
+  const titleExample = isId ? 'XAUUSD Buy - Profit $300.20' : 'XAUUSD Buy - Profit $300.20'
+  const languageNote = isId
+    ? '\nIMPORTANT: Journal title and content MUST be written in Bahasa Indonesia. Trade data fields (symbol, type, prices, dates) tetap apa adanya sesuai screenshot.'
+    : ''
+
+  return `Analyze this trading screenshot. Extract ALL trading data and return ONLY valid JSON (no markdown, no code blocks, no explanation). The JSON must have this exact structure:
 
 {
   "trade": {
@@ -58,8 +68,8 @@ const VLM_PROMPT = `Analyze this trading screenshot. Extract ALL trading data an
     "platform": "MT5"
   },
   "journal": {
-    "title": "XAUUSD Buy - Profit $300.20",
-    "content": "Detailed journal entry in English describing the trade setup, entry reason, exit reason, risk management, emotional state, and lessons learned. Write 3-5 sentences.",
+    "title": "${titleExample}",
+    "content": "${journalLang}",
     "mood": "confident",
     "market_condition": "trending_up",
     "tags": ["gold", "breakout", "tp_hit"],
@@ -79,7 +89,10 @@ Rules:
 - risk_reward_ratio: calculate as (potential profit / potential loss) or estimate
 - If stop_loss or take_profit not visible, set to 0
 - profit_loss should be negative for losing trades
-- Return ONLY the JSON, no other text`
+- Return ONLY the JSON, no other text${languageNote}`
+}
+
+const VLM_PROMPT = buildScreenshotPrompt('id') // default Indonesian
 
 // ==================== HELPER: Parse VLM JSON response ====================
 function parseVLMResponse(content: string): VLMResponse {
@@ -243,11 +256,13 @@ async function analyzeWithFallback(): Promise<VLMResponse> {
 
 // ==================== HELPER: Call AIML GLM-4V-OCR ====================
 async function analyzeScreenshotWithVLM(
-  imageBuffer: Buffer
+  imageBuffer: Buffer,
+  lang: 'id' | 'en' = 'id'
 ): Promise<VLMResponse> {
+  const prompt = buildScreenshotPrompt(lang)
   // Primary: AIML API (GLM-4V-OCR)
   try {
-    const result = await analyzeImageWithAiml(imageBuffer, VLM_PROMPT)
+    const result = await analyzeImageWithAiml(imageBuffer, prompt)
     const parsed = parseVLMResponse(result.text)
     return parsed
   } catch (error: any) {
@@ -284,6 +299,7 @@ export async function POST(request: NextRequest) {
     // Step 2: Parse image - support both JSON (base64) and multipart/form-data
     let base64Image: string
     let mimeType = 'image/jpeg'
+    let lang: 'id' | 'en' = 'id' // default Indonesian
 
     const contentType = request.headers.get('content-type') || ''
 
@@ -291,6 +307,10 @@ export async function POST(request: NextRequest) {
       // Multipart: extract file from form data
       const formData = await request.formData()
       const imageFile = formData.get('image') as File | null
+
+      // Extract language preference (default: Indonesian)
+      const rawLang = (formData.get('language') as string | null)?.toLowerCase()
+      lang = rawLang === 'en' ? 'en' : 'id'
 
       if (!imageFile) {
         return NextResponse.json(
@@ -315,7 +335,11 @@ export async function POST(request: NextRequest) {
     } else {
       // JSON: extract base64 string from body
       const body = await request.json()
-      const { imageBase64, mimeType: bodyMime } = body
+      const { imageBase64, mimeType: bodyMime, language: bodyLang } = body
+
+      // Extract language from JSON body
+      const rawLang = (bodyLang as string | null)?.toLowerCase()
+      lang = rawLang === 'en' ? 'en' : 'id'
 
       if (!imageBase64) {
         return NextResponse.json(
@@ -332,8 +356,8 @@ export async function POST(request: NextRequest) {
       // Processing JSON base64 image
     }
 
-    // Step 4: Call VLM (try all free services first)
-    const parsed = await analyzeScreenshotWithVLM(Buffer.from(base64Image, 'base64'))
+    // Step 4: Call VLM (try all free services first) — pass language for journal content
+    const parsed = await analyzeScreenshotWithVLM(Buffer.from(base64Image, 'base64'), lang)
 
     // If we only got raw_analysis (JSON parsing failed), still return it
     const hasTradeData = parsed.trade.symbol && parsed.trade.symbol.length > 0

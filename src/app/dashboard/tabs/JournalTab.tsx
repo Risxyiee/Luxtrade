@@ -232,6 +232,7 @@ function JournalTab({
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [reminderDismissed, setReminderDismissed] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   // Check if reminder was dismissed this session
   useEffect(() => {
@@ -256,6 +257,12 @@ function JournalTab({
 
   // ============ FEATURE 1: EXPORT PDF ============
   const handleExportPDF = useCallback(async () => {
+    if (typeof window === 'undefined') return
+    if (filteredEntries.length === 0) {
+      toast.error('Tidak ada entri jurnal untuk diekspor')
+      return
+    }
+    setExporting(true)
     try {
       const jsPDFModule = await import('jspdf')
       const jsPDF = jsPDFModule.default
@@ -392,10 +399,12 @@ function JournalTab({
       }
 
       doc.save('luxtrade-journal.pdf')
-      toast.success('Journal exported to PDF!')
-    } catch (error) {
+      toast.success('Journal berhasil diekspor ke PDF!')
+    } catch (error: any) {
       console.error('PDF export error:', error)
-      toast.error('Failed to export PDF')
+      toast.error(`Gagal mengekspor PDF: ${error.message || 'Unknown error'}`)
+    } finally {
+      setExporting(false)
     }
   }, [filteredEntries])
 
@@ -585,10 +594,10 @@ function JournalTab({
             variant="outline"
             size="sm"
             onClick={handleExportPDF}
-            disabled={entries.length === 0}
+            disabled={entries.length === 0 || exporting}
             className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
           >
-            <FileText className="w-4 h-4 mr-1" /> Export PDF
+            <FileText className={`w-4 h-4 mr-1 ${exporting ? 'animate-spin' : ''}`} /> {exporting ? 'Exporting...' : 'Export PDF'}
           </Button>
           <Button
             variant="outline"
