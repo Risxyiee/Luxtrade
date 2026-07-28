@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import dynamic from 'next/dynamic'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -91,7 +91,7 @@ interface DashboardModalsProps {
   fetchData?: () => void
 }
 
-export default function DashboardModals({
+const DashboardModals = memo(function DashboardModals({
   // Modal states
   editTradeOpen,
   setEditTradeOpen,
@@ -598,4 +598,6 @@ export default function DashboardModals({
       />
     </>
   )
-}
+})
+
+export default DashboardModals

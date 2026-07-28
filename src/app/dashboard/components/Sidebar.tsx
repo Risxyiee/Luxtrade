@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { toast } from 'sonner'
 import SidebarHeader from './sidebar/SidebarHeader'
 import SidebarNav from './sidebar/SidebarNav'
@@ -36,7 +35,7 @@ interface SidebarProps {
   setAddAccountOpen?: (open: boolean) => void
 }
 
-export default function Sidebar({
+const Sidebar = memo(function Sidebar({
   sidebarOpen,
   setSidebarOpen,
   mobileSidebarOpen,
@@ -162,42 +161,18 @@ export default function Sidebar({
     }
   }
 
-  const sidebarVariants = {
-    hidden: { x: '-100%' },
-    visible: {
-      x: 0,
-      transition: { type: 'spring', damping: 30, stiffness: 300 }
-    },
-    exit: {
-      x: '-100%',
-      transition: { duration: 0.2, ease: 'easeInOut' }
-    }
-  }
-
-  const overlayVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 0.2 } },
-    exit: { opacity: 0, transition: { duration: 0.15 } }
-  }
-
   return (
     <>
-      {/* Mobile Overlay - Animated with Framer Motion */}
-      <AnimatePresence>
-        {mobileSidebarOpen && (
-          <motion.div
-            variants={overlayVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm"
-            onClick={closeMobileSidebar}
-            aria-hidden="true"
-          />
-        )}
-      </AnimatePresence>
+      {/* Mobile Overlay — lightweight CSS fade, no Framer Motion */}
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm transition-opacity duration-200"
+          onClick={closeMobileSidebar}
+          aria-hidden="true"
+        />
+      )}
 
-      {/* Sidebar Component - Desktop: CSS transitions, Mobile: Framer Motion */}
+      {/* Sidebar Component */}
       <aside
         ref={sidebarRef}
         {...(mobileSidebarOpen ? {
@@ -219,7 +194,7 @@ export default function Sidebar({
           {/* Glassmorphism Background */}
           <div className="absolute inset-0 bg-gradient-to-b from-lux-bg-sidebar via-lux-bg-tertiary to-lux-bg-sidebar dark:from-[#0d0a1a]/98 dark:via-[#0f0b18]/98 dark:to-[#0d0a1a]/98 backdrop-blur-xl border-r border-lux-border dark:border-purple-500/20" />
 
-          {/* Animated Glow Border */}
+          {/* Glow Border */}
           <div className="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-purple-500/30 to-transparent" />
 
           {/* Top Glow */}
@@ -270,73 +245,67 @@ export default function Sidebar({
           />
         </div>
 
-        {/* Mobile sidebar — Framer Motion for smooth slide */}
-        <AnimatePresence>
-          {mobileSidebarOpen && (
-            <motion.div
-              variants={sidebarVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              className="lg:hidden w-80 flex flex-col overflow-hidden"
-            >
-              {/* Glassmorphism Background */}
-              <div className="absolute inset-0 bg-gradient-to-b from-lux-bg-sidebar via-lux-bg-tertiary to-lux-bg-sidebar dark:from-[#0d0a1a]/98 dark:via-[#0f0b18]/98 dark:to-[#0d0a1a]/98 border-r border-lux-border dark:border-purple-500/20" />
+        {/* Mobile sidebar — CSS transition (no Framer Motion) */}
+        <div className={`
+          lg:hidden w-80 flex flex-col overflow-hidden
+          transition-transform duration-200 ease-out
+          ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}>
+          {/* Glassmorphism Background */}
+          <div className="absolute inset-0 bg-gradient-to-b from-lux-bg-sidebar via-lux-bg-tertiary to-lux-bg-sidebar dark:from-[#0d0a1a]/98 dark:via-[#0f0b18]/98 dark:to-[#0d0a1a]/98 border-r border-lux-border dark:border-purple-500/20" />
 
-              {/* Animated Glow Border */}
-              <div className="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-purple-500/30 to-transparent" />
+          {/* Glow Border */}
+          <div className="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-purple-500/30 to-transparent" />
 
-              {/* Top Glow */}
-              <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-500/5 to-transparent pointer-events-none" />
+          {/* Top Glow */}
+          <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-500/5 to-transparent pointer-events-none" />
 
-              {/* Header Section */}
-              <SidebarHeader
-                sidebarOpen={true}
-                mobileSidebarOpen={mobileSidebarOpen}
-                tradingAccounts={tradingAccounts}
-                selectedAccountId={selectedAccountId}
-                setSelectedAccountId={setSelectedAccountId}
-                setAddAccountOpen={setAddAccountOpen}
-                setAddTradeOpen={setAddTradeOpen}
-                language={language}
-                openDeleteModal={openDeleteModal}
-              />
+          {/* Header Section */}
+          <SidebarHeader
+            sidebarOpen={true}
+            mobileSidebarOpen={mobileSidebarOpen}
+            tradingAccounts={tradingAccounts}
+            selectedAccountId={selectedAccountId}
+            setSelectedAccountId={setSelectedAccountId}
+            setAddAccountOpen={setAddAccountOpen}
+            setAddTradeOpen={setAddTradeOpen}
+            language={language}
+            openDeleteModal={openDeleteModal}
+          />
 
-              {/* Scrollable content area */}
-              <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-y-contain scrollbar-thin">
-                <SidebarNav
-                  sidebarOpen={true}
-                  mobileSidebarOpen={mobileSidebarOpen}
-                  activeTab={activeTab}
-                  setActiveTab={setActiveTab}
-                  isPro={isPro}
-                  language={language}
-                  setPlanSelectionModalOpen={setPlanSelectionModalOpen}
-                  setMobileSidebarOpen={setMobileSidebarOpen}
-                />
+          {/* Scrollable content area */}
+          <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-y-contain scrollbar-thin">
+            <SidebarNav
+              sidebarOpen={true}
+              mobileSidebarOpen={mobileSidebarOpen}
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              isPro={isPro}
+              language={language}
+              setPlanSelectionModalOpen={setPlanSelectionModalOpen}
+              setMobileSidebarOpen={setMobileSidebarOpen}
+            />
 
-                {/* Bottom Section */}
-                <SidebarFooter
-                  sidebarOpen={true}
-                  mobileSidebarOpen={mobileSidebarOpen}
-                  isPro={isPro}
-                  isFreeUser={isFreeUser}
-                  tradeCount={tradeCount}
-                  FREE_TRADE_LIMIT={FREE_TRADE_LIMIT}
-                  language={language}
-                  user={user}
-                  profile={profile}
-                  isAdmin={isAdmin}
-                  userInitials={userInitials}
-                  setPlanSelectionModalOpen={setPlanSelectionModalOpen}
-                  handleSignOut={handleSignOut}
-                  setSidebarOpen={setSidebarOpen}
-                  setMobileSidebarOpen={setMobileSidebarOpen}
-                />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            {/* Bottom Section */}
+            <SidebarFooter
+              sidebarOpen={true}
+              mobileSidebarOpen={mobileSidebarOpen}
+              isPro={isPro}
+              isFreeUser={isFreeUser}
+              tradeCount={tradeCount}
+              FREE_TRADE_LIMIT={FREE_TRADE_LIMIT}
+              language={language}
+              user={user}
+              profile={profile}
+              isAdmin={isAdmin}
+              userInitials={userInitials}
+              setPlanSelectionModalOpen={setPlanSelectionModalOpen}
+              handleSignOut={handleSignOut}
+              setSidebarOpen={setSidebarOpen}
+              setMobileSidebarOpen={setMobileSidebarOpen}
+            />
+          </div>
+        </div>
       </aside>
 
       {/* Delete Account Confirmation Modal */}
@@ -352,4 +321,6 @@ export default function Sidebar({
       />
     </>
   )
-}
+})
+
+export default Sidebar
