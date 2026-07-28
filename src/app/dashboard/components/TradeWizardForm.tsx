@@ -8,12 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { ArrowRight, ArrowLeft, Upload, CheckCircle, Sparkles, Loader2, X, Info, Wallet, FileText } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Upload, CheckCircle, Sparkles, Loader2, X, Info, Wallet, FileText, HelpCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { calculateForexProfitLoss, getPipInfo, formatTradingInput, AccountType } from '@/lib/trading-helpers'
 import { isoToDatetimeLocal, datetimeLocalToISO } from '../utils/helpers'
 import { convertHeicToJpeg, isHeicFile } from '@/lib/heic-converter'
+import AutoJournalGuideDialog from './AutoJournalGuideDialog'
 
 // Total timeout for the entire file-select-to-fetch pipeline (catches iCloud download hangs)
 const FILE_PIPELINE_TIMEOUT_MS = 60_000
@@ -170,6 +171,7 @@ export default function TradeWizardForm({
   const [analyzingScreenshot, setAnalyzingScreenshot] = useState(false)
   const [uploadingMT5, setUploadingMT5] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [guideOpen, setGuideOpen] = useState(false)
   const totalSteps = 3
 
   const handleNext = () => {
@@ -730,6 +732,14 @@ export default function TradeWizardForm({
                       AI
                     </div>
                   </div>
+                  {/* Guide link — clickable text below Auto-Journal button */}
+                  <button
+                    type="button"
+                    onClick={() => setGuideOpen(true)}
+                    className="mt-1 text-[10px] text-purple-400/70 hover:text-purple-300 underline underline-offset-2 decoration-purple-500/30 hover:decoration-purple-400 transition-colors"
+                  >
+                    {L ? 'Bingung cara make?' : 'Not sure how to use?'}
+                  </button>
                 </div>
 
                 {/* MT5 File Import */}
@@ -1224,6 +1234,12 @@ export default function TradeWizardForm({
           </Button>
         )}
       </div>
+      {/* Auto-Journal Guide Dialog */}
+      <AutoJournalGuideDialog
+        open={guideOpen}
+        onOpenChange={setGuideOpen}
+        language={language}
+      />
     </div>
   )
 }
