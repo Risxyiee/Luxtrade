@@ -703,14 +703,6 @@ export default function TradeWizardForm({
                       </>
                     )}
                   </div>
-                  {/* Guide link — prominent below Screenshot button */}
-                  <button
-                    type="button"
-                    onClick={() => setManualGuideOpen(true)}
-                    className="mt-2 w-full text-center text-[11px] font-medium text-emerald-400/90 hover:text-emerald-300 underline underline-offset-2 decoration-emerald-500/40 hover:decoration-emerald-400 transition-colors"
-                  >
-                    {L ? '📄 Gak bisa pake fitur ini? Cek panduan di sini' : '📄 Can\'t use this feature? Check guide here'}
-                  </button>
                 </div>
 
                 {/* Auto Journal Button */}
@@ -741,14 +733,6 @@ export default function TradeWizardForm({
                       AI
                     </div>
                   </div>
-                  {/* Guide link — prominent below Auto-Journal button */}
-                  <button
-                    type="button"
-                    onClick={() => setGuideOpen(true)}
-                    className="mt-2 w-full text-center text-[11px] font-medium text-purple-400/90 hover:text-purple-300 underline underline-offset-2 decoration-purple-500/40 hover:decoration-purple-400 transition-colors"
-                  >
-                    {L ? '📄 Gak bisa pake Auto-Journal? Cek panduan di sini' : '📄 Can\'t use Auto-Journal? Check guide here'}
-                  </button>
                 </div>
 
                 {/* MT5 File Import */}
@@ -775,6 +759,24 @@ export default function TradeWizardForm({
                     )}
                   </div>
                 </div>
+              </div>
+              {/* Guide links — outside grid, always visible below */}
+              <div className="flex items-center gap-4 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setManualGuideOpen(true)}
+                  className="text-[11px] font-medium text-emerald-400/90 hover:text-emerald-300 underline underline-offset-2 decoration-emerald-500/40 hover:decoration-emerald-400 transition-colors"
+                >
+                  📄 {L ? 'Gak bisa pake Screenshot AI? Cek panduan' : "Can't use Screenshot AI? Check guide"}
+                </button>
+                <span className="text-gray-600">•</span>
+                <button
+                  type="button"
+                  onClick={() => setGuideOpen(true)}
+                  className="text-[11px] font-medium text-purple-400/90 hover:text-purple-300 underline underline-offset-2 decoration-purple-500/40 hover:decoration-purple-400 transition-colors"
+                >
+                  📄 {L ? 'Gak bisa pake Auto-Journal? Cek panduan' : "Can't use Auto-Journal? Check guide"}
+                </button>
               </div>
               <p className="text-[10px] text-gray-500 mt-2">
                 {L
