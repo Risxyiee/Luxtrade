@@ -14,6 +14,12 @@ export async function POST(request: NextRequest) {
     // Use authenticated user's ID — ignore any userId from body
     const userId = authUser.id
 
+    // Safety: ensure userId is not null/undefined before any DB operation
+    if (!userId) {
+      console.error('[missions/claim] authUser.id is falsy:', JSON.stringify(authUser))
+      return NextResponse.json({ error: 'User ID not found in session' }, { status: 401 })
+    }
+
     const { missionId, proofUrl } = await request.json()
 
     if (!missionId) {

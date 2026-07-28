@@ -100,13 +100,15 @@ interface ScreenshotJournalDialogProps {
   onOpenChange: (open: boolean) => void
   onSuccess?: () => void
   selectedAccountId?: string | null
+  language?: 'id' | 'en'
 }
 
 export default function ScreenshotJournalDialog({
   open,
   onOpenChange,
   onSuccess,
-  selectedAccountId
+  selectedAccountId,
+  language = 'id'
 }: ScreenshotJournalDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -177,6 +179,7 @@ export default function ScreenshotJournalDialog({
         const formData = new FormData()
         formData.append('image', processedFile)
         if (selectedAccountId) formData.append('accountId', selectedAccountId)
+        formData.append('language', language)
 
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 45000)

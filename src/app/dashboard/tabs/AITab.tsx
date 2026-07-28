@@ -54,6 +54,7 @@ interface AITabProps {
   onAnalyzeTrade?: (tradeId: string) => void
   onVoiceJournal?: () => void
   onAnalyzeChart?: (imageData: string) => void
+  language?: 'id' | 'en'
 }
 
 export default function AITab({
@@ -71,7 +72,8 @@ export default function AITab({
   onUpgrade,
   onAnalyzeTrade,
   onVoiceJournal,
-  onAnalyzeChart
+  onAnalyzeChart,
+  language = 'id'
 }: AITabProps) {
   const hasEnoughTrades = analytics && analytics.totalTrades >= 5
   const chatContainerRef = useRef<HTMLDivElement>(null)
@@ -125,7 +127,7 @@ export default function AITab({
         </CardHeader>
         <CardContent>
           <p className="text-lux-text-secondary dark:text-gray-400 mb-4">
-            Get personalized insights powered by AI to improve your trading performance.
+            {language === 'id' ? 'Dapatkan insight personalized dari AI untuk meningkatkan performa trading Anda.' : 'Get personalized insights powered by AI to improve your trading performance.'}
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
@@ -135,7 +137,7 @@ export default function AITab({
               className="bg-gradient-to-r from-purple-500/20 to-violet-500/20 border border-purple-500/30 text-purple-400 hover:bg-purple-500/30 justify-start"
             >
               {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-              Get Performance Tips
+              {language === 'id' ? 'Analisis Performa' : 'Get Performance Tips'}
             </Button>
             <Button
               onClick={onGetMarket}
@@ -143,7 +145,7 @@ export default function AITab({
               className="bg-gradient-to-r from-purple-500/20 to-violet-500/20 border border-purple-500/30 text-purple-400 hover:bg-purple-500/30 justify-start"
             >
               {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <TrendingUp className="w-4 h-4 mr-2" />}
-              Market Insights
+              {language === 'id' ? 'Insight Pasar' : 'Market Insights'}
             </Button>
           </div>
 
@@ -160,7 +162,7 @@ export default function AITab({
               className="bg-gradient-to-r from-emerald-500/20 to-green-500/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30 justify-start"
             >
               {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <BarChart3 className="w-4 h-4 mr-2" />}
-              Analyze Trade
+              {language === 'id' ? 'Analisis Trade' : 'Analyze Trade'}
             </Button>
             {/* Voice Journal Entry */}
             <Button
@@ -176,7 +178,7 @@ export default function AITab({
               } justify-start`}
             >
               {isRecording ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Recording...</>
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {language === 'id' ? 'Merekam...' : 'Recording...'}</>
               ) : (
                 <><Mic className="w-4 h-4 mr-2" /> Voice Journal
               </>)}
@@ -188,7 +190,7 @@ export default function AITab({
               className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 justify-start"
             >
               {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ImageIcon className="w-4 h-4 mr-2" />}
-              Analyze Chart
+              {language === 'id' ? 'Analisis Chart' : 'Analyze Chart'}
             </Button>
             <input
               ref={fileInputRef}
