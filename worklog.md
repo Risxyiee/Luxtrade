@@ -1193,3 +1193,34 @@ Stage Summary:
 - Visual: purple/white lightning bolt with glow, forks, impact flash, cursor-follow
 - Mobile: tap burst at tap point
 - Backwards compatible: same export name, page.tsx unchanged
+
+---
+Task ID: AUTO-JOURNAL-GUIDE-1
+Agent: Main
+Task: Tambah panduan lengkap auto-journal di dashboard (bilingual ID/EN, gambar contoh, step-by-step).
+
+Work Log:
+- Discussed with user: video won't work (AI vision only supports images), best combo = gambar contoh + teks panduan
+- User chose: dedicated guide dialog (bukan tooltip/halaman terpisah)
+- User specified: link text "Bingung cara make?" di bawah tombol Auto-Journal, bukan tanda "?"
+- User specified: bahasa mengikuti toggle user (ID/EN)
+- Copied user-provided example screenshot (IMG_7816.jpeg = MT5 trade detail XAUUSD) to public/images/guide/auto-journal-example.jpeg
+- Created AutoJournalGuideDialog.tsx:
+  * 5 step-by-step instructions (buka MT5 → history → tap trade → screenshot → upload)
+  * Example screenshot with caption
+  * Do's & Don'ts columns (green check vs red warning)
+  * Full bilingual support via language prop (ID/EN)
+  * Uses Dialog component (max-w-md, compact, scrollable)
+- Modified TradeWizardForm.tsx:
+  * Added state: guideOpen (boolean)
+  * Added import: AutoJournalGuideDialog
+  * Added "Bingung cara make?"/"Not sure how to use?" link button below Auto-Journal AI badge
+  * Rendered AutoJournalGuideDialog at end of form with guideOpen + language props
+- Lint: clean
+- Dev compile: 200 OK (server compiles and serves successfully)
+- Pushed: commit 6860a7f
+
+Stage Summary:
+- 3 files: 1 new (AutoJournalGuideDialog.tsx), 1 modified (TradeWizardForm.tsx), 1 static asset (auto-journal-example.jpeg)
+- User flow: Dashboard → Add Trade → lihat Auto-Journal → klik "Bingung cara make?" → dialog panduan muncul
+- All text follows language toggle (ID default, EN when toggled)
