@@ -173,10 +173,10 @@ const Sidebar = memo(function Sidebar({
       )}
 
       {/* Desktop Sidebar — always visible on lg+ */}
-      <aside className="hidden lg:block relative">
+      <aside className="hidden lg:flex relative h-full">
         <div className={`
-          flex flex-col overflow-hidden relative
-          transition-all duration-300 ease-in-out
+          flex flex-col overflow-hidden relative h-full
+          transition-all duration-300 ease-in-out shrink-0
           ${sidebarOpen ? 'w-80' : 'w-20'}
         `}>
           {/* Glassmorphism Background */}
