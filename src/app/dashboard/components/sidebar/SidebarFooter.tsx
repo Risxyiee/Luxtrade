@@ -90,12 +90,7 @@ export default function SidebarFooter({
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.3 }}
           >
-            <motion.div
-              animate={{ rotate: [0, 360] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-            >
-              <Zap className="w-4 h-4 text-purple-400" />
-            </motion.div>
+            <Zap className="w-4 h-4 text-purple-400" />
             <span className="text-xs font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent overflow-hidden whitespace-nowrap">
               ELITE PRO
             </span>

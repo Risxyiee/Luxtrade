@@ -1,6 +1,5 @@
 'use client'
 
-import { motion } from 'framer-motion'
 import {
   BarChart3, Activity, Calendar, BookOpen, Eye,
   Newspaper, CalendarDays, Trophy, Target, Grid3X3, PieChart,
@@ -73,10 +72,7 @@ export default function SidebarNav({
         return (
           <div key={category} className="space-y-1">
             {(sidebarOpen || mobileSidebarOpen) && (
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3 }}
+              <div
                 className="flex items-center gap-2 px-3 py-1.5 overflow-hidden"
               >
                 <span className={`text-[10px] font-bold tracking-wider ${
@@ -89,33 +85,27 @@ export default function SidebarNav({
                   {catInfo.label}
                 </span>
                 {category !== 'utama' && (
-                  <motion.span
+                  <span
                     className={`text-[7px] font-black px-1.5 py-0.5 rounded ${
                       category === 'alat'
                         ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
                         : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
                     }`}
-                    whileHover={{ scale: 1.1 }}
                   >
                     PRO
-                  </motion.span>
+                  </span>
                 )}
                 <div className="flex-1 h-px bg-gradient-to-r from-purple-500/30 to-transparent" />
-              </motion.div>
+              </div>
             )}
 
-            {categoryItems.map((item: any, index: number) => {
+            {categoryItems.map((item: any) => {
               const isLocked = item.proOnly && !isPro
               const proType = item.proType || 'purple'
               const hasGuide = guideData[item.id] !== undefined
 
               return (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.2, delay: index * 0.05 }}
-                >
+                <div key={item.id}>
                   <div className="relative">
                     <button
                       onClick={() => {
@@ -132,7 +122,7 @@ export default function SidebarNav({
                       }}
                       aria-label={language === 'id' ? item.labelId : item.label}
                       aria-current={activeTab === item.id ? 'page' : undefined}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 relative overflow-hidden group ${
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 relative overflow-hidden group ${
                         activeTab === item.id
                           ? 'bg-gradient-to-r from-purple-500/20 via-violet-500/15 to-pink-500/10 text-white dark:text-white shadow-lg shadow-purple-500/20'
                           : isLocked
@@ -140,18 +130,15 @@ export default function SidebarNav({
                             : 'text-lux-text-secondary dark:text-gray-400 hover:text-lux-text-primary dark:hover:text-white hover:bg-lux-surface-hover dark:hover:bg-white/5 active:bg-lux-surface-hover dark:active:bg-white/10'
                       }`}
                     >
-                      {/* Active State Glow */}
+                      {/* Active State Glow — static, no animation */}
                       {activeTab === item.id && (
-                        <motion.div
+                        <div
                           className="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-violet-500/10 to-pink-500/5"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ duration: 0.3 }}
                         />
                       )}
 
-                      {/* Icon Container */}
-                      <motion.div
+                      {/* Icon Container — static, no infinite pulse */}
+                      <div
                         className={`relative flex-shrink-0 ${
                           activeTab === item.id
                             ? 'text-purple-600 dark:text-purple-400'
@@ -159,27 +146,11 @@ export default function SidebarNav({
                               ? 'text-lux-text-muted dark:text-gray-600'
                               : 'text-lux-text-muted dark:text-gray-500 group-hover:text-purple-600 dark:group-hover:text-purple-400'
                         }`}
-                        whileHover={{ scale: 1.1, rotate: 5 }}
-                        transition={{ type: "spring", stiffness: 300 }}
                       >
-                        {activeTab === item.id && (
-                          <motion.div
-                            className="absolute inset-0 bg-purple-500/20 blur-xl rounded-lg"
-                            animate={{
-                              scale: [1, 1.2, 1],
-                              opacity: [0.5, 0.8, 0.5]
-                            }}
-                            transition={{
-                              duration: 2,
-                              repeat: Infinity,
-                              ease: "easeInOut"
-                            }}
-                          />
-                        )}
                         <item.icon className="w-5 h-5 relative z-10" />
-                      </motion.div>
+                      </div>
 
-                      {/* Menu Text - SHOW WHEN SIDEBAR OPEN (DESKTOP OR MOBILE) */}
+                      {/* Menu Text */}
                       {(sidebarOpen || mobileSidebarOpen) && (
                         <span className={`text-sm font-medium flex-1 text-left truncate relative z-10 overflow-hidden ${
                           activeTab === item.id ? 'text-white dark:text-white' : ''
@@ -188,11 +159,10 @@ export default function SidebarNav({
                         </span>
                       )}
 
-                      {/* PRO Badge - SHOW WHEN SIDEBAR OPEN (DESKTOP OR MOBILE) */}
+                      {/* PRO Badge */}
                       {(sidebarOpen || mobileSidebarOpen) && item.proOnly && (
-                        <motion.span
+                        <span
                           className="flex items-center gap-1 relative z-10 flex-shrink-0"
-                          whileHover={{ scale: 1.1 }}
                         >
                           <Lock className={`w-3 h-3 ${
                             proType === 'gold' ? 'text-amber-400' : 'text-purple-400'
@@ -204,7 +174,7 @@ export default function SidebarNav({
                           }`}>
                             PRO
                           </span>
-                        </motion.span>
+                        </span>
                       )}
                     </button>
 
@@ -230,7 +200,7 @@ export default function SidebarNav({
                       </>
                     )}
                   </div>
-                </motion.div>
+                </div>
               )
             })}
           </div>

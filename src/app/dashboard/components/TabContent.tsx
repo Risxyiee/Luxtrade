@@ -1,7 +1,6 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { AnimatePresence, motion } from 'framer-motion'
 import { TabSkeleton } from '@/components/TabSkeleton'
 import { Trade, JournalEntry, WatchlistItem, Analytics } from '../utils/types'
 
@@ -99,14 +98,6 @@ export default function TabContent({
 }: TabContentProps) {
   return (
     <div className="w-full px-2 sm:px-4 lg:px-6 pb-24">
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15, ease: 'easeOut' }}
-        >
           {activeTab === 'dashboard' && (
             <DashboardTab
               analytics={analytics}
@@ -224,8 +215,6 @@ export default function TabContent({
           {activeTab === 'achievements' && hasMounted && (
             <AchievementCenter userId={user?.id || profile?.id || ''} />
           )}
-        </motion.div>
-      </AnimatePresence>
     </div>
   )
 }
