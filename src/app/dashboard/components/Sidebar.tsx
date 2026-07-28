@@ -163,7 +163,7 @@ const Sidebar = memo(function Sidebar({
 
   return (
     <>
-      {/* Mobile Overlay — lightweight CSS fade, no Framer Motion */}
+      {/* Mobile Overlay */}
       {mobileSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm transition-opacity duration-200"
@@ -172,35 +172,18 @@ const Sidebar = memo(function Sidebar({
         />
       )}
 
-      {/* Sidebar Component */}
-      <aside
-        ref={sidebarRef}
-        {...(mobileSidebarOpen ? {
-          role: 'dialog',
-          'aria-modal': 'true',
-          'aria-label': language === 'id' ? 'Menu navigasi' : 'Navigation menu',
-          onKeyDown: handleKeyDown,
-          tabIndex: -1
-        } : {})}
-        className="fixed lg:static top-0 left-0 h-dvh lg:h-auto z-50 flex flex-col overflow-hidden relative"
-      >
-        {/* Desktop sidebar — CSS transition for collapse */}
+      {/* Desktop Sidebar — always visible on lg+ */}
+      <aside className="hidden lg:block relative">
         <div className={`
-          hidden lg:flex
-          flex-col overflow-hidden
+          flex flex-col overflow-hidden relative
           transition-all duration-300 ease-in-out
           ${sidebarOpen ? 'w-80' : 'w-20'}
         `}>
           {/* Glassmorphism Background */}
           <div className="absolute inset-0 bg-gradient-to-b from-lux-bg-sidebar via-lux-bg-tertiary to-lux-bg-sidebar dark:from-[#0d0a1a]/98 dark:via-[#0f0b18]/98 dark:to-[#0d0a1a]/98 backdrop-blur-xl border-r border-lux-border dark:border-purple-500/20 pointer-events-none" />
-
-          {/* Glow Border */}
           <div className="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-purple-500/30 to-transparent pointer-events-none" />
-
-          {/* Top Glow */}
           <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-500/5 to-transparent pointer-events-none" />
 
-          {/* Header Section */}
           <SidebarHeader
             sidebarOpen={sidebarOpen}
             mobileSidebarOpen={false}
@@ -213,7 +196,6 @@ const Sidebar = memo(function Sidebar({
             openDeleteModal={openDeleteModal}
           />
 
-          {/* Nav */}
           <SidebarNav
             sidebarOpen={sidebarOpen}
             mobileSidebarOpen={false}
@@ -225,7 +207,6 @@ const Sidebar = memo(function Sidebar({
             setMobileSidebarOpen={setMobileSidebarOpen}
           />
 
-          {/* Footer */}
           <SidebarFooter
             sidebarOpen={sidebarOpen}
             mobileSidebarOpen={false}
@@ -244,23 +225,24 @@ const Sidebar = memo(function Sidebar({
             setMobileSidebarOpen={setMobileSidebarOpen}
           />
         </div>
+      </aside>
 
-        {/* Mobile sidebar — CSS transition, hidden when closed */}
-        <div className={`
-          lg:hidden w-80 flex flex-col overflow-hidden
-          transition-transform duration-200 ease-out
-          ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'}
-        `}>
+      {/* Mobile Sidebar — only rendered when open */}
+      {mobileSidebarOpen && (
+        <aside
+          ref={sidebarRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={language === 'id' ? 'Menu navigasi' : 'Navigation menu'}
+          onKeyDown={handleKeyDown}
+          tabIndex={-1}
+          className="fixed top-0 left-0 h-dvh z-50 lg:hidden w-80 flex flex-col overflow-hidden"
+        >
           {/* Glassmorphism Background */}
           <div className="absolute inset-0 bg-gradient-to-b from-lux-bg-sidebar via-lux-bg-tertiary to-lux-bg-sidebar dark:from-[#0d0a1a]/98 dark:via-[#0f0b18]/98 dark:to-[#0d0a1a]/98 border-r border-lux-border dark:border-purple-500/20 pointer-events-none" />
-
-          {/* Glow Border */}
           <div className="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-purple-500/30 to-transparent pointer-events-none" />
-
-          {/* Top Glow */}
           <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-500/5 to-transparent pointer-events-none" />
 
-          {/* Header Section */}
           <SidebarHeader
             sidebarOpen={true}
             mobileSidebarOpen={mobileSidebarOpen}
@@ -273,7 +255,6 @@ const Sidebar = memo(function Sidebar({
             openDeleteModal={openDeleteModal}
           />
 
-          {/* Scrollable content area */}
           <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-y-contain scrollbar-thin">
             <SidebarNav
               sidebarOpen={true}
@@ -286,7 +267,6 @@ const Sidebar = memo(function Sidebar({
               setMobileSidebarOpen={setMobileSidebarOpen}
             />
 
-            {/* Bottom Section */}
             <SidebarFooter
               sidebarOpen={true}
               mobileSidebarOpen={mobileSidebarOpen}
@@ -305,8 +285,8 @@ const Sidebar = memo(function Sidebar({
               setMobileSidebarOpen={setMobileSidebarOpen}
             />
           </div>
-        </div>
-      </aside>
+        </aside>
+      )}
 
       {/* Delete Account Confirmation Modal */}
       <DeleteAccountDialog
