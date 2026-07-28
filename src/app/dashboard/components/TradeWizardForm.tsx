@@ -172,6 +172,7 @@ export default function TradeWizardForm({
   const [uploadingMT5, setUploadingMT5] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [guideOpen, setGuideOpen] = useState(false)
+  const [manualGuideOpen, setManualGuideOpen] = useState(false)
   const totalSteps = 3
 
   const handleNext = () => {
@@ -702,6 +703,14 @@ export default function TradeWizardForm({
                       </>
                     )}
                   </div>
+                  {/* Guide link — clickable text below Screenshot button */}
+                  <button
+                    type="button"
+                    onClick={() => setManualGuideOpen(true)}
+                    className="mt-1 text-[10px] text-gray-400/70 hover:text-gray-300 underline underline-offset-2 decoration-gray-500/30 hover:decoration-gray-400 transition-colors"
+                  >
+                    {L ? 'Bingung cara make?' : 'Not sure how to use?'}
+                  </button>
                 </div>
 
                 {/* Auto Journal Button */}
@@ -1234,11 +1243,19 @@ export default function TradeWizardForm({
           </Button>
         )}
       </div>
-      {/* Auto-Journal Guide Dialog */}
+      {/* Auto-Journal Guide Dialog (mode: auto) */}
       <AutoJournalGuideDialog
         open={guideOpen}
         onOpenChange={setGuideOpen}
         language={language}
+        mode="auto"
+      />
+      {/* Manual Screenshot Guide Dialog (mode: manual) */}
+      <AutoJournalGuideDialog
+        open={manualGuideOpen}
+        onOpenChange={setManualGuideOpen}
+        language={language}
+        mode="manual"
       />
     </div>
   )
