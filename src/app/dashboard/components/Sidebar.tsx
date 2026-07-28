@@ -182,7 +182,7 @@ const Sidebar = memo(function Sidebar({
           onKeyDown: handleKeyDown,
           tabIndex: -1
         } : {})}
-        className="fixed lg:static top-0 left-0 h-dvh lg:h-auto z-50 flex flex-col overflow-hidden"
+        className="fixed lg:static top-0 left-0 h-dvh lg:h-auto z-50 flex flex-col overflow-hidden relative"
       >
         {/* Desktop sidebar — CSS transition for collapse */}
         <div className={`
@@ -192,10 +192,10 @@ const Sidebar = memo(function Sidebar({
           ${sidebarOpen ? 'w-80' : 'w-20'}
         `}>
           {/* Glassmorphism Background */}
-          <div className="absolute inset-0 bg-gradient-to-b from-lux-bg-sidebar via-lux-bg-tertiary to-lux-bg-sidebar dark:from-[#0d0a1a]/98 dark:via-[#0f0b18]/98 dark:to-[#0d0a1a]/98 backdrop-blur-xl border-r border-lux-border dark:border-purple-500/20" />
+          <div className="absolute inset-0 bg-gradient-to-b from-lux-bg-sidebar via-lux-bg-tertiary to-lux-bg-sidebar dark:from-[#0d0a1a]/98 dark:via-[#0f0b18]/98 dark:to-[#0d0a1a]/98 backdrop-blur-xl border-r border-lux-border dark:border-purple-500/20 pointer-events-none" />
 
           {/* Glow Border */}
-          <div className="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-purple-500/30 to-transparent" />
+          <div className="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-purple-500/30 to-transparent pointer-events-none" />
 
           {/* Top Glow */}
           <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-500/5 to-transparent pointer-events-none" />
@@ -245,17 +245,17 @@ const Sidebar = memo(function Sidebar({
           />
         </div>
 
-        {/* Mobile sidebar — CSS transition (no Framer Motion) */}
+        {/* Mobile sidebar — CSS transition, hidden when closed */}
         <div className={`
           lg:hidden w-80 flex flex-col overflow-hidden
           transition-transform duration-200 ease-out
-          ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'}
         `}>
           {/* Glassmorphism Background */}
-          <div className="absolute inset-0 bg-gradient-to-b from-lux-bg-sidebar via-lux-bg-tertiary to-lux-bg-sidebar dark:from-[#0d0a1a]/98 dark:via-[#0f0b18]/98 dark:to-[#0d0a1a]/98 border-r border-lux-border dark:border-purple-500/20" />
+          <div className="absolute inset-0 bg-gradient-to-b from-lux-bg-sidebar via-lux-bg-tertiary to-lux-bg-sidebar dark:from-[#0d0a1a]/98 dark:via-[#0f0b18]/98 dark:to-[#0d0a1a]/98 border-r border-lux-border dark:border-purple-500/20 pointer-events-none" />
 
           {/* Glow Border */}
-          <div className="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-purple-500/30 to-transparent" />
+          <div className="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-purple-500/30 to-transparent pointer-events-none" />
 
           {/* Top Glow */}
           <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-500/5 to-transparent pointer-events-none" />
