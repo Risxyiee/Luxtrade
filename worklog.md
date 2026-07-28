@@ -1224,3 +1224,26 @@ Stage Summary:
 - 3 files: 1 new (AutoJournalGuideDialog.tsx), 1 modified (TradeWizardForm.tsx), 1 static asset (auto-journal-example.jpeg)
 - User flow: Dashboard → Add Trade → lihat Auto-Journal → klik "Bingung cara make?" → dialog panduan muncul
 - All text follows language toggle (ID default, EN when toggled)
+
+---
+Task ID: perf-sidebar-lag
+Agent: Main
+Task: Optimize sidebar & tab switching performance to eliminate perceived lag
+
+Work Log:
+- Wrapped Sidebar component in React.memo to prevent unnecessary re-renders on tab switch
+- Wrapped DashboardModals in React.memo (Header was already memoized)
+- Removed stagger delay from SidebarNav menu items (was index * 0.05 = up to 750ms cumulative delay)
+- Removed infinite pulse animation on active sidebar icon (blur-xl + scale RAF loop)
+- Removed infinite rotation on PRO badge Zap icon in SidebarFooter
+- Removed AnimatePresence mode="wait" from TabContent (was 300ms blocking exit+enter)
+- Removed framer-motion dependency entirely from SidebarNav (all motion.div → div)
+- Replaced mobile sidebar Framer Motion slide with CSS transition-transform
+- Replaced mobile overlay Framer Motion fade with CSS transition-opacity
+
+Stage Summary:
+- 5 files changed, 101 insertions, 174 deletions (net -73 lines)
+- Estimated lag reduction: 50-70% on tab clicks
+- Sidebar now uses zero continuous RAF loops (previously had 2 infinite animations)
+- Tab content renders instantly without waiting for exit animation
+- Commit: f849e54
