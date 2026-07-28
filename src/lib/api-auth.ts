@@ -16,7 +16,7 @@ export async function getAuthUser(request: NextRequest): Promise<{ id: string; e
     const { supabase } = createClientForApi(request)
     const { data: { user }, error } = await supabase.auth.getUser()
 
-    if (!error && user) {
+    if (!error && user?.id) {
       return { id: user.id, email: user.email || '' }
     }
   } catch {
@@ -35,7 +35,7 @@ export async function getAuthUser(request: NextRequest): Promise<{ id: string; e
         const client = createClient(supabaseUrl, supabaseAnonKey)
         const { data: { user }, error } = await client.auth.getUser(token)
 
-        if (!error && user) {
+        if (!error && user?.id) {
           return { id: user.id, email: user.email || '' }
         }
       } catch {

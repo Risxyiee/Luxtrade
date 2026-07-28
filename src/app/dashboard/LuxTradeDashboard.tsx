@@ -580,7 +580,7 @@ function LuxTradeDashboardContent() {
 
   const getPerformanceTips = useCallback(async () => {
     if (!analytics || analytics.totalTrades < 5) {
-      toast.error('Add at least 5 trades to get AI insights')
+      toast.error(language === 'id' ? 'Minimal 5 trades untuk mendapatkan AI insights' : 'Add at least 5 trades to get AI insights')
       return
     }
     
@@ -589,21 +589,21 @@ function LuxTradeDashboardContent() {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'performance_tips', data: analytics })
+        body: JSON.stringify({ type: 'performance_tips', language, data: analytics })
       })
       
       const data = await res.json()
       if (res.ok && data.insight) {
         setAiInsight(data.insight)
       } else {
-        toast.error(data.error || 'Gagal mendapatkan insight. Coba lagi nanti.')
+        toast.error(data.error || (language === 'id' ? 'Gagal mendapatkan insight. Coba lagi nanti.' : 'Failed to get insights. Try again later.'))
       }
     } catch {
-      toast.error('Koneksi AI gagal. Coba lagi nanti.')
+      toast.error(language === 'id' ? 'Koneksi AI gagal. Coba lagi nanti.' : 'AI connection failed. Try again later.')
     } finally {
       setAiLoading(false)
     }
-  }, [analytics])
+  }, [analytics, language])
   
   const getMarketInsight = useCallback(async () => {
     setAiLoading(true)
@@ -611,7 +611,7 @@ function LuxTradeDashboardContent() {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'market_insight', data: {} })
+        body: JSON.stringify({ type: 'market_insight', language, data: {} })
       })
       
       const data = await res.json()
@@ -619,11 +619,11 @@ function LuxTradeDashboardContent() {
         setAiInsight(data.insight)
       }
     } catch {
-      toast.error('Gagal mendapatkan insight pasar. Coba lagi nanti.')
+      toast.error(language === 'id' ? 'Gagal mendapatkan insight pasar. Coba lagi nanti.' : 'Failed to get market insights. Try again later.')
     } finally {
       setAiLoading(false)
     }
-  }, [])
+  }, [language])
   
   const sendAiChat = useCallback(async () => {
     if (!aiChatInput.trim()) return
@@ -639,6 +639,7 @@ function LuxTradeDashboardContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'chat',
+          language,
           data: { 
             message: userMessage,
             context: { trades: trades.slice(0, 10), analytics }
@@ -651,11 +652,41 @@ function LuxTradeDashboardContent() {
         setAiChatMessages(prev => [...prev, { role: 'assistant', content: data.insight }])
       }
     } catch {
-      toast.error('AI chat failed')
+      toast.error(language === 'id' ? 'AI chat gagal. Coba lagi.' : 'AI chat failed. Try again.')
     } finally {
       setAiLoading(false)
     }
-  }, [aiChatInput, trades, analytics])
+  }, [aiChatInput, trades, analytics, language])
+
+  // Analyze a specific trade using AI
+  const analyzeTrade = useCallback(async (tradeId: string) => {
+    const trade = trades.find(t => t.id === tradeId) || trades[0]
+    if (!trade) return
+    
+    setAiLoading(true)
+    try {
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'trade_analysis',
+          language,
+          data: trade
+        })
+      })
+      
+      const data = await res.json()
+      if (res.ok && data.insight) {
+        setAiInsight(data.insight)
+      } else {
+        toast.error(data.error || (language === 'id' ? 'Gagal menganalisis trade.' : 'Failed to analyze trade.'))
+      }
+    } catch {
+      toast.error(language === 'id' ? 'Koneksi AI gagal. Coba lagi.' : 'AI connection failed. Try again.')
+    } finally {
+      setAiLoading(false)
+    }
+  }, [trades, language])
 
   // User initials with hydration safety check
   const userInitials = profile?.full_name
@@ -755,6 +786,7 @@ function LuxTradeDashboardContent() {
           onGetMarket={getMarketInsight}
           onChatChange={setAiChatInput}
           onSendChat={sendAiChat}
+          onAnalyzeTrade={analyzeTrade}
           isPro={isPro}
           language={language}
           user={user}
