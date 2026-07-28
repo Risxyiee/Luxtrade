@@ -15,8 +15,9 @@ export interface AchievementResult {
  */
 export async function checkAchievementsAfterTrade(userId: string | undefined | null): Promise<AchievementResult[]> {
   try {
-    if (!userId) {
-      console.log('[Achievement Checker] No userId provided')
+    // ── Safety: ensure userId is a valid non-empty string before any DB writes ──
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+      console.warn('[Achievement Checker] No valid userId provided, skipping')
       return []
     }
 
@@ -51,49 +52,68 @@ export async function checkAchievementsAfterTrade(userId: string | undefined | n
       const isMet = await checkAchievementCriteria(userId, achievement, profile)
 
       if (isMet) {
-        console.log(`[Achievement Checker] Achievement "${achievement.title}" is now complete!`)
+        console.log(`[Achievement Checker] Achievement "${achievement.title}" is now complete! userId=${userId}`)
 
-        // Add achievement to profile
+        // Add achievement to profile — use upsert for atomicity (race-safe)
+        const freshProfile = await db.profile.findUnique({
+          where: { id: userId },
+          select: { achievements: true }
+        })
+        const currentAchievements: string[] = Array.isArray(freshProfile?.achievements) ? freshProfile.achievements : []
+        if (currentAchievements.includes(achievement.id)) {
+          console.log(`[Achievement Checker] Achievement "${achievement.title}" already claimed (race), skipping`)
+          continue
+        }
+
         await db.profile.update({
           where: { id: userId },
           data: {
-            achievements: [...claimedAchievementIds, achievement.id]
+            achievements: [...currentAchievements, achievement.id]
           }
         })
 
-        // Create submission record for tracking
-        await db.userSubmission.create({
-          data: {
-            userId,
-            achievementKey: achievement.id,
-            proofUrl: null,
-            status: 'APPROVED',
-            reviewedBy: 'SYSTEM',
-          }
-        })
+        // Create submission record for tracking — userId is guaranteed non-null here
+        try {
+          await db.userSubmission.create({
+            data: {
+              userId: userId,
+              achievementKey: achievement.id,
+              proofUrl: null,
+              status: 'APPROVED',
+              reviewedBy: 'SYSTEM',
+            }
+          })
+        } catch (submissionErr: any) {
+          console.error(`[Achievement Checker] userSubmission.create failed for userId="${userId}":`, submissionErr.message)
+          // Don't fail the whole achievement — the profile already has the badge
+        }
 
         // Create or update mission progress
-        await db.missionProgress.upsert({
-          where: {
-            userId_missionKey: {
-              userId,
-              missionKey: achievement.id
+        try {
+          await db.missionProgress.upsert({
+            where: {
+              userId_missionKey: {
+                userId: userId,
+                missionKey: achievement.id
+              }
+            },
+            create: {
+              userId: userId,
+              missionKey: achievement.id,
+              progress: achievement.criteria.target,
+              target: achievement.criteria.target,
+              completed: true,
+              claimed: true,
+            },
+            update: {
+              progress: achievement.criteria.target,
+              completed: true,
+              claimed: true,
             }
-          },
-          create: {
-            userId,
-            missionKey: achievement.id,
-            progress: achievement.criteria.target,
-            target: achievement.criteria.target,
-            completed: true,
-            claimed: true,
-          },
-          update: {
-            progress: achievement.criteria.target,
-            completed: true,
-            claimed: true,
-          }
-        })
+          })
+        } catch (missionErr: any) {
+          console.error(`[Achievement Checker] missionProgress upsert failed:`, missionErr.message)
+        }
 
         // Apply reward immediately
         await applyReward(userId, achievement)

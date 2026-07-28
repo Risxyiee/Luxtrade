@@ -259,10 +259,16 @@ export async function POST(request: NextRequest) {
     }
     log('✅', `Validation passed: ${validFields} fields extracted`)
 
-    // ── STEP 10: Build journal object ──
+    // ── STEP 10: Build journal object — language-aware fallbacks ──
+    const tradeTypeLabel = ai.type === 'sell' ? 'Short' : 'Long'
+    const tradeTypeLabelId = ai.type === 'sell' ? 'Short' : 'Long'
     const journal: GeneratedJournal = {
-      title: ai.journalTitle || `${ai.symbol || 'Trade'} ${ai.type || ''} Entry`,
-      content: ai.journalContent || `${ai.type === 'sell' ? 'Short' : 'Long'} position on ${ai.symbol || 'unknown'}. Entry at ${ai.openPrice ?? '?'}, exit at ${ai.closePrice ?? '?'}. P/L: ${ai.profitLoss ?? 0}.`,
+      title: ai.journalTitle || (lang === 'id'
+        ? `${ai.symbol || 'Trade'} ${tradeTypeLabelId} di ${ai.openPrice ?? '?'}`
+        : `${ai.symbol || 'Trade'} ${tradeTypeLabel} Entry at ${ai.openPrice ?? '?'}`),
+      content: ai.journalContent || (lang === 'id'
+        ? `${tradeTypeLabelId} ${ai.symbol || 'unknown'}. Entry di ${ai.openPrice ?? '?'}, exit di ${ai.closePrice ?? '?'}. P/L: ${ai.profitLoss ?? 0}.`
+        : `${tradeTypeLabel} position on ${ai.symbol || 'unknown'}. Entry at ${ai.openPrice ?? '?'}, exit at ${ai.closePrice ?? '?'}. P/L: ${ai.profitLoss ?? 0}.`),
       mood: ai.mood || 'neutral',
       market_condition: ai.marketCondition || 'ranging',
       tags: ai.tags ? ai.tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean) : ['trade'],
