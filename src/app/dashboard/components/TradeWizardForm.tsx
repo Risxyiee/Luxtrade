@@ -703,13 +703,13 @@ export default function TradeWizardForm({
                       </>
                     )}
                   </div>
-                  {/* Guide link — clickable text below Screenshot button */}
+                  {/* Guide link — prominent below Screenshot button */}
                   <button
                     type="button"
                     onClick={() => setManualGuideOpen(true)}
-                    className="mt-1 text-[10px] text-gray-400/70 hover:text-gray-300 underline underline-offset-2 decoration-gray-500/30 hover:decoration-gray-400 transition-colors"
+                    className="mt-2 w-full text-center text-[11px] font-medium text-emerald-400/90 hover:text-emerald-300 underline underline-offset-2 decoration-emerald-500/40 hover:decoration-emerald-400 transition-colors"
                   >
-                    {L ? 'Bingung cara make?' : 'Not sure how to use?'}
+                    {L ? '📄 Gak bisa pake fitur ini? Cek panduan di sini' : '📄 Can\'t use this feature? Check guide here'}
                   </button>
                 </div>
 
@@ -741,13 +741,13 @@ export default function TradeWizardForm({
                       AI
                     </div>
                   </div>
-                  {/* Guide link — clickable text below Auto-Journal button */}
+                  {/* Guide link — prominent below Auto-Journal button */}
                   <button
                     type="button"
                     onClick={() => setGuideOpen(true)}
-                    className="mt-1 text-[10px] text-purple-400/70 hover:text-purple-300 underline underline-offset-2 decoration-purple-500/30 hover:decoration-purple-400 transition-colors"
+                    className="mt-2 w-full text-center text-[11px] font-medium text-purple-400/90 hover:text-purple-300 underline underline-offset-2 decoration-purple-500/40 hover:decoration-purple-400 transition-colors"
                   >
-                    {L ? 'Bingung cara make?' : 'Not sure how to use?'}
+                    {L ? '📄 Gak bisa pake Auto-Journal? Cek panduan di sini' : '📄 Can\'t use Auto-Journal? Check guide here'}
                   </button>
                 </div>
 
