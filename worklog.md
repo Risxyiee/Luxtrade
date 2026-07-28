@@ -1333,3 +1333,27 @@ Stage Summary:
 - ai/route.ts: trade analysis with full trade context + language-aware prompts and fallbacks
 - auto-journal/route.ts: language-aware fallback journal content
 - GitHub push successful: fccb4b6..a185029 main -> main
+
+---
+Task ID: 5-rls
+Agent: Main
+Task: Fix all Supabase RLS Disabled in Public warnings
+
+Work Log:
+- Audited entire Supabase schema: found 8 tables WITH RLS, 13 WITHOUT
+- Tables missing RLS: users, user_subscriptions, journal_entries, tags, weekly_goals, social_links, watchlist, payment_orders, promo_codes, email_broadcasts, affiliates, affiliate_referrals, affiliate_withdrawals
+- Created comprehensive RLS migration (supabase/migrations/20260728_enable_rls_all_tables.sql)
+- Created safe-run version with DO $$ EXCEPTION blocks (docs/SUPABASE_RLS_HARDENING.sql)
+- Key security decisions:
+  - anon role revoked from ALL tables
+  - All user-facing tables scoped by auth.uid() = user_id
+  - service_role bypasses RLS (admin operations)
+  - promo_codes: read-only for authenticated users
+  - email_broadcasts: no user access at all (admin only)
+  - payment_orders: no user INSERT (payment system handles)
+- Pushed to GitHub: commit 1456596
+
+Stage Summary:
+- 13 tables now have proper RLS policies
+- "RLS Disabled in Public" warning on users table should be resolved after running SQL
+- User needs to run docs/SUPABASE_RLS_HARDENING.sql in Supabase SQL Editor
