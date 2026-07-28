@@ -1,11 +1,13 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Wallet, Grid3X3, Trash2, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { ContextGuide, useContextGuides, guideData } from '@/components/ContextGuide'
+import JournalGuideDialog from '../AutoJournalGuideDialog'
 
 interface SidebarHeaderProps {
   sidebarOpen: boolean
@@ -31,6 +33,8 @@ export default function SidebarHeader({
   openDeleteModal
 }: SidebarHeaderProps) {
   const { activeGuide, openGuide, closeGuide } = useContextGuides()
+  const [screenshotGuideOpen, setScreenshotGuideOpen] = useState(false)
+  const [autoJournalGuideOpen, setAutoJournalGuideOpen] = useState(false)
 
   return (
     <div className="relative p-4 pb-3 border-b border-lux-border dark:border-purple-500/20 shrink-0 flex flex-col">
@@ -204,8 +208,40 @@ export default function SidebarHeader({
               />
             </div>
           </div>
+
+          {/* Guide Links — visible below Add Trade & Add Account buttons */}
+          <div className="mt-2 space-y-1">
+            <button
+              type="button"
+              onClick={() => setScreenshotGuideOpen(true)}
+              className="block w-full text-left text-[10px] text-emerald-400/80 hover:text-emerald-300 transition-colors leading-tight"
+            >
+              📄 {language === 'id' ? 'Gak bisa pake Screenshot AI? Cek panduan di sini' : "Can't use Screenshot AI? Check guide here"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setAutoJournalGuideOpen(true)}
+              className="block w-full text-left text-[10px] text-purple-400/80 hover:text-purple-300 transition-colors leading-tight"
+            >
+              📄 {language === 'id' ? 'Gak bisa pake Auto-Journal? Cek panduan di sini' : "Can't use Auto-Journal? Check guide here"}
+            </button>
+          </div>
         </motion.div>
       )}
+
+      {/* Guide Dialogs */}
+      <JournalGuideDialog
+        open={screenshotGuideOpen}
+        onOpenChange={setScreenshotGuideOpen}
+        language={language}
+        mode="manual"
+      />
+      <JournalGuideDialog
+        open={autoJournalGuideOpen}
+        onOpenChange={setAutoJournalGuideOpen}
+        language={language}
+        mode="auto"
+      />
     </div>
   )
 }
