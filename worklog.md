@@ -1310,3 +1310,26 @@ Stage Summary:
 - Auto-journal and screenshot-journal both respect language toggle
 - Export PDF has proper loading/error handling
 - Prisma null userId issue addressed with defensive checks
+
+---
+Task ID: 1-4
+Agent: Main
+Task: Fix 4 bugs — P2011 null userId, Export PDF, AI Insight language, Auto-journal language
+
+Work Log:
+- Investigated P2011 null userId error in achievement-checker.ts: root cause was potential undefined/null userId being passed to userSubmission.create() and race conditions with achievement claiming
+- Fixed achievement-checker.ts: added stricter userId validation, try/catch around DB writes, race-condition protection with re-fetch
+- Investigated Export PDF failure: root cause was jspdf-autotable v5 no longer auto-extending jsPDF prototype (v4 incompatibility)
+- Fixed JournalTab.tsx: changed from doc.autoTable() to autoTable(doc, {...}), added safe fallback for lastAutoTable.finalY
+- Enhanced AI Insight trade_analysis: frontend now sends 20 recent trades + analytics as context, backend prompt includes recent trades summary and overall stats for deeper analysis
+- Fixed auto-journal fallback content: journal title and content fallbacks now respect language toggle (id/en)
+- Ran lint — all passes clean
+- Pushed all fixes to GitHub: commit a185029
+
+Stage Summary:
+- 4 bugs fixed and pushed to main branch
+- achievement-checker.ts: null safety + race condition protection
+- JournalTab.tsx: jspdf-autotable v5 compatibility fix
+- ai/route.ts: trade analysis with full trade context + language-aware prompts and fallbacks
+- auto-journal/route.ts: language-aware fallback journal content
+- GitHub push successful: fccb4b6..a185029 main -> main
