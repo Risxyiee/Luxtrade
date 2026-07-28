@@ -658,20 +658,36 @@ function LuxTradeDashboardContent() {
     }
   }, [aiChatInput, trades, analytics, language])
 
-  // Analyze a specific trade using AI
+  // Analyze a specific trade using AI — includes recent trades context for better suggestions
   const analyzeTrade = useCallback(async (tradeId: string) => {
     const trade = trades.find(t => t.id === tradeId) || trades[0]
     if (!trade) return
     
     setAiLoading(true)
     try {
+      // Include recent trades as context for more personalized analysis
+      const recentTrades = trades.slice(0, 20)
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'trade_analysis',
           language,
-          data: trade
+          data: {
+            ...trade,
+            _recentTrades: recentTrades.map(t => ({
+              symbol: t.symbol,
+              type: t.type,
+              profit_loss: t.profit_loss,
+              session: t.session,
+              notes: t.notes,
+            })),
+            _analytics: {
+              winRate: analytics?.winRate,
+              totalTrades: analytics?.totalTrades,
+              totalPL: analytics?.totalPL,
+            }
+          }
         })
       })
       

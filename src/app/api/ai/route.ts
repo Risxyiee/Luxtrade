@@ -98,8 +98,23 @@ Provide an in-depth analysis and 3-5 specific actionable suggestions to improve 
 }
 
 function getTradeAnalysisPrompt(lang: 'id' | 'en', trade: any): string {
+  const recentTrades = trade._recentTrades || []
+  const analytics = trade._analytics || {}
+
+  const recentTradesSummary = recentTrades.length > 1
+    ? (lang === 'id'
+        ? `\n\n**20 Trade Terakhir User:**\n${recentTrades.slice(0, 20).map((t: any) => `- ${t.symbol} ${t.type}: P/L $${t.profit_loss?.toFixed(2) || 'N/A'}, Sesi: ${t.session || '-'}${t.notes ? ', Catatan: ' + t.notes.substring(0, 60) : ''}`).join('\n')}`
+        : `\n\n**User's Recent 20 Trades:**\n${recentTrades.slice(0, 20).map((t: any) => `- ${t.symbol} ${t.type}: P/L $${t.profit_loss?.toFixed(2) || 'N/A'}, Session: ${t.session || '-'}${t.notes ? ', Notes: ' + t.notes.substring(0, 60) : ''}`).join('\n')}`)
+    : ''
+
+  const analyticsSummary = analytics.totalTrades
+    ? (lang === 'id'
+        ? `\n**Statistik Keseluruhan:** Win Rate: ${analytics.winRate?.toFixed(1) || 0}%, Total P/L: $${analytics.totalPL?.toFixed(2) || 0}, ${analytics.totalTrades} trades`
+        : `\n**Overall Stats:** Win Rate: ${analytics.winRate?.toFixed(1) || 0}%, Total P/L: $${analytics.totalPL?.toFixed(2) || 0}, ${analytics.totalTrades} trades`)
+    : ''
+
   if (lang === 'id') {
-    return `Analisis trade ini dan berikan insight:
+    return `Analisis trade ini secara mendalam dan berikan saran berdasarkan pola trading keseluruhan:
 
 **Detail Trade:**
 - Pair: ${trade.symbol || 'N/A'}
@@ -112,13 +127,16 @@ function getTradeAnalysisPrompt(lang: 'id' | 'en', trade: any): string {
 - Durasi: ${trade.trade_duration || 'N/A'}
 - Catatan: ${trade.notes || 'Tidak ada catatan'}
 - Strategy: ${trade.strategy || 'Tidak disebutkan'}
+${recentTradesSummary}
+${analyticsSummary}
 
-Berikan:
-1. Evaluasi singkat (apakah trade ini bagus?)
-2. Apa yang bisa diperbaiki?
-3. Saran untuk trade serupa di masa depan`
+Berikan analisis dalam Bahasa Indonesia:
+1. Evaluasi trade ini (apakah decision-making bagus?)
+2. Bandingkan dengan pola trade sebelumnya — ada pola berulang?
+3. Apa yang bisa diperbaiki?
+4. Saran spesifik untuk trade serupa di masa depan`
   }
-  return `Analyze this trade and provide insights:
+  return `Analyze this trade in depth and provide suggestions based on overall trading patterns:
 
 **Trade Details:**
 - Pair: ${trade.symbol || 'N/A'}
@@ -131,11 +149,14 @@ Berikan:
 - Duration: ${trade.trade_duration || 'N/A'}
 - Notes: ${trade.notes || 'No notes'}
 - Strategy: ${trade.strategy || 'Not specified'}
+${recentTradesSummary}
+${analyticsSummary}
 
 Provide:
-1. Brief evaluation (was this a good trade?)
-2. What could be improved?
-3. Suggestions for similar trades in the future`
+1. Trade evaluation (was the decision-making sound?)
+2. Compare with previous trades — are there recurring patterns?
+3. What could be improved?
+4. Specific suggestions for similar trades in the future`
 }
 
 function getMarketInsightPrompt(lang: 'id' | 'en'): string {
@@ -428,20 +449,39 @@ export async function POST(request: NextRequest) {
         zaiResponse = await askZAI(systemPrompt, userPrompt)
 
         if (!zaiResponse) {
-          // Local fallback
+          // Local fallback — language-aware with context from recent trades
           const pl = trade.profit_loss ? parseFloat(String(trade.profit_loss)) : 0
+          const recentTrades = trade._recentTrades || []
+          const analytics = trade._analytics || {}
+          const winRate = analytics.winRate || 0
+          const totalPL = analytics.totalPL || 0
+
+          // Pattern analysis from recent trades
+          const profitableCount = recentTrades.filter((t: any) => t.profit_loss > 0).length
+          const lossCount = recentTrades.filter((t: any) => t.profit_loss < 0).length
+          const bestSession = recentTrades.length > 0
+            ? recentTrades.reduce((acc: any, t: any) => {
+                if (!acc[t.session]) acc[t.session] = { pl: 0, count: 0 }
+                acc[t.session].pl += t.profit_loss || 0
+                acc[t.session].count++
+                return acc
+              }, {})
+            : {}
+
+          const bestSess = Object.entries(bestSession).sort((a: any, b: any) => (b[1] as any).pl - (a[1] as any).pl)[0]
+
           if (pl > 0) {
             zaiResponse = lang === 'en'
-              ? `✅ **Trade Analysis:**\n\nTrade ${trade.symbol} ${trade.type} was profitable at $${pl.toFixed(2)}.\n\n• Entry: $${trade.open_price || trade.entry_price} → Exit: $${trade.close_price || trade.exit_price}\n• Note "${trade.strategy || 'N/A'}" as a successful setup.\n💡 Repeat this pattern in similar market conditions for consistency.`
-              : `✅ **Analisis Trade:**\n\nTrade ${trade.symbol} ${trade.type} menghasilkan profit $${pl.toFixed(2)}.\n\n• Entry: $${trade.open_price || trade.entry_price} → Exit: $${trade.close_price || trade.exit_price}\n• Catat strategi "${trade.strategy || 'N/A'}" sebagai setup yang berhasil.\n💡 Ulangi pola ini di kondisi market serupa untuk konsistensi.`
+              ? `✅ **Trade Analysis:**\n\nTrade ${trade.symbol} ${trade.type} was profitable at $${pl.toFixed(2)}.\n\n• Entry: $${trade.open_price || trade.entry_price} → Exit: $${trade.close_price || trade.exit_price}\n• Note "${trade.strategy || 'N/A'}" as a successful setup.\n${recentTrades.length > 1 ? `\n📊 **Context:** From your last ${recentTrades.length} trades: ${profitableCount} wins, ${lossCount} losses. Win Rate: ${winRate.toFixed(1)}%. Total P/L: $${totalPL.toFixed(2)}.${bestSess ? ` Best session: ${bestSess[0]}` : ''}` : ''}\n💡 Repeat this pattern in similar market conditions for consistency.`
+              : `✅ **Analisis Trade:**\n\nTrade ${trade.symbol} ${trade.type} menghasilkan profit $${pl.toFixed(2)}.\n\n• Entry: $${trade.open_price || trade.entry_price} → Exit: $${trade.close_price || trade.exit_price}\n• Catat strategi "${trade.strategy || 'N/A'}" sebagai setup yang berhasil.\n${recentTrades.length > 1 ? `\n📊 **Konteks:** Dari ${recentTrades.length} trade terakhir: ${profitableCount} menang, ${lossCount} kalah. Win Rate: ${winRate.toFixed(1)}%. Total P/L: $${totalPL.toFixed(2)}.${bestSess ? ` Sesi terbaik: ${bestSess[0]}` : ''}` : ''}\n💡 Ulangi pola ini di kondisi market serupa untuk konsistensi.`
           } else if (pl < 0) {
             zaiResponse = lang === 'en'
-              ? `❌ **Trade Analysis:**\n\nTrade ${trade.symbol} ${trade.type} resulted in a loss of $${Math.abs(pl).toFixed(2)}.\n\n• Entry: $${trade.open_price || trade.entry_price} → Exit: $${trade.close_price || trade.exit_price}\n• ${trade.notes ? `Notes: "${trade.notes}"` : 'Record what went wrong in your journal.'}\n💡 Review: Was stop loss too tight? Were you trading against the trend?`
-              : `❌ **Analisis Trade:**\n\nTrade ${trade.symbol} ${trade.type} mengalami loss $${Math.abs(pl).toFixed(2)}.\n\n• Entry: $${trade.open_price || trade.entry_price} → Exit: $${trade.close_price || trade.exit_price}\n• ${trade.notes ? `Notes: "${trade.notes}"` : 'Catat apa yang salah di journal.'}\n💡 Review: Apakah stop loss terlalu dekat? Apakah melawan trend?`
+              ? `❌ **Trade Analysis:**\n\nTrade ${trade.symbol} ${trade.type} resulted in a loss of $${Math.abs(pl).toFixed(2)}.\n\n• Entry: $${trade.open_price || trade.entry_price} → Exit: $${trade.close_price || trade.exit_price}\n• ${trade.notes ? `Notes: "${trade.notes}"` : 'Record what went wrong in your journal.'}\n${recentTrades.length > 1 ? `\n📊 **Context:** From your last ${recentTrades.length} trades: ${profitableCount} wins, ${lossCount} losses. Win Rate: ${winRate.toFixed(1)}%.${lossCount > profitableCount ? ' ⚠️ You have more losses than wins recently. Consider reducing position size.' : ''}` : ''}\n💡 Review: Was stop loss too tight? Were you trading against the trend?`
+              : `❌ **Analisis Trade:**\n\nTrade ${trade.symbol} ${trade.type} mengalami loss $${Math.abs(pl).toFixed(2)}.\n\n• Entry: $${trade.open_price || trade.entry_price} → Exit: $${trade.close_price || trade.exit_price}\n• ${trade.notes ? `Catatan: "${trade.notes}"` : 'Catat apa yang salah di journal.'}\n${recentTrades.length > 1 ? `\n📊 **Konteks:** Dari ${recentTrades.length} trade terakhir: ${profitableCount} menang, ${lossCount} kalah. Win Rate: ${winRate.toFixed(1)}%.${lossCount > profitableCount ? ' ⚠️ Loss lebih banyak dari win. Pertimbangkan untuk mengurangi lot size.' : ''}` : ''}\n💡 Review: Apakah stop loss terlalu dekat? Apakah melawan trend?`
           } else {
             zaiResponse = lang === 'en'
-              ? `📝 **Trade Analysis:**\n\nTrade ${trade.symbol} ${trade.type} recorded.\n\n• Entry: $${trade.open_price || trade.entry_price} → Exit: $${trade.close_price || trade.exit_price}\n• ${trade.notes || 'No additional notes.'}\n💡 Record your insight after the trade closes for better analysis.`
-              : `📝 **Analisis Trade:**\n\nTrade ${trade.symbol} ${trade.type} dicatat.\n\n• Entry: $${trade.open_price || trade.entry_price} → Exit: $${trade.close_price || trade.exit_price}\n• ${trade.notes || 'Tidak ada catatan tambahan.'}\n💡 Catat insight setelah trade ditutup untuk analisis yang lebih baik.`
+              ? `📝 **Trade Analysis:**\n\nTrade ${trade.symbol} ${trade.type} recorded.\n\n• Entry: $${trade.open_price || trade.entry_price} → Exit: $${trade.close_price || trade.exit_price}\n• ${trade.notes || 'No additional notes.'}\n${recentTrades.length > 1 ? `\n📊 **Context:** ${recentTrades.length} trades analyzed. Win Rate: ${winRate.toFixed(1)}%.` : ''}\n💡 Record your insight after the trade closes for better analysis.`
+              : `📝 **Analisis Trade:**\n\nTrade ${trade.symbol} ${trade.type} dicatat.\n\n• Entry: $${trade.open_price || trade.entry_price} → Exit: $${trade.close_price || trade.exit_price}\n• ${trade.notes || 'Tidak ada catatan tambahan.'}\n${recentTrades.length > 1 ? `\n📊 **Konteks:** ${recentTrades.length} trade dianalisis. Win Rate: ${winRate.toFixed(1)}%.` : ''}\n💡 Catat insight setelah trade ditutup untuk analisis yang lebih baik.`
           }
         }
 
