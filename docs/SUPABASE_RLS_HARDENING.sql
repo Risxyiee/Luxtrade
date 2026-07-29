@@ -29,8 +29,8 @@
 --   08. weekly_goals         (UUID user_id)
 --   09. watchlist            (TEXT user_id)   — ::text cast needed
 --   10. social_links         (UUID "userId")  — CamelCase column!
---   11. user_submissions     (UUID user_id)
---   12. mission_progress      (UUID user_id)
+--   11. user_submissions     (UUID "userId")  — CamelCase column!
+--   12. mission_progress      (TEXT "userId") — CamelCase column!
 --   13. bug_reports          (TEXT user_id)   — ::text cast needed
 --   14. payment_orders       (TEXT user_id)   — ::text cast needed
 --   15. promo_codes          (no user_id)
@@ -40,9 +40,9 @@
 --   19. affiliate_withdrawals (UUID affiliate_id)
 --
 -- COLUMN NAMING CONVENTION MISMATCH:
---   Some tables use snake_case (user_id), some use CamelCase ("userId")
+--   Some tables use snake_case (user_id), some use CamelCase ("userId").
 --   This is because columns were created from different migrations.
---   Always check actual column names before writing policies!
+--   Types also vary (TEXT vs UUID). Always verified against actual DB schema.
 -- ============================================================================
 
 
@@ -146,12 +146,13 @@ END $$;
 
 -- ============================================================================
 -- PART 5: CREATE POLICIES
--- Types are verified against actual database:
---   TEXT columns → auth.uid()::text
---   UUID columns → auth.uid()
+-- Types verified against actual database (2026-07-29):
+--   TEXT columns  -> auth.uid()::text
+--   UUID columns  -> auth.uid()
+--   CamelCase    -> "userId" (quoted)
 -- ============================================================================
 
--- ===== 01. users (TEXT id) → ::text cast =====
+-- ===== 01. users (TEXT id) -> ::text cast =====
 DO $$ BEGIN
   IF to_regclass('public.users') IS NOT NULL THEN
     EXECUTE 'CREATE POLICY "Users can view own row" ON public.users FOR SELECT TO authenticated USING (auth.uid()::text = id)';
@@ -160,7 +161,7 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
--- ===== 02. profiles (TEXT id) → ::text cast =====
+-- ===== 02. profiles (TEXT id) -> ::text cast =====
 DO $$ BEGIN
   IF to_regclass('public.profiles') IS NOT NULL THEN
     EXECUTE 'CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT TO authenticated USING (auth.uid()::text = id)';
@@ -171,7 +172,7 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
--- ===== 03. trades (TEXT user_id) → ::text cast =====
+-- ===== 03. trades (TEXT user_id) -> ::text cast =====
 DO $$ BEGIN
   IF to_regclass('public.trades') IS NOT NULL THEN
     EXECUTE 'CREATE POLICY "Users can view own trades" ON public.trades FOR SELECT TO authenticated USING (auth.uid()::text = user_id)';
@@ -204,7 +205,7 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
--- ===== 06. journal_entries (TEXT user_id) → ::text cast =====
+-- ===== 06. journal_entries (TEXT user_id) -> ::text cast =====
 DO $$ BEGIN
   IF to_regclass('public.journal_entries') IS NOT NULL THEN
     EXECUTE 'CREATE POLICY "Users can view own journals" ON public.journal_entries FOR SELECT TO authenticated USING (auth.uid()::text = user_id)';
@@ -237,7 +238,7 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
--- ===== 09. watchlist (TEXT user_id) → ::text cast =====
+-- ===== 09. watchlist (TEXT user_id) -> ::text cast =====
 DO $$ BEGIN
   IF to_regclass('public.watchlist') IS NOT NULL THEN
     EXECUTE 'CREATE POLICY "Users can view own watchlist" ON public.watchlist FOR SELECT TO authenticated USING (auth.uid()::text = user_id)';
@@ -248,7 +249,7 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
--- ===== 10. social_links (UUID "userId" — CAMELCASE column!) =====
+-- ===== 10. social_links (UUID "userId" — CAMELCASE!) =====
 DO $$ BEGIN
   IF to_regclass('public.social_links') IS NOT NULL THEN
     EXECUTE 'CREATE POLICY "Users can view own social links" ON public.social_links FOR SELECT TO authenticated USING (auth.uid() = "userId")';
@@ -259,29 +260,29 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
--- ===== 11. user_submissions (UUID user_id) =====
+-- ===== 11. user_submissions (UUID "userId" — CAMELCASE!) =====
 DO $$ BEGIN
   IF to_regclass('public.user_submissions') IS NOT NULL THEN
-    EXECUTE 'CREATE POLICY "Users can view own submissions" ON public.user_submissions FOR SELECT TO authenticated USING (auth.uid() = user_id)';
-    EXECUTE 'CREATE POLICY "Users can insert own submissions" ON public.user_submissions FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id)';
-    EXECUTE 'CREATE POLICY "Users can update own submissions" ON public.user_submissions FOR UPDATE TO authenticated USING (auth.uid() = user_id)';
-    EXECUTE 'CREATE POLICY "Users can delete own submissions" ON public.user_submissions FOR DELETE TO authenticated USING (auth.uid() = user_id)';
+    EXECUTE 'CREATE POLICY "Users can view own submissions" ON public.user_submissions FOR SELECT TO authenticated USING (auth.uid() = "userId")';
+    EXECUTE 'CREATE POLICY "Users can insert own submissions" ON public.user_submissions FOR INSERT TO authenticated WITH CHECK (auth.uid() = "userId")';
+    EXECUTE 'CREATE POLICY "Users can update own submissions" ON public.user_submissions FOR UPDATE TO authenticated USING (auth.uid() = "userId")';
+    EXECUTE 'CREATE POLICY "Users can delete own submissions" ON public.user_submissions FOR DELETE TO authenticated USING (auth.uid() = "userId")';
   END IF;
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
--- ===== 12. mission_progress (UUID user_id) =====
+-- ===== 12. mission_progress (TEXT "userId" — CAMELCASE!) -> ::text cast =====
 DO $$ BEGIN
   IF to_regclass('public.mission_progress') IS NOT NULL THEN
-    EXECUTE 'CREATE POLICY "Users can view own progress" ON public.mission_progress FOR SELECT TO authenticated USING (auth.uid() = user_id)';
-    EXECUTE 'CREATE POLICY "Users can insert own progress" ON public.mission_progress FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id)';
-    EXECUTE 'CREATE POLICY "Users can update own progress" ON public.mission_progress FOR UPDATE TO authenticated USING (auth.uid() = user_id)';
-    EXECUTE 'CREATE POLICY "Users can delete own progress" ON public.mission_progress FOR DELETE TO authenticated USING (auth.uid() = user_id)';
+    EXECUTE 'CREATE POLICY "Users can view own progress" ON public.mission_progress FOR SELECT TO authenticated USING (auth.uid()::text = "userId")';
+    EXECUTE 'CREATE POLICY "Users can insert own progress" ON public.mission_progress FOR INSERT TO authenticated WITH CHECK (auth.uid()::text = "userId")';
+    EXECUTE 'CREATE POLICY "Users can update own progress" ON public.mission_progress FOR UPDATE TO authenticated USING (auth.uid()::text = "userId")';
+    EXECUTE 'CREATE POLICY "Users can delete own progress" ON public.mission_progress FOR DELETE TO authenticated USING (auth.uid()::text = "userId")';
   END IF;
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
--- ===== 13. bug_reports (TEXT user_id) → ::text cast =====
+-- ===== 13. bug_reports (TEXT user_id) -> ::text cast =====
 DO $$ BEGIN
   IF to_regclass('public.bug_reports') IS NOT NULL THEN
     EXECUTE 'CREATE POLICY "Users can view own bug reports" ON public.bug_reports FOR SELECT TO authenticated USING (auth.uid()::text = user_id)';
@@ -291,7 +292,7 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
--- ===== 14. payment_orders (TEXT user_id) → ::text cast =====
+-- ===== 14. payment_orders (TEXT user_id) -> ::text cast =====
 DO $$ BEGIN
   IF to_regclass('public.payment_orders') IS NOT NULL THEN
     EXECUTE 'CREATE POLICY "Users can view own orders" ON public.payment_orders FOR SELECT TO authenticated USING (auth.uid()::text = user_id)';
@@ -316,7 +317,7 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
--- ===== 17. affiliates (TEXT user_id) → ::text cast =====
+-- ===== 17. affiliates (TEXT user_id) -> ::text cast =====
 DO $$ BEGIN
   IF to_regclass('public.affiliates') IS NOT NULL THEN
     EXECUTE 'CREATE POLICY "Users can view own affiliate" ON public.affiliates FOR SELECT TO authenticated USING (auth.uid()::text = user_id)';
@@ -370,9 +371,75 @@ DO $$ BEGIN IF to_regclass('public.affiliate_withdrawals') IS NOT NULL THEN EXEC
 
 
 -- ============================================================================
--- PART 7: DIAGNOSTICS
+-- PART 7: SECURITY FIX — Function Search Path Mutable
+-- Set SECURITY DEFINER with locked search_path
 -- ============================================================================
 
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = ''
+AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$;
+
+
+-- ============================================================================
+-- PART 8: PERFORMANCE FIX — Auth RLS Initialization Plan (add indexes)
+-- Column names verified against actual database schema
+-- ============================================================================
+
+-- profiles.id (TEXT)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'profiles_id_idx') THEN
+    CREATE INDEX profiles_id_idx ON public.profiles(id);
+  END IF;
+END $$;
+
+-- user_submissions."userId" (TEXT — CamelCase)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'user_submissions_userid_idx') THEN
+    CREATE INDEX user_submissions_userid_idx ON public.user_submissions("userId");
+  END IF;
+END $$;
+
+-- mission_progress."userId" (TEXT — CamelCase)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'mission_progress_userid_idx') THEN
+    CREATE INDEX mission_progress_userid_idx ON public.mission_progress("userId");
+  END IF;
+END $$;
+
+-- trades.user_id (TEXT — snake_case)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'trades_user_id_idx') THEN
+    CREATE INDEX trades_user_id_idx ON public.trades(user_id);
+  END IF;
+END $$;
+
+-- trades.close_time
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'trades_close_time_idx') THEN
+    CREATE INDEX trades_close_time_idx ON public.trades(close_time);
+  END IF;
+END $$;
+
+-- Composite: trades(user_id, close_time)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'trades_user_id_close_time_idx') THEN
+    CREATE INDEX trades_user_id_close_time_idx ON public.trades(user_id, close_time);
+  END IF;
+END $$;
+
+
+-- ============================================================================
+-- PART 9: DIAGNOSTICS
+-- ============================================================================
+
+-- Check RLS status
 SELECT
   tablename AS table_name,
   rowsecurity AS rls_enabled,
@@ -385,5 +452,17 @@ FROM pg_tables t
 WHERE t.schemaname = 'public'
 ORDER BY tablename;
 
--- Expected: All 18 tables show rls_enabled = true, policy_count > 0
+-- Check function security
+SELECT routine_name, security_type
+FROM information_schema.routines
+WHERE routine_schema = 'public' AND routine_name = 'update_updated_at_column';
+
+-- Check indexes
+SELECT indexname, tablename
+FROM pg_indexes
+WHERE schemaname = 'public'
+AND tablename IN ('profiles', 'user_submissions', 'mission_progress', 'trades')
+ORDER BY tablename, indexname;
+
+-- Expected: All tables rls_enabled=true, policy_count>0, function=SECURITY DEFINER
 -- ============================================================================
