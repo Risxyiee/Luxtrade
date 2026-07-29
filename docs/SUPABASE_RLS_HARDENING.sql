@@ -1,7 +1,7 @@
 -- ============================================================================
--- LUXTRADE - COMPLETE RLS (Row Level Security) HARDENING SCRIPT v3
+-- LUXTRADE - COMPLETE RLS (Row Level Security) HARDENING SCRIPT v4
 -- ============================================================================
--- Date       : 2026-07-28
+-- Date       : 2026-07-29
 -- Purpose    : Fix ALL "RLS Disabled in Public" Supabase warnings
 --
 -- IMPORTANT: This script is IDEMPOTENT — safe to run multiple times.
@@ -33,7 +33,7 @@
 --   12. mission_progress      (TEXT "userId") — CamelCase column!
 --   13. bug_reports          (TEXT user_id)   — ::text cast needed
 --   14. payment_orders       (TEXT user_id)   — ::text cast needed
---   15. promo_codes          (no user_id)
+--   15. promo_codes          (no user_id)     — PUBLIC READ (quota display)
 --   16. email_broadcasts     (ADMIN ONLY)
 --   17. affiliates           (TEXT user_id)   — ::text cast needed
 --   18. affiliate_referrals  (UUID affiliate_id, UUID referred_user_id)
@@ -43,7 +43,13 @@
 --   Some tables use snake_case (user_id), some use CamelCase ("userId").
 --   This is because columns were created from different migrations.
 --   Types also vary (TEXT vs UUID). Always verified against actual DB schema.
--- ============================================================================
+--
+-- v4 CHANGES:
+--   - promo_codes: added public SELECT policy (anon + authenticated)
+--     Landing page shows quota to non-logged-in users, and the
+--     promo-quota API uses Supabase Service Role key where auth.uid()
+--     returns NULL, causing 403 without this fix.
+-- =============================================================================
 
 
 -- ============================================================================
@@ -77,7 +83,8 @@ DO $$ BEGIN IF to_regclass('public.user_submissions') IS NOT NULL THEN REVOKE AL
 DO $$ BEGIN IF to_regclass('public.mission_progress') IS NOT NULL THEN REVOKE ALL ON public.mission_progress FROM anon; END IF; EXCEPTION WHEN OTHERS THEN NULL; END $$;
 DO $$ BEGIN IF to_regclass('public.bug_reports') IS NOT NULL THEN REVOKE ALL ON public.bug_reports FROM anon; END IF; EXCEPTION WHEN OTHERS THEN NULL; END $$;
 DO $$ BEGIN IF to_regclass('public.payment_orders') IS NOT NULL THEN REVOKE ALL ON public.payment_orders FROM anon; END IF; EXCEPTION WHEN OTHERS THEN NULL; END $$;
-DO $$ BEGIN IF to_regclass('public.promo_codes') IS NOT NULL THEN REVOKE ALL ON public.promo_codes FROM anon; END IF; EXCEPTION WHEN OTHERS THEN NULL; END $$;
+-- promo_codes: SKIP anon revoke — we want public read for quota display
+-- (See Part 5, section 15)
 DO $$ BEGIN IF to_regclass('public.email_broadcasts') IS NOT NULL THEN REVOKE ALL ON public.email_broadcasts FROM anon; END IF; EXCEPTION WHEN OTHERS THEN NULL; END $$;
 DO $$ BEGIN IF to_regclass('public.affiliates') IS NOT NULL THEN REVOKE ALL ON public.affiliates FROM anon; END IF; EXCEPTION WHEN OTHERS THEN NULL; END $$;
 DO $$ BEGIN IF to_regclass('public.affiliate_referrals') IS NOT NULL THEN REVOKE ALL ON public.affiliate_referrals FROM anon; END IF; EXCEPTION WHEN OTHERS THEN NULL; END $$;
@@ -301,10 +308,20 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
--- ===== 15. promo_codes (no user_id — read active only) =====
+-- ===== 15. promo_codes (PUBLIC READ — no user_id) =====
+-- WHY public read?
+--   - Landing page displays quota (remaining/max) to ALL visitors
+--   - promo-quota API uses Supabase SERVICE_ROLE_KEY where auth.uid()
+--     returns NULL → old policy (auth.uid()::text IS NOT NULL) caused 403
+--   - Data exposed (code, quota, discount) is inherently public
+-- NOTE: Write operations (INSERT/UPDATE/DELETE) still blocked for anon.
+--       Only admin/service role can write via direct DB access.
 DO $$ BEGIN
   IF to_regclass('public.promo_codes') IS NOT NULL THEN
-    EXECUTE 'CREATE POLICY "Authenticated users can view active promos" ON public.promo_codes FOR SELECT TO authenticated USING (is_active = true)';
+    -- Drop old authenticated-only policy if exists
+    EXECUTE 'DROP POLICY IF EXISTS "Authenticated users can view active promos" ON public.promo_codes';
+    -- Create new public read policy (anon + authenticated)
+    EXECUTE 'CREATE POLICY "promo_codes_public_read" ON public.promo_codes FOR SELECT TO anon, authenticated USING (true)';
   END IF;
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
@@ -364,6 +381,7 @@ DO $$ BEGIN IF to_regclass('public.user_submissions') IS NOT NULL THEN EXECUTE '
 DO $$ BEGIN IF to_regclass('public.mission_progress') IS NOT NULL THEN EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON public.mission_progress TO authenticated'; END IF; EXCEPTION WHEN OTHERS THEN NULL; END $$;
 DO $$ BEGIN IF to_regclass('public.bug_reports') IS NOT NULL THEN EXECUTE 'GRANT SELECT, INSERT, UPDATE ON public.bug_reports TO authenticated'; END IF; EXCEPTION WHEN OTHERS THEN NULL; END $$;
 DO $$ BEGIN IF to_regclass('public.payment_orders') IS NOT NULL THEN EXECUTE 'GRANT SELECT, UPDATE ON public.payment_orders TO authenticated'; END IF; EXCEPTION WHEN OTHERS THEN NULL; END $$;
+DO $$ BEGIN IF to_regclass('public.promo_codes') IS NOT NULL THEN EXECUTE 'GRANT SELECT ON public.promo_codes TO anon'; END IF; EXCEPTION WHEN OTHERS THEN NULL; END $$;
 DO $$ BEGIN IF to_regclass('public.promo_codes') IS NOT NULL THEN EXECUTE 'GRANT SELECT ON public.promo_codes TO authenticated'; END IF; EXCEPTION WHEN OTHERS THEN NULL; END $$;
 DO $$ BEGIN IF to_regclass('public.affiliates') IS NOT NULL THEN EXECUTE 'GRANT SELECT, UPDATE ON public.affiliates TO authenticated'; END IF; EXCEPTION WHEN OTHERS THEN NULL; END $$;
 DO $$ BEGIN IF to_regclass('public.affiliate_referrals') IS NOT NULL THEN EXECUTE 'GRANT SELECT ON public.affiliate_referrals TO authenticated'; END IF; EXCEPTION WHEN OTHERS THEN NULL; END $$;
@@ -465,4 +483,5 @@ AND tablename IN ('profiles', 'user_submissions', 'mission_progress', 'trades')
 ORDER BY tablename, indexname;
 
 -- Expected: All tables rls_enabled=true, policy_count>0, function=SECURITY DEFINER
+--          promo_codes should have GRANT SELECT TO anon + authenticated
 -- ============================================================================
