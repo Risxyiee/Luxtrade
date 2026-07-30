@@ -171,6 +171,23 @@ export const createTradeHandlers = ({
             })
           })
         }
+
+        // Check first-trade reward (1-day PRO)
+        try {
+          const rewardRes = await fetch('/api/reward/first-trade', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          })
+          const rewardData = await rewardRes.json()
+          if (rewardData.rewarded) {
+            toast.success('🎁 1 Hari PRO Gratis!', {
+              description: 'Trade pertamamu berhasil! Kamu dapat akses PRO selama 1 hari.',
+              duration: 6000,
+            })
+          }
+        } catch {
+          // Silent — reward is best-effort
+        }
       } else {
         console.log('❌ [handleAddTrade] Failed to create trade:', data)
         // Show specific error message from API

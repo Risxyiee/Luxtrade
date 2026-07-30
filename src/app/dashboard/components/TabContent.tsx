@@ -122,10 +122,12 @@ export default function TabContent({
             <TradesTab
               trades={trades}
               loading={loading}
+              setAddTradeOpen={setAddTradeOpen}
               onView={onView}
               onEdit={onEdit}
               onDelete={onDelete}
               onDuplicate={onDuplicate}
+              language={language}
             />
           )}
 
