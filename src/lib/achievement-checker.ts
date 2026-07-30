@@ -76,7 +76,7 @@ export async function checkAchievementsAfterTrade(userId: string | undefined | n
         try {
           await db.userSubmission.create({
             data: {
-              userId: userId,
+              userId: String(userId),
               achievementKey: achievement.id,
               proofUrl: null,
               status: 'APPROVED',
