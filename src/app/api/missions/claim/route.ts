@@ -92,9 +92,10 @@ export async function POST(request: NextRequest) {
     const status = achievement.type === 'automatic' ? 'APPROVED' : 'PENDING'
 
     // Create submission
+    console.log(`[missions/claim] Creating submission for userId="${userId}" (type: ${typeof userId}, len: ${userId?.length})`)
     const submission = await db.userSubmission.create({
       data: {
-        userId,
+        userId: String(userId),
         achievementKey: missionId,
         proofUrl: proofUrl || null,
         status,
