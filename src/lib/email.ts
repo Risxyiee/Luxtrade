@@ -1876,3 +1876,170 @@ export function getWeeklySummaryHtml(params: {
     </html>
   `
 }
+
+/**
+ * Daily Reminder email — sent every morning to active users
+ * Encourages daily trade logging habit with motivational message
+ */
+export function getDailyReminderHtml(params: {
+  name: string
+  streak: number
+  bestStreak: number
+  tradesThisWeek: number
+  pnlThisWeek: number
+  dayName: string
+  ctaUrl: string
+  unsubUrl: string
+}): string {
+  const {
+    name,
+    streak,
+    bestStreak,
+    tradesThisWeek,
+    pnlThisWeek,
+    dayName,
+    ctaUrl,
+    unsubUrl,
+  } = params
+
+  const pnlColor = pnlThisWeek >= 0 ? "#059669" : "#dc2626"
+  const pnlSign = pnlThisWeek >= 0 ? "+" : ""
+  const pnlFormatted = `${pnlSign}${pnlThisWeek.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+  // Motivational messages based on streak
+  let motivation: string
+  let motivationEmoji: string
+  if (streak === 0) {
+    motivation = "Mulai streak baru hari ini! Upload 1 trade dulu."
+    motivationEmoji = "💪"
+  } else if (streak === 1) {
+    motivation = "Streak 1 hari! Lanjutkan besok biar ga putus."
+    motivationEmoji = "🔥"
+  } else if (streak < 7) {
+    motivation = `Streak ${streak} hari! ${7 - streak} hari lagi menuju milestone 1 minggu!`
+    motivationEmoji = "🔥"
+  } else if (streak < 14) {
+    motivation = `Streak ${streak} hari! Kamu udah konsisten lebih dari seminggu!`
+    motivationEmoji = "⚡"
+  } else if (streak < 30) {
+    motivation = `Streak ${streak} hari! Kamu trader yang disiplin. Amazing!`
+    motivationEmoji = "🏆"
+  } else {
+    motivation = `Streak ${streak} HARI! LEGENDARY. Kamu top 1% trader!`
+    motivationEmoji = "👑"
+  }
+
+  return `
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Daily Reminder — LuxTrade</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+          <td style="padding: 32px 16px;" align="center" valign="top">
+            <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+
+              <!-- Header -->
+              <tr>
+                <td style="padding: 40px 40px 20px 40px; text-align: center;">
+                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 16px auto;">
+                    <tr>
+                      <td style="width: 56px; height: 56px; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 16px; text-align: center; line-height: 56px;">
+                        <span style="font-size: 28px;">${motivationEmoji}</span>
+                      </td>
+                    </tr>
+                  </table>
+                  <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #1a1a2e;">Selamat ${dayName}, ${name}!</h1>
+                </td>
+              </tr>
+
+              <!-- Motivation -->
+              <tr>
+                <td style="padding: 8px 40px 24px 40px;">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fff7ed; border-radius: 10px; border: 1px solid #ffedd5; padding: 16px 20px;">
+                    <tr>
+                      <td style="padding: 16px 20px;">
+                        <p style="color: #9a3412; font-size: 15px; font-weight: 600; margin: 0 0 4px 0;">${motivation}</p>
+                        ${bestStreak > streak ? `<p style="color: #c2410c; font-size: 13px; margin: 0;">Best streak: ${bestStreak} hari</p>` : ""}
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Quick Stats -->
+              <tr>
+                <td style="padding: 0 40px 24px 40px;">
+                  <p style="margin: 0 0 12px 0; color: #1a1a2e; font-size: 14px; font-weight: 600;">Progress minggu ini</p>
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f9fafb; border-radius: 10px; overflow: hidden;">
+                    <tr>
+                      <td style="padding: 16px 20px; border-bottom: 1px solid #e5e7eb; width: 50%;">
+                        <p style="margin: 0; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Trades</p>
+                        <p style="margin: 4px 0 0 0; color: #1a1a2e; font-size: 24px; font-weight: 700;">${tradesThisWeek}</p>
+                      </td>
+                      <td style="padding: 16px 20px; border-bottom: 1px solid #e5e7eb; width: 50%;">
+                        <p style="margin: 0; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">PnL</p>
+                        <p style="margin: 4px 0 0 0; color: ${pnlColor}; font-size: 24px; font-weight: 700;">${pnlFormatted}</p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 16px 20px; width: 50%;">
+                        <p style="margin: 0; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Streak</p>
+                        <p style="margin: 4px 0 0 0; color: #f97316; font-size: 24px; font-weight: 700;">${streak} <span style="font-size: 14px; color: #6b7280;">hari</span></p>
+                      </td>
+                      <td style="padding: 16px 20px; width: 50%;">
+                        <p style="margin: 0; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Best Streak</p>
+                        <p style="margin: 4px 0 0 0; color: #1a1a2e; font-size: 24px; font-weight: 700;">${bestStreak} <span style="font-size: 14px; color: #6b7280;">hari</span></p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- CTA -->
+              <tr>
+                <td style="padding: 0 40px 32px 40px;" align="center">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                    <tr>
+                      <td align="center">
+                        <a href="${ctaUrl}" style="display: inline-block; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; padding: 14px 40px; border-radius: 10px;">
+                          Log Trade Sekarang →
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                  <p style="color: #8b8da0; font-size: 12px; text-align: center; margin: 12px 0 0 0;">
+                    Cuma butuh 30 detik untuk upload 1 trade!
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="padding: 0 40px;">
+                  <div style="height: 1px; background-color: #e5e7eb;"></div>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 24px 40px 16px 40px; text-align: center;">
+                  <p style="color: #8b8da0; font-size: 11px; margin: 0 0 4px 0;">
+                    &copy; ${new Date().getFullYear()} LuxTrade. All rights reserved.
+                  </p>
+                  <p style="color: #8b8da0; font-size: 10px; margin: 0 0 8px 0;">
+                    Email ini dikirim dari noreply@luxtradee.web.id
+                  </p>
+                  <a href="${unsubUrl}" style="color: #8b8da0; font-size: 10px; text-decoration: underline;">Unsubscribe dari daily reminder</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `
+}
