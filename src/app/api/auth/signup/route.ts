@@ -44,6 +44,7 @@ async function ensureDbMigrated() {
     `updated_at TIMESTAMPTZ DEFAULT now()`, `device_id TEXT`,
     `my_referral_code TEXT`, `referred_by_code TEXT`,
     `has_ever_been_pro BOOLEAN DEFAULT false`, `commission_paid BOOLEAN DEFAULT false`,
+    `first_trade_reward_claimed BOOLEAN DEFAULT false`,
   ]
 
   for (const colDef of columns) {

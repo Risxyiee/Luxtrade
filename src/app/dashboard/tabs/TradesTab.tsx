@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Activity, Search, Download, View as ViewIcon, Edit, Trash2, RefreshCw, Clock, Target, Tag, Link2, Image as ImageIcon, Copy, FileDown, ChevronDown } from 'lucide-react'
+import { Activity, Search, Download, View as ViewIcon, Edit, Trash2, RefreshCw, Clock, Target, Tag, Link2, Image as ImageIcon, Copy, FileDown, ChevronDown, Plus, Upload } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -18,19 +19,23 @@ import type { Trade } from '@/types'
 interface TradesTabProps {
   trades: Trade[]
   loading: boolean
+  setAddTradeOpen?: (open: boolean) => void
   onView: (trade: Trade) => void
   onEdit: (trade: Trade) => void
   onDelete: (trade: Trade) => void
   onDuplicate?: (trade: Trade) => void
+  language?: 'id' | 'en'
 }
 
 function TradesTab({
   trades,
   loading,
+  setAddTradeOpen,
   onView,
   onEdit,
   onDelete,
-  onDuplicate
+  onDuplicate,
+  language = 'id'
 }: TradesTabProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'BUY' | 'SELL'>('all')
@@ -296,13 +301,104 @@ function TradesTab({
 
   if (trades.length === 0) {
     return (
-      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
-        <CardContent className="py-16 text-center">
-          <Activity className="w-12 h-12 mx-auto mb-4 text-gray-500" />
-          <h3 className="text-lg font-semibold mb-2">No Trades Yet</h3>
-          <p className="text-lux-text-secondary dark:text-gray-400">Add your first trade or import from MetaTrader!</p>
-        </CardContent>
-      </Card>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+      >
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 overflow-hidden relative">
+          {/* Decorative background glow */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 bg-purple-500/10 rounded-full blur-[100px]" />
+            <div className="absolute bottom-0 right-1/4 w-36 h-36 bg-amber-500/5 rounded-full blur-[80px]" />
+          </div>
+
+          <CardContent className="relative py-14 lg:py-20 px-6 text-center">
+            {/* Decorative icon composition */}
+            <motion.div
+              className="flex items-center justify-center gap-3 lg:gap-5 mb-8"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+            >
+              {/* Upload icon */}
+              <motion.div
+                className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-violet-500/10 border border-purple-500/20 flex items-center justify-center"
+                animate={{ y: [0, -5, 0] }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
+              >
+                <Upload className="w-7 h-7 lg:w-8 lg:h-8 text-purple-400" />
+              </motion.div>
+
+              {/* Plus icon (prominent) */}
+              <motion.div
+                className="w-20 h-20 lg:w-24 lg:h-24 rounded-3xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/20 flex items-center justify-center shadow-lg shadow-amber-500/10"
+                animate={{ y: [0, -7, 0] }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
+              >
+                <Plus className="w-10 h-10 lg:w-12 lg:h-12 text-amber-400" />
+              </motion.div>
+
+              {/* Activity icon */}
+              <motion.div
+                className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-purple-500/10 border border-violet-500/20 flex items-center justify-center"
+                animate={{ y: [0, -5, 0] }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }}
+              >
+                <Activity className="w-7 h-7 lg:w-8 lg:h-8 text-violet-400" />
+              </motion.div>
+            </motion.div>
+
+            {/* Heading */}
+            <motion.h3
+              className="text-2xl lg:text-3xl font-bold mb-3 bg-gradient-to-r from-white via-purple-200 to-amber-200 bg-clip-text text-transparent"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              {language === 'id' ? 'Belum Ada Trade' : 'No Trades Yet'}
+            </motion.h3>
+
+            {/* Subtitle */}
+            <motion.p
+              className="text-lux-text-secondary dark:text-gray-400 mb-8 max-w-lg mx-auto text-sm lg:text-base leading-relaxed"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              {language === 'id'
+                ? 'Tambahkan trade pertamamu atau import dari MetaTrader!'
+                : 'Add your first trade or import from MetaTrader!'}
+            </motion.p>
+
+            {/* CTA Buttons */}
+            <motion.div
+              className="flex flex-col items-center gap-4"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+            >
+              <Button
+                onClick={() => setAddTradeOpen?.(true)}
+                size="lg"
+                className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-semibold shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all duration-300 px-8 py-6 text-base"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                {language === 'id' ? 'Tambah Trade' : 'Add Trade'}
+              </Button>
+
+              <button
+                onClick={() => setAddTradeOpen?.(true)}
+                className="text-sm text-purple-400 hover:text-purple-300 transition-colors duration-200 cursor-pointer group"
+              >
+                {language === 'id'
+                  ? 'atau import dari CSV/MT5'
+                  : 'or import from CSV/MT5'}
+              </button>
+            </motion.div>
+          </CardContent>
+        </Card>
+      </motion.div>
     )
   }
 

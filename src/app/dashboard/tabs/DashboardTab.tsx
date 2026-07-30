@@ -504,15 +504,101 @@ function DashboardTab({
       {/* EMPTY STATE                                  */}
       {/* ============================================ */}
       {!hasData && (
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}>
-          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-purple-500/20 transition-all duration-300 hover:border-purple-500/40">
-            <CardContent className="py-16 lg:py-20 text-center">
-              <motion.div className="w-16 h-16 lg:w-20 lg:h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-violet-500/20 flex items-center justify-center mx-auto mb-6" animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 2, repeat: Infinity }}><BarChart3 className="w-8 h-8 lg:w-10 lg:h-10 text-purple-400" /></motion.div>
-              <h3 className="text-xl lg:text-2xl font-bold mb-3 bg-gradient-to-r from-purple-200 to-purple-400 bg-clip-text text-transparent">Welcome to LuxTrade!</h3>
-              <p className="text-lux-text-secondary dark:text-gray-400 mb-6 max-w-md mx-auto">Start tracking your trades to see powerful analytics and insights.</p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button onClick={() => setAddTradeOpen(true)} className="bg-gradient-to-r from-purple-500 to-violet-600 shadow-lg shadow-purple-500/20"><Plus className="w-4 h-4 mr-2" />Add Your First Trade</Button>
-              </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+        >
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 overflow-hidden">
+            {/* Decorative background glow */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-500/10 rounded-full blur-[100px]" />
+              <div className="absolute bottom-0 left-1/4 w-40 h-40 bg-amber-500/5 rounded-full blur-[80px]" />
+            </div>
+
+            <CardContent className="relative py-14 lg:py-20 px-6">
+              {/* Decorative icon composition */}
+              <motion.div
+                className="flex items-center justify-center gap-4 lg:gap-6 mb-8"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.6, delay: 0.15 }}
+              >
+                {/* Left icon — BarChart3 */}
+                <motion.div
+                  className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-violet-500/10 border border-purple-500/20 flex items-center justify-center"
+                  animate={{ y: [0, -6, 0] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0 }}
+                >
+                  <BarChart3 className="w-7 h-7 lg:w-8 lg:h-8 text-purple-400" />
+                </motion.div>
+
+                {/* Center icon — TrendingUp (prominent) */}
+                <motion.div
+                  className="w-20 h-20 lg:w-24 lg:h-24 rounded-3xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/20 flex items-center justify-center shadow-lg shadow-amber-500/10"
+                  animate={{ y: [0, -8, 0] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
+                >
+                  <TrendingUp className="w-10 h-10 lg:w-12 lg:h-12 text-amber-400" />
+                </motion.div>
+
+                {/* Right icon — Target */}
+                <motion.div
+                  className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-purple-500/10 border border-violet-500/20 flex items-center justify-center"
+                  animate={{ y: [0, -6, 0] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }}
+                >
+                  <Target className="w-7 h-7 lg:w-8 lg:h-8 text-violet-400" />
+                </motion.div>
+              </motion.div>
+
+              {/* Heading */}
+              <motion.h3
+                className="text-2xl lg:text-3xl font-bold mb-3 bg-gradient-to-r from-white via-purple-200 to-amber-200 bg-clip-text text-transparent"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.25 }}
+              >
+                {language === 'id' ? 'Dashboard kamu masih kosong' : 'Your dashboard is empty'}
+              </motion.h3>
+
+              {/* Subtitle */}
+              <motion.p
+                className="text-lux-text-secondary dark:text-gray-400 mb-8 max-w-lg mx-auto text-sm lg:text-base leading-relaxed"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.35 }}
+              >
+                {language === 'id'
+                  ? 'Mulai catat trade pertamamu untuk melihat statistik dan insight'
+                  : 'Start logging your first trade to unlock powerful statistics and insights'}
+              </motion.p>
+
+              {/* CTA Buttons */}
+              <motion.div
+                className="flex flex-col items-center gap-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.45 }}
+              >
+                <Button
+                  onClick={() => setAddTradeOpen(true)}
+                  size="lg"
+                  className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-semibold shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all duration-300 px-8 py-6 text-base"
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  {language === 'id' ? 'Tambah Trade Pertama' : 'Add Your First Trade'}
+                </Button>
+
+                <button
+                  onClick={() => setAddTradeOpen(true)}
+                  className="text-sm text-purple-400 hover:text-purple-300 transition-colors duration-200 cursor-pointer group"
+                >
+                  {language === 'id'
+                    ? 'atau muat data contoh untuk melihat demo →'
+                    : 'or load sample data to see a demo →'}
+                </button>
+              </motion.div>
             </CardContent>
           </Card>
         </motion.div>
