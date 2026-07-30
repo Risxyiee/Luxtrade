@@ -1656,3 +1656,223 @@ export function getReEngagementHasTradeHtml(name: string, tradeCount: number, ct
     </html>
   `
 }
+
+
+/**
+ * Weekly Summary email — sent every Monday to users with trades
+ * Contains: trade count, PnL, win rate, best/worst trade, streak, top symbols
+ */
+export function getWeeklySummaryHtml(params: {
+  name: string
+  weekLabel: string
+  tradeCount: number
+  pnl: number
+  winRate: number
+  winCount: number
+  lossCount: number
+  bestTrade: number
+  worstTrade: number
+  streak: number
+  topSymbols: { symbol: string; count: number }[]
+  ctaUrl: string
+  unsubUrl: string
+}): string {
+  const {
+    name,
+    weekLabel,
+    tradeCount,
+    pnl,
+    winRate,
+    winCount,
+    lossCount,
+    bestTrade,
+    worstTrade,
+    streak,
+    topSymbols,
+    ctaUrl,
+    unsubUrl,
+  } = params
+
+  const pnlColor = pnl >= 0 ? "#059669" : "#dc2626"
+  const pnlSign = pnl >= 0 ? "+" : ""
+  const pnlFormatted = `${pnlSign}${pnl.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+  const barWidth = Math.max(Math.min(winRate, 100), 0)
+  const barColor = winRate >= 60 ? "#059669" : winRate >= 40 ? "#f59e0b" : "#dc2626"
+
+  const symbolRows = topSymbols.slice(0, 5).map((s, i) => `
+    <tr>
+      <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #1a1a2e; font-size: 14px; font-weight: 600;">
+        ${i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
+      </td>
+      <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #1a1a2e; font-size: 14px; text-align: left; padding-left: 12px;">${s.symbol}</td>
+      <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #6b7280; font-size: 14px; text-align: right;">${s.count} trade${s.count > 1 ? "s" : ""}</td>
+    </tr>
+  `).join("")
+
+  const streakMsg = streak >= 7
+    ? `🔥 Streak ${streak} hari! Luar biasa konsistensinya!`
+    : streak >= 3
+      ? `🔥 Streak ${streak} hari! Terus konsisten!`
+      : streak > 0
+        ? `Streak ${streak} hari — lanjutkan!`
+        : ""
+
+  return `
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Weekly Report — LuxTrade 📊</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+          <td style="padding: 32px 16px;" align="center" valign="top">
+            <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+
+              <!-- Header -->
+              <tr>
+                <td style="padding: 40px 40px 20px 40px; text-align: center;">
+                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 16px auto;">
+                    <tr>
+                      <td style="width: 56px; height: 56px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 16px; text-align: center; line-height: 56px;">
+                        <span style="font-size: 28px;">📊</span>
+                      </td>
+                    </tr>
+                  </table>
+                  <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #1a1a2e;">Weekly Report</h1>
+                  <p style="margin: 4px 0 0 0; color: #6b7280; font-size: 14px;">${weekLabel}</p>
+                </td>
+              </tr>
+
+              <!-- Greeting -->
+              <tr>
+                <td style="padding: 8px 40px 24px 40px;">
+                  <p style="color: #4a4a68; font-size: 15px; line-height: 1.6; margin: 0;">
+                    Halo <strong>${name}</strong>! Ini ringkasan trading-mu minggu lalu:
+                  </p>
+                  ${streakMsg ? `<p style="color: #f59e0b; font-size: 14px; font-weight: 600; margin: 8px 0 0 0;">${streakMsg}</p>` : ""}
+                </td>
+              </tr>
+
+              <!-- Main Stats Grid -->
+              <tr>
+                <td style="padding: 0 40px 24px 40px;">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f9fafb; border-radius: 10px; overflow: hidden;">
+                    <tr>
+                      <td style="padding: 16px 20px; border-bottom: 1px solid #e5e7eb; width: 50%;">
+                        <p style="margin: 0; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Total Trades</p>
+                        <p style="margin: 4px 0 0 0; color: #1a1a2e; font-size: 24px; font-weight: 700;">${tradeCount}</p>
+                      </td>
+                      <td style="padding: 16px 20px; border-bottom: 1px solid #e5e7eb; width: 50%;">
+                        <p style="margin: 0; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Total PnL</p>
+                        <p style="margin: 4px 0 0 0; color: ${pnlColor}; font-size: 24px; font-weight: 700;">${pnlFormatted}</p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 16px 20px; width: 50%;">
+                        <p style="margin: 0; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Win Rate</p>
+                        <p style="margin: 4px 0 0 0; color: ${barColor}; font-size: 24px; font-weight: 700;">${winRate}%</p>
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top: 6px; background-color: #e5e7eb; border-radius: 4px; height: 6px;">
+                          <tr>
+                            <td style="width: ${barWidth}%; background-color: ${barColor}; border-radius: 4px; height: 6px;"></td>
+                          </tr>
+                        </table>
+                        <p style="margin: 4px 0 0 0; color: #9ca3af; font-size: 11px;">${winCount}W / ${lossCount}L</p>
+                      </td>
+                      <td style="padding: 16px 20px; width: 50%;">
+                        <p style="margin: 0; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Streak</p>
+                        <p style="margin: 4px 0 0 0; color: #1a1a2e; font-size: 24px; font-weight: 700;">${streak} <span style="font-size: 14px; color: #6b7280;">hari</span></p>
+                        <p style="margin: 4px 0 0 0; color: #9ca3af; font-size: 11px;">${streak >= 3 ? "Konsisten!" : streak > 0 ? "Lanjutkan!" : "Mulai streak baru"}</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Best / Worst Trade -->
+              <tr>
+                <td style="padding: 0 40px 24px 40px;">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                    <tr>
+                      <td style="width: 50%; padding-right: 6px;">
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f0fdf4; border-radius: 10px; border: 1px solid #d1fae5;">
+                          <tr>
+                            <td style="padding: 16px 20px;">
+                              <p style="margin: 0; color: #065f46; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Trade Terbaik ✨</p>
+                              <p style="margin: 6px 0 0 0; color: #059669; font-size: 20px; font-weight: 700;">+${bestTrade.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                      <td style="width: 50%; padding-left: 6px;">
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #fef2f2; border-radius: 10px; border: 1px solid #fee2e2;">
+                          <tr>
+                            <td style="padding: 16px 20px;">
+                              <p style="margin: 0; color: #991b1b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Trade Terburuk</p>
+                              <p style="margin: 6px 0 0 0; color: #dc2626; font-size: 20px; font-weight: 700;">${worstTrade < 0 ? worstTrade.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "—"}</p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              ${topSymbols.length > 0 ? `
+              <!-- Top Symbols -->
+              <tr>
+                <td style="padding: 0 40px 24px 40px;">
+                  <p style="margin: 0 0 8px 0; color: #1a1a2e; font-size: 14px; font-weight: 600;">Pair Paling Banyak Ditrade</p>
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f9fafb; border-radius: 10px; padding: 4px 20px;">
+                    ${symbolRows}
+                  </table>
+                </td>
+              </tr>
+              ` : ""}
+
+              <!-- CTA Button -->
+              <tr>
+                <td style="padding: 0 40px 32px 40px;" align="center">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                    <tr>
+                      <td align="center">
+                        <a href="${ctaUrl}" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; padding: 14px 40px; border-radius: 10px;">
+                          Lihat Detail di Dashboard →
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                  <p style="color: #8b8da0; font-size: 12px; text-align: center; margin: 12px 0 0 0;">
+                    Upload trade baru dan lihat progress-mu terus!
+                  </p>
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding: 0 40px;">
+                  <div style="height: 1px; background-color: #e5e7eb;"></div>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 24px 40px 16px 40px; text-align: center;">
+                  <p style="color: #8b8da0; font-size: 11px; margin: 0 0 4px 0;">
+                    &copy; ${new Date().getFullYear()} LuxTrade. All rights reserved.
+                  </p>
+                  <p style="color: #8b8da0; font-size: 10px; margin: 0 0 8px 0;">
+                    Email ini dikirim dari noreply@luxtradee.web.id
+                  </p>
+                  <a href="${unsubUrl}" style="color: #8b8da0; font-size: 10px; text-decoration: underline;">Unsubscribe dari weekly report</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `
+}

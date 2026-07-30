@@ -1357,3 +1357,23 @@ Stage Summary:
 - 13 tables now have proper RLS policies
 - "RLS Disabled in Public" warning on users table should be resolved after running SQL
 - User needs to run docs/SUPABASE_RLS_HARDENING.sql in Supabase SQL Editor
+
+---
+Task ID: weekly-summary-email
+Agent: Main Agent
+Task: Build weekly email summary system for LuxTrade
+
+Work Log:
+- Analyzed existing project structure: Prisma schema (Trade model with profit_loss, symbol, close_time), email.ts templates, re-engage cron pattern
+- Created SQL table `weekly_summary_emails` with unique constraint (user_id, week_start), RLS policies, and indexes
+- Built `getWeeklySummaryHtml()` email template with: trade count, PnL, win rate bar, streak, best/worst trade cards, top symbols table, CTA
+- Created `/api/cron/weekly-summary/route.ts` — queries trades from previous week, calculates stats per user, sends personalized emails
+- Created `/api/cron/weekly-summary/unsubscribe/route.ts` — marks user as unsubscribed
+- Updated `vercel.json` — added cron `0 3 * * 1` (every Monday 03:00 UTC / 10:00 WIB)
+- Supports params: ?dry=true, ?force=true, ?uid=xxx (test single user), ?week=YYYY-MM-DD
+
+Stage Summary:
+- Files created: docs/WEEKLY_SUMMARY_TABLE.sql, src/app/api/cron/weekly-summary/route.ts, src/app/api/cron/weekly-summary/unsubscribe/route.ts
+- Files modified: src/lib/email.ts (appended getWeeklySummaryHtml), vercel.json (added weekly-summary cron)
+- SQL table must be created in Supabase SQL Editor before use
+- Lint passed clean
