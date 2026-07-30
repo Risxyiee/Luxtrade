@@ -1486,3 +1486,173 @@ export function getUnverifiedBulkReminderHtml(name: string, confirmationUrl: str
     </html>
   `
 }
+// ============================================
+// RE-ENGAGEMENT EMAILS
+// Sent to users who signed up but never came back
+// ============================================
+
+const REENGAGE_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
+
+/**
+ * Re-engagement email for users with 0 trades
+ * "Upload 1 trade screenshot -> get 1 day PRO free"
+ */
+export function getReEngagementNoTradeHtml(name: string, ctaUrl: string, unsubUrl: string) {
+  return `
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Yuk Coba LuxTrade! 👑</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+          <td style="padding: 32px 16px;" align="center" valign="top">
+            <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+              <tr>
+                <td style="padding: 40px 40px 20px 40px; text-align: center;">
+                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 16px auto;">
+                    <tr>
+                      <td style="width: 56px; height: 56px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 16px; text-align: center; line-height: 56px;">
+                        <span style="font-size: 28px;">👑</span>
+                      </td>
+                    </tr>
+                  </table>
+                  <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #1a1a2e;">Halo, ${name}!</h1>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 12px 40px 32px 40px;">
+                  <p style="color: #4a4a68; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
+                    Kemarin kamu baru sempat lihat sekilas <strong>LuxTrade</strong>. Yuk lanjutkan — kamu cuma perlu upload <strong>1 screenshot trade</strong>, dan otomatis dapat <strong>1 hari akses PRO gratis</strong>!
+                  </p>
+                  <p style="color: #4a4a68; font-size: 15px; line-height: 1.6; margin: 0 0 28px 0;">
+                    Di PRO kamu bisa:<br>
+                    ✅ Lihat statistik trading detail<br>
+                    ✅ Track journal &amp; streak harian<br>
+                    ✅ Akses fitur analisis lanjutan
+                  </p>
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                    <tr>
+                      <td align="center">
+                        <a href="${ctaUrl}" style="display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; padding: 14px 40px; border-radius: 10px;">
+                          Buka LuxTrade
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                  <p style="color: #8b8da0; font-size: 12px; text-align: center; margin: 20px 0 0 0;">
+                    Cukup 1 trade → langsung dapat 1 hari PRO. Gampang!
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0 40px;">
+                  <div style="height: 1px; background-color: #e5e7eb;"></div>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 24px 40px 16px 40px; text-align: center;">
+                  <p style="color: #8b8da0; font-size: 11px; margin: 0 0 4px 0;">
+                    &copy; ${new Date().getFullYear()} LuxTrade. All rights reserved.
+                  </p>
+                  <p style="color: #8b8da0; font-size: 10px; margin: 0 0 8px 0;">
+                    Email ini dikirim dari noreply@luxtradee.web.id
+                  </p>
+                  <a href="${unsubUrl}" style="color: #8b8da0; font-size: 10px; text-decoration: underline;">Unsubscribe dari email ini</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `
+}
+
+/**
+ * Re-engagement email for users with >=1 trade but never came back
+ */
+export function getReEngagementHasTradeHtml(name: string, tradeCount: number, ctaUrl: string, unsubUrl: string) {
+  return `
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Lanjutkan Trading Journal-mu! 📊</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+          <td style="padding: 32px 16px;" align="center" valign="top">
+            <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+              <tr>
+                <td style="padding: 40px 40px 20px 40px; text-align: center;">
+                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 16px auto;">
+                    <tr>
+                      <td style="width: 56px; height: 56px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 16px; text-align: center; line-height: 56px;">
+                        <span style="font-size: 28px;">📊</span>
+                      </td>
+                    </tr>
+                  </table>
+                  <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #1a1a2e;">Trade pertamamu udah tersimpan! 🎉</h1>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 12px 40px 32px 40px;">
+                  <p style="color: #4a4a68; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
+                    Halo <strong>${name}</strong>! Kamu udah upload <strong>${tradeCount} trade</strong> di LuxTrade. Itu langkah pertama yang keren!
+                  </p>
+                  <p style="color: #4a4a68; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
+                    Yuk lanjutin kebiasaan ini — tambah trade hari ini dan lihat progressmu:
+                  </p>
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
+                    <tr>
+                      <td style="background-color: #f0fdf4; border-radius: 10px; padding: 16px 20px;">
+                        <p style="color: #065f46; font-size: 14px; line-height: 1.5; margin: 0;">
+                          📈 Tracking journal harian membantu review performa<br>
+                          🔥 Streak counter buat konsistensi<br>
+                          🏆 Achievement badge saat milestone tercapai
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                    <tr>
+                      <td align="center">
+                        <a href="${ctaUrl}" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; padding: 14px 40px; border-radius: 10px;">
+                          Buka Trading Journal
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 0 40px;">
+                  <div style="height: 1px; background-color: #e5e7eb;"></div>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 24px 40px 16px 40px; text-align: center;">
+                  <p style="color: #8b8da0; font-size: 11px; margin: 0 0 4px 0;">
+                    &copy; ${new Date().getFullYear()} LuxTrade. All rights reserved.
+                  </p>
+                  <p style="color: #8b8da0; font-size: 10px; margin: 0 0 8px 0;">
+                    Email ini dikirim dari noreply@luxtradee.web.id
+                  </p>
+                  <a href="${unsubUrl}" style="color: #8b8da0; font-size: 10px; text-decoration: underline;">Unsubscribe dari email ini</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `
+}
