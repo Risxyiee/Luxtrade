@@ -56,10 +56,16 @@ export default function LuxTradeLanding() {
   const [landingStats, setLandingStats] = useState<LandingStats | null>(null)
 
   useEffect(() => {
-    // Fetch landing stats + promo quota in parallel
+    // Fetch landing stats + promo quota in parallel with timeout
+    const fetchWithTimeout = (url: string, timeoutMs = 5000) =>
+      Promise.race([
+        fetch(url).then(res => res.ok ? res.json() : null).catch(() => null),
+        new Promise<null>(resolve => setTimeout(() => resolve(null), timeoutMs)),
+      ])
+
     Promise.all([
-      fetch('/api/landing-stats').then(res => res.ok ? res.json() : null).catch(() => null),
-      fetch('/api/promo-quota?code=TRADERCEPAT').then(res => res.ok ? res.json() : null).catch(() => null),
+      fetchWithTimeout('/api/landing-stats'),
+      fetchWithTimeout('/api/promo-quota?code=TRADERCEPAT'),
     ]).then(([statsData, promoData]) => {
       if (statsData) setLandingStats(statsData)
       if (promoData && promoData.maxQuota > 0) {
