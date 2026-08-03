@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
 
     const items = await db.watchlistItem.findMany({
       where: { userId: authUser.id },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      take: 200, // reasonable cap
     })
 
     return NextResponse.json({
