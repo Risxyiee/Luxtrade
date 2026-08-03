@@ -84,7 +84,7 @@ async function countUserTrades(userId: string): Promise<number> {
   }
 }
 
-// GET - Fetch all trades
+// GET - Fetch trades with cursor pagination and column projection
 export async function GET(request: NextRequest) {
   try {
     const authUser = await getAuthUser(request)
@@ -97,15 +97,63 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams
-    const limit = parseInt(searchParams.get('limit') || '100')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 200) // cap at 200
+    const cursor = searchParams.get('cursor') || null // ISO date cursor for pagination
 
+    // Build cursor-based where clause
+    const whereClause: any = { user_id: authUser.id }
+    if (cursor) {
+      whereClause.close_time = { lt: new Date(cursor) }
+    }
+
+    // Fetch one extra to detect if there's a next page
     const trades = await db.trade.findMany({
-      where: { user_id: authUser.id },
+      where: whereClause,
       orderBy: { close_time: 'desc' },
-      take: limit
+      take: limit + 1,
+      select: {
+        id: true,
+        symbol: true,
+        type: true,
+        open_price: true,
+        close_price: true,
+        lot_size: true,
+        profit_loss: true,
+        open_time: true,
+        close_time: true,
+        session: true,
+        notes: true,
+        account_id: true,
+        ticket_number: true,
+        setup_type: true,
+        tags: true,
+        emotion: true,
+        stop_loss: true,
+        take_profit: true,
+        risk_reward_ratio: true,
+        trade_duration: true,
+        created_at: true,
+        updated_at: true,
+      },
     })
 
-    return NextResponse.json({ trades })
+    // Determine if there's a next page
+    const hasNextPage = trades.length > limit
+    const resultTrades = hasNextPage ? trades.slice(0, limit) : trades
+
+    // Next cursor is the oldest trade's close_time in this batch
+    const nextCursor = hasNextPage && resultTrades.length > 0
+      ? resultTrades[resultTrades.length - 1].close_time.toISOString()
+      : null
+
+    return NextResponse.json({
+      trades: resultTrades,
+      pagination: {
+        hasNextPage,
+        nextCursor,
+        limit,
+      },
+    })
   } catch (err) {
     return NextResponse.json(
       { error: 'Failed to fetch trades', details: err instanceof Error ? err.message : 'Unknown error' },

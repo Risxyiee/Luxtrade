@@ -156,7 +156,7 @@ export default function TabContent({
           )}
 
           {activeTab === 'analytics' && (
-            <AnalyticsTab language={language} />
+            <AnalyticsTab language={language} initialAnalytics={analytics} />
           )}
 
           {activeTab === 'ai' && (

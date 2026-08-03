@@ -150,6 +150,10 @@ model Trade {
 
   @@index([user_id])
   @@index([user_id, close_time])
+  @@index([user_id, close_time, profit_loss]) // covering index for analytics aggregation
+  @@index([symbol, close_time]) // for symbol performance grouping
+  @@index([account_id]) // for account filtering
+  @@index([session]) // for session performance grouping
   @@map("trades")
 }
 

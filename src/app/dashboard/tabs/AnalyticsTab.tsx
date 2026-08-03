@@ -8,6 +8,7 @@ import { TrendingUp, TrendingDown, Target, Clock, DollarSign, Activity, ArrowDow
 
 interface AnalyticsTabProps {
   language: 'id' | 'en'
+  initialAnalytics?: any | null // Pre-fetched from parent (period='all')
 }
 
 const COLORS = ['#a855f7', '#f59e0b', '#22c55e', '#3b82f6', '#ec4899']
@@ -25,12 +26,15 @@ const getRatioBg = (value: number, goodThreshold = 2, midThreshold = 1) => {
   return 'from-red-500/15 to-red-600/5 border-red-500/30'
 }
 
-export default function AnalyticsTab({ language }: AnalyticsTabProps) {
-  const [analytics, setAnalytics] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTabProps) {
+  const [analytics, setAnalytics] = useState<any>(initialAnalytics || null)
+  const [loading, setLoading] = useState(!initialAnalytics)
   const [period, setPeriod] = useState('all')
 
+  // Only fetch from API when period changes (not on mount if initialAnalytics exists)
   useEffect(() => {
+    // If we have initial data and period is 'all', skip the fetch
+    if (period === 'all' && initialAnalytics) return
     fetchAnalytics()
   }, [period])
 
