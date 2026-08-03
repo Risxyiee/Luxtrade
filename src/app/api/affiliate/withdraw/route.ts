@@ -114,10 +114,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ withdrawals: [] })
     }
 
-    // Get all withdrawals for this affiliate
+    // Get withdrawals for this affiliate (with limit)
+    const searchParams = request.nextUrl.searchParams
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200)
+
     const withdrawals = await db.affiliateWithdrawal.findMany({
       where: { affiliateId: affiliate.id },
       orderBy: { requestedAt: 'desc' },
+      take: limit,
     })
 
     return NextResponse.json({

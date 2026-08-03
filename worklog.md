@@ -1377,3 +1377,24 @@ Stage Summary:
 - Files modified: src/lib/email.ts (appended getWeeklySummaryHtml), vercel.json (added weekly-summary cron)
 - SQL table must be created in Supabase SQL Editor before use
 - Lint passed clean
+---
+Task ID: 2-a
+Agent: Main
+Task: Dashboard performance optimization — prevent lag at scale
+
+Work Log:
+- Analyzed all dashboard API routes for performance bottlenecks
+- Fixed N+1 query in `/api/affiliate/referrals` — replaced per-referral profile lookup with batch `findMany({ where: { id: { in: userIds } } })` + `Map` lookup. Also added trade activity enrichment (30d trades, 7d trades, activity level) using `groupBy` queries.
+- Added in-memory cache (30s TTL) + Cache-Control headers to affiliate referrals endpoint.
+- Optimized `/api/trades` GET — added `select` projection (only fetch 19 needed columns instead of all 20+ including image_url, screenshot_url), added cursor-based pagination (`?cursor=ISO_DATE`), capped limit at 200, returns `pagination: { hasNextPage, nextCursor }`.
+- Rewrote `/api/analytics` — replaced JavaScript loops with Prisma `aggregate()` for basic stats (count, sum, avg), win/loss separate aggregates, single-pass iteration for all grouping (session, monthly, symbol, day-of-week, setup type, today's stats, duration, R:R), added `select` projection (only 8 columns instead of 20+), added 30s in-memory cache keyed by userId+period+accountId, added Cache-Control headers.
+- Added `take: 50` limit to `/api/affiliate/withdraw` GET endpoint.
+- Added `take: 200` limit to `/api/watchlist` GET endpoint.
+- Added 4 new database indexes to `trades` table in Prisma schema: `(user_id, close_time, profit_loss)` covering index, `(symbol, close_time)`, `(account_id)`, `(session)`.
+- Eliminated duplicate analytics fetch — passed `initialAnalytics` prop from parent through TabContent to AnalyticsTab. AnalyticsTab now skips the initial fetch if `initialAnalytics` exists with `period='all'`, only re-fetches when user changes period filter.
+- All changes pass `bun run lint` clean.
+
+Stage Summary:
+- Files modified: src/app/api/affiliate/referrals/route.ts, src/app/api/trades/route.ts, src/app/api/analytics/route.ts, src/app/api/affiliate/withdraw/route.ts, src/app/api/watchlist/route.ts, prisma/schema.prisma, src/app/dashboard/tabs/AnalyticsTab.tsx, src/app/dashboard/components/TabContent.tsx
+- Performance improvements: N+1 eliminated (501 queries → 3 queries), analytics data reduced ~60% (fewer columns), 30s server-side caching on analytics + referrals, cursor pagination on trades, 4 new DB indexes for faster queries, duplicate analytics fetch eliminated
+- New database indexes need to be pushed to Supabase in production (local dev uses SQLite)
