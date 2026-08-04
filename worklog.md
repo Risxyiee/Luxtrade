@@ -1398,3 +1398,25 @@ Stage Summary:
 - Files modified: src/app/api/affiliate/referrals/route.ts, src/app/api/trades/route.ts, src/app/api/analytics/route.ts, src/app/api/affiliate/withdraw/route.ts, src/app/api/watchlist/route.ts, prisma/schema.prisma, src/app/dashboard/tabs/AnalyticsTab.tsx, src/app/dashboard/components/TabContent.tsx
 - Performance improvements: N+1 eliminated (501 queries → 3 queries), analytics data reduced ~60% (fewer columns), 30s server-side caching on analytics + referrals, cursor pagination on trades, 4 new DB indexes for faster queries, duplicate analytics fetch eliminated
 - New database indexes need to be pushed to Supabase in production (local dev uses SQLite)
+---
+Task ID: 3
+Agent: Main
+Task: Add PRO & Promo realtime monitoring tab to admin panel
+
+Work Log:
+- Created `/api/admin/pro-promo-log` GET endpoint — queries all promo codes (quota, active status), all promo-based subscriptions (who used it, when, which code, active/expired status), total PRO users count, summary stats. Uses batch profile lookup. 5s server-side cache, no-cache client headers.
+- Created `ProPromoTab.tsx` component — new admin tab showing:
+  - 4 summary stat cards: Total Active PRO, Promo Aktif, Promo Expired, Kuota Tersisa
+  - Promo code cards with progress bar (color-coded: green/amber/red based on remaining), expandable to see which users used each code
+  - Full user usage table (mobile cards + desktop table) showing email, promo code, status, discount %, start/end date, days remaining
+  - Toggle to show/hide expired users
+  - Auto-refresh every 10 seconds for realtime quota tracking
+  - Copy code button on each promo card
+- Added 'pro-promo' tab type to admin panel, added tab button with live pulse indicator, added AnimatePresence tab content rendering
+- Lint passes clean
+
+Stage Summary:
+- Files created: src/app/api/admin/pro-promo-log/route.ts, src/app/dashboard/admin/ProPromoTab.tsx
+- Files modified: src/app/dashboard/admin/page.tsx (import ProPromoTab, tab type, tab button, tab content)
+- Admin can now see realtime: who used promo codes, quota countdown per code, which users are active/expired PRO
+- Auto-refreshes every 10 seconds while tab is visible
