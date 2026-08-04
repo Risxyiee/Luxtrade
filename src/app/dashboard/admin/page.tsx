@@ -14,6 +14,7 @@ import {
   Zap, RotateCcw, ChevronDown, ChevronLeft, ChevronRight
 } from 'lucide-react'
 import { ManualUpdateUser } from '@/components/ManualUpdateUser'
+import ProPromoTab from './ProPromoTab'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -467,7 +468,7 @@ export default function AdminPanel() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [isAdminUser, setIsAdminUser] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
-  const [activeTab, setActiveTab] = useState<'users' | 'traffic' | 'manual-update'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'traffic' | 'manual-update' | 'pro-promo'>('users')
   const router = useRouter()
 
   // Check auth and admin status
@@ -892,6 +893,18 @@ export default function AdminPanel() {
           >
             <UserPen className="w-4 h-4 mr-2" />
             Manual Update
+          </Button>
+          <Button
+            onClick={() => setActiveTab('pro-promo')}
+            variant={activeTab === 'pro-promo' ? 'default' : 'outline'}
+            className={activeTab === 'pro-promo'
+              ? 'bg-gradient-to-r from-amber-500 to-emerald-600 text-white'
+              : 'border-emerald-500/30 text-white/50 hover:text-white hover:bg-emerald-500/10'
+            }
+          >
+            <Crown className="w-4 h-4 mr-2" />
+            PRO & Promo
+            <span className="ml-2 w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           </Button>
           <Link href="/dashboard/admin/affiliate">
             <Button
@@ -1486,6 +1499,11 @@ export default function AdminPanel() {
           {activeTab === 'manual-update' ? (
             <motion.div key="manual-update" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
               <ManualUpdateUser />
+            </motion.div>
+          ) : null}
+          {activeTab === 'pro-promo' ? (
+            <motion.div key="pro-promo" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+              <ProPromoTab />
             </motion.div>
           ) : null}
         </AnimatePresence>
