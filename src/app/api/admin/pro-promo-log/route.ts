@@ -9,10 +9,8 @@ import { requireAdmin } from '@/lib/admin-auth'
  * 2. All PRO users who used promo codes — who, when, which code, status
  * 3. All PRO users total count
  *
- * IMPORTANT: Uses Prisma raw SQL (same DB connection as promo apply endpoints)
- * instead of Supabase client. This ensures consistency — promo codes are
- * written via Prisma raw SQL in /api/promo-simple/apply, so reading must
- * also go through Prisma to see the same data.
+ * Uses tagged template literal ($queryRaw) instead of $queryRawUnsafe
+ * to avoid Prisma schema cache validation issues on cold starts.
  */
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -34,12 +32,12 @@ export async function GET(request: NextRequest) {
     }
 
     // ── 1. Fetch all promo codes with quota ──
-    const promoRows: any[] = await db.$queryRawUnsafe(`
+    const promoRows: any[] = await db.$queryRaw`
       SELECT id, code, description, discount_percent, max_quota, used_quota,
              duration_months, is_active, start_date, end_date, created_at
       FROM promo_codes
       ORDER BY created_at DESC
-    `)
+    `
 
     const promoList = (promoRows || []).map((p: any) => ({
       id: p.id,
@@ -57,7 +55,7 @@ export async function GET(request: NextRequest) {
     }))
 
     // ── 2. Fetch promo-based subscriptions (users who used promo codes) ──
-    const subRows: any[] = await db.$queryRawUnsafe(`
+    const subRows: any[] = await db.$queryRaw`
       SELECT us.id, us.user_id, us.plan, us.status, us.start_date, us.end_date,
              us.discount_percent, us.promo_code_id, us.created_at,
              pc.code AS promo_code
@@ -65,18 +63,17 @@ export async function GET(request: NextRequest) {
       LEFT JOIN promo_codes pc ON pc.id = us.promo_code_id
       WHERE us.promo_code_id IS NOT NULL
       ORDER BY us.created_at DESC
-    `)
+    `
 
     // Get profile data for each user (batch)
     const userIds = [...new Set((subRows || []).map((s: any) => s.user_id))]
     let profileMap = new Map<string, any>()
 
     if (userIds.length > 0) {
-      const placeholders = userIds.map((_, i) => `$${i + 1}`).join(',')
       const profileRows: any[] = await db.$queryRawUnsafe(`
         SELECT id, email, full_name, is_pro, plan, subscription_until
         FROM profiles
-        WHERE id IN (${placeholders})
+        WHERE id IN (${userIds.map((_, i) => `$${i + 1}`).join(',')})
       `, ...userIds)
 
       if (profileRows) {
@@ -108,13 +105,13 @@ export async function GET(request: NextRequest) {
     })
 
     // ── 3. Count all active PRO users ──
-    const proCountResult: any[] = await db.$queryRawUnsafe(`
+    const proCountResult: any[] = await db.$queryRaw`
       SELECT COUNT(*)::int AS total
       FROM profiles
       WHERE is_pro = true
         AND subscription_until IS NOT NULL
         AND subscription_until > NOW()
-    `)
+    `
     const totalProUsers = proCountResult?.[0]?.total || 0
 
     // ── 4. Count promo-based active vs expired ──
