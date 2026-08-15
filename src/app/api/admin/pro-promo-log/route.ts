@@ -205,3 +205,74 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+/**
+ * POST /api/admin/pro-promo-log
+ * Create a new promo code. Admin only.
+ * Body: { code, discountPercent?, maxQuota?, durationMonths?, endDate? }
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const { error: authError } = await requireAdmin(request)
+    if (authError) {
+      return NextResponse.json({ error: authError }, { status: 401 })
+    }
+
+    // Ensure tables exist
+    try {
+      await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS promo_codes (
+        id TEXT PRIMARY KEY, code TEXT NOT NULL, description TEXT,
+        discount_percent DOUBLE PRECISION NOT NULL, max_quota INTEGER NOT NULL,
+        used_quota INTEGER NOT NULL DEFAULT 0, duration_months INTEGER NOT NULL,
+        start_date TIMESTAMPTZ NOT NULL DEFAULT NOW(), end_date TIMESTAMPTZ,
+        is_active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`)
+      await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS user_subscriptions (
+        id TEXT PRIMARY KEY, user_id TEXT NOT NULL, plan TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'active',
+        start_date TIMESTAMPTZ NOT NULL DEFAULT NOW(), end_date TIMESTAMPTZ,
+        promo_code_id TEXT, discount_percent DOUBLE PRECISION NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`)
+    } catch {}
+
+    const body = await request.json()
+    const code = (body.code || '').trim().toUpperCase()
+    const discountPercent = body.discountPercent ?? 100
+    const maxQuota = body.maxQuota ?? 30
+    const durationMonths = body.durationMonths ?? 3
+    const description = body.description || null
+    const endDate = body.endDate ? new Date(body.endDate) : null
+
+    if (!code || code.length < 3) {
+      return NextResponse.json({ error: 'Kode promo minimal 3 karakter' }, { status: 400 })
+    }
+
+    // Check duplicate
+    const existing: any[] = await db.$queryRawUnsafe(`
+      SELECT id FROM promo_codes WHERE code = $1 LIMIT 1
+    `, code)
+
+    if (existing && existing.length > 0) {
+      return NextResponse.json({ error: `Kode promo "${code}" sudah ada` }, { status: 409 })
+    }
+
+    await db.$executeRawUnsafe(`
+      INSERT INTO promo_codes (id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, end_date, is_active, created_at, updated_at)
+      VALUES (gen_random_uuid()::text, $1, $2, $3, $4, 0, $5, NOW(), $6, true, NOW(), NOW())
+    `, code, description, discountPercent, maxQuota, durationMonths, endDate || null)
+
+    // Invalidate cache
+    cache = null
+
+    return NextResponse.json({
+      success: true,
+      message: `Promo code "${code}" berhasil dibuat!`,
+      promoCode: { code, discountPercent, maxQuota, durationMonths }
+    })
+  } catch (err: any) {
+    console.error('[pro-promo-log] POST error:', err)
+    return NextResponse.json({ error: 'Gagal membuat promo code', details: err.message }, { status: 500 })
+  }
+}

@@ -5,10 +5,18 @@ import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import {
   Crown, Tag, Users, Clock, RefreshCw,
   CheckCircle, XCircle, AlertTriangle, Loader2,
-  TrendingUp, Zap, Copy, Eye, EyeOff
+  TrendingUp, Zap, Copy, Eye, EyeOff, Plus
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { authFetch } from '@/lib/api-fetch'
@@ -74,6 +82,11 @@ export default function ProPromoTab() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [showExpired, setShowExpired] = useState(false)
   const [expandedCode, setExpandedCode] = useState<string | null>(null)
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [newCode, setNewCode] = useState('')
+  const [newMaxQuota, setNewMaxQuota] = useState('30')
+  const [newDuration, setNewDuration] = useState('3')
+  const [creating, setCreating] = useState(false)
 
   const fetchData = useCallback(async () => {
     try {
@@ -137,6 +150,35 @@ export default function ProPromoTab() {
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code)
     toast.success(`Kode ${code} disalin!`)
+  }
+
+  const handleCreatePromo = async () => {
+    try {
+      setCreating(true)
+      const res = await authFetch('/api/admin/pro-promo-log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: newCode,
+          maxQuota: parseInt(newMaxQuota) || 30,
+          durationMonths: parseInt(newDuration) || 3,
+          discountPercent: 100,
+        })
+      })
+      const json = await res.json()
+      if (res.ok) {
+        toast.success(`Promo code "${newCode}" berhasil dibuat!`)
+        setShowCreateDialog(false)
+        setNewCode('')
+        await fetchData()
+      } else {
+        toast.error(json.error || 'Gagal membuat promo code')
+      }
+    } catch {
+      toast.error('Network error')
+    } finally {
+      setCreating(false)
+    }
   }
 
   const handleDbSync = async () => {
@@ -296,6 +338,57 @@ export default function ProPromoTab() {
           <Badge variant="outline" className="border-white/10 text-white/40 text-[10px]">
             {data.promoCodes.length} kode
           </Badge>
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="h-7 text-xs bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border-0">
+                <Plus className="w-3 h-3 mr-1" /> Buat Promo
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-[#1a0f2e] border-purple-500/30 text-white max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="text-amber-300">Buat Promo Code Baru</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 mt-4">
+                <div>
+                  <label className="text-xs text-white/50 mb-1 block">Kode Promo</label>
+                  <Input
+                    value={newCode}
+                    onChange={(e) => setNewCode(e.target.value.toUpperCase())}
+                    placeholder="TRADERCEPAT"
+                    className="bg-black/30 border-white/10 text-white placeholder:text-white/20"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-white/50 mb-1 block">Max Kuota</label>
+                    <Input
+                      type="number"
+                      value={newMaxQuota}
+                      onChange={(e) => setNewMaxQuota(e.target.value)}
+                      className="bg-black/30 border-white/10 text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-white/50 mb-1 block">Durasi (bulan)</label>
+                    <Input
+                      type="number"
+                      value={newDuration}
+                      onChange={(e) => setNewDuration(e.target.value)}
+                      className="bg-black/30 border-white/10 text-white"
+                    />
+                  </div>
+                </div>
+                <Button
+                  onClick={handleCreatePromo}
+                  disabled={!newCode || newCode.length < 3 || creating}
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold"
+                >
+                  {creating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+                  Buat Promo Code
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </h3>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
