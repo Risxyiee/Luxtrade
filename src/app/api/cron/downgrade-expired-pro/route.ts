@@ -33,6 +33,11 @@ async function handleRequest(request: NextRequest) {
 
   await ensureSchema()
 
+  // Ensure tables exist
+  try {
+    await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS user_subscriptions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, plan TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', start_date TIMESTAMPTZ NOT NULL DEFAULT NOW(), end_date TIMESTAMPTZ, promo_code_id TEXT, discount_percent DOUBLE PRECISION NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`)
+  } catch {}
+
   // Find all PRO users whose expiry has passed
   const expiredUsers: any[] = await db.$queryRawUnsafe(`
     SELECT id, email, full_name, pro_expiry, subscription_until

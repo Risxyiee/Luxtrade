@@ -9,8 +9,10 @@ import { requireAdmin } from '@/lib/admin-auth'
  * 2. All PRO users who used promo codes — who, when, which code, status
  * 3. All PRO users total count
  *
- * Uses tagged template literal ($queryRaw) instead of $queryRawUnsafe
- * to avoid Prisma schema cache validation issues on cold starts.
+ * Uses Prisma $queryRaw (tagged template) to avoid schema cache issues.
+ * Auto-creates missing tables (user_subscriptions, promo_codes) if they
+ * don't exist in the database — this can happen after a fresh deploy
+ * or if tables were accidentally dropped.
  */
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -18,6 +20,49 @@ export const dynamic = 'force-dynamic'
 // Short cache for burst requests (5s)
 let cache: { data: any; expiry: number } | null = null
 const CACHE_TTL = 5_000
+
+/** Ensure promo-related tables exist, create if missing */
+async function ensurePromoTables() {
+  const ddl = [
+    // promo_codes table
+    `CREATE TABLE IF NOT EXISTS promo_codes (
+      id TEXT PRIMARY KEY,
+      code TEXT NOT NULL,
+      description TEXT,
+      discount_percent DOUBLE PRECISION NOT NULL,
+      max_quota INTEGER NOT NULL,
+      used_quota INTEGER NOT NULL DEFAULT 0,
+      duration_months INTEGER NOT NULL,
+      start_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      end_date TIMESTAMPTZ,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    // user_subscriptions table
+    `CREATE TABLE IF NOT EXISTS user_subscriptions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      plan TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      start_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      end_date TIMESTAMPTZ,
+      promo_code_id TEXT,
+      discount_percent DOUBLE PRECISION NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+    // Indexes
+    `CREATE INDEX IF NOT EXISTS idx_promo_codes_code ON promo_codes(code)`,
+    `CREATE INDEX IF NOT EXISTS idx_promo_codes_active ON promo_codes(is_active, start_date, end_date)`,
+    `CREATE INDEX IF NOT EXISTS idx_user_subs_user_id ON user_subscriptions(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_user_subs_promo_id ON user_subscriptions(promo_code_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_user_subs_status ON user_subscriptions(status)`,
+  ]
+  for (const sql of ddl) {
+    try { await db.$executeRawUnsafe(sql) } catch {}
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,13 +76,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(cache.data)
     }
 
+    // Ensure tables exist (safe — IF NOT EXISTS)
+    await ensurePromoTables()
+
     // ── 1. Fetch all promo codes with quota ──
-    const promoRows: any[] = await db.$queryRaw`
-      SELECT id, code, description, discount_percent, max_quota, used_quota,
-             duration_months, is_active, start_date, end_date, created_at
-      FROM promo_codes
-      ORDER BY created_at DESC
-    `
+    let promoRows: any[] = []
+    try {
+      promoRows = await db.$queryRawUnsafe(`
+        SELECT id, code, description, discount_percent, max_quota, used_quota,
+               duration_months, is_active, start_date, end_date, created_at
+        FROM promo_codes
+        ORDER BY created_at DESC
+      `)
+    } catch (err: any) {
+      console.error('[pro-promo-log] promo_codes query failed:', err.message?.substring(0, 100))
+    }
 
     const promoList = (promoRows || []).map((p: any) => ({
       id: p.id,
@@ -55,25 +108,31 @@ export async function GET(request: NextRequest) {
     }))
 
     // ── 2. Fetch promo-based subscriptions (users who used promo codes) ──
-    const subRows: any[] = await db.$queryRaw`
-      SELECT us.id, us.user_id, us.plan, us.status, us.start_date, us.end_date,
-             us.discount_percent, us.promo_code_id, us.created_at,
-             pc.code AS promo_code
-      FROM user_subscriptions us
-      LEFT JOIN promo_codes pc ON pc.id = us.promo_code_id
-      WHERE us.promo_code_id IS NOT NULL
-      ORDER BY us.created_at DESC
-    `
+    let subRows: any[] = []
+    try {
+      subRows = await db.$queryRawUnsafe(`
+        SELECT us.id, us.user_id, us.plan, us.status, us.start_date, us.end_date,
+               us.discount_percent, us.promo_code_id, us.created_at,
+               pc.code AS promo_code
+        FROM user_subscriptions us
+        LEFT JOIN promo_codes pc ON pc.id = us.promo_code_id
+        WHERE us.promo_code_id IS NOT NULL
+        ORDER BY us.created_at DESC
+      `)
+    } catch (err: any) {
+      console.error('[pro-promo-log] user_subscriptions query failed:', err.message?.substring(0, 100))
+    }
 
     // Get profile data for each user (batch)
     const userIds = [...new Set((subRows || []).map((s: any) => s.user_id))]
     let profileMap = new Map<string, any>()
 
     if (userIds.length > 0) {
+      const placeholders = userIds.map((_, i) => `$${i + 1}`).join(',')
       const profileRows: any[] = await db.$queryRawUnsafe(`
         SELECT id, email, full_name, is_pro, plan, subscription_until
         FROM profiles
-        WHERE id IN (${userIds.map((_, i) => `$${i + 1}`).join(',')})
+        WHERE id IN (${placeholders})
       `, ...userIds)
 
       if (profileRows) {
@@ -105,14 +164,17 @@ export async function GET(request: NextRequest) {
     })
 
     // ── 3. Count all active PRO users ──
-    const proCountResult: any[] = await db.$queryRaw`
-      SELECT COUNT(*)::int AS total
-      FROM profiles
-      WHERE is_pro = true
-        AND subscription_until IS NOT NULL
-        AND subscription_until > NOW()
-    `
-    const totalProUsers = proCountResult?.[0]?.total || 0
+    let totalProUsers = 0
+    try {
+      const proCountResult: any[] = await db.$queryRawUnsafe(`
+        SELECT COUNT(*)::int AS total
+        FROM profiles
+        WHERE is_pro = true
+          AND subscription_until IS NOT NULL
+          AND subscription_until > NOW()
+      `)
+      totalProUsers = proCountResult?.[0]?.total || 0
+    } catch {}
 
     // ── 4. Count promo-based active vs expired ──
     const promoActiveUsers = promoUsage.filter(u => u.isCurrentlyActive)
