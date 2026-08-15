@@ -1503,6 +1503,14 @@ export default function AdminPanel() {
           ) : null}
           {activeTab === 'pro-promo' ? (
             <motion.div key="pro-promo" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+              <div className="mb-4 flex justify-end">
+                <Link href="/dashboard/admin/promo-codes">
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs text-purple-300 border-purple-500/30 hover:bg-purple-500/10 hover:text-purple-200">
+                    <ExternalLink className="h-3 w-3" />
+                    Buka Halaman Promo Terpisah →
+                  </Button>
+                </Link>
+              </div>
               <ProPromoTab />
             </motion.div>
           ) : null}
