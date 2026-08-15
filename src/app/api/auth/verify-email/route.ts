@@ -88,7 +88,7 @@ async function activateTrialIfNeeded(userId: string, email: string) {
     await db.$executeRawUnsafe(`
       UPDATE profiles SET 
         is_pro = true, 
-        subscription_until = $1,
+        subscription_until = $1::timestamptz,
         has_ever_been_pro = true,
         updated_at = now()
       WHERE id = $2
