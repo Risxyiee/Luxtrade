@@ -1420,3 +1420,28 @@ Stage Summary:
 - Files modified: src/app/dashboard/admin/page.tsx (import ProPromoTab, tab type, tab button, tab content)
 - Admin can now see realtime: who used promo codes, quota countdown per code, which users are active/expired PRO
 - Auto-refreshes every 10 seconds while tab is visible
+---
+Task ID: 1
+Agent: main
+Task: Add promo code management (edit/delete/toggle) + fix profile creation + simplify admin panel
+
+Work Log:
+- Read and analyzed full admin panel page.tsx (1522 lines) and ProPromoTab.tsx (736 lines)
+- Added PUT endpoint to /api/admin/pro-promo-log with actions: toggle, updateQuota, resetQuota, edit
+- Added DELETE endpoint to /api/admin/pro-promo-log with safety (keeps user_subscriptions history)
+- Rewrote ProPromoTab.tsx with full promo management: toggle active/inactive, edit quota, reset quota, delete promo code
+- Added Edit Quota dialog and Delete Confirmation dialog with warnings about affected users
+- Added quick-action buttons on each promo card (Toggle, Kuota, Reset)
+- Added 3-dot dropdown menu on each promo card for all management actions
+- Removed redundant hardcoded "Promo TRADERCEPAT" card from Users tab in admin page
+- Removed old promoStatus state, fetchPromoStatus, and activatePromo from admin page (moved to PRO & Promo tab)
+- Removed "Buka Halaman Promo Terpisah →" link
+- Fixed profile creation: promo-simple/apply now creates profile if not found (P2025) instead of silently failing
+- Ran ESLint — clean, no errors
+- Verified admin page compiles with 200 status, no build errors
+
+Stage Summary:
+- Promo codes are now fully manageable: create, toggle active/inactive, edit quota, reset quota, delete
+- Deleting a promo code does NOT revoke PRO from users who already claimed it (they keep access until subscription expires)
+- Profile creation auto-fix: users without a profile record will get one created when they claim a promo code
+- Admin panel is cleaner: removed redundant TRADERCEPAT promo card from Users tab, all promo management is in PRO & Promo tab

@@ -538,50 +538,6 @@ export default function AdminPanel() {
     }
   }
 
-  // Activate TRADERCEPAT promo
-  const [activatingPromo, setActivatingPromo] = useState(false)
-  const [promoStatus, setPromoStatus] = useState<{remaining: number; max: number; active: boolean; used: number} | null>(null)
-
-  const fetchPromoStatus = async () => {
-    try {
-      const res = await fetch('/api/promo-quota?code=TRADERCEPAT')
-      const data = await res.json()
-      if (data.code) {
-        setPromoStatus({
-          remaining: data.remainingQuota ?? 0,
-          max: data.maxQuota ?? 30,
-          active: data.isActive ?? false,
-          used: data.usedQuota ?? 0,
-        })
-      }
-    } catch {}
-  }
-
-  useEffect(() => { fetchPromoStatus() }, [])
-
-  const activatePromo = async () => {
-    if (activatingPromo) return
-    setActivatingPromo(true)
-    try {
-      const res = await authFetch('/api/admin/promo/activate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-email': 'luxtradee@gmail.com' },
-        body: JSON.stringify({ code: 'TRADERCEPAT' }),
-      })
-      const data = await res.json()
-      if (res.ok && data.success) {
-        toast.success(data.message, { duration: 5000 })
-        fetchPromoStatus()
-      } else {
-        toast.error(data.message || 'Gagal mengaktifkan promo')
-      }
-    } catch (_err) {
-      toast.error('Network error')
-    } finally {
-      setActivatingPromo(false)
-    }
-  }
-
   // Sync users from Supabase Auth → DB
   const [syncing, setSyncing] = useState(false)
   const syncUsers = async () => {
@@ -988,64 +944,6 @@ export default function AdminPanel() {
                   </div>
                 </div>
               )}
-
-              {/* Promo Management Card */}
-              <Card className="bg-gradient-to-r from-amber-500/10 via-[#1a0f2e]/50 to-amber-500/10 border-amber-500/30 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-amber-400" />
-                    Promo TRADERCEPAT
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex-1 space-y-3">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/30 border border-white/10">
-                          <span className="text-xs text-white/50">Kode:</span>
-                          <code className="text-amber-300 font-bold text-sm tracking-wider">TRADERCEPAT</code>
-                          <button onClick={() => { navigator.clipboard.writeText('TRADERCEPAT'); toast.success('Kode disalin!') }} className="text-white/40 hover:text-white transition-colors">
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <Badge variant={promoStatus?.active ? 'default' : 'destructive'} className={promoStatus?.active ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-red-500/20 text-red-300 border-red-500/30'}>
-                          {promoStatus?.active ? '● Aktif' : '● Nonaktif'}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-3 gap-3 max-w-sm">
-                        <div className="text-center p-2 rounded-lg bg-black/20">
-                          <p className="text-lg font-bold text-amber-300">{promoStatus?.used ?? '-'}</p>
-                          <p className="text-[10px] text-white/40 uppercase tracking-wider">Terpakai</p>
-                        </div>
-                        <div className="text-center p-2 rounded-lg bg-black/20">
-                          <p className="text-lg font-bold text-emerald-300">{promoStatus?.remaining ?? '-'}</p>
-                          <p className="text-[10px] text-white/40 uppercase tracking-wider">Sisa</p>
-                        </div>
-                        <div className="text-center p-2 rounded-lg bg-black/20">
-                          <p className="text-lg font-bold text-white/80">{promoStatus?.max ?? 30}</p>
-                          <p className="text-[10px] text-white/40 uppercase tracking-wider">Total</p>
-                        </div>
-                      </div>
-                      {promoStatus && promoStatus.remaining <= 0 && (
-                        <p className="text-xs text-red-400 flex items-center gap-1">
-                          <AlertTriangle className="w-3 h-3" /> Kuota habis — klik tombol reset di kanan untuk mengaktifkan ulang
-                        </p>
-                      )}
-                    </div>
-                    <Button
-                      onClick={activatePromo}
-                      disabled={activatingPromo}
-                      className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold px-6 py-3 shrink-0 disabled:opacity-50"
-                    >
-                      {activatingPromo ? (
-                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Resetting...</>
-                      ) : (
-                        <><RotateCcw className="w-4 h-4 mr-2" /> Aktifkan / Reset Kuota</>
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
 
               {/* User Management Table */}
               <Card className="bg-[#1a0f2e]/50 border-purple-500/20 backdrop-blur-sm">
@@ -1503,14 +1401,6 @@ export default function AdminPanel() {
           ) : null}
           {activeTab === 'pro-promo' ? (
             <motion.div key="pro-promo" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-              <div className="mb-4 flex justify-end">
-                <Link href="/dashboard/admin/promo-codes">
-                  <Button variant="outline" size="sm" className="gap-1.5 text-xs text-purple-300 border-purple-500/30 hover:bg-purple-500/10 hover:text-purple-200">
-                    <ExternalLink className="h-3 w-3" />
-                    Buka Halaman Promo Terpisah →
-                  </Button>
-                </Link>
-              </div>
               <ProPromoTab />
             </motion.div>
           ) : null}

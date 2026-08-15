@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
       VALUES (gen_random_uuid()::text, $1, $2, 'active', NOW(), $3, $4, $5, NOW(), NOW());
     `, userId, plan, endDate, promo.id, promo.discount_percent)
 
-    // Update profile
+    // Update profile — create if not exists
     try {
       await db.profile.update({
         where: { id: userId },
@@ -137,7 +137,25 @@ export async function POST(request: NextRequest) {
         }
       })
     } catch (e: any) {
-      console.warn('⚠️ [Simple Promo] Could not update profile:', e.message)
+      // Profile might not exist — try upsert
+      if (e.message?.includes('Record to update not found') || e.code === 'P2025') {
+        try {
+          await db.profile.create({
+            data: {
+              id: userId,
+              plan: 'PRO',
+              is_pro: true,
+              subscription_until: endDate,
+              proExpiry: endDate
+            }
+          })
+          console.log(`✅ [Simple Promo] Created new profile for user ${userId}`)
+        } catch (createErr: any) {
+          console.warn('⚠️ [Simple Promo] Could not create profile:', createErr.message?.substring(0, 100))
+        }
+      } else {
+        console.warn('⚠️ [Simple Promo] Could not update profile:', e.message?.substring(0, 100))
+      }
     }
 
     const remainingQuota = Number(promo.max_quota) - Number(promo.used_quota)
