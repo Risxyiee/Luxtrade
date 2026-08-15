@@ -276,3 +276,164 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Gagal membuat promo code', details: err.message }, { status: 500 })
   }
 }
+
+/**
+ * PUT /api/admin/pro-promo-log
+ * Update a promo code: toggle active, edit quota, reset quota, etc. Admin only.
+ * Body: { id, action: 'toggle' | 'updateQuota' | 'resetQuota' | 'edit', ...fields }
+ */
+export async function PUT(request: NextRequest) {
+  try {
+    const { error: authError } = await requireAdmin(request)
+    if (authError) {
+      return NextResponse.json({ error: authError }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { id, action } = body
+
+    if (!id || !action) {
+      return NextResponse.json({ error: 'id dan action diperlukan' }, { status: 400 })
+    }
+
+    // Verify promo exists
+    const existing: any[] = await db.$queryRawUnsafe(`
+      SELECT id, code, is_active, used_quota, max_quota FROM promo_codes WHERE id = $1 LIMIT 1
+    `, id)
+
+    if (!existing || existing.length === 0) {
+      return NextResponse.json({ error: 'Promo code tidak ditemukan' }, { status: 404 })
+    }
+
+    const promo = existing[0]
+
+    if (action === 'toggle') {
+      // Toggle active/inactive
+      const newActive = !promo.is_active
+      await db.$executeRawUnsafe(`
+        UPDATE promo_codes SET is_active = $1, updated_at = NOW() WHERE id = $2
+      `, newActive, id)
+      cache = null
+      return NextResponse.json({
+        success: true,
+        message: `Promo "${promo.code}" ${newActive ? 'diaktifkan' : 'dinonaktifkan'}`,
+        isActive: newActive
+      })
+    }
+
+    if (action === 'updateQuota') {
+      const newMaxQuota = body.maxQuota
+      if (!newMaxQuota || newMaxQuota < 1) {
+        return NextResponse.json({ error: 'Max quota minimal 1' }, { status: 400 })
+      }
+      await db.$executeRawUnsafe(`
+        UPDATE promo_codes SET max_quota = $1, updated_at = NOW() WHERE id = $2
+      `, newMaxQuota, id)
+      cache = null
+      return NextResponse.json({
+        success: true,
+        message: `Kuota promo "${promo.code}" diubah ke ${newMaxQuota}`
+      })
+    }
+
+    if (action === 'resetQuota') {
+      // Reset used_quota to 0, reactivate
+      await db.$executeRawUnsafe(`
+        UPDATE promo_codes SET used_quota = 0, is_active = true, updated_at = NOW() WHERE id = $1
+      `, id)
+      cache = null
+      return NextResponse.json({
+        success: true,
+        message: `Kuota promo "${promo.code}" berhasil direset. Status: Aktif.`
+      })
+    }
+
+    if (action === 'edit') {
+      // Edit multiple fields
+      const updates: string[] = []
+      const values: any[] = []
+      let paramIdx = 2 // $1 = id
+
+      if (body.description !== undefined) {
+        updates.push(`description = $${paramIdx++}`)
+        values.push(body.description || null)
+      }
+      if (body.durationMonths !== undefined && body.durationMonths >= 1) {
+        updates.push(`duration_months = $${paramIdx++}`)
+        values.push(body.durationMonths)
+      }
+      if (body.endDate !== undefined) {
+        updates.push(`end_date = $${paramIdx++}`)
+        values.push(body.endDate ? new Date(body.endDate) : null)
+      }
+
+      if (updates.length === 0) {
+        return NextResponse.json({ error: 'Tidak ada field yang diubah' }, { status: 400 })
+      }
+
+      updates.push(`updated_at = NOW()`)
+      await db.$executeRawUnsafe(`
+        UPDATE promo_codes SET ${updates.join(', ')} WHERE id = $1
+      `, id, ...values)
+      cache = null
+      return NextResponse.json({
+        success: true,
+        message: `Promo "${promo.code}" berhasil diupdate`
+      })
+    }
+
+    return NextResponse.json({ error: `Action "${action}" tidak dikenali` }, { status: 400 })
+  } catch (err: any) {
+    console.error('[pro-promo-log] PUT error:', err)
+    return NextResponse.json({ error: 'Gagal update promo code', details: err.message }, { status: 500 })
+  }
+}
+
+/**
+ * DELETE /api/admin/pro-promo-log
+ * Delete a promo code. Admin only.
+ * Query params: ?id=<promo_id>
+ * 
+ * NOTE: Deleting a promo code does NOT revoke PRO status from users who already claimed it.
+ * Those users keep their PRO access until their subscription expires.
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const { error: authError } = await requireAdmin(request)
+    if (authError) {
+      return NextResponse.json({ error: authError }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json({ error: 'id diperlukan (query param)' }, { status: 400 })
+    }
+
+    // Get promo info before deleting
+    const existing: any[] = await db.$queryRawUnsafe(`
+      SELECT id, code, used_quota FROM promo_codes WHERE id = $1 LIMIT 1
+    `, id)
+
+    if (!existing || existing.length === 0) {
+      return NextResponse.json({ error: 'Promo code tidak ditemukan' }, { status: 404 })
+    }
+
+    const promo = existing[0]
+
+    // Delete promo code (user_subscriptions records are kept for history)
+    await db.$executeRawUnsafe(`DELETE FROM promo_codes WHERE id = $1`, id)
+    cache = null
+
+    return NextResponse.json({
+      success: true,
+      message: `Promo code "${promo.code}" berhasil dihapus. ${promo.used_quota} user yang sudah claim tetap PRO sampai masa berlangganan habis.`,
+      deletedCode: promo.code,
+      affectedUsers: promo.used_quota
+    })
+  } catch (err: any) {
+    console.error('[pro-promo-log] DELETE error:', err)
+    return NextResponse.json({ error: 'Gagal menghapus promo code', details: err.message }, { status: 500 })
+  }
+}
