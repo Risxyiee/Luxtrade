@@ -44,6 +44,16 @@ interface PromoUsage {
 interface ProPromoData {
   promoCodes: PromoCode[]
   promoUsage: PromoUsage[]
+  proUsersFromProfiles?: {
+    id: string
+    email: string | null
+    fullName: string | null
+    isPro: boolean
+    plan: string
+    subscriptionUntil: string | null
+    proExpiry: string | null
+    createdAt: string
+  }[]
   totalProUsers: number
   promoActiveUsers: number
   promoExpiredUsers: number
@@ -54,6 +64,8 @@ interface ProPromoData {
     totalQuotaUsed: number
     totalQuotaRemaining: number
   }
+  missingTables?: string[]
+  error?: string
 }
 
 export default function ProPromoTab() {
@@ -72,6 +84,10 @@ export default function ProPromoTab() {
         setLastUpdated(new Date())
       } else {
         console.error('[ProPromoTab] Fetch error:', json.error)
+        // Show table missing error
+        if (json.missingTables) {
+          toast.error(`Tabel ${json.missingTables.join(', ')} belum ada. Klik tombol DB Sync.`, { duration: 10000 })
+        }
       }
     } catch (err) {
       console.error('[ProPromoTab] Network error:', err)
@@ -123,6 +139,24 @@ export default function ProPromoTab() {
     toast.success(`Kode ${code} disalin!`)
   }
 
+  const handleDbSync = async () => {
+    try {
+      setLoading(true)
+      const res = await authFetch('/api/admin/db-sync', { method: 'POST' })
+      const json = await res.json()
+      if (res.ok) {
+        toast.success('DB Sync berhasil! Refreshing data...')
+        await fetchData()
+      } else {
+        toast.error(`DB Sync gagal: ${json.error || 'Unknown error'}`)
+      }
+    } catch (err) {
+      toast.error('DB Sync network error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   if (loading && !data) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -136,9 +170,14 @@ export default function ProPromoTab() {
       <div className="text-center py-16">
         <AlertTriangle className="w-12 h-12 text-white/20 mx-auto mb-4" />
         <p className="text-white/60">Gagal memuat data Pro & Promo</p>
-        <Button onClick={fetchData} variant="outline" className="mt-4 border-amber-500/30 text-amber-400">
-          <RefreshCw className="w-4 h-4 mr-2" /> Coba Lagi
-        </Button>
+        <div className="flex gap-3 justify-center mt-4">
+          <Button onClick={fetchData} variant="outline" className="border-amber-500/30 text-amber-400">
+            <RefreshCw className="w-4 h-4 mr-2" /> Coba Lagi
+          </Button>
+          <Button onClick={handleDbSync} variant="outline" className="border-emerald-500/30 text-emerald-400">
+            <Zap className="w-4 h-4 mr-2" /> DB Sync
+          </Button>
+        </div>
       </div>
     )
   }
@@ -517,6 +556,86 @@ export default function ProPromoTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── All PRO Users (from profiles table) ── */}
+      {data.proUsersFromProfiles && data.proUsersFromProfiles.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-white/70 flex items-center gap-2">
+            <Crown className="w-4 h-4 text-emerald-400" />
+            Semua User PRO (Profiles)
+            <Badge variant="outline" className="border-white/10 text-white/40 text-[10px]">
+              {data.proUsersFromProfiles.length} user
+            </Badge>
+          </h3>
+          <Card className="bg-[#1a0f2e]/50 border-emerald-500/20">
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm hidden md:table">
+                  <thead>
+                    <tr className="border-b border-emerald-500/20">
+                      <th className="text-left py-3 px-3 text-white/50 font-medium text-xs">User</th>
+                      <th className="text-left py-3 px-3 text-white/50 font-medium text-xs">Plan</th>
+                      <th className="text-left py-3 px-3 text-white/50 font-medium text-xs">Berlangganan Sampai</th>
+                      <th className="text-left py-3 px-3 text-white/50 font-medium text-xs">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.proUsersFromProfiles.map((p, i) => {
+                      const isActive = p.subscriptionUntil && new Date(p.subscriptionUntil) > new Date()
+                      const daysLeft = p.subscriptionUntil ? getDaysRemaining(p.subscriptionUntil) : 0
+                      return (
+                        <tr key={p.id} className="border-b border-emerald-500/5 hover:bg-emerald-500/5 transition-colors">
+                          <td className="py-3 px-3">
+                            <div>
+                              <p className="text-white text-xs truncate max-w-[200px]">{p.email || '-'}</p>
+                              <p className="text-white/30 text-[10px] truncate">{p.fullName || 'No name'}</p>
+                            </div>
+                          </td>
+                          <td className="py-3 px-3">
+                            <Badge className="text-[10px] bg-amber-500/20 text-amber-300 border-amber-500/30">{p.plan}</Badge>
+                          </td>
+                          <td className="py-3 px-3 text-white/40 text-xs">{formatDate(p.subscriptionUntil)}</td>
+                          <td className="py-3 px-3">
+                            {isActive ? (
+                              <span className="text-emerald-400 text-xs">{daysLeft} hari tersisa</span>
+                            ) : (
+                              <span className="text-red-400 text-xs">Expired</span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+                {/* Mobile cards */}
+                <div className="md:hidden space-y-2 p-3">
+                  {data.proUsersFromProfiles.map((p) => {
+                    const isActive = p.subscriptionUntil && new Date(p.subscriptionUntil) > new Date()
+                    const daysLeft = p.subscriptionUntil ? getDaysRemaining(p.subscriptionUntil) : 0
+                    return (
+                      <div key={p.id} className="bg-white/[0.03] border border-emerald-500/10 rounded-xl p-3">
+                        <div className="flex items-start justify-between">
+                          <div className="min-w-0">
+                            <p className="text-sm text-white font-medium truncate">{p.email || '-'}</p>
+                            <p className="text-[10px] text-white/30">{p.fullName || 'No name'}</p>
+                          </div>
+                          <Badge className={`text-[10px] flex-shrink-0 ${isActive ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-red-500/20 text-red-300 border-red-500/30'}`}>
+                            {isActive ? `${daysLeft}h` : 'Expired'}
+                          </Badge>
+                        </div>
+                        <div className="flex gap-4 mt-2 text-[11px] text-white/40">
+                          <span>Plan: <span className="text-amber-300">{p.plan}</span></span>
+                          <span>Sampai: <span className="text-white/60">{formatDate(p.subscriptionUntil)}</span></span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
     </motion.div>
   )
