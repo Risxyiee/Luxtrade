@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
 
 /**
@@ -8,6 +8,11 @@ import { requireAdmin } from '@/lib/admin-auth'
  * 1. All promo codes with current quota (realtime)
  * 2. All PRO users who used promo codes — who, when, which code, status
  * 3. All PRO users total count
+ *
+ * IMPORTANT: Uses Prisma raw SQL (same DB connection as promo apply endpoints)
+ * instead of Supabase client. This ensures consistency — promo codes are
+ * written via Prisma raw SQL in /api/promo-simple/apply, so reading must
+ * also go through Prisma to see the same data.
  */
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -28,29 +33,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(cache.data)
     }
 
-    const svc = getSupabaseAdmin()
-    if (!svc) {
-      return NextResponse.json({ error: 'Supabase admin not configured' }, { status: 500 })
-    }
-
     // ── 1. Fetch all promo codes with quota ──
-    const { data: promoCodes, error: promoErr } = await svc
-      .from('promo_codes')
-      .select('id, code, discount_percent, max_quota, used_quota, duration_months, is_active, start_date, end_date, created_at')
-      .order('created_at', { ascending: false })
+    const promoRows: any[] = await db.$queryRawUnsafe(`
+      SELECT id, code, description, discount_percent, max_quota, used_quota,
+             duration_months, is_active, start_date, end_date, created_at
+      FROM promo_codes
+      ORDER BY created_at DESC
+    `)
 
-    if (promoErr) {
-      console.error('[pro-promo-log] promo_codes query error:', promoErr.message)
-    }
-
-    const promoList = (promoCodes || []).map((p: any) => ({
+    const promoList = (promoRows || []).map((p: any) => ({
       id: p.id,
       code: p.code,
-      discountPercent: p.discount_percent,
-      maxQuota: p.max_quota,
-      usedQuota: p.used_quota,
-      remainingQuota: Math.max(0, (p.max_quota || 0) - (p.used_quota || 0)),
-      durationMonths: p.duration_months,
+      description: p.description,
+      discountPercent: Number(p.discount_percent),
+      maxQuota: Number(p.max_quota),
+      usedQuota: Number(p.used_quota),
+      remainingQuota: Math.max(0, Number(p.max_quota || 0) - Number(p.used_quota || 0)),
+      durationMonths: Number(p.duration_months),
       isActive: p.is_active,
       startDate: p.start_date,
       endDate: p.end_date,
@@ -58,36 +57,34 @@ export async function GET(request: NextRequest) {
     }))
 
     // ── 2. Fetch promo-based subscriptions (users who used promo codes) ──
-    const { data: promoSubs, error: subErr } = await svc
-      .from('user_subscriptions')
-      .select(`
-        id, user_id, plan, status, start_date, end_date,
-        discount_percent, promo_code_id, created_at,
-        promo_codes(code)
-      `)
-      .not('promo_code_id', 'is', null)
-      .order('created_at', { ascending: false })
+    const subRows: any[] = await db.$queryRawUnsafe(`
+      SELECT us.id, us.user_id, us.plan, us.status, us.start_date, us.end_date,
+             us.discount_percent, us.promo_code_id, us.created_at,
+             pc.code AS promo_code
+      FROM user_subscriptions us
+      LEFT JOIN promo_codes pc ON pc.id = us.promo_code_id
+      WHERE us.promo_code_id IS NOT NULL
+      ORDER BY us.created_at DESC
+    `)
 
-    if (subErr) {
-      console.error('[pro-promo-log] user_subscriptions query error:', subErr.message)
-    }
-
-    // Get profile data for each user
-    const userIds = [...new Set((promoSubs || []).map((s: any) => s.user_id))]
+    // Get profile data for each user (batch)
+    const userIds = [...new Set((subRows || []).map((s: any) => s.user_id))]
     let profileMap = new Map<string, any>()
 
     if (userIds.length > 0) {
-      const { data: profiles } = await svc
-        .from('profiles')
-        .select('id, email, full_name, is_pro, plan, subscription_until')
-        .in('id', userIds)
-      
-      if (profiles) {
-        profileMap = new Map(profiles.map((p: any) => [p.id, p]))
+      const placeholders = userIds.map((_, i) => `$${i + 1}`).join(',')
+      const profileRows: any[] = await db.$queryRawUnsafe(`
+        SELECT id, email, full_name, is_pro, plan, subscription_until
+        FROM profiles
+        WHERE id IN (${placeholders})
+      `, ...userIds)
+
+      if (profileRows) {
+        profileMap = new Map(profileRows.map((p: any) => [p.id, p]))
       }
     }
 
-    const promoUsage = (promoSubs || []).map((sub: any) => {
+    const promoUsage = (subRows || []).map((sub: any) => {
       const profile = profileMap.get(sub.user_id)
       const now = new Date()
       const endDate = sub.end_date ? new Date(sub.end_date) : null
@@ -98,10 +95,10 @@ export async function GET(request: NextRequest) {
         userId: sub.user_id,
         email: profile?.email || null,
         fullName: profile?.full_name || null,
-        promoCode: sub.promo_codes?.code || 'Unknown',
+        promoCode: sub.promo_code || 'Unknown',
         plan: sub.plan,
         status: sub.status,
-        discountPercent: sub.discount_percent,
+        discountPercent: Number(sub.discount_percent),
         startDate: sub.start_date,
         endDate: sub.end_date,
         isCurrentlyActive: sub.status === 'active' && !isExpired,
@@ -110,21 +107,24 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // ── 3. Count all PRO users ──
-    const { count: totalProUsers } = await svc
-      .from('profiles')
-      .select('id', { count: 'exact', head: true })
-      .eq('is_pro', true)
-      .gte('subscription_until', new Date().toISOString())
+    // ── 3. Count all active PRO users ──
+    const proCountResult: any[] = await db.$queryRawUnsafe(`
+      SELECT COUNT(*)::int AS total
+      FROM profiles
+      WHERE is_pro = true
+        AND subscription_until IS NOT NULL
+        AND subscription_until > NOW()
+    `)
+    const totalProUsers = proCountResult?.[0]?.total || 0
 
-    // ── 4. Count promo-based active PRO users ──
+    // ── 4. Count promo-based active vs expired ──
     const promoActiveUsers = promoUsage.filter(u => u.isCurrentlyActive)
     const promoExpiredUsers = promoUsage.filter(u => u.isExpired && u.status === 'active')
 
     const data = {
       promoCodes: promoList,
       promoUsage,
-      totalProUsers: totalProUsers || 0,
+      totalProUsers,
       promoActiveUsers: promoActiveUsers.length,
       promoExpiredUsers: promoExpiredUsers.length,
       totalPromoUsage: promoUsage.length,
