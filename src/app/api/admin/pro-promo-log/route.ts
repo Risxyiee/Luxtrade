@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { requireAdmin } from '@/lib/admin-auth'
 
 /**
  * GET /api/admin/pro-promo-log
@@ -7,8 +8,6 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
  * 1. All promo codes with current quota (realtime)
  * 2. All PRO users who used promo codes — who, when, which code, status
  * 3. All PRO users total count
- * 
- * No auth check here — admin auth is handled at page level
  */
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -17,8 +16,13 @@ export const dynamic = 'force-dynamic'
 let cache: { data: any; expiry: number } | null = null
 const CACHE_TTL = 5_000
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Admin auth check — consistent with all other /api/admin/* endpoints
+    const { error: authError } = await requireAdmin(request)
+    if (authError) {
+      return NextResponse.json({ error: authError }, { status: 401 })
+    }
     // Return cache if fresh
     if (cache && Date.now() < cache.expiry) {
       return NextResponse.json(cache.data)
