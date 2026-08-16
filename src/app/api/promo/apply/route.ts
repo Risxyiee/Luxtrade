@@ -137,6 +137,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update profile — CRITICAL: this is what actually enables PRO features
+    // If profile doesn't exist, try to create it (user may have registered but never had a profile row)
     let profileUpdated = false
     try {
       const profileResult = await db.$executeRawUnsafe(`
@@ -146,7 +147,18 @@ export async function POST(request: NextRequest) {
         profileUpdated = true
         console.log(`✅ [promo/apply:${logId}] Profile → PRO (userId=${userId})`)
       } else {
-        console.error(`❌ [promo/apply:${logId}] Profile UPDATE affected 0 rows — user ${userId} may not exist in profiles table`)
+        // Profile not found — try to create it
+        console.warn(`⚠️ [promo/apply:${logId}] Profile not found for ${userId}, attempting to create...`)
+        try {
+          await db.$executeRawUnsafe(`
+            INSERT INTO profiles (id, plan, is_pro, subscription_until, pro_expiry, created_at, updated_at)
+            VALUES ($1, 'PRO', true, $2, $2, NOW(), NOW());
+          `, userId, endDate)
+          profileUpdated = true
+          console.log(`✅ [promo/apply:${logId}] Profile CREATED + PRO (userId=${userId})`)
+        } catch (createErr: any) {
+          console.error(`❌ [promo/apply:${logId}] Profile CREATE failed: ${createErr?.message?.substring(0, 100)}`)
+        }
       }
     } catch (profErr: any) {
       console.error(`❌ [promo/apply:${logId}] Profile UPDATE FAILED: ${profErr?.message}`)
