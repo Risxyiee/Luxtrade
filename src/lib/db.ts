@@ -90,8 +90,14 @@ try {
 
   if (dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'))) {
     if (!globalForPrisma.prisma) {
+      // Append connection pool limits to prevent "max clients reached" on Supabase
+      // Free tier pooler = 15 connections; each Vercel function instance takes one.
+      const poolUrl = dbUrl.includes('?')
+        ? `${dbUrl}&connection_limit=5&pool_timeout=10`
+        : `${dbUrl}?connection_limit=5&pool_timeout=10`
+
       globalForPrisma.prisma = new PrismaClient({
-        datasourceUrl: dbUrl,
+        datasourceUrl: poolUrl,
         log: ['error', 'warn'],
       })
     }
