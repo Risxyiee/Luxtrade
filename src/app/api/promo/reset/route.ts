@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
+import { db, isDatabaseAvailable } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
 
 /**
@@ -23,8 +23,6 @@ export async function POST(request: NextRequest) {
     if (!isDatabaseAvailable()) {
       return NextResponse.json({ error: 'Database tidak tersedia' }, { status: 503 })
     }
-
-    await ensureSchema()
 
     const normalizedCode = code.trim().toUpperCase()
 

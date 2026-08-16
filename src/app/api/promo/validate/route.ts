@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, ensureSchema } from '@/lib/db'
+import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
 
 /**
@@ -12,7 +12,6 @@ import { requireAdmin } from '@/lib/admin-auth'
  */
 export async function POST(request: NextRequest) {
   try {
-    await ensureSchema()
     const { code } = await request.json()
 
     if (!code) {
@@ -111,7 +110,6 @@ export async function GET(request: NextRequest) {
     const { error: authError } = await requireAdmin(request)
     if (authError) return authError
 
-    await ensureSchema()
     const results: any[] = await db.$queryRawUnsafe(`
       SELECT id, code, description, discount_percent, max_quota, used_quota,
              duration_months, start_date, end_date, is_active, created_at

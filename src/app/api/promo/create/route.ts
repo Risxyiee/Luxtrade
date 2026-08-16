@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/api-auth'
-import { db, ensureSchema } from '@/lib/db'
+import { db } from '@/lib/db'
 import { randomUUID } from 'crypto'
 
 /**
@@ -10,7 +10,6 @@ import { randomUUID } from 'crypto'
  */
 export async function POST(request: NextRequest) {
   try {
-    await ensureSchema()
     const authUser = await getAuthUser(request)
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

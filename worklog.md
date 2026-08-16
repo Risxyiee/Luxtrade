@@ -1465,3 +1465,25 @@ Stage Summary:
 - If admin creates a new promo code and deletes the old one, landing page will automatically show the new code (within 60s cache)
 - Announcement bar hides itself when no promo is active
 - No more hardcoded "TRADERCEPAT" anywhere on the landing page
+
+---
+Task ID: emaxconnsession-fix
+Agent: Main
+Task: Fix EMAXCONNSESSION connection pool exhaustion + profile 23505 duplicate key
+
+Work Log:
+- Identified root cause: DB-SYNC route was making 20+ sequential $executeRawUnsafe calls (6 CREATE TABLE + 8 ALTER TABLE + 4 CREATE INDEX), each grabbing a separate connection from Supabase's 15-connection pooler
+- Also identified that ensurePromoTables() was called on every promo/apply and promo-simple/apply request, wasting 2 more connections per request
+- Fixed db-sync/route.ts: consolidated all DDL into a single $executeRawUnsafe call with a batch SQL script, plus added 10s rate limiter
+- Removed ensurePromoTables() from both promo/apply and promo-simple/apply routes
+- Removed ensureSchema() from 8 route files (was already a no-op but still imported/called)
+- Fixed profile INSERT 23505 error: changed to ON CONFLICT (id) DO NOTHING in both promo routes
+- Reduced connection_limit from 5 to 3 in db.ts (allows ~5 concurrent Vercel functions on 15-connection pool)
+- All changes pass eslint cleanly
+
+Stage Summary:
+- DB-SYNC now uses 1 connection instead of 20+
+- Promo endpoints now use 0 extra connections for DDL (was 2 per request)
+- Profile creation handles duplicate key gracefully (ON CONFLICT DO NOTHING)
+- connection_limit=3 prevents any single function from hogging the pool
+- Total files modified: 11 (db-sync, promo/apply, promo-simple/apply, db.ts, + 8 ensureSchema removals)
