@@ -92,9 +92,11 @@ try {
     if (!globalForPrisma.prisma) {
       // Append connection pool limits to prevent "max clients reached" on Supabase
       // Free tier pooler = 15 connections; each Vercel function instance takes one.
+      // Use connection_limit=3: each serverless function needs at most 2-3 connections,
+      // and with 15 pool slots we can safely run ~5 concurrent functions.
       const poolUrl = dbUrl.includes('?')
-        ? `${dbUrl}&connection_limit=5&pool_timeout=10`
-        : `${dbUrl}?connection_limit=5&pool_timeout=10`
+        ? `${dbUrl}&connection_limit=3&pool_timeout=15`
+        : `${dbUrl}?connection_limit=3&pool_timeout=15`
 
       globalForPrisma.prisma = new PrismaClient({
         datasourceUrl: poolUrl,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, ensureSchema, isDatabaseAvailable } from '@/lib/db'
+import { db, isDatabaseAvailable } from '@/lib/db'
 import { sendEmail, getUnverifiedBulkReminderHtml, getVerificationPromoEmailHtml } from '@/lib/email'
 import { requireAdmin } from '@/lib/admin-auth'
 import crypto from 'crypto'
@@ -50,9 +50,6 @@ export async function POST(request: NextRequest) {
     const { target, subject, htmlBody, customText, promoCode } = body
 
     const adminEmail = user!.email || 'admin'
-
-    // Auto-migrate: ensure email_broadcasts table exists
-    await ensureSchema()
 
     // Auto-sync users from Supabase Auth → profiles DB before broadcast
     // This ensures all Auth users exist in the DB for targeting

@@ -12,29 +12,8 @@ import { randomUUID } from 'crypto'
  * 30-slot limit completely ineffective (infinite redemptions).
  */
 
-async function ensurePromoTables() {
-  try {
-    await db.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS promo_codes (
-        id TEXT PRIMARY KEY, code TEXT NOT NULL, description TEXT,
-        discount_percent DOUBLE PRECISION NOT NULL, max_quota INTEGER NOT NULL,
-        used_quota INTEGER NOT NULL DEFAULT 0, duration_months INTEGER NOT NULL,
-        start_date TIMESTAMPTZ NOT NULL DEFAULT NOW(), end_date TIMESTAMPTZ,
-        is_active BOOLEAN NOT NULL DEFAULT true,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `)
-    await db.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS user_subscriptions (
-        id TEXT PRIMARY KEY, user_id TEXT NOT NULL, plan TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'active',
-        start_date TIMESTAMPTZ NOT NULL DEFAULT NOW(), end_date TIMESTAMPTZ,
-        promo_code_id TEXT, discount_percent DOUBLE PRECISION NOT NULL DEFAULT 0,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `)
-  } catch {}
-}
+// ensurePromoTables REMOVED — tables are created via POST /api/admin/db-sync.
+// Running DDL on every promo claim was exhausting the connection pool (EMAXCONNSESSION).
 
 export async function POST(request: NextRequest) {
   const logId = Math.random().toString(36).substring(2, 8)
@@ -44,9 +23,6 @@ export async function POST(request: NextRequest) {
     if (!isDatabaseAvailable()) {
       return NextResponse.json({ success: false, message: 'Database sedang tidak tersedia. Coba lagi nanti.' })
     }
-
-    // Ensure tables exist
-    await ensurePromoTables()
 
     // ══════════════════════════════════════════════════════════════
     // STEP 1: Auth + parse body
@@ -152,7 +128,8 @@ export async function POST(request: NextRequest) {
         try {
           await db.$executeRawUnsafe(`
             INSERT INTO profiles (id, plan, is_pro, subscription_until, pro_expiry, created_at, updated_at)
-            VALUES ($1, 'PRO', true, $2, $2, NOW(), NOW());
+            VALUES ($1, 'PRO', true, $2, $2, NOW(), NOW())
+            ON CONFLICT (id) DO NOTHING;
           `, userId, endDate)
           profileUpdated = true
           console.log(`✅ [promo/apply:${logId}] Profile CREATED + PRO (userId=${userId})`)
