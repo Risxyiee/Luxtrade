@@ -164,18 +164,10 @@ export async function POST(request: NextRequest) {
       console.error(`❌ [promo/apply:${logId}] Profile UPDATE FAILED: ${profErr?.message}`)
     }
 
+    // Even if profile update/create fails, subscription is still valid.
+    // Cron job downgrade-expired-pro will handle profile sync later.
     if (!profileUpdated) {
-      try {
-        await db.$executeRawUnsafe(`DELETE FROM user_subscriptions WHERE id = $1;`, subscriptionId)
-      } catch { /* ok */ }
-      try {
-        await db.$executeRawUnsafe(`UPDATE public.promo_codes SET used_quota = used_quota - 1, updated_at = NOW() WHERE id = $1;`, promo.id)
-      } catch { /* ok */ }
-      return NextResponse.json({
-        success: false,
-        message: 'Gagal mengaktifkan PRO. Silakan hubungi admin untuk bantuan manual.',
-        debugCode: 'PROFILE_UPDATE_FAILED'
-      })
+      console.warn(`⚠️ [promo/apply:${logId}] Profile not updated but subscription is active — cron will sync later`)
     }
 
     // Sync Supabase Auth metadata (non-critical)
