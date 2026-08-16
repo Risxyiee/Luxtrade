@@ -1445,3 +1445,23 @@ Stage Summary:
 - Deleting a promo code does NOT revoke PRO from users who already claimed it (they keep access until subscription expires)
 - Profile creation auto-fix: users without a profile record will get one created when they claim a promo code
 - Admin panel is cleaner: removed redundant TRADERCEPAT promo card from Users tab, all promo management is in PRO & Promo tab
+---
+Task ID: 2
+Agent: main
+Task: Make landing page promo code dynamic instead of hardcoded
+
+Work Log:
+- Discovered "TRADERCEPAT" was hardcoded in 4 locations: page.tsx (fetch URL), PromoCodeSection.tsx (display + clipboard), AnnouncementBar.tsx (banner text)
+- Created new `/api/promo/active` endpoint that returns the first active promo code from database (with 60s cache)
+- Updated `page.tsx`: added `promoCode` state, changed fetch from `/api/promo-quota?code=TRADERCEPAT` to `/api/promo/active`, passed `promoCode` prop to both AnnouncementBar and PromoCodeSection
+- Updated `PromoCodeSection.tsx`: added `promoCode` prop, replaced hardcoded "TRADERCEPAT" with dynamic `{promoCode}` in display and clipboard
+- Updated `AnnouncementBar.tsx`: added `promoCode` and `promoActive` props, dynamically shows promo code name, hides bar entirely when promo is inactive
+- All changes pass ESLint cleanly
+- Landing page compiles with 200 status
+- API `/api/promo/active` returns proper response (code:null locally since no Supabase, will work in production)
+
+Stage Summary:
+- Landing page promo code is now fully dynamic — automatically shows whichever promo code is active in the database
+- If admin creates a new promo code and deletes the old one, landing page will automatically show the new code (within 60s cache)
+- Announcement bar hides itself when no promo is active
+- No more hardcoded "TRADERCEPAT" anywhere on the landing page

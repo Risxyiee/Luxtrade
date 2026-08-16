@@ -6,12 +6,13 @@ import { Sparkles, Check, X } from 'lucide-react'
 
 interface PromoCodeSectionProps {
   language: 'id' | 'en'
+  promoCode: string
   promoRemaining: number | null
   promoMax: number
   promoActive: boolean | null
 }
 
-export default function PromoCodeSection({ language, promoRemaining, promoMax, promoActive }: PromoCodeSectionProps) {
+export default function PromoCodeSection({ language, promoCode, promoRemaining, promoMax, promoActive }: PromoCodeSectionProps) {
   const isAvailable = promoActive !== false && (promoRemaining === null || promoRemaining > 0)
 
   return (
@@ -40,7 +41,7 @@ export default function PromoCodeSection({ language, promoRemaining, promoMax, p
               </h3>
               <p className="text-[var(--lux-text-subtitle)] text-sm mb-6">
                 {!isAvailable
-                  ? (language === 'id' ? 'Semua 30 slot promo sudah terpakai' : 'All 30 promo slots have been taken')
+                  ? (language === 'id' ? 'Semua slot promo sudah terpakai' : 'All promo slots have been taken')
                   : (language === 'id' ? 'Masukkan kode di dashboard untuk klaim langsung' : 'Enter code in dashboard to claim instantly')}
               </p>
 
@@ -50,12 +51,12 @@ export default function PromoCodeSection({ language, promoRemaining, promoMax, p
                 whileTap={isAvailable ? { scale: 0.98 } : {}}
                 onClick={() => {
                   if (!isAvailable) return
-                  navigator.clipboard.writeText('TRADERCEPAT')
+                  navigator.clipboard.writeText(promoCode)
                   alert(language === 'id' ? 'Kode berhasil disalin!' : 'Code copied!')
                 }}
               >
                 <span className={`text-2xl sm:text-3xl font-extrabold bg-gradient-to-r ${isAvailable ? 'from-amber-400 to-orange-400' : 'from-red-400/60 to-red-600/60'} bg-clip-text text-transparent tracking-wider font-mono ${!isAvailable ? 'line-through' : ''}`}>
-                  TRADERCEPAT
+                  {promoCode}
                 </span>
                 <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center shrink-0 ${isAvailable ? 'bg-amber-500/20' : 'bg-red-500/20'}`}>
                   {isAvailable
