@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
+import { db, isDatabaseAvailable } from '@/lib/db'
 
 /**
  * POST /api/promo/downgrade-expired
@@ -14,8 +14,6 @@ export async function POST() {
     if (!isDatabaseAvailable()) {
       return NextResponse.json({ message: 'DB unavailable', downgraded: 0 })
     }
-
-    await ensureSchema()
 
     // Find expired active promo subscriptions
     const expired: any[] = await db.$queryRawUnsafe(`

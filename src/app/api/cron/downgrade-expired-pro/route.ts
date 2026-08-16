@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
+import { db, isDatabaseAvailable } from '@/lib/db'
 
 /**
  * GET|POST /api/cron/downgrade-expired-pro
@@ -30,8 +30,6 @@ async function handleRequest(request: NextRequest) {
   if (!isDatabaseAvailable()) {
     return NextResponse.json({ message: 'DB not available', downgraded: 0 })
   }
-
-  await ensureSchema()
 
   // Ensure tables exist
   try {

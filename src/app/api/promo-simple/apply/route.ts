@@ -6,49 +6,11 @@ import { db } from '@/lib/db'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-/** Ensure promo tables exist — safe to call repeatedly */
-async function ensurePromoTables() {
-  try {
-    await db.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS promo_codes (
-        id TEXT PRIMARY KEY,
-        code TEXT NOT NULL,
-        description TEXT,
-        discount_percent DOUBLE PRECISION NOT NULL,
-        max_quota INTEGER NOT NULL,
-        used_quota INTEGER NOT NULL DEFAULT 0,
-        duration_months INTEGER NOT NULL,
-        start_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        end_date TIMESTAMPTZ,
-        is_active BOOLEAN NOT NULL DEFAULT true,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `)
-    await db.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS user_subscriptions (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        plan TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'active',
-        start_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        end_date TIMESTAMPTZ,
-        promo_code_id TEXT,
-        discount_percent DOUBLE PRECISION NOT NULL DEFAULT 0,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `)
-  } catch {
-    // Tables exist or minor error — continue
-  }
-}
+// ensurePromoTables REMOVED — tables are created via POST /api/admin/db-sync.
+// Running DDL on every promo claim was exhausting the connection pool (EMAXCONNSESSION).
 
 export async function POST(request: NextRequest) {
   try {
-    // Ensure tables exist before any operations
-    await ensurePromoTables()
-
     let body: any = {}
     try {
       body = await request.json()
@@ -140,15 +102,11 @@ export async function POST(request: NextRequest) {
       // Profile might not exist — try upsert
       if (e.message?.includes('Record to update not found') || e.code === 'P2025') {
         try {
-          await db.profile.create({
-            data: {
-              id: userId,
-              plan: 'PRO',
-              is_pro: true,
-              subscription_until: endDate,
-              proExpiry: endDate
-            }
-          })
+          await db.$executeRawUnsafe(`
+            INSERT INTO profiles (id, plan, is_pro, subscription_until, pro_expiry, created_at, updated_at)
+            VALUES ($1, 'PRO', true, $2, $2, NOW(), NOW())
+            ON CONFLICT (id) DO NOTHING;
+          `, userId, endDate)
           console.log(`✅ [Simple Promo] Created new profile for user ${userId}`)
         } catch (createErr: any) {
           console.warn('⚠️ [Simple Promo] Could not create profile:', createErr.message?.substring(0, 100))

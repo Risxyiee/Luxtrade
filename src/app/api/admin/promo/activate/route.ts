@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
+import { db, isDatabaseAvailable } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
 
 export async function POST(request: NextRequest) {
@@ -22,8 +22,6 @@ export async function POST(request: NextRequest) {
   const durationMonths = body.durationMonths ? parseInt(String(body.durationMonths)) : 3
 
   try {
-    await ensureSchema()
-
     // Use raw SQL with the proper db connection (handles Supabase pooler automatically)
     const result: any[] = await (db as any).$queryRawUnsafe(`
       INSERT INTO promo_codes (id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, is_active, created_at, updated_at)
