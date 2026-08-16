@@ -45,6 +45,7 @@ export default function LuxTradeLanding() {
     setShowLegalModal(true)
   }
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [promoCode, setPromoCode] = useState<string>('TRADERCEPAT')
   const [promoRemaining, setPromoRemaining] = useState<number | null>(30)
   const [promoMax, setPromoMax] = useState<number>(30)
   const [promoActive, setPromoActive] = useState<boolean | null>(null)
@@ -65,10 +66,11 @@ export default function LuxTradeLanding() {
 
     Promise.all([
       fetchWithTimeout('/api/landing-stats'),
-      fetchWithTimeout('/api/promo-quota?code=TRADERCEPAT'),
+      fetchWithTimeout('/api/promo/active'),
     ]).then(([statsData, promoData]) => {
       if (statsData) setLandingStats(statsData)
-      if (promoData && promoData.maxQuota > 0) {
+      if (promoData && promoData.code) {
+        setPromoCode(promoData.code)
         setPromoRemaining(promoData.remainingQuota)
         setPromoMax(promoData.maxQuota)
         setPromoActive(promoData.isActive)
@@ -170,7 +172,7 @@ export default function LuxTradeLanding() {
     <div className="min-h-screen bg-lux-bg-primary text-lux-text-primary overflow-x-hidden flex flex-col">
       <InteractiveNeuralVortex />
       <header>
-        <AnnouncementBar language={language} />
+        <AnnouncementBar language={language} promoCode={promoCode} promoActive={promoActive} />
         <LandingNavbar language={language} t={t} onSidebarOpen={() => setSidebarOpen(true)} />
       </header>
       <LandingSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} language={language} t={t} openLegalPage={openLegalPage} />
@@ -180,7 +182,7 @@ export default function LuxTradeLanding() {
         <StatsStrip language={language} t={t} landingStats={landingStats} />
         <SectionDivider />
         <PricingSection language={language} t={t} payLoading={payLoading} handleProUpgrade={handleProUpgrade} handleLifetimeUpgrade={handleLifetimeUpgrade} promoRemaining={promoRemaining} />
-        <PromoCodeSection language={language} promoRemaining={promoRemaining} promoMax={promoMax} promoActive={promoActive} />
+        <PromoCodeSection language={language} promoCode={promoCode} promoRemaining={promoRemaining} promoMax={promoMax} promoActive={promoActive} />
         <SectionDivider />
         <HowItWorksSection language={language} t={t} />
         <div id="demo">
