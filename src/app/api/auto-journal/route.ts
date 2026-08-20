@@ -339,15 +339,40 @@ export async function POST(request: NextRequest) {
     const tradeDuration = Math.round((closeTime.getTime() - openTime.getTime()) / 60000)
     log('✅', `Session: ${session}, Duration: ${tradeDuration}min`)
 
-    // ── STEP 11: Save trade + journal to DB (Supabase) ──
-    log('💾', 'Saving trade to database...')
+    // ── STEP 11: Save journal + trade to DB (Supabase) ──
+    // Journal FIRST (parent) because trades.linked_journal_id has FK → journal_entries.id
+    log('📝', 'Saving journal entry (parent first)...')
     const t4 = performance.now()
 
     const tradeId = randomUUID()
     const journalId = randomUUID()
     const userId = user.id
 
-    // Insert trade
+    const { data: journalRecord, error: journalErr } = await client
+      .from('journal_entries')
+      .insert([{
+        id: journalId,
+        user_id: userId,
+        title: journal.title,
+        content: journal.content,
+        mood: journal.mood,
+        market_condition: journal.market_condition,
+        tags: journal.tags.join(','),
+      }])
+      .select()
+      .single()
+
+    if (journalErr) {
+      log('⛔', `Journal create FAILED: ${journalErr.message}`)
+      return NextResponse.json(
+        { error: 'Gagal menyimpan journal ke database', detail: journalErr.message, step: 'journal_db' },
+        { status: 500 }
+      )
+    }
+    log('✅', `Journal saved: id=${journalId}`)
+
+    // Insert trade (child — references journal via linked_journal_id)
+    log('💾', 'Saving trade to database...')
     const { data: tradeRecord, error: tradeErr } = await client
       .from('trades')
       .insert([{
@@ -387,31 +412,6 @@ export async function POST(request: NextRequest) {
       )
     }
     log('✅', `Trade saved: id=${tradeId}`)
-
-    // Insert journal
-    log('📝', 'Saving journal entry...')
-    const { data: journalRecord, error: journalErr } = await client
-      .from('journal_entries')
-      .insert([{
-        id: journalId,
-        user_id: userId,
-        title: journal.title,
-        content: journal.content,
-        mood: journal.mood,
-        market_condition: journal.market_condition,
-        tags: journal.tags.join(','),
-      }])
-      .select()
-      .single()
-
-    if (journalErr) {
-      log('⛔', `Journal create FAILED: ${journalErr.message}`)
-      return NextResponse.json(
-        { error: 'Gagal menyimpan journal ke database', detail: journalErr.message, step: 'journal_db' },
-        { status: 500 }
-      )
-    }
-    log('✅', `Journal saved: id=${journalId}`)
 
     log('✅', `DB save total: ${(performance.now() - t4).toFixed(0)}ms`)
 
