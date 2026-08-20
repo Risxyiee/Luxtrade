@@ -1,7 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { getAuthUser } from '@/lib/api-auth'
 import { isUserPro } from '@/lib/pro-check'
+import { createClientForApi } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
+
+function getClientWithAuth(request: NextRequest) {
+  const { supabase: cookieClient } = createClientForApi(request)
+  const authHeader = request.headers.get('Authorization')
+  let bearerClient: ReturnType<typeof createClient> | null = null
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7)
+    bearerClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+    ;(bearerClient as any)._bearerToken = token
+  }
+  return { cookieClient, bearerClient }
+}
+
+async function getUserWithSession(request: NextRequest) {
+  const { cookieClient, bearerClient } = getClientWithAuth(request)
+  let { data: { user }, error } = await cookieClient.auth.getUser()
+  if (user) return { user, client: cookieClient }
+  if (bearerClient) {
+    const token = (bearerClient as any)._bearerToken
+    const result = await bearerClient.auth.getUser(token)
+    if (result.data.user) return { user: result.data.user, client: bearerClient }
+  }
+  return { user: null, client: cookieClient }
+}
 
 // In-memory cache keyed by userId+period (30s TTL)
 const analyticsCache = new Map<string, { data: any; expiry: number }>()
@@ -14,12 +38,12 @@ function getCacheKey(userId: string, period: string, accountId: string | null) {
 // GET - Fetch comprehensive analytics using optimized queries
 export async function GET(request: NextRequest) {
   try {
-    const authUser = await getAuthUser(request)
-    if (!authUser) {
+    const { user, client } = await getUserWithSession(request)
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const pro = await isUserPro(authUser.id)
+    const pro = await isUserPro(user.id)
     if (!pro) {
       return NextResponse.json({
         error: 'Fitur ini hanya untuk pengguna PRO. Upgrade ke PRO untuk akses!',
@@ -28,7 +52,7 @@ export async function GET(request: NextRequest) {
       }, { status: 403 })
     }
 
-    const userId = authUser.id
+    const userId = user.id
     const searchParams = request.nextUrl.searchParams
     const period = searchParams.get('period') || 'all'
     const accountId = searchParams.get('account_id') || null
@@ -43,116 +67,96 @@ export async function GET(request: NextRequest) {
     }
 
     // Build date filter
-    let dateFilter: any = {}
+    let dateFilter: string | null = null
     const now = new Date()
 
     if (period === 'week') {
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-      dateFilter = { gte: weekAgo }
+      dateFilter = weekAgo.toISOString()
     } else if (period === 'month') {
       const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
-      dateFilter = { gte: monthAgo }
+      dateFilter = monthAgo.toISOString()
     } else if (period === 'year') {
       const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
-      dateFilter = { gte: yearAgo }
+      dateFilter = yearAgo.toISOString()
     }
 
-    // Build where clause
-    const whereClause: any = { user_id: userId }
-    if (period !== 'all') {
-      whereClause.close_time = dateFilter
+    // ─── Fetch all trades in a single query ───
+    let tradesQuery = client
+      .from('trades')
+      .select('profit_loss, close_time, session, symbol, setup_type, trade_duration, risk_reward_ratio')
+      .eq('user_id', userId)
+
+    if (period !== 'all' && dateFilter) {
+      tradesQuery = tradesQuery.gte('close_time', dateFilter)
     }
     if (accountId) {
-      whereClause.account_id = accountId
+      tradesQuery = tradesQuery.eq('account_id', accountId)
     }
 
-    // ─── OPTIMIZATION: Use Prisma aggregate for basic stats (1 query instead of N) ───
-    const baseAgg = await db.trade.aggregate({
-      where: whereClause,
-      _count: { id: true },
-      _sum: { profit_loss: true },
-      _avg: { profit_loss: true },
-    })
+    const { data: trades } = await tradesQuery.order('close_time', { ascending: true })
 
-    const totalTrades = baseAgg._count.id
-    const totalPL = baseAgg._sum.profit_loss || 0
-
-    // Win/loss aggregate (2 queries instead of scanning all trades)
-    const [winAgg, lossAgg] = await Promise.all([
-      db.trade.aggregate({
-        where: { ...whereClause, profit_loss: { gt: 0 } },
-        _count: { id: true },
-        _sum: { profit_loss: true },
-        _avg: { profit_loss: true },
-      }),
-      db.trade.aggregate({
-        where: { ...whereClause, profit_loss: { lt: 0 } },
-        _count: { id: true },
-        _sum: { profit_loss: true },
-        _avg: { profit_loss: true },
-      }),
-    ])
-
-    const winningTrades = winAgg._count.id
-    const losingTrades = lossAgg._count.id
-    const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0
-    const avgProfit = winAgg._avg.profit_loss || 0
-    const avgLoss = lossAgg._avg.profit_loss || 0
-
-    const grossProfit = winAgg._sum.profit_loss || 0
-    const grossLoss = Math.abs(lossAgg._sum.profit_loss || 0)
-    const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0
-
-    // ─── Only fetch columns needed for time-series computations ───
-    const trades = await db.trade.findMany({
-      where: whereClause,
-      select: {
-        profit_loss: true,
-        close_time: true,
-        session: true,
-        symbol: true,
-        setup_type: true,
-        trade_duration: true,
-        risk_reward_ratio: true,
-      },
-      orderBy: { close_time: 'asc' }, // chronological for equity curve
-    })
-
-    // ─── Max Drawdown + Equity Curve (single pass) ───
-    // Fetch user's default trading account for initial balance
+    // ─── Fetch user's default trading account for initial balance ───
     let startBalance = 10000
     try {
-      const defaultAccount = await db.tradingAccount.findFirst({
-        where: { user_id: userId, is_active: true },
-        orderBy: [{ is_default: 'desc' }, { created_at: 'asc' }],
-        select: { initial_balance: true },
-      })
-      if (defaultAccount && defaultAccount.initial_balance > 0) {
-        startBalance = defaultAccount.initial_balance
+      const { data: account } = await client
+        .from('trading_accounts')
+        .select('initial_balance')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .order('is_default', { ascending: false })
+        .order('created_at', { ascending: true })
+        .limit(1)
+
+      if (account && account.length > 0 && account[0].initial_balance > 0) {
+        startBalance = account[0].initial_balance
       }
     } catch (e) {
       console.warn('[analytics] Could not fetch trading account for initial balance:', e)
     }
 
+    // ─── Compute aggregates in-memory from the single trades fetch ───
+    const totalTrades = trades?.length || 0
+    const totalPL = trades?.reduce((sum, t) => sum + (t.profit_loss || 0), 0) || 0
+
+    const winTrades = trades?.filter(t => t.profit_loss > 0) || []
+    const lossTrades = trades?.filter(t => t.profit_loss < 0) || []
+
+    const winningTrades = winTrades.length
+    const losingTrades = lossTrades.length
+    const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0
+
+    const avgProfit = winTrades.length > 0
+      ? winTrades.reduce((sum, t) => sum + t.profit_loss, 0) / winTrades.length
+      : 0
+    const avgLoss = lossTrades.length > 0
+      ? lossTrades.reduce((sum, t) => sum + t.profit_loss, 0) / lossTrades.length
+      : 0
+
+    const grossProfit = winTrades.reduce((sum, t) => sum + t.profit_loss, 0)
+    const grossLoss = Math.abs(lossTrades.reduce((sum, t) => sum + t.profit_loss, 0))
+    const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0
+
+    // ─── Max Drawdown + Equity Curve (single pass) ───
     let maxDrawdown = 0
     let peak = 0
     let cumulative = startBalance
     const equityCurve: { date: string; equity: number }[] = []
 
-    for (const trade of trades) {
+    for (const trade of trades || []) {
       cumulative += trade.profit_loss
       if (cumulative > peak) peak = cumulative
       const drawdown = peak - cumulative
       if (drawdown > maxDrawdown) maxDrawdown = drawdown
 
       equityCurve.push({
-        date: trade.close_time.toISOString().split('T')[0],
+        date: new Date(trade.close_time).toISOString().split('T')[0],
         equity: Math.round(cumulative * 100) / 100,
       })
     }
 
     // ─── Sharpe Ratio ───
-    const returns = trades.map(t => t.profit_loss)
+    const returns = (trades || []).map(t => t.profit_loss)
     const avgReturn = returns.length > 0 ? returns.reduce((a, b) => a + b, 0) / returns.length : 0
     const variance = returns.length > 0
       ? returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length
@@ -176,8 +180,9 @@ export async function GET(request: NextRequest) {
     let durationSum = 0, durationCount = 0
     let rrSum = 0, rrCount = 0
 
-    for (const trade of trades) {
+    for (const trade of trades || []) {
       const isWin = trade.profit_loss > 0
+      const date = new Date(trade.close_time)
 
       // Session
       const session = trade.session || 'Unknown'
@@ -186,7 +191,6 @@ export async function GET(request: NextRequest) {
       sessionMap.set(session, sess)
 
       // Monthly
-      const date = new Date(trade.close_time)
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
       const month = monthlyMap.get(monthKey) || { pl: 0, trades: 0 }
       month.pl += trade.profit_loss; month.trades++
@@ -258,8 +262,8 @@ export async function GET(request: NextRequest) {
     let currentStreak = 0
     let currentStreakType: 'win' | 'lose' | null = null
 
-    for (let i = trades.length - 1; i >= 0; i--) {
-      const trade = trades[i]
+    for (let i = (trades || []).length - 1; i >= 0; i--) {
+      const trade = trades![i]
       if (currentStreakType === null) {
         currentStreakType = trade.profit_loss > 0 ? 'win' : 'lose'
         currentStreak = 1

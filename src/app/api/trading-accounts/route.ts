@@ -1,15 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/api-auth'
-import { db } from '@/lib/db'
+import { createClientForApi } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
+
+function getClientWithAuth(request: NextRequest) {
+  const { supabase: cookieClient } = createClientForApi(request)
+  const authHeader = request.headers.get('Authorization')
+  let bearerClient: ReturnType<typeof createClient> | null = null
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7)
+    bearerClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+    ;(bearerClient as any)._bearerToken = token
+  }
+  return { cookieClient, bearerClient }
+}
+
+async function getUserWithSession(request: NextRequest) {
+  const { cookieClient, bearerClient } = getClientWithAuth(request)
+  let { data: { user }, error } = await cookieClient.auth.getUser()
+  if (user) return { user, client: cookieClient }
+  if (bearerClient) {
+    const token = (bearerClient as any)._bearerToken
+    const result = await bearerClient.auth.getUser(token)
+    if (result.data.user) return { user: result.data.user, client: bearerClient }
+  }
+  return { user: null, client: cookieClient }
+}
 
 // GET - Fetch all trading accounts for authenticated user
 export async function GET(request: NextRequest) {
   try {
     console.log('🟢 [API /api/trading-accounts GET] Fetching accounts...')
 
-    const authUser = await getAuthUser(request)
+    const { user, client } = await getUserWithSession(request)
 
-    if (!authUser) {
+    if (!user) {
       console.log('❌ [API] Unauthorized - no valid user')
       return NextResponse.json(
         { error: 'Unauthorized - Please login' },
@@ -17,19 +41,24 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const accounts = await db.tradingAccount.findMany({
-      where: {
-        user_id: authUser.id,
-        is_active: true
-      },
-      orderBy: [
-        { is_default: 'desc' },
-        { created_at: 'desc' }
-      ]
-    })
+    const { data: accounts, error } = await client
+      .from('trading_accounts')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .order('is_default', { ascending: false })
+      .order('created_at', { ascending: false })
 
-    console.log(`✅ [API] Found ${accounts.length} accounts for user ${authUser.id}`)
-    return NextResponse.json({ accounts })
+    if (error) {
+      console.error('❌ [API /api/trading-accounts GET] Supabase error:', error)
+      return NextResponse.json(
+        { error: 'Failed to fetch accounts' },
+        { status: 500 }
+      )
+    }
+
+    console.log(`✅ [API] Found ${accounts?.length ?? 0} accounts for user ${user.id}`)
+    return NextResponse.json({ accounts: accounts ?? [] })
   } catch (err) {
     console.error('❌ [API /api/trading-accounts GET] Error:', err)
     return NextResponse.json(
@@ -44,9 +73,9 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🟢 [API /api/trading-accounts POST] Creating trading account...')
 
-    const authUser = await getAuthUser(request)
+    const { user, client } = await getUserWithSession(request)
 
-    if (!authUser) {
+    if (!user) {
       console.log('❌ [API] Unauthorized - no valid user')
       return NextResponse.json(
         { error: 'Unauthorized - Please login' },
@@ -54,7 +83,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const userId = authUser.id
+    const userId = user.id
     const body = await request.json()
     console.log('📊 [API] Request body:', body)
 
@@ -68,33 +97,37 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if this is the first account (make it default)
-    const existingAccounts = await db.tradingAccount.count({
-      where: { user_id: userId }
-    })
+    const { count: existingAccounts } = await client
+      .from('trading_accounts')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
 
-    const isDefault = existingAccounts === 0 || body.is_default === true
+    const isDefault = (existingAccounts ?? 0) === 0 || body.is_default === true
 
     // If setting this as default, unset other defaults
     if (isDefault) {
       console.log('🔄 [API] Setting account as default, unsetting others...')
-      await db.tradingAccount.updateMany({
-        where: { user_id: userId },
-        data: { is_default: false }
-      })
+      await client
+        .from('trading_accounts')
+        .update({ is_default: false })
+        .eq('user_id', userId)
     }
 
+    const currentBalance = body.current_balance
+      ? parseFloat(String(body.current_balance))
+      : (body.initial_balance ? parseFloat(String(body.initial_balance)) : 0)
+
     console.log('💾 [API] Creating trading account in database...')
-    const account = await db.tradingAccount.create({
-      data: {
+    const { data: account, error } = await client
+      .from('trading_accounts')
+      .insert([{
         user_id: userId,
         name: String(body.name),
         broker: body.broker ? String(body.broker) : null,
         account_type: body.account_type ? String(body.account_type) : 'STANDARD',
         account_number: body.account_number ? String(body.account_number) : null,
         initial_balance: body.initial_balance ? parseFloat(String(body.initial_balance)) : 0,
-        current_balance: body.current_balance
-          ? parseFloat(String(body.current_balance))
-          : (body.initial_balance ? parseFloat(String(body.initial_balance)) : 0),
+        current_balance: currentBalance,
         leverage: body.leverage ? parseInt(String(body.leverage)) : 100,
         broker_gmt_offset: body.broker_gmt_offset != null && body.broker_gmt_offset !== ''
           ? parseInt(String(body.broker_gmt_offset))
@@ -102,20 +135,16 @@ export async function POST(request: NextRequest) {
         currency: body.currency ? String(body.currency) : 'USD',
         is_default: Boolean(isDefault),
         is_active: true,
-        created_at: new Date(),
-        updated_at: new Date(),
-      }
-    })
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }])
+      .select()
+      .single()
 
-    console.log('✅ [API] Trading account created successfully:', account.id)
-    return NextResponse.json({ account })
-  } catch (err) {
-    console.error('❌ [API /api/trading-accounts POST] Error:', err)
-    console.error('Error stack:', err instanceof Error ? err.stack : 'No stack trace')
+    if (error) {
+      console.error('❌ [API /api/trading-accounts POST] Supabase error:', error)
 
-    // Check for specific Prisma errors
-    if (err instanceof Error) {
-      if (err.message.includes('Foreign key constraint')) {
+      if (error.code === '23503') {
         console.error('❌ [API] Foreign key constraint violation - profile may not exist')
         return NextResponse.json(
           { error: 'User profile not found. Please try logging out and in again.' },
@@ -123,13 +152,24 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      if (err.message.includes('Unique constraint')) {
+      if (error.code === '23505') {
         return NextResponse.json(
           { error: 'Account number already exists' },
           { status: 409 }
         )
       }
+
+      return NextResponse.json(
+        { error: 'Failed to create account' },
+        { status: 500 }
+      )
     }
+
+    console.log('✅ [API] Trading account created successfully:', account.id)
+    return NextResponse.json({ account })
+  } catch (err) {
+    console.error('❌ [API /api/trading-accounts POST] Error:', err)
+    console.error('Error stack:', err instanceof Error ? err.stack : 'No stack trace')
 
     return NextResponse.json(
       { error: 'Failed to create account' },
