@@ -1,32 +1,75 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/api-auth'
-import { db } from '@/lib/db'
+import { createClientForApi } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { isUserPro } from '@/lib/pro-check'
+
+/** Get a Supabase client with user session (cookie or Bearer token) */
+function getClientWithAuth(request: NextRequest) {
+  // Try cookie-based first
+  const { supabase: cookieClient } = createClientForApi(request)
+  // Also create a Bearer-based client as fallback
+  const authHeader = request.headers.get('Authorization')
+  let bearerClient: ReturnType<typeof createClient> | null = null
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7)
+    bearerClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    // Store token for later use
+    ;(bearerClient as any)._bearerToken = token
+  }
+  return { cookieClient, bearerClient }
+}
+
+async function getUserWithSession(request: NextRequest) {
+  const { cookieClient, bearerClient } = getClientWithAuth(request)
+
+  // Try cookie-based
+  let { data: { user }, error } = await cookieClient.auth.getUser()
+  if (user) return { user, client: cookieClient }
+
+  // Try Bearer token
+  if (bearerClient) {
+    const token = (bearerClient as any)._bearerToken
+    const result = await bearerClient.auth.getUser(token)
+    if (result.data.user) return { user: result.data.user, client: bearerClient }
+  }
+
+  return { user: null, client: cookieClient }
+}
 
 // GET - Fetch watchlist
 export async function GET(request: NextRequest) {
   try {
-    const authUser = await getAuthUser(request)
-    if (!authUser) {
+    const { user, client } = await getUserWithSession(request)
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const items = await db.watchlistItem.findMany({
-      where: { userId: authUser.id },
-      orderBy: { createdAt: 'desc' },
-      take: 200, // reasonable cap
-    })
+    const { data, error } = await client
+      .from('watchlist')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(200)
 
-    return NextResponse.json({
-      items: items.map(item => ({
-        id: item.id,
-        symbol: item.symbol,
-        name: item.name,
-        target_price: item.targetPrice,
-        notes: item.notes,
-        created_at: item.createdAt.toISOString()
-      }))
-    })
+    if (error) {
+      console.error('[watchlist GET] Supabase error:', error)
+      return NextResponse.json({ items: [] })
+    }
+
+    const items = (data || []).map(item => ({
+      id: item.id,
+      symbol: item.symbol,
+      name: item.name,
+      target_price: item.target_price,
+      notes: item.notes,
+      created_at: item.created_at,
+    }))
+
+    return NextResponse.json({ items })
   } catch (error) {
     console.error('[watchlist GET] Error:', error)
     return NextResponse.json({ items: [] })
@@ -36,12 +79,13 @@ export async function GET(request: NextRequest) {
 // POST - Add to watchlist
 export async function POST(request: NextRequest) {
   try {
-    const authUser = await getAuthUser(request)
-    if (!authUser) {
+    const { user, client } = await getUserWithSession(request)
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const pro = await isUserPro(authUser.id)
+    const pro = await isUserPro(user.id)
     if (!pro) {
       return NextResponse.json({ error: 'PRO_REQUIRED', code: 'PRO_REQUIRED' }, { status: 403 })
     }
@@ -52,45 +96,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Symbol is required' }, { status: 400 })
     }
 
-    // Ensure profile exists
-    try {
-      const existing = await db.profile.findUnique({ where: { id: authUser.id } })
-      if (!existing) {
-        await db.profile.create({
-          data: {
-            id: authUser.id,
-            email: authUser.email,
-            plan: 'FREE',
-            is_pro: false,
-            role: 'USER',
-            streakCount: 0,
-            bestStreak: 0,
-            achievements: [],
-          }
-        })
-      }
-    } catch (ensureErr) {
-      console.warn('[watchlist POST] ensureProfile failed (may already exist):', ensureErr)
-    }
-
-    const item = await db.watchlistItem.create({
-      data: {
-        userId: authUser.id,
+    const { data: item, error } = await client
+      .from('watchlist')
+      .insert([{
+        user_id: user.id,
         symbol: body.symbol.toUpperCase(),
         name: body.name || body.symbol.toUpperCase(),
-        targetPrice: body.target_price ? parseFloat(body.target_price) : null,
+        target_price: body.target_price ? parseFloat(body.target_price) : null,
         notes: body.notes || null,
-      }
-    })
+      }])
+      .select()
+      .single()
+
+    if (error) {
+      console.error('[watchlist POST] Supabase error:', error)
+      return NextResponse.json({ error: 'Failed to add to watchlist' }, { status: 500 })
+    }
 
     return NextResponse.json({
       item: {
         id: item.id,
         symbol: item.symbol,
         name: item.name,
-        target_price: item.targetPrice,
+        target_price: item.target_price,
         notes: item.notes,
-        created_at: item.createdAt.toISOString()
+        created_at: item.created_at,
       }
     })
   } catch (error: any) {
@@ -102,8 +132,9 @@ export async function POST(request: NextRequest) {
 // DELETE - Remove from watchlist
 export async function DELETE(request: NextRequest) {
   try {
-    const authUser = await getAuthUser(request)
-    if (!authUser) {
+    const { user, client } = await getUserWithSession(request)
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -114,13 +145,17 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Item ID is required' }, { status: 400 })
     }
 
-    // Verify ownership
-    const item = await db.watchlistItem.findUnique({ where: { id } })
-    if (!item || item.userId !== authUser.id) {
-      return NextResponse.json({ error: 'Item not found' }, { status: 404 })
-    }
+    // Delete with user_id guard ensures ownership (also enforced by RLS)
+    const { error } = await client
+      .from('watchlist')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
 
-    await db.watchlistItem.delete({ where: { id } })
+    if (error) {
+      console.error('[watchlist DELETE] Supabase error:', error)
+      return NextResponse.json({ error: 'Failed to remove from watchlist' }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
