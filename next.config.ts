@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
   // Allow dev requests from 127.0.0.1 (fixes CORS chunk loading issue)
   allowedDevOrigins: ['http://127.0.0.1:8080', 'http://localhost:8080', 'http://localhost:3000', 'http://127.0.0.1:3000'],
 
+  // Don't bundle sharp — it's a native module with platform-specific binaries.
+  // Vercel serverless can't load it. We don't use it on Vercel (dynamic import with fallback).
+  serverExternalPackages: ['sharp'],
+
   // Experimental settings to help with large files
   experimental: {
     optimizePackageImports: ['lucide-react', 'framer-motion'],
