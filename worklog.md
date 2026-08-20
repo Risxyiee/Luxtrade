@@ -1510,3 +1510,23 @@ Stage Summary:
 - Dashboard GET calls now: trades (1-2 Supabase) + watchlist (1) + trading-accounts (1) + analytics (2) = 5-6 Supabase calls (0 Prisma)
 - This should completely resolve EMAXCONNSESSION on Supabase free tier (15 pool connections)
 - Achievement checker (checkAchievementsAfterTrade) still uses Prisma but only fires on POST, not dashboard load
+---
+Task ID: fix-sharp-auto-journal
+Agent: Main
+Task: Fix sharp native module error in /api/auto-journal on Vercel
+
+Work Log:
+- Read auto-journal/route.ts — confirmed sharp is NOT directly imported, uses canvas-based optimizeImage() + analyzeImageBase64WithAiml()
+- Read extractTradeData.ts — found uploadScreenshot() had dynamic import('sharp') for WebP conversion + bug: referenced undefined 'webpBuffer' instead of 'uploadBuffer'
+- Read aiml-vision.ts — found analyzeImageWithAiml() has dynamic import('sharp') but NOT called by auto-journal (only analyzeImageBase64WithAiml which is sharp-free)
+- Removed sharp from uploadScreenshot() entirely — now uploads buffer as-is (JPEG from caller's canvas optimization)
+- Fixed webpBuffer → imageBuffer bug (line 319 was referencing undefined variable)
+- Added 'sharp' to serverExternalPackages in next.config.ts so Next.js won't bundle the native module at build time
+- Lint passes cleanly
+
+Stage Summary:
+- Root cause: Next.js was bundling sharp's native binaries during build, causing ERR_DLOPEN_FAILED on Vercel linux-x64
+- Fix 1: Removed sharp from uploadScreenshot() in extractTradeData.ts (was unused fallback anyway)
+- Fix 2: Added serverExternalPackages: ['sharp'] in next.config.ts to prevent bundling
+- Bonus fix: Fixed pre-existing bug where uploadScreenshot referenced undefined 'webpBuffer' variable
+- Auto-journal flow: canvas optimizeImage → base64 → Gemini API (no sharp anywhere in the chain)

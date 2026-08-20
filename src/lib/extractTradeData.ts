@@ -290,35 +290,20 @@ export async function saveTrade(entry: any) {
 /**
  * Upload screenshot to Supabase Storage.
  * Accepts a pre-optimized buffer (already resized/compressed by caller).
- * Runs sharp webp conversion only — caller should NOT pre-optimize for this.
+ * No sharp dependency — uploads the buffer as-is (JPEG from caller's canvas optimization).
  */
 export async function uploadScreenshot(
   imageBuffer: Buffer,
   userId: string
 ): Promise<string> {
-  // Try sharp for webp conversion, fall back to raw JPEG buffer
-  let uploadBuffer = imageBuffer;
-  let contentType = "image/jpeg";
-  let ext = "jpg";
-
-  try {
-    const sharp = (await import("sharp")).default;
-    uploadBuffer = await sharp(imageBuffer).webp({ quality: 80 }).toBuffer();
-    contentType = "image/webp";
-    ext = "webp";
-  } catch {
-    // sharp not available — upload raw buffer as JPEG
-    console.warn("[uploadScreenshot] sharp not available, uploading raw buffer as JPEG");
-  }
-
-  const path = `${userId}/${Date.now()}.${ext}`;
+  const path = `${userId}/${Date.now()}.jpg`;
 
   try {
     const { error: uploadError } = await supabase.storage
       .from("trade-screenshots")
-      .upload(path, webpBuffer, {
+      .upload(path, imageBuffer, {
         upsert: true,
-        contentType: "image/webp",
+        contentType: "image/jpeg",
       });
 
     if (uploadError) {
