@@ -1487,3 +1487,26 @@ Stage Summary:
 - Profile creation handles duplicate key gracefully (ON CONFLICT DO NOTHING)
 - connection_limit=3 prevents any single function from hogging the pool
 - Total files modified: 11 (db-sync, promo/apply, promo-simple/apply, db.ts, + 8 ensureSchema removals)
+
+---
+Task ID: emaxconnsession-fix-v2
+Agent: Main
+Task: Convert 4 remaining Prisma-heavy dashboard endpoints to Supabase client
+
+Work Log:
+- Identified 4 endpoints that fire simultaneously on dashboard load, consuming 26 Prisma pool connections
+- Converted trades/route.ts: 11 db. calls → Supabase client (GET with cursor, POST with insert, PUT with update, DELETE with eq+delete)
+- Converted watchlist/route.ts: 6 db. calls → Supabase client, removed unnecessary ensureProfile
+- Converted analytics/route.ts: 5 db. aggregate+findMany → 2 Supabase queries + in-memory JS computation (3 aggregate queries merged into 1 fetch)
+- Converted trading-accounts/route.ts: 4 db. calls → Supabase client, fixed double getUserWithSession bug
+- Fixed trades/route.ts: removed ensureProfile (2 db calls), removed post-creation verification query, DELETE now uses single eq+user_id guard
+- Fixed analytics double auth call (getAuthUser + getUserWithSession) → single getUserWithSession
+- All 4 files pass grep verification: 0 `db.` or `from @/lib/db`
+- ESLint passes clean
+- Pushed as commit 0c93fcb
+
+Stage Summary:
+- 26 Prisma pool connections eliminated per dashboard page load
+- Dashboard GET calls now: trades (1-2 Supabase) + watchlist (1) + trading-accounts (1) + analytics (2) = 5-6 Supabase calls (0 Prisma)
+- This should completely resolve EMAXCONNSESSION on Supabase free tier (15 pool connections)
+- Achievement checker (checkAchievementsAfterTrade) still uses Prisma but only fires on POST, not dashboard load
