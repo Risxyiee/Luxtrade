@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { after } from 'next/server'
 import { getAuthUser } from '@/lib/api-auth'
-import { db } from '@/lib/db'
+import { createClientForApi } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { isUserPro } from '@/lib/pro-check'
 import { uploadScreenshot } from '@/lib/extractTradeData'
 import { checkAchievementsAfterTrade } from '@/lib/achievement-checker'
@@ -9,7 +10,36 @@ import {
   analyzeImageBase64WithAiml,
   buildTradeAndJournalPrompt,
 } from '@/lib/aiml-vision'
-import sharp from 'sharp'
+import { randomUUID } from 'crypto'
+
+// ==================== AUTH HELPER ====================
+
+function getClientWithAuth(request: NextRequest) {
+  const { supabase: cookieClient } = createClientForApi(request)
+  const authHeader = request.headers.get('Authorization')
+  let bearerClient: ReturnType<typeof createClient> | null = null
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7)
+    bearerClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    ;(bearerClient as any)._bearerToken = token
+  }
+  return { cookieClient, bearerClient }
+}
+
+async function getUserWithSession(request: NextRequest) {
+  const { cookieClient, bearerClient } = getClientWithAuth(request)
+  let { data: { user }, error } = await cookieClient.auth.getUser()
+  if (user) return { user, client: cookieClient }
+  if (bearerClient) {
+    const token = (bearerClient as any)._bearerToken
+    const result = await bearerClient.auth.getUser(token)
+    if (result.data.user) return { user: result.data.user, client: bearerClient }
+  }
+  return { user: null, client: cookieClient }
+}
 
 // ==================== TYPES ====================
 
@@ -25,7 +55,6 @@ interface GeneratedJournal {
 
 /** Combined AI response — trade data + journal in one object */
 interface CombinedAIResponse {
-  // Trade data
   symbol?: string
   type?: string
   openPrice?: number
@@ -37,7 +66,6 @@ interface CombinedAIResponse {
   takeProfit?: number | null
   volume?: number | null
   ticketNumber?: string | null
-  // Journal data
   journalTitle?: string
   journalContent?: string
   mood?: string
@@ -46,12 +74,57 @@ interface CombinedAIResponse {
   setupType?: string
 }
 
+// ==================== IMAGE OPTIMIZATION (no sharp) ====================
+
+/**
+ * Convert image to JPEG and resize using Canvas API (built-in, no native deps).
+ * Falls back to raw base64 if canvas is unavailable.
+ */
+async function optimizeImage(buffer: Buffer): Promise<{ optimizedBase64: string; optimizedBuffer: Buffer }> {
+  try {
+    // Dynamically import canvas — not available in Edge, but fine in Node.js runtime
+    const { createCanvas, loadImage } = await import('canvas')
+
+    const MAX_WIDTH = 1920
+    const MAX_HEIGHT = 1080
+
+    const image = await loadImage(buffer)
+    let width = image.width
+    let height = image.height
+
+    // Scale down if larger than max dimensions
+    if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+      const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height)
+      width = Math.round(width * ratio)
+      height = Math.round(height * ratio)
+    }
+
+    const canvas = createCanvas(width, height)
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(image, 0, 0, width, height)
+
+    const jpegBuffer = canvas.toBuffer('image/jpeg', { quality: 0.85 })
+    return {
+      optimizedBase64: jpegBuffer.toString('base64'),
+      optimizedBuffer: jpegBuffer,
+    }
+  } catch {
+    // canvas not available (Edge runtime) — just return raw base64
+    return {
+      optimizedBase64: buffer.toString('base64'),
+      optimizedBuffer: buffer,
+    }
+  }
+}
+
 // ==================== MAIN API ====================
+
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   const t0 = performance.now()
 
-  // Helper: log every step with timing so Vercel logs always show WHERE it stops
   const log = (emoji: string, msg: string) => {
     const elapsed = ((performance.now() - t0) / 1000).toFixed(1)
     console.log(`${emoji} [AutoJournal ${elapsed}s] ${msg}`)
@@ -62,21 +135,21 @@ export async function POST(request: NextRequest) {
 
     // ── STEP 1: Auth ──
     log('🔐', 'Checking authentication...')
-    const authUser = await getAuthUser(request)
-    if (!authUser) {
-      log('⛔', 'AUTH FAILED — no valid session/cookie found')
+    const { user, client } = await getUserWithSession(request)
+    if (!user) {
+      log('⛔', 'AUTH FAILED')
       return NextResponse.json(
         { error: 'Unauthorized', detail: 'Tidak ada session login. Coba logout lalu login ulang.', step: 'auth' },
         { status: 401 }
       )
     }
-    log('✅', `Auth OK: userId=${authUser.id}, email=${authUser.email}`)
+    log('✅', `Auth OK: userId=${user.id}, email=${user.email}`)
 
     // ── STEP 2: PRO check ──
     log('💎', 'Checking PRO status...')
     let pro: boolean
     try {
-      pro = await isUserPro(authUser.id)
+      pro = await isUserPro(user.id)
     } catch (err: any) {
       log('⛔', `PRO CHECK CRASHED: ${err.message}`)
       return NextResponse.json(
@@ -86,7 +159,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!pro) {
-      log('⛔', `User is NOT PRO — auto-journal blocked`)
+      log('⛔', `User is NOT PRO`)
       return NextResponse.json(
         {
           error: 'Auto-Journal adalah fitur PRO. Upgrade ke PRO untuk menggunakan AI auto-journal!',
@@ -114,7 +187,7 @@ export async function POST(request: NextRequest) {
 
     const imageFile = formData.get('image') as File
     if (!imageFile) {
-      log('⛔', 'No image file in FormData — field name must be "image"')
+      log('⛔', 'No image file in FormData')
       return NextResponse.json(
         { error: 'File gambar tidak ditemukan. Pastikan field upload bernama "image".', step: 'form_parse' },
         { status: 400 }
@@ -125,7 +198,7 @@ export async function POST(request: NextRequest) {
     // ── STEP 3b: Extract & validate account_id ──
     const accountId = formData.get('account_id') as string | null
     if (!accountId) {
-      log('⛔', 'No account_id provided — required for auto-journal')
+      log('⛔', 'No account_id provided')
       return NextResponse.json(
         { error: 'Pilih akun trading terlebih dahulu sebelum auto-journal.', step: 'validation' },
         { status: 400 }
@@ -133,9 +206,7 @@ export async function POST(request: NextRequest) {
     }
     log('✅', `account_id: ${accountId}`)
 
-    // ── STEP 3c: Extract language preference (default: Indonesian) ──
-    // Frontend sends the current language toggle value ('id' | 'en').
-    // Default to 'id' (Bahasa Indonesia) because that's the app's primary audience.
+    // ── STEP 3c: Extract language preference ──
     const rawLang = (formData.get('language') as string | null)?.toLowerCase()
     const lang: 'id' | 'en' = rawLang === 'en' ? 'en' : 'id'
     log('🌐', `Journal language: ${lang}`)
@@ -155,53 +226,23 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // ── STEP 5: Sharp optimization ──
-    log('🔧', 'Running sharp image optimization...')
+    // ── STEP 5: Image optimization (NO sharp — uses canvas or raw fallback) ──
+    log('🔧', 'Optimizing image...')
     const t1 = performance.now()
-    let optimizedBuffer: Buffer
-    let base64Image: string
-    try {
-      const bytes = await imageFile.arrayBuffer()
-      const buffer = Buffer.from(bytes)
-      optimizedBuffer = await sharp(buffer)
-        .resize(1920, 1080, { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 85 })
-        .toBuffer()
-      base64Image = optimizedBuffer.toString('base64')
-    } catch (err: any) {
-      log('⛔', `Sharp error: ${err.message}`)
-      return NextResponse.json(
-        { error: 'Gagal memproses gambar', detail: err.message, step: 'sharp' },
-        { status: 400 }
-      )
-    }
-    log('✅', `Sharp done in ${(performance.now() - t1).toFixed(0)}ms, base64=${base64Image.length} chars`)
+    const bytes = await imageFile.arrayBuffer()
+    const buffer = Buffer.from(bytes)
+    const { optimizedBase64: base64Image, optimizedBuffer } = await optimizeImage(buffer)
+    log('✅', `Image optimized in ${(performance.now() - t1).toFixed(0)}ms, base64=${base64Image.length} chars`)
 
-    // ── STEP 6: Ensure profile exists in local DB ──
-    log('👤', 'Checking/creating profile in trade DB...')
-    try {
-      const existingProfile = await db.profile.findUnique({
-        where: { id: authUser.id },
-        select: { id: true }
-      })
-      if (!existingProfile) {
-        await db.profile.create({
-          data: {
-            id: authUser.id,
-            email: authUser.email,
-          }
-        })
-        log('👤', 'Profile created (was missing)')
-      } else {
-        log('👤', 'Profile exists')
-      }
-    } catch (err: any) {
-      log('⛔', `Profile DB error: ${err.message}`)
-      return NextResponse.json(
-        { error: 'Database error saat mengecek profile', detail: err.message, step: 'profile_db' },
-        { status: 500 }
-      )
-    }
+    // ── STEP 6: Fetch trading account for broker_gmt_offset ──
+    log('🌐', 'Fetching trading account for broker_gmt_offset...')
+    const { data: tradingAccount } = await client
+      .from('trading_accounts')
+      .select('broker_gmt_offset')
+      .eq('id', accountId)
+      .single()
+    const gmtOffset = tradingAccount?.broker_gmt_offset ?? 0
+    log('✅', `broker_gmt_offset: ${gmtOffset}`)
 
     // ── STEP 7: AI call ──
     log('🤖', 'Starting AI vision call (Gemini → OpenRouter fallback)...')
@@ -259,15 +300,14 @@ export async function POST(request: NextRequest) {
     }
     log('✅', `Validation passed: ${validFields} fields extracted`)
 
-    // ── STEP 10: Build journal object — language-aware fallbacks ──
+    // ── STEP 10: Build journal object ──
     const tradeTypeLabel = ai.type === 'sell' ? 'Short' : 'Long'
-    const tradeTypeLabelId = ai.type === 'sell' ? 'Short' : 'Long'
     const journal: GeneratedJournal = {
       title: ai.journalTitle || (lang === 'id'
-        ? `${ai.symbol || 'Trade'} ${tradeTypeLabelId} di ${ai.openPrice ?? '?'}`
+        ? `${ai.symbol || 'Trade'} ${tradeTypeLabel} di ${ai.openPrice ?? '?'}`
         : `${ai.symbol || 'Trade'} ${tradeTypeLabel} Entry at ${ai.openPrice ?? '?'}`),
       content: ai.journalContent || (lang === 'id'
-        ? `${tradeTypeLabelId} ${ai.symbol || 'unknown'}. Entry di ${ai.openPrice ?? '?'}, exit di ${ai.closePrice ?? '?'}. P/L: ${ai.profitLoss ?? 0}.`
+        ? `${tradeTypeLabel} ${ai.symbol || 'unknown'}. Entry di ${ai.openPrice ?? '?'}, exit di ${ai.closePrice ?? '?'}. P/L: ${ai.profitLoss ?? 0}.`
         : `${tradeTypeLabel} position on ${ai.symbol || 'unknown'}. Entry at ${ai.openPrice ?? '?'}, exit at ${ai.closePrice ?? '?'}. P/L: ${ai.profitLoss ?? 0}.`),
       mood: ai.mood || 'neutral',
       market_condition: ai.marketCondition || 'ranging',
@@ -282,22 +322,10 @@ export async function POST(request: NextRequest) {
       journal.risk_reward_ratio = risk > 0 ? reward / risk : 0
     }
 
-    // ── STEP 10b: Calculate session from trade open time + broker GMT offset ──
-    // broker_gmt_offset is optional on the account (default 0). If user didn't set it,
-    // session calc falls back to treating trade time as UTC.
-    log('🌐', 'Fetching trading account for broker_gmt_offset...')
-
-    const tradingAccount = await db.tradingAccount.findUnique({
-      where: { id: accountId },
-      select: { broker_gmt_offset: true },
-    })
-    const gmtOffset = tradingAccount?.broker_gmt_offset ?? 0
-    log('✅', `broker_gmt_offset: ${gmtOffset}`)
-
+    // ── STEP 10b: Calculate session ──
     const openTime = ai.openTime ? new Date(ai.openTime) : new Date()
     const closeTime = ai.closeTime ? new Date(ai.closeTime) : new Date()
 
-    // Calculate session: convert broker time to UTC by subtracting GMT offset.
     function calculateSession(ot: Date, gmtOff: number): string {
       const utcHour = (ot.getUTCHours() + ot.getUTCMinutes() / 60) - gmtOff
       const normalizedHour = ((utcHour % 24) + 24) % 24
@@ -308,94 +336,93 @@ export async function POST(request: NextRequest) {
     }
 
     const session = calculateSession(openTime, gmtOffset)
-    const tradeDuration = Math.round((closeTime.getTime() - openTime.getTime()) / 60000) // minutes
+    const tradeDuration = Math.round((closeTime.getTime() - openTime.getTime()) / 60000)
     log('✅', `Session: ${session}, Duration: ${tradeDuration}min`)
 
-    // ── STEP 11: Save trade + journal to DB ──
+    // ── STEP 11: Save trade + journal to DB (Supabase) ──
     log('💾', 'Saving trade to database...')
     const t4 = performance.now()
 
-    let tradeRecord: any
-    try {
-      tradeRecord = await db.trade.create({
-        data: {
-          user_id: authUser.id,
-          account_id: accountId,
-          symbol: (ai.symbol || 'UNKNOWN').toUpperCase(),
-          type: (ai.type || 'buy').toUpperCase(),
-          open_price: ai.openPrice ?? 0,
-          close_price: ai.closePrice ?? 0,
-          profit_loss: ai.profitLoss ?? 0,
-          open_time: openTime,
-          close_time: closeTime,
-          stop_loss: ai.stopLoss ?? null,
-          take_profit: ai.takeProfit ?? null,
-          lot_size: ai.volume ?? 0,
-          ticket_number: ai.ticketNumber || null,
-          emotion: journal.mood,
-          setup_type: journal.setup_type,
-          tags: journal.tags.join(','),
-          risk_reward_ratio: journal.risk_reward_ratio,
-          notes: journal.content,
-          session,
-          trade_duration: tradeDuration,
-        }
-      })
-    } catch (err: any) {
-      log('⛔', `Trade create FAILED: ${err.message}`)
+    const tradeId = randomUUID()
+    const journalId = randomUUID()
+    const userId = user.id
+
+    // Insert trade
+    const { data: tradeRecord, error: tradeErr } = await client
+      .from('trades')
+      .insert([{
+        id: tradeId,
+        user_id: userId,
+        account_id: accountId,
+        symbol: (ai.symbol || 'UNKNOWN').toUpperCase(),
+        type: (ai.type || 'buy').toUpperCase(),
+        open_price: ai.openPrice ?? 0,
+        close_price: ai.closePrice ?? 0,
+        profit_loss: ai.profitLoss ?? 0,
+        open_time: openTime.toISOString(),
+        close_time: closeTime.toISOString(),
+        stop_loss: ai.stopLoss ?? null,
+        take_profit: ai.takeProfit ?? null,
+        lot_size: ai.volume ?? 0,
+        ticket_number: ai.ticketNumber || null,
+        emotion: journal.mood,
+        setup_type: journal.setup_type,
+        tags: journal.tags.join(','),
+        risk_reward_ratio: journal.risk_reward_ratio,
+        notes: journal.content,
+        session,
+        trade_duration: tradeDuration,
+        linked_journal_id: journalId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }])
+      .select()
+      .single()
+
+    if (tradeErr) {
+      log('⛔', `Trade create FAILED: ${tradeErr.message}`)
       return NextResponse.json(
-        { error: 'Gagal menyimpan trade ke database', detail: err.message, step: 'trade_db' },
+        { error: 'Gagal menyimpan trade ke database', detail: tradeErr.message, step: 'trade_db' },
         { status: 500 }
       )
     }
-    log('✅', `Trade saved: id=${tradeRecord.id}`)
+    log('✅', `Trade saved: id=${tradeId}`)
 
+    // Insert journal
     log('📝', 'Saving journal entry...')
-    let journalRecord: any
-    try {
-      journalRecord = await db.journalEntry.create({
-        data: {
-          user_id: authUser.id,
-          title: journal.title,
-          content: journal.content,
-          mood: journal.mood,
-          market_condition: journal.market_condition,
-          tags: journal.tags.join(','),
-        }
-      })
-    } catch (err: any) {
-      log('⛔', `Journal create FAILED: ${err.message}`)
+    const { data: journalRecord, error: journalErr } = await client
+      .from('journal_entries')
+      .insert([{
+        id: journalId,
+        user_id: userId,
+        title: journal.title,
+        content: journal.content,
+        mood: journal.mood,
+        market_condition: journal.market_condition,
+        tags: journal.tags.join(','),
+      }])
+      .select()
+      .single()
+
+    if (journalErr) {
+      log('⛔', `Journal create FAILED: ${journalErr.message}`)
       return NextResponse.json(
-        { error: 'Gagal menyimpan journal ke database', detail: err.message, step: 'journal_db' },
+        { error: 'Gagal menyimpan journal ke database', detail: journalErr.message, step: 'journal_db' },
         { status: 500 }
       )
     }
-    log('✅', `Journal saved: id=${journalRecord.id}`)
-
-    log('🔗', 'Linking trade → journal...')
-    try {
-      await db.trade.update({
-        where: { id: tradeRecord.id },
-        data: { linked_journal_id: journalRecord.id }
-      })
-    } catch (err: any) {
-      log('⚠️', `Link trade→journal failed (non-critical): ${err.message}`)
-      // Don't fail the whole request for this
-    }
+    log('✅', `Journal saved: id=${journalId}`)
 
     log('✅', `DB save total: ${(performance.now() - t4).toFixed(0)}ms`)
 
     // ── STEP 12: Background tasks ──
-    const tradeId = tradeRecord.id
-    const userId = authUser.id
     after(async () => {
       if (optimizedBuffer.length > 0) {
         try {
           const url = await uploadScreenshot(optimizedBuffer, userId)
-          await db.trade.update({
-            where: { id: tradeId },
-            data: { screenshot_url: url }
-          })
+          // Update trade with screenshot URL using Supabase
+          const { supabase: bgClient } = createClientForApi(request)
+          await bgClient.from('trades').update({ screenshot_url: url }).eq('id', tradeId)
           console.log(`✅ [AutoJournal BG] Screenshot uploaded + linked`)
         } catch (err: any) {
           console.warn(`⚠️ [AutoJournal BG] Screenshot upload failed: ${err.message}`)

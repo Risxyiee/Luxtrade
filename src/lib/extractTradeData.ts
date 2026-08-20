@@ -48,7 +48,7 @@ export interface ExtractionResult {
 // ==============================================================================
 
 import { createClient } from "@supabase/supabase-js";
-import sharp from "sharp";
+// sharp removed from top-level import — lazy-loaded in uploadScreenshot only
 import { analyzeImageWithAiml, TRADE_EXTRACTION_PROMPT } from "./aiml-vision";
 
 /**
@@ -296,12 +296,22 @@ export async function uploadScreenshot(
   imageBuffer: Buffer,
   userId: string
 ): Promise<string> {
-  // Only convert to webp for storage — caller already resized
-  const webpBuffer = await sharp(imageBuffer)
-    .webp({ quality: 80 })
-    .toBuffer();
+  // Try sharp for webp conversion, fall back to raw JPEG buffer
+  let uploadBuffer = imageBuffer;
+  let contentType = "image/jpeg";
+  let ext = "jpg";
 
-  const path = `${userId}/${Date.now()}.webp`;
+  try {
+    const sharp = (await import("sharp")).default;
+    uploadBuffer = await sharp(imageBuffer).webp({ quality: 80 }).toBuffer();
+    contentType = "image/webp";
+    ext = "webp";
+  } catch {
+    // sharp not available — upload raw buffer as JPEG
+    console.warn("[uploadScreenshot] sharp not available, uploading raw buffer as JPEG");
+  }
+
+  const path = `${userId}/${Date.now()}.${ext}`;
 
   try {
     const { error: uploadError } = await supabase.storage
