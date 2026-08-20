@@ -8,7 +8,9 @@
  * If both fail, throws clear error for user to retry.
  */
 
-import sharp from 'sharp'
+// sharp removed from top-level import — it's a native binary that fails in Vercel serverless.
+// Now lazily imported only in analyzeImageWithAiml() which is the only function that uses it.
+// analyzeImageBase64WithAiml() (used by auto-journal) does NOT need sharp at all.
 
 // ==================== TYPES ====================
 
@@ -175,20 +177,26 @@ async function callOpenRouter(
 
 /**
  * Analyze image with vision model — tries Gemini first, then OpenRouter
- * Accepts raw buffer, does sharp optimization internally.
+ * Accepts raw buffer, does image optimization internally.
  */
 export async function analyzeImageWithAiml(
   imageBuffer: Buffer,
   prompt: string,
   options: VisionOptions = {}
 ): Promise<VisionResult> {
-  // Optimize image: resize + JPEG compression
-  const optimized = await sharp(imageBuffer)
-    .resize(1920, 1080, { fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 85 })
-    .toBuffer()
-
-  const base64Image = optimized.toString('base64')
+  // Lazy-import sharp — only this function needs it
+  let base64Image: string
+  try {
+    const sharp = (await import('sharp')).default
+    const optimized = await sharp(imageBuffer)
+      .resize(1920, 1080, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 85 })
+      .toBuffer()
+    base64Image = optimized.toString('base64')
+  } catch {
+    // sharp not available (e.g. Vercel serverless without native deps) — use raw base64
+    base64Image = imageBuffer.toString('base64')
+  }
   return analyzeImageBase64WithAiml(base64Image, prompt, options)
 }
 
