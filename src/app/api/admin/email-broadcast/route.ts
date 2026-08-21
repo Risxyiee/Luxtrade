@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
       to: adminEmail,
       subject: personalizedSubject,
       html: personalizedHtml,
+      replyTo: 'luxtradee@gmail.com',
     })
 
     if (result.success) {
@@ -203,6 +204,7 @@ export async function POST(request: NextRequest) {
             to: userEmail,
             subject: reminderSubject,
             html,
+            replyTo: 'luxtradee@gmail.com',
           })
 
           if (result.success) {
@@ -220,6 +222,7 @@ export async function POST(request: NextRequest) {
             to: userEmail,
             subject: personalizedSubject,
             html: personalizedHtml,
+            replyTo: 'luxtradee@gmail.com',
           })
 
           if (result.success) {

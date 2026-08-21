@@ -4,6 +4,7 @@ export interface EmailOptions {
   to: string
   subject: string
   html: string
+  replyTo?: string
 }
 
 // Get Resend client only when needed
@@ -17,7 +18,7 @@ async function getResendClient() {
   return new Resend(apiKey)
 }
 
-export async function sendEmail({ to, subject, html }: EmailOptions) {
+export async function sendEmail({ to, subject, html, replyTo }: EmailOptions) {
   const resend = await getResendClient()
 
   if (!resend) {
@@ -25,12 +26,16 @@ export async function sendEmail({ to, subject, html }: EmailOptions) {
   }
 
   try {
-    const { data, error } = await resend.emails.send({
+    const payload: Record<string, unknown> = {
       from: 'LuxTrade <noreply@luxtradee.web.id>',
       to,
       subject,
       html,
-    })
+    }
+    if (replyTo) {
+      payload.replyTo = replyTo
+    }
+    const { data, error } = await resend.emails.send(payload as any)
 
     if (error) {
       // Silently return failure — no error logs to avoid Vercel log spam
