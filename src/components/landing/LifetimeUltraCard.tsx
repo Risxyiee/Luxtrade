@@ -13,7 +13,7 @@ interface LifetimeUltraCardProps {
 export default function LifetimeUltraCard({ onButtonClick, language, t }: LifetimeUltraCardProps) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.1 }} transition={{ delay: 0.3 }}>
-      <div className="h-full bg-[#0a0a1a] border border-amber-500/30 rounded-2xl p-8 pt-10 hover:bg-[#0f0f25] transition-colors">
+      <div className="h-full bg-[#0a0a1a] border border-amber-500/30 rounded-2xl p-8 pt-10 hover:bg-[#0f0f25] transition-colors relative">
         <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-amber-500 text-black text-[11px] font-medium">
           {language === 'id' ? '30 Slot Promo' : '30 Promo Slots'}
         </div>

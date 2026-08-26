@@ -45,8 +45,8 @@ export default function EquityWidget() {
       const gradient = ctx.createLinearGradient(0, 0, 0, height)
       const isPositive = chartData[chartData.length - 1].value >= chartData[0].value
       if (isPositive) {
-        gradient.addColorStop(0, 'rgba(147, 51, 234, 0.3)')
-        gradient.addColorStop(0.5, 'rgba(59, 130, 246, 0.2)')
+        gradient.addColorStop(0, 'rgba(59, 130, 246, 0.3)')
+        gradient.addColorStop(0.5, 'rgba(59, 130, 246, 0.15)')
         gradient.addColorStop(1, 'rgba(59, 130, 246, 0)')
       } else {
         gradient.addColorStop(0, 'rgba(239, 68, 68, 0.2)')
@@ -76,9 +76,8 @@ export default function EquityWidget() {
       })
 
       const lineGradient = ctx.createLinearGradient(0, 0, width, 0)
-      lineGradient.addColorStop(0, '#9333ea')
-      lineGradient.addColorStop(0.5, '#3b82f6')
-      lineGradient.addColorStop(1, '#06b6d4')
+      lineGradient.addColorStop(0, '#2563eb')
+      lineGradient.addColorStop(1, '#60a5fa')
       ctx.strokeStyle = isPositive ? lineGradient : '#ef4444'
       ctx.lineWidth = 2
       ctx.stroke()
