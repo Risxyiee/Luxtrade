@@ -4,6 +4,10 @@ import React, { useState, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { ImageUp, Terminal, CheckCircle2, XCircle } from 'lucide-react'
 
+interface AIVisionSimulatorProps {
+  language?: 'id' | 'en'
+}
+
 const simData: Record<string, { pair: string; type: string; lot: number; entry: number; exit: number; pl: string; session: string }> = {
   xauusd: { pair: 'XAUUSD', type: 'BUY', lot: 0.10, entry: 2034.50, exit: 2041.20, pl: '+$670.00', session: 'New York' },
   eurusd: { pair: 'EURUSD', type: 'BUY', lot: 0.50, entry: 1.0850, exit: 1.0885, pl: '+$175.00', session: 'London' },
@@ -12,7 +16,7 @@ const simData: Record<string, { pair: string; type: string; lot: number; entry: 
 
 const btnLabels: Record<string, string> = { xauusd: 'XAUUSD Buy', eurusd: 'EURUSD Breakout', gbpusd: 'GBPUSD Sell' }
 
-export default function AIVisionSimulator() {
+export default function AIVisionSimulator({ language = 'id' }: AIVisionSimulatorProps) {
   const [activeKey, setActiveKey] = useState<string | null>(null)
   const [scanning, setScanning] = useState(false)
   const [result, setResult] = useState<{ pair: string; type: string; lot: number; entry: number; exit: number; pl: string; session: string } | null>(null)
@@ -62,8 +66,8 @@ export default function AIVisionSimulator() {
           className="text-center mb-16"
         >
           <span className="font-mono text-cyan-400 text-sm">INTERACTIVE DEMO</span>
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mt-2 mb-4 text-white">Coba AI Vision Simulator</h2>
-          <p className="text-gray-400 max-w-2xl mx-auto">Lihat bagaimana AI kami mengekstrak data dari screenshot MT5/TradingView dalam hitungan detik.</p>
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mt-2 mb-4 text-white">{language === 'en' ? 'Try AI Vision Simulator' : 'Coba AI Vision Simulator'}</h2>
+          <p className="text-gray-400 max-w-2xl mx-auto">{language === 'en' ? 'See how our AI extracts data from MT5/TradingView screenshots in seconds.' : 'Lihat bagaimana AI kami mengekstrak data dari screenshot MT5/TradingView dalam hitungan detik.'}</p>
         </motion.div>
 
         <motion.div
@@ -84,7 +88,7 @@ export default function AIVisionSimulator() {
               {!activeKey && !result && (
                 <div className="text-center text-gray-600 p-8">
                   <ImageUp className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <p className="font-mono text-sm">Pilih sample screenshot untuk memulai simulasi AI Vision...</p>
+                  <p className="font-mono text-sm">{language === 'en' ? 'Select a sample screenshot to start the AI Vision simulation...' : 'Pilih sample screenshot untuk memulai simulasi AI Vision...'}</p>
                 </div>
               )}
 
