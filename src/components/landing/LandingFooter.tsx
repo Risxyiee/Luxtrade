@@ -20,8 +20,7 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
             <div className="flex items-center gap-3 mb-4">
               <Image src="/logo.png" alt="LuxTrade Logo" width={40} height={40} className="rounded-xl shadow-lg" />
               <div>
-                <span className="text-xl font-extrabold bg-gradient-to-r from-[var(--lux-text-primary)] via-purple-400 to-purple-500 bg-clip-text text-transparent">LuxTrade</span>
-                <span className="text-[10px] text-purple-400/70 ml-2 tracking-[0.2em] font-bold">PREMIUM</span>
+                <span className="text-xl font-bold text-[var(--lux-text-primary)]">LuxTrade</span>
               </div>
             </div>
             <p className="text-[var(--lux-text-subtitle)] mb-6 max-w-sm text-sm leading-relaxed">
@@ -34,11 +33,10 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
           <div>
             <h4 className="font-bold text-[var(--lux-text-primary)] mb-4 text-sm">{language === 'id' ? 'Produk' : 'Product'}</h4>
             <ul className="space-y-2.5">
-              <li><a href="#features" className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm">{language === 'id' ? 'Fitur' : 'Features'}</a></li>
-              <li><a href="#pricing" className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm">{language === 'id' ? 'Harga' : 'Pricing'}</a></li>
-              <li><a href="#testimonials" className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm">{language === 'id' ? 'Testimoni' : 'Testimonials'}</a></li>
-              <li><a href="#roadmap" className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm">{language === 'id' ? 'Rencana' : 'Roadmap'}</a></li>
-              <li><a href="#demo" className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm">{language === 'id' ? 'Demo' : 'Demo'}</a></li>
+              <li><a href="#features" className="text-[var(--lux-text-subtitle)] hover:text-[var(--lux-text-primary)] transition-colors duration-300 text-sm">{language === 'id' ? 'Fitur' : 'Features'}</a></li>
+              <li><a href="#pricing" className="text-[var(--lux-text-subtitle)] hover:text-[var(--lux-text-primary)] transition-colors duration-300 text-sm">{language === 'id' ? 'Harga' : 'Pricing'}</a></li>
+              <li><a href="#roadmap" className="text-[var(--lux-text-subtitle)] hover:text-[var(--lux-text-primary)] transition-colors duration-300 text-sm">{language === 'id' ? 'Rencana' : 'Roadmap'}</a></li>
+              <li><a href="#demo" className="text-[var(--lux-text-subtitle)] hover:text-[var(--lux-text-primary)] transition-colors duration-300 text-sm">{language === 'id' ? 'Demo' : 'Demo'}</a></li>
             </ul>
           </div>
 
@@ -46,11 +44,11 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
           <div>
             <h4 className="font-bold text-[var(--lux-text-primary)] mb-4 text-sm">{language === 'id' ? 'Perusahaan' : 'Company'}</h4>
             <ul className="space-y-2.5">
-              <li><button onClick={() => openLegalPage('contact')} className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm cursor-pointer">{language === 'id' ? 'Kontak' : 'Contact'}</button></li>
-              <li><button onClick={() => openLegalPage('terms')} className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm cursor-pointer">{language === 'id' ? 'Ketentuan Layanan' : 'Terms of Service'}</button></li>
-              <li><button onClick={() => openLegalPage('refund')} className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm cursor-pointer">Refund Policy</button></li>
-              <li><button onClick={() => openLegalPage('faq')} className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm cursor-pointer">FAQ</button></li>
-              <li><button onClick={() => openLegalPage('privacy')} className="text-[var(--lux-text-subtitle)] hover:text-purple-400 transition-colors text-sm cursor-pointer">{language === 'id' ? 'Kebijakan Privasi' : 'Privacy Policy'}</button></li>
+              <li><button onClick={() => openLegalPage('contact')} className="text-[var(--lux-text-subtitle)] hover:text-[var(--lux-text-primary)] transition-colors duration-300 text-sm cursor-pointer">{language === 'id' ? 'Kontak' : 'Contact'}</button></li>
+              <li><button onClick={() => openLegalPage('terms')} className="text-[var(--lux-text-subtitle)] hover:text-[var(--lux-text-primary)] transition-colors duration-300 text-sm cursor-pointer">{language === 'id' ? 'Ketentuan Layanan' : 'Terms of Service'}</button></li>
+              <li><button onClick={() => openLegalPage('refund')} className="text-[var(--lux-text-subtitle)] hover:text-[var(--lux-text-primary)] transition-colors duration-300 text-sm cursor-pointer">Refund Policy</button></li>
+              <li><button onClick={() => openLegalPage('faq')} className="text-[var(--lux-text-subtitle)] hover:text-[var(--lux-text-primary)] transition-colors duration-300 text-sm cursor-pointer">FAQ</button></li>
+              <li><button onClick={() => openLegalPage('privacy')} className="text-[var(--lux-text-subtitle)] hover:text-[var(--lux-text-primary)] transition-colors duration-300 text-sm cursor-pointer">{language === 'id' ? 'Kebijakan Privasi' : 'Privacy Policy'}</button></li>
             </ul>
           </div>
         </div>

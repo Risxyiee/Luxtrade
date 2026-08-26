@@ -56,7 +56,7 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
             <div className="flex items-center justify-between px-5 h-14 border-b border-[var(--lux-inline-border)]">
               <div className="flex items-center gap-2.5">
                 <Image src="/logo.png" alt="LuxTrade" width={28} height={28} className="rounded-lg" />
-                <span className="text-base font-extrabold bg-gradient-to-r from-[var(--lux-text-primary)] via-purple-300 to-purple-400 bg-clip-text text-transparent">LuxTrade</span>
+                <span className="text-base font-bold text-[var(--lux-text-primary)]">LuxTrade</span>
               </div>
               <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--lux-inline-hover-bg-2)] transition-colors" aria-label="Close">
                 <X className="w-4 h-4 text-[var(--lux-text-body)]" />
@@ -66,14 +66,13 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
             {/* Sidebar Nav Links */}
             <nav className="flex-1 overflow-y-auto py-6 px-3">
               <div className="mb-6">
-                <p className="px-3 mb-3 text-[10px] font-bold tracking-[0.2em] text-purple-400/70 uppercase">
+                <p className="px-3 mb-3 text-[10px] font-medium tracking-[0.15em] text-[var(--lux-text-label-2)] uppercase">
                   {language === 'id' ? 'Produk' : 'Product'}
                 </p>
                 {[
                   { href: '#how-it-works', label: language === 'id' ? 'Cara Kerja' : 'How It Works' },
                   { href: '#features', label: language === 'id' ? 'Fitur' : 'Features' },
                   { href: '#pricing', label: language === 'id' ? 'Harga' : 'Pricing' },
-                  { href: '#testimonials', label: language === 'id' ? 'Testimoni' : 'Testimonials' },
                   { href: '#demo', label: t('hero.cta.secondary') },
                   { href: '#faq', label: 'FAQ' },
                 ].map((link) => (
@@ -90,7 +89,7 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
               </div>
 
               <div className="mb-6">
-                <p className="px-3 mb-3 text-[10px] font-bold tracking-[0.2em] text-purple-400/70 uppercase">
+                <p className="px-3 mb-3 text-[10px] font-medium tracking-[0.15em] text-[var(--lux-text-label-2)] uppercase">
                   {language === 'id' ? 'Perusahaan' : 'Company'}
                 </p>
                 {[
@@ -123,7 +122,7 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
 
               {/* Sidebar Social */}
               <div className="px-3">
-                <p className="px-0 mb-3 text-[10px] font-bold tracking-[0.2em] text-purple-400/70 uppercase">
+                <p className="px-0 mb-3 text-[10px] font-medium tracking-[0.15em] text-[var(--lux-text-label-2)] uppercase">
                   {language === 'id' ? 'Ikuti Kami' : 'Follow Us'}
                 </p>
                 <SocialIcons />
