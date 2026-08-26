@@ -32,43 +32,50 @@ const steps = [
   },
 ]
 
-const ease = [0.32, 0.72, 0, 1] as const
-
 export default function HowItWorksSection({ language }: HowItWorksSectionProps) {
   return (
-    <section id="how-it-works" className="py-28 lg:py-36 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto">
-        {/* Section Header — no eyebrow */}
-        <motion.h2
+    <section id="how-it-works" className="py-24 lg:py-32 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
+        {/* Header */}
+        <motion.div
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.3 }}
-          transition={{ duration: 0.6, ease }}
-          className="text-3xl md:text-[36px] font-normal tracking-[-0.02em] text-[var(--lux-text-primary)] mb-12"
+          transition={{ duration: 0.5 }}
+          className="mb-14"
         >
-          {language === 'id' ? 'Cara Kerja' : 'How It Works'}
-        </motion.h2>
+          <p className="text-[12px] font-medium tracking-[0.18em] uppercase text-[#939599] mb-3">
+            {language === 'id' ? 'CARA KERJA' : 'HOW IT WORKS'}
+          </p>
+          <h2 className="text-3xl md:text-[40px] font-medium tracking-tight text-white">
+            {language === 'id' ? 'Tiga langkah. Trade pertama live dalam hitungan menit.' : 'Three steps. First trade logged in minutes.'}
+          </h2>
+        </motion.div>
 
-        {/* Steps */}
-        <div className="space-y-0">
+        {/* Steps — separated by borders */}
+        <div className="border-t border-white/[0.06]">
           {steps.map((step, i) => (
             <motion.div
               key={step.num}
-              initial={{ opacity: 0, y: 24, filter: 'blur(8px)' }}
-              whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.2 }}
-              transition={{ duration: 0.7, delay: i * 0.12, ease }}
-              className={`py-8 lg:py-10 ${i < steps.length - 1 ? 'border-b border-[var(--lux-inline-border)]' : ''}`}
+              transition={{ duration: 0.5, delay: i * 0.1 }}
+              className={`py-8 ${i < steps.length - 1 ? 'border-b border-white/[0.06]' : ''}`}
             >
-              <span className="text-[13px] font-mono text-[var(--lux-text-label)] tracking-wider block mb-2">
-                {step.num}
-              </span>
-              <h3 className="text-base font-medium text-[var(--lux-text-primary)] mb-2">
-                {language === 'id' ? step.titleId : step.titleEn}
-              </h3>
-              <p className="text-[13px] font-normal text-[var(--lux-text-body)] leading-[1.7]">
-                {language === 'id' ? step.descId : step.descEn}
-              </p>
+              <div className="flex gap-6">
+                <span className="text-[14px] font-mono text-[#d5ff45] shrink-0 w-6">
+                  {step.num}
+                </span>
+                <div>
+                  <h3 className="text-[16px] font-medium text-white mb-1.5">
+                    {language === 'id' ? step.titleId : step.titleEn}
+                  </h3>
+                  <p className="text-[14px] text-[#939599] leading-relaxed">
+                    {language === 'id' ? step.descId : step.descEn}
+                  </p>
+                </div>
+              </div>
             </motion.div>
           ))}
         </div>

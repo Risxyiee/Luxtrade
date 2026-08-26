@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Sparkles, ArrowRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 
 interface AnnouncementBarProps {
   language: 'id' | 'en'
@@ -16,7 +16,6 @@ export default function AnnouncementBar({ language, promoCode, promoActive }: An
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 
-  // Don't show announcement bar if no active promo
   if (promoActive === false && promoCode) {
     return null
   }
@@ -24,15 +23,20 @@ export default function AnnouncementBar({ language, promoCode, promoActive }: An
   const codeDisplay = promoCode || 'PROMO'
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[60] h-9 flex items-center justify-center bg-[#00E5C3] overflow-hidden">
-      <div className="flex items-center gap-2 text-[13px] font-medium text-black">
-        <Sparkles className="w-3.5 h-3.5" />
-        <span>{language === 'id' ? `PROMO ${codeDisplay}` : `${codeDisplay} PROMO`}</span>
-        <span className="hidden sm:inline">—</span>
-        <span className="hidden sm:inline font-medium">{language === 'id' ? '3 Bulan PRO Gratis!' : '3 Months PRO Free!'}</span>
-        <a href="#promo" onClick={scrollToPromo} className="ml-1 text-[12px] font-medium text-black hover:underline flex items-center gap-1 transition-colors duration-300">
-          {language === 'id' ? 'Klaim' : 'Claim'} <ArrowRight className="w-3 h-3" />
-        </a>
+    <div className="w-full border-b border-white/[0.08] bg-[#0a0a0a]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-center">
+        <div className="flex items-center gap-2 text-[12px] text-[#939599]">
+          <span className="bg-[#d5ff45] text-black px-1.5 py-0.5 rounded text-[10px] font-medium">PROMO</span>
+          <span>{codeDisplay}</span>
+          <span className="hidden sm:inline">— {language === 'id' ? '3 Bulan PRO Gratis' : '3 Months PRO Free'}</span>
+          <a
+            href="#promo"
+            onClick={scrollToPromo}
+            className="ml-0.5 text-[#d5ff45] hover:underline flex items-center gap-0.5 transition-colors duration-200"
+          >
+            {language === 'id' ? 'Klaim' : 'Claim'} <ArrowRight className="w-3 h-3" />
+          </a>
+        </div>
       </div>
     </div>
   )

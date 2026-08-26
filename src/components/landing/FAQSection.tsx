@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, HelpCircle } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 
 interface FAQSectionProps {
   language: 'id' | 'en'
@@ -21,46 +21,55 @@ export default function FAQSection({ language }: FAQSectionProps) {
   ]
 
   return (
-    <section id="faq" className="py-20 px-4 sm:px-6 lg:px-8">
+    <section id="faq" className="py-24 lg:py-32 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
-        <div className="flex flex-col items-center mb-12">
-          {/* Unique badge: question mark themed */}
-          <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-gradient-to-r from-purple-500/10 to-violet-500/8 border border-violet-500/20 mb-6">
-            <HelpCircle className="w-4 h-4 text-violet-400" />
-            <span className="text-sm font-bold text-[var(--lux-text-on-surface)]">
-              {language === 'id' ? 'Pertanyaan Umum' : 'Frequently Asked Questions'}
-            </span>
-          </div>
-        </div>
-        <div className="space-y-3">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="mb-14"
+        >
+          <p className="text-[12px] font-medium tracking-[0.18em] uppercase text-[#939599] mb-3">
+            {language === 'id' ? 'PERTANYAAN UMUM' : 'FAQ'}
+          </p>
+          <h2 className="text-3xl md:text-[40px] font-medium tracking-tight text-white">
+            {language === 'id' ? 'Sebelum mulai. Semua yang perlu kamu tahu.' : 'Before you start. Everything you need to know.'}
+          </h2>
+        </motion.div>
+
+        <div className="border-t border-white/[0.06]">
           {faqs.map((faq, index) => {
             const isOpen = openFaq === index
             return (
-              <motion.div key={index} initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.1 }} transition={{ delay: index * 0.06 }}>
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.1 }}
+                transition={{ delay: index * 0.05 }}
+              >
                 <button
                   onClick={() => setOpenFaq(isOpen ? null : index)}
                   aria-expanded={isOpen}
-                  aria-controls={`faq-answer-${index}`}
-                  className={`w-full text-left p-5 bg-[var(--lux-card-surface)] backdrop-blur-sm border rounded-2xl transition-all duration-200 ${isOpen ? 'border-purple-500/30 bg-[var(--lux-card-surface-hover)]' : 'border-[var(--lux-inline-border)] hover:border-[var(--lux-inline-hover-bg-2)] hover:bg-[var(--lux-card-surface-hover)]'}`}
+                  className={`w-full text-left py-6 px-0 border-b border-white/[0.06] last:border-0 transition-colors duration-200 group`}
                 >
                   <div className="flex items-center justify-between gap-4">
-                    <h3 className="text-base font-bold text-[var(--lux-text-primary)]">{faq.q}</h3>
+                    <h3 className="text-[15px] font-medium text-white group-hover:text-[#d5ff45] transition-colors duration-200">{faq.q}</h3>
                     <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                      <ChevronDown className="w-5 h-5 text-purple-400 shrink-0" />
+                      <ChevronDown className="w-4 h-4 text-[#939599] shrink-0" />
                     </motion.div>
                   </div>
                   <AnimatePresence>
                     {isOpen && (
                       <motion.p
-                        id={`faq-answer-${index}`}
-                        role="region"
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.25 }}
                         className="overflow-hidden"
                       >
-                        <span className="block pt-3 text-[var(--lux-text-subtitle)] text-sm leading-relaxed">{faq.a}</span>
+                        <span className="block pt-3 text-[14px] text-[#939599] leading-relaxed max-w-xl">{faq.a}</span>
                       </motion.p>
                     )}
                   </AnimatePresence>

@@ -8,87 +8,98 @@ interface FeaturesSectionProps {
   t: (key: string) => string
 }
 
-const ease = [0.32, 0.72, 0, 1] as const
+const features = {
+  id: [
+    {
+      tag: 'ANALITIK',
+      title: 'Performa Trading, Tervisualisasi',
+      desc: 'Win rate, profit factor, performa bulanan — semua ditampilkan jelas biar kamu tahu seberapa konsisten kamu sebenarnya.',
+    },
+    {
+      tag: 'JURNAL',
+      title: 'Catat Setiap Trade, Review Nanti',
+      desc: 'Log entry, exit, emosi, dan alasan di balik setiap trade. Review nanti biar nggak ngulangin kesalahan yang sama.',
+    },
+    {
+      tag: 'AI',
+      title: 'Deteksi Pola Kerugian Otomatis',
+      desc: 'AI menganalisis histori trade kamu dan nunjukin pola loss yang berulang — yang kamu sendiri nggak sadar.',
+    },
+    {
+      tag: 'WATCHLIST',
+      title: 'Pantau Pair, Jangan Ketinggalan',
+      desc: 'Monitor pair yang kamu incar, catat setup, dan jangan sampai kehilangan momen karena lupa.',
+    },
+  ],
+  en: [
+    {
+      tag: 'ANALYTICS',
+      title: 'Trading Performance, Visualized',
+      desc: 'Win rate, profit factor, monthly performance — all visualized so you know how consistent you really are.',
+    },
+    {
+      tag: 'JOURNAL',
+      title: 'Log Every Trade, Review Later',
+      desc: "Log entry, exit, emotions, and reasoning. Review later so you don't repeat the same mistakes.",
+    },
+    {
+      tag: 'AI',
+      title: 'Automatic Loss Pattern Detection',
+      desc: "AI analyzes your trade history and surfaces losing patterns you didn't even realize you've repeated.",
+    },
+    {
+      tag: 'WATCHLIST',
+      title: 'Watch Pairs, Never Miss a Move',
+      desc: "Watch the pairs you're targeting, log setups, and don't miss moments because you forgot.",
+    },
+  ],
+}
 
 export default function FeaturesSection({ language, t }: FeaturesSectionProps) {
-  const features = language === 'id'
-    ? [
-        {
-          title: 'Analitik Performa',
-          desc: 'Win rate, profit factor, performa bulanan — semua divisualisasi biar kamu tahu seberapa konsisten kamu sebenarnya.',
-        },
-        {
-          title: 'Jurnal Trading',
-          desc: 'Catat entry, exit, emosi, dan alasan di balik setiap trade. Review-nya nanti biar kamu nggak ngulangin kesalahan yang sama.',
-        },
-        {
-          title: 'AI Deteksi Pola',
-          desc: 'AI menganalisis histori trade kamu dan nunjukin pola kerugian yang kamu sendiri nggak sadar sudah berulang puluhan kali.',
-        },
-        {
-          title: 'Watchlist Cerdas',
-          desc: 'Pantau pair yang kamu incar, catat setup yang muncul, dan jangan sampai kehilangan momen karena lupa.',
-        },
-      ]
-    : [
-        {
-          title: 'Performance Analytics',
-          desc: 'Win rate, profit factor, monthly performance — all visualized so you know how consistent you really are.',
-        },
-        {
-          title: 'Trading Journal',
-          desc: "Log entry, exit, emotions, and reasoning behind every trade. Review later so you don't repeat the same mistakes.",
-        },
-        {
-          title: 'AI Pattern Detection',
-          desc: 'AI analyzes your trade history and shows losing patterns you didn\'t even realize you\'ve repeated dozens of times.',
-        },
-        {
-          title: 'Smart Watchlist',
-          desc: 'Watch the pairs you\'re targeting, log setups that appear, and don\'t miss moments because you forgot.',
-        },
-      ]
+  const items = features[language]
 
   return (
-    <section id="features" className="py-28 lg:py-36 px-4 sm:px-6 lg:px-8">
+    <section id="features" className="py-24 lg:py-32 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        {/* Section Header — left-aligned, no badge */}
+        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.3 }}
-          transition={{ duration: 0.6, ease }}
-          className="mb-16 lg:mb-20"
+          transition={{ duration: 0.5 }}
+          className="mb-14"
         >
-          <h2 className="text-3xl md:text-[36px] font-normal tracking-[-0.02em] text-[var(--lux-text-primary)]">
+          <p className="text-[12px] font-medium tracking-[0.18em] uppercase text-[#939599] mb-3">
+            {language === 'id' ? 'FITUR' : 'FEATURES'}
+          </p>
+          <h2 className="text-3xl md:text-[40px] font-medium tracking-tight text-white leading-tight">
             {t('features.title')}
           </h2>
-          <p className="text-[14px] font-medium text-[var(--lux-text-secondary)] max-w-md mt-4 leading-[1.7]">
+          <p className="text-[15px] text-[#939599] max-w-md mt-4 leading-relaxed">
             {t('features.subtitle')}
           </p>
         </motion.div>
 
-        {/* 2x2 Grid — clean cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5">
-          {features.map((feature, index) => (
+        {/* Grid — 2 columns, bordered cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-white/[0.06] rounded-2xl overflow-hidden border border-white/[0.06]">
+          {items.map((feature, index) => (
             <motion.div
               key={index}
-              initial={{ opacity: 0, y: 24, filter: 'blur(8px)' }}
-              whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.15 }}
-              transition={{ duration: 0.7, delay: index * 0.1, ease }}
+              transition={{ duration: 0.5, delay: index * 0.08 }}
+              className="bg-[#0a0a0a] p-8 lg:p-10 hover:bg-[#0f0f0f] transition-colors duration-300"
             >
-              <div className="h-full bg-[var(--lux-card-surface)] border border-[var(--lux-inline-border)] rounded-2xl p-6 lg:p-8 hover:bg-[var(--lux-card-surface-hover)] transition-colors duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]">
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="w-[4px] h-[4px] rounded-full bg-[#00E5C3] shrink-0" />
-                  <h3 className="text-[15px] font-medium text-[var(--lux-text-primary)]">
-                    {feature.title}
-                  </h3>
-                </div>
-                <p className="text-[13px] font-normal text-[var(--lux-text-body)] leading-[1.7]">
-                  {feature.desc}
-                </p>
-              </div>
+              <span className="text-[11px] font-medium tracking-[0.16em] text-[#d5ff45] uppercase block mb-3">
+                {feature.tag}
+              </span>
+              <h3 className="text-[18px] font-medium text-white mb-2 leading-snug">
+                {feature.title}
+              </h3>
+              <p className="text-[14px] text-[#939599] leading-relaxed">
+                {feature.desc}
+              </p>
             </motion.div>
           ))}
         </div>

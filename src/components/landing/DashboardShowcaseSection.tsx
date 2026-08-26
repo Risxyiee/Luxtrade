@@ -4,8 +4,6 @@ import React from 'react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 
-const ease = [0.32, 0.72, 0, 1] as const
-
 const screenshots = [
   { src: '/screenshots/dashboard-1.jpeg', w: 800, h: 600, captionId: 'Dashboard utama — ringkasan performa trading', captionEn: 'Main dashboard — trading performance overview' },
   { src: '/screenshots/dashboard-2.jpeg', w: 800, h: 600, captionId: 'Daftar trade dengan detail lengkap', captionEn: 'Trade list with full details' },
@@ -17,19 +15,19 @@ const screenshots = [
 
 export default function DashboardShowcaseSection({ language }: { language: 'id' | 'en' }) {
   return (
-    <section className="py-24 px-4 sm:px-6 lg:px-8">
+    <section className="py-24 lg:py-32 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.3 }}
-          transition={{ duration: 0.6, ease }}
+          transition={{ duration: 0.5 }}
           className="mb-12"
         >
-          <p className="text-sm font-medium tracking-wide text-[var(--lux-text-label-2)] uppercase mb-4">
+          <p className="text-[12px] font-medium tracking-[0.18em] uppercase text-[#939599] mb-3">
             {language === 'id' ? 'Intip Dashboard-nya' : 'Take a Look Inside'}
           </p>
-          <p className="text-[var(--lux-text-body)] max-w-lg text-base leading-relaxed">
+          <p className="text-[#939599] max-w-lg text-base leading-relaxed">
             {language === 'id'
               ? 'Ini tampilan dashboard yang kamu dapatkan setelah daftar.'
               : 'This is what your dashboard looks like after signing up.'}
@@ -44,8 +42,8 @@ export default function DashboardShowcaseSection({ language }: { language: 'id' 
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.1 }}
-              transition={{ duration: 0.6, delay: i * 0.08, ease }}
-              className={`overflow-hidden rounded-2xl border border-[var(--lux-inline-border)] bg-[var(--lux-card-surface)] ${
+              transition={{ duration: 0.5, delay: i * 0.08 }}
+              className={`overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a0a0a] ${
                 i === 0 ? 'md:col-span-2 md:row-span-2' : ''
               }`}
             >
@@ -60,7 +58,7 @@ export default function DashboardShowcaseSection({ language }: { language: 'id' 
                 />
               </div>
               <div className="px-4 py-3">
-                <p className="text-xs text-[var(--lux-text-label-2)] leading-snug">
+                <p className="text-xs text-white/60 leading-snug">
                   {language === 'id' ? s.captionId : s.captionEn}
                 </p>
               </div>

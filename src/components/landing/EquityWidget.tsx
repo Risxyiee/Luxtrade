@@ -107,29 +107,29 @@ export default function EquityWidget() {
   const changePercent = ((changeAmount / 10500) * 100).toFixed(2)
 
   return (
-    <div className="rounded-2xl backdrop-blur-xl bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] p-6 hover:shadow-[0_0_40px_rgba(139,92,246,0.3)] transition-shadow duration-500">
+    <div className="rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] p-6 transition-shadow duration-200">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-sm text-purple-300/80 font-semibold tracking-wide uppercase text-xs">Portfolio Equity</p>
+          <p className="text-sm text-[#d5ff45]/80 font-semibold tracking-wide uppercase text-xs">Portfolio Equity</p>
           <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-extrabold text-[var(--lux-text-primary)] tracking-tight">
+            <span className="text-3xl font-medium text-white tracking-tight">
               ${currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-            <span className={`flex items-center gap-1 text-sm font-bold ${isUp ? 'text-emerald-400' : 'text-red-400'}`}>
+            <span className={`flex items-center gap-1 text-sm font-medium ${isUp ? 'text-emerald-400' : 'text-red-400'}`}>
               {isUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
               {isUp ? '+' : ''}{changePercent}%
             </span>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className={`px-3 py-1.5 rounded-full text-xs font-bold ${isUp ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'} backdrop-blur-sm`}>
+          <div className={`px-3 py-1.5 rounded-full text-xs font-medium ${isUp ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'} backdrop-blur-sm`}>
             DEMO
           </div>
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
         </div>
       </div>
       <canvas ref={canvasRef} width={500} height={160} className="w-full h-40" />
-      <div className="flex items-center justify-between mt-4 text-xs text-purple-500/60 dark:text-purple-300/60 font-medium">
+      <div className="flex items-center justify-between mt-4 text-xs text-[#939599] font-medium">
         <span>Start: $10,500.00</span>
         <span>Updated just now</span>
       </div>
