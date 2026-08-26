@@ -1,70 +1,113 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 
-const screenshots = [
-  { src: '/screenshots/dashboard-1.jpeg', w: 800, h: 600, captionId: 'Dashboard utama — ringkasan performa trading', captionEn: 'Main dashboard — trading performance overview' },
-  { src: '/screenshots/dashboard-2.jpeg', w: 800, h: 600, captionId: 'Daftar trade dengan detail lengkap', captionEn: 'Trade list with full details' },
-  { src: '/screenshots/dashboard-3.jpeg', w: 800, h: 600, captionId: 'Analitik win rate per pair dan session', captionEn: 'Win rate analytics per pair and session' },
-  { src: '/screenshots/dashboard-4.jpeg', w: 800, h: 600, captionId: 'Jurnal trading otomatis dari screenshot', captionEn: 'Auto journal from screenshot' },
-  { src: '/screenshots/dashboard-5.jpeg', w: 800, h: 600, captionId: 'Equity curve dan performa bulanan', captionEn: 'Equity curve and monthly performance' },
-  { src: '/screenshots/dashboard-6.jpeg', w: 800, h: 600, captionId: 'Kalkulator risiko dan lot size', captionEn: 'Risk calculator and lot sizing' },
+const tabs = [
+  { key: 'overview', src: '/screenshots/dashboard-1.jpeg', captionId: 'Dashboard utama — ringkasan performa trading', captionEn: 'Main dashboard — trading performance overview' },
+  { key: 'trades', src: '/screenshots/dashboard-2.jpeg', captionId: 'Daftar trade dengan detail lengkap', captionEn: 'Trade list with full details' },
+  { key: 'analytics', src: '/screenshots/dashboard-3.jpeg', captionId: 'Analitik win rate per pair dan session', captionEn: 'Win rate analytics per pair and session' },
+  { key: 'journal', src: '/screenshots/dashboard-4.jpeg', captionId: 'Jurnal trading otomatis dari screenshot', captionEn: 'Auto journal from screenshot' },
+  { key: 'equity', src: '/screenshots/dashboard-5.jpeg', captionId: 'Equity curve dan performa bulanan', captionEn: 'Equity curve and monthly performance' },
+  { key: 'calculator', src: '/screenshots/dashboard-6.jpeg', captionId: 'Kalkulator risiko dan lot size', captionEn: 'Risk calculator and lot sizing' },
 ]
 
+const tabLabels = {
+  id: ['Overview', 'Trades', 'Analitik', 'Jurnal', 'Equity', 'Kalkulator'],
+  en: ['Overview', 'Trades', 'Analytics', 'Journal', 'Equity', 'Calculator'],
+}
+
 export default function DashboardShowcaseSection({ language }: { language: 'id' | 'en' }) {
+  const [active, setActive] = useState(0)
+  const current = tabs[active]
+
   return (
     <section className="py-24 lg:py-32 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.5 }}
-          className="mb-12"
+          className="mb-14"
         >
           <p className="text-[12px] font-medium tracking-[0.18em] uppercase text-[#939599] mb-3">
-            {language === 'id' ? 'Intip Dashboard-nya' : 'Take a Look Inside'}
+            {language === 'id' ? 'INTIP DASHBOARD' : 'INSIDE THE APP'}
           </p>
-          <p className="text-[#939599] max-w-lg text-base leading-relaxed">
+          <h2 className="text-3xl md:text-[40px] font-medium tracking-tight text-white leading-tight">
             {language === 'id'
-              ? 'Ini tampilan dashboard yang kamu dapatkan setelah daftar.'
-              : 'This is what your dashboard looks like after signing up.'}
+              ? 'Lihat langsung gimana rasanya.'
+              : 'See what it feels like inside.'}
+          </h2>
+          <p className="text-[15px] text-[#939599] max-w-md mt-4 leading-relaxed">
+            {language === 'id'
+              ? 'Dashboard lengkap untuk catat, analisa, dan perbaiki strategi trading kamu.'
+              : 'A complete dashboard to log, analyze, and improve your trading strategy.'}
           </p>
         </motion.div>
 
-        {/* Bento grid: 2 rows, 3 cols on desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {screenshots.map((s, i) => (
-            <motion.div
-              key={s.src}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.1 }}
-              transition={{ duration: 0.5, delay: i * 0.08 }}
-              className={`overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a0a0a] ${
-                i === 0 ? 'md:col-span-2 md:row-span-2' : ''
-              }`}
-            >
-              <div className={`relative ${i === 0 ? 'aspect-[4/3]' : 'aspect-[4/3]'}`}>
-                <Image
-                  src={s.src}
-                  alt={language === 'id' ? s.captionId : s.captionEn}
-                  width={s.w}
-                  height={s.h}
-                  className="object-cover w-full h-full"
-                  loading="lazy"
-                />
-              </div>
-              <div className="px-4 py-3">
-                <p className="text-xs text-white/60 leading-snug">
-                  {language === 'id' ? s.captionId : s.captionEn}
-                </p>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.15 }}
+          transition={{ duration: 0.5 }}
+          className="rounded-2xl border border-white/[0.08] bg-[#0a0a0a] overflow-hidden"
+        >
+          {/* Tab bar — fake browser tabs */}
+          <div className="flex items-center gap-0 border-b border-white/[0.08] overflow-x-auto">
+            {/* Fake window controls */}
+            <div className="flex items-center gap-1.5 px-4 py-3 shrink-0">
+              <span className="w-2.5 h-2.5 rounded-full bg-white/10" />
+              <span className="w-2.5 h-2.5 rounded-full bg-white/10" />
+              <span className="w-2.5 h-2.5 rounded-full bg-white/10" />
+            </div>
+            {tabs.map((tab, i) => (
+              <button
+                key={tab.key}
+                onClick={() => setActive(i)}
+                className={`px-4 py-3 text-[12px] font-medium whitespace-nowrap transition-colors duration-200 border-b-2 -mb-px ${
+                  active === i
+                    ? 'text-white border-white'
+                    : 'text-[#939599] border-transparent hover:text-white'
+                }`}
+              >
+                {tabLabels[language][i]}
+              </button>
+            ))}
+          </div>
+
+          {/* Screenshot display area */}
+          <div className="relative bg-[#080a0e]">
+            <div className="aspect-[16/10] w-full">
+              {tabs.map((tab, i) => (
+                <div
+                  key={tab.key}
+                  className={`absolute inset-0 transition-opacity duration-300 ${active === i ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                >
+                  <Image
+                    src={tab.src}
+                    alt={language === 'id' ? tab.captionId : tab.captionEn}
+                    fill
+                    className="object-contain"
+                    loading="lazy"
+                    sizes="(max-width: 1024px) 100vw, 1024px"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Caption bar */}
+          <div className="px-5 py-3 border-t border-white/[0.08] flex items-center justify-between">
+            <p className="text-[12px] text-[#939599]">
+              {language === 'id' ? current.captionId : current.captionEn}
+            </p>
+            <p className="text-[11px] text-white/30">
+              {active + 1} / {tabs.length}
+            </p>
+          </div>
+        </motion.div>
       </div>
     </section>
   )
