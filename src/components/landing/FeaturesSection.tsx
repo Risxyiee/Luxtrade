@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
+import { FeaturesSvg } from './SectionSvgArt'
 
 interface FeaturesSectionProps {
   language: 'id' | 'en'
@@ -59,7 +60,8 @@ export default function FeaturesSection({ language, t }: FeaturesSectionProps) {
   const items = features[language]
 
   return (
-    <section id="features" className="py-24 lg:py-32 px-4 sm:px-6 lg:px-8">
+    <section id="features" className="relative py-24 lg:py-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <FeaturesSvg />
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.div

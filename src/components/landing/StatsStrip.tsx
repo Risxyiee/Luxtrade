@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, useInView } from 'framer-motion'
+import { StatsSvg } from './SectionSvgArt'
 
 function AnimatedCounter({ target, suffix = '', duration = 2000 }: { target: number; suffix?: string; duration?: number }) {
   const [count, setCount] = useState(0)
@@ -42,7 +43,8 @@ export default function StatsStrip({ language, t, landingStats }: StatsStripProp
   ]
 
   return (
-    <section className="w-full py-16 px-4 sm:px-6 lg:px-8">
+    <section className="relative w-full py-16 px-4 sm:px-6 lg:px-8">
+      <StatsSvg />
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-8 sm:gap-16">
         {items.map((item, index) => (
           <motion.div

@@ -3,6 +3,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Play, Pause, VolumeX, MonitorPlay } from 'lucide-react'
+import { TutorialSvg } from './SectionSvgArt'
 
 interface TutorialVideoSectionProps {
   language: 'id' | 'en'
@@ -58,6 +59,7 @@ export default function TutorialVideoSection({ language }: TutorialVideoSectionP
 
   return (
     <section className="py-24 lg:py-32 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <TutorialSvg />
 
       <div className="max-w-[400px] sm:max-w-[420px] mx-auto relative z-10">
         {/* Header */}

@@ -3,6 +3,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { Activity, Check, Rocket, DollarSign, Bell, BarChart3, Download, Users } from 'lucide-react'
+import { RoadmapSvg } from './SectionSvgArt'
 
 interface RoadmapSectionProps {
   language: 'id' | 'en'
@@ -10,7 +11,8 @@ interface RoadmapSectionProps {
 
 export default function RoadmapSection({ language }: RoadmapSectionProps) {
   return (
-    <section id="roadmap" className="py-24 lg:py-32 px-4 sm:px-6 lg:px-8">
+    <section id="roadmap" className="relative py-24 lg:py-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <RoadmapSvg />
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col items-center mb-12">
           <p className="text-[12px] font-medium tracking-[0.18em] uppercase text-[#8892b0] mb-3">

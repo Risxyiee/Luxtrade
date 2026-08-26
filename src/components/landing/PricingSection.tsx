@@ -4,6 +4,7 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Crown, BookOpen, Zap, AlertTriangle, Lock, Shield, CreditCard } from 'lucide-react'
+import { PricingSvg } from './SectionSvgArt'
 import LifetimeUltraCard from './LifetimeUltraCard'
 
 interface PricingSectionProps {
@@ -17,7 +18,8 @@ interface PricingSectionProps {
 
 export default function PricingSection({ language, t, payLoading, handleProUpgrade, handleLifetimeUpgrade, promoRemaining }: PricingSectionProps) {
   return (
-    <section id="pricing" className="w-full py-24 lg:py-32">
+    <section id="pricing" className="relative w-full py-24 lg:py-32 overflow-hidden">
+      <PricingSvg />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
