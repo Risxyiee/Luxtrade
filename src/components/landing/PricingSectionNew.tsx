@@ -69,7 +69,7 @@ export default function PricingSectionNew({
               <span className="text-gray-500">/bulan</span>
             </div>
             <ul className="space-y-3 mb-8 text-gray-400 text-sm flex-grow">
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> 50 Trade Entries / bulan</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> 10 Trade Entries / bulan</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Basic Analytics</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Manual Journal Input</li>
               <li className="flex items-center gap-2"><X className="w-4 h-4 text-gray-600" /> AI Pattern Detection</li>
@@ -97,17 +97,18 @@ export default function PricingSectionNew({
             <p className="text-gray-400 text-sm mb-6">Untuk serius membangun edge dan lewati prop firm.</p>
 
             <div className="mb-6">
-              <div className="flex items-end gap-2 transition-all">
-                {promoApplied ? (
-                  <>
-                    <span className="text-gray-500 line-through text-xl mr-2">Rp149K</span>
-                    <span className="text-4xl font-bold text-cyan-400">Rp99K</span>
-                  </>
-                ) : (
-                  <span className="text-4xl font-bold text-white">Rp149K</span>
-                )}
-                <span className="text-gray-500 pb-1">/bulan</span>
-              </div>
+              {promoApplied ? (
+                <div className="flex items-end gap-2 transition-all">
+                  <span className="text-gray-500 line-through text-xl mr-2">Rp39K</span>
+                  <span className="text-4xl font-bold text-cyan-400">Rp25K</span>
+                  <span className="text-gray-500 pb-1">/bulan</span>
+                </div>
+              ) : (
+                <div className="flex items-end gap-2">
+                  <span className="text-4xl font-bold text-white">Rp39K</span>
+                  <span className="text-gray-500 pb-1">/bulan</span>
+                </div>
+              )}
               {promoApplied && (
                 <div className="mt-2 flex items-center gap-2 text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-full w-fit animate-float-lux">
                   <Check className="w-3 h-3" />
