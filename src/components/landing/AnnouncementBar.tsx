@@ -25,15 +25,15 @@ export default function AnnouncementBar({ language, promoCode, promoActive }: An
   const codeDisplay = promoCode || 'PROMO'
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[60] h-10 flex items-center justify-center bg-purple-500/10 border-b border-[var(--lux-inline-border)] backdrop-blur-md overflow-hidden">
-      <div className="flex items-center gap-2 text-sm font-medium tracking-wide">
-        <motion.div animate={{ boxShadow: ['0 0 0 0 rgba(139, 92, 246, 0.7)', '0 0 0 8px rgba(139, 92, 246, 0)', '0 0 0 0 rgba(139, 92, 246, 0.7)'] }} transition={{ duration: 2, repeat: Infinity }}>
-          <Sparkles className="w-4 h-4 text-purple-400" />
+    <div className="fixed top-0 left-0 right-0 z-[60] h-10 flex items-center justify-center bg-[var(--lux-card-surface)]/80 border-b border-white/[0.06] backdrop-blur-2xl overflow-hidden">
+      <div className="flex items-center gap-2.5 text-[13px] font-medium">
+        <motion.div animate={{ boxShadow: ['0 0 0 0 rgba(168, 85, 247, 0.7)', '0 0 0 6px rgba(168, 85, 247, 0)', '0 0 0 0 rgba(168, 85, 247, 0.7)'] }} transition={{ duration: 2.5, repeat: Infinity }}>
+          <Sparkles className="w-3.5 h-3.5 text-purple-400/80" />
         </motion.div>
         <span className="text-[var(--lux-text-on-surface)]">{language === 'id' ? `PROMO ${codeDisplay}` : `${codeDisplay} PROMO`}</span>
-        <span className="hidden sm:inline text-[var(--lux-text-body)]">—</span>
-        <span className="hidden sm:inline text-purple-300 font-bold">{language === 'id' ? '3 Bulan PRO Gratis! Sisa slot terbatas' : '3 Months PRO Free! Limited slots'}</span>
-        <a href="#promo" onClick={scrollToPromo} className="ml-2 text-xs font-bold text-purple-300 hover:text-[var(--lux-text-primary)] flex items-center gap-1 transition-colors">
+        <span className="hidden sm:inline text-[var(--lux-text-label)]">—</span>
+        <span className="hidden sm:inline text-purple-300/80 font-medium">{language === 'id' ? '3 Bulan PRO Gratis!' : '3 Months PRO Free!'}</span>
+        <a href="#promo" onClick={scrollToPromo} className="ml-1.5 text-[12px] font-semibold text-purple-300/80 hover:text-[var(--lux-text-primary)] flex items-center gap-1 transition-colors duration-300">
           {language === 'id' ? 'Klaim' : 'Claim'} <ArrowRight className="w-3 h-3" />
         </a>
       </div>

@@ -188,15 +188,13 @@ export default function LuxTradeLanding() {
         <div id="demo">
           <TutorialVideoSection language={language} />
         </div>
-        <SectionDivider />
         <FeaturesSection language={language} t={t} />
         <CTASectionBreak language={language} />
-        <DashboardShowcaseSection language={language} />
         <SectionDivider />
+        <DashboardShowcaseSection language={language} />
         <FAQSection language={language} />
         <SectionDivider />
         <RoadmapSection language={language} />
-        <SectionDivider />
         <NewsletterSection language={language} newsletterEmail={newsletterEmail} setNewsletterEmail={setNewsletterEmail} newsletterLoading={newsletterLoading} newsletterSuccess={newsletterSuccess} handleNewsletterSubmit={handleNewsletterSubmit} />
       </main>
 
