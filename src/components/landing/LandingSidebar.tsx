@@ -50,15 +50,15 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
             role="dialog"
             aria-modal="true"
             aria-label={language === 'id' ? 'Menu navigasi' : 'Navigation menu'}
-            className="fixed top-0 left-0 bottom-0 z-[80] w-[280px] bg-[var(--lux-sidebar-panel-bg)] backdrop-blur-xl border-r border-[var(--lux-inline-border)] flex flex-col"
+            className="fixed top-0 left-0 bottom-0 z-[80] w-[280px] bg-[var(--lux-sidebar-panel-bg)] border-r border-[var(--lux-inline-border)] flex flex-col"
           >
             {/* Sidebar Header */}
             <div className="flex items-center justify-between px-5 h-14 border-b border-[var(--lux-inline-border)]">
               <div className="flex items-center gap-2.5">
                 <Image src="/logo.png" alt="LuxTrade" width={28} height={28} className="rounded-lg" />
-                <span className="text-base font-bold text-[var(--lux-text-primary)]">LuxTrade</span>
+                <span className="text-base font-medium text-[var(--lux-text-primary)]">LuxTrade</span>
               </div>
-              <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--lux-inline-hover-bg-2)] transition-colors" aria-label="Close">
+              <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--lux-inline-hover-bg)] transition-colors" aria-label="Close">
                 <X className="w-4 h-4 text-[var(--lux-text-body)]" />
               </button>
             </div>
@@ -66,7 +66,7 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
             {/* Sidebar Nav Links */}
             <nav className="flex-1 overflow-y-auto py-6 px-3">
               <div className="mb-6">
-                <p className="px-3 mb-3 text-[10px] font-medium tracking-[0.15em] text-[var(--lux-text-label-2)] uppercase">
+                <p className="px-3 mb-3 text-[11px] font-medium tracking-[0.15em] text-[var(--lux-text-secondary)] uppercase">
                   {language === 'id' ? 'Produk' : 'Product'}
                 </p>
                 {[
@@ -80,7 +80,7 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
                     key={link.href}
                     href={link.href}
                     onClick={onClose}
-                    className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-[var(--lux-text-body-2)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg)] transition-all group"
+                    className="flex items-center justify-between px-3 py-2.5 rounded-xl text-[14px] font-normal text-[var(--lux-text-secondary)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg)] transition-colors duration-300 group"
                   >
                     <span>{link.label}</span>
                     <ChevronRight className="w-3.5 h-3.5 text-[var(--lux-text-label-3)] group-hover:text-[var(--lux-text-label-2)] transition-colors" />
@@ -89,7 +89,7 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
               </div>
 
               <div className="mb-6">
-                <p className="px-3 mb-3 text-[10px] font-medium tracking-[0.15em] text-[var(--lux-text-label-2)] uppercase">
+                <p className="px-3 mb-3 text-[11px] font-medium tracking-[0.15em] text-[var(--lux-text-secondary)] uppercase">
                   {language === 'id' ? 'Perusahaan' : 'Company'}
                 </p>
                 {[
@@ -101,7 +101,7 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
                   <a
                     key={item.tab}
                     onClick={() => { openLegalPage(item.tab); onClose() }}
-                    className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-[var(--lux-text-body-2)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg)] transition-all group cursor-pointer"
+                    className="flex items-center justify-between px-3 py-2.5 rounded-xl text-[14px] font-normal text-[var(--lux-text-secondary)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg)] transition-colors duration-300 group cursor-pointer"
                   >
                     <span>{item.label}</span>
                     <ChevronRight className="w-3.5 h-3.5 text-[var(--lux-text-label-3)] group-hover:text-[var(--lux-text-label-2)] transition-colors" />
@@ -113,16 +113,16 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
               <div className="px-3 mb-6">
                 <button
                   onClick={toggleTheme}
-                  className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-[var(--lux-text-body-2)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg)] transition-all group"
+                  className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-[14px] font-normal text-[var(--lux-text-secondary)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg)] transition-colors duration-300 group"
                 >
-                  {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-purple-400" />}
+                  {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
                   <span>{isDark ? (language === 'id' ? 'Mode Terang' : 'Light Mode') : (language === 'id' ? 'Mode Gelap' : 'Dark Mode')}</span>
                 </button>
               </div>
 
               {/* Sidebar Social */}
               <div className="px-3">
-                <p className="px-0 mb-3 text-[10px] font-medium tracking-[0.15em] text-[var(--lux-text-label-2)] uppercase">
+                <p className="px-0 mb-3 text-[11px] font-medium tracking-[0.15em] text-[var(--lux-text-secondary)] uppercase">
                   {language === 'id' ? 'Ikuti Kami' : 'Follow Us'}
                 </p>
                 <SocialIcons />
