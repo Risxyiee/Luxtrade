@@ -20,7 +20,7 @@ import ScrollToTopButton from '@/components/landing/ScrollToTopButton'
 import { PRICING } from '@/lib/pricing'
 
 const PricingSection = dynamic(() => import('@/components/landing/PricingSection').then(m => ({ default: m.default })), { ssr: false })
-const TutorialVideoSection = dynamic(() => import('@/components/landing/TutorialVideoSection').then(m => ({ default: m.default })), { ssr: false })
+const DashboardShowcase = dynamic(() => import('@/components/landing/DashboardShowcase').then(m => ({ default: m.default })), { ssr: false })
 const CTASectionBreak = dynamic(() => import('@/components/landing/CTASectionBreak').then(m => ({ default: m.default })), { ssr: false })
 const RoadmapSection = dynamic(() => import('@/components/landing/RoadmapSection').then(m => ({ default: m.default })), { ssr: false })
 const NewsletterSection = dynamic(() => import('@/components/landing/NewsletterSection').then(m => ({ default: m.default })), { ssr: false })
@@ -182,9 +182,7 @@ export default function LuxTradeLanding() {
         <StatsStrip language={language} t={t} landingStats={landingStats} />
         <SectionDivider />
         <HowItWorksSection language={language} t={t} />
-        <div id="demo">
-          <TutorialVideoSection language={language} />
-        </div>
+        <DashboardShowcase language={language} />
         <FeaturesSection language={language} t={t} />
         <CTASectionBreak language={language} />
         <SectionDivider />

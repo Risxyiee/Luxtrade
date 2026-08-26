@@ -40,29 +40,31 @@ export default function StatsStrip({ language, t, landingStats }: StatsStripProp
   const items = [
     { value: stats.totalUsers, suffix: '+', label: language === 'id' ? 'Trader Terdaftar' : 'Registered Traders' },
     { value: stats.tradesLogged, suffix: '+', label: language === 'id' ? 'Trade Tercatat' : 'Trades Logged' },
+    { value: 50, suffix: '%', label: language === 'id' ? 'Avg. Win Rate' : 'Avg. Win Rate', isStatic: true },
+    { value: 3, suffix: '', label: language === 'id' ? 'Pair Tersedia' : 'Pairs Supported', isStatic: true },
   ]
 
   return (
     <section className="relative w-full py-16 px-4 sm:px-6 lg:px-8">
       <StatsSvg />
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-8 sm:gap-16">
+      <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
         {items.map((item, index) => (
           <motion.div
             key={index}
-            initial={{ opacity: loaded ? 0 : 1, y: loaded ? 12 : 0 }}
+            initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: index * 0.08 }}
-            className="flex items-baseline gap-2"
+            className="text-center md:text-left"
           >
-            <span className="text-2xl font-medium text-blue-400 tabular-nums">
-              {loaded ? (
-                <AnimatedCounter target={item.value} suffix={item.suffix} />
-              ) : (
+            <span className="text-2xl md:text-3xl font-medium text-blue-400 tabular-nums block">
+              {item.isStatic || !loaded ? (
                 <span>{item.value}{item.suffix}</span>
+              ) : (
+                <AnimatedCounter target={item.value} suffix={item.suffix} />
               )}
             </span>
-            <span className="text-[13px] text-[#8892b0]">
+            <span className="text-[13px] text-[#8892b0] block mt-1">
               {item.label}
             </span>
           </motion.div>
