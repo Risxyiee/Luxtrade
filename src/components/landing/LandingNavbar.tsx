@@ -4,8 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowRight, Sun, Moon } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Sun, Moon } from 'lucide-react'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 interface LandingNavbarProps {
@@ -21,27 +20,31 @@ export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNav
     if (typeof window === 'undefined') return true
     return localStorage.getItem('luxtrade-theme') !== 'light'
   })
-
+  const [scrolled, setScrolled] = useState(false)
   const [activeSection, setActiveSection] = useState('')
 
-  // Track active section on scroll
+  // Track scroll for navbar appearance
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 60)
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Track active section
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setActiveSection(entry.target.id)
-          }
+          if (entry.isIntersecting) setActiveSection(entry.target.id)
         }
       },
       { rootMargin: '-30% 0px -60% 0px' }
     )
-
     for (const id of SECTION_IDS) {
       const el = document.getElementById(id)
       if (el) observer.observe(el)
     }
-
     return () => observer.disconnect()
   }, [])
 
@@ -62,51 +65,74 @@ export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNav
   ]
 
   return (
-    <nav className="fixed top-10 left-0 right-0 z-50">
-      <div className="backdrop-blur-xl bg-[var(--lux-navbar-bg)] border-b border-[var(--lux-inline-border)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Image src="/logo.png" alt="LuxTrade Logo" width={40} height={40} className="rounded-xl shadow-lg" />
-                <motion.div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[var(--lux-bg-primary)]" animate={{ boxShadow: ['0 0 0 0 rgba(16, 185, 129, 0.7)', '0 0 0 8px rgba(16, 185, 129, 0)', '0 0 0 0 rgba(16, 185, 129, 0.7)'] }} transition={{ duration: 2, repeat: Infinity }} />
-              </div>
-              <div>
-                <span className="text-xl font-extrabold bg-gradient-to-r from-[var(--lux-text-primary)] via-purple-300 to-purple-400 bg-clip-text text-transparent">LuxTrade</span>
-                <span className="hidden sm:inline text-[10px] text-purple-400/70 ml-2 tracking-[0.2em] font-bold">PREMIUM</span>
-              </div>
+    <motion.nav
+      initial={{ opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: [0.32, 0.72, 0, 1], delay: 0.1 }}
+      className={`fixed top-5 left-0 right-0 z-50 flex justify-center px-4 transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] ${scrolled ? 'top-3' : 'top-5'}`}
+    >
+      {/* Floating Pill Navbar */}
+      <div className={`w-full max-w-3xl backdrop-blur-2xl border rounded-full transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)] ${scrolled ? 'bg-[var(--lux-navbar-bg)] border-white/[0.08] shadow-lg shadow-black/20' : 'bg-[var(--lux-navbar-bg)]/60 border-white/[0.06]'}`}>
+        <div className="flex items-center justify-between px-4 sm:px-2 h-12 sm:h-14">
+          {/* Logo */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <Image src="/logo.png" alt="LuxTrade" width={32} height={32} className="rounded-lg" />
+            <span className="text-base font-bold text-[var(--lux-text-primary)] tracking-tight hidden sm:block">
+              LuxTrade
+            </span>
+          </div>
+
+          {/* Nav Links — Desktop */}
+          <div className="hidden lg:flex items-center gap-1">
+            {navLinks.map((item) => {
+              const isActive = activeSection === item.key
+              return (
+                <a
+                  key={item.key}
+                  href={`#${item.key}`}
+                  className={`relative px-3 py-1.5 text-[13px] font-medium rounded-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isActive ? 'text-[var(--lux-text-primary)] bg-white/[0.08]' : 'text-[var(--lux-text-body)] hover:text-[var(--lux-text-primary)]'}`}
+                >
+                  {item.label}
+                </a>
+              )
+            })}
+          </div>
+
+          {/* Right Actions */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={toggleTheme}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--lux-text-body)] hover:text-[var(--lux-text-primary)] hover:bg-white/[0.06] transition-all duration-300 shrink-0"
+              aria-label="Toggle theme"
+            >
+              {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            </button>
+            <div className="hidden sm:flex items-center">
+              <LanguageSwitcher />
             </div>
-            <div className="hidden md:flex items-center gap-8">
-              {navLinks.map((item) => {
-                const isActive = activeSection === item.key
-                return (
-                  <a key={item.key} href={`#${item.key}`} className={`text-sm font-medium transition-colors relative group ${isActive ? 'text-[var(--lux-text-primary)]' : 'text-[var(--lux-text-body)] hover:text-[var(--lux-text-primary)]'}`}>
-                    {item.label}
-                    <span className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 transition-all duration-300 ${isActive ? 'w-full' : 'w-0 group-hover:w-full'}`} />
-                  </a>
-                )
-              })}
-            </div>
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <button onClick={toggleTheme} className="w-9 h-9 sm:w-11 sm:h-11 flex items-center justify-center rounded-lg sm:rounded-xl bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] hover:bg-[var(--lux-inline-hover-bg-3)] transition-colors shrink-0" aria-label="Toggle theme">
-                {isDark ? <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" /> : <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400" />}
-              </button>
-              <button onClick={onSidebarOpen} className="lg:hidden w-9 h-9 sm:w-11 sm:h-11 flex items-center justify-center rounded-lg sm:rounded-xl bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] hover:bg-[var(--lux-inline-hover-bg-3)] transition-colors shrink-0" aria-label="Menu">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-[var(--lux-text-body-2)]"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-              </button>
-              <div className="hidden sm:flex items-center gap-2">
-                <LanguageSwitcher />
-              </div>
-              <Link href="/auth/login" prefetch={false} className="inline-flex shrink-0 max-[360px]:hidden"><Button variant="ghost" size="sm" className="text-[var(--lux-text-body-2)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg-3)] transition-all font-semibold px-2.5 sm:px-3">{t('nav.login')}</Button></Link>
-              <Link href="/auth/signup" prefetch={false} className="shrink-0">
-                <Button size="sm" className="h-8 sm:h-10 px-2.5 sm:px-5 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 transition-all text-xs sm:text-sm">
-                  {t('nav.signup')} <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
-                </Button>
-              </Link>
-            </div>
+            <button
+              onClick={onSidebarOpen}
+              className="lg:hidden w-8 h-8 rounded-full flex items-center justify-center text-[var(--lux-text-body)] hover:text-[var(--lux-text-primary)] hover:bg-white/[0.06] transition-all duration-300 shrink-0"
+              aria-label="Menu"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <Link href="/auth/login" prefetch={false} className="hidden md:inline-flex shrink-0">
+              <span className="px-3 py-1.5 text-[13px] font-medium text-[var(--lux-text-body)] hover:text-[var(--lux-text-primary)] transition-colors duration-300">
+                {t('nav.login')}
+              </span>
+            </Link>
+            <Link href="/auth/signup" prefetch={false} className="shrink-0 group">
+              <span className="flex items-center gap-1.5 h-8 pl-4 pr-1.5 rounded-full bg-white text-black text-[13px] font-semibold hover:bg-white/90 active:scale-[0.97] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]">
+                {t('nav.signup')}
+                <span className="w-6 h-6 rounded-full bg-black/10 flex items-center justify-center group-hover:translate-x-px transition-transform duration-300">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </span>
+              </span>
+            </Link>
           </div>
         </div>
       </div>
-    </nav>
+    </motion.nav>
   )
 }

@@ -36,18 +36,20 @@ const ease = [0.32, 0.72, 0, 1] as const
 
 export default function HowItWorksSection({ language }: HowItWorksSectionProps) {
   return (
-    <section id="how-it-works" className="py-24 px-4 sm:px-6 lg:px-8">
+    <section id="how-it-works" className="py-28 lg:py-36 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
-        <motion.p
-          initial={{ opacity: 0, y: 16 }}
+        {/* Eyebrow */}
+        <motion.span
+          initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.6, ease }}
-          className="text-sm font-medium tracking-wide text-[var(--lux-text-label-2)] uppercase mb-4"
+          className="inline-flex items-center rounded-full px-4 py-1.5 text-[10px] uppercase tracking-[0.2em] font-medium text-[var(--lux-text-label-2)] bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] mb-12"
         >
           {language === 'id' ? 'Cara Kerja' : 'How It Works'}
-        </motion.p>
+        </motion.span>
 
+        {/* Steps */}
         <div className="space-y-0">
           {steps.map((step, i) => (
             <motion.div
@@ -55,17 +57,18 @@ export default function HowItWorksSection({ language }: HowItWorksSectionProps) 
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.2 }}
-              transition={{ duration: 0.6, delay: i * 0.1, ease }}
-              className={`flex gap-6 sm:gap-10 py-8 ${i < steps.length - 1 ? 'border-b border-[var(--lux-inline-border)]' : ''}`}
+              transition={{ duration: 0.7, delay: i * 0.12, ease }}
+              className={`group flex gap-6 sm:gap-10 py-8 lg:py-10 ${i < steps.length - 1 ? 'border-b border-[var(--lux-inline-border)]' : ''}`}
             >
-              <span className="text-5xl sm:text-6xl font-bold text-[var(--lux-text-label)] leading-none select-none shrink-0 pt-0.5">
+              {/* Step Number — monospace, subtle */}
+              <span className="text-[11px] lg:text-xs font-mono tracking-widest text-[var(--lux-text-label)] pt-1.5 select-none shrink-0">
                 {step.num}
               </span>
               <div className="flex flex-col justify-center min-w-0">
-                <h3 className="text-lg font-semibold text-[var(--lux-text-primary)] mb-1.5">
+                <h3 className="text-lg lg:text-xl font-semibold text-[var(--lux-text-primary)] mb-2 tracking-[-0.01em]">
                   {language === 'id' ? step.titleId : step.titleEn}
                 </h3>
-                <p className="text-[var(--lux-text-body)] text-sm leading-relaxed">
+                <p className="text-[var(--lux-text-body)] text-sm lg:text-[15px] leading-[1.75]">
                   {language === 'id' ? step.descId : step.descEn}
                 </p>
               </div>
