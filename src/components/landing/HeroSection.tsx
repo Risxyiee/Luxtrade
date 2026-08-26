@@ -4,6 +4,7 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
+import { HeroSvg } from './SectionSvgArt'
 
 const EquityWidget = dynamic(() => import('./EquityWidget'), { ssr: false })
 const AnimatedForexTrades = dynamic(() => import('./AnimatedForexTrades'), { ssr: false })
@@ -20,7 +21,8 @@ export default function HeroSection({ language, t, landingStats }: HeroSectionPr
   const lastSentence = titleParts.pop()
 
   return (
-    <section className="relative w-full pt-28 sm:pt-36 lg:pt-44 pb-20">
+    <section className="relative w-full pt-28 sm:pt-36 lg:pt-44 pb-20 overflow-hidden">
+      <HeroSvg />
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-start gap-12 lg:gap-8 px-4 sm:px-6 lg:px-8">
         {/* Left column — copy */}
         <div className="w-full lg:w-1/2 flex flex-col">

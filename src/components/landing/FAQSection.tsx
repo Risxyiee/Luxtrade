@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
+import { FaqSvg } from './SectionSvgArt'
 
 interface FAQSectionProps {
   language: 'id' | 'en'
@@ -21,7 +22,8 @@ export default function FAQSection({ language }: FAQSectionProps) {
   ]
 
   return (
-    <section id="faq" className="py-24 lg:py-32 px-4 sm:px-6 lg:px-8">
+    <section id="faq" className="relative py-24 lg:py-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <FaqSvg />
       <div className="max-w-3xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 16 }}

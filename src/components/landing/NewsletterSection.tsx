@@ -3,6 +3,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { Mail, Bell } from 'lucide-react'
+import { NewsletterSvg } from './SectionSvgArt'
 
 interface NewsletterSectionProps {
   language: 'id' | 'en'
@@ -15,7 +16,8 @@ interface NewsletterSectionProps {
 
 export default function NewsletterSection({ language, newsletterEmail, setNewsletterEmail, newsletterLoading, newsletterSuccess, handleNewsletterSubmit }: NewsletterSectionProps) {
   return (
-    <section className="py-24 lg:py-32 px-4 sm:px-6 lg:px-8">
+    <section className="relative py-24 lg:py-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <NewsletterSvg />
       <div className="max-w-2xl mx-auto text-center">
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.1 }}>
           <p className="text-[12px] font-medium tracking-[0.18em] uppercase text-[#8892b0] mb-3">

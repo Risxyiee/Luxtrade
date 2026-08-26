@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
+import { HowItWorksSvg } from './SectionSvgArt'
 
 interface HowItWorksSectionProps {
   language: 'id' | 'en'
@@ -34,7 +35,8 @@ const steps = [
 
 export default function HowItWorksSection({ language }: HowItWorksSectionProps) {
   return (
-    <section id="how-it-works" className="py-24 lg:py-32 px-4 sm:px-6 lg:px-8">
+    <section id="how-it-works" className="relative py-24 lg:py-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <HowItWorksSvg />
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <motion.div
