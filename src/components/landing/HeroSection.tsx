@@ -1,222 +1,109 @@
 'use client'
 
-import React, { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import React from 'react'
+import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
-import { HeroSvg } from './SectionSvgArt'
+import { Sparkles, ScanLine, ArrowRight } from 'lucide-react'
 import CandlestickBackground from './CandlestickBackground'
-import { Monitor, CalendarDays, ListOrdered, ChevronLeft, ChevronRight } from 'lucide-react'
 
-interface HeroSectionProps {
-  language: 'id' | 'en'
-  t: (key: string) => string
-  landingStats?: { totalUsers: number; activeUsers: number; tradesLogged: number } | null
-}
-
-const screenshots = [
-  {
-    id: 'dashboard',
-    src: '/screenshot-dashboard.jpeg',
-    labelId: 'Dashboard',
-    labelEn: 'Dashboard',
-    icon: Monitor,
-  },
-  {
-    id: 'trades',
-    src: '/screenshot-trades.jpeg',
-    labelId: 'Riwayat Trade',
-    labelEn: 'Trade History',
-    icon: ListOrdered,
-  },
-  {
-    id: 'calendar',
-    src: '/screenshot-calendar.jpeg',
-    labelId: 'Kalender Trading',
-    labelEn: 'Trading Calendar',
-    icon: CalendarDays,
-  },
-]
-
-export default function HeroSection({ language, t, landingStats }: HeroSectionProps) {
-  const titleParts = t('hero.title').split('.')
-  const headline = titleParts.slice(0, -1).join('.')
-  const lastSentence = titleParts.pop()
-  const [activeScreenshot, setActiveScreenshot] = useState(0)
-
-  const goNext = () => setActiveScreenshot(prev => (prev + 1) % screenshots.length)
-  const goPrev = () => setActiveScreenshot(prev => (prev - 1 + screenshots.length) % screenshots.length)
-
+export default function HeroSection() {
   return (
-    <section className="relative w-full pt-28 sm:pt-36 lg:pt-44 pb-20 overflow-hidden">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 pb-20 z-10">
       <CandlestickBackground />
-      <HeroSvg />
-      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-start gap-12 lg:gap-8 px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Left column — copy */}
-        <div className="w-full lg:w-1/2 flex flex-col">
-          {/* Section label */}
-          <motion.p
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[100%] h-[60%] bg-blue-600/10 blur-[180px] rounded-full pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[40%] bg-cyan-500/10 blur-[150px] rounded-full pointer-events-none" />
+
+      <div className="relative z-10 max-w-7xl mx-auto px-6 flex flex-col lg:flex-row items-center gap-12 text-center lg:text-left">
+        <div className="flex-1 flex flex-col gap-6 lg:items-start items-center">
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="text-[12px] font-medium tracking-[0.18em] uppercase text-[#8892b0] mb-5"
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm text-xs font-mono tracking-wider text-cyan-300"
           >
-            {language === 'id' ? 'Trading Journal Indonesia' : 'AI Trading Journal'}
-          </motion.p>
+            <Sparkles className="w-3 h-3" /> TRADING JOURNAL INDONESIA
+          </motion.div>
 
-          {/* Headline */}
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.08 }}
-            className="text-4xl sm:text-5xl md:text-[56px] lg:text-[64px] font-medium leading-[1.05] tracking-tight text-[#f0f2ff] mb-6"
+            className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter max-w-2xl bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-gray-600"
           >
-            {headline}
-            <span className="text-blue-400">.</span>
-            {lastSentence && (
-              <span className="block mt-1 text-[#8892b0]">{lastSentence}</span>
-            )}
+            Berhenti Trading Asal-Asalan. Bangun Edge Anda.
           </motion.h1>
 
-          {/* Subtitle */}
           <motion.p
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.16 }}
-            className="text-[15px] text-[#8892b0] leading-relaxed max-w-md mb-10"
+            className="max-w-xl text-lg text-gray-400"
           >
-            {t('hero.subtitle')}
+            Trading journal buat trader Indonesia — cukup upload history MT5, sistem otomatis jadikan jurnal, deteksi pola kesalahan lewat AI, dan lihat equity curve kamu naik.
           </motion.p>
 
-          {/* CTAs */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.24 }}
-            className="flex items-center gap-3"
+            className="flex flex-col sm:flex-row gap-4 mt-4"
           >
-            <Link href="/auth/signup" prefetch={false}>
-              <span className="inline-flex items-center gap-2 bg-blue-500 text-white text-[14px] font-medium px-5 py-2.5 rounded-full shadow-[0_0_30px_rgba(59,130,246,0.3)] hover:bg-blue-600 active:scale-[0.97] transition-all duration-200">
-                {t('hero.cta.primary')}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            <Link href="#simulator">
+              <span className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-xl hover:opacity-90 transition-all glow-bg-luxury">
+                Coba AI Simulator <ScanLine className="w-4 h-4" />
               </span>
             </Link>
-            <a href="#demo">
-              <span className="inline-flex items-center gap-2 border border-blue-500/30 text-blue-400 text-[14px] font-medium px-5 py-2.5 rounded-full hover:border-blue-500/50 hover:bg-blue-500/5 active:scale-[0.97] transition-all duration-200">
-                {t('hero.cta.secondary')}
+            <Link href="#pricing">
+              <span className="inline-flex items-center gap-2 px-6 py-3 bg-white/5 text-white font-medium rounded-xl hover:bg-white/10 border border-white/10 transition-all">
+                Lihat Pricing
               </span>
-            </a>
+            </Link>
           </motion.div>
 
-          {/* Social proof */}
-          {landingStats && landingStats.totalUsers > 0 && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-              className="mt-8 text-[12px] text-[#8892b0]"
-            >
-              {language === 'id'
-                ? `${landingStats.totalUsers}+ trader sudah terdaftar`
-                : `${landingStats.totalUsers}+ traders registered`}
-            </motion.p>
-          )}
+          {/* GIF Demo below CTA text */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="mt-6 w-full max-w-md lg:max-w-lg rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
+          >
+            <img
+              src="/hero-demo.gif"
+              alt="LuxTradee AI Demo"
+              className="w-full h-auto block"
+            />
+          </motion.div>
         </div>
 
-        {/* Right column — real screenshot showcase */}
+        {/* Right Column: Stacked UI Mockups (Desktop) */}
         <motion.div
-          className="w-full lg:w-1/2 flex flex-col items-center mt-6 lg:mt-0 relative"
+          className="flex-1 relative w-full max-w-md h-[600px] hidden lg:flex items-center justify-center"
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.2 }}
+          transition={{ duration: 0.7, delay: 0.3 }}
         >
-          {/* Blue glow behind card */}
-          <div className="absolute -inset-10 bg-blue-500/[0.08] rounded-full blur-[80px] -z-10" aria-hidden="true" />
-
-          {/* Screenshot card */}
-          <div className="w-full max-w-lg rounded-2xl border border-white/[0.08] bg-[#0f0f25] overflow-hidden shadow-[0_0_80px_rgba(59,130,246,0.08)]">
-            {/* Top bar */}
-            <div className="h-10 bg-[#0a0a1a] border-b border-white/[0.06] flex items-center justify-between px-4">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-white/10" />
-                <span className="w-2.5 h-2.5 rounded-full bg-white/10" />
-                <span className="w-2.5 h-2.5 rounded-full bg-white/10" />
-              </div>
-              {/* Tab selector — dots */}
-              <div className="flex items-center gap-1.5">
-                {screenshots.map((ss, i) => {
-                  const Icon = ss.icon
-                  return (
-                    <button
-                      key={ss.id}
-                      onClick={() => setActiveScreenshot(i)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all duration-200 cursor-pointer ${
-                        activeScreenshot === i
-                          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                          : 'text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.05] border border-transparent'
-                      }`}
-                    >
-                      <Icon className="w-3 h-3" />
-                      <span className="hidden sm:inline">{language === 'id' ? ss.labelId : ss.labelEn}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Screenshot display */}
-            <div className="relative aspect-[9/16] sm:aspect-[9/14] bg-[#0a0b14] overflow-hidden">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeScreenshot}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3, ease: 'easeInOut' }}
-                  className="absolute inset-0"
-                >
-                  <Image
-                    src={screenshots[activeScreenshot].src}
-                    alt={language === 'id' ? screenshots[activeScreenshot].labelId : screenshots[activeScreenshot].labelEn}
-                    fill
-                    className="object-cover object-top"
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                    priority={activeScreenshot === 0}
-                  />
-                </motion.div>
-              </AnimatePresence>
-
-              {/* Nav arrows */}
-              <button
-                onClick={goPrev}
-                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-black/70 transition-colors z-10"
-                aria-label="Previous screenshot"
-              >
-                <ChevronLeft className="w-4 h-4 text-white" />
-              </button>
-              <button
-                onClick={goNext}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-black/70 transition-colors z-10"
-                aria-label="Next screenshot"
-              >
-                <ChevronRight className="w-4 h-4 text-white" />
-              </button>
-
-              {/* Bottom label overlay */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent pt-12 pb-3 px-4 z-10">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-[11px] text-white/80 font-medium">
-                    {language === 'id' ? 'Tampilan Asli Dashboard' : 'Real Dashboard Preview'}
-                  </span>
-                </div>
-              </div>
-            </div>
+          <div className="phone-mockup w-64 absolute top-10 left-1/2 -translate-x-1/2 z-30 animate-float-lux glow-bg-luxury">
+            <Image src="/screenshot-dashboard.jpeg" alt="Dashboard LuxTradee" width={256} height={500} className="shadow-2xl" />
           </div>
+          <div className="phone-mockup w-48 absolute top-32 left-0 z-20 -rotate-12 animate-float-lux" style={{ animationDelay: '1s' }}>
+            <Image src="/screenshot-calendar.jpeg" alt="Kalender Trading" width={192} height={380} className="shadow-2xl opacity-80" />
+          </div>
+          <div className="phone-mockup w-48 absolute top-32 right-0 z-20 rotate-12 animate-float-lux" style={{ animationDelay: '2s' }}>
+            <Image src="/screenshot-trades.jpeg" alt="Histori Trade" width={192} height={380} className="shadow-2xl opacity-80" />
+          </div>
+        </motion.div>
 
-          <p className="text-center text-[#8892b0] text-[11px] mt-3">
-            {language === 'id' ? 'Tampilan asli dari aplikasi LuxTrade' : 'Real interface from LuxTrade app'}
-          </p>
+        {/* Mobile: Single phone mockup */}
+        <motion.div
+          className="lg:hidden w-full max-w-xs"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+        >
+          <div className="phone-mockup glow-bg-luxury animate-float-lux">
+            <Image src="/screenshot-dashboard.jpeg" alt="Dashboard LuxTradee" width={300} height={600} />
+          </div>
         </motion.div>
       </div>
     </section>
