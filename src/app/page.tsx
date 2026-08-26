@@ -24,7 +24,7 @@ import { PRICING } from '@/lib/pricing'
 const PricingSection = dynamic(() => import('@/components/landing/PricingSection').then(m => ({ default: m.default })), { ssr: false })
 const TutorialVideoSection = dynamic(() => import('@/components/landing/TutorialVideoSection').then(m => ({ default: m.default })), { ssr: false })
 const CTASectionBreak = dynamic(() => import('@/components/landing/CTASectionBreak').then(m => ({ default: m.default })), { ssr: false })
-const TestimonialSection = dynamic(() => import('@/components/landing/TestimonialSection').then(m => ({ default: m.default })), { ssr: false })
+const DashboardShowcaseSection = dynamic(() => import('@/components/landing/DashboardShowcaseSection').then(m => ({ default: m.default })), { ssr: false })
 const RoadmapSection = dynamic(() => import('@/components/landing/RoadmapSection').then(m => ({ default: m.default })), { ssr: false })
 const NewsletterSection = dynamic(() => import('@/components/landing/NewsletterSection').then(m => ({ default: m.default })), { ssr: false })
 
@@ -191,7 +191,7 @@ export default function LuxTradeLanding() {
         <SectionDivider />
         <FeaturesSection language={language} t={t} />
         <CTASectionBreak language={language} />
-        <TestimonialSection language={language} />
+        <DashboardShowcaseSection language={language} />
         <SectionDivider />
         <FAQSection language={language} />
         <SectionDivider />
