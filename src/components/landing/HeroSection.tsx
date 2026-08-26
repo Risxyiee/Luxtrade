@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Sparkles, ScanLine, ArrowRight } from 'lucide-react'
 import CandlestickBackground from './CandlestickBackground'
+import HeroVideoDemo from './HeroVideoDemo'
 
 export default function HeroSection() {
   return (
@@ -61,19 +62,8 @@ export default function HeroSection() {
             </Link>
           </motion.div>
 
-          {/* GIF Demo below CTA text */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="mt-6 w-full max-w-md lg:max-w-lg rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
-          >
-            <img
-              src="/hero-demo.gif"
-              alt="LuxTradee AI Demo"
-              className="w-full h-auto block"
-            />
-          </motion.div>
+          {/* GIF Demo in Phone Mockup — below CTA buttons */}
+          <HeroVideoDemo />
         </div>
 
         {/* Right Column: Stacked UI Mockups (Desktop) */}

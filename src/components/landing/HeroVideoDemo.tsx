@@ -1,41 +1,27 @@
 'use client'
 
-import React, { useRef, useState } from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 
 interface HeroVideoDemoProps {
-  videoSrcMp4?: string
-  videoSrcWebm?: string
+  /** Path ke file GIF (bisa .gif, .webm, atau .mp4) */
+  gifSrc?: string
+  /** Fallback poster jika GIF belum load */
   posterSrc?: string
 }
 
 export default function HeroVideoDemo({
-  videoSrcMp4 = '/demo-video.mp4',
-  videoSrcWebm = '/demo-video.webm',
+  gifSrc = '/hero-demo.gif',
   posterSrc = '/demo-video-poster.png',
 }: HeroVideoDemoProps) {
-  const videoRef = useRef<HTMLVideoElement>(null)
   const [isLoaded, setIsLoaded] = useState(false)
-  const [isPlaying, setIsPlaying] = useState(false)
-
-  const handleCanPlay = () => {
-    setIsLoaded(true)
-    videoRef.current?.play().then(() => {
-      setIsPlaying(true)
-    }).catch(() => {
-      // Autoplay blocked — user interaction needed
-    })
-  }
-
-  const handlePlay = () => setIsPlaying(true)
-  const handlePause = () => setIsPlaying(false)
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 24, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.7, delay: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="relative mt-8 w-full max-w-sm sm:max-w-md mx-auto lg:mx-0"
+      className="relative mt-8 w-full max-w-[280px] sm:max-w-[300px] mx-auto lg:mx-0"
     >
       {/* Phone Mockup Frame */}
       <div className="relative rounded-[2.5rem] border-[3px] border-white/15 bg-black/60 backdrop-blur-sm p-2.5 shadow-2xl shadow-blue-500/10">
@@ -60,27 +46,16 @@ export default function HeroVideoDemo({
             </div>
           )}
 
-          {/* Video Element */}
-          <video
-            ref={videoRef}
+          {/* GIF — autoplay, loop, tanpa suara secara native */}
+          <img
+            src={gifSrc}
+            alt="LuxTradee Trading Demo"
             className={`w-full h-full object-cover transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="metadata"
-            poster={posterSrc}
-            onCanPlay={handleCanPlay}
-            onPlay={handlePlay}
-            onPause={handlePause}
-          >
-            {videoSrcWebm && <source src={videoSrcWebm} type="video/webm" />}
-            {videoSrcMp4 && <source src={videoSrcMp4} type="video/mp4" />}
-            Your browser does not support the video tag.
-          </video>
+            onLoad={() => setIsLoaded(true)}
+          />
 
-          {/* Playing indicator */}
-          {isLoaded && isPlaying && (
+          {/* Animated indicator */}
+          {isLoaded && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
