@@ -47,20 +47,20 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
       title: "Buka Potensi Trading Terbaikmu!",
       subtitle: feature 
         ? `Fitur "${feature}" hanya tersedia untuk pengguna PRO`
-        : "Kamu telah mencapai batas akun gratis. Upgrade ke PRO untuk menikmati semua fitur premium.",
-      description: "Upgrade ke PRO untuk menikmati kapasitas hingga 50+ akun, analitik mendalam tanpa batas, dan laporan psikologi trading bertenaga AI.",
+        : "Kamu telah mencapai batas 10 trade/bulan. Upgrade ke PRO untuk unlimited trades dan semua fitur premium.",
+      description: "Upgrade ke PRO untuk unlimited trades, analitik mendalam, AI auto-journal, deteksi pola kerugian, dan watchlist prop firm.",
       features: [
-        { icon: Infinity, title: "50+ Active Journals", desc: "Kelola hingga 50+ jurnal trading aktif secara bersamaan" },
-        { icon: TrendingUp, title: "Advanced Win-Rate Analytics", desc: "Analitik mendalam dengan grafik dan statistik lengkap" },
-        { icon: Brain, title: "AI Trading Psychology", desc: "Laporan psikologi trading yang dianalisis oleh AI" },
-        { icon: Shield, title: "Priority Support", desc: "Dukungan prioritas dari tim support kami" },
-        { icon: Zap, title: "No Ads Experience", desc: "Pengalaman tanpa gangguan iklan" },
-        { icon: Star, title: "Premium Features", desc: "Akses ke semua fitur premium dan eksklusif" }
+        { icon: Infinity, title: "Unlimited Trade Entries", desc: "Tidak ada batas jurnal trading per bulan" },
+        { icon: TrendingUp, title: "Advanced Analytics & Equity Curve", desc: "Analitik mendalam dengan grafik dan statistik lengkap" },
+        { icon: Brain, title: "AI Pattern Detection & Guard", desc: "Deteksi pola kerugian otomatis dan watchlist prop firm" },
+        { icon: Shield, title: "AI Vision Auto-Journal", desc: "Upload screenshot MT5/TradingView, AI otomatis extract data" },
+        { icon: Zap, title: "AI Trading Psychology", desc: "Laporan psikologi trading yang dianalisis oleh AI" },
+        { icon: Star, title: "All Premium Features", desc: "Akses ke semua fitur premium dan eksklusif" }
       ],
       price: {
-        monthly: "Rp 99.000",
-        yearly: "Rp 990.000",
-        yearlySave: "Hemat 17%"
+        monthly: "Rp39.000",
+        yearly: "Rp390.000",
+        yearlySave: "Hemat 2 bulan"
       },
       cta: {
         primary: "Upgrade ke Pro Sekarang",
@@ -76,20 +76,20 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
       title: "Unlock Your Ultimate Trading Potential!",
       subtitle: feature
         ? `The "${feature}" feature is only available for PRO users`
-        : "You've hit the free tier limit. Upgrade to PRO to enjoy all premium features.",
-      description: "Upgrade to PRO to enjoy up to 50+ accounts, unlimited deep analytics, and AI-powered trading psychology reports.",
+        : "You've hit the 10 trades/month limit. Upgrade to PRO for unlimited trades and all premium features.",
+      description: "Upgrade to PRO for unlimited trades, deep analytics, AI auto-journal, loss pattern detection, and prop firm watchlist.",
       features: [
-        { icon: Infinity, title: "50+ Active Journals", desc: "Manage up to 50+ active trading journals simultaneously" },
-        { icon: TrendingUp, title: "Advanced Win-Rate Analytics", desc: "Deep analytics with complete charts and statistics" },
-        { icon: Brain, title: "AI Trading Psychology", desc: "Trading psychology reports analyzed by AI" },
-        { icon: Shield, title: "Priority Support", desc: "Priority support from our team" },
-        { icon: Zap, title: "No Ads Experience", desc: "Ad-free experience without interruptions" },
-        { icon: Star, title: "Premium Features", desc: "Access to all premium and exclusive features" }
+        { icon: Infinity, title: "Unlimited Trade Entries", desc: "No limit on trading journals per month" },
+        { icon: TrendingUp, title: "Advanced Analytics & Equity Curve", desc: "Deep analytics with complete charts and statistics" },
+        { icon: Brain, title: "AI Pattern Detection & Guard", desc: "Automatic loss pattern detection and prop firm watchlist" },
+        { icon: Shield, title: "AI Vision Auto-Journal", desc: "Upload MT5/TradingView screenshot, AI auto-extracts data" },
+        { icon: Zap, title: "AI Trading Psychology", desc: "AI-analyzed trading psychology reports" },
+        { icon: Star, title: "All Premium Features", desc: "Access to all premium and exclusive features" }
       ],
       price: {
-        monthly: "$9.99",
-        yearly: "$99.99",
-        yearlySave: "Save 17%"
+        monthly: "$2.49",
+        yearly: "$24.99",
+        yearlySave: "Save 2 months"
       },
       cta: {
         primary: "Upgrade to Pro Now",
