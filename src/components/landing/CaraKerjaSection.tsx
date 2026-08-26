@@ -3,7 +3,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
-import { Image as ImageIcon, CheckCircle2, AlertTriangle, ShieldCheck, Tag } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react'
 
 const steps = [
   {
@@ -12,7 +12,7 @@ const steps = [
     desc: 'Upload screenshot MetaTrader (MT5) atau TradingView. Sistem langsung membaca pair, harga entry, exit, dan hasil P/L dalam hitungan detik.',
     rightSide: true,
     visual: 'upload',
-    img: '/screenshot-dashboard.jpeg',
+    img: '/images/guide/auto-journal-example.jpeg',
   },
   {
     num: 'STEP 02',
@@ -87,18 +87,16 @@ export default function CaraKerjaSection() {
 
               {/* Visual */}
               <div className={!step.rightSide ? 'md:order-1' : ''}>
-                {step.visual === 'upload' && (
-                  <div className="glass-lux p-8 h-64 flex flex-col items-center justify-center relative">
-                    <div className="border-2 border-dashed border-white/20 rounded-xl p-4 w-full max-w-xs flex flex-col items-center relative overflow-hidden">
-                      <div className="animate-drop mb-2">
-                        <ImageIcon className="w-10 h-10 text-cyan-400" />
-                      </div>
-                      <p className="font-mono text-xs text-gray-400">XAUUSD_profit.png</p>
-                      <div className="scan-line-anim" style={{ animation: 'scan-sim 2s ease-in-out infinite', opacity: 1 }} />
+                {step.visual === 'upload' && step.img && (
+                  <div className="glass-lux p-8 min-h-[300px] flex items-center justify-center relative">
+                    <div className="phone-mockup w-48 hover:scale-105 transition-transform duration-300">
+                      <Image src={step.img} alt="Auto Jurnal Screenshot MT5" width={192} height={380} />
                     </div>
-                    <div className="absolute bottom-4 right-4 glass-lux p-3 flex items-center gap-2 animate-float-lux">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      <span className="font-mono text-xs text-emerald-400">Data Extracted: +$340.20</span>
+                    <div className="absolute bottom-4 right-4 bg-white/5 p-3 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span className="font-mono text-xs text-emerald-400">Data Extracted: +$340.20</span>
+                      </div>
                     </div>
                   </div>
                 )}
