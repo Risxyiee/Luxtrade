@@ -22,7 +22,6 @@ const NAV_LINKS = [
 
 export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNavbarProps) {
   const [scrolled, setScrolled] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
   const [activeSection, setActiveSection] = useState('')
 
   useEffect(() => {

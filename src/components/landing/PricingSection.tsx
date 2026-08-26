@@ -64,10 +64,8 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
               </div>
             </div>
             <div className="p-6 pt-0">
-              <Link href="/auth/signup" className="block">
-                <button className="w-full flex items-center justify-center h-12 rounded-xl border border-white/[0.1] text-[#f0f2ff] text-[14px] font-medium hover:bg-white/[0.03] active:scale-[0.98] transition-all duration-200">
-                  {t('pricing.cta.free')}
-                </button>
+              <Link href="/auth/signup" className="w-full flex items-center justify-center h-12 rounded-xl border border-white/[0.1] text-[#f0f2ff] text-[14px] font-medium hover:bg-white/[0.03] active:scale-[0.98] transition-all duration-200">
+                {t('pricing.cta.free')}
               </Link>
             </div>
           </motion.div>
@@ -165,7 +163,7 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
                     : row.pro === '✕' ? <span className="text-[#f0f2ff]/20">—</span> : row.pro
                   }
                 </div>
-                <div className={`p-3.5 text-[13px] text-center font-medium ${row.lifetime === '✓' || row.highlight ? 'text-amber-300' : 'text-[#8892b0]'}`}>
+                <div className={`p-3.5 text-[13px] text-center font-medium ${row.lifetime === '✓' || row.highlight ? 'text-amber-400' : 'text-[#8892b0]'}`}>
                   {row.lifetime === '✓'
                     ? <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500/15 text-amber-400 text-xs">✓</span>
                     : row.lifetime === '✕' ? <span className="text-[#f0f2ff]/20">—</span> : row.lifetime
