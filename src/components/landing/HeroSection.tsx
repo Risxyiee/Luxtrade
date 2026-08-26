@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import { HeroSvg } from './SectionSvgArt'
+import CandlestickBackground from './CandlestickBackground'
 import { Monitor, CalendarDays, ListOrdered, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface HeroSectionProps {
@@ -48,8 +49,9 @@ export default function HeroSection({ language, t, landingStats }: HeroSectionPr
 
   return (
     <section className="relative w-full pt-28 sm:pt-36 lg:pt-44 pb-20 overflow-hidden">
+      <CandlestickBackground />
       <HeroSvg />
-      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-start gap-12 lg:gap-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-start gap-12 lg:gap-8 px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Left column — copy */}
         <div className="w-full lg:w-1/2 flex flex-col">
           {/* Section label */}
