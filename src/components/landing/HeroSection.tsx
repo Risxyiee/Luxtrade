@@ -4,9 +4,8 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Sparkles, ScanLine, ArrowRight } from 'lucide-react'
+import { Sparkles, ScanLine } from 'lucide-react'
 import CandlestickBackground from './CandlestickBackground'
-import HeroVideoDemo from './HeroVideoDemo'
 
 export default function HeroSection() {
   return (
@@ -62,8 +61,6 @@ export default function HeroSection() {
             </Link>
           </motion.div>
 
-          {/* GIF Demo in Phone Mockup — below CTA buttons */}
-          <HeroVideoDemo />
         </div>
 
         {/* Right Column: Stacked UI Mockups (Desktop) */}
