@@ -1664,3 +1664,31 @@ Stage Summary:
 - All accent colors migrated from lime (#d5ff45) to blue (blue-500/blue-400)
 - Amber (Lifetime card) and emerald (trust badges) accents preserved
 - Zero lint errors
+---
+Task ID: 1
+Agent: Main
+Task: Fix real screenshot dashboard, calendar, transaction landing page sections (skip testimoni)
+
+Work Log:
+- Analyzed 3 user-uploaded screenshots with VLM (Dashboard, Trade History, Calendar)
+- Identified Dashboard: equity curve, 6 XAUUSD trades, P/L $81.42, 50% win rate
+- Identified Trade History: 6 trades with SELL/BUY types, entry/exit prices, P/L
+- Identified Calendar: August 2026, profit/loss days, monthly summary, daily P/L chart
+- Copied screenshots to /public/screenshot-dashboard.jpeg, screenshot-trades.jpeg, screenshot-calendar.jpeg
+- Rewrote HeroSection: removed fake EquityWidget + AnimatedForexTrades, replaced with real screenshot carousel (3 tabs: Dashboard, Trades, Calendar) with nav arrows and auto-rotation
+- Created new DashboardShowcase component: full-width tabbed screenshot viewer with auto-play, progress dots, "Real Screenshot" badge, description overlays
+- Updated page.tsx: replaced TutorialVideoSection with DashboardShowcase
+- Updated StatsStrip: expanded from 2 to 4 stats (added Avg. Win Rate 50%, Pairs Supported 3), changed layout from flex to grid
+- Updated HowItWorksSection: added Lucide icons (UserPlus, Camera, BrainCircuit) per step with styled icon containers
+- Fixed ParticleBackground: changed all 17 purple-xxx references to blue-xxx
+- Verified EquityWidget, AnimatedForexTrades, TutorialVideoSection, DemoVideoSection are dead code (only referenced in old LuxTradeLanding.tsx, not active page.tsx)
+- Lint passes clean
+- Compilation verified: GET / 200, zero errors
+
+Stage Summary:
+- HeroSection now shows real app screenshots instead of fake canvas/forex widgets
+- New DashboardShowcase section with tabbed real screenshots (auto-rotating, 5s interval)
+- StatsStrip expanded to 4 metrics in grid layout
+- HowItWorks steps now have relevant Lucide icons
+- ParticleBackground purple → blue color fix
+- Testimoni (TestimonialSection) was NOT modified per user instruction
