@@ -3,55 +3,40 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { ArrowRight, Sparkles } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 
-interface CTASectionBreakProps {
-  language: 'id' | 'en'
-}
-
-export default function CTASectionBreak({ language }: CTASectionBreakProps) {
+export default function CTASectionBreak({ language }: { language: 'id' | 'en' }) {
   return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto text-center">
+    <section className="py-28 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-2xl mx-auto text-center">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.1 }}
-          transition={{ duration: 0.6 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
         >
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 mb-8">
-            <Sparkles className="w-4 h-4 text-purple-400" />
-            <span className="text-sm font-semibold text-purple-400">
-              {language === 'id' ? 'Gratis untuk memulai' : 'Free to get started'}
-            </span>
-          </div>
-
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-[var(--lux-text-primary)] mb-5 leading-tight">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-[var(--lux-text-primary)] mb-4 leading-tight">
             {language === 'id'
-              ? 'Siap Tingkatkan Performa Trading Kamu?'
-              : 'Ready to Improve Your Trading Performance?'}
+              ? 'Mulai Catat Trade Kamu Sekarang.'
+              : 'Start Logging Your Trades Now.'}
           </h2>
-          <p className="text-[var(--lux-text-subtitle)] text-base md:text-lg mb-10 max-w-xl mx-auto leading-relaxed">
+          <p className="text-[var(--lux-text-body)] text-base mb-10 max-w-md mx-auto leading-relaxed">
             {language === 'id'
-              ? 'Bergabung dengan trader Indonesia yang sudah memperbaiki strategi mereka dengan LuxTrade. 10 trade per bulan, gratis selamanya.'
-              : 'Join Indonesian traders who have already improved their strategies with LuxTrade. 10 trades per month, free forever.'}
+              ? 'Gratis, 10 trade per bulan. Kalau serius, upgrade kapan saja.'
+              : 'Free, 10 trades/month. Upgrade anytime when you\'re ready.'}
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/auth/signup" className="w-full sm:w-auto">
-              <button className="flex items-center justify-center w-full sm:w-auto h-14 px-10 rounded-2xl bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 transition-all shadow-lg shadow-purple-500/25 active:scale-95 group">
-                <span className="text-[15px] font-bold text-white">
-                  {language === 'id' ? 'Mulai Gratis Sekarang' : 'Start Free Now'}
-                </span>
-                <ArrowRight className="w-5 h-5 text-white ml-2 transition-transform group-hover:translate-x-1" />
-              </button>
-            </Link>
-          </div>
+          <Link href="/auth/signup">
+            <button className="inline-flex items-center gap-2 h-12 px-8 rounded-full bg-white text-black font-semibold text-sm hover:bg-white/90 active:scale-[0.98] transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]">
+              {language === 'id' ? 'Daftar Gratis' : 'Sign Up Free'}
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </Link>
 
-          <p className="text-[var(--lux-text-label)] text-xs mt-6">
+          <p className="text-[var(--lux-text-label-2)] text-xs mt-6">
             {language === 'id'
-              ? 'Tidak perlu kartu kredit · Setup 30 detik · Batalkan kapan saja'
-              : 'No credit card required · 30 second setup · Cancel anytime'}
+              ? 'Tidak perlu kartu kredit · Setup 30 detik'
+              : 'No credit card required · 30 second setup'}
           </p>
         </motion.div>
       </div>
