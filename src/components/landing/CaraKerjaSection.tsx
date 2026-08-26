@@ -5,55 +5,110 @@ import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react'
 
-const steps = [
-  {
-    num: 'STEP 01',
-    title: 'Auto Jurnal (AI Vision Upload)',
-    desc: 'Upload screenshot MetaTrader (MT5) atau TradingView. Sistem langsung membaca pair, harga entry, exit, dan hasil P/L dalam hitungan detik.',
-    rightSide: true,
-    visual: 'upload',
-    img: '/images/guide/auto-journal-example.jpeg',
-  },
-  {
-    num: 'STEP 02',
-    title: 'Analitik (Performa Trading Tervisualisasi)',
-    desc: 'Pantau win-rate, profit factor, dan kurva equity kamu secara real-time tanpa perlu pusing bikin rumus Excel sendiri.',
-    rightSide: false,
-    visual: 'analytics',
-    img: '/screenshot-calendar.jpeg',
-    floatingCards: [
-      { label: 'Win Rate', value: '50.0%', color: 'text-emerald-400', position: 'top-8 left-8' },
-      { label: 'Profit Factor', value: '2.34', color: 'text-cyan-400', position: 'bottom-8 right-8' },
-    ],
-  },
-  {
-    num: 'STEP 03',
-    title: 'Jurnal (Catat Emosi & Alasan Trade)',
-    desc: 'Catat kondisi psikologis, sesi market (London/New York), dan alasan setup sebelum tombol eksekusi ditekan.',
-    rightSide: true,
-    visual: 'journal',
-    img: '/screenshot-trades.jpeg',
-    floatingCards: [
-      { label: 'Tag: gold', value: '', color: 'text-emerald-400', position: 'top-8 right-8', tag: true },
-    ],
-  },
-  {
-    num: 'STEP 04',
-    title: 'AI (Deteksi Pola Kerugian Otomatis)',
-    desc: 'AI memindai seluruh histori trade kamu untuk menemukan kebiasaan buruk tersembunyi — seperti sering over-leveraging di sesi Asia.',
-    rightSide: false,
-    visual: 'ai',
-  },
-  {
-    num: 'STEP 05',
-    title: 'Watchlist & Propfirm Guard',
-    desc: 'Jaga batas maximum & daily drawdown akun prop firm kamu agar tidak pernah terkena breach mendadak.',
-    rightSide: true,
-    visual: 'guard',
-  },
-]
+interface CaraKerjaSectionProps {
+  language?: 'id' | 'en'
+}
 
-export default function CaraKerjaSection() {
+const steps = {
+  id: [
+    {
+      num: 'STEP 01',
+      title: 'Auto Jurnal (AI Vision Upload)',
+      desc: 'Upload screenshot MetaTrader (MT5) atau TradingView. Sistem langsung membaca pair, harga entry, exit, dan hasil P/L dalam hitungan detik.',
+      rightSide: true,
+      visual: 'upload',
+      img: '/images/guide/auto-journal-example.jpeg',
+    },
+    {
+      num: 'STEP 02',
+      title: 'Analitik (Performa Trading Tervisualisasi)',
+      desc: 'Pantau win-rate, profit factor, dan kurva equity kamu secara real-time tanpa perlu pusing bikin rumus Excel sendiri.',
+      rightSide: false,
+      visual: 'analytics',
+      img: '/screenshot-calendar.jpeg',
+      floatingCards: [
+        { label: 'Win Rate', value: '50.0%', color: 'text-emerald-400', position: 'top-8 left-8' },
+        { label: 'Profit Factor', value: '2.34', color: 'text-cyan-400', position: 'bottom-8 right-8' },
+      ],
+    },
+    {
+      num: 'STEP 03',
+      title: 'Jurnal (Catat Emosi & Alasan Trade)',
+      desc: 'Catat kondisi psikologis, sesi market (London/New York), dan alasan setup sebelum tombol eksekusi ditekan.',
+      rightSide: true,
+      visual: 'journal',
+      img: '/screenshot-trades.jpeg',
+      floatingCards: [
+        { label: 'Tag: gold', value: '', color: 'text-emerald-400', position: 'top-8 right-8', tag: true },
+      ],
+    },
+    {
+      num: 'STEP 04',
+      title: 'AI (Deteksi Pola Kerugian Otomatis)',
+      desc: 'AI memindai seluruh histori trade kamu untuk menemukan kebiasaan buruk tersembunyi — seperti sering over-leveraging di sesi Asia.',
+      rightSide: false,
+      visual: 'ai',
+    },
+    {
+      num: 'STEP 05',
+      title: 'Watchlist & Propfirm Guard',
+      desc: 'Jaga batas maximum & daily drawdown akun prop firm kamu agar tidak pernah terkena breach mendadak.',
+      rightSide: true,
+      visual: 'guard',
+    },
+  ],
+  en: [
+    {
+      num: 'STEP 01',
+      title: 'Auto Journal (AI Vision Upload)',
+      desc: 'Upload MetaTrader (MT5) or TradingView screenshots. The system instantly reads the pair, entry price, exit, and P/L result in seconds.',
+      rightSide: true,
+      visual: 'upload',
+      img: '/images/guide/auto-journal-example.jpeg',
+    },
+    {
+      num: 'STEP 02',
+      title: 'Analytics (Visualized Trading Performance)',
+      desc: 'Monitor your win rate, profit factor, and equity curve in real-time without needing to build Excel formulas yourself.',
+      rightSide: false,
+      visual: 'analytics',
+      img: '/screenshot-calendar.jpeg',
+      floatingCards: [
+        { label: 'Win Rate', value: '50.0%', color: 'text-emerald-400', position: 'top-8 left-8' },
+        { label: 'Profit Factor', value: '2.34', color: 'text-cyan-400', position: 'bottom-8 right-8' },
+      ],
+    },
+    {
+      num: 'STEP 03',
+      title: 'Journal (Log Emotions & Trade Reasons)',
+      desc: 'Record your psychological state, market session (London/New York), and setup reasoning before hitting the execute button.',
+      rightSide: true,
+      visual: 'journal',
+      img: '/screenshot-trades.jpeg',
+      floatingCards: [
+        { label: 'Tag: gold', value: '', color: 'text-emerald-400', position: 'top-8 right-8', tag: true },
+      ],
+    },
+    {
+      num: 'STEP 04',
+      title: 'AI (Automatic Loss Pattern Detection)',
+      desc: 'AI scans your entire trade history to find hidden bad habits — like frequently over-leveraging during the Asian session.',
+      rightSide: false,
+      visual: 'ai',
+    },
+    {
+      num: 'STEP 05',
+      title: 'Watchlist & Propfirm Guard',
+      desc: 'Protect your prop firm account from sudden breaches by monitoring maximum & daily drawdown limits.',
+      rightSide: true,
+      visual: 'guard',
+    },
+  ],
+}
+
+export default function CaraKerjaSection({ language = 'id' }: CaraKerjaSectionProps) {
+  const stepsData = steps[language]
+
   return (
     <section id="cara-kerja" className="py-32 relative z-10">
       <div className="max-w-7xl mx-auto px-6">
@@ -64,12 +119,12 @@ export default function CaraKerjaSection() {
           transition={{ duration: 0.5 }}
           className="text-center mb-24"
         >
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-white">Cara Kerja LuxTradee</h2>
-          <p className="text-gray-400 max-w-2xl mx-auto">Dari upload history MT5 hingga prediksi kerugian, semua otomatis.</p>
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-white">{language === 'en' ? 'How LuxTradee Works' : 'Cara Kerja LuxTradee'}</h2>
+          <p className="text-gray-400 max-w-2xl mx-auto">{language === 'en' ? 'From MT5 history upload to loss prediction — everything is automated.' : 'Dari upload history MT5 hingga prediksi kerugian, semua otomatis.'}</p>
         </motion.div>
 
         <div className="flex flex-col gap-32">
-          {steps.map((step, i) => (
+          {stepsData.map((step, i) => (
             <motion.div
               key={step.num}
               initial={{ opacity: 0, y: 20 }}

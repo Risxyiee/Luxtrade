@@ -154,10 +154,10 @@ export default function LuxTradeLanding() {
         <LandingSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} language={language} t={t} openLegalPage={openLegalPage} />
 
         <main id="main-content" className="flex-1">
-          <HeroSection />
-          <SocialProofBar />
-          <AIVisionSimulator />
-          <CaraKerjaSection />
+          <HeroSection language={language} />
+          <SocialProofBar language={language} />
+          <AIVisionSimulator language={language} />
+          <CaraKerjaSection language={language} />
           <PricingSectionNew
             promoCode={promoCode}
             promoActive={promoActive}
@@ -165,9 +165,10 @@ export default function LuxTradeLanding() {
             promoMax={promoMax}
             handleProUpgrade={handleProUpgrade}
             payLoading={payLoading}
+            language={language}
           />
           <FAQSection language={language} />
-          <FinalCTA />
+          <FinalCTA language={language} />
         </main>
 
         {/* Footer */}
