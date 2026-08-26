@@ -32,17 +32,17 @@ export default function PromoCodeSection({ language, promoCode, promoRemaining, 
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="border border-[#d5ff45]/20 rounded-2xl bg-[#d5ff45]/[0.03] p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+          className="border border-blue-500/20 rounded-2xl bg-blue-500/[0.03] p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
         >
           <div>
-            <p className="text-[13px] font-medium text-[#d5ff45] mb-1">
+            <p className="text-[13px] font-medium text-blue-400 mb-1">
               {language === 'id' ? 'Kode Promo' : 'Promo Code'}
             </p>
-            <p className="text-[14px] text-white font-medium">
+            <p className="text-[14px] text-[#f0f2ff] font-medium">
               {promoCode}
             </p>
             {promoRemaining !== null && promoMax > 0 && (
-              <p className="text-[12px] text-[#939599] mt-1">
+              <p className="text-[12px] text-[#8892b0] mt-1">
                 {language === 'id'
                   ? `${promoRemaining} dari ${promoMax} slot tersisa`
                   : `${promoRemaining} of ${promoMax} slots remaining`}
@@ -51,7 +51,7 @@ export default function PromoCodeSection({ language, promoCode, promoRemaining, 
           </div>
           <button
             onClick={handleCopy}
-            className="shrink-0 inline-flex items-center gap-2 bg-[#d5ff45] text-black text-[12px] font-medium px-4 py-2 rounded-full hover:brightness-110 active:scale-[0.97] transition-all duration-200"
+            className="shrink-0 inline-flex items-center gap-2 bg-blue-500 text-white text-[12px] font-medium px-4 py-2 rounded-full hover:bg-blue-600 active:scale-[0.97] transition-all duration-200"
           >
             {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
             {copied ? (language === 'id' ? 'Tersalin' : 'Copied') : 'Copy'}

@@ -164,7 +164,14 @@ export default function LuxTradeLanding() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white overflow-x-hidden flex flex-col">
+    <div className="min-h-screen bg-[#050510] text-[#f0f2ff] overflow-x-hidden flex flex-col relative">
+      {/* Premium ambient lighting */}
+      <div className="fixed inset-0 pointer-events-none z-0" aria-hidden="true">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-blue-600/[0.07] rounded-full blur-[150px]" />
+        <div className="absolute top-[40%] right-0 w-[600px] h-[600px] bg-blue-500/[0.04] rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 left-0 w-[800px] h-[400px] bg-indigo-600/[0.05] rounded-full blur-[140px]" />
+      </div>
+      <div className="relative z-[1] flex flex-col min-h-screen">
       <header>
         <AnnouncementBar language={language} promoCode={promoCode} promoActive={promoActive} />
         <LandingNavbar language={language} t={t} onSidebarOpen={() => setSidebarOpen(true)} />
@@ -230,6 +237,7 @@ export default function LuxTradeLanding() {
           })
         }}
       />
+      </div>
     </div>
   )
 }

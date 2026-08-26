@@ -13,17 +13,17 @@ interface LifetimeUltraCardProps {
 export default function LifetimeUltraCard({ onButtonClick, language, t }: LifetimeUltraCardProps) {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.1 }} transition={{ delay: 0.3 }}>
-      <div className="h-full bg-[#0a0a0a] border border-amber-500/30 rounded-2xl p-8 pt-10 hover:bg-[#0f0f0f] transition-colors">
+      <div className="h-full bg-[#0a0a1a] border border-amber-500/30 rounded-2xl p-8 pt-10 hover:bg-[#0f0f25] transition-colors">
         <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-amber-500 text-black text-[11px] font-medium">
           {language === 'id' ? '30 Slot Promo' : '30 Promo Slots'}
         </div>
         <div className="flex items-center justify-center mb-6">
           <Crown className="w-5 h-5 text-amber-400" />
           <div className="w-3" />
-          <h3 className="text-2xl font-medium text-white">{t('pricing.lifetime.title')}</h3>
+          <h3 className="text-2xl font-medium text-[#f0f2ff]">{t('pricing.lifetime.title')}</h3>
         </div>
-        <p className="text-[13px] text-[#939599] text-center mb-6 leading-relaxed">{t('pricing.lifetime.desc')}</p>
-        <div className="text-3xl font-medium text-white text-center mb-2">
+        <p className="text-[13px] text-[#8892b0] text-center mb-6 leading-relaxed">{t('pricing.lifetime.desc')}</p>
+        <div className="text-3xl font-medium text-[#f0f2ff] text-center mb-2">
           {t('pricing.lifetime.price').split(' /')[0]}
         </div>
         <div className="flex flex-col gap-3.5 mb-8">
@@ -33,7 +33,7 @@ export default function LifetimeUltraCard({ onButtonClick, language, t }: Lifeti
             { text: language === 'id' ? 'Tanpa biaya bulanan' : 'No monthly fees ever' },
             { text: language === 'id' ? 'Semua fitur PRO' : 'All PRO features' },
           ].map((item, index) => (
-            <div key={index} className="flex items-start gap-3 text-[13px] text-[#939599]">
+            <div key={index} className="flex items-start gap-3 text-[13px] text-[#8892b0]">
               <Zap className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
               <span>{item.text}</span>
             </div>

@@ -110,9 +110,9 @@ export default function EquityWidget() {
     <div className="rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] p-6 transition-shadow duration-200">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-sm text-[#d5ff45]/80 font-semibold tracking-wide uppercase text-xs">Portfolio Equity</p>
+          <p className="text-sm text-blue-400/80 font-semibold tracking-wide uppercase text-xs">Portfolio Equity</p>
           <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-medium text-white tracking-tight">
+            <span className="text-3xl font-medium text-[#f0f2ff] tracking-tight">
               ${currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
             <span className={`flex items-center gap-1 text-sm font-medium ${isUp ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -129,7 +129,7 @@ export default function EquityWidget() {
         </div>
       </div>
       <canvas ref={canvasRef} width={500} height={160} className="w-full h-40" />
-      <div className="flex items-center justify-between mt-4 text-xs text-[#939599] font-medium">
+      <div className="flex items-center justify-between mt-4 text-xs text-[#8892b0] font-medium">
         <span>Start: $10,500.00</span>
         <span>Updated just now</span>
       </div>
