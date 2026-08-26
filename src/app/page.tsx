@@ -5,7 +5,6 @@ import dynamic from 'next/dynamic'
 import { toast } from 'sonner'
 import { useLanguage } from '@/contexts/LanguageContext'
 import LegalPagesModal, { type LegalPageTab } from '@/components/LegalPagesModal'
-import InteractiveNeuralVortex from '@/components/ui/interactive-neural-vortex-background'
 import AnnouncementBar from '@/components/landing/AnnouncementBar'
 import LandingNavbar from '@/components/landing/LandingNavbar'
 import LandingSidebar from '@/components/landing/LandingSidebar'
@@ -20,7 +19,6 @@ import LandingFooter from '@/components/landing/LandingFooter'
 import ScrollToTopButton from '@/components/landing/ScrollToTopButton'
 import { PRICING } from '@/lib/pricing'
 
-// Below-fold sections: lazy-loaded for performance
 const PricingSection = dynamic(() => import('@/components/landing/PricingSection').then(m => ({ default: m.default })), { ssr: false })
 const TutorialVideoSection = dynamic(() => import('@/components/landing/TutorialVideoSection').then(m => ({ default: m.default })), { ssr: false })
 const CTASectionBreak = dynamic(() => import('@/components/landing/CTASectionBreak').then(m => ({ default: m.default })), { ssr: false })
@@ -53,11 +51,9 @@ export default function LuxTradeLanding() {
   const [newsletterLoading, setNewsletterLoading] = useState(false)
   const [newsletterSuccess, setNewsletterSuccess] = useState(false)
 
-  // Fetch landing stats ONCE and share with HeroSection + StatsStrip
   const [landingStats, setLandingStats] = useState<LandingStats | null>(null)
 
   useEffect(() => {
-    // Fetch landing stats + promo quota in parallel with timeout
     const fetchWithTimeout = (url: string, timeoutMs = 5000) =>
       Promise.race([
         fetch(url).then(res => res.ok ? res.json() : null).catch(() => null),
@@ -78,7 +74,6 @@ export default function LuxTradeLanding() {
     })
   }, [])
 
-  // Lazily load Midtrans Snap.js only when payment is initiated
   const ensureSnapLoaded = useCallback(async (): Promise<boolean> => {
     if ((window as any).snap) return true
 
@@ -169,8 +164,7 @@ export default function LuxTradeLanding() {
   }
 
   return (
-    <div className="min-h-screen bg-lux-bg-primary text-lux-text-primary overflow-x-hidden flex flex-col">
-      <InteractiveNeuralVortex />
+    <div className="min-h-screen bg-[#0a0a0a] text-white overflow-x-hidden flex flex-col">
       <header>
         <AnnouncementBar language={language} promoCode={promoCode} promoActive={promoActive} />
         <LandingNavbar language={language} t={t} onSidebarOpen={() => setSidebarOpen(true)} />
@@ -181,15 +175,15 @@ export default function LuxTradeLanding() {
         <HeroSection language={language} t={t} landingStats={landingStats} />
         <StatsStrip language={language} t={t} landingStats={landingStats} />
         <SectionDivider />
-        <PricingSection language={language} t={t} payLoading={payLoading} handleProUpgrade={handleProUpgrade} handleLifetimeUpgrade={handleLifetimeUpgrade} promoRemaining={promoRemaining} />
-        <PromoCodeSection language={language} promoCode={promoCode} promoRemaining={promoRemaining} promoMax={promoMax} promoActive={promoActive} />
-        <SectionDivider />
         <HowItWorksSection language={language} t={t} />
         <div id="demo">
           <TutorialVideoSection language={language} />
         </div>
         <FeaturesSection language={language} t={t} />
         <CTASectionBreak language={language} />
+        <SectionDivider />
+        <PricingSection language={language} t={t} payLoading={payLoading} handleProUpgrade={handleProUpgrade} handleLifetimeUpgrade={handleLifetimeUpgrade} promoRemaining={promoRemaining} />
+        <PromoCodeSection language={language} promoCode={promoCode} promoRemaining={promoRemaining} promoMax={promoMax} promoActive={promoActive} />
         <SectionDivider />
         <DashboardShowcaseSection language={language} />
         <FAQSection language={language} />
@@ -203,7 +197,6 @@ export default function LuxTradeLanding() {
 
       <LegalPagesModal isOpen={showLegalModal} onClose={() => setShowLegalModal(false)} initialTab={legalModalTab} />
 
-      {/* JSON-LD Structured Data */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

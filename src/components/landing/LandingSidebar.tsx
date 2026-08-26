@@ -1,9 +1,9 @@
 'use client'
 
-import React, { useState } from 'react'
+import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
-import { X, ChevronRight, Sun, Moon } from 'lucide-react'
+import { X, ChevronRight } from 'lucide-react'
 import { type LegalPageTab } from '@/components/LegalPagesModal'
 import SocialIcons from './SocialIcons'
 
@@ -16,19 +16,6 @@ interface LandingSidebarProps {
 }
 
 export default function LandingSidebar({ isOpen, onClose, language, t, openLegalPage }: LandingSidebarProps) {
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window === 'undefined') return true
-    return localStorage.getItem('luxtrade-theme') !== 'light'
-  })
-
-  const toggleTheme = () => {
-    const newDark = !isDark
-    setIsDark(newDark)
-    localStorage.setItem('luxtrade-theme', newDark ? 'dark' : 'light')
-    document.documentElement.classList.toggle('dark', newDark)
-    document.documentElement.classList.toggle('light', !newDark)
-  }
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -38,7 +25,7 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[70] bg-[var(--lux-overlay-bg)] backdrop-blur-sm"
+            className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm"
             onClick={onClose}
             aria-hidden="true"
           />
@@ -50,23 +37,21 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
             role="dialog"
             aria-modal="true"
             aria-label={language === 'id' ? 'Menu navigasi' : 'Navigation menu'}
-            className="fixed top-0 left-0 bottom-0 z-[80] w-[280px] bg-[var(--lux-sidebar-panel-bg)] border-r border-[var(--lux-inline-border)] flex flex-col"
+            className="fixed top-0 left-0 bottom-0 z-[80] w-[280px] bg-[#0a0a0a] border-r border-white/[0.08] flex flex-col"
           >
-            {/* Sidebar Header */}
-            <div className="flex items-center justify-between px-5 h-14 border-b border-[var(--lux-inline-border)]">
+            <div className="flex items-center justify-between px-5 h-14 border-b border-white/[0.08]">
               <div className="flex items-center gap-2.5">
-                <Image src="/logo.png" alt="LuxTrade" width={28} height={28} className="rounded-lg" />
-                <span className="text-base font-medium text-[var(--lux-text-primary)]">LuxTrade</span>
+                <Image src="/logo.png" alt="LuxTrade" width={28} height={28} className="rounded-md" />
+                <span className="text-[15px] font-medium text-white">LuxTrade</span>
               </div>
-              <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--lux-inline-hover-bg)] transition-colors" aria-label="Close">
-                <X className="w-4 h-4 text-[var(--lux-text-body)]" />
+              <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/[0.05] transition-colors" aria-label="Close">
+                <X className="w-4 h-4 text-[#939599]" />
               </button>
             </div>
 
-            {/* Sidebar Nav Links */}
             <nav className="flex-1 overflow-y-auto py-6 px-3">
               <div className="mb-6">
-                <p className="px-3 mb-3 text-[11px] font-medium tracking-[0.15em] text-[var(--lux-text-secondary)] uppercase">
+                <p className="px-3 mb-3 text-[11px] font-medium tracking-[0.15em] text-[#939599] uppercase">
                   {language === 'id' ? 'Produk' : 'Product'}
                 </p>
                 {[
@@ -80,16 +65,16 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
                     key={link.href}
                     href={link.href}
                     onClick={onClose}
-                    className="flex items-center justify-between px-3 py-2.5 rounded-xl text-[14px] font-normal text-[var(--lux-text-secondary)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg)] transition-colors duration-300 group"
+                    className="flex items-center justify-between px-3 py-2.5 rounded-xl text-[14px] text-[#939599] hover:text-white hover:bg-white/[0.03] transition-colors duration-200 group"
                   >
                     <span>{link.label}</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[var(--lux-text-label-3)] group-hover:text-[var(--lux-text-label-2)] transition-colors" />
+                    <ChevronRight className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 transition-colors" />
                   </a>
                 ))}
               </div>
 
               <div className="mb-6">
-                <p className="px-3 mb-3 text-[11px] font-medium tracking-[0.15em] text-[var(--lux-text-secondary)] uppercase">
+                <p className="px-3 mb-3 text-[11px] font-medium tracking-[0.15em] text-[#939599] uppercase">
                   {language === 'id' ? 'Perusahaan' : 'Company'}
                 </p>
                 {[
@@ -101,37 +86,24 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
                   <a
                     key={item.tab}
                     onClick={() => { openLegalPage(item.tab); onClose() }}
-                    className="flex items-center justify-between px-3 py-2.5 rounded-xl text-[14px] font-normal text-[var(--lux-text-secondary)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg)] transition-colors duration-300 group cursor-pointer"
+                    className="flex items-center justify-between px-3 py-2.5 rounded-xl text-[14px] text-[#939599] hover:text-white hover:bg-white/[0.03] transition-colors duration-200 group cursor-pointer"
                   >
                     <span>{item.label}</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-[var(--lux-text-label-3)] group-hover:text-[var(--lux-text-label-2)] transition-colors" />
+                    <ChevronRight className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 transition-colors" />
                   </a>
                 ))}
               </div>
 
-              {/* Theme Toggle in Sidebar */}
-              <div className="px-3 mb-6">
-                <button
-                  onClick={toggleTheme}
-                  className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-[14px] font-normal text-[var(--lux-text-secondary)] hover:text-[var(--lux-text-primary)] hover:bg-[var(--lux-inline-hover-bg)] transition-colors duration-300 group"
-                >
-                  {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
-                  <span>{isDark ? (language === 'id' ? 'Mode Terang' : 'Light Mode') : (language === 'id' ? 'Mode Gelap' : 'Dark Mode')}</span>
-                </button>
-              </div>
-
-              {/* Sidebar Social */}
               <div className="px-3">
-                <p className="px-0 mb-3 text-[11px] font-medium tracking-[0.15em] text-[var(--lux-text-secondary)] uppercase">
+                <p className="px-0 mb-3 text-[11px] font-medium tracking-[0.15em] text-[#939599] uppercase">
                   {language === 'id' ? 'Ikuti Kami' : 'Follow Us'}
                 </p>
                 <SocialIcons />
               </div>
             </nav>
 
-            {/* Sidebar Footer */}
-            <div className="px-5 py-4 border-t border-[var(--lux-inline-border)]">
-              <p className="text-[var(--lux-text-label)] text-xs">© {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
+            <div className="px-5 py-4 border-t border-white/[0.08]">
+              <p className="text-[#939599] text-[11px]">© {new Date().getFullYear()} LuxTrade</p>
             </div>
           </motion.div>
         </>

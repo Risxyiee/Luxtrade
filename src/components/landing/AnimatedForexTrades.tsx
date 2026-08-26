@@ -65,7 +65,7 @@ export default function AnimatedForexTrades() {
         return (
           <motion.div
             key={`${tradeIdx}-${i}`}
-            className="flex items-center justify-between p-3 rounded-xl backdrop-blur-md bg-[var(--lux-inline-hover-bg)] border border-[var(--lux-inline-border)] hover:bg-[var(--lux-inline-hover-bg)] hover:border-purple-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.2)] transition-all duration-300"
+            className="flex items-center justify-between p-3 rounded-xl backdrop-blur-md bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.03] hover:border-[#d5ff45]/30 transition-all duration-200"
             initial={false}
             animate={{ opacity: isExiting ? 0 : 1, x: isExiting ? -100 : isEntering ? 100 : 0, scale: isExiting ? 0.9 : 1 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
@@ -76,15 +76,15 @@ export default function AnimatedForexTrades() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-extrabold text-[var(--lux-text-primary)] tracking-wide">
+                  <span className="text-sm font-medium text-white tracking-wide">
                     {trade.pair}
                   </span>
-                  <span className="text-[9px] px-2.5 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 font-bold backdrop-blur-sm">
+                  <span className="text-[9px] px-2.5 py-0.5 rounded-full bg-[#d5ff45]/15 border border-[#d5ff45]/30 text-[#d5ff45] font-medium backdrop-blur-sm">
                     {trade.session}
                   </span>
                 </div>
-                <div className="text-[10px] text-[var(--lux-text-subtitle)] flex items-center gap-2">
-                  <span className={`font-bold ${trade.type === 'BUY' ? 'text-emerald-400' : 'text-red-400'}`}>
+                <div className="text-[10px] text-[#939599] flex items-center gap-2">
+                  <span className={`font-medium ${trade.type === 'BUY' ? 'text-emerald-400' : 'text-red-400'}`}>
                     {trade.type}
                   </span>
                   <span className="font-mono">@ {trade.price.toFixed(trade.price > 100 ? 2 : 4)}</span>
@@ -93,14 +93,14 @@ export default function AnimatedForexTrades() {
             </div>
             <div className="text-right">
               <div
-                className={`text-sm font-extrabold font-mono ${isLiveProfit ? 'text-emerald-400' : 'text-red-400'}`}
+                className={`text-sm font-medium font-mono ${isLiveProfit ? 'text-emerald-400' : 'text-red-400'}`}
                 key={Math.round(livePnl)}
               >
                 {isLiveProfit ? '+' : ''}{livePnl.toFixed(2)}
               </div>
               <div className="flex items-center justify-end gap-1.5 mt-0.5">
                 <div className={`w-2 h-2 rounded-full ${isLiveProfit ? 'bg-emerald-400' : 'bg-red-400'}`} />
-                <span className="text-[10px] text-[var(--lux-text-subtitle)] font-semibold">
+                <span className="text-[10px] text-[#939599] font-semibold">
                   Demo
                 </span>
               </div>

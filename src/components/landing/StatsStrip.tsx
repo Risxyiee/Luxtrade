@@ -12,7 +12,6 @@ function AnimatedCounter({ target, suffix = '', duration = 2000 }: { target: num
   useEffect(() => {
     if (!isInView || hasAnimated.current) return
     hasAnimated.current = true
-
     const startTime = performance.now()
     const step = (currentTime: number) => {
       const elapsed = currentTime - startTime
@@ -33,8 +32,6 @@ interface StatsStripProps {
   landingStats?: { totalUsers: number; activeUsers: number; tradesLogged: number } | null
 }
 
-const ease = [0.32, 0.72, 0, 1] as const
-
 export default function StatsStrip({ language, t, landingStats }: StatsStripProps) {
   const stats = landingStats ?? { totalUsers: 38, activeUsers: 0, tradesLogged: 8 }
   const loaded = landingStats !== null
@@ -45,27 +42,25 @@ export default function StatsStrip({ language, t, landingStats }: StatsStripProp
   ]
 
   return (
-    <section className="w-full py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+    <section className="w-full py-16 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-8 sm:gap-16">
         {items.map((item, index) => (
           <motion.div
             key={index}
-            initial={{ opacity: loaded ? 0 : 1, y: loaded ? 16 : 0 }}
+            initial={{ opacity: loaded ? 0 : 1, y: loaded ? 12 : 0 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.1 }}
-            transition={{ duration: 0.6, delay: index * 0.08, ease }}
-            className={`flex items-center py-4 ${index < items.length - 1 ? 'border-b border-[var(--lux-inline-border)]' : ''}`}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: index * 0.08 }}
+            className="flex items-baseline gap-2"
           >
-            <span
-              className="text-2xl font-normal tracking-tight tabular-nums text-[#00E5C3]"
-            >
+            <span className="text-2xl font-medium text-[#d5ff45] tabular-nums">
               {loaded ? (
                 <AnimatedCounter target={item.value} suffix={item.suffix} />
               ) : (
                 <span>{item.value}{item.suffix}</span>
               )}
             </span>
-            <span className="text-[13px] font-normal text-[var(--lux-text-secondary)] ml-3">
+            <span className="text-[13px] text-[#939599]">
               {item.label}
             </span>
           </motion.div>
