@@ -1692,3 +1692,25 @@ Stage Summary:
 - HowItWorks steps now have relevant Lucide icons
 - ParticleBackground purple → blue color fix
 - Testimoni (TestimonialSection) was NOT modified per user instruction
+---
+Task ID: 2
+Agent: Main
+Task: Add animated candlestick background to Hero Section
+
+Work Log:
+- Created CandlestickBackground.tsx component
+- Generates candlestick chart data with trend simulation (bull/bear alternation)
+- Desktop: 2 clusters of 14 candles each (left + right columns), hidden on mobile
+- Mobile: 8 subtle candles in single row
+- Colors: emerald-500 (#10b981) for bull candles, blue-900 (#1e40af) for bear candles
+- Opacity: 20% desktop, 12% mobile — text remains clearly readable
+- Animation: Framer Motion y-axis float (bull up, bear down), infinite reverse, staggered delays
+- Integrated into HeroSection at z-0, content at z-10
+- Lint: clean
+- Compilation: GET / 200, zero errors
+- Pushed to GitHub: c28e4f4
+
+Stage Summary:
+- New component: src/components/landing/CandlestickBackground.tsx
+- HeroSection updated with CandlestickBackground at z-0 behind content
+- Trading terminal aesthetic in background without affecting readability
