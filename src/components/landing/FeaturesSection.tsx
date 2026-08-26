@@ -69,13 +69,13 @@ export default function FeaturesSection({ language, t }: FeaturesSectionProps) {
           transition={{ duration: 0.5 }}
           className="mb-14"
         >
-          <p className="text-[12px] font-medium tracking-[0.18em] uppercase text-[#939599] mb-3">
+          <p className="text-[12px] font-medium tracking-[0.18em] uppercase text-[#8892b0] mb-3">
             {language === 'id' ? 'FITUR' : 'FEATURES'}
           </p>
-          <h2 className="text-3xl md:text-[40px] font-medium tracking-tight text-white leading-tight">
+          <h2 className="text-3xl md:text-[40px] font-medium tracking-tight text-[#f0f2ff] leading-tight">
             {t('features.title')}
           </h2>
-          <p className="text-[15px] text-[#939599] max-w-md mt-4 leading-relaxed">
+          <p className="text-[15px] text-[#8892b0] max-w-md mt-4 leading-relaxed">
             {t('features.subtitle')}
           </p>
         </motion.div>
@@ -89,15 +89,15 @@ export default function FeaturesSection({ language, t }: FeaturesSectionProps) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.15 }}
               transition={{ duration: 0.5, delay: index * 0.08 }}
-              className="bg-[#0a0a0a] p-8 lg:p-10 hover:bg-[#0f0f0f] transition-colors duration-300"
+              className="bg-[#0a0a1a] p-8 lg:p-10 hover:bg-[#0f0f25] transition-colors duration-300"
             >
-              <span className="text-[11px] font-medium tracking-[0.16em] text-[#d5ff45] uppercase block mb-3">
+              <span className="text-[11px] font-medium tracking-[0.16em] text-blue-400 uppercase block mb-3">
                 {feature.tag}
               </span>
-              <h3 className="text-[18px] font-medium text-white mb-2 leading-snug">
+              <h3 className="text-[18px] font-medium text-[#f0f2ff] mb-2 leading-snug">
                 {feature.title}
               </h3>
-              <p className="text-[14px] text-[#939599] leading-relaxed">
+              <p className="text-[14px] text-[#8892b0] leading-relaxed">
                 {feature.desc}
               </p>
             </motion.div>

@@ -53,14 +53,14 @@ export default function StatsStrip({ language, t, landingStats }: StatsStripProp
             transition={{ duration: 0.5, delay: index * 0.08 }}
             className="flex items-baseline gap-2"
           >
-            <span className="text-2xl font-medium text-[#d5ff45] tabular-nums">
+            <span className="text-2xl font-medium text-blue-400 tabular-nums">
               {loaded ? (
                 <AnimatedCounter target={item.value} suffix={item.suffix} />
               ) : (
                 <span>{item.value}{item.suffix}</span>
               )}
             </span>
-            <span className="text-[13px] text-[#939599]">
+            <span className="text-[13px] text-[#8892b0]">
               {item.label}
             </span>
           </motion.div>
