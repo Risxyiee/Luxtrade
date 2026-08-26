@@ -15,6 +15,7 @@ import ScrollToTopButton from '@/components/landing/ScrollToTopButton'
 const AIVisionSimulator = dynamic(() => import('@/components/landing/AIVisionSimulator').then(m => ({ default: m.default })), { ssr: false })
 const CaraKerjaSection = dynamic(() => import('@/components/landing/CaraKerjaSection').then(m => ({ default: m.default })), { ssr: false })
 const PricingSectionNew = dynamic(() => import('@/components/landing/PricingSectionNew').then(m => ({ default: m.default })), { ssr: false })
+const FAQSection = dynamic(() => import('@/components/landing/FAQSection').then(m => ({ default: m.default })), { ssr: false })
 
 interface LandingStats {
   totalUsers: number
@@ -165,6 +166,7 @@ export default function LuxTradeLanding() {
             handleProUpgrade={handleProUpgrade}
             payLoading={payLoading}
           />
+          <FAQSection language={language} />
           <FinalCTA />
         </main>
 
