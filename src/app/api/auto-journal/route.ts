@@ -81,39 +81,10 @@ interface CombinedAIResponse {
  * Falls back to raw base64 if canvas is unavailable.
  */
 async function optimizeImage(buffer: Buffer): Promise<{ optimizedBase64: string; optimizedBuffer: Buffer }> {
-  try {
-    // Dynamically import canvas — not available in Edge, but fine in Node.js runtime
-    const { createCanvas, loadImage } = await import('canvas')
-
-    const MAX_WIDTH = 1920
-    const MAX_HEIGHT = 1080
-
-    const image = await loadImage(buffer)
-    let width = image.width
-    let height = image.height
-
-    // Scale down if larger than max dimensions
-    if (width > MAX_WIDTH || height > MAX_HEIGHT) {
-      const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height)
-      width = Math.round(width * ratio)
-      height = Math.round(height * ratio)
-    }
-
-    const canvas = createCanvas(width, height)
-    const ctx = canvas.getContext('2d')
-    ctx.drawImage(image, 0, 0, width, height)
-
-    const jpegBuffer = canvas.toBuffer('image/jpeg', { quality: 0.85 })
-    return {
-      optimizedBase64: jpegBuffer.toString('base64'),
-      optimizedBuffer: jpegBuffer,
-    }
-  } catch {
-    // canvas not available (Edge runtime) — just return raw base64
-    return {
-      optimizedBase64: buffer.toString('base64'),
-      optimizedBuffer: buffer,
-    }
+  // canvas package not available in serverless/edge — return raw base64 directly
+  return {
+    optimizedBase64: buffer.toString('base64'),
+    optimizedBuffer: buffer,
   }
 }
 
