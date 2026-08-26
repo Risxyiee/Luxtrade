@@ -27,7 +27,7 @@ export default function SocialProofBar({ language = 'id' }: SocialProofBarProps)
                 {logos.map((logo) => (
                   <div
                     key={`${dup}-${logo.name}`}
-                    className={`text-1.25xl font-bold text-gray-500 transition-all opacity-40 cursor-pointer flex items-center gap-2 hover:text-white hover:opacity-100 hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.2)] text-[1.25rem] ${logo.style}`}
+                    className={`text-1.25xl font-bold text-blue-400 transition-all opacity-60 cursor-pointer flex items-center gap-2 hover:text-blue-300 hover:opacity-100 hover:drop-shadow-[0_0_12px_rgba(96,165,250,0.3)] text-[1.25rem] ${logo.style}`}
                   >
                     {logo.name === 'midtrans' ? (
                       <>
