@@ -37,21 +37,21 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
             role="dialog"
             aria-modal="true"
             aria-label={language === 'id' ? 'Menu navigasi' : 'Navigation menu'}
-            className="fixed top-0 left-0 bottom-0 z-[80] w-[280px] bg-[#0a0a0a] border-r border-white/[0.08] flex flex-col"
+            className="fixed top-0 left-0 bottom-0 z-[80] w-[280px] bg-[#050510] border-r border-white/[0.08] flex flex-col"
           >
             <div className="flex items-center justify-between px-5 h-14 border-b border-white/[0.08]">
               <div className="flex items-center gap-2.5">
                 <Image src="/logo.png" alt="LuxTrade" width={28} height={28} className="rounded-md" />
-                <span className="text-[15px] font-medium text-white">LuxTrade</span>
+                <span className="text-[15px] font-medium text-[#f0f2ff]">LuxTrade</span>
               </div>
               <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/[0.05] transition-colors" aria-label="Close">
-                <X className="w-4 h-4 text-[#939599]" />
+                <X className="w-4 h-4 text-[#8892b0]" />
               </button>
             </div>
 
             <nav className="flex-1 overflow-y-auto py-6 px-3">
               <div className="mb-6">
-                <p className="px-3 mb-3 text-[11px] font-medium tracking-[0.15em] text-[#939599] uppercase">
+                <p className="px-3 mb-3 text-[11px] font-medium tracking-[0.15em] text-[#8892b0] uppercase">
                   {language === 'id' ? 'Produk' : 'Product'}
                 </p>
                 {[
@@ -65,16 +65,16 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
                     key={link.href}
                     href={link.href}
                     onClick={onClose}
-                    className="flex items-center justify-between px-3 py-2.5 rounded-xl text-[14px] text-[#939599] hover:text-white hover:bg-white/[0.03] transition-colors duration-200 group"
+                    className="flex items-center justify-between px-3 py-2.5 rounded-xl text-[14px] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03] transition-colors duration-200 group"
                   >
                     <span>{link.label}</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 transition-colors" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#2a3350] group-hover:text-[#4a5578] transition-colors" />
                   </a>
                 ))}
               </div>
 
               <div className="mb-6">
-                <p className="px-3 mb-3 text-[11px] font-medium tracking-[0.15em] text-[#939599] uppercase">
+                <p className="px-3 mb-3 text-[11px] font-medium tracking-[0.15em] text-[#8892b0] uppercase">
                   {language === 'id' ? 'Perusahaan' : 'Company'}
                 </p>
                 {[
@@ -86,16 +86,16 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
                   <a
                     key={item.tab}
                     onClick={() => { openLegalPage(item.tab); onClose() }}
-                    className="flex items-center justify-between px-3 py-2.5 rounded-xl text-[14px] text-[#939599] hover:text-white hover:bg-white/[0.03] transition-colors duration-200 group cursor-pointer"
+                    className="flex items-center justify-between px-3 py-2.5 rounded-xl text-[14px] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03] transition-colors duration-200 group cursor-pointer"
                   >
                     <span>{item.label}</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 transition-colors" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#2a3350] group-hover:text-[#4a5578] transition-colors" />
                   </a>
                 ))}
               </div>
 
               <div className="px-3">
-                <p className="px-0 mb-3 text-[11px] font-medium tracking-[0.15em] text-[#939599] uppercase">
+                <p className="px-0 mb-3 text-[11px] font-medium tracking-[0.15em] text-[#8892b0] uppercase">
                   {language === 'id' ? 'Ikuti Kami' : 'Follow Us'}
                 </p>
                 <SocialIcons />
@@ -103,7 +103,7 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
             </nav>
 
             <div className="px-5 py-4 border-t border-white/[0.08]">
-              <p className="text-[#939599] text-[11px]">© {new Date().getFullYear()} LuxTrade</p>
+              <p className="text-[#8892b0] text-[11px]">© {new Date().getFullYear()} LuxTrade</p>
             </div>
           </motion.div>
         </>

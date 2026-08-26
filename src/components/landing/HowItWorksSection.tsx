@@ -44,10 +44,10 @@ export default function HowItWorksSection({ language }: HowItWorksSectionProps) 
           transition={{ duration: 0.5 }}
           className="mb-14"
         >
-          <p className="text-[12px] font-medium tracking-[0.18em] uppercase text-[#939599] mb-3">
+          <p className="text-[12px] font-medium tracking-[0.18em] uppercase text-[#8892b0] mb-3">
             {language === 'id' ? 'CARA KERJA' : 'HOW IT WORKS'}
           </p>
-          <h2 className="text-3xl md:text-[40px] font-medium tracking-tight text-white">
+          <h2 className="text-3xl md:text-[40px] font-medium tracking-tight text-[#f0f2ff]">
             {language === 'id' ? 'Tiga langkah. Trade pertama live dalam hitungan menit.' : 'Three steps. First trade logged in minutes.'}
           </h2>
         </motion.div>
@@ -64,14 +64,14 @@ export default function HowItWorksSection({ language }: HowItWorksSectionProps) 
               className={`py-8 ${i < steps.length - 1 ? 'border-b border-white/[0.06]' : ''}`}
             >
               <div className="flex gap-6">
-                <span className="text-[14px] font-mono text-[#d5ff45] shrink-0 w-6">
+                <span className="text-[14px] font-mono text-blue-400 shrink-0 w-6">
                   {step.num}
                 </span>
                 <div>
-                  <h3 className="text-[16px] font-medium text-white mb-1.5">
+                  <h3 className="text-[16px] font-medium text-[#f0f2ff] mb-1.5">
                     {language === 'id' ? step.titleId : step.titleEn}
                   </h3>
-                  <p className="text-[14px] text-[#939599] leading-relaxed">
+                  <p className="text-[14px] text-[#8892b0] leading-relaxed">
                     {language === 'id' ? step.descId : step.descEn}
                   </p>
                 </div>

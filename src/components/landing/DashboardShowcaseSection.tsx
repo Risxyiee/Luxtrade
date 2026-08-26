@@ -32,15 +32,15 @@ export default function DashboardShowcaseSection({ language }: { language: 'id' 
           transition={{ duration: 0.5 }}
           className="mb-14"
         >
-          <p className="text-[12px] font-medium tracking-[0.18em] uppercase text-[#939599] mb-3">
+          <p className="text-[12px] font-medium tracking-[0.18em] uppercase text-[#8892b0] mb-3">
             {language === 'id' ? 'INTIP DASHBOARD' : 'INSIDE THE APP'}
           </p>
-          <h2 className="text-3xl md:text-[40px] font-medium tracking-tight text-white leading-tight">
+          <h2 className="text-3xl md:text-[40px] font-medium tracking-tight text-[#f0f2ff] leading-tight">
             {language === 'id'
               ? 'Lihat langsung gimana rasanya.'
               : 'See what it feels like inside.'}
           </h2>
-          <p className="text-[15px] text-[#939599] max-w-md mt-4 leading-relaxed">
+          <p className="text-[15px] text-[#8892b0] max-w-md mt-4 leading-relaxed">
             {language === 'id'
               ? 'Dashboard lengkap untuk catat, analisa, dan perbaiki strategi trading kamu.'
               : 'A complete dashboard to log, analyze, and improve your trading strategy.'}
@@ -52,7 +52,7 @@ export default function DashboardShowcaseSection({ language }: { language: 'id' 
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.15 }}
           transition={{ duration: 0.5 }}
-          className="rounded-2xl border border-white/[0.08] bg-[#0a0a0a] overflow-hidden"
+          className="rounded-2xl border border-white/[0.08] bg-[#0a0a1a] overflow-hidden"
         >
           {/* Tab bar — fake browser tabs */}
           <div className="flex items-center gap-0 border-b border-white/[0.08] overflow-x-auto">
@@ -68,8 +68,8 @@ export default function DashboardShowcaseSection({ language }: { language: 'id' 
                 onClick={() => setActive(i)}
                 className={`px-4 py-3 text-[12px] font-medium whitespace-nowrap transition-colors duration-200 border-b-2 -mb-px ${
                   active === i
-                    ? 'text-white border-white'
-                    : 'text-[#939599] border-transparent hover:text-white'
+                    ? 'text-blue-400 border-blue-400'
+                    : 'text-[#8892b0] border-transparent hover:text-[#f0f2ff]'
                 }`}
               >
                 {tabLabels[language][i]}
@@ -78,7 +78,7 @@ export default function DashboardShowcaseSection({ language }: { language: 'id' 
           </div>
 
           {/* Screenshot display area */}
-          <div className="relative bg-[#080a0e]">
+          <div className="relative bg-[#0c1445]">
             <div className="aspect-[16/10] w-full">
               {tabs.map((tab, i) => (
                 <div
@@ -100,10 +100,10 @@ export default function DashboardShowcaseSection({ language }: { language: 'id' 
 
           {/* Caption bar */}
           <div className="px-5 py-3 border-t border-white/[0.08] flex items-center justify-between">
-            <p className="text-[12px] text-[#939599]">
+            <p className="text-[12px] text-[#8892b0]">
               {language === 'id' ? current.captionId : current.captionEn}
             </p>
-            <p className="text-[11px] text-white/30">
+            <p className="text-[11px] text-[#4a5578]">
               {active + 1} / {tabs.length}
             </p>
           </div>
