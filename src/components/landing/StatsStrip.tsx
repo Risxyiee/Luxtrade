@@ -40,40 +40,36 @@ export default function StatsStrip({ language, t, landingStats }: StatsStripProp
   const loaded = landingStats !== null
 
   const items = [
-    { value: stats.totalUsers, suffix: '+', label: language === 'id' ? 'Trader Terdaftar' : 'Registered Traders', color: '#a855f7' },
-    { value: stats.tradesLogged, suffix: '+', label: language === 'id' ? 'Trade Tercatat' : 'Trades Logged', color: '#22d3ee' },
-    { value: 100, suffix: '%', label: language === 'id' ? 'Data Terenkripsi' : 'Data Encrypted', color: '#4ade80' },
+    { value: stats.totalUsers, suffix: '+', label: language === 'id' ? 'Trader Terdaftar' : 'Registered Traders' },
+    { value: stats.tradesLogged, suffix: '+', label: language === 'id' ? 'Trade Tercatat' : 'Trades Logged' },
   ]
 
   return (
-    <section className="w-full pb-12 lg:pb-16 px-4 sm:px-6 lg:px-8">
+    <section className="w-full py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {items.map((item, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: loaded ? 0 : 1, y: loaded ? 16 : 0 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.1 }}
-              transition={{ duration: 0.6, delay: index * 0.08, ease }}
-              className="flex items-center gap-4 sm:gap-5 py-4 px-6 rounded-2xl border border-[var(--lux-inline-border)] bg-[var(--lux-card-surface)]/50 hover:bg-[var(--lux-card-surface-hover)]/50 transition-colors duration-700"
+        {items.map((item, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: loaded ? 0 : 1, y: loaded ? 16 : 0 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.1 }}
+            transition={{ duration: 0.6, delay: index * 0.08, ease }}
+            className={`flex items-center py-4 ${index < items.length - 1 ? 'border-b border-[var(--lux-inline-border)]' : ''}`}
+          >
+            <span
+              className="text-2xl font-normal tracking-tight tabular-nums text-[#00E5C3]"
             >
-              <div
-                className="font-bold text-2xl lg:text-3xl tracking-tight tabular-nums"
-                style={{ color: item.color }}
-              >
-                {loaded ? (
-                  <AnimatedCounter target={item.value} suffix={item.suffix} />
-                ) : (
-                  <span>{item.value}{item.suffix}</span>
-                )}
-              </div>
-              <span className="text-[var(--lux-text-body)] text-sm font-medium">
-                {item.label}
-              </span>
-            </motion.div>
-          ))}
-        </div>
+              {loaded ? (
+                <AnimatedCounter target={item.value} suffix={item.suffix} />
+              ) : (
+                <span>{item.value}{item.suffix}</span>
+              )}
+            </span>
+            <span className="text-[13px] font-normal text-[var(--lux-text-secondary)] ml-3">
+              {item.label}
+            </span>
+          </motion.div>
+        ))}
       </div>
     </section>
   )

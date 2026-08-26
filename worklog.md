@@ -1561,3 +1561,55 @@ Stage Summary:
 - All transitions use custom cubic-bezier [0.32, 0.72, 0, 1]
 - Fake testimonials removed, gradient overuse reduced, badge pill patterns eliminated
 - VLM verification: 7.5/10 premium rating, described as "$10k-$25k+ custom build"
+
+---
+Task ID: 11-16
+Agent: Recon Style Subagent
+Task: Redesign all remaining landing components to match Recon design language
+
+Work Log:
+- Read all 10 existing component files and worklog.md for context
+- Rewrote FeaturesSection.tsx: removed eyebrow badge, asymmetrical bento grid → clean 2x2 grid, removed double-bezel shells, removed per-feature accent colors, 4px #00E5C3 dot before each title, h2 font-normal, blur-in animation
+- Rewrote HowItWorksSection.tsx: removed eyebrow tag, h2 font-normal with tracking -0.02em, max-w-2xl, monospace step numbers text-[13px], title text-base font-medium, description text-[13px] font-normal, border dividers between steps
+- Rewrote CTASectionBreak.tsx: removed double-bezel container, simple centered text layout, h2 font-normal 36px, cyan pill button (#00E5C3, text-black, rounded-full, glow shadow), scale-in animation
+- Rewrote LandingNavbar.tsx: removed floating pill/backdrop-blur/border-radius, flush to top-0, transparent bg with scroll-aware opacity, nav links 14px font-medium text-secondary, CTA cyan pill h-8 px-5, logo font-medium, active link text-color-only, plain HTML button/link elements
+- Rewrote StatsStrip.tsx: removed 3rd "100% Encrypted" stat, removed card backgrounds/borders/icons, single accent color #00E5C3 for all numbers, number+label on same line with ml-3, border-b dividers between rows
+- Rewrote SectionDivider.tsx: simplified to py-6 with centered w-px h-10 bg-white/[0.06]
+- Rewrote AnnouncementBar.tsx: solid #00E5C3 background (no blur/transparent), all text in black, h-9 height, Sparkles icon + promo text + Klaim link
+- Rewrote PromoCodeSection.tsx: removed double-bezel container, simple centered card with border, badge as plain text (no bg/border), h3 font-normal, code in #00E5C3 font-mono (no gradient/bold), progress bar h-1 bg-white/[0.06] with #00E5C3/60 fill
+- Rewrote LandingFooter.tsx: logo font-medium (no gradient), section headers text-[13px] font-medium, links text-[13px] font-normal text-secondary hover:text-primary, kept all structure/links, removed shadow from logo image
+- Rewrite LandingSidebar.tsx: section headers text-[11px] font-medium tracking-[0.15em] text-secondary uppercase, links text-[14px] font-normal text-secondary, logo font-medium, removed backdrop-blur from panel, replaced non-existent CSS vars (--lux-text-body-2, --lux-inline-hover-bg-2) with correct vars
+- ESLint passes clean with no errors
+
+Stage Summary:
+- 10 files rewritten to match Recon (getrecon.framer.ai) design language
+- Key Recon signatures applied: font-normal on all h1/h2, no gradients on text/buttons, no double-bezel cards, no backdrop-blur on navbar, single accent color #00E5C3
+- All interfaces/props preserved exactly as before
+- All transitions use ease = [0.32, 0.72, 0, 1]
+- Section spacing standardized to py-28 lg:py-36
+
+---
+Task ID: 11-16
+Agent: Recon Style Subagent + Main Agent
+Task: Redesign landing page to match Recon (getrecon.framer.ai) design language
+
+Work Log:
+- Analyzed Recon via Agent Browser: extracted exact CSS values (bg #080A0E, h1 56px/400, h2 36px/400, subtitle 14px/500/#939599, CTA #00E5C3/12px/400, nav 14px/500/#939599, transparent navbar)
+- Updated globals.css dark theme: BG #080A0E (was #0f051d), accent #00E5C3 (was #a855f7), text-primary #F0F2F5, text-secondary #939599, borders rgba(255,255,255,0.06), navbar transparent
+- Rewrote HeroSection: left-aligned, 56px h1 font-normal, cyan CTA with glow shadow, no double-bezel, no eyebrow badge bg
+- Rewrote FeaturesSection: clean 2x2 grid, 4px cyan dots, font-normal h2, no icons, no bento, no double-bezel
+- Rewrote HowItWorksSection: vertical layout, monospace step numbers, font-normal h2, no eyebrow
+- Rewrote CTASectionBreak: simple centered, cyan pill CTA, font-normal h2, no double-bezel
+- Rewrote LandingNavbar: transparent flush-top bar, no blur/pill/shadow, cyan CTA pill, font-medium logo
+- Rewrote StatsStrip: 2 stats only, cyan numbers, row dividers, no cards/icons
+- Rewrote SectionDivider: minimal w-px h-10 white/6%
+- Rewrote AnnouncementBar: solid #00E5C3 bg, black text
+- Rewrote PromoCodeSection: simple card, cyan code text, no double-bezel
+- Rewrote LandingFooter: font-medium headers, normal weight links
+- Rewrote LandingSidebar: no backdrop-blur, consistent font weights
+
+Stage Summary:
+- 11 files modified total (globals.css + 10 landing components)
+- Design matches Recon: #080A0E bg, #00E5C3 single accent, font-normal headlines, transparent navbar, no gradients/blurs
+- Lint clean, server compiles and returns HTTP 200
+- Key Recon principles applied: regular-weight headlines, single accent color, generous spacing, clean borders, no glass effects
