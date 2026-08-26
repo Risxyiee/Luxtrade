@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Play, Pause, VolumeX, MonitorPlay, Sparkles } from 'lucide-react'
+import { Play, Pause, VolumeX, MonitorPlay } from 'lucide-react'
 
 interface TutorialVideoSectionProps {
   language: 'id' | 'en'
@@ -18,7 +18,7 @@ function VideoParticles() {
         transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
       />
       <motion.div
-        className="absolute -bottom-10 -right-10 w-48 h-48 rounded-full bg-cyan-500/15 blur-[70px]"
+        className="absolute -bottom-10 -right-10 w-48 h-48 rounded-full bg-blue-500/15 blur-[70px]"
         animate={{ x: [0, -25, 15, 0], y: [0, 20, -15, 0] }}
         transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
       />

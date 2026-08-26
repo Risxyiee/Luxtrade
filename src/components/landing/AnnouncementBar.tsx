@@ -23,7 +23,7 @@ export default function AnnouncementBar({ language, promoCode, promoActive }: An
   const codeDisplay = promoCode || 'PROMO'
 
   return (
-    <div className="w-full border-b border-white/[0.08] bg-[#080818]">
+    <div className="w-full border-b border-white/[0.08] bg-[#050510]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-center">
         <div className="flex items-center gap-2 text-[12px] text-[#8892b0]">
           <span className="bg-blue-500 text-white px-1.5 py-0.5 rounded text-[10px] font-medium">PROMO</span>

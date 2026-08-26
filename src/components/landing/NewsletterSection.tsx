@@ -45,7 +45,7 @@ export default function NewsletterSection({ language, newsletterEmail, setNewsle
             </button>
           </form>
           {newsletterSuccess && (
-            <p className="text-green-400 text-sm mt-3">✓ {language === 'id' ? 'Berhasil berlangganan!' : 'Subscribed!'}</p>
+            <p className="text-emerald-400 text-sm mt-3">✓ {language === 'id' ? 'Berhasil berlangganan!' : 'Subscribed!'}</p>
           )}
           <p className="text-[#8892b0] text-xs mt-4">{language === 'id' ? 'Tidak ada spam. Berhenti langganan kapan saja.' : 'No spam. Unsubscribe anytime.'}</p>
         </motion.div>
