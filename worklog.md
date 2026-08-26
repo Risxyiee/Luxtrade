@@ -1714,3 +1714,25 @@ Stage Summary:
 - New component: src/components/landing/CandlestickBackground.tsx
 - HeroSection updated with CandlestickBackground at z-0 behind content
 - Trading terminal aesthetic in background without affecting readability
+
+---
+Task ID: 2-a
+Agent: i18n-landing-components
+Task: Add language prop and bilingual text to HeroSection, CaraKerjaSection, PricingSectionNew, FinalCTA, SocialProofBar, AIVisionSimulator
+
+Work Log:
+- Read all 6 landing components and page.tsx to understand current code structure
+- Added `language?: 'id' | 'en'` prop (default 'id') to HeroSection, CaraKerjaSection, PricingSectionNew, FinalCTA, SocialProofBar, AIVisionSimulator
+- Translated all visible Indonesian text to English using simple ternary pattern: `language === 'en' ? 'English' : 'Indonesian'`
+- For CaraKerjaSection, created separate `steps.id` and `steps.en` arrays to hold bilingual step data (titles + descriptions)
+- Kept universal labels unchanged: 'STEP 0X', 'Win Rate', 'Profit Factor', 'Tag: gold', 'Data Extracted: +$340.20', '70% losses on Friday', 'Daily Drawdown', 'Status: Secure', 'POPULAR', 'INTERACTIVE DEMO', 'AI Extract Output', button labels (XAUUSD Buy, etc.)
+- Updated page.tsx to pass `language={language}` prop to all 6 components
+- No styling, layout, colors, or structure changes made
+- All existing props and functionality preserved intact
+- Ran `bun run lint` — passed with zero errors
+
+Stage Summary:
+- 6 landing components now accept optional `language` prop with 'id' default
+- All visible text is bilingual (ID/EN) controlled by LanguageSwitcher via LanguageContext
+- page.tsx passes `language` from `useLanguage()` to all landing components
+- Zero lint errors

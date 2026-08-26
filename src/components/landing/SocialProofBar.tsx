@@ -2,6 +2,10 @@
 
 import React from 'react'
 
+interface SocialProofBarProps {
+  language?: 'id' | 'en'
+}
+
 const logos = [
   { name: 'FundedElite', style: 'tracking-tight' },
   { name: 'FINOTIVE FUNDING', style: 'tracking-wider italic font-light' },
@@ -9,12 +13,12 @@ const logos = [
   { name: 'midtrans', style: 'tracking-tight', hasBadge: true },
 ]
 
-export default function SocialProofBar() {
+export default function SocialProofBar({ language = 'id' }: SocialProofBarProps) {
   return (
     <section className="py-16 border-y border-white/5 bg-[#070710] relative z-10">
       <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-10">
         <p className="text-sm text-gray-500 uppercase tracking-widest font-mono text-center">
-          Dipercaya oleh trader yang melewati tantangan Prop Firm.
+          {language === 'en' ? 'Trusted by traders who pass Prop Firm challenges.' : 'Dipercaya oleh trader yang melewati tantangan Prop Firm.'}
         </p>
         <div className="w-full overflow-hidden mask-gradient">
           <div className="marquee-track">
@@ -32,7 +36,7 @@ export default function SocialProofBar() {
                       </>
                     ) : logo.name}
                     {logo.hasBadge && (
-                      <span className="verified-badge font-mono align-middle">Pembayaran Terverifikasi</span>
+                      <span className="verified-badge font-mono align-middle">{language === 'en' ? 'Verified Payment' : 'Pembayaran Terverifikasi'}</span>
                     )}
                   </div>
                 ))}

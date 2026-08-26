@@ -7,7 +7,11 @@ import Image from 'next/image'
 import { Sparkles, ScanLine } from 'lucide-react'
 import CandlestickBackground from './CandlestickBackground'
 
-export default function HeroSection() {
+interface HeroSectionProps {
+  language?: 'id' | 'en'
+}
+
+export default function HeroSection({ language = 'id' }: HeroSectionProps) {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 pb-20 z-10">
       <CandlestickBackground />
@@ -22,7 +26,7 @@ export default function HeroSection() {
             transition={{ duration: 0.5 }}
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm text-xs font-mono tracking-wider text-cyan-300"
           >
-            <Sparkles className="w-3 h-3" /> TRADING JOURNAL INDONESIA
+            <Sparkles className="w-3 h-3" /> {language === 'en' ? 'TRADING JOURNAL' : 'TRADING JOURNAL INDONESIA'}
           </motion.div>
 
           <motion.h1
@@ -31,7 +35,7 @@ export default function HeroSection() {
             transition={{ duration: 0.6, delay: 0.08 }}
             className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter max-w-2xl bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-gray-600"
           >
-            Berhenti Trading Asal-Asalan. Bangun Edge Anda.
+            {language === 'en' ? 'Stop Trading Blind. Build Your Edge.' : 'Berhenti Trading Asal-Asalan. Bangun Edge Anda.'}
           </motion.h1>
 
           <motion.p
@@ -40,7 +44,9 @@ export default function HeroSection() {
             transition={{ duration: 0.5, delay: 0.16 }}
             className="max-w-xl text-lg text-gray-400"
           >
-            Trading journal buat trader Indonesia — cukup upload history MT5, sistem otomatis jadikan jurnal, deteksi pola kesalahan lewat AI, dan lihat equity curve kamu naik.
+            {language === 'en'
+              ? 'A trading journal for traders — just upload your MT5 history, the system automatically creates your journal, detects error patterns with AI, and watch your equity curve grow.'
+              : 'Trading journal buat trader Indonesia — cukup upload history MT5, sistem otomatis jadikan jurnal, deteksi pola kesalahan lewat AI, dan lihat equity curve kamu naik.'}
           </motion.p>
 
           <motion.div
@@ -51,12 +57,12 @@ export default function HeroSection() {
           >
             <Link href="#simulator">
               <span className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-xl hover:opacity-90 transition-all glow-bg-luxury">
-                Coba AI Simulator <ScanLine className="w-4 h-4" />
+                {language === 'en' ? 'Try AI Simulator' : 'Coba AI Simulator'} <ScanLine className="w-4 h-4" />
               </span>
             </Link>
             <Link href="#pricing">
               <span className="inline-flex items-center gap-2 px-6 py-3 bg-white/5 text-white font-medium rounded-xl hover:bg-white/10 border border-white/10 transition-all">
-                Lihat Pricing
+                {language === 'en' ? 'View Pricing' : 'Lihat Pricing'}
               </span>
             </Link>
           </motion.div>
