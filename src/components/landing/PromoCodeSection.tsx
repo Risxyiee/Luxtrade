@@ -3,6 +3,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { Copy, Check } from 'lucide-react'
+import { PromoSvg } from './SectionSvgArt'
 import { useState } from 'react'
 
 export default function PromoCodeSection({ language, promoCode, promoRemaining, promoMax, promoActive }: {
@@ -25,7 +26,8 @@ export default function PromoCodeSection({ language, promoCode, promoRemaining, 
   }
 
   return (
-    <section id="promo" className="py-16 px-4 sm:px-6 lg:px-8">
+    <section id="promo" className="relative py-16 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <PromoSvg />
       <div className="max-w-3xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 16 }}

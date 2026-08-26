@@ -3,10 +3,12 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { CtaSvg } from './SectionSvgArt'
 
 export default function CTASectionBreak({ language }: { language: 'id' | 'en' }) {
   return (
-    <section className="py-24 lg:py-32 px-4 sm:px-6 lg:px-8 relative">
+    <section className="py-24 lg:py-32 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <CtaSvg />
       {/* CTA ambient glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-blue-500/[0.1] rounded-full blur-[100px] pointer-events-none" aria-hidden="true" />
       <div className="max-w-3xl mx-auto text-center relative">
