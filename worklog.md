@@ -1863,3 +1863,29 @@ Stage Summary:
 - Modified `src/app/globals.css` (auth page mobile layout + glass card transparency + orb visibility)
 - Modified `src/app/auth/signup/page.tsx` (AuthBackground z-index, auth-signup-page class)
 - Rewritten `src/components/LanguageSwitcher.tsx` (blue color scheme)
+---
+Task ID: 3
+Agent: Main
+Task: Redesign dashboard colors to match landing page + reorganize sidebar
+
+Work Log:
+- Analyzed landing page color scheme: #050507 bg, blue #3b82f6 → cyan #06b6d4 accents
+- Analyzed dashboard current colors: #080A0E bg, teal #00E5C3 primary, hardcoded purple accents
+- Updated CSS variables in globals.css: primary #00E5C3→#3b82f6, sidebar bg→#050507, chart-1→#06b6d4
+- Reorganized sidebar from 3 categories (UTAMA 8 items, ALAT 2, LANJUTAN 7) to 4 cleaner groups:
+  - UTAMA (4): Dashboard, Trades, Calendar, Journal
+  - PASAR (3): Watchlist, Market News, Economic Calendar
+  - ALAT (4): Risk Calculator, Market Heatmap, Analytics, Targets
+  - LANJUTAN (6): AI Insights, Trading Score, Weekly Report, Streaks, Psychology, Achievements
+- All 17 menu items preserved, zero features removed
+- Changed all purple/violet/pink→blue/cyan across 31 files (~200+ replacements)
+- Updated: Sidebar, Header, SidebarNav, SidebarHeader, SidebarFooter
+- Updated: AnimatedStatCard, DashboardTab, PerformanceChart, EquityCurveCard
+- Updated: All 12 tab components (Trades, Journal, Calendar, Watchlist, etc.)
+- Updated: TradeForm, DashboardModals, JournalFilterPanel, RecentTrades, QuickActions, TradingStatsDashboard
+
+Stage Summary:
+- 31 files changed, 487 insertions, 483 deletions
+- Committed as 5e1127c and pushed to GitHub
+- Lint passes with zero errors
+- Dashboard now uses consistent blue/cyan theme matching landing page
