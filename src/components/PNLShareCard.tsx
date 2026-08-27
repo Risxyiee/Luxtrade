@@ -290,7 +290,7 @@ const PNLShareCard = forwardRef<HTMLDivElement, PNLShareCardProps>(function PNLS
             <img 
               src="/logo.png" 
               alt="LuxTrade Logo" 
-              style={{ width: '40px', height: '40px', borderRadius: '8px' }}
+              style={{ width: '40px', height: '40px', objectFit: 'contain' }}
             />
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <span style={{ fontSize: '20px', fontWeight: 'bold', color: 'white' }}>

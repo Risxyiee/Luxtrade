@@ -58,7 +58,7 @@ export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNav
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between h-14 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2.5">
-            <Image src="/logo.png" alt="LuxTrade" width={28} height={28} className="rounded-md" />
+            <Image src="/logo.png" alt="LuxTrade" width={28} height={28} className="object-contain" />
             <span className="text-[15px] font-medium text-[#f0f2ff] tracking-tight">LuxTrade</span>
           </div>
 

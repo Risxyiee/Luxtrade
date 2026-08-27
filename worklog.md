@@ -1736,3 +1736,39 @@ Stage Summary:
 - All visible text is bilingual (ID/EN) controlled by LanguageSwitcher via LanguageContext
 - page.tsx passes `language` from `useLanguage()` to all landing components
 - Zero lint errors
+
+---
+Task ID: Logo Styling Update for Transparent PNG
+Agent: Sub-agent
+Task: Update logo Image className across all files for new transparent PNG logo
+
+Work Log:
+- Changed `rounded-md` to `object-contain` on logo Image in LandingSidebar.tsx
+- Changed `rounded-md` to `object-contain` on logo Image in LandingFooter.tsx
+- Changed `rounded-xl shadow-lg shadow-purple-500/20` to `object-contain` on logo Image in auth/login/page.tsx
+- Changed `rounded-xl shadow-lg shadow-purple-500/20` to `object-contain` on logo Image in auth/signup/page.tsx
+- Changed `rounded-xl shadow-lg shadow-amber-500/20` to `object-contain` on logo-premium.png Image in auth/reset-password/page.tsx
+- Changed `rounded-xl shadow-lg shadow-amber-500/20` to `object-contain` on logo-premium.png Image in auth/forgot-password/page.tsx
+- Changed `rounded-xl shadow-lg shadow-purple-500/20` to `object-contain` on logo Image in auth/verify/page.tsx
+- Changed `rounded-lg` to `object-contain` on logo-premium.png Image in settings/page.tsx
+- Changed `rounded-lg` to `object-contain` on logo-premium.png Image in terms/page.tsx
+- Changed `rounded-lg` to `object-contain` on logo-premium.png Image in faq/page.tsx
+- Changed `rounded-lg` to `object-contain` on logo-premium.png Image in privacy/page.tsx
+- Changed `rounded-lg` to `object-contain` on logo-premium.png Image in disclaimer/page.tsx
+- Changed `rounded-lg` to `object-contain` on logo-premium.png Image in refund-policy/page.tsx
+- Changed `rounded-xl shadow-lg` to `object-contain` on logo Image in contact/page.tsx
+- Changed `rounded-xl shadow-lg` to `object-contain` on logo Image in about/page.tsx
+- Changed `rounded-xl` to `object-contain` on logo-premium.png Image in admin-dashboard-secret/page.tsx
+- Changed `rounded-xl shadow-lg` to `object-contain` on logo Image in blog/page.tsx
+- Changed `rounded-xl shadow-lg` to `object-contain` on logo Image in blog/[slug]/page.tsx
+- Changed `relative rounded-xl shadow-xl` to `relative object-contain` on logo Image in SidebarHeader.tsx
+- Changed `rounded-xl shadow-lg` to `object-contain` on BOTH logo Images in LuxTradeLanding.tsx (replace_all)
+- PNLShareCard.tsx: Uses plain HTML `<img>` tag (not next/image) with inline style `borderRadius: '8px'` — no className to change; left as-is
+- QRIS image at /public/qris-luxtrade.jpeg: Left as-is (noted)
+- Shadow color changes (shadow-amber-500/20 → shadow-blue-500/20): Not applicable — all shadows were removed in favor of `object-contain`
+
+Stage Summary:
+- 20 files edited (21 targets; PNLShareCard uses `<img>` not `<Image>`)
+- All logo `<Image>` tags now use `object-contain` instead of rounded/shadow classes
+- Transparent PNG logo will display correctly without clipping or visible background
+- No text content was changed

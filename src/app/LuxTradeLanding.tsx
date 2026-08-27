@@ -670,7 +670,7 @@ export default function LuxTradeLanding() {
                     alt="LuxTrade Logo" 
                     width={40} 
                     height={40}
-                    className="rounded-xl shadow-lg"
+                    className="object-contain"
                   />
                   <motion.div 
                     className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[#0f051d]"
@@ -1553,7 +1553,7 @@ export default function LuxTradeLanding() {
                   alt="LuxTrade Logo" 
                   width={40} 
                   height={40}
-                  className="rounded-xl shadow-lg"
+                  className="object-contain"
                 />
                 <div>
                   <span className="text-xl font-extrabold bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">

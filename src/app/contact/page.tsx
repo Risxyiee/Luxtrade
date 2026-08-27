@@ -85,7 +85,7 @@ export default function ContactPage() {
                 alt="LuxTrade Logo"
                 width={40}
                 height={40}
-                className="rounded-xl shadow-lg"
+                className="object-contain"
               />
               <div>
                 <Link href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
