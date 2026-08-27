@@ -1,202 +1,106 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { verifyMidtransSignature } from '@/lib/payment/midtrans'
-import { getAdminAuth } from '@/lib/supabase-admin-alt'
-
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
-
 /**
  * POST /api/midtrans/webhook
- *
- * Midtrans HTTP Notification (Webhook)
- * Docs: https://docs.midtrans.com/en/after-payment/notification-url
- *
- * This endpoint is called by Midtrans when payment status changes.
- * It verifies the SHA512 signature, then auto-upgrades user to PRO on success.
+ * Handle Midtrans payment callbacks
+ * Replaces DOKU payment callbacks
  */
+
+import { NextRequest, NextResponse } from 'next/server'
+import { verifyMidtransSignature, mapMidtransStatus, logMidtransEvent } from '@/lib/payment/midtrans-helpers'
+import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
+import { handleApiError } from '@/lib/error-handler'
+
 export async function POST(request: NextRequest) {
+  const startTime = performance.now()
+
   try {
-    // ── 1. Parse notification body ──────────────────────────────
     const body = await request.json()
-
     const {
-      order_id: orderId,
-      transaction_status: transactionStatus,
-      transaction_time: transactionTime,
-      status_code: statusCode,
-      gross_amount: grossAmount,
-      signature_key: signatureKey,
-      payment_type: paymentType,
-      fraud_status: fraudStatus,
-    } = body as {
-      order_id: string
-      transaction_status: string
-      transaction_time: string
-      status_code: string
-      gross_amount: string
-      signature_key: string
-      payment_type: string
-      fraud_status?: string
+      order_id,
+      transaction_id,
+      transaction_status,
+      payment_type,
+      gross_amount,
+      signature_key,
+    } = body
+
+    // Validate required fields
+    if (!order_id || !transaction_id || !transaction_status || !signature_key) {
+      logger.warn('Invalid Midtrans webhook payload', { body })
+      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
     }
 
-    // ── 2. Verify signature ────────────────────────────────────
-    const serverKey = process.env.MIDTRANS_SERVER_KEY
-    if (!serverKey) {
-      console.error('❌ [Midtrans Webhook] MIDTRANS_SERVER_KEY not set')
-      return NextResponse.json(
-        { error: 'Server key not configured' },
-        { status: 500 }
-      )
-    }
-
-    const isValid = verifyMidtransSignature(orderId, statusCode, grossAmount, serverKey, signatureKey)
-
+    // Verify signature
+    const isValid = verifyMidtransSignature(order_id, transaction_status, String(gross_amount), signature_key)
     if (!isValid) {
-      console.error('❌ [Midtrans Webhook] Invalid signature for order:', orderId)
-      return NextResponse.json(
-        { error: 'Invalid signature' },
-        { status: 403 }
-      )
+      logger.warn('Invalid Midtrans signature', { order_id, transaction_id })
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
 
-    // ── 3. Determine final status ──────────────────────────────
-    // Midtrans status mapping:
-    // capture   + accept → SUCCESS
-    // settlement → SUCCESS
-    // pending → PENDING
-    // deny / cancel / expire / failure → FAILED / EXPIRED
-    let finalStatus: string
-    let shouldUpgrade = false
-
-    if (transactionStatus === 'capture') {
-      if (fraudStatus === 'accept') {
-        finalStatus = 'SUCCESS'
-        shouldUpgrade = true
-      } else if (fraudStatus === 'challenge') {
-        finalStatus = 'PENDING'
-      } else {
-        finalStatus = 'FAILED'
-      }
-    } else if (transactionStatus === 'settlement') {
-      finalStatus = 'SUCCESS'
-      shouldUpgrade = true
-    } else if (transactionStatus === 'pending') {
-      finalStatus = 'PENDING'
-    } else if (transactionStatus === 'cancel' || transactionStatus === 'deny' || transactionStatus === 'failure') {
-      finalStatus = 'FAILED'
-    } else if (transactionStatus === 'expire') {
-      finalStatus = 'EXPIRED'
-    } else if (transactionStatus === 'refund') {
-      finalStatus = 'REFUNDED'
-    } else if (transactionStatus === 'partial_refund') {
-      finalStatus = 'PARTIAL_REFUND'
-    } else {
-      finalStatus = transactionStatus?.toUpperCase() || 'UNKNOWN'
-    }
-
-    // ── 4. Find the payment order in DB ────────────────────────
-    const paymentOrder = await db.paymentOrder.findUnique({
-      where: { invoiceNumber: orderId },
+    logMidtransEvent('webhook_received', {
+      order_id,
+      transaction_id,
+      transaction_status,
+      gross_amount: Number(gross_amount),
     })
 
-    if (!paymentOrder) {
-      // Still return 200 to prevent Midtrans retries
-      return NextResponse.json({ status: 'ok', message: 'Order not found, acknowledged' })
-    }
+    // Map Midtrans status to app status
+    const appStatus = mapMidtransStatus(transaction_status)
 
-    // ── 5. Skip if already processed ───────────────────────────
-    if (paymentOrder.status === 'SUCCESS' && finalStatus === 'SUCCESS') {
-      return NextResponse.json({ status: 'ok', message: 'Already processed' })
-    }
-
-    // ── 6. Update payment order status ─────────────────────────
-    await db.paymentOrder.update({
-      where: { invoiceNumber: orderId },
+    // Update payment order in database
+    const updated = await db.paymentOrder.updateMany({
+      where: {
+        invoiceNumber: order_id,
+        status: { not: 'SUCCESS' }, // Prevent double-processing
+      },
       data: {
-        status: finalStatus,
-        paymentChannel: paymentType || paymentOrder.paymentChannel,
-        ...(shouldUpgrade && transactionTime ? { paidAt: new Date(transactionTime) } : {}),
+        status: appStatus === 'success' ? 'SUCCESS' : 'FAILED',
+        paymentMethod: payment_type,
+        paidAt: appStatus === 'success' ? new Date() : null,
+        updatedAt: new Date(),
       },
     })
 
-    // ── 7. Upgrade user to PRO on successful payment ───────────
-    if (shouldUpgrade) {
-      const userId = paymentOrder.userId
-      const durationMonths = paymentOrder.durationMonths || 1
-
-      // Calculate subscription end date
-      const now = new Date()
-      const subscriptionUntil = new Date(now)
-
-      // If user already has active subscription, extend from current expiry
-      const existingProfile = await db.profile.findUnique({
-        where: { id: userId },
-        select: { subscription_until: true, is_pro: true },
-      })
-
-      if (existingProfile?.is_pro && existingProfile?.subscription_until && new Date(existingProfile.subscription_until) > now) {
-        // Extend from current expiry
-        subscriptionUntil.setTime(new Date(existingProfile.subscription_until).getTime())
-      }
-
-      if (paymentOrder.plan === 'LIFETIME') {
-        // 50 years = effectively lifetime
-        subscriptionUntil.setFullYear(subscriptionUntil.getFullYear() + 50)
-      } else {
-        subscriptionUntil.setMonth(subscriptionUntil.getMonth() + durationMonths)
-      }
-
-      // Update profile
-      await db.profile.update({
-        where: { id: userId },
-        data: {
-          is_pro: true,
-          subscription_until: subscriptionUntil,
-          plan: paymentOrder.plan === 'LIFETIME' ? 'LIFETIME' : 'PRO',
-          hasEverBeenPro: true,
-          emailVerified: true,
-        },
-      })
-
-      // Also update UserSubscription for tracking
-      await db.userSubscription.create({
-        data: {
-          userId,
-          plan: paymentOrder.plan === 'LIFETIME' ? 'LIFETIME' : 'PRO',
-          status: 'active',
-          startDate: now,
-          endDate: subscriptionUntil,
-        },
-      })
-
-      // Auto-verify email in Supabase Auth so user can login
-      try {
-        const authAdmin = getAdminAuth()
-        if (authAdmin) {
-          await authAdmin.updateUserById(userId, {
-            email_confirm: true,
-            user_metadata: {
-              email_verified: true,
-              is_pro: true,
-              subscription_status: 'active',
-              subscription_until: subscriptionUntil.toISOString(),
-              has_ever_been_pro: true,
-              updated_at: new Date().toISOString(),
-            }
-          })
-        }
-      } catch (verifyErr) {
-        console.error('⚠️ [Midtrans Webhook] Failed to auto-verify email (non-critical):', verifyErr)
-      }
-
+    if (updated.count === 0) {
+      logger.info('Payment already processed', { order_id, transaction_id })
+      return NextResponse.json({ success: true, message: 'Already processed' })
     }
 
-    // ── 8. Return 200 to acknowledge ───────────────────────────
-    return NextResponse.json({ status: 'ok' })
-  } catch (error: any) {
-    console.error('❌ [Midtrans Webhook] Error:', error)
-    // Return 200 to prevent Midtrans from retrying on server errors
-    return NextResponse.json({ status: 'ok', error: 'Internal error' })
+    // If payment successful, activate subscription
+    if (appStatus === 'success') {
+      const order = await db.paymentOrder.findUnique({
+        where: { invoiceNumber: order_id },
+        select: { userId: true, plan: true, durationMonths: true },
+      })
+
+      if (order) {
+        const subscriptionEnd = new Date()
+        subscriptionEnd.setMonth(subscriptionEnd.getMonth() + (order.durationMonths || 1))
+
+        await db.profile.update({
+          where: { id: order.userId },
+          data: {
+            is_pro: true,
+            plan: order.plan,
+            subscription_until: subscriptionEnd,
+          },
+        })
+
+        logMidtransEvent('subscription_activated', {
+          order_id,
+          transaction_id,
+          transaction_status,
+          gross_amount: Number(gross_amount),
+        }, { userId: order.userId })
+      }
+    }
+
+    const duration = Math.round(performance.now() - startTime)
+    logger.info('Midtrans webhook processed', { order_id, status: appStatus, ms: duration })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    logger.error('Midtrans webhook error', error, { ms: Math.round(performance.now() - startTime) })
+    return handleApiError(error, { endpoint: '/api/midtrans/webhook' })
   }
 }
