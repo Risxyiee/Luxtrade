@@ -194,7 +194,7 @@ export default function HeroSection({ language = 'id' }: HeroSectionProps) {
           transition={{ duration: 0.6, delay: 0.4 }}
         >
           <div className="phone-mockup glow-bg-luxury animate-float-lux">
-            <Image src="/screenshot-dashboard.jpeg" alt="Dashboard LuxTradee" width={300} height={600} priority loading="lazy" />
+            <Image src="/screenshot-dashboard.jpeg" alt="Dashboard LuxTradee" width={300} height={600} priority />
           </div>
         </motion.div>
       </div>
