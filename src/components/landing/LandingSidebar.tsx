@@ -42,7 +42,7 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
           >
             <div className="flex items-center justify-between px-5 h-14 border-b border-white/[0.08]">
               <div className="flex items-center gap-2.5">
-                <Image src="/logo.png" alt="LuxTrade" width={28} height={28} className="rounded-md" />
+                <Image src="/logo.png" alt="LuxTrade" width={28} height={28} className="object-contain" />
                 <span className="text-[15px] font-medium text-[#f0f2ff]">LuxTrade</span>
               </div>
               <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/[0.05] transition-colors" aria-label="Close">

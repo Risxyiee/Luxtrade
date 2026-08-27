@@ -245,12 +245,12 @@ function CheckoutContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0612] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#050510] flex items-center justify-center p-4">
       {/* Background */}
       <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0612] via-[#110a1f] to-[#0a0612]" />
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-amber-500/5 rounded-full blur-[150px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-500/10 rounded-full blur-[100px]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#050510] via-[#060818] to-[#050510]" />
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-[150px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-blue-500/10 rounded-full blur-[100px]" />
       </div>
 
       <motion.div
@@ -261,8 +261,8 @@ function CheckoutContent() {
         {/* Logo */}
         <div className="text-center mb-6">
           <Link href="/" className="inline-flex items-center gap-3">
-            <Image src="/logo.png" alt="LuxTrade" width={48} height={48} className="rounded-xl shadow-lg shadow-purple-500/20" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent">
+            <Image src="/logo.png" alt="LuxTrade" width={40} height={40} className="object-contain" />
+            <span className="text-2xl font-bold bg-gradient-to-r from-blue-300 via-blue-400 to-blue-300 bg-clip-text text-transparent">
               LuxTrade
             </span>
           </Link>
@@ -278,7 +278,7 @@ function CheckoutContent() {
             <React.Fragment key={s.key}>
               <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
                 step === s.key
-                  ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
                   : ['auth', 'payment', 'success'].indexOf(step) > i
                   ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
                   : 'bg-white/5 text-white/30 border border-white/10'
@@ -308,18 +308,18 @@ function CheckoutContent() {
               className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-8 backdrop-blur-sm"
             >
               {/* Plan Summary */}
-              <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-xl p-4 mb-6">
+              <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-4 mb-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-purple-300">Paket yang dipilih</p>
+                    <p className="text-xs text-blue-300">Paket yang dipilih</p>
                     <p className="text-lg font-bold text-white flex items-center gap-2">
                       <Crown className="w-5 h-5 text-amber-400" />
                       {planLabel}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-purple-300">Total</p>
-                    <p className="text-xl font-bold bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
+                    <p className="text-xs text-blue-300">Total</p>
+                    <p className="text-xl font-bold bg-gradient-to-r from-blue-300 to-cyan-300 bg-clip-text text-transparent">
                       {formatRupiah(planPrice)}
                     </p>
                   </div>
@@ -330,13 +330,13 @@ function CheckoutContent() {
               <div className="flex bg-white/5 rounded-xl p-1 mb-6">
                 <button
                   onClick={() => { setMode('login'); setAuthError('') }}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${mode === 'login' ? 'bg-purple-500/20 text-purple-300 shadow' : 'text-white/40 hover:text-white/60'}`}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${mode === 'login' ? 'bg-blue-500/20 text-blue-300 shadow' : 'text-white/40 hover:text-white/60'}`}
                 >
                   Sudah Punya Akun
                 </button>
                 <button
                   onClick={() => { setMode('signup'); setAuthError('') }}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${mode === 'signup' ? 'bg-purple-500/20 text-purple-300 shadow' : 'text-white/40 hover:text-white/60'}`}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${mode === 'signup' ? 'bg-blue-500/20 text-blue-300 shadow' : 'text-white/40 hover:text-white/60'}`}
                 >
                   Daftar Baru
                 </button>
@@ -368,7 +368,7 @@ function CheckoutContent() {
                       </button>
                     </div>
                   </div>
-                  <Button type="submit" disabled={authLoading} className="w-full h-12 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-semibold shadow-lg shadow-purple-500/25">
+                  <Button type="submit" disabled={authLoading} className="w-full h-12 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-semibold shadow-lg shadow-blue-500/25">
                     {authLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Login...</> : <>Login & Lanjut Bayar <ArrowRight className="w-4 h-4 ml-2" /></>}
                   </Button>
                 </form>
@@ -403,7 +403,7 @@ function CheckoutContent() {
                       ))}
                     </div>
                   </div>
-                  <Button type="submit" disabled={authLoading} className="w-full h-12 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-semibold shadow-lg shadow-purple-500/25">
+                  <Button type="submit" disabled={authLoading} className="w-full h-12 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-semibold shadow-lg shadow-blue-500/25">
                     {authLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Mendaftar...</> : <>Daftar & Lanjut Bayar <ArrowRight className="w-4 h-4 ml-2" /></>}
                   </Button>
                 </form>
@@ -426,7 +426,7 @@ function CheckoutContent() {
               exit={{ opacity: 0, x: -20 }}
               className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-8 backdrop-blur-sm text-center"
             >
-              <div className="w-16 h-16 rounded-full bg-purple-500/20 flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto mb-4">
                 <Crown className="w-8 h-8 text-amber-400" />
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">Siap Upgrade! 🎉</h2>
@@ -434,9 +434,9 @@ function CheckoutContent() {
                 Akun: <span className="text-white/80">{email}</span>
               </p>
 
-              <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-xl p-5 mb-6">
-                <p className="text-xs text-purple-300 mb-1">{planLabel}</p>
-                <p className="text-3xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-amber-300 bg-clip-text text-transparent">
+              <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-5 mb-6">
+                <p className="text-xs text-blue-300 mb-1">{planLabel}</p>
+                <p className="text-3xl font-bold bg-gradient-to-r from-blue-300 via-cyan-300 to-blue-300 bg-clip-text text-transparent">
                   {formatRupiah(planPrice)}
                 </p>
               </div>
@@ -445,7 +445,7 @@ function CheckoutContent() {
                 onClick={handlePay}
                 disabled={payLoading || !snapLoaded}
                 size="lg"
-                className="w-full h-14 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-bold text-base shadow-lg shadow-purple-500/25 disabled:opacity-50"
+                className="w-full h-14 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-bold text-base shadow-lg shadow-blue-500/25 disabled:opacity-50"
               >
                 {payLoading ? (
                   <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Membuka pembayaran...</>
@@ -520,8 +520,8 @@ function CheckoutContent() {
 export default function CheckoutPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#0a0612] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+      <div className="min-h-screen bg-[#050510] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
       </div>
     }>
       <CheckoutContent />

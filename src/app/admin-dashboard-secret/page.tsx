@@ -246,7 +246,7 @@ export default function AdminDashboard() {
                   alt="LuxTrade Logo" 
                   width={40} 
                   height={40}
-                  className="rounded-xl"
+                  className="object-contain"
                 />
                 <div className="flex flex-col">
                   <span className="text-lg font-bold bg-gradient-to-r from-violet-200 to-purple-300 bg-clip-text text-transparent">

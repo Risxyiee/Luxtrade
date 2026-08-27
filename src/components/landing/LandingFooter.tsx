@@ -18,7 +18,7 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
           {/* Brand */}
           <div className="col-span-2">
             <div className="flex items-center gap-2.5 mb-4">
-              <Image src="/logo.png" alt="LuxTrade" width={28} height={28} className="rounded-md" />
+              <Image src="/logo.png" alt="LuxTrade" width={28} height={28} className="object-contain" />
               <span className="text-[15px] font-medium text-[#f0f2ff]">LuxTrade</span>
             </div>
             <p className="text-[#8892b0] max-w-sm text-[13px] leading-relaxed mb-5">
