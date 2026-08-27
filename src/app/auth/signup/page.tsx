@@ -15,7 +15,7 @@ import {
 // ============================================
 function AuthBackground() {
   return (
-    <div className="fixed inset-0 -z-10 overflow-hidden">
+    <div className="fixed inset-0 z-0 overflow-hidden">
       {/* Ambient gradients */}
       <div
         className="absolute inset-0"
@@ -400,7 +400,7 @@ function SignUpForm() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-[#030305] flex items-center justify-center p-4 antialiased">
+      <div className="min-h-screen bg-[#030305] flex items-center justify-center p-4 antialiased auth-signup-page">
         <AuthBackground />
         <div className="noise-overlay" />
         <motion.div
@@ -424,7 +424,7 @@ function SignUpForm() {
   }
 
   return (
-    <div className="min-h-screen bg-[#030305] flex items-center justify-center p-4 antialiased">
+    <div className="min-h-screen bg-[#030305] flex items-center justify-center p-4 antialiased auth-signup-page">
       <AuthBackground />
 
       {/* Noise Overlay */}

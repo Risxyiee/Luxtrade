@@ -646,6 +646,14 @@ button, a, [role="button"], [type="button"], [type="submit"] {
   letter-spacing: -0.02em;
   -webkit-font-smoothing: antialiased;
 }
+@media (max-width: 640px) {
+  .auth-page,
+  .auth-signup-page {
+    align-items: flex-start !important;
+    padding-top: 2rem !important;
+    padding-bottom: 2rem !important;
+  }
+}
 
 /* Ambient background */
 .auth-ambient {
@@ -672,6 +680,13 @@ button, a, [role="button"], [type="button"], [type="submit"] {
 .auth-orb-1 { width: 300px; height: 300px; background: radial-gradient(circle, #06b6d4, transparent); top: -50px; left: -50px; }
 .auth-orb-2 { width: 350px; height: 350px; background: radial-gradient(circle, #3b82f6, transparent); bottom: -80px; right: -80px; animation-delay: -5s; }
 .auth-orb-3 { width: 200px; height: 200px; background: radial-gradient(circle, #10b981, transparent); top: 30%; left: 60%; opacity: 0.25; animation-delay: -10s; }
+
+@media (max-width: 640px) {
+  .auth-orb { opacity: 0.6 !important; filter: blur(40px); }
+  .auth-orb-1 { width: 250px; height: 250px; top: -30px; left: -30px; }
+  .auth-orb-2 { width: 280px; height: 280px; bottom: -40px; right: -40px; }
+  .auth-gem { width: 350px; height: 350px; opacity: 0.12; }
+}
 
 @keyframes auth-float-orb {
   0%, 100% { transform: translate(0, 0) scale(1); }
@@ -759,9 +774,15 @@ button, a, [role="button"], [type="button"], [type="submit"] {
 }
 @media (max-width: 640px) {
   .auth-glass-card {
-    background: rgba(10, 14, 22, 0.35);
-    backdrop-filter: blur(20px) saturate(150%);
-    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    background: rgba(10, 14, 22, 0.25) !important;
+    backdrop-filter: blur(12px) saturate(130%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(130%) !important;
+  }
+  /* Override inline-style GlassCard on signup page */
+  .auth-signup-page [style*="background: rgba"] {
+    background: rgba(10, 14, 22, 0.25) !important;
+    backdrop-filter: blur(12px) saturate(130%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(130%) !important;
   }
 }
 
