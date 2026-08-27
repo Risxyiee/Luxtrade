@@ -123,7 +123,7 @@ function EquityWidget() {
       ctx.stroke()
       
       // Draw glow effect
-      ctx.shadowColor = isPositive ? '#8b5cf6' : '#ef4444'
+      ctx.shadowColor = isPositive ? '#3b82f6' : '#ef4444'
       ctx.shadowBlur = 15
       ctx.stroke()
       ctx.shadowBlur = 0
@@ -160,7 +160,7 @@ function EquityWidget() {
   const changePercent = ((changeAmount / 10500) * 100).toFixed(2)
   
   return (
-    <div className="rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] p-6 hover:shadow-[0_0_40px_rgba(139,92,246,0.3)] transition-shadow duration-500">
+    <div className="rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] p-6 hover:shadow-[0_0_40px_rgba(59,130,246,0.3)] transition-shadow duration-500">
       <div className="flex items-center justify-between mb-4">
         <div>
           <p className="text-sm text-cyan-300/80 font-semibold tracking-wide uppercase text-xs">Portfolio Equity</p>
@@ -274,7 +274,7 @@ function AnimatedForexTrades() {
         return (
           <motion.div 
             key={`${tradeIdx}-${i}`}
-            className="flex items-center justify-between p-3 rounded-xl backdrop-blur-md bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.2)] transition-all duration-300"
+            className="flex items-center justify-between p-3 rounded-xl backdrop-blur-md bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300"
             initial={false}
             animate={{
               opacity: isExiting ? 0 : 1,
@@ -807,7 +807,7 @@ export default function LuxTradeLanding() {
               {stats.map((stat, index) => (
                 <motion.div
                   key={index}
-                  className="p-5 rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] transition-all duration-300 group"
+                  className="p-5 rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(59,130,246,0.2)] transition-all duration-300 group"
                   whileHover={{ scale: 1.02, y: -2 }}
                 >
                   <stat.icon className="w-5 h-5 text-cyan-400/70 mb-3 mx-auto group-hover:text-cyan-400 transition-colors" />
@@ -863,7 +863,7 @@ export default function LuxTradeLanding() {
                 className="group"
               >
                 <motion.div
-                  className="h-full p-6 rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-all duration-300"
+                  className="h-full p-6 rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_40px_rgba(59,130,246,0.2)] transition-all duration-300"
                   whileHover={{ scale: 1.02, y: -4 }}
                 >
                   <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-lg`}>
@@ -902,7 +902,7 @@ export default function LuxTradeLanding() {
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="rounded-3xl backdrop-blur-xl border border-white/[0.08] bg-gradient-to-br from-[#1a0f2e]/50 to-[#0d0715]/50 p-1.5 shadow-2xl shadow-blue-500/20 hover:shadow-[0_0_60px_rgba(139,92,246,0.3)] transition-shadow duration-500"
+            className="rounded-3xl backdrop-blur-xl border border-white/[0.08] bg-gradient-to-br from-[#0c1929]/50 to-[#060b14]/50 p-1.5 shadow-2xl shadow-blue-500/20 hover:shadow-[0_0_60px_rgba(59,130,246,0.3)] transition-shadow duration-500"
           >
             <div className="rounded-2xl overflow-hidden">
               {/* Mock Dashboard Header */}
@@ -1139,7 +1139,7 @@ export default function LuxTradeLanding() {
               transition={{ delay: 0.2 }}
             >
               <motion.div
-                className="h-full relative backdrop-blur-xl bg-gradient-to-b from-blue-500/10 to-transparent border border-blue-500/50 rounded-2xl p-6 pt-8 hover:shadow-[0_0_50px_rgba(139,92,246,0.3)] transition-all duration-300"
+                className="h-full relative backdrop-blur-xl bg-gradient-to-b from-blue-500/10 to-transparent border border-blue-500/50 rounded-2xl p-6 pt-8 hover:shadow-[0_0_50px_rgba(59,130,246,0.3)] transition-all duration-300"
                 whileHover={{ scale: 1.02, y: -4 }}
               >
                 <motion.div 
@@ -1274,7 +1274,7 @@ export default function LuxTradeLanding() {
               ].map((item, index) => (
                 <React.Fragment key={index}>
                   <motion.div 
-                    className="flex flex-col items-center p-6 backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] rounded-2xl hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] transition-all duration-300"
+                    className="flex flex-col items-center p-6 backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] rounded-2xl hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(59,130,246,0.2)] transition-all duration-300"
                     whileHover={{ scale: 1.05, y: -4 }}
                   >
                     <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/20 border border-blue-500/30 flex items-center justify-center mb-4">
@@ -1362,7 +1362,7 @@ export default function LuxTradeLanding() {
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="h-full backdrop-blur-xl bg-gradient-to-br from-[#1a0f2e]/50 to-[#0d0715]/50 border-blue-500/20 border border-white/[0.08] hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-shadow duration-500">
+              <Card className="h-full backdrop-blur-xl bg-gradient-to-br from-[#0c1929]/50 to-[#060b14]/50 border-blue-500/20 border border-white/[0.08] hover:shadow-[0_0_40px_rgba(59,130,246,0.2)] transition-shadow duration-500">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4 mb-6">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center">
@@ -1406,7 +1406,7 @@ export default function LuxTradeLanding() {
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
             >
-              <Card className="h-full backdrop-blur-xl bg-gradient-to-br from-[#1a0f2e]/50 to-[#0d0715]/50 border-blue-500/20 border border-white/[0.08] hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-shadow duration-500">
+              <Card className="h-full backdrop-blur-xl bg-gradient-to-br from-[#0c1929]/50 to-[#060b14]/50 border-blue-500/20 border border-white/[0.08] hover:shadow-[0_0_40px_rgba(59,130,246,0.2)] transition-shadow duration-500">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4 mb-6">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/20 border border-blue-500/30 flex items-center justify-center">
@@ -1530,7 +1530,7 @@ export default function LuxTradeLanding() {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card className="backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] transition-all duration-300">
+                <Card className="backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(59,130,246,0.2)] transition-all duration-300">
                   <CardContent className="p-6">
                     <h3 className="text-lg font-extrabold text-white mb-2">{faq.q}</h3>
                     <p className="text-white/50 font-light leading-relaxed">{faq.a}</p>

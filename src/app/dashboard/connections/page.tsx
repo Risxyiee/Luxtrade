@@ -937,7 +937,7 @@ export default function ConnectionsPage() {
                     className={`w-full h-14 font-extrabold shadow-lg transition-all duration-300 text-base pointer-events-auto ${
                       isConnecting
                         ? 'bg-blue-900/50 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-600 hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] cursor-pointer'
+                        : 'bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-600 hover:shadow-[0_0_30px_rgba(59,130,246,0.4)] cursor-pointer'
                     } text-white`}
                   >
                     {isConnecting ? (

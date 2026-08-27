@@ -58,12 +58,12 @@ export async function exportJournalToPDF(entries: JournalEntryForPDF[], filename
           .header {
             text-align: center;
             margin-bottom: 30px;
-            border-bottom: 3px solid #7c3aed;
+            border-bottom: 3px solid #2563eb;
             padding-bottom: 15px;
           }
           .header h1 {
             font-size: 28px;
-            color: #7c3aed;
+            color: #2563eb;
             margin-bottom: 5px;
           }
           .header p {
@@ -73,7 +73,7 @@ export async function exportJournalToPDF(entries: JournalEntryForPDF[], filename
           .entry {
             margin-bottom: 25px;
             padding: 20px;
-            border-left: 4px solid #7c3aed;
+            border-left: 4px solid #2563eb;
             background: #f9f5ff;
             page-break-inside: avoid;
           }
@@ -326,12 +326,12 @@ export function printJournal(entries: JournalEntryForPDF[]) {
           .header {
             text-align: center;
             margin-bottom: 30px;
-            border-bottom: 3px solid #7c3aed;
+            border-bottom: 3px solid #2563eb;
             padding-bottom: 15px;
           }
           .header h1 {
             font-size: 28px;
-            color: #7c3aed;
+            color: #2563eb;
             margin-bottom: 5px;
           }
           .header p {
@@ -341,7 +341,7 @@ export function printJournal(entries: JournalEntryForPDF[]) {
           .entry {
             margin-bottom: 25px;
             padding: 20px;
-            border-left: 4px solid #7c3aed;
+            border-left: 4px solid #2563eb;
             background: #f9f5ff;
             page-break-inside: avoid;
           }

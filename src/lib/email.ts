@@ -796,7 +796,7 @@ export function getResetPasswordEmailHtml(name: string, resetUrl: string) {
   `
 }
 
-// Email change confirmation - Clean Light Design (blue-purple accent)
+// Email change confirmation - Clean Light Design (blue-cyan accent)
 export function getEmailChangeHtml(name: string, confirmationUrl: string, newEmail: string) {
   return `
     <!DOCTYPE html>
@@ -1742,7 +1742,7 @@ export function getWeeklySummaryHtml(params: {
                 <td style="padding: 40px 40px 20px 40px; text-align: center;">
                   <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 16px auto;">
                     <tr>
-                      <td style="width: 56px; height: 56px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 16px; text-align: center; line-height: 56px;">
+                      <td style="width: 56px; height: 56px; background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%); border-radius: 16px; text-align: center; line-height: 56px;">
                         <span style="font-size: 28px;">📊</span>
                       </td>
                     </tr>
@@ -1845,7 +1845,7 @@ export function getWeeklySummaryHtml(params: {
                   <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                     <tr>
                       <td align="center">
-                        <a href="${ctaUrl}" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; padding: 14px 40px; border-radius: 10px;">
+                        <a href="${ctaUrl}" style="display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; padding: 14px 40px; border-radius: 10px;">
                           Lihat Detail di Dashboard →
                         </a>
                       </td>

@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       .insert([{
         user_id: authUser.id,
         name,
-        color: color || '#a855f7'
+        color: color || '#3b82f6'
       }])
       .select()
       .single()

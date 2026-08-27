@@ -2025,3 +2025,33 @@ Stage Summary:
 - Login and signup pages now show visible spinning LuxTrade logo above the form
 - Background watermark logo adds subtle depth
 - Both pages (login, signup, success screens) have the spinning logo
+---
+Task ID: purple-replace
+Agent: Main
+Task: Replace ALL purple/violet colors with blue/cyan/emerald scheme across the entire codebase
+
+Work Log:
+- Searched entire src/ for purple/violet color references (#7c3aed, #8b5cf6, #a855f7, #6d28d9, #5b21b6, rgba(168,85,247), rgba(139,92,246), rgba(124,58,237))
+- Fixed globals.css light theme: replaced ALL purple CSS variables (--primary, --secondary, --accent, --border, --input, --ring, --chart, --sidebar, --lux-*) with blue equivalents (#2563eb, #1d4ed8, rgba(37,99,235))
+- Fixed globals.css gradient-text: changed from purple-pink to blue-cyan gradient
+- Fixed CalendarTab.tsx: replaced 2 break-even badge purple colors with blue
+- Fixed AnalyticsTab.tsx: replaced equity curve stroke (#a855f7→#3b82f6) and 5 tooltip border purple rgba
+- Fixed JournalTab.tsx: replaced 3 purple references in PDF export HTML (mood badge, market condition badge, header border)
+- Fixed TradingScore.tsx: replaced 2 SVG gradient stopColors (gauge-high, gauge-mid) from purple to blue/cyan
+- Fixed WelcomeOnboarding.tsx: replaced 2 purple confetti colors (#a855f7, #6366f1) with blue/cyan
+- Fixed useConfetti.ts: replaced 4 purple confetti colors with blue variants
+- Fixed tags API route: default tag color #a855f7→#3b82f6
+- Fixed LuxTradeLanding.tsx: replaced canvas shadowColor #8b5cf6→#3b82f6 and 12 hover shadow purple rgba values
+- Fixed pdf-export.ts: replaced 6 instances of #7c3aed→#2563eb
+- Fixed email.ts: replaced 2 gradient references (icon bg + CTA button) from indigo-purple to blue-cyan
+- Fixed 6 more files via batch sed (contact, about, blog, blog/[slug], admin-dashboard-secret, InteractiveTour, WelcomeModal, SimpleInteractiveTour, PaywallModal, PaymentInvoiceModal, connections page, CalendarTab tooltip)
+- Fixed AchievementIntegration.tsx: updated comment from "Epic: Purple" to "Epic: Cyan"
+- Replaced dark purple background gradients (#1a0f2e→#0c1929, #0d0715→#060b14) in LuxTradeLanding
+
+Stage Summary:
+- Zero purple/violet colors remain in src/ (excluding prisma schemas, SQL docs, _archive, tests)
+- Light theme CSS variables now use blue (#2563eb) as primary instead of purple (#7c3aed)
+- Dark theme was already blue — confirmed unchanged
+- All shadcn/ui components (Dialog, Select, Button, Badge, Progress) will now render blue in both light and dark modes
+- `bun run lint` passes cleanly with no errors
+- Dev server starts successfully (verified in log), but OOM in sandbox prevents browser testing
