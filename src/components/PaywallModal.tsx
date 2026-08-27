@@ -156,7 +156,7 @@ export default function PaywallModal({
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto"
           >
-            <Card className="bg-gradient-to-br from-[#1a0f2e] via-[#150a25] to-[#0d0820] border-blue-500/30 shadow-2xl shadow-blue-500/20 overflow-hidden">
+            <Card className="bg-gradient-to-br from-[#0c1929] via-[#150a25] to-[#0d0820] border-blue-500/30 shadow-2xl shadow-blue-500/20 overflow-hidden">
               {/* Decorative gradient header */}
               <div className="relative h-32 bg-gradient-to-br from-blue-600/20 via-cyan-600/20 to-blue-600/20 overflow-hidden">
                 <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djRoLTJ2LTRoLTJ2NGgtMnYtNGgtMnY0aC0ydi00aC0ydjRoLTJ2NGgtMnYtNGgtMnY0aC0ydi00aC0ydi00aDJ2NGgydi00aDJ2NGgydi00aDJ2NGgydjRoLTJ2NGgtMnY0aDJ2LTJoLTJ2LTJoLTJ2LTJoLTJ2LTJoLTJ2LTJoLTJ6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30" />
@@ -397,7 +397,7 @@ export default function PaywallModal({
                     <>
                       <Button
                         onClick={handleProUpgrade}
-                        className={`w-full h-12 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-600 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all ${isEnglish ? 'hover:scale-[1.02]' : ''}`}
+                        className={`w-full h-12 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-600 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-all ${isEnglish ? 'hover:scale-[1.02]' : ''}`}
                       >
                         <Crown className="w-5 h-5 mr-2" />
                         {isEnglish ? 'Upgrade to Elite PRO Now' : 'Upgrade ke Elite PRO Sekarang'}
@@ -429,7 +429,7 @@ export default function PaywallModal({
                           onUpgrade?.()
                           onClose()
                         }}
-                        className="w-full h-12 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-600 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all"
+                        className="w-full h-12 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-600 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-all"
                       >
                         <Sparkles className="w-5 h-5 mr-2" />
                         {isEnglish ? `Use Trial (${remainingTrials} left)` : `Gunakan Trial (${remainingTrials} tersisa)`}

@@ -18,7 +18,7 @@ export function useConfetti() {
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ['#8b5cf6', '#f59e0b', '#22c55e', '#ec4899'],
+      colors: ['#3b82f6', '#f59e0b', '#22c55e', '#ec4899'],
       zIndex: 9999,
       ...options,
     }
@@ -49,7 +49,7 @@ export function useConfetti() {
         particleCount: 180,
         spread: 90,
         origin: { y: 0.6 },
-        colors: ['#8b5cf6', '#a78bfa', '#c4b5fd'],
+        colors: ['#3b82f6', '#60a5fa', '#93c5fd'],
       },
     }
 

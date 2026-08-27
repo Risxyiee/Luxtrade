@@ -235,12 +235,12 @@ export default function TradingScore({
       <svg width="0" height="0" className="absolute">
         <defs>
           <linearGradient id="gauge-high" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#a855f7" />
+            <stop offset="0%" stopColor="#3b82f6" />
             <stop offset="100%" stopColor="#34d399" />
           </linearGradient>
           <linearGradient id="gauge-mid" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#a855f7" />
-            <stop offset="50%" stopColor="#6366f1" />
+            <stop offset="0%" stopColor="#3b82f6" />
+            <stop offset="50%" stopColor="#06b6d4" />
             <stop offset="100%" stopColor="#60a5fa" />
           </linearGradient>
           <linearGradient id="gauge-low" x1="0%" y1="0%" x2="100%" y2="0%">

@@ -308,7 +308,7 @@ export default function InteractiveTour({ isOpen, onClose, onComplete, language 
                       // Navigate to achievements
                       window.location.href = '/dashboard?tab=achievements'
                     }}
-                    className="w-full h-14 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-lg font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all duration-300"
+                    className="w-full h-14 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-lg font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_30px_rgba(59,130,246,0.5)] transition-all duration-300"
                   >
                     {language === 'id' ? 'Lihat Misi Saya Selanjutnya' : 'View My Next Missions'}
                     <ChevronRight className="w-5 h-5 ml-2" />

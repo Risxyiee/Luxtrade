@@ -159,74 +159,74 @@
 
 .light {
   /* Light Blue Theme */
-  --background: #f8f7fc;
-  --foreground: #1a1528;
+  --background: #f5f8fc;
+  --foreground: #0f172a;
   --card: #ffffff;
-  --card-foreground: #1a1528;
+  --card-foreground: #0f172a;
   --popover: #ffffff;
-  --popover-foreground: #1a1528;
-  --primary: #7c3aed;
+  --popover-foreground: #0f172a;
+  --primary: #2563eb;
   --primary-foreground: #ffffff;
-  --secondary: #f1ecf9;
-  --secondary-foreground: #6d28d9;
-  --muted: #f1ecf9;
+  --secondary: #eff6ff;
+  --secondary-foreground: #1d4ed8;
+  --muted: #eff6ff;
   --muted-foreground: #6b7280;
-  --accent: #7c3aed;
+  --accent: #2563eb;
   --accent-foreground: #ffffff;
   --destructive: #dc2626;
-  --border: rgba(124, 58, 237, 0.15);
-  --input: rgba(124, 58, 237, 0.1);
-  --ring: #7c3aed;
-  --chart-1: #7c3aed;
+  --border: rgba(37, 99, 235, 0.15);
+  --input: rgba(37, 99, 235, 0.1);
+  --ring: #2563eb;
+  --chart-1: #2563eb;
   --chart-2: #16a34a;
   --chart-3: #d97706;
-  --chart-4: #2563eb;
+  --chart-4: #0891b2;
   --chart-5: #db2777;
-  --sidebar: #f3f0fa;
-  --sidebar-foreground: #1a1528;
-  --sidebar-primary: #7c3aed;
+  --sidebar: #eff6ff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #2563eb;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f1ecf9;
-  --sidebar-accent-foreground: #6d28d9;
-  --sidebar-border: rgba(124, 58, 237, 0.15);
-  --sidebar-ring: #7c3aed;
+  --sidebar-accent: #eff6ff;
+  --sidebar-accent-foreground: #1d4ed8;
+  --sidebar-border: rgba(37, 99, 235, 0.15);
+  --sidebar-ring: #2563eb;
   /* Custom light-only vars */
-  --lux-bg-primary: #f8f7fc;
+  --lux-bg-primary: #f5f8fc;
   --lux-bg-secondary: #ffffff;
-  --lux-bg-tertiary: #f3f0fa;
-  --lux-bg-sidebar: #f3f0fa;
+  --lux-bg-tertiary: #eff6ff;
+  --lux-bg-sidebar: #eff6ff;
   --lux-bg-card: #ffffff;
-  --lux-bg-surface-hover: rgba(124, 58, 237, 0.06);
-  --lux-text-primary: #1a1528;
+  --lux-bg-surface-hover: rgba(37, 99, 235, 0.06);
+  --lux-text-primary: #0f172a;
   --lux-text-secondary: #4b5563;
   --lux-text-muted: #9ca3af;
-  --lux-border: rgba(124, 58, 237, 0.15);
+  --lux-border: rgba(37, 99, 235, 0.15);
   --lux-glass-bg: rgba(255, 255, 255, 0.85);
-  --lux-glass-border: rgba(124, 58, 237, 0.12);
-  --lux-scrollbar-track: rgba(124, 58, 237, 0.05);
-  --lux-scrollbar-thumb: rgba(124, 58, 237, 0.2);
-  --lux-scrollbar-thumb-hover: rgba(124, 58, 237, 0.35);
+  --lux-glass-border: rgba(37, 99, 235, 0.12);
+  --lux-scrollbar-track: rgba(37, 99, 235, 0.05);
+  --lux-scrollbar-thumb: rgba(37, 99, 235, 0.2);
+  --lux-scrollbar-thumb-hover: rgba(37, 99, 235, 0.35);
   /* Landing page specific vars */
-  --lux-badge-bg: rgba(124, 58, 237, 0.1);
-  --lux-card-surface: rgba(124, 58, 237, 0.06);
-  --lux-card-surface-hover: rgba(124, 58, 237, 0.1);
-  --lux-icon-circle-bg: #f1ecf9;
-  --lux-video-bg: #1a1528;
-  --lux-sidebar-panel-bg: rgba(243, 240, 250, 0.97);
-  --lux-navbar-bg: rgba(248, 247, 252, 0.85);
+  --lux-badge-bg: rgba(37, 99, 235, 0.1);
+  --lux-card-surface: rgba(37, 99, 235, 0.06);
+  --lux-card-surface-hover: rgba(37, 99, 235, 0.1);
+  --lux-icon-circle-bg: #eff6ff;
+  --lux-video-bg: #0f172a;
+  --lux-sidebar-panel-bg: rgba(239, 246, 255, 0.97);
+  --lux-navbar-bg: rgba(245, 248, 252, 0.85);
   --lux-overlay-bg: rgba(0, 0, 0, 0.4);
-  --lux-inline-border: rgba(124, 58, 237, 0.12);
-  --lux-inline-hover-bg: rgba(124, 58, 237, 0.06);
-  --lux-inline-hover-bg-2: rgba(124, 58, 237, 0.1);
-  --lux-inline-hover-bg-3: rgba(124, 58, 237, 0.15);
-  --lux-text-on-surface: rgba(26, 21, 40, 0.9);
-  --lux-text-subtitle: rgba(26, 21, 40, 0.55);
-  --lux-text-body: rgba(26, 21, 40, 0.65);
-  --lux-text-body-2: rgba(26, 21, 40, 0.75);
-  --lux-text-label: rgba(26, 21, 40, 0.35);
-  --lux-text-label-2: rgba(26, 21, 40, 0.45);
-  --lux-text-label-3: rgba(26, 21, 40, 0.3);
-  --lux-promo-code-bg: rgba(26, 21, 40, 0.06);
+  --lux-inline-border: rgba(37, 99, 235, 0.12);
+  --lux-inline-hover-bg: rgba(37, 99, 235, 0.06);
+  --lux-inline-hover-bg-2: rgba(37, 99, 235, 0.1);
+  --lux-inline-hover-bg-3: rgba(37, 99, 235, 0.15);
+  --lux-text-on-surface: rgba(15, 23, 42, 0.9);
+  --lux-text-subtitle: rgba(15, 23, 42, 0.55);
+  --lux-text-body: rgba(15, 23, 42, 0.65);
+  --lux-text-body-2: rgba(15, 23, 42, 0.75);
+  --lux-text-label: rgba(15, 23, 42, 0.35);
+  --lux-text-label-2: rgba(15, 23, 42, 0.45);
+  --lux-text-label-3: rgba(15, 23, 42, 0.3);
+  --lux-promo-code-bg: rgba(15, 23, 42, 0.06);
 }
 
 @layer base {
@@ -263,7 +263,7 @@
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #a855f7 100%);
+  background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 50%, #3b82f6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

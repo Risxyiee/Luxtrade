@@ -29,7 +29,7 @@ interface WelcomeOnboardingProps {
 /*  Confetti CSS (pure keyframes, no library)                         */
 /* ------------------------------------------------------------------ */
 const CONFETTI_COLORS = [
-  '#f59e0b', '#f97316', '#a855f7', '#ec4899', '#22d3ee', '#10b981', '#e11d48', '#6366f1',
+  '#f59e0b', '#f97316', '#3b82f6', '#ec4899', '#22d3ee', '#10b981', '#e11d48', '#06b6d4',
 ]
 
 function ConfettiParticles() {

@@ -230,7 +230,7 @@ export default function AdminDashboard() {
       {/* Background Effects */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[#1a0a2e] via-[#16082a] to-[#0d0618]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(139,92,246,0.2)_0%,_transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(59,130,246,0.2)_0%,_transparent_50%)]" />
         <div className="absolute top-[20%] left-[20%] w-[400px] h-[400px] rounded-full bg-gradient-to-r from-cyan-600/20 to-blue-600/20 blur-[100px]" />
         <div className="absolute bottom-[20%] right-[20%] w-[300px] h-[300px] rounded-full bg-gradient-to-r from-blue-600/15 to-fuchsia-600/15 blur-[80px]" />
       </div>

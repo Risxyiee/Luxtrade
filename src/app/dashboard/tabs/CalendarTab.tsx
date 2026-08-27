@@ -540,7 +540,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
                             ? { backgroundColor: 'rgba(52,211,153,0.25)', color: '#34d399' }
                             : net < 0
                               ? { backgroundColor: 'rgba(248,113,113,0.25)', color: '#f87171' }
-                              : { backgroundColor: 'rgba(168,85,247,0.25)', color: '#c084fc' }
+                              : { backgroundColor: 'rgba(59,130,246,0.25)', color: '#60a5fa' }
                         }
                       >
                         {count}
@@ -603,7 +603,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
                         ? { backgroundColor: 'rgba(52,211,153,0.2)', color: '#34d399' }
                         : selectedDayNetPL < 0
                           ? { backgroundColor: 'rgba(248,113,113,0.2)', color: '#f87171' }
-                          : { backgroundColor: 'rgba(168,85,247,0.2)', color: '#c084fc' }
+                          : { backgroundColor: 'rgba(59,130,246,0.2)', color: '#60a5fa' }
                     }
                   >
                     {selectedDayNetPL > 0 && <TrendingUp className="w-3 h-3 mr-1" />}
@@ -885,7 +885,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
                       tickLine={false}
                       tickFormatter={(v: number) => `$${v}`}
                     />
-                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(168,85,247,0.08)' }} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(59,130,246,0.08)' }} />
                     <Bar dataKey="pl" radius={[3, 3, 0, 0]} maxBarSize={20}>
                       {dailyPLChartData.map((entry, index) => (
                         <Cell
