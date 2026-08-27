@@ -1976,3 +1976,52 @@ Stage Summary:
 - Motion: framer-motion for micro-interactions throughout
 - Accessibility: aria labels, focus trapping on mobile, keyboard shortcuts, semantic roles
 ---
+---
+Task ID: 2
+Agent: frontend-styling-expert
+Task: Dashboard luxury minimal redesign — premium visual polish (Bloomberg/Vercel aesthetic)
+
+Work Log:
+- HEADER (Header.tsx): Increased height from h-14 (56px) to h-16 (64px) for more breathing room
+- HEADER: Strengthened frosted glass with backdrop-blur-[24px] (was backdrop-blur-2xl)
+- HEADER: Added subtle dark shadow glow beneath header: dark:shadow-[0_1px_0_0_rgba(59,130,246,0.08),0_8px_32px_-8px_rgba(59,130,246,0.06)]
+- HEADER: Added 1px bottom glow line (absolute-positioned div) with bg-gradient-to-r from-transparent via-blue-500/40 to-transparent
+- HEADER: Made 'Trade Baru' CTA button larger: px-4 py-2 (was px-3.5 py-1.5), gap-2, Plus icon 18px, text tracking-wide
+- HEADER: Enhanced CTA glow: shadow-blue-500/30 hover:shadow-blue-500/40 + hover:shadow-[0_0_20px_rgba(59,130,246,0.25)] for ambient spread
+- SIDEBAR HEADER (SidebarHeader.tsx): Added outer glow div with inset-[-6px] for larger halo, blur-xl, opacity-50→80 on hover
+- SIDEBAR HEADER: Refined LuxTrade gradient text: from-blue-200 via-blue-400 to-cyan-300 (brighter/more luminous)
+- SIDEBAR HEADER: Upgraded subtitle to uppercase tracking-[0.2em] text-[10px] for premium feel
+- SIDEBAR FOOTER (SidebarFooter.tsx): Redesigned version tag with pill container (bg-white/[0.03] border border-white/[0.05])
+- SIDEBAR FOOTER: Version tag now has small blue dot indicator + uppercase tracking-[0.15em] monospace
+- SIDEBAR CONTAINER (Sidebar.tsx): Enhanced right-edge glow: w-px (crisper) + via-blue-500/25 (brighter gradient)
+- SIDEBAR CONTAINER: Extended top gradient from h-24 to h-32 with from-blue-500/[0.06] (more prominent ambient)
+- LAYOUT (LuxTradeDashboard.tsx): Added fixed noise texture overlay (SVG feTurbulence) at opacity-[0.018] for premium grain
+- LAYOUT: Added two ambient glow spots — top-right blue radial (0.03 opacity) and bottom-center cyan radial (0.02 opacity)
+- LAYOUT: Wrapper div now has `relative` class for proper z-stacking of overlays
+- All changes are CSS-only (Tailwind classes + inline styles), no functional/state changes
+- Lint passes cleanly with zero errors
+
+Stage Summary:
+- Dashboard now has more luxurious 'minimalis tapi mewah' feel akin to Bloomberg Terminal / Vercel
+- Header: taller, stronger glass, ambient bottom glow line, premium CTA button with expanded hover glow
+- Sidebar: more prominent logo halo, refined typography, polished version tag, enhanced edge gradients
+- Background: subtle noise texture + two ambient glow spots add depth without distraction
+- Zero lint errors, all functionality preserved
+---
+Task ID: 1
+Agent: main
+Task: Fix login/signup spinning logo animation visibility
+
+Work Log:
+- Identified root cause: spinning logo was at z-index 1 behind glass card at z-index 10, with only 0.08 opacity
+- Moved spinning logo from background (AuthBg/AuthBackground) into the glass card as SpinningLogo component
+- Increased logo size from 280px to 90px (but with 0.85 opacity so clearly visible)
+- Added glow ring behind spinning logo with blue/cyan radial gradient
+- Added faint background watermark logo (500px, 0.04 opacity) that spins slowly behind the form
+- Applied same changes to both login/page.tsx and signup/page.tsx
+- Lint passes clean
+
+Stage Summary:
+- Login and signup pages now show visible spinning LuxTrade logo above the form
+- Background watermark logo adds subtle depth
+- Both pages (login, signup, success screens) have the spinning logo
