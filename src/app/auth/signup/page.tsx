@@ -41,25 +41,32 @@ function AuthBackground() {
         style={{ background: 'radial-gradient(circle, #10b981, transparent)', animation: 'float-orb 15s ease-in-out infinite', animationDelay: '-10s' }}
       />
 
-      {/* 3D Wireframe Gem */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{
-        maskImage: 'radial-gradient(circle at center, black 30%, transparent 80%)',
-        WebkitMaskImage: 'radial-gradient(circle at center, black 30%, transparent 80%)',
-      }}>
-        <svg className="w-[600px] h-[600px] opacity-[0.15]" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ animation: 'rotate-3d 20s linear infinite', filter: 'drop-shadow(0 0 20px rgba(6, 182, 212, 0.3))' }}>
-          <defs>
-            <linearGradient id="gemGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#06b6d4" />
-              <stop offset="100%" stopColor="#3b82f6" />
-            </linearGradient>
-          </defs>
-          <polygon points="100,10 190,60 190,140 100,190 10,140 10,60" stroke="url(#gemGrad)" strokeWidth="1" fill="none"/>
-          <polygon points="100,10 190,60 100,100 10,60" stroke="url(#gemGrad)" strokeWidth="1" fill="none"/>
-          <polygon points="100,190 190,140 100,100 10,140" stroke="url(#gemGrad)" strokeWidth="1" fill="none"/>
-          <line x1="100" y1="10" x2="100" y2="190" stroke="url(#gemGrad)" strokeWidth="0.5" />
-          <line x1="10" y1="60" x2="190" y2="140" stroke="url(#gemGrad)" strokeWidth="0.5" />
-          <line x1="190" y1="60" x2="10" y2="140" stroke="url(#gemGrad)" strokeWidth="0.5" />
-        </svg>
+      {/* Spinning LuxTrade Logo */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 1 }}>
+        <div style={{
+          animation: 'auth-logo-spin 16s linear infinite',
+          width: 'clamp(200px, 40vw, 420px)',
+          height: 'clamp(200px, 40vw, 420px)',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          {/* Outer glow ring */}
+          <div style={{
+            position: 'absolute',
+            inset: '-20%',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(59,130,246,0.1) 0%, rgba(6,182,212,0.06) 40%, transparent 70%)',
+            filter: 'blur(30px)',
+            animation: 'auth-logo-glow 5s ease-in-out infinite',
+          }} />
+          {/* Logo */}
+          <Image src="/logo.png" alt="" width={280} height={280} className="object-contain" style={{
+            opacity: 0.08,
+            filter: 'drop-shadow(0 0 40px rgba(59,130,246,0.3)) drop-shadow(0 0 80px rgba(6,182,212,0.15))',
+          }} priority={false} />
+        </div>
       </div>
 
       {/* Perspective Grid Floor */}
@@ -416,7 +423,6 @@ function SignUpForm() {
           </div>
           <style jsx global>{`
             @keyframes float-orb { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(40px,-50px) scale(1.1)} 66%{transform:translate(-30px,40px) scale(0.9)} }
-            @keyframes rotate-3d { 0%{transform:rotateY(0) rotateX(20deg)} 100%{transform:rotateY(360deg) rotateX(20deg)} }
           `}</style>
         </motion.div>
       </div>
@@ -663,10 +669,6 @@ function SignUpForm() {
           0%, 100% { transform: translate(0, 0) scale(1); }
           33% { transform: translate(40px, -50px) scale(1.1); }
           66% { transform: translate(-30px, 40px) scale(0.9); }
-        }
-        @keyframes rotate-3d {
-          0% { transform: rotateY(0deg) rotateX(20deg); }
-          100% { transform: rotateY(360deg) rotateX(20deg); }
         }
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
