@@ -34,8 +34,8 @@ function HeroLogo3D() {
   const rawRotateX = useTransform(scrollYProgress, [0, 0.5, 1], [10, 0, -10])
   const rotateX = useSpring(rawRotateX, { stiffness: 60, damping: 30, restDelta: 0.001 })
 
-  const logoSize = isDesktop ? 320 : 220
-  const imageW = isDesktop ? 220 : 150
+  const logoSize = isDesktop ? 320 : 180
+  const imageW = isDesktop ? 220 : 120
 
   return (
     <div ref={containerRef} className="absolute inset-0 z-0 overflow-hidden pointer-events-none" aria-hidden="true">
@@ -43,9 +43,9 @@ function HeroLogo3D() {
       <div
         className="absolute pointer-events-none"
         style={{
-          width: isDesktop ? '500px' : '300px',
-          height: isDesktop ? '500px' : '300px',
-          top: '50%',
+          width: isDesktop ? '500px' : '280px',
+          height: isDesktop ? '500px' : '280px',
+          top: isDesktop ? '50%' : '30%',
           left: isDesktop ? '38%' : '50%',
           transform: 'translate(-50%, -50%)',
           background: 'radial-gradient(circle, rgba(6,182,212,0.08) 0%, rgba(59,130,246,0.04) 40%, transparent 60%)',
@@ -58,7 +58,7 @@ function HeroLogo3D() {
       <div
         className="absolute flex items-center justify-center"
         style={{
-          top: '50%',
+          top: isDesktop ? '50%' : '30%',
           left: isDesktop ? '38%' : '50%',
           transform: 'translate(-50%, -50%)',
           perspective: '1000px',
