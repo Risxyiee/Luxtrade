@@ -1,7 +1,7 @@
 /**
  * POST /api/auto-journal/from-image
- * Auto-generate journal entry from trading screenshot
- * Core feature: extract trade data + generate analysis
+ * Auto-generate journal entry from trading screenshot menggunakan Google Gemini Vision
+ * FITUR UTAMA: Extract trade data dari gambar + generate journal entry otomatis
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -9,86 +9,45 @@ import { createClientForApi } from '@/lib/supabase/server'
 import { isUserPro } from '@/lib/pro-check'
 import { rateLimitByUser } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
+import { handleApiError } from '@/lib/error-handler'
 import { db } from '@/lib/db'
+import { analyzeTradeScreenshotWithGemini, generateJournalEntryFromAnalysis } from '@/lib/gemini-vision'
 
-interface TradeData {
-  symbol?: string
-  type?: 'BUY' | 'SELL'
-  entry_price?: number
-  exit_price?: number
-  lot_size?: number
-  stop_loss?: number
-  take_profit?: number
-  profit_loss?: number
-  setup_type?: string
-}
-
-function normalizeTradingData(data: any): TradeData {
-  const result: TradeData = {}
-
-  if (data.pair || data.symbol) {
-    result.symbol = (data.pair || data.symbol).toUpperCase()
-  }
-
-  if (data.type) {
-    result.type = data.type.toUpperCase() === 'BUY' ? 'BUY' : 'SELL'
-  }
-
-  if (data.entry_price || data.openPrice || data.open_price) {
-    result.entry_price = parseFloat(data.entry_price || data.openPrice || data.open_price)
-  }
-
-  if (data.exit_price || data.closePrice || data.close_price) {
-    result.exit_price = parseFloat(data.exit_price || data.closePrice || data.close_price)
-  }
-
-  if (data.lot_size || data.size || data.volume) {
-    result.lot_size = parseFloat(data.lot_size || data.size || data.volume)
-  }
-
-  if (data.stop_loss || data.stopLoss) {
-    result.stop_loss = parseFloat(data.stop_loss || data.stopLoss)
-  }
-
-  if (data.take_profit || data.takeProfit) {
-    result.take_profit = parseFloat(data.take_profit || data.takeProfit)
-  }
-
-  if (data.profit || data.profit_loss || data.profitLoss) {
-    result.profit_loss = parseFloat(data.profit || data.profit_loss || data.profitLoss)
-  }
-
-  return result
-}
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
+  const startTime = performance.now()
+  let userId = 'unknown'
+
   try {
-    // Auth check
+    // ── Auth check ──────────────────────────────────────────
     const { supabase } = createClientForApi(request)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    userId = user.id
 
-    // Rate limit: 20 requests per hour per user
+    // ── Rate limit ──────────────────────────────────────────
     const rl = rateLimitByUser('auto-journal', user.id, {
       maxRequests: 20,
-      windowMs: 60 * 60 * 1000,
+      windowMs: 60 * 60 * 1000, // 1 hour
       message: 'Terlalu banyak permintaan auto-journal. Maksimal 20 per jam.',
     })
     if (rl) return rl
 
-    // PRO check
+    // ── PRO check ───────────────────────────────────────────
     const pro = await isUserPro(user.id)
     if (!pro) {
       return NextResponse.json({
-        error: 'Fitur auto-journal hanya untuk pengguna PRO. Upgrade sekarang!',
+        error: 'Fitur auto-journal hanya untuk pengguna PRO. Upgrade sekarang untuk analisis trading otomatis!',
         code: 'PRO_REQUIRED',
         requiresUpgrade: true,
       }, { status: 403 })
     }
 
-    // Parse form data
+    // ── Parse form data ─────────────────────────────────────
     const formData = await request.formData()
     const image = formData.get('image') as File
     const customPrompt = (formData.get('prompt') as string) || undefined
@@ -97,76 +56,135 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Image file required' }, { status: 400 })
     }
 
-    // Validate image type
     if (!image.type.startsWith('image/')) {
-      return NextResponse.json({ error: 'File must be an image' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'File must be an image (JPEG, PNG, WebP, GIF)' },
+        { status: 400 }
+      )
     }
 
-    logger.info('Auto-journal processing started', { userId: user.id, imageSize: image.size })
-
-    // Convert to base64
-    const buffer = await image.arrayBuffer()
-    const base64 = Buffer.from(buffer).toString('base64')
-    const dataUrl = `data:${image.type};base64,${base64}`
-
-    // TODO: Call AI service to extract trade data from screenshot
-    // For now, return placeholder
-    const tradeData: TradeData = {
-      symbol: 'EUR/USD',
-      type: 'BUY',
-      entry_price: 1.0950,
-      exit_price: 1.0965,
-      lot_size: 0.5,
-      profit_loss: 75,
+    // Validate file size (max 5MB for Gemini)
+    if (image.size > 5 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: 'Image must be smaller than 5MB' },
+        { status: 400 }
+      )
     }
 
-    // Create trade record
-    const trade = await db.trade.create({
-      data: {
-        user_id: user.id,
-        symbol: tradeData.symbol!,
-        type: tradeData.type!,
-        open_price: tradeData.entry_price || 0,
-        close_price: tradeData.exit_price || 0,
-        lot_size: tradeData.lot_size || 0,
-        profit_loss: tradeData.profit_loss || 0,
-        open_time: new Date(),
-        close_time: new Date(),
-        stop_loss: tradeData.stop_loss,
-        take_profit: tradeData.take_profit,
-        setup_type: tradeData.setup_type,
-        image_url: dataUrl, // Store screenshot as data URL
-      },
+    logger.info('Auto-journal processing started', {
+      userId: user.id,
+      imageSize: image.size,
+      mimeType: image.type,
     })
 
-    // Create auto-generated journal entry
+    // ── Convert to base64 ───────────────────────────────────
+    const buffer = await image.arrayBuffer()
+    const base64 = Buffer.from(buffer).toString('base64')
+
+    // ── Call Gemini Vision ──────────────────────────────────
+    logger.info('Calling Gemini Vision API', { userId: user.id })
+
+    const geminiAnalysis = await analyzeTradeScreenshotWithGemini(base64, customPrompt)
+
+    logger.info('Gemini analysis completed', {
+      userId: user.id,
+      hasTradeData: !!geminiAnalysis.tradeData,
+      symbol: geminiAnalysis.tradeData?.symbol,
+    })
+
+    // ── Create trade record (jika ada data) ──────────────────
+    let trade = null
+    if (geminiAnalysis.tradeData && geminiAnalysis.tradeData.symbol) {
+      trade = await db.trade.create({
+        data: {
+          user_id: user.id,
+          symbol: geminiAnalysis.tradeData.symbol,
+          type: geminiAnalysis.tradeData.type || 'BUY',
+          open_price: geminiAnalysis.tradeData.entry_price || 0,
+          close_price: geminiAnalysis.tradeData.exit_price || 0,
+          lot_size: geminiAnalysis.tradeData.lot_size || 0,
+          profit_loss: geminiAnalysis.tradeData.profit_loss || 0,
+          open_time: geminiAnalysis.tradeData.open_time ? new Date(geminiAnalysis.tradeData.open_time) : new Date(),
+          close_time: geminiAnalysis.tradeData.close_time ? new Date(geminiAnalysis.tradeData.close_time) : new Date(),
+          stop_loss: geminiAnalysis.tradeData.stop_loss,
+          take_profit: geminiAnalysis.tradeData.take_profit,
+          setup_type: geminiAnalysis.tradeData.setup_type,
+          screenshot_url: `data:${image.type};base64,${base64}`, // Store screenshot as data URL
+        },
+      })
+
+      logger.info('Trade record created', { userId: user.id, tradeId: trade.id })
+    }
+
+    // ── Generate journal entry ──────────────────────────────
+    const journalContent = await generateJournalEntryFromAnalysis(
+      geminiAnalysis.tradeData,
+      customPrompt
+    )
+
+    // ── Create journal entry ────────────────────────────────
+    const title = geminiAnalysis.tradeData?.symbol
+      ? `Trade: ${geminiAnalysis.tradeData.symbol} ${geminiAnalysis.tradeData.type} - ${new Date().toLocaleDateString('id-ID')}`
+      : `Trading Journal - ${new Date().toLocaleDateString('id-ID')}`
+
     const journal = await db.journalEntry.create({
       data: {
         user_id: user.id,
-        title: `Trade: ${tradeData.symbol} ${tradeData.type} - ${new Date().toLocaleDateString('id-ID')}`,
-        content: `Auto-generated journal entry from screenshot.\n\nTrade Details:\n- Symbol: ${tradeData.symbol}\n- Type: ${tradeData.type}\n- Entry: ${tradeData.entry_price}\n- Exit: ${tradeData.exit_price}\n- P&L: ${tradeData.profit_loss}`,
-        image_url: dataUrl,
-        linked_journal_id: trade.id,
+        title,
+        content: journalContent,
+        image_url: `data:${image.type};base64,${base64}`,
+        linked_journal_id: trade?.id || null,
+        tags: geminiAnalysis.tradeData?.setup_type ? JSON.stringify([geminiAnalysis.tradeData.setup_type]) : null,
       },
     })
 
-    logger.info('Auto-journal created successfully', {
+    logger.info('Journal entry created', {
       userId: user.id,
-      tradeId: trade.id,
       journalId: journal.id,
+      tradeId: trade?.id,
+      ms: Math.round(performance.now() - startTime),
     })
 
-    return NextResponse.json({
-      success: true,
-      trade,
-      journal,
-      extracted: tradeData,
-    })
-  } catch (error) {
-    logger.error('Auto-journal error', error, { userId: (error as any)?.user?.id })
     return NextResponse.json(
-      { error: 'Failed to process image' },
-      { status: 500 }
+      {
+        success: true,
+        message: 'Auto-journal entry created successfully',
+        data: {
+          trade: trade ? {
+            id: trade.id,
+            symbol: trade.symbol,
+            type: trade.type,
+            open_price: trade.open_price,
+            close_price: trade.close_price,
+            profit_loss: trade.profit_loss,
+          } : null,
+          journal: {
+            id: journal.id,
+            title: journal.title,
+            created_at: journal.created_at,
+          },
+          analysis: {
+            symbol: geminiAnalysis.tradeData?.symbol,
+            setup_type: geminiAnalysis.tradeData?.setup_type,
+            timeframe: geminiAnalysis.tradeData?.timeframe,
+            analysis_text: geminiAnalysis.text,
+          },
+        },
+      },
+      {
+        status: 201,
+        headers: {
+          'X-Processing-Time': `${Math.round(performance.now() - startTime)}ms`,
+        },
+      }
     )
+  } catch (error) {
+    const duration = Math.round(performance.now() - startTime)
+    logger.error('Auto-journal error', error, { userId, ms: duration })
+    return handleApiError(error, {
+      endpoint: '/api/auto-journal/from-image',
+      userId,
+      userMessage: 'Gagal menganalisis screenshot trading. Pastikan gambar jelas dan format terlihat.',
+    })
   }
 }
