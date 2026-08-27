@@ -145,7 +145,7 @@ export default function CaraKerjaSection({ language = 'id' }: CaraKerjaSectionPr
                 {step.visual === 'upload' && step.img && (
                   <div className="glass-lux p-8 min-h-[300px] flex items-center justify-center relative">
                     <div className="phone-mockup w-48 hover:scale-105 transition-transform duration-300">
-                      <Image src={step.img} alt="Auto Jurnal Screenshot MT5" width={192} height={380} />
+                      <Image src={step.img} alt="Auto Jurnal Screenshot MT5" width={192} height={380} loading="lazy" />
                     </div>
                     <div className="absolute bottom-4 right-4 bg-white/5 p-3 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux">
                       <div className="flex items-center gap-2">
@@ -159,7 +159,7 @@ export default function CaraKerjaSection({ language = 'id' }: CaraKerjaSectionPr
                 {step.visual === 'analytics' && step.img && (
                   <div className="glass-lux p-8 min-h-[300px] flex items-center justify-center relative">
                     <div className="phone-mockup w-48 hover:scale-105 transition-transform duration-300">
-                      <Image src={step.img} alt="Kalender Trading" width={192} height={380} />
+                      <Image src={step.img} alt="Kalender Trading" width={192} height={380} loading="lazy" />
                     </div>
                     {step.floatingCards?.map((card, ci) => (
                       <div key={ci} className={`absolute ${card.position} bg-white/5 p-3 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux`} style={{ animationDelay: `${ci * 0.5}s` }}>
@@ -173,7 +173,7 @@ export default function CaraKerjaSection({ language = 'id' }: CaraKerjaSectionPr
                 {step.visual === 'journal' && step.img && (
                   <div className="glass-lux p-8 min-h-[300px] flex items-center justify-center relative">
                     <div className="phone-mockup w-48 hover:scale-105 transition-transform duration-300">
-                      <Image src={step.img} alt="Histori Trade" width={192} height={380} />
+                      <Image src={step.img} alt="Histori Trade" width={192} height={380} loading="lazy" />
                     </div>
                     {step.floatingCards?.map((card, ci) => (
                       <div key={ci} className={`absolute ${card.position} bg-white/5 p-3 rounded-xl border border-white/10 backdrop-blur-md animate-float-lux`} style={{ animationDelay: '0.5s' }}>
