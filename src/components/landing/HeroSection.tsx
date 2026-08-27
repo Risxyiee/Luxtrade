@@ -1,20 +1,119 @@
 'use client'
 
-import React from 'react'
-import { motion } from 'framer-motion'
+import React, { useRef, useEffect, useState } from 'react'
+import { motion, useScroll, useTransform, useSpring } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Sparkles, ScanLine } from 'lucide-react'
-import CandlestickBackground from './CandlestickBackground'
 
 interface HeroSectionProps {
   language?: 'id' | 'en'
 }
 
+function HeroLogo3D() {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [isDesktop, setIsDesktop] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsDesktop(window.innerWidth >= 1024)
+    check()
+    window.addEventListener('resize', check, { passive: true })
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
+  // Scroll-driven Y-axis spin (baling-baling style)
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ['start end', 'end start'],
+  })
+
+  const rawRotateY = useTransform(scrollYProgress, [0, 1], [-30, 390])
+  const rotateY = useSpring(rawRotateY, { stiffness: 60, damping: 30, restDelta: 0.001 })
+
+  // Slight X tilt for depth feel
+  const rawRotateX = useTransform(scrollYProgress, [0, 0.5, 1], [10, 0, -10])
+  const rotateX = useSpring(rawRotateX, { stiffness: 60, damping: 30, restDelta: 0.001 })
+
+  const logoSize = isDesktop ? 320 : 220
+  const imageW = isDesktop ? 220 : 150
+
+  return (
+    <div ref={containerRef} className="absolute inset-0 z-0 overflow-hidden pointer-events-none" aria-hidden="true">
+      {/* Ambient glow behind logo */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          width: isDesktop ? '500px' : '300px',
+          height: isDesktop ? '500px' : '300px',
+          top: '50%',
+          left: isDesktop ? '38%' : '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'radial-gradient(circle, rgba(6,182,212,0.08) 0%, rgba(59,130,246,0.04) 40%, transparent 60%)',
+          filter: 'blur(30px)',
+          animation: 'hero-logo-glow 7s ease-in-out infinite',
+        }}
+      />
+
+      {/* 3D spinning logo */}
+      <div
+        className="absolute flex items-center justify-center"
+        style={{
+          top: '50%',
+          left: isDesktop ? '38%' : '50%',
+          transform: 'translate(-50%, -50%)',
+          perspective: '1000px',
+        }}
+      >
+        <motion.div
+          style={{
+            rotateX,
+            rotateY,
+            transformStyle: 'preserve-3d',
+          }}
+        >
+          {/* Glassmorphic disc */}
+          <div
+            className="relative flex items-center justify-center rounded-full"
+            style={{
+              width: `${logoSize}px`,
+              height: `${logoSize}px`,
+              background: 'linear-gradient(145deg, rgba(255,255,255,0.03), rgba(10,10,25,0.15))',
+              backdropFilter: 'blur(15px)',
+              border: '1px solid rgba(255,255,255,0.05)',
+            }}
+          >
+            <Image
+              src="/logo.png"
+              alt=""
+              width={imageW}
+              height={imageW}
+              className="object-contain"
+              style={{
+                transform: 'translateZ(30px)',
+                filter: isDesktop
+                  ? 'drop-shadow(0 0 15px rgba(6,182,212,0.25)) drop-shadow(0 0 30px rgba(59,130,246,0.1))'
+                  : 'drop-shadow(0 0 10px rgba(6,182,212,0.15))',
+                opacity: isDesktop ? 0.2 : 0.12,
+              }}
+            />
+          </div>
+        </motion.div>
+      </div>
+
+      <style jsx global>{`
+        @keyframes hero-logo-glow {
+          0%, 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          50% { opacity: 0.5; transform: translate(-50%, -50%) scale(1.1); }
+        }
+      `}</style>
+    </div>
+  )
+}
+
 export default function HeroSection({ language = 'id' }: HeroSectionProps) {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 pb-20 z-10">
-      <CandlestickBackground />
+      <HeroLogo3D />
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[100%] h-[60%] bg-blue-600/10 blur-[180px] rounded-full pointer-events-none" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[40%] bg-cyan-500/10 blur-[150px] rounded-full pointer-events-none" />
 
