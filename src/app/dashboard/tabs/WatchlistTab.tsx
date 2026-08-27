@@ -73,7 +73,7 @@ export default function WatchlistTab({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
   }
@@ -91,7 +91,7 @@ export default function WatchlistTab({
       </div>
 
       {items.length === 0 ? (
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardContent className="py-16 text-center">
             <Eye className="w-12 h-12 mx-auto mb-4 text-lux-text-muted dark:text-gray-500" />
             <h3 className="text-lg font-semibold mb-2">No Watchlist Items</h3>
@@ -107,7 +107,7 @@ export default function WatchlistTab({
             {items.map((item) => {
               const isAlertOn = alertItems.has(item.id)
               return (
-                <Card key={item.id} className={`bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30 hover:border-emerald-500/30 transition-colors group ${isAlertOn ? 'ring-1 ring-amber-500/30' : ''}`}>
+                <Card key={item.id} className={`bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30 hover:border-emerald-500/30 transition-colors group ${isAlertOn ? 'ring-1 ring-amber-500/30' : ''}`}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">

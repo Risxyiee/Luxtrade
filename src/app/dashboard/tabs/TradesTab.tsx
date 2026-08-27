@@ -135,7 +135,7 @@ function TradesTab({
 
       // Header
       doc.setFontSize(20)
-      doc.setTextColor(139, 92, 246) // purple
+      doc.setTextColor(59, 130, 246) // blue
       doc.text('LuxTrade Trade Export', pageWidth / 2, 20, { align: 'center' })
 
       // Date range
@@ -237,7 +237,7 @@ function TradesTab({
 
       // Summary box
       doc.setFillColor(20, 11, 24)
-      doc.setDrawColor(139, 92, 246)
+      doc.setDrawColor(59, 130, 246)
       doc.roundedRect(14, summaryY, pageWidth - 28, 28, 3, 3, 'FD')
 
       doc.setFontSize(9)
@@ -294,7 +294,7 @@ function TradesTab({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
+        <RefreshCw className="w-8 h-8 animate-spin text-blue-400" />
       </div>
     )
   }
@@ -306,10 +306,10 @@ function TradesTab({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 overflow-hidden relative">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12]/80 dark:to-[#080a14]/80 backdrop-blur-md border-lux-border dark:border-blue-500/20 transition-all duration-300 hover:border-blue-500/40 overflow-hidden relative">
           {/* Decorative background glow */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 bg-purple-500/10 rounded-full blur-[100px]" />
+            <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 bg-blue-500/10 rounded-full blur-[100px]" />
             <div className="absolute bottom-0 right-1/4 w-36 h-36 bg-amber-500/5 rounded-full blur-[80px]" />
           </div>
 
@@ -323,11 +323,11 @@ function TradesTab({
             >
               {/* Upload icon */}
               <motion.div
-                className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-violet-500/10 border border-purple-500/20 flex items-center justify-center"
+                className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-400/10 border border-blue-500/20 flex items-center justify-center"
                 animate={{ y: [0, -5, 0] }}
                 transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
               >
-                <Upload className="w-7 h-7 lg:w-8 lg:h-8 text-purple-400" />
+                <Upload className="w-7 h-7 lg:w-8 lg:h-8 text-blue-400" />
               </motion.div>
 
               {/* Plus icon (prominent) */}
@@ -341,17 +341,17 @@ function TradesTab({
 
               {/* Activity icon */}
               <motion.div
-                className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-purple-500/10 border border-violet-500/20 flex items-center justify-center"
+                className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-blue-400/20 to-blue-500/10 border border-blue-400/20 flex items-center justify-center"
                 animate={{ y: [0, -5, 0] }}
                 transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }}
               >
-                <Activity className="w-7 h-7 lg:w-8 lg:h-8 text-violet-400" />
+                <Activity className="w-7 h-7 lg:w-8 lg:h-8 text-blue-400" />
               </motion.div>
             </motion.div>
 
             {/* Heading */}
             <motion.h3
-              className="text-2xl lg:text-3xl font-bold mb-3 bg-gradient-to-r from-white via-purple-200 to-amber-200 bg-clip-text text-transparent"
+              className="text-2xl lg:text-3xl font-bold mb-3 bg-gradient-to-r from-white via-blue-200 to-amber-200 bg-clip-text text-transparent"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
@@ -389,7 +389,7 @@ function TradesTab({
 
               <button
                 onClick={() => setAddTradeOpen?.(true)}
-                className="text-sm text-purple-400 hover:text-purple-300 transition-colors duration-200 cursor-pointer group"
+                className="text-sm text-blue-400 hover:text-blue-300 transition-colors duration-200 cursor-pointer group"
               >
                 {language === 'id'
                   ? 'atau import dari CSV/MT5'
@@ -422,7 +422,7 @@ function TradesTab({
                 <ChevronDown className="w-3 h-3 ml-1" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-lux-border dark:border-purple-900/30" align="end">
+            <DropdownMenuContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-lux-border dark:border-blue-900/30" align="end">
               <DropdownMenuItem
                 onClick={handleExportAllCSV}
                 className="text-lux-text-primary dark:text-gray-300 focus:bg-lux-surface-hover dark:focus:bg-white/10 focus:text-white cursor-pointer"
@@ -443,7 +443,7 @@ function TradesTab({
                 onClick={handleExportPDF}
                 className="text-lux-text-primary dark:text-gray-300 focus:bg-lux-surface-hover dark:focus:bg-white/10 focus:text-white cursor-pointer"
               >
-                <FileDown className="w-4 h-4 mr-2 text-purple-400" />
+                <FileDown className="w-4 h-4 mr-2 text-blue-400" />
                 Export to PDF
                 <span className="ml-auto text-xs text-gray-500">{filteredTrades.length}</span>
               </DropdownMenuItem>
@@ -453,7 +453,7 @@ function TradesTab({
       </div>
 
       {/* Filter & Search Bar */}
-      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-3">
             {/* Search */}
@@ -463,16 +463,16 @@ function TradesTab({
                 placeholder="Search symbol or notes..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-lux-surface-hover dark:bg-white/5 border-lux-input-border dark:border-lux-border dark:border-purple-900/30"
+                className="pl-10 bg-lux-surface-hover dark:bg-white/5 border-lux-input-border dark:border-lux-border dark:border-blue-900/30"
               />
             </div>
 
             {/* Type Filter */}
             <Select value={filterType} onValueChange={(v: any) => setFilterType(v)}>
-              <SelectTrigger className="w-[120px] bg-lux-surface-hover dark:bg-white/5 border-lux-input-border dark:border-lux-border dark:border-purple-900/30">
+              <SelectTrigger className="w-[120px] bg-lux-surface-hover dark:bg-white/5 border-lux-input-border dark:border-lux-border dark:border-blue-900/30">
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
-              <SelectContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-lux-border dark:border-purple-900/30">
+              <SelectContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-lux-border dark:border-blue-900/30">
                 <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="BUY">BUY</SelectItem>
                 <SelectItem value="SELL">SELL</SelectItem>
@@ -481,10 +481,10 @@ function TradesTab({
 
             {/* Session Filter */}
             <Select value={filterSession} onValueChange={(v: any) => setFilterSession(v)}>
-              <SelectTrigger className="w-[140px] bg-lux-surface-hover dark:bg-white/5 border-lux-input-border dark:border-lux-border dark:border-purple-900/30">
+              <SelectTrigger className="w-[140px] bg-lux-surface-hover dark:bg-white/5 border-lux-input-border dark:border-lux-border dark:border-blue-900/30">
                 <SelectValue placeholder="Session" />
               </SelectTrigger>
-              <SelectContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-lux-border dark:border-purple-900/30">
+              <SelectContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-lux-border dark:border-blue-900/30">
                 <SelectItem value="all">All Sessions</SelectItem>
                 <SelectItem value="London">London</SelectItem>
                 <SelectItem value="New York">New York</SelectItem>
@@ -495,12 +495,12 @@ function TradesTab({
         </CardContent>
       </Card>
 
-      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-lux-border dark:border-purple-900/30 text-lux-text-secondary dark:text-gray-400">
+                <tr className="border-b border-lux-border dark:border-blue-900/30 text-lux-text-secondary dark:text-gray-400">
                   <th className="text-left p-4 font-medium">Symbol</th>
                   <th className="text-left p-4 font-medium">Type</th>
                   <th className="text-left p-4 font-medium hidden lg:table-cell">Setup</th>
@@ -536,7 +536,7 @@ function TradesTab({
                     }
 
                     return (
-                    <tr key={trade.id} className="border-b border-lux-border dark:border-purple-900/20 hover:bg-lux-surface-hover dark:hover:bg-white/5 transition-colors">
+                    <tr key={trade.id} className="border-b border-lux-border dark:border-blue-900/20 hover:bg-lux-surface-hover dark:hover:bg-white/5 transition-colors">
                       <td className="p-4 font-bold">{trade.symbol}</td>
                       <td className="p-4">
                         <Badge variant={trade.type === 'BUY' ? 'default' : 'destructive'} className="text-xs">
@@ -564,8 +564,8 @@ function TradesTab({
                       <td className="p-4 hidden md:table-cell">
                         {trade.risk_reward_ratio ? (
                           <div className="flex items-center gap-1">
-                            <Target className="w-3 h-3 text-purple-400" />
-                            <span className="text-xs font-medium text-purple-400">1:{trade.risk_reward_ratio}</span>
+                            <Target className="w-3 h-3 text-blue-400" />
+                            <span className="text-xs font-medium text-blue-400">1:{trade.risk_reward_ratio}</span>
                           </div>
                         ) : (
                           <span className="text-gray-500">-</span>
@@ -576,7 +576,7 @@ function TradesTab({
                         {tags.length > 0 ? (
                           <div className="flex items-center gap-1 flex-wrap">
                             {tags.slice(0, 2).map((tag: string, idx: number) => (
-                              <Badge key={idx} variant="outline" className="text-xs border-purple-500/30 text-purple-300">
+                              <Badge key={idx} variant="outline" className="text-xs border-blue-500/30 text-blue-300">
                                 <Tag className="w-2.5 h-2.5 mr-1" />
                                 {tag}
                               </Badge>
@@ -608,7 +608,7 @@ function TradesTab({
                           )}
                           {/* Image Attachment Indicator */}
                           {trade.image_url && (
-                            <ImageIcon className="w-4 h-4 text-purple-400" />
+                            <ImageIcon className="w-4 h-4 text-blue-400" />
                           )}
                           <button
                             onClick={() => onView(trade)}
@@ -619,7 +619,7 @@ function TradesTab({
                           </button>
                           <button
                             onClick={() => onEdit(trade)}
-                            className="p-1.5 rounded-lg hover:bg-lux-surface-hover dark:hover:bg-white/10 text-lux-text-secondary dark:text-gray-400 hover:text-purple-400 transition-colors"
+                            className="p-1.5 rounded-lg hover:bg-lux-surface-hover dark:hover:bg-white/10 text-lux-text-secondary dark:text-gray-400 hover:text-blue-400 transition-colors"
                             title="Edit trade"
                           >
                             <Edit className="w-4 h-4" />

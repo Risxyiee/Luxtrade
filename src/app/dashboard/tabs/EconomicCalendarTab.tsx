@@ -98,12 +98,12 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
   if (!isPro) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center mb-4">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-4">
           <Crown className="w-8 h-8 text-white" />
         </div>
         <h3 className="text-xl font-bold text-white mb-2">{language === 'id' ? 'Fitur Premium' : 'Premium Feature'}</h3>
         <p className="text-lux-text-secondary dark:text-gray-400 text-center max-w-sm mb-6">{language === 'id' ? 'Kalender ekonomi hanya tersedia untuk pengguna PRO' : 'Economic calendar is only available for PRO users'}</p>
-        <button onClick={onUpgrade} className="px-6 py-2.5 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity">
+        <button onClick={onUpgrade} className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity">
           {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
         </button>
       </div>
@@ -156,7 +156,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
     <div className="space-y-6">
       {/* Source Badge */}
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.05] w-fit">
-        <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
         <span className="text-xs text-lux-text-muted dark:text-gray-500">{t.source}</span>
       </div>
 
@@ -164,7 +164,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <CalendarDays className="w-5 h-5 text-purple-400" />
+            <CalendarDays className="w-5 h-5 text-blue-400" />
             {t.title}
           </h2>
           <p className="text-sm text-lux-text-muted dark:text-gray-500 mt-1">{t.subtitle}</p>
@@ -175,7 +175,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
               {t.lastUpdated}: {new Date(lastFetched).toLocaleTimeString(language === 'id' ? 'id-ID' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
-          <Button variant="outline" size="sm" onClick={fetchCalendar} disabled={calLoading} className="border-lux-border dark:border-purple-900/30 hover:bg-purple-500/10">
+          <Button variant="outline" size="sm" onClick={fetchCalendar} disabled={calLoading} className="border-lux-border dark:border-blue-900/30 hover:bg-blue-500/10">
             <RefreshCw className={`w-4 h-4 mr-1.5 ${calLoading ? 'animate-spin' : ''}`} />
             {t.refresh}
           </Button>
@@ -209,7 +209,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
               onClick={() => setCalFilter(f)}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
                 calFilter === f
-                  ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
                   : 'bg-lux-surface-hover dark:bg-white/[0.03] text-lux-text-secondary dark:text-gray-400 border border-lux-border dark:border-white/[0.06] hover:bg-lux-surface-hover dark:bg-white/[0.06] hover:text-lux-text-primary dark:text-gray-300'
               }`}
             >
@@ -250,7 +250,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
       {/* Loading */}
       {calLoading && (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
-          <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
+          <RefreshCw className="w-8 h-8 animate-spin text-blue-400" />
           <span className="text-sm text-lux-text-muted dark:text-gray-500">{t.fetching}</span>
         </div>
       )}
@@ -278,7 +278,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
               {/* Day header */}
               <div className="flex items-center gap-2 mb-3">
                 <div className={`w-2 h-2 rounded-full ${
-                  day === dayOrder[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1] ? 'bg-purple-500 animate-pulse' : 'bg-white/20'
+                  day === dayOrder[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1] ? 'bg-blue-500 animate-pulse' : 'bg-white/20'
                 }`} />
                 <h3 className="text-sm font-bold text-lux-text-primary dark:text-gray-300 uppercase tracking-wider">{day}</h3>
                 <span className="text-xs text-gray-600">({eventsByDay[day].length} {t.events})</span>
@@ -364,7 +364,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
                       transition={{ duration: 0.15, delay: idx * 0.03 }}
                       className={`rounded-lg border p-3 ${cfg.bg} relative`}
                     >
-                      <div className={`absolute -left-[21px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-[#0a0712] ${cfg.dot}`} />
+                      <div className={`absolute -left-[21px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-[#060810] ${cfg.dot}`} />
                       <div className="flex items-center gap-3">
                         <div className="text-lg flex-shrink-0">{getCurrencyFlag(evt.currency)}</div>
                         <div className="flex-1 min-w-0">

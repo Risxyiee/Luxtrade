@@ -93,7 +93,7 @@ export function JournalFilterPanel({ entries, onFilterChange }: JournalFilterPan
           placeholder="Search journal entries..."
           value={filters.searchQuery || ''}
           onChange={(e) => handleSearchChange(e.target.value)}
-          className="pl-10 bg-lux-input-bg dark:bg-[#0a0712] border-lux-border dark:border-purple-500/20 text-white placeholder-gray-500"
+          className="pl-10 bg-lux-input-bg dark:bg-[#060810] border-lux-border dark:border-blue-500/20 text-white placeholder-gray-500"
         />
       </div>
 
@@ -102,10 +102,10 @@ export function JournalFilterPanel({ entries, onFilterChange }: JournalFilterPan
         <Button
           onClick={() => setShowFilters(!showFilters)}
           variant="outline"
-          className="border-purple-500/30 text-purple-400"
+          className="border-blue-500/30 text-blue-400"
         >
           <Filter className="w-4 h-4 mr-2" />
-          Filters {activeFilterCount > 0 && <span className="ml-1 bg-purple-500 px-2 py-0.5 rounded-full text-xs">{activeFilterCount}</span>}
+          Filters {activeFilterCount > 0 && <span className="ml-1 bg-blue-500 px-2 py-0.5 rounded-full text-xs">{activeFilterCount}</span>}
         </Button>
 
         {activeFilterCount > 0 && (
@@ -123,7 +123,7 @@ export function JournalFilterPanel({ entries, onFilterChange }: JournalFilterPan
 
       {/* Filters Panel */}
       {showFilters && (
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardHeader>
             <CardTitle className="text-sm">Advanced Filters</CardTitle>
           </CardHeader>
@@ -139,8 +139,8 @@ export function JournalFilterPanel({ entries, onFilterChange }: JournalFilterPan
                       variant={filters.mood === mood ? 'default' : 'outline'}
                       className={`cursor-pointer ${
                         filters.mood === mood
-                          ? 'bg-purple-500 text-white'
-                          : 'border-purple-500/30 text-purple-400'
+                          ? 'bg-blue-500 text-white'
+                          : 'border-blue-500/30 text-blue-400'
                       }`}
                       onClick={() => handleMoodChange(mood)}
                     >
@@ -162,8 +162,8 @@ export function JournalFilterPanel({ entries, onFilterChange }: JournalFilterPan
                       variant={filters.marketCondition === condition ? 'default' : 'outline'}
                       className={`cursor-pointer ${
                         filters.marketCondition === condition
-                          ? 'bg-purple-500 text-white'
-                          : 'border-purple-500/30 text-purple-400'
+                          ? 'bg-blue-500 text-white'
+                          : 'border-blue-500/30 text-blue-400'
                       }`}
                       onClick={() => handleMarketConditionChange(condition)}
                     >
@@ -185,8 +185,8 @@ export function JournalFilterPanel({ entries, onFilterChange }: JournalFilterPan
                       variant={filters.tags?.includes(tag) ? 'default' : 'outline'}
                       className={`cursor-pointer ${
                         filters.tags?.includes(tag)
-                          ? 'bg-purple-500 text-white'
-                          : 'border-purple-500/30 text-purple-400'
+                          ? 'bg-blue-500 text-white'
+                          : 'border-blue-500/30 text-blue-400'
                       }`}
                       onClick={() => handleTagToggle(tag)}
                     >
@@ -207,7 +207,7 @@ export function JournalFilterPanel({ entries, onFilterChange }: JournalFilterPan
                     type="date"
                     value={filters.dateFrom?.toISOString().split('T')[0] || ''}
                     onChange={(e) => handleDateFromChange(e.target.value)}
-                    className="pl-8 w-full px-3 py-2 rounded-lg bg-lux-surface-hover dark:bg-white/5 border border-lux-border dark:border-purple-500/20 text-sm text-lux-text-primary dark:text-white"
+                    className="pl-8 w-full px-3 py-2 rounded-lg bg-lux-surface-hover dark:bg-white/5 border border-lux-border dark:border-blue-500/20 text-sm text-lux-text-primary dark:text-white"
                   />
                 </div>
                 <span className="text-lux-text-muted dark:text-gray-500">to</span>
@@ -217,16 +217,16 @@ export function JournalFilterPanel({ entries, onFilterChange }: JournalFilterPan
                     type="date"
                     value={filters.dateTo?.toISOString().split('T')[0] || ''}
                     onChange={(e) => handleDateToChange(e.target.value)}
-                    className="pl-8 w-full px-3 py-2 rounded-lg bg-lux-surface-hover dark:bg-white/5 border border-lux-border dark:border-purple-500/20 text-sm text-lux-text-primary dark:text-white"
+                    className="pl-8 w-full px-3 py-2 rounded-lg bg-lux-surface-hover dark:bg-white/5 border border-lux-border dark:border-blue-500/20 text-sm text-lux-text-primary dark:text-white"
                   />
                 </div>
               </div>
             </div>
 
             {/* Results Count */}
-            <div className="pt-2 border-t border-purple-500/10">
+            <div className="pt-2 border-t border-blue-500/10">
               <p className="text-sm text-lux-text-secondary dark:text-gray-400">
-                Showing <span className="font-bold text-purple-400">{filteredEntries.length}</span> of <span className="font-bold">{entries.length}</span> entries
+                Showing <span className="font-bold text-blue-400">{filteredEntries.length}</span> of <span className="font-bold">{entries.length}</span> entries
               </p>
             </div>
           </CardContent>

@@ -64,7 +64,7 @@ const Header = memo(function Header({
         </h2>
         <button
           onClick={fetchData}
-          className="p-2 text-lux-text-secondary dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+          className="p-2 text-lux-text-secondary dark:text-gray-400 hover:text-blue-400 dark:hover:text-blue-300 transition-colors"
           aria-label={language === 'id' ? 'Muat ulang data' : 'Refresh data'}
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -84,7 +84,7 @@ const Header = memo(function Header({
               <Keyboard className="w-5 h-5" />
             </button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white">
+          <DialogContent className="sm:max-w-md bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-blue-900/30 text-lux-text-primary dark:text-white">
             <DialogHeader>
               <DialogTitle className="text-lux-text-primary dark:text-white">Keyboard Shortcuts</DialogTitle>
             </DialogHeader>
@@ -92,7 +92,7 @@ const Header = memo(function Header({
               {shortcuts.map((s, i) => (
                 <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg bg-lux-surface-hover dark:bg-white/5">
                   <span className="text-sm text-lux-text-secondary dark:text-gray-300">{s.action}</span>
-                  <kbd className="px-2 py-1 text-xs font-mono bg-purple-500/20 text-purple-300 rounded border border-purple-500/30">
+                  <kbd className="px-2 py-1 text-xs font-mono bg-blue-500/20 text-blue-300 rounded border border-blue-500/30">
                     {s.combo}
                   </kbd>
                 </div>
@@ -118,7 +118,7 @@ const Header = memo(function Header({
           </button>
         )}
 
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold" role="img" aria-label={`Profil pengguna: ${user?.email || 'User'}`}>
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-sm font-bold" role="img" aria-label={`Profil pengguna: ${user?.email || 'User'}`}>
           {userInitials}
         </div>
       </div>

@@ -180,7 +180,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
   if (!active || !payload || payload.length === 0) return null
   const value = payload[0].value
   return (
-    <div className="bg-[#1a1028] border border-purple-900/40 rounded-lg px-3 py-2 shadow-xl">
+    <div className="bg-[#0c1018] border border-blue-900/40 rounded-lg px-3 py-2 shadow-xl">
       <p className="text-xs text-lux-text-secondary dark:text-gray-400">{label}</p>
       <p className={`text-sm font-bold ${value >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
         {formatCurrency(value)}
@@ -397,7 +397,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
       'aspect-square flex flex-col items-center justify-center rounded-xl text-sm relative cursor-pointer transition-colors duration-150'
 
     if (isToday && !isSelected) {
-      classes += ' ring-2 ring-purple-400/60'
+      classes += ' ring-2 ring-blue-400/60'
     }
 
     if (isSelected) {
@@ -407,14 +407,14 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
       } else if (net < 0) {
         classes += ' bg-red-500/20 text-red-300 ring-1 ring-red-500/50'
       } else {
-        classes += ' bg-purple-500/20 text-purple-300 ring-1 ring-purple-500/50'
+        classes += ' bg-blue-500/20 text-blue-300 ring-1 ring-blue-500/50'
       }
     } else if (net > 0) {
       classes += ' bg-emerald-500/10 text-emerald-300/90 hover:bg-emerald-500/20'
     } else if (net < 0) {
       classes += ' bg-red-500/10 text-red-300/90 hover:bg-red-500/20'
     } else if (hasTrades) {
-      classes += ' bg-purple-500/10 text-purple-300/90 hover:bg-purple-500/20'
+      classes += ' bg-blue-500/10 text-blue-300/90 hover:bg-blue-500/20'
     } else {
       classes += ' text-lux-text-muted dark:text-gray-500 hover:bg-lux-surface-hover dark:hover:bg-lux-surface-hover dark:bg-white/5 hover:text-lux-text-primary dark:text-gray-300'
     }
@@ -425,11 +425,11 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
   return (
     <div className="space-y-6">
       {/* ── Calendar Card ──────────────────────────────────────────────── */}
-      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <Calendar className="w-5 h-5 text-purple-400" />
+              <Calendar className="w-5 h-5 text-blue-400" />
               <AnimatePresence mode="wait" custom={direction}>
                 <motion.span
                   key={`${currentYear}-${currentMonth}`}
@@ -451,7 +451,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={goToToday}
-                className="px-2.5 py-1.5 text-xs font-medium rounded-lg text-purple-300 bg-purple-500/15 hover:bg-purple-500/25 transition-colors mr-1"
+                className="px-2.5 py-1.5 text-xs font-medium rounded-lg text-blue-300 bg-blue-500/15 hover:bg-blue-500/25 transition-colors mr-1"
               >
                 {t('today', lang)}
               </motion.button>
@@ -459,7 +459,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={goToPrevMonth}
-                className="p-2 rounded-lg text-lux-text-secondary dark:text-gray-400 hover:text-purple-300 hover:bg-purple-500/15 transition-colors"
+                className="p-2 rounded-lg text-lux-text-secondary dark:text-gray-400 hover:text-blue-300 hover:bg-blue-500/15 transition-colors"
                 aria-label="Previous month"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -468,7 +468,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={goToNextMonth}
-                className="p-2 rounded-lg text-lux-text-secondary dark:text-gray-400 hover:text-purple-300 hover:bg-purple-500/15 transition-colors"
+                className="p-2 rounded-lg text-lux-text-secondary dark:text-gray-400 hover:text-blue-300 hover:bg-blue-500/15 transition-colors"
                 aria-label="Next month"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -563,7 +563,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
               <span className="text-[11px] text-lux-text-muted dark:text-gray-500">{t('legendLoss', lang)}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-sm bg-purple-500/30 border border-purple-500/40" />
+              <div className="w-3 h-3 rounded-sm bg-blue-500/30 border border-blue-500/40" />
               <span className="text-[11px] text-lux-text-muted dark:text-gray-500">{t('legendBreakeven', lang)}</span>
             </div>
             <div className="flex items-center gap-1.5">
@@ -585,11 +585,11 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
             exit="exit"
             className="overflow-hidden"
           >
-            <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+            <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
-                    <Activity className="w-4 h-4 text-purple-400" />
+                    <Activity className="w-4 h-4 text-blue-400" />
                     <span>
                       {lang === 'id'
                         ? `${t('selectedDay', lang)} — ${selectedDay} ${monthName} ${currentYear}`
@@ -619,7 +619,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
                       {selectedDayStats.count} {t('daySummaryTrades', lang)}
                     </span>
                     <span className="text-xs text-lux-text-secondary dark:text-gray-400">
-                      {t('daySummaryWinRate', lang)}: <span className="text-purple-300 font-medium">{selectedDayStats.winRate}%</span>
+                      {t('daySummaryWinRate', lang)}: <span className="text-blue-300 font-medium">{selectedDayStats.winRate}%</span>
                     </span>
                   </div>
                 )}
@@ -738,10 +738,10 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
       </AnimatePresence>
 
       {/* ── Month Summary Card (enhanced) ──────────────────────────────── */}
-      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <BarChart3 className="w-4 h-4 text-purple-400" />
+            <BarChart3 className="w-4 h-4 text-blue-400" />
             {t('monthActivity', lang)}
             <span className="text-xs font-normal text-lux-text-muted dark:text-gray-500 ml-1">
               ({monthName} {currentYear})
@@ -752,8 +752,8 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
           {/* Stats grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
             {/* Total Trades */}
-            <div className="p-3 rounded-xl bg-purple-500/10">
-              <div className="text-2xl sm:text-3xl font-bold text-purple-400">
+            <div className="p-3 rounded-xl bg-blue-500/10">
+              <div className="text-2xl sm:text-3xl font-bold text-blue-400">
                 {monthStats.total}
               </div>
               <div className="text-xs text-lux-text-muted dark:text-gray-500 mt-1">
@@ -784,7 +784,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
             </div>
 
             {/* Net P/L & Win Rate */}
-            <div className="p-3 rounded-xl bg-purple-500/10">
+            <div className="p-3 rounded-xl bg-blue-500/10">
               <div
                 className={`text-2xl sm:text-3xl font-bold ${
                   monthStats.netPL >= 0 ? 'text-emerald-400' : 'text-red-400'
@@ -794,7 +794,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
               </div>
               <div className="flex items-center justify-center gap-2 mt-1">
                 <span className="text-xs text-lux-text-muted dark:text-gray-500">{t('winRate', lang)}</span>
-                <span className="text-xs font-semibold text-purple-300">
+                <span className="text-xs font-semibold text-blue-300">
                   {monthStats.winRate}%
                 </span>
               </div>
@@ -867,7 +867,7 @@ function CalendarTab({ trades, language }: CalendarTabProps) {
           {dailyPLChartData.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <BarChart3 className="w-4 h-4 text-purple-400" />
+                <BarChart3 className="w-4 h-4 text-blue-400" />
                 <span className="text-sm font-medium text-lux-text-primary dark:text-gray-300">{t('dailyPL', lang)}</span>
               </div>
               <div className="h-40 sm:h-52">

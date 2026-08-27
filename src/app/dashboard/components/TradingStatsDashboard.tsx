@@ -131,7 +131,7 @@ export function TradingStatsDashboard({ trades, period = 'all' }: TradingStatsPr
   }, [trades])
 
   const StatCard = ({ title, value, icon: Icon, color, subtext }: any) => (
-    <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+    <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div>
@@ -176,7 +176,7 @@ export function TradingStatsDashboard({ trades, period = 'all' }: TradingStatsPr
             title="Profit Factor"
             value={stats.profitFactor.toFixed(2)}
             icon={Target}
-            color={stats.profitFactor > 1.5 ? 'text-purple-400' : stats.profitFactor > 1 ? 'text-yellow-400' : 'text-red-400'}
+            color={stats.profitFactor > 1.5 ? 'text-blue-400' : stats.profitFactor > 1 ? 'text-yellow-400' : 'text-red-400'}
             subtext={stats.profitFactor > 1.5 ? 'Excellent' : stats.profitFactor > 1 ? 'Good' : 'Below 1.0'}
           />
         </div>
@@ -184,44 +184,44 @@ export function TradingStatsDashboard({ trades, period = 'all' }: TradingStatsPr
 
       {/* Detailed Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardContent className="p-4">
             <p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-2">Average Win</p>
             <p className="text-xl font-bold text-emerald-400">${stats.avgWin.toFixed(2)}</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardContent className="p-4">
             <p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-2">Average Loss</p>
             <p className="text-xl font-bold text-red-400">-${stats.avgLoss.toFixed(2)}</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardContent className="p-4">
             <p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-2">Risk/Reward Ratio</p>
-            <p className="text-xl font-bold text-purple-400">
+            <p className="text-xl font-bold text-blue-400">
               {stats.avgLoss > 0 ? (stats.avgWin / stats.avgLoss).toFixed(2) : '0.00'}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardContent className="p-4">
             <p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-2">Largest Win</p>
             <p className="text-xl font-bold text-green-400">${stats.largestWin.toFixed(2)}</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardContent className="p-4">
             <p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-2">Largest Loss</p>
             <p className="text-xl font-bold text-red-400">-${Math.abs(stats.largestLoss).toFixed(2)}</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardContent className="p-4">
             <p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-2">Win Streak</p>
             <p className="text-xl font-bold text-amber-400">{stats.consecutiveWins} trades</p>
@@ -230,7 +230,7 @@ export function TradingStatsDashboard({ trades, period = 'all' }: TradingStatsPr
       </div>
 
       {/* Buy vs Sell Analysis */}
-      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
         <CardHeader>
           <CardTitle className="text-sm">Trade Direction Analysis</CardTitle>
         </CardHeader>
@@ -252,11 +252,11 @@ export function TradingStatsDashboard({ trades, period = 'all' }: TradingStatsPr
             <div>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-lux-text-secondary dark:text-gray-400">Sell Trades</span>
-                <span className="font-bold text-purple-400">{stats.sellTrades} ({stats.totalTrades > 0 ? ((stats.sellTrades / stats.totalTrades) * 100).toFixed(1) : 0}%)</span>
+                <span className="font-bold text-blue-400">{stats.sellTrades} ({stats.totalTrades > 0 ? ((stats.sellTrades / stats.totalTrades) * 100).toFixed(1) : 0}%)</span>
               </div>
               <div className="w-full h-2 bg-lux-surface-hover dark:bg-white/5 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-purple-500 rounded-full"
+                  className="h-full bg-blue-500 rounded-full"
                   style={{ width: `${stats.totalTrades > 0 ? (stats.sellTrades / stats.totalTrades) * 100 : 0}%` }}
                 />
               </div>
