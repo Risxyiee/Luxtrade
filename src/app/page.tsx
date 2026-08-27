@@ -148,7 +148,7 @@ export default function LuxTradeLanding() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050507] text-white overflow-x-hidden flex flex-col relative landing-blueprint-grid landing-noise pb-20 lg:pb-0">
+    <div className="min-h-screen bg-[#050507] text-white overflow-x-hidden flex flex-col relative landing-blueprint-grid landing-noise">
       <div className="relative z-[1] flex flex-col min-h-screen">
         <header>
           <LandingNavbar language={language} t={t} onSidebarOpen={() => setSidebarOpen(true)} />
@@ -173,24 +173,7 @@ export default function LuxTradeLanding() {
           <FinalCTA language={language} />
         </main>
 
-        {/* Footer */}
-        <footer className="border-t border-white/5 py-12 bg-[#050507] relative z-10">
-          <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="flex items-center gap-2.5">
-              <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
-                <path d="M8 5L16 16L24 5" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M16 16V24" stroke="white" strokeWidth="3.5" strokeLinecap="round" />
-                <circle cx="16" cy="27" r="2.5" fill="#06b6d4" />
-              </svg>
-              <span className="text-lg font-bold tracking-tight text-white">LuxTradee</span>
-            </div>
-            <p className="text-gray-500 text-sm">© 2026 LuxTradee. All rights reserved.</p>
-            <div className="flex items-center gap-6 text-gray-500 text-sm">
-              <button onClick={() => openLegalPage('terms')} className="hover:text-white transition-colors cursor-pointer">Terms</button>
-              <button onClick={() => openLegalPage('privacy')} className="hover:text-white transition-colors cursor-pointer">Privacy</button>
-            </div>
-          </div>
-        </footer>
+
 
         <ScrollToTopButton />
 
