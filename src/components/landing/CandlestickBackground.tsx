@@ -1,88 +1,12 @@
 'use client'
 
-import React, { useMemo, useEffect, useState, useId } from 'react'
-import { motion } from 'framer-motion'
-
-interface Candle {
-  id: number
-  x: number
-  bodyH: number
-  bodyY: number
-  wickTop: number
-  wickBottom: number
-  isBull: boolean
-}
-
-function generateCandles(count: number, sectionWidth: number, sectionHeight: number): Candle[] {
-  const candles: Candle[] = []
-  const spacing = sectionWidth / count
-  const baseY = sectionHeight * 0.45
-  const maxBodyH = sectionHeight * 0.18
-  const maxWick = sectionHeight * 0.12
-  let trend = 0
-  let price = baseY
-
-  for (let i = 0; i < count; i++) {
-    trend += (Math.random() - 0.48) * 0.6
-    trend = Math.max(-1, Math.min(1, trend))
-    const isBull = trend > -0.15
-
-    const bodyH = 12 + Math.random() * maxBodyH
-    const wickUp = 4 + Math.random() * maxWick
-    const wickDown = 4 + Math.random() * maxWick
-
-    price += isBull ? -2 : 2
-    price = Math.max(sectionHeight * 0.15, Math.min(sectionHeight * 0.75, price))
-
-    candles.push({
-      id: i,
-      x: spacing * i + spacing * 0.3,
-      bodyH,
-      bodyY: price,
-      wickTop: price - wickUp,
-      wickBottom: price + bodyH + wickDown,
-      isBull,
-    })
-  }
-  return candles
-}
-
-function CandleCluster({ candles, opacity, yDir }: { candles: Candle[]; opacity: number; yDir: number }) {
-  return (
-    <svg className="w-full h-full" preserveAspectRatio="xMidYMid slice" viewBox="0 0 600 500" fill="none">
-      {candles.map((c) => (
-        <motion.g
-          key={c.id}
-          initial={{ opacity: 0 }}
-          animate={{
-            opacity: 1,
-            y: [0, c.isBull ? -8 * yDir : 8 * yDir, 0],
-          }}
-          transition={{
-            opacity: { duration: 0.5, delay: c.id * 0.04 },
-            y: {
-              duration: 3 + Math.random() * 2,
-              repeat: Infinity,
-              repeatType: 'reverse',
-              ease: 'easeInOut',
-              delay: c.id * 0.15,
-            },
-          }}
-        >
-          <line x1={c.x} y1={c.wickTop} x2={c.x} y2={c.wickBottom} stroke={c.isBull ? '#10b981' : '#1e40af'} strokeWidth={2} opacity={opacity} />
-          <rect x={c.x - 5} y={c.bodyY} width={10} height={c.bodyH} fill={c.isBull ? '#10b981' : '#1e40af'} opacity={opacity} rx={1} />
-        </motion.g>
-      ))}
-    </svg>
-  )
-}
+import React, { useRef, useEffect, useState } from 'react'
+import { motion, useScroll, useTransform, useSpring } from 'framer-motion'
+import Image from 'next/image'
 
 export default function CandlestickBackground() {
+  const containerRef = useRef<HTMLDivElement>(null)
   const [isDesktop, setIsDesktop] = useState(false)
-  const styleId = useId()
-  const leftCandles = useMemo(() => generateCandles(14, 600, 500), [])
-  const rightCandles = useMemo(() => generateCandles(14, 600, 500), [])
-  const mobileCandles = useMemo(() => generateCandles(6, 400, 600), [])
 
   useEffect(() => {
     const check = () => setIsDesktop(window.innerWidth >= 1024)
@@ -91,36 +15,86 @@ export default function CandlestickBackground() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
+  // Scroll-driven rotation — one full X spin as hero scrolls through viewport
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ['start end', 'end start'],
+  })
+
+  const rawRotateX = useTransform(scrollYProgress, [0, 1], [0, 360])
+  const rotateX = useSpring(rawRotateX, { stiffness: 50, damping: 25, restDelta: 0.001 })
+
+  const rawRotateY = useTransform(scrollYProgress, [0, 0.5, 1], [0, 45, 0])
+  const rotateY = useSpring(rawRotateY, { stiffness: 50, damping: 25, restDelta: 0.001 })
+
+  const logoSize = isDesktop ? 260 : 160
+  const imageW = isDesktop ? 180 : 110
+
   return (
-    <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none" aria-hidden="true">
-      {/* CSS keyframe for mobile — injected once */}
-      <style dangerouslySetInnerHTML={{ __html: `@keyframes candleFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}` }} />
+    <div ref={containerRef} className="absolute inset-0 z-0 overflow-hidden pointer-events-none" aria-hidden="true">
+      {/* Soft ambient glow */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          width: isDesktop ? '400px' : '250px',
+          height: isDesktop ? '400px' : '250px',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'radial-gradient(circle, rgba(6,182,212,0.08) 0%, rgba(59,130,246,0.04) 40%, transparent 60%)',
+          filter: 'blur(25px)',
+          animation: 'hero-bg-glow 8s ease-in-out infinite',
+        }}
+      />
 
-      {/* Desktop: Framer Motion clusters */}
-      {isDesktop && (
-        <>
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[600px] h-[500px]">
-            <CandleCluster candles={leftCandles} opacity={0.2} yDir={1} />
+      {/* 3D spinning logo — centered, behind content */}
+      <div
+        className="absolute inset-0 flex items-center justify-center"
+        style={{ perspective: '1200px' }}
+      >
+        <motion.div
+          style={{
+            rotateX,
+            rotateY,
+            transformStyle: 'preserve-3d',
+          }}
+        >
+          {/* Glassmorphic disc behind logo */}
+          <div
+            className="relative flex items-center justify-center rounded-full"
+            style={{
+              width: `${logoSize}px`,
+              height: `${logoSize}px`,
+              background: 'linear-gradient(145deg, rgba(255,255,255,0.03), rgba(10,10,25,0.15))',
+              backdropFilter: 'blur(15px)',
+              border: '1px solid rgba(255,255,255,0.04)',
+            }}
+          >
+            <Image
+              src="/logo.png"
+              alt=""
+              width={imageW}
+              height={imageW}
+              className="object-contain"
+              style={{
+                transform: 'translateZ(30px)',
+                filter: isDesktop
+                  ? 'drop-shadow(0 0 12px rgba(6,182,212,0.2)) drop-shadow(0 0 24px rgba(59,130,246,0.08))'
+                  : 'drop-shadow(0 0 8px rgba(6,182,212,0.12))',
+                opacity: isDesktop ? 0.18 : 0.1,
+              }}
+            />
           </div>
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[600px] h-[500px]">
-            <CandleCluster candles={rightCandles} opacity={0.15} yDir={-1} />
-          </div>
-        </>
-      )}
+        </motion.div>
+      </div>
 
-      {/* Mobile: static SVG with single CSS animation */}
-      {!isDesktop && (
-        <div className="absolute inset-0" style={{ animation: 'candleFloat 6s ease-in-out infinite' }}>
-          <svg className="w-full h-full" preserveAspectRatio="xMidYMid slice" viewBox="0 0 400 600" fill="none">
-            {mobileCandles.map((c) => (
-              <g key={`m-${c.id}`}>
-                <line x1={c.x} y1={c.wickTop} x2={c.x} y2={c.wickBottom} stroke={c.isBull ? '#10b981' : '#1e40af'} strokeWidth={1.5} opacity={0.12} />
-                <rect x={c.x - 4} y={c.bodyY} width={8} height={c.bodyH * 0.9} fill={c.isBull ? '#10b981' : '#1e40af'} opacity={0.12} rx={1} />
-              </g>
-            ))}
-          </svg>
-        </div>
-      )}
+      {/* Keyframe */}
+      <style jsx global>{`
+        @keyframes hero-bg-glow {
+          0%, 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          50% { opacity: 0.5; transform: translate(-50%, -50%) scale(1.08); }
+        }
+      `}</style>
     </div>
   )
 }
