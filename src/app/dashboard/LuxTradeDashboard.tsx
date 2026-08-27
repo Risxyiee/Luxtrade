@@ -704,6 +704,29 @@ function LuxTradeDashboardContent() {
     }
   }, [trades, language])
 
+  // Analyze chart image using AI Vision
+  const analyzeChart = useCallback(async (imageData: string) => {
+    setAiLoading(true)
+    setAiInsight('')
+    try {
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'chart_analysis', language, data: { imageData } })
+      })
+      const data = await res.json()
+      if (res.ok && data.insight) {
+        setAiInsight(data.insight)
+      } else {
+        toast.error(data.error || (language === 'id' ? 'Gagal menganalisis chart.' : 'Failed to analyze chart.'))
+      }
+    } catch {
+      toast.error(language === 'id' ? 'Gagal upload chart. Coba lagi.' : 'Chart upload failed. Try again.')
+    } finally {
+      setAiLoading(false)
+    }
+  }, [language])
+
   // User initials with hydration safety check
   const userInitials = profile?.full_name
     ? profile.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -801,6 +824,7 @@ function LuxTradeDashboardContent() {
           onChatChange={setAiChatInput}
           onSendChat={sendAiChat}
           onAnalyzeTrade={analyzeTrade}
+          onAnalyzeChart={analyzeChart}
           isPro={isPro}
           language={language}
           user={user}
