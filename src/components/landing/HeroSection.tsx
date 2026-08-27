@@ -34,23 +34,39 @@ function HeroLogo3D() {
   const rawRotateX = useTransform(scrollYProgress, [0, 0.5, 1], [10, 0, -10])
   const rotateX = useSpring(rawRotateX, { stiffness: 60, damping: 30, restDelta: 0.001 })
 
-  const logoSize = isDesktop ? 320 : 160
-  const imageW = isDesktop ? 220 : 110
+  const logoSize = isDesktop ? 500 : 260
+  const imageW = isDesktop ? 340 : 180
 
   return (
     <div ref={containerRef} className="absolute inset-0 z-0 overflow-hidden pointer-events-none" aria-hidden="true">
-      {/* Ambient glow behind logo */}
+      {/* Large ambient glow behind logo */}
       <div
         className="absolute pointer-events-none"
         style={{
-          width: isDesktop ? '500px' : '250px',
-          height: isDesktop ? '500px' : '250px',
-          top: isDesktop ? '50%' : '15%',
-          left: isDesktop ? '38%' : '50%',
+          width: isDesktop ? '700px' : '380px',
+          height: isDesktop ? '700px' : '380px',
+          top: isDesktop ? '45%' : '12%',
+          left: isDesktop ? '35%' : '50%',
           transform: 'translate(-50%, -50%)',
-          background: 'radial-gradient(circle, rgba(6,182,212,0.08) 0%, rgba(59,130,246,0.04) 40%, transparent 60%)',
-          filter: 'blur(30px)',
+          background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, rgba(6,182,212,0.08) 30%, rgba(16,185,129,0.04) 50%, transparent 70%)',
+          filter: 'blur(40px)',
           animation: 'hero-logo-glow 7s ease-in-out infinite',
+        }}
+      />
+
+      {/* Secondary glow ring for depth */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          width: isDesktop ? '400px' : '220px',
+          height: isDesktop ? '400px' : '220px',
+          top: isDesktop ? '45%' : '12%',
+          left: isDesktop ? '35%' : '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'radial-gradient(circle, transparent 40%, rgba(59,130,246,0.08) 60%, transparent 80%)',
+          filter: 'blur(20px)',
+          animation: 'hero-logo-glow 7s ease-in-out infinite',
+          animationDelay: '-3.5s',
         }}
       />
 
@@ -58,10 +74,10 @@ function HeroLogo3D() {
       <div
         className="absolute flex items-center justify-center"
         style={{
-          top: isDesktop ? '50%' : '15%',
-          left: isDesktop ? '38%' : '50%',
+          top: isDesktop ? '45%' : '12%',
+          left: isDesktop ? '35%' : '50%',
           transform: 'translate(-50%, -50%)',
-          perspective: '1000px',
+          perspective: '1200px',
         }}
       >
         <motion.div
@@ -77,9 +93,10 @@ function HeroLogo3D() {
             style={{
               width: `${logoSize}px`,
               height: `${logoSize}px`,
-              background: 'linear-gradient(145deg, rgba(255,255,255,0.03), rgba(10,10,25,0.15))',
-              backdropFilter: 'blur(15px)',
-              border: '1px solid rgba(255,255,255,0.05)',
+              background: 'linear-gradient(145deg, rgba(59,130,246,0.06), rgba(6,182,212,0.03), rgba(10,10,25,0.12))',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(59,130,246,0.12)',
+              boxShadow: '0 0 60px rgba(59,130,246,0.08), inset 0 0 40px rgba(6,182,212,0.04)',
             }}
           >
             <Image
@@ -91,9 +108,9 @@ function HeroLogo3D() {
               style={{
                 transform: 'translateZ(30px)',
                 filter: isDesktop
-                  ? 'drop-shadow(0 0 15px rgba(6,182,212,0.25)) drop-shadow(0 0 30px rgba(59,130,246,0.1))'
-                  : 'drop-shadow(0 0 10px rgba(6,182,212,0.15))',
-                opacity: isDesktop ? 0.2 : 0.12,
+                  ? 'drop-shadow(0 0 25px rgba(59,130,246,0.35)) drop-shadow(0 0 50px rgba(6,182,212,0.2)) drop-shadow(0 0 80px rgba(16,185,129,0.1))'
+                  : 'drop-shadow(0 0 18px rgba(59,130,246,0.3)) drop-shadow(0 0 35px rgba(6,182,212,0.15))',
+                opacity: isDesktop ? 0.35 : 0.25,
               }}
             />
           </div>
@@ -103,7 +120,7 @@ function HeroLogo3D() {
       <style jsx global>{`
         @keyframes hero-logo-glow {
           0%, 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-          50% { opacity: 0.5; transform: translate(-50%, -50%) scale(1.1); }
+          50% { opacity: 0.6; transform: translate(-50%, -50%) scale(1.15); }
         }
       `}</style>
     </div>
