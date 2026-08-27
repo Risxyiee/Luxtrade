@@ -4,6 +4,7 @@ import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { X, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
 import { type LegalPageTab } from '@/components/LegalPagesModal'
 import SocialIcons from './SocialIcons'
 
@@ -102,7 +103,15 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
               </div>
             </nav>
 
-            <div className="px-5 py-4 border-t border-white/[0.08]">
+            <div className="px-5 py-4 border-t border-white/[0.08] space-y-3">
+              <div className="flex gap-2">
+                <Link href="/auth/login" onClick={onClose} className="flex-1 text-center py-2.5 text-[13px] font-medium text-[#8892b0] border border-white/10 rounded-xl hover:text-white hover:border-white/20 transition-colors">
+                  {t('nav.login')}
+                </Link>
+                <Link href="/auth/signup" onClick={onClose} className="flex-1 text-center py-2.5 text-[13px] font-medium text-white bg-blue-500 rounded-xl hover:bg-blue-600 transition-colors">
+                  {t('nav.signup')}
+                </Link>
+              </div>
               <p className="text-[#8892b0] text-[11px]">© {new Date().getFullYear()} LuxTrade</p>
             </div>
           </motion.div>

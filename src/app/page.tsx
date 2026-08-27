@@ -8,14 +8,16 @@ import LegalPagesModal, { type LegalPageTab } from '@/components/LegalPagesModal
 import LandingNavbar from '@/components/landing/LandingNavbar'
 import LandingSidebar from '@/components/landing/LandingSidebar'
 import HeroSection from '@/components/landing/HeroSection'
-import SocialProofBar from '@/components/landing/SocialProofBar'
-import FinalCTA from '@/components/landing/FinalCTA'
 import ScrollToTopButton from '@/components/landing/ScrollToTopButton'
 
-const AIVisionSimulator = dynamic(() => import('@/components/landing/AIVisionSimulator').then(m => ({ default: m.default })), { ssr: false })
-const CaraKerjaSection = dynamic(() => import('@/components/landing/CaraKerjaSection').then(m => ({ default: m.default })), { ssr: false })
-const PricingSectionNew = dynamic(() => import('@/components/landing/PricingSectionNew').then(m => ({ default: m.default })), { ssr: false })
-const FAQSection = dynamic(() => import('@/components/landing/FAQSection').then(m => ({ default: m.default })), { ssr: false })
+const loadingDiv = <div className="h-32" />
+
+const SocialProofBar = dynamic(() => import('@/components/landing/SocialProofBar').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const AIVisionSimulator = dynamic(() => import('@/components/landing/AIVisionSimulator').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const CaraKerjaSection = dynamic(() => import('@/components/landing/CaraKerjaSection').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const PricingSectionNew = dynamic(() => import('@/components/landing/PricingSectionNew').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const FAQSection = dynamic(() => import('@/components/landing/FAQSection').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const FinalCTA = dynamic(() => import('@/components/landing/FinalCTA').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 
 interface LandingStats {
   totalUsers: number
