@@ -93,17 +93,17 @@ export default function AITab({
     <div className="space-y-6">
       {/* PRO Paywall */}
       {!isPro && (
-        <Card className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border-purple-500/30">
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-400/10 border-blue-500/30">
           <CardContent className="py-8 text-center">
             <motion.div
               animate={{ scale: [1, 1.1, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              <Lock className="w-12 h-12 mx-auto mb-4 text-purple-400" />
+              <Lock className="w-12 h-12 mx-auto mb-4 text-blue-400" />
             </motion.div>
-            <h3 className="text-lg font-bold text-purple-400 mb-2">AI Insights - PRO Feature</h3>
+            <h3 className="text-lg font-bold text-blue-400 mb-2">AI Insights - PRO Feature</h3>
             <p className="text-lux-text-secondary dark:text-gray-400 mb-4">Unlock AI-powered trading insights and recommendations</p>
-            <Button onClick={onUpgrade} className="bg-gradient-to-r from-purple-500 to-violet-600">
+            <Button onClick={onUpgrade} className="bg-gradient-to-r from-blue-500 to-blue-600">
               <Sparkles className="w-4 h-4 mr-2" /> Upgrade to PRO
             </Button>
           </CardContent>
@@ -112,15 +112,15 @@ export default function AITab({
 
       {/* AI Content - Only render for PRO users */}
       {isPro && (<>
-      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
         <CardHeader>
           <CardTitle className="flex items-center gap-3 text-xl">
             <motion.div
-              className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-violet-500/20 flex items-center justify-center"
+              className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-400/20 flex items-center justify-center"
               animate={{ rotate: [0, 5, -5, 0] }}
               transition={{ duration: 4, repeat: Infinity }}
             >
-              <Brain className="w-5 h-5 text-purple-400" />
+              <Brain className="w-5 h-5 text-blue-400" />
             </motion.div>
             AI Trading Assistant
           </CardTitle>
@@ -134,7 +134,7 @@ export default function AITab({
             <Button
               onClick={onGetTips}
               disabled={loading || !hasEnoughTrades}
-              className="bg-gradient-to-r from-purple-500/20 to-violet-500/20 border border-purple-500/30 text-purple-400 hover:bg-purple-500/30 justify-start"
+              className="bg-gradient-to-r from-blue-500/20 to-blue-400/20 border border-blue-500/30 text-blue-400 hover:bg-blue-500/30 justify-start"
             >
               {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
               {language === 'id' ? 'Analisis Performa' : 'Get Performance Tips'}
@@ -142,7 +142,7 @@ export default function AITab({
             <Button
               onClick={onGetMarket}
               disabled={loading}
-              className="bg-gradient-to-r from-purple-500/20 to-violet-500/20 border border-purple-500/30 text-purple-400 hover:bg-purple-500/30 justify-start"
+              className="bg-gradient-to-r from-blue-500/20 to-blue-400/20 border border-blue-500/30 text-blue-400 hover:bg-blue-500/30 justify-start"
             >
               {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <TrendingUp className="w-4 h-4 mr-2" />}
               {language === 'id' ? 'Insight Pasar' : 'Market Insights'}
@@ -213,8 +213,8 @@ export default function AITab({
           </div>
 
           {!hasEnoughTrades && (
-            <div className="p-3 rounded-lg bg-purple-500/10 border border-lux-border dark:border-purple-500/20 mt-4">
-              <p className="text-sm text-purple-400 flex items-center gap-2">
+            <div className="p-3 rounded-lg bg-blue-500/10 border border-lux-border dark:border-blue-500/20 mt-4">
+              <p className="text-sm text-blue-400 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" />
                 Add at least 5 closed trades to unlock AI-powered performance tips.
               </p>
@@ -225,7 +225,7 @@ export default function AITab({
 
       {/* Chart Analysis Result */}
       {chartImage && (
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <ImageIcon className="w-5 h-5 text-cyan-400" />
@@ -245,7 +245,7 @@ export default function AITab({
                   <Upload className="w-4 h-4" />
                 </Button>
               </div>
-              <div className="bg-black/20 rounded-lg p-4 border border-lux-border dark:border-purple-500/20">
+              <div className="bg-black/20 rounded-lg p-4 border border-lux-border dark:border-blue-500/20">
                 <p className="text-sm text-lux-text-secondary dark:text-gray-400 mb-2">AI Analysis:</p>
                 <p className="text-gray-200 text-sm leading-relaxed">
                   {loading ? (
@@ -265,11 +265,11 @@ export default function AITab({
 
       {/* AI Response */}
       {insight && (
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardContent className="p-6">
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                <Sparkles className="w-4 h-4 text-purple-400" />
+              <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-4 h-4 text-blue-400" />
               </div>
               <div>
                 <p className="text-sm text-lux-text-secondary dark:text-gray-400 mb-1">AI Insight</p>
@@ -282,10 +282,10 @@ export default function AITab({
 
       {/* AI Chat Section */}
       {isPro && (
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <MessageCircle className="w-5 h-5 text-purple-400" />
+              <MessageCircle className="w-5 h-5 text-blue-400" />
               Chat with AI Coach
             </CardTitle>
           </CardHeader>
@@ -293,12 +293,12 @@ export default function AITab({
             {/* Chat Messages */}
             <div
               ref={chatContainerRef}
-              className="h-64 overflow-y-auto space-y-3 mb-4 p-3 rounded-lg bg-black/20 border border-lux-border dark:border-purple-900/20"
+              className="h-64 overflow-y-auto space-y-3 mb-4 p-3 rounded-lg bg-black/20 border border-lux-border dark:border-blue-900/20"
             >
               {chatMessages.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-lux-text-muted dark:text-gray-500 text-sm">
                   <div className="text-center">
-                    <Bot className="w-8 h-8 mx-auto mb-2 text-purple-400/50" />
+                    <Bot className="w-8 h-8 mx-auto mb-2 text-blue-400/50" />
                     <p>Ask me anything about your trading!</p>
                     <p className="text-xs mt-1 text-gray-600">e.g., &quot;What&apos;s my best trading session?&quot;</p>
                   </div>
@@ -312,20 +312,20 @@ export default function AITab({
                     className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     {msg.role === 'assistant' && (
-                      <div className="w-7 h-7 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                        <Bot className="w-4 h-4 text-purple-400" />
+                      <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                        <Bot className="w-4 h-4 text-blue-400" />
                       </div>
                     )}
                     <div className={`max-w-[80%] p-3 rounded-xl text-sm ${
                       msg.role === 'user'
-                        ? 'bg-purple-500/20 text-purple-100 rounded-br-none'
+                        ? 'bg-blue-500/20 text-blue-100 rounded-br-none'
                         : 'bg-gray-800/50 text-gray-200 rounded-bl-none'
                     }`}>
                       {msg.content}
                     </div>
                     {msg.role === 'user' && (
-                      <div className="w-7 h-7 rounded-full bg-purple-500/30 flex items-center justify-center flex-shrink-0">
-                        <User className="w-4 h-4 text-purple-300" />
+                      <div className="w-7 h-7 rounded-full bg-blue-500/30 flex items-center justify-center flex-shrink-0">
+                        <User className="w-4 h-4 text-blue-300" />
                       </div>
                     )}
                   </motion.div>
@@ -333,23 +333,23 @@ export default function AITab({
               )}
               {loading && chatMessages.length > 0 && chatMessages[chatMessages.length - 1]?.role === 'user' && (
                 <div className="flex gap-2 justify-start">
-                  <div className="w-7 h-7 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                    <Bot className="w-4 h-4 text-purple-400" />
+                  <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                    <Bot className="w-4 h-4 text-blue-400" />
                   </div>
                   <div className="bg-gray-800/50 p-3 rounded-xl rounded-bl-none">
                     <div className="flex gap-1">
                       <motion.span
-                        className="w-2 h-2 bg-purple-400 rounded-full"
+                        className="w-2 h-2 bg-blue-400 rounded-full"
                         animate={{ opacity: [0.4, 1, 0.4] }}
                         transition={{ duration: 1, repeat: Infinity, delay: 0 }}
                       />
                       <motion.span
-                        className="w-2 h-2 bg-purple-400 rounded-full"
+                        className="w-2 h-2 bg-blue-400 rounded-full"
                         animate={{ opacity: [0.4, 1, 0.4] }}
                         transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
                       />
                       <motion.span
-                        className="w-2 h-2 bg-purple-400 rounded-full"
+                        className="w-2 h-2 bg-blue-400 rounded-full"
                         animate={{ opacity: [0.4, 1, 0.4] }}
                         transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
                       />
@@ -371,13 +371,13 @@ export default function AITab({
                   }
                 }}
                 placeholder="Ask about your trading performance..."
-                className="bg-black/30 border-lux-border dark:border-purple-900/30 focus:border-purple-500/50 text-gray-200 placeholder-gray-500"
+                className="bg-black/30 border-lux-border dark:border-blue-900/30 focus:border-blue-500/50 text-gray-200 placeholder-gray-500"
                 disabled={loading}
               />
               <Button
                 onClick={onSendChat}
                 disabled={loading || !chatInput.trim()}
-                className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700"
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               </Button>

@@ -168,10 +168,10 @@ const DashboardModals = memo(function DashboardModals({
           setFormData(emptyFormData)
         }
       }}>
-        <DialogContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-blue-900/30 text-lux-text-primary dark:text-white max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader className="shrink-0">
             <DialogTitle className="text-xl flex items-center gap-2">
-              <Edit className="w-5 h-5 text-purple-500 dark:text-purple-400" />
+              <Edit className="w-5 h-5 text-blue-500 dark:text-blue-400" />
               Edit Trade
             </DialogTitle>
           </DialogHeader>
@@ -198,7 +198,7 @@ const DashboardModals = memo(function DashboardModals({
         setViewTradeOpen(open)
         if (!open) setSelectedTrade(null)
       }}>
-        <DialogContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white max-w-md">
+        <DialogContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-blue-900/30 text-lux-text-primary dark:text-white max-w-md">
           <DialogHeader><DialogTitle className="text-xl">Trade Details</DialogTitle></DialogHeader>
           {selectedTrade && (
             <div className="space-y-4">
@@ -264,7 +264,7 @@ const DashboardModals = memo(function DashboardModals({
                     setShareCardOpen(true)
                   }}
                   variant="outline"
-                  className="border-purple-500/30 text-purple-400"
+                  className="border-blue-500/30 text-blue-400"
                 >
                   <Share2 className="w-4 h-4 mr-2" /> Share
                 </Button>
@@ -273,7 +273,7 @@ const DashboardModals = memo(function DashboardModals({
                     setViewTradeOpen(false)
                     openEditModal(selectedTrade)
                   }}
-                  className="flex-1 bg-gradient-to-r from-purple-500 to-violet-600"
+                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600"
                 >
                   <Edit className="w-4 h-4 mr-2" /> Edit
                 </Button>
@@ -297,10 +297,10 @@ const DashboardModals = memo(function DashboardModals({
         setShareCardOpen(open)
         if (!open) setSelectedTrade(null)
       }}>
-        <DialogContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white max-w-lg">
+        <DialogContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-blue-900/30 text-lux-text-primary dark:text-white max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-xl flex items-center gap-2">
-              <Share2 className="w-5 h-5 text-purple-500 dark:text-purple-400" />
+              <Share2 className="w-5 h-5 text-blue-500 dark:text-blue-400" />
               Share Trade Card
             </DialogTitle>
           </DialogHeader>
@@ -334,7 +334,7 @@ const DashboardModals = memo(function DashboardModals({
         setDeleteTradeOpen(open)
         if (!open) setSelectedTrade(null)
       }}>
-        <DialogContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white max-w-sm">
+        <DialogContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-blue-900/30 text-lux-text-primary dark:text-white max-w-sm">
           <DialogHeader><DialogTitle className="text-xl text-red-500 dark:text-red-400">Delete Trade?</DialogTitle></DialogHeader>
           {selectedTrade && (
             <div className="space-y-4">
@@ -367,7 +367,7 @@ const DashboardModals = memo(function DashboardModals({
                     setDeleteTradeOpen(false)
                     setSelectedTrade(null)
                   }}
-                  className="flex-1 border-purple-900/30"
+                  className="flex-1 border-blue-900/30"
                 >
                   Cancel
                 </Button>
@@ -382,14 +382,14 @@ const DashboardModals = memo(function DashboardModals({
         setAddJournalOpen(open)
         if (!open) setJournalForm({ title: '', content: '', mood: '', market_condition: '' })
       }}>
-        <DialogContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white max-w-lg">
+        <DialogContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-blue-900/30 text-lux-text-primary dark:text-white max-w-lg">
           <DialogHeader><DialogTitle className="text-xl">New Journal Entry</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Title *</Label>
               <Input
                 placeholder="Market Recap - Monday"
-                className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1"
+                className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1"
                 value={journalForm.title}
                 onChange={(e) => setJournalForm({ ...journalForm, title: e.target.value })}
               />
@@ -398,7 +398,7 @@ const DashboardModals = memo(function DashboardModals({
               <Label>Content *</Label>
               <Textarea
                 placeholder="Write your thoughts about today's trading session..."
-                className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1 resize-none"
+                className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1 resize-none"
                 rows={5}
                 value={journalForm.content}
                 onChange={(e) => setJournalForm({ ...journalForm, content: e.target.value })}
@@ -408,10 +408,10 @@ const DashboardModals = memo(function DashboardModals({
               <div>
                 <Label>Mood</Label>
                 <Select value={journalForm.mood} onValueChange={(v) => setJournalForm({ ...journalForm, mood: v })}>
-                  <SelectTrigger className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1">
+                  <SelectTrigger className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1">
                     <SelectValue placeholder="How do you feel?" />
                   </SelectTrigger>
-                  <SelectContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30">
+                  <SelectContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-blue-900/30">
                     {moodOptions.map(opt => (
                       <SelectItem key={opt.value} value={opt.value}>
                         <span className={opt.color}>{opt.label}</span>
@@ -423,10 +423,10 @@ const DashboardModals = memo(function DashboardModals({
               <div>
                 <Label>Market Condition</Label>
                 <Select value={journalForm.market_condition} onValueChange={(v) => setJournalForm({ ...journalForm, market_condition: v })}>
-                  <SelectTrigger className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1">
+                  <SelectTrigger className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1">
                     <SelectValue placeholder="Market state" />
                   </SelectTrigger>
-                  <SelectContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30">
+                  <SelectContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-blue-900/30">
                     {marketConditions.map(opt => (
                       <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                     ))}
@@ -438,14 +438,14 @@ const DashboardModals = memo(function DashboardModals({
               <Button
                 onClick={handleAddJournal}
                 disabled={saving}
-                className="flex-1 bg-gradient-to-r from-purple-500 to-violet-600"
+                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600"
               >
                 {saving ? 'Saving...' : 'Save Entry'}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setAddJournalOpen(false)}
-                className="border-purple-900/30"
+                className="border-blue-900/30"
               >
                 Cancel
               </Button>
@@ -459,7 +459,7 @@ const DashboardModals = memo(function DashboardModals({
         setAddWatchlistOpen(open)
         if (!open) setWatchlistForm({ symbol: '', name: '', target_price: '', notes: '' })
       }}>
-        <DialogContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white max-w-md">
+        <DialogContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-blue-900/30 text-lux-text-primary dark:text-white max-w-md">
           <DialogHeader><DialogTitle className="text-xl">Add to Watchlist</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -467,7 +467,7 @@ const DashboardModals = memo(function DashboardModals({
                 <Label>Symbol *</Label>
                 <Input
                   placeholder="EURUSD"
-                  className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1"
+                  className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1"
                   value={watchlistForm.symbol}
                   onChange={(e) => setWatchlistForm({ ...watchlistForm, symbol: e.target.value.toUpperCase() })}
                 />
@@ -476,7 +476,7 @@ const DashboardModals = memo(function DashboardModals({
                 <Label>Name</Label>
                 <Input
                   placeholder="Euro/USD"
-                  className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1"
+                  className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1"
                   value={watchlistForm.name}
                   onChange={(e) => setWatchlistForm({ ...watchlistForm, name: e.target.value })}
                 />
@@ -488,7 +488,7 @@ const DashboardModals = memo(function DashboardModals({
                 type="text"
                 inputMode="decimal"
                 placeholder="1.0950"
-                className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1"
+                className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1"
                 value={watchlistForm.target_price}
                 onChange={(e) => setWatchlistForm({ ...watchlistForm, target_price: e.target.value })}
               />
@@ -497,7 +497,7 @@ const DashboardModals = memo(function DashboardModals({
               <Label>Notes</Label>
               <Textarea
                 placeholder="Why watching this pair..."
-                className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1 resize-none"
+                className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1 resize-none"
                 rows={3}
                 value={watchlistForm.notes}
                 onChange={(e) => setWatchlistForm({ ...watchlistForm, notes: e.target.value })}
@@ -514,7 +514,7 @@ const DashboardModals = memo(function DashboardModals({
               <Button
                 variant="outline"
                 onClick={() => setAddWatchlistOpen(false)}
-                className="border-purple-900/30"
+                className="border-blue-900/30"
               >
                 Cancel
               </Button>
@@ -542,10 +542,10 @@ const DashboardModals = memo(function DashboardModals({
         setAddTradeOpen(open)
         if (!open) setFormData(emptyFormData)
       }}>
-        <DialogContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-blue-900/30 text-lux-text-primary dark:text-white max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader className="shrink-0">
             <DialogTitle className="text-xl flex items-center gap-2">
-              <Plus className="w-5 h-5 text-purple-500 dark:text-purple-400" />
+              <Plus className="w-5 h-5 text-blue-500 dark:text-blue-400" />
               {language === 'id' ? 'Tambah Trade Baru' : 'Add New Trade'}
             </DialogTitle>
           </DialogHeader>

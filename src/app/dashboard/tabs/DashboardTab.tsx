@@ -23,7 +23,7 @@ import {
 // Lightweight equity curve - lazy loaded, zero recharts/framer-motion dependency
 const EquityCurveCard = dynamic(() => import('../components/EquityCurveCard'), {
   ssr: false,
-  loading: () => <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#0d0820] border border-lux-border dark:border-purple-500/20"><CardContent className="py-16 flex items-center justify-center"><Loader2 className="w-6 h-6 text-purple-400 animate-spin" /></CardContent></Card>
+  loading: () => <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border border-lux-border dark:border-blue-500/20"><CardContent className="py-16 flex items-center justify-center"><Loader2 className="w-6 h-6 text-blue-400 animate-spin" /></CardContent></Card>
 })
 
 // Helpers extracted to dashboard/helpers.ts
@@ -49,7 +49,7 @@ function fmtPct(value: number): string {
 
 function SkeletonCard() {
   return (
-    <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-sm border border-lux-border dark:border-white/10">
+    <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12]/80 dark:to-[#080a14]/80 backdrop-blur-sm border border-lux-border dark:border-white/10">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="h-4 w-20 bg-white/10 rounded animate-pulse" />
         <div className="w-10 h-10 bg-white/10 rounded-xl animate-pulse" />
@@ -64,7 +64,7 @@ function SkeletonCard() {
 
 function SkeletonEquityCurve() {
   return (
-    <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-purple-500/20">
+    <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12]/80 dark:to-[#080a14]/80 backdrop-blur-md border-lux-border dark:border-blue-500/20">
       <CardHeader className="flex flex-row items-center justify-between">
         <div className="h-5 w-40 bg-white/10 rounded animate-pulse" />
         <div className="h-4 w-20 bg-white/10 rounded animate-pulse" />
@@ -82,11 +82,11 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: s
   const colorMap = {
     green: { iconBg: 'bg-emerald-500/15', iconText: 'text-emerald-400', valueText: 'text-emerald-400' },
     red: { iconBg: 'bg-red-500/15', iconText: 'text-red-400', valueText: 'text-red-400' },
-    purple: { iconBg: 'bg-purple-500/15', iconText: 'text-purple-400', valueText: 'text-purple-300' },
+    purple: { iconBg: 'bg-blue-500/15', iconText: 'text-blue-400', valueText: 'text-blue-300' },
   }
   const c = colorMap[color]
   return (
-    <Card className="bg-lux-bg-card dark:bg-[#0a0712] border-lux-border dark:border-purple-900/30 overflow-hidden relative group hover:border-purple-500/50 transition-all duration-300">
+    <Card className="bg-lux-bg-card dark:bg-[#060810] border-lux-border dark:border-blue-900/30 overflow-hidden relative group hover:border-blue-500/50 transition-all duration-300">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium text-lux-text-secondary dark:text-gray-400">{label}</CardTitle>
@@ -109,11 +109,11 @@ function PerformanceSection({ trades, language }: { trades: Trade[]; language: '
   const perf = tab === 'today' ? todayPerf : weeklyPerf
 
   return (
-    <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10">
+    <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12]/80 dark:to-[#080a14]/80 backdrop-blur-md border-lux-border dark:border-blue-500/20 transition-all duration-300 hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
-            <Clock className="w-4 h-4 text-purple-400" />
+            <Clock className="w-4 h-4 text-blue-400" />
             {tab === 'today'
               ? (language === 'id' ? 'Performa Hari Ini' : "Today's Performance")
               : (language === 'id' ? 'Performa Minggu Ini' : 'Weekly Performance')}
@@ -121,13 +121,13 @@ function PerformanceSection({ trades, language }: { trades: Trade[]; language: '
           <div className="flex gap-1 bg-white/5 rounded-lg p-0.5">
             <button
               onClick={() => setTab('today')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${tab === 'today' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'text-lux-text-muted dark:text-gray-500 dark:hover:text-gray-300'}`}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${tab === 'today' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 'text-lux-text-muted dark:text-gray-500 dark:hover:text-gray-300'}`}
             >
               {language === 'id' ? 'Hari Ini' : 'Today'}
             </button>
             <button
               onClick={() => setTab('weekly')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${tab === 'weekly' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'text-lux-text-muted dark:text-gray-500 dark:hover:text-gray-300'}`}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${tab === 'weekly' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 'text-lux-text-muted dark:text-gray-500 dark:hover:text-gray-300'}`}
             >
               {language === 'id' ? 'Minggu Ini' : 'Weekly'}
             </button>
@@ -136,20 +136,20 @@ function PerformanceSection({ trades, language }: { trades: Trade[]; language: '
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-4 gap-3">
-          <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">{language === 'id' ? 'Transaksi' : 'Trades'}</p><p className="text-lg font-bold text-purple-300">{perf.trades}</p></div>
+          <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">{language === 'id' ? 'Transaksi' : 'Trades'}</p><p className="text-lg font-bold text-blue-300">{perf.trades}</p></div>
           <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">P/L</p><p className={`text-lg font-bold ${perf.totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtPL(perf.totalPL)}</p></div>
-          <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">Win Rate</p><p className="text-lg font-bold text-purple-300">{fmtPct(perf.winRate)}</p></div>
-          <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">W/L</p><p className="text-lg font-bold text-purple-300">{perf.wins}/{perf.losses}</p></div>
+          <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">Win Rate</p><p className="text-lg font-bold text-blue-300">{fmtPct(perf.winRate)}</p></div>
+          <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">W/L</p><p className="text-lg font-bold text-blue-300">{perf.wins}/{perf.losses}</p></div>
         </div>
         {tab === 'weekly' && (
           <div className="mt-4 pt-4 border-t border-white/10">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-lux-text-secondary dark:text-gray-400">{language === 'id' ? 'Target Mingguan' : 'Weekly Target'}</p>
-              <p className="text-sm font-bold text-purple-300">{weeklyPerf.trades} / 10 {language === 'id' ? 'transaksi' : 'trades'}</p>
+              <p className="text-sm font-bold text-blue-300">{weeklyPerf.trades} / 10 {language === 'id' ? 'transaksi' : 'trades'}</p>
             </div>
             <div className="h-2 bg-white/10 rounded-full overflow-hidden">
               <motion.div
-                className="h-full bg-gradient-to-r from-purple-500 via-violet-500 to-amber-500 rounded-full"
+                className="h-full bg-gradient-to-r from-blue-500 via-blue-400 to-amber-500 rounded-full"
                 initial={{ width: 0 }}
                 animate={{ width: `${Math.min((weeklyPerf.trades / 10) * 100, 100)}%` }}
                 transition={{ duration: 1.5, ease: "easeOut" }}
@@ -225,13 +225,13 @@ function DashboardTab({
   const winStreak = calculateConsecutiveStreaks(trades, 'win')
   const loseStreak = calculateConsecutiveStreaks(trades, 'lose')
 
-  const chartTooltipStyle = { background: '#0f0b18', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 8 }
+  const chartTooltipStyle = { background: '#0a0c12', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8 }
 
   if (loading) {
     return (
       <div className="space-y-6 relative">
         {/* Skeleton Banner */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-purple-600/20 via-violet-600/10 to-amber-500/10 border-purple-500/30 backdrop-blur-sm rounded-xl p-6">
+        <div className="relative overflow-hidden bg-gradient-to-br from-blue-600/20 via-blue-600/10 to-amber-500/10 border-blue-500/30 backdrop-blur-sm rounded-xl p-6">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-white/10 rounded-xl animate-pulse" />
             <div className="flex-1 space-y-2">
@@ -261,25 +261,25 @@ function DashboardTab({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
       >
-        <Card className="relative overflow-hidden bg-gradient-to-br from-purple-600/15 via-violet-600/10 to-amber-500/10 backdrop-blur-md border border-lux-border dark:border-purple-500/20">
+        <Card className="relative overflow-hidden bg-gradient-to-br from-blue-600/15 via-blue-600/10 to-amber-500/10 backdrop-blur-md border border-lux-border dark:border-blue-500/20">
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <motion.div className="absolute -top-12 -right-12 w-40 h-40 bg-purple-500/15 rounded-full blur-3xl" animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 6, repeat: Infinity }} />
+            <motion.div className="absolute -top-12 -right-12 w-40 h-40 bg-blue-500/15 rounded-full blur-3xl" animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 6, repeat: Infinity }} />
           </div>
           <CardContent className="relative p-5 lg:p-6">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold shadow-lg shadow-purple-500/30 flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-sm font-bold shadow-lg shadow-blue-500/30 flex-shrink-0">
                 {profile?.full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'T'}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-xs font-semibold text-purple-300 uppercase tracking-wider">
+                  <span className="text-xs font-semibold text-blue-300 uppercase tracking-wider">
                     {language === 'id' ? 'Selamat Datang' : 'Welcome Back'}
                   </span>
                   <motion.div animate={{ rotate: [0, 360] }} transition={{ duration: 20, repeat: Infinity, ease: "linear" }}>
                     <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                   </motion.div>
                 </div>
-                <h1 className="text-lg lg:text-xl font-display font-bold bg-gradient-to-r from-white via-purple-200 to-amber-200 bg-clip-text text-transparent truncate">
+                <h1 className="text-lg lg:text-xl font-display font-bold bg-gradient-to-r from-white via-blue-200 to-amber-200 bg-clip-text text-transparent truncate">
                   {language === 'id' ? `Halo, ${profile?.full_name?.split(' ')[0] || 'Trader'}! 👋` : `Hello, ${profile?.full_name?.split(' ')[0] || 'Trader'}! 👋`}
                 </h1>
               </div>
@@ -330,44 +330,44 @@ function DashboardTab({
             valueColor={totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}
             color={totalPL >= 0 ? 'emerald' : 'red'}
           />
-          {/* Win Rate — green if >= 50%, purple otherwise */}
+          {/* Win Rate — green if >= 50%, blue otherwise */}
           <AnimatedStatCard
             title="Win Rate"
             value={winRate}
             suffix="%"
             subtitle={language === 'id' ? 'Tingkat menang' : 'Success rate'}
             icon={Target}
-            iconColor={winRate >= 50 ? 'text-emerald-400' : 'text-purple-400'}
-            iconBgColor={winRate >= 50 ? 'bg-emerald-500/15' : 'bg-purple-500/15'}
-            gradientBg={winRate >= 50 ? 'from-emerald-500/30 to-emerald-600/20' : 'from-purple-500/30 to-violet-600/20'}
-            valueColor={winRate >= 50 ? 'text-emerald-400' : 'text-purple-300'}
-            color={winRate >= 50 ? 'emerald' : 'purple'}
+            iconColor={winRate >= 50 ? 'text-emerald-400' : 'text-blue-400'}
+            iconBgColor={winRate >= 50 ? 'bg-emerald-500/15' : 'bg-blue-500/15'}
+            gradientBg={winRate >= 50 ? 'from-emerald-500/30 to-emerald-600/20' : 'from-blue-500/30 to-blue-600/20'}
+            valueColor={winRate >= 50 ? 'text-emerald-400' : 'text-blue-300'}
+            color={winRate >= 50 ? 'emerald' : 'blue'}
             decimals={1}
           />
-          {/* Profit Factor — neutral (purple) */}
+          {/* Profit Factor — neutral (blue) */}
           <AnimatedStatCard
             title="Profit Factor"
             value={profitFactor}
             subtitle={profitFactor === Infinity ? (language === 'id' ? 'Tanpa kerugian!' : 'No losses!') : profitFactor >= 1.5 ? (language === 'id' ? 'Sangat bagus' : 'Excellent') : profitFactor >= 1 ? (language === 'id' ? 'Cukup baik' : 'Good') : (language === 'id' ? 'Perlu perbaikan' : 'Needs work')}
             icon={TrendingUp}
-            iconColor="text-purple-400"
-            iconBgColor="bg-purple-500/15"
-            gradientBg="from-purple-500/30 to-violet-600/20"
-            valueColor="text-purple-300"
-            color="purple"
+            iconColor="text-blue-400"
+            iconBgColor="bg-blue-500/15"
+            gradientBg="from-blue-500/30 to-blue-600/20"
+            valueColor="text-blue-300"
+            color="blue"
             decimals={2}
           />
-          {/* Win/Loss count — neutral (purple) */}
+          {/* Win/Loss count — neutral (blue) */}
           <AnimatedStatCard
             title={language === 'id' ? 'Menang / Kalah' : 'Win / Loss'}
             value={analytics?.winningTrades || 0}
             subtitle={`${analytics?.losingTrades || 0} ${language === 'id' ? 'kekalahan' : 'losses'}`}
             icon={Activity}
-            iconColor="text-purple-400"
-            iconBgColor="bg-purple-500/15"
-            gradientBg="from-purple-500/30 to-violet-600/20"
-            valueColor="text-purple-300"
-            color="purple"
+            iconColor="text-blue-400"
+            iconBgColor="bg-blue-500/15"
+            gradientBg="from-blue-500/30 to-blue-600/20"
+            valueColor="text-blue-300"
+            color="blue"
             decimals={0}
           />
           {/* Best Trade — green */}
@@ -441,7 +441,7 @@ function DashboardTab({
       {/* ============================================ */}
       {hasData && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
-          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
             <CardHeader className="flex flex-row items-center justify-between"><CardTitle className="text-lg">{language === 'id' ? 'Transaksi Terbaru' : 'Recent Trades'}</CardTitle><span className="text-xs text-lux-text-secondary dark:text-gray-400">{trades.length} {language === 'id' ? 'total' : 'total'}</span></CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -467,8 +467,8 @@ function DashboardTab({
       {/* ============================================ */}
       {hasData && analytics?.sessionPerformance && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.25 }} aria-label="Trading session performance chart">
-          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10">
-            <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Clock className="w-5 h-5 text-purple-400" /> {language === 'id' ? 'Performa Sesi' : 'Session Performance'}</CardTitle></CardHeader>
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12]/80 dark:to-[#080a14]/80 backdrop-blur-md border-lux-border dark:border-blue-500/20 transition-all duration-300 hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10">
+            <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Clock className="w-5 h-5 text-blue-400" /> {language === 'id' ? 'Performa Sesi' : 'Session Performance'}</CardTitle></CardHeader>
             <CardContent>
               <div className="h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -493,8 +493,8 @@ function DashboardTab({
       {/* ============================================ */}
       {hasData && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
-          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
-            <CardHeader className="flex flex-row items-center justify-between"><CardTitle className="text-lg flex items-center gap-2"><Activity className="w-5 h-5 text-purple-400" />{language === 'id' ? 'Aktivitas Terbaru' : 'Recent Activity'}</CardTitle></CardHeader>
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
+            <CardHeader className="flex flex-row items-center justify-between"><CardTitle className="text-lg flex items-center gap-2"><Activity className="w-5 h-5 text-blue-400" />{language === 'id' ? 'Aktivitas Terbaru' : 'Recent Activity'}</CardTitle></CardHeader>
             <CardContent><ActivityFeed trades={trades} journalEntries={journalEntries} language={language} /></CardContent>
           </Card>
         </motion.div>
@@ -509,10 +509,10 @@ function DashboardTab({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
         >
-          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 overflow-hidden">
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12]/80 dark:to-[#080a14]/80 backdrop-blur-md border-lux-border dark:border-blue-500/20 transition-all duration-300 hover:border-blue-500/40 overflow-hidden">
             {/* Decorative background glow */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-500/10 rounded-full blur-[100px]" />
+              <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-500/10 rounded-full blur-[100px]" />
               <div className="absolute bottom-0 left-1/4 w-40 h-40 bg-amber-500/5 rounded-full blur-[80px]" />
             </div>
 
@@ -526,11 +526,11 @@ function DashboardTab({
               >
                 {/* Left icon — BarChart3 */}
                 <motion.div
-                  className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-violet-500/10 border border-purple-500/20 flex items-center justify-center"
+                  className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-400/10 border border-blue-500/20 flex items-center justify-center"
                   animate={{ y: [0, -6, 0] }}
                   transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0 }}
                 >
-                  <BarChart3 className="w-7 h-7 lg:w-8 lg:h-8 text-purple-400" />
+                  <BarChart3 className="w-7 h-7 lg:w-8 lg:h-8 text-blue-400" />
                 </motion.div>
 
                 {/* Center icon — TrendingUp (prominent) */}
@@ -544,17 +544,17 @@ function DashboardTab({
 
                 {/* Right icon — Target */}
                 <motion.div
-                  className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-purple-500/10 border border-violet-500/20 flex items-center justify-center"
+                  className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/10 border border-cyan-500/20 flex items-center justify-center"
                   animate={{ y: [0, -6, 0] }}
                   transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }}
                 >
-                  <Target className="w-7 h-7 lg:w-8 lg:h-8 text-violet-400" />
+                  <Target className="w-7 h-7 lg:w-8 lg:h-8 text-cyan-400" />
                 </motion.div>
               </motion.div>
 
               {/* Heading */}
               <motion.h3
-                className="text-2xl lg:text-3xl font-bold mb-3 bg-gradient-to-r from-white via-purple-200 to-amber-200 bg-clip-text text-transparent"
+                className="text-2xl lg:text-3xl font-bold mb-3 bg-gradient-to-r from-white via-blue-200 to-amber-200 bg-clip-text text-transparent"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.25 }}
@@ -592,7 +592,7 @@ function DashboardTab({
 
                 <button
                   onClick={() => setAddTradeOpen(true)}
-                  className="text-sm text-purple-400 hover:text-purple-300 transition-colors duration-200 cursor-pointer group"
+                  className="text-sm text-blue-400 hover:text-blue-300 transition-colors duration-200 cursor-pointer group"
                 >
                   {language === 'id'
                     ? 'atau muat data contoh untuk melihat demo →'

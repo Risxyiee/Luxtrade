@@ -150,9 +150,9 @@ function Tooltip({
         top: Math.max(4, position.y - 70),
       }}
     >
-      <div className="bg-[#0f0b18]/95 backdrop-blur-sm border border-purple-500/30 rounded-lg p-2.5 shadow-xl shadow-purple-500/10 min-w-[170px]">
+      <div className="bg-[#0a0c12]/95 backdrop-blur-sm border border-blue-500/30 rounded-lg p-2.5 shadow-xl shadow-blue-500/10 min-w-[170px]">
         <p className="text-[10px] text-gray-400 mb-1">{point.data.date}</p>
-        <p className="text-sm font-bold bg-gradient-to-r from-purple-300 to-amber-300 bg-clip-text text-transparent">
+        <p className="text-sm font-bold bg-gradient-to-r from-blue-300 to-amber-300 bg-clip-text text-transparent">
           {fmtUSD(point.data.equity)}
         </p>
         {idx > 0 && (
@@ -255,13 +255,13 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, className }: E
   // ==================== RENDER ====================
 
   return (
-    <Card className={`relative overflow-hidden bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:via-[#110d1f] dark:to-[#0d0820] border border-lux-border dark:border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 hover:shadow-2xl hover:shadow-purple-500/10 ${className || ''}`}>
+    <Card className={`relative overflow-hidden bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:via-[#080c14] dark:to-[#080a14] border border-lux-border dark:border-blue-500/20 transition-all duration-300 hover:border-blue-500/40 hover:shadow-2xl hover:shadow-blue-500/10 ${className || ''}`}>
       {/* Static subtle background - no animation, no framer-motion */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-20 -left-20 w-60 h-60 bg-purple-500/[0.06] rounded-full blur-3xl" />
+        <div className="absolute -top-20 -left-20 w-60 h-60 bg-blue-500/[0.06] rounded-full blur-3xl" />
         <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-amber-500/[0.04] rounded-full blur-3xl" />
         <div className="absolute inset-0 opacity-[0.025]" style={{
-          backgroundImage: 'linear-gradient(rgba(139,92,246,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.3) 1px, transparent 1px)',
+          backgroundImage: 'linear-gradient(rgba(59,130,246,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.3) 1px, transparent 1px)',
           backgroundSize: '40px 40px'
         }} />
       </div>
@@ -277,7 +277,7 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, className }: E
               <div className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${isPositive ? 'bg-emerald-400' : 'bg-red-400'}`} />
             </div>
             <div>
-              <p className="text-base font-bold bg-gradient-to-r from-white via-purple-200 to-amber-200 bg-clip-text text-transparent">
+              <p className="text-base font-bold bg-gradient-to-r from-white via-blue-200 to-amber-200 bg-clip-text text-transparent">
                 {language === 'id' ? 'Kurva Ekuitas' : 'Equity Curve'}
               </p>
               {data && (
@@ -298,7 +298,7 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, className }: E
                 {isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                 {fmtCurrency(data.totalPL)}
               </div>
-              <div className="px-2.5 py-1 rounded-lg border text-xs font-bold bg-purple-500/10 border-purple-500/20 text-purple-300">
+              <div className="px-2.5 py-1 rounded-lg border text-xs font-bold bg-blue-500/10 border-blue-500/20 text-blue-300">
                 {data.totalReturnPct >= 0 ? '+' : ''}{data.totalReturnPct.toFixed(1)}%
               </div>
             </div>
@@ -312,8 +312,8 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, className }: E
           <div className="mb-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06]">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-500/20 to-violet-500/20 border border-purple-500/20 flex items-center justify-center">
-                  <Wallet className="w-3.5 h-3.5 text-purple-400" />
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/20 flex items-center justify-center">
+                  <Wallet className="w-3.5 h-3.5 text-blue-400" />
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
@@ -337,7 +337,7 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, className }: E
                 <p className="text-[9px] uppercase tracking-wider text-lux-text-muted dark:text-gray-500 mb-0.5">
                   {language === 'id' ? 'Saldo Saat Ini' : 'Current Balance'}
                 </p>
-                <p className="text-base font-bold bg-gradient-to-r from-emerald-300 via-white to-purple-200 bg-clip-text text-transparent">
+                <p className="text-base font-bold bg-gradient-to-r from-emerald-300 via-white to-blue-200 bg-clip-text text-transparent">
                   {defaultAccount.currency || 'USD'} {fmtUSD(data.currentBalance)}
                 </p>
                 <div className="flex items-center gap-2 mt-0.5 text-[9px] text-lux-text-muted dark:text-gray-500 justify-end">
@@ -354,10 +354,10 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, className }: E
                 <div className="flex items-center gap-2 overflow-x-auto pb-0.5 scrollbar-none">
                   {tradingAccounts.map((acc: any) => (
                     <div key={acc.id} className={`flex items-center gap-1.5 px-2 py-1 rounded-md border flex-shrink-0 text-[10px] ${acc.is_default
-                      ? 'bg-purple-500/10 border-purple-500/30 text-purple-300'
+                      ? 'bg-blue-500/10 border-blue-500/30 text-blue-300'
                       : 'bg-white/[0.02] border-white/[0.06] text-gray-400'
                       }`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${acc.is_default ? 'bg-purple-400' : 'bg-gray-600'}`} />
+                      <div className={`w-1.5 h-1.5 rounded-full ${acc.is_default ? 'bg-blue-400' : 'bg-gray-600'}`} />
                       <span className="font-medium truncate max-w-[100px]">{acc.name}</span>
                       <span className="text-gray-500">{fmtUSD(acc.current_balance || acc.initial_balance || 0)}</span>
                     </div>
@@ -372,7 +372,7 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, className }: E
         <div ref={containerRef} className="relative w-full" style={{ height: `${dimensions.h}px` }}>
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
+              <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
             </div>
           )}
 
@@ -389,16 +389,16 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, className }: E
               <defs>
                 {/* Gradient stroke */}
                 <linearGradient id="eqStroke" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#a78bfa" />
-                  <stop offset="40%" stopColor="#c084fc" />
+                  <stop offset="0%" stopColor="#60a5fa" />
+                  <stop offset="40%" stopColor="#22d3ee" />
                   <stop offset="70%" stopColor="#e8a838" />
                   <stop offset="100%" stopColor="#fbbf24" />
                 </linearGradient>
                 {/* Fill gradient */}
                 <linearGradient id="eqFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={isPositive ? '#22c55e' : '#ef4444'} stopOpacity={0.2} />
-                  <stop offset="50%" stopColor="#8b5cf6" stopOpacity={0.08} />
-                  <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
+                  <stop offset="50%" stopColor="#3b82f6" stopOpacity={0.08} />
+                  <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
                 </linearGradient>
                 {/* Glow filter - lightweight */}
                 <filter id="eqGlow">
@@ -489,14 +489,14 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, className }: E
                     cx={chart.points[chart.points.length - 1].x}
                     cy={chart.points[chart.points.length - 1].y}
                     r={6}
-                    fill="#c084fc"
+                    fill="#22d3ee"
                     opacity={0.15}
                   />
                   <circle
                     cx={chart.points[chart.points.length - 1].x}
                     cy={chart.points[chart.points.length - 1].y}
                     r={3}
-                    fill="#c084fc"
+                    fill="#22d3ee"
                     stroke="#fff"
                     strokeWidth={1.5}
                   />
@@ -510,7 +510,7 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, className }: E
                   y1={12}
                   x2={hoveredPoint.x}
                   y2={dimensions.h - 28}
-                  stroke="rgba(192,132,252,0.3)"
+                  stroke="rgba(96,165,250,0.3)"
                   strokeDasharray="2 3"
                 />
               )}
@@ -521,7 +521,7 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, className }: E
                   cx={hoveredPoint.x}
                   cy={hoveredPoint.y}
                   r={4}
-                  fill="#c084fc"
+                  fill="#22d3ee"
                   stroke="#fff"
                   strokeWidth={2}
                 />

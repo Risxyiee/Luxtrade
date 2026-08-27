@@ -37,14 +37,14 @@ export default function SidebarHeader({
   const [autoJournalGuideOpen, setAutoJournalGuideOpen] = useState(false)
 
   return (
-    <div className="relative p-4 pb-3 border-b border-lux-border dark:border-purple-500/20 shrink-0 flex flex-col">
+    <div className="relative p-4 pb-3 border-b border-lux-border dark:border-blue-500/20 shrink-0 flex flex-col">
       <Link href="/" className="flex items-center gap-3 group">
         <motion.div
           className="relative flex-shrink-0"
           whileHover={{ scale: 1.1, rotate: 5 }}
           transition={{ type: "spring", stiffness: 300 }}
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl blur-lg opacity-40 group-hover:opacity-60 transition-opacity" />
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl blur-lg opacity-40 group-hover:opacity-60 transition-opacity" />
           <Image
             src="/logo.png"
             alt="LuxTrade Logo"
@@ -61,10 +61,10 @@ export default function SidebarHeader({
             transition={{ duration: 0.3 }}
             className="overflow-hidden"
           >
-            <h1 className="text-xl font-bold bg-gradient-to-r from-purple-300 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-300 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
               LuxTrade
             </h1>
-            <p className="text-xs text-purple-500/70 dark:text-purple-400/60">Trading Journal</p>
+            <p className="text-xs text-blue-500/70 dark:text-blue-400/60">Trading Journal</p>
           </motion.div>
         )}
       </Link>
@@ -82,7 +82,7 @@ export default function SidebarHeader({
             <>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <Wallet className="w-4 h-4 text-purple-400" />
+                  <Wallet className="w-4 h-4 text-blue-400" />
                   <span className="text-xs font-semibold text-lux-text-secondary">Trading Account</span>
                 </div>
                 {tradingAccounts.length > 1 && (
@@ -100,11 +100,11 @@ export default function SidebarHeader({
                   }}
                   className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
                     selectedAccountId === null
-                      ? 'bg-purple-500/20 border border-purple-500/30 text-white dark:text-white'
+                      ? 'bg-blue-500/20 border border-blue-500/30 text-white dark:text-white'
                       : 'bg-lux-bg-secondary dark:bg-[#0a0712] border border-transparent text-lux-text-secondary hover:text-lux-text-primary dark:hover:text-white hover:bg-lux-surface-hover dark:hover:bg-white/5'
                   }`}
                 >
-                  <Grid3X3 className={`w-4 h-4 ${selectedAccountId === null ? 'text-purple-500 dark:text-purple-400' : 'text-lux-text-muted dark:text-gray-500'}`} />
+                  <Grid3X3 className={`w-4 h-4 ${selectedAccountId === null ? 'text-blue-500 dark:text-blue-400' : 'text-lux-text-muted dark:text-gray-500'}`} />
                   <span className="flex-1 text-left">All Accounts</span>
                 </button>
 
@@ -113,7 +113,7 @@ export default function SidebarHeader({
                     key={account.id}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all group ${
                       selectedAccountId === account.id
-                        ? 'bg-purple-500/20 border border-purple-500/30 text-white dark:text-white'
+                        ? 'bg-blue-500/20 border border-blue-500/30 text-white dark:text-white'
                         : 'bg-lux-bg-secondary dark:bg-[#0a0712] border border-transparent text-lux-text-secondary hover:text-lux-text-primary dark:hover:text-white hover:bg-lux-surface-hover dark:hover:bg-white/5'
                     }`}
                   >
@@ -184,7 +184,7 @@ export default function SidebarHeader({
             <div className="relative flex-1">
               <button
                 onClick={() => setAddTradeOpen(true)}
-                className="flex w-full py-2.5 px-2 rounded-lg bg-gradient-to-r from-purple-500 to-violet-600 text-white hover:from-purple-600 hover:to-violet-700 shadow-lg shadow-purple-500/20 transition-all text-[10px] sm:text-xs font-medium items-center justify-center gap-1 group"
+                className="flex w-full py-2.5 px-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:from-blue-600 hover:to-cyan-600 shadow-lg shadow-blue-500/20 transition-all text-[10px] sm:text-xs font-medium items-center justify-center gap-1 group"
                 title={language === 'id' ? 'Catat Trade Baru' : 'Add New Trade'}
               >
                 <Plus className="w-4 h-4 flex-shrink-0" />
@@ -192,7 +192,7 @@ export default function SidebarHeader({
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); openGuide('addTrade') }}
-                className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center text-[8px] text-white hover:bg-purple-600 transition-colors z-10"
+                className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-[8px] text-white hover:bg-blue-600 transition-colors z-10"
                 aria-label={language === 'id' ? 'Panduan tambah trade' : 'Add trade guide'}
               >
                 ?
@@ -221,7 +221,7 @@ export default function SidebarHeader({
             <button
               type="button"
               onClick={() => setAutoJournalGuideOpen(true)}
-              className="block w-full text-left text-[10px] text-purple-400/80 hover:text-purple-300 transition-colors leading-tight"
+              className="block w-full text-left text-[10px] text-blue-400/80 hover:text-blue-300 transition-colors leading-tight"
             >
               📄 {language === 'id' ? 'Gak bisa pake Auto-Journal? Cek panduan di sini' : "Can't use Auto-Journal? Check guide here"}
             </button>

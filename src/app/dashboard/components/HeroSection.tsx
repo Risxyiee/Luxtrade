@@ -30,11 +30,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       transition={{ duration: 0.6, ease: "easeOut" }}
       className="relative"
     >
-      <Card className="relative overflow-hidden bg-gradient-to-br from-purple-600/15 via-violet-600/10 to-amber-500/10 backdrop-blur-md border border-purple-500/20 transition-all duration-500 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10">
+      <Card className="relative overflow-hidden bg-gradient-to-br from-blue-600/15 via-blue-600/10 to-amber-500/10 backdrop-blur-md border border-blue-500/20 transition-all duration-500 hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10">
         {/* Animated Background Patterns - Premium Glowing Orbs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <motion.div
-            className="absolute -top-24 -right-24 w-64 h-64 bg-purple-500/15 rounded-full blur-3xl"
+            className="absolute -top-24 -right-24 w-64 h-64 bg-blue-500/15 rounded-full blur-3xl"
             animate={{
               scale: [1, 1.3, 1],
               opacity: [0.3, 0.5, 0.3],
@@ -63,7 +63,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             }}
           />
           <motion.div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-violet-500/10 rounded-full blur-3xl"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-blue-400/10 rounded-full blur-3xl"
             animate={{
               scale: [1, 1.2, 1],
               opacity: [0.15, 0.3, 0.15],
@@ -93,11 +93,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   >
                     <Sparkles className="w-5 h-5 text-amber-400" />
                   </motion.div>
-                  <span className="text-xs font-semibold text-purple-300 uppercase tracking-wider">
+                  <span className="text-xs font-semibold text-blue-300 uppercase tracking-wider">
                     {language === 'id' ? 'Selamat Datang Kembali' : 'Welcome Back'}
                   </span>
                 </div>
-                <h1 className="text-2xl lg:text-3xl font-display font-bold mb-2 bg-gradient-to-r from-white via-purple-200 to-amber-200 bg-clip-text text-transparent">
+                <h1 className="text-2xl lg:text-3xl font-display font-bold mb-2 bg-gradient-to-r from-white via-blue-200 to-amber-200 bg-clip-text text-transparent">
                   {language === 'id'
                     ? `Halo, ${profile?.full_name?.split(' ')[0] || 'Trader'}! 👋`
                     : `Hello, ${profile?.full_name?.split(' ')[0] || 'Trader'}! 👋`
@@ -124,7 +124,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 transition={{ duration: 0.5, delay: 0.3 }}
                 className="flex flex-col sm:flex-row gap-3"
               >
-                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 min-w-[140px] transition-all duration-300 hover:bg-white/15 hover:border-white/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/10">
+                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 min-w-[140px] transition-all duration-300 hover:bg-white/15 hover:border-white/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/10">
                   <div className="flex items-center gap-2 mb-1">
                     <TrendingUp className="w-4 h-4 text-emerald-400" />
                     <span className="text-xs text-gray-400">{language === 'id' ? 'Total P/L' : 'Total P/L'}</span>
@@ -142,12 +142,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                     {(analytics?.winRate || 0).toFixed(1)}%
                   </div>
                 </div>
-                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 min-w-[140px] transition-all duration-300 hover:bg-white/15 hover:border-white/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/10">
+                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 min-w-[140px] transition-all duration-300 hover:bg-white/15 hover:border-white/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/10">
                   <div className="flex items-center gap-2 mb-1">
-                    <Activity className="w-4 h-4 text-purple-400" />
+                    <Activity className="w-4 h-4 text-blue-400" />
                     <span className="text-xs text-gray-400">{language === 'id' ? 'Total Trade' : 'Total Trades'}</span>
                   </div>
-                  <div className="text-xl font-bold text-purple-400">
+                  <div className="text-xl font-bold text-blue-400">
                     {analytics?.totalTrades || 0}
                   </div>
                 </div>
@@ -176,7 +176,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               </div>
               <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                 <motion.div
-                  className="h-full bg-gradient-to-r from-purple-500 via-violet-500 to-amber-500 rounded-full"
+                  className="h-full bg-gradient-to-r from-blue-500 via-blue-400 to-amber-500 rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min((tradesCount / 10) * 100, 100)}%` }}
                   transition={{ duration: 1.5, ease: "easeOut" }}

@@ -45,7 +45,7 @@ function getDailyPrompt() {
 function getMoodIcon(mood: string | null) {
   switch (mood) {
     case 'confident': return <Smile className="w-4 h-4 text-emerald-400" />
-    case 'neutral': return <Meh className="w-4 h-4 text-purple-400" />
+    case 'neutral': return <Meh className="w-4 h-4 text-blue-400" />
     case 'anxious': return <Frown className="w-4 h-4 text-red-400" />
     default: return null
   }
@@ -127,12 +127,12 @@ function CalendarView({ entries, currentMonth, setCurrentMonth, onView }: Calend
       <div
         key={day}
         onClick={() => dayEntries.length > 0 && onView(dayEntries[0])}
-        className={`h-24 p-2 rounded-lg border border-white/5 transition-all cursor-pointer hover:border-purple-500/30 ${
-          isToday ? 'bg-purple-500/10 border-purple-500/30' : 'bg-white/5'
+        className={`h-24 p-2 rounded-lg border border-white/5 transition-all cursor-pointer hover:border-blue-500/30 ${
+          isToday ? 'bg-blue-500/10 border-blue-500/30' : 'bg-white/5'
         } ${dayEntries.length > 0 ? 'hover:bg-lux-surface-hover dark:hover:bg-white/10' : ''}`}
       >
         <div className="flex items-center justify-between mb-1">
-          <span className={`text-sm font-medium ${isToday ? 'text-purple-400' : 'text-lux-text-secondary dark:text-gray-400'}`}>
+          <span className={`text-sm font-medium ${isToday ? 'text-blue-400' : 'text-lux-text-secondary dark:text-gray-400'}`}>
             {day}
           </span>
           {dayEntries.length > 0 && (
@@ -143,7 +143,7 @@ function CalendarView({ entries, currentMonth, setCurrentMonth, onView }: Calend
                   className={`w-2 h-2 rounded-full ${
                     e.mood === 'confident' ? 'bg-emerald-400' :
                     e.mood === 'anxious' ? 'bg-red-400' :
-                    'bg-purple-400'
+                    'bg-blue-400'
                   }`}
                 />
               ))}
@@ -170,7 +170,7 @@ function CalendarView({ entries, currentMonth, setCurrentMonth, onView }: Calend
   }
 
   return (
-    <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+    <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -196,7 +196,7 @@ function CalendarView({ entries, currentMonth, setCurrentMonth, onView }: Calend
             variant="outline"
             size="sm"
             onClick={() => setCurrentMonth(new Date())}
-            className="border-purple-500/30 text-purple-400"
+            className="border-blue-500/30 text-blue-400"
           >
             Today
           </Button>
@@ -280,7 +280,7 @@ function JournalTab({
       doc.rect(0, 0, 210, 40, 'F')
 
       // Purple accent line
-      doc.setFillColor(139, 92, 246) // purple-500
+      doc.setFillColor(139, 92, 246) // blue-500
       doc.rect(0, 40, 210, 2, 'F')
 
       // Title
@@ -535,7 +535,7 @@ function JournalTab({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
+        <RefreshCw className="w-8 h-8 animate-spin text-blue-400" />
       </div>
     )
   }
@@ -571,7 +571,7 @@ function JournalTab({
             variant={viewMode === 'list' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setViewMode('list')}
-            className={viewMode === 'list' ? 'bg-purple-500' : 'border-purple-500/30 text-purple-400'}
+            className={viewMode === 'list' ? 'bg-blue-500' : 'border-blue-500/30 text-blue-400'}
           >
             <BookOpen className="w-4 h-4 mr-1" /> List
           </Button>
@@ -579,7 +579,7 @@ function JournalTab({
             variant={viewMode === 'calendar' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setViewMode('calendar')}
-            className={viewMode === 'calendar' ? 'bg-purple-500' : 'border-purple-500/30 text-purple-400'}
+            className={viewMode === 'calendar' ? 'bg-blue-500' : 'border-blue-500/30 text-blue-400'}
           >
             <Calendar className="w-4 h-4 mr-1" /> Calendar
           </Button>
@@ -588,7 +588,7 @@ function JournalTab({
               variant="outline"
               size="sm"
               onClick={toggleAnalytics}
-              className="border-purple-500/30 text-purple-400"
+              className="border-blue-500/30 text-blue-400"
             >
               <BarChart3 className="w-4 h-4 mr-1" />
               {showAnalytics ? 'Hide Analytics' : 'Analytics'}
@@ -599,7 +599,7 @@ function JournalTab({
             size="sm"
             onClick={handleExportPDF}
             disabled={entries.length === 0 || exporting}
-            className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+            className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
           >
             <FileText className={`w-4 h-4 mr-1 ${exporting ? 'animate-spin' : ''}`} /> {exporting ? 'Exporting...' : 'Export PDF'}
           </Button>
@@ -608,11 +608,11 @@ function JournalTab({
             size="sm"
             onClick={handlePrint}
             disabled={entries.length === 0}
-            className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+            className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
           >
             <Printer className="w-4 h-4 mr-1" /> Print
           </Button>
-          <Button onClick={onAdd} className="bg-gradient-to-r from-purple-500 to-violet-600">
+          <Button onClick={onAdd} className="bg-gradient-to-r from-blue-500 to-blue-600">
             <Plus className="w-4 h-4 mr-2" />New Entry
           </Button>
         </div>
@@ -690,11 +690,11 @@ function JournalTab({
         </Card>
 
         {/* Daily Prompt Card */}
-        <Card className="bg-gradient-to-br from-purple-500/10 to-violet-500/5 border-lux-border dark:border-purple-500/20">
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-400/5 border-lux-border dark:border-blue-500/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-4 h-4 text-purple-400" />
-              <p className="text-sm text-purple-300/70 font-medium">Daily Reflection Prompt</p>
+              <Sparkles className="w-4 h-4 text-blue-400" />
+              <p className="text-sm text-blue-300/70 font-medium">Daily Reflection Prompt</p>
             </div>
             <p className="text-lux-text-primary dark:text-white/90 text-sm italic leading-relaxed">{todayPrompt}</p>
             {!hasTodayEntry && (
@@ -702,7 +702,7 @@ function JournalTab({
                 size="sm"
                 variant="outline"
                 onClick={onAdd}
-                className="mt-3 border-purple-500/30 text-purple-400 text-xs"
+                className="mt-3 border-blue-500/30 text-blue-400 text-xs"
               >
                 <Edit className="w-3 h-3 mr-1" /> Tulis jawabanmu
               </Button>
@@ -722,19 +722,19 @@ function JournalTab({
           >
             {analyticsLoading ? (
               <div className="flex items-center justify-center py-8">
-                <RefreshCw className="w-6 h-6 animate-spin text-purple-400" />
+                <RefreshCw className="w-6 h-6 animate-spin text-blue-400" />
               </div>
             ) : journalAnalytics ? (
-              <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+              <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
                 <CardContent className="p-4 lg:p-6">
                   <h4 className="font-bold mb-4 flex items-center gap-2">
-                    <Brain className="w-5 h-5 text-purple-400" />
+                    <Brain className="w-5 h-5 text-blue-400" />
                     Journal Analytics
                   </h4>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                     <div className="p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5 text-center">
-                      <p className="text-2xl font-bold text-purple-400">{journalAnalytics.totalEntries}</p>
+                      <p className="text-2xl font-bold text-blue-400">{journalAnalytics.totalEntries}</p>
                       <p className="text-xs text-lux-text-muted dark:text-gray-500">Total Entries</p>
                     </div>
                     <div className="p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5 text-center">
@@ -757,7 +757,7 @@ function JournalTab({
                     <div className="flex items-center gap-4">
                       {[
                         { label: 'Confident', emoji: '😊', count: journalAnalytics.moodDistribution?.confident || 0, color: 'bg-emerald-500' },
-                        { label: 'Neutral', emoji: '😐', count: journalAnalytics.moodDistribution?.neutral || 0, color: 'bg-purple-500' },
+                        { label: 'Neutral', emoji: '😐', count: journalAnalytics.moodDistribution?.neutral || 0, color: 'bg-blue-500' },
                         { label: 'Anxious', emoji: '😰', count: journalAnalytics.moodDistribution?.anxious || 0, color: 'bg-red-500' },
                       ].map(m => {
                         const total = journalAnalytics.totalEntries || 1
@@ -794,7 +794,7 @@ function JournalTab({
                               item.moodScore >= 3 ? 'confident' : item.moodScore >= 2 ? 'neutral' : item.moodScore >= 1 ? 'anxious' : null
                             )}</span>
                             <motion.div
-                              className={`w-full rounded-t ${item.moodScore >= 3 ? 'bg-emerald-500/40' : item.moodScore >= 2 ? 'bg-purple-500/40' : 'bg-red-500/40'}`}
+                              className={`w-full rounded-t ${item.moodScore >= 3 ? 'bg-emerald-500/40' : item.moodScore >= 2 ? 'bg-blue-500/40' : 'bg-red-500/40'}`}
                               initial={{ height: 0 }}
                               animate={{ height: `${(item.moodScore / 3) * 40}px` }}
                               transition={{ duration: 0.5, delay: i * 0.1 }}
@@ -808,10 +808,10 @@ function JournalTab({
 
                   {/* Weekly Summary */}
                   {journalAnalytics.weeklySummary && (
-                    <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-transparent border border-lux-border dark:border-purple-500/20">
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-transparent border border-lux-border dark:border-blue-500/20">
                       <div className="flex items-center gap-2 mb-2">
-                        <Zap className="w-4 h-4 text-purple-400" />
-                        <p className="text-sm font-bold text-purple-300">Weekly AI Summary</p>
+                        <Zap className="w-4 h-4 text-blue-400" />
+                        <p className="text-sm font-bold text-blue-300">Weekly AI Summary</p>
                       </div>
                       <p className="text-xs text-lux-text-secondary dark:text-gray-400 leading-relaxed mb-2">{journalAnalytics.weeklySummary.moodAssessment}</p>
                       <p className="text-xs text-lux-text-muted dark:text-gray-500 leading-relaxed">{journalAnalytics.weeklySummary.recommendation}</p>
@@ -833,7 +833,7 @@ function JournalTab({
       {/* Filtered entries count */}
       {filteredEntries.length !== entries.length && entries.length > 0 && (
         <p className="text-sm text-lux-text-secondary dark:text-gray-400">
-          Showing <span className="font-bold text-purple-400">{filteredEntries.length}</span> of <span className="font-bold">{entries.length}</span> entries
+          Showing <span className="font-bold text-blue-400">{filteredEntries.length}</span> of <span className="font-bold">{entries.length}</span> entries
         </p>
       )}
 
@@ -849,21 +849,21 @@ function JournalTab({
 
       {/* Journal Entries List */}
       {filteredEntries.length === 0 && entries.length === 0 ? (
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardContent className="py-16 text-center">
             <BookOpen className="w-12 h-12 mx-auto mb-4 text-lux-text-muted dark:text-gray-500" />
             <h3 className="text-lg font-semibold mb-2">No Journal Entries</h3>
             <p className="text-lux-text-secondary dark:text-gray-400 mb-4">Start documenting your trades!</p>
-            <div className="p-3 rounded-lg bg-purple-500/5 border border-purple-500/10 max-w-sm mx-auto mb-4">
-              <p className="text-xs text-purple-300/70 italic">💡 Daily Prompt: &ldquo;{todayPrompt}&rdquo;</p>
+            <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/10 max-w-sm mx-auto mb-4">
+              <p className="text-xs text-blue-300/70 italic">💡 Daily Prompt: &ldquo;{todayPrompt}&rdquo;</p>
             </div>
-            <Button onClick={onAdd} variant="outline" className="border-purple-500/30 text-purple-400">
+            <Button onClick={onAdd} variant="outline" className="border-blue-500/30 text-blue-400">
               <Plus className="w-4 h-4 mr-2" /> Write First Entry
             </Button>
           </CardContent>
         </Card>
       ) : filteredEntries.length === 0 && entries.length > 0 ? (
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardContent className="py-12 text-center">
             <BookOpen className="w-10 h-10 mx-auto mb-3 text-lux-text-muted dark:text-gray-500" />
             <h3 className="text-lg font-semibold mb-2">No Matching Entries</h3>
@@ -877,7 +877,7 @@ function JournalTab({
             return (
             <Card
               key={entry.id}
-              className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30 hover:border-purple-500/30 transition-colors cursor-pointer group"
+              className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30 hover:border-blue-500/30 transition-colors cursor-pointer group"
               onClick={() => onView(entry)}
             >
               <CardContent className="p-4 lg:p-6">
@@ -904,13 +904,13 @@ function JournalTab({
                     </Badge>
                   )}
                   {entry.market_condition && (
-                    <Badge variant="outline" className="text-xs border-purple-500/30 text-purple-400">
+                    <Badge variant="outline" className="text-xs border-blue-500/30 text-blue-400">
                       {entry.market_condition}
                     </Badge>
                   )}
                   {/* Tags */}
                   {tags.length > 0 && tags.map((tag: string, idx: number) => (
-                    <Badge key={idx} variant="outline" className="text-xs border-purple-500/30 text-purple-300">
+                    <Badge key={idx} variant="outline" className="text-xs border-blue-500/30 text-blue-300">
                       <Tag className="w-2.5 h-2.5 mr-1" />
                       {tag}
                     </Badge>
@@ -938,7 +938,7 @@ function JournalTab({
 
       {/* PRO Upgrade Banner */}
       {!isPro && onUpgrade && (
-        <Card className="bg-gradient-to-r from-amber-500/10 to-purple-500/10 border-amber-500/20">
+        <Card className="bg-gradient-to-r from-amber-500/10 to-blue-500/10 border-amber-500/20">
           <CardContent className="p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Crown className="w-6 h-6 text-amber-400" />
