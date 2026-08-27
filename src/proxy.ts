@@ -5,7 +5,7 @@ const PUBLIC_PATHS = ['/', '/about', '/blog', '/contact', '/faq', '/terms', '/pr
 
 const ADMIN_EMAILS = ['luxtradee@gmail.com', 'riskiakbarp123@gmail.com']
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Allow auth pages
