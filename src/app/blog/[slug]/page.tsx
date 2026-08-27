@@ -28,7 +28,7 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
     readTime: isEnglish ? '8 min read' : '8 bacaan',
     date: 'December 15, 2024',
     author: isEnglish ? 'LuxTrade Team' : 'Tim LuxTrade',
-    gradient: 'from-purple-500 to-violet-600'
+    gradient: 'from-blue-500 to-cyan-600'
   }
 
   const content = isEnglish ? {
@@ -158,7 +158,7 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
         ? '5 Most Common Trading Psychology Mistakes'
         : '5 Kesalahan Psikologi Trading Paling Umum',
       category: isEnglish ? 'Psychology' : 'Psikologi',
-      gradient: 'from-pink-500 to-rose-600'
+      gradient: 'from-cyan-400 to-rose-600'
     },
     {
       id: 3,
@@ -174,8 +174,8 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
     <div className="min-h-screen bg-[#0f051d] text-white overflow-x-hidden">
       {/* Partikel Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-10">
-        <div className="absolute w-3 h-3 bg-purple-500/40 rounded-full animate-ping" style={{ top: '5%', left: '3%', animationDuration: '3s' }} />
-        <div className="absolute w-2 h-2 bg-purple-400/50 rounded-full animate-pulse" style={{ top: '12%', left: '8%', animationDuration: '4s' }} />
+        <div className="absolute w-3 h-3 bg-blue-500/40 rounded-full animate-ping" style={{ top: '5%', left: '3%', animationDuration: '3s' }} />
+        <div className="absolute w-2 h-2 bg-cyan-400/50 rounded-full animate-pulse" style={{ top: '12%', left: '8%', animationDuration: '4s' }} />
         <div className="absolute w-4 h-4 bg-blue-500/30 rounded-full animate-ping" style={{ top: '8%', left: '15%', animationDuration: '3.5s' }} />
       </div>
 
@@ -192,7 +192,7 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
                 className="object-contain"
               />
               <div>
-                <Link href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
+                <Link href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
                   LuxTrade
                 </Link>
               </div>
@@ -220,7 +220,7 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <Link href="/blog" className="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 mb-6 transition-colors">
+            <Link href="/blog" className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 mb-6 transition-colors">
               <ArrowLeft className="w-4 h-4" />
               {isEnglish ? 'Back to Blog' : 'Kembali ke Blog'}
             </Link>
@@ -230,7 +230,7 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
             </Badge>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold mb-6 leading-tight">
-              <span className="bg-gradient-to-r from-white to-purple-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-white to-cyan-400 bg-clip-text text-transparent">
                 {blogPost.title}
               </span>
             </h1>
@@ -267,10 +267,10 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="mb-12 rounded-2xl overflow-hidden bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 h-80 flex items-center justify-center"
+            className="mb-12 rounded-2xl overflow-hidden bg-gradient-to-br from-blue-500/20 to-blue-500/20 border border-blue-500/30 h-80 flex items-center justify-center"
           >
             <div className="text-center">
-              <TrendingUp className="w-20 h-20 text-purple-400/50 mx-auto mb-4" />
+              <TrendingUp className="w-20 h-20 text-cyan-400/50 mx-auto mb-4" />
               <p className="text-white/40 text-sm">
                 {isEnglish ? 'Trading Journal Concept' : 'Konsep Jurnal Trading'}
               </p>
@@ -326,9 +326,9 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
               transition={{ duration: 0.5, delay: 0.8 }}
               className="mb-12"
             >
-              <Card className="backdrop-blur-xl bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/30 p-8">
+              <Card className="backdrop-blur-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/30 p-8">
                 <h3 className="text-2xl font-extrabold text-white mb-4 flex items-center gap-3">
-                  <Brain className="w-6 h-6 text-purple-400" />
+                  <Brain className="w-6 h-6 text-cyan-400" />
                   {isEnglish ? 'Key Takeaway' : 'Poin Utama'}
                 </h3>
                 <p className="text-white/80 text-lg leading-relaxed">
@@ -376,14 +376,14 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {relatedPosts.map((post) => (
                 <Link key={post.id} href="/blog">
-                  <Card className="backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-purple-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] transition-all duration-300 p-6">
+                  <Card className="backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] transition-all duration-300 p-6">
                     <Badge className={`bg-gradient-to-r ${post.gradient} text-white border-0 mb-4`}>
                       {post.category}
                     </Badge>
-                    <h4 className="text-lg font-extrabold text-white mb-2 hover:text-purple-300 transition-colors">
+                    <h4 className="text-lg font-extrabold text-white mb-2 hover:text-cyan-300 transition-colors">
                       {post.title}
                     </h4>
-                    <div className="flex items-center gap-2 text-purple-400 text-sm font-semibold">
+                    <div className="flex items-center gap-2 text-cyan-400 text-sm font-semibold">
                       {isEnglish ? 'Read More' : 'Baca Selengkapnya'}
                       <ArrowRight className="w-4 h-4" />
                     </div>

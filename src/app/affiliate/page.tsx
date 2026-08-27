@@ -411,7 +411,7 @@ export default function AffiliatePage() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-[#0a0612] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
       </div>
     )
   }
@@ -426,7 +426,7 @@ export default function AffiliatePage() {
     new_referral: { icon: '🆕', color: 'text-emerald-400' },
     commission: { icon: '💰', color: 'text-amber-400' },
     withdrawal: { icon: '💸', color: 'text-blue-400' },
-    subscription: { icon: '📋', color: 'text-purple-400' },
+    subscription: { icon: '📋', color: 'text-cyan-400' },
   }
 
   const timeAgo = (ts: number) => {
@@ -441,7 +441,7 @@ export default function AffiliatePage() {
     <main className="min-h-screen bg-[#0a0612] text-white">
       {/* Decorative gradient blobs */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-purple-600/10 blur-[120px]" />
+        <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-blue-600/10 blur-[120px]" />
         <div className="absolute top-1/3 -right-40 h-[400px] w-[400px] rounded-full bg-amber-500/8 blur-[100px]" />
       </div>
 
@@ -454,11 +454,11 @@ export default function AffiliatePage() {
           custom={0}
           className="mb-10 text-center"
         >
-          <div className="mb-4 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-purple-500/20 to-amber-500/20 p-3 ring-1 ring-purple-500/30">
-            <Gift className="h-8 w-8 text-purple-400" />
+          <div className="mb-4 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-blue-500/20 to-amber-500/20 p-3 ring-1 ring-blue-500/30">
+            <Gift className="h-8 w-8 text-cyan-400" />
           </div>
           <h1 className="font-lexend text-3xl font-bold tracking-tight sm:text-4xl">
-            <span className="bg-gradient-to-r from-purple-400 via-purple-300 to-amber-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-cyan-400 via-cyan-300 to-amber-400 bg-clip-text text-transparent">
               Program Affiliate
             </span>
           </h1>
@@ -476,12 +476,12 @@ export default function AffiliatePage() {
           custom={1}
           className="mb-8"
         >
-          <Card className="relative overflow-hidden border-purple-500/20 bg-white/5 backdrop-blur-sm">
+          <Card className="relative overflow-hidden border-blue-500/20 bg-white/5 backdrop-blur-sm">
             {/* Gradient border top */}
-            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-purple-500 via-purple-400 to-amber-400" />
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 via-cyan-400 to-amber-400" />
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                <Users className="h-5 w-5 text-purple-400" />
+                <Users className="h-5 w-5 text-cyan-400" />
                 Kode Referral Kamu
               </CardTitle>
             </CardHeader>
@@ -494,15 +494,15 @@ export default function AffiliatePage() {
                   </p>
                   <button
                     onClick={() => { setNewReferralCode(''); setCooldownDaysLeft(null); setUpdateCodeDialogOpen(true) }}
-                    className="flex items-center gap-1 text-xs text-purple-400/70 hover:text-purple-400 transition-colors"
+                    className="flex items-center gap-1 text-xs text-cyan-400/70 hover:text-cyan-400 transition-colors"
                   >
                     <Pencil className="w-3 h-3" />
                     Ganti Kode
                   </button>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="flex-1 rounded-lg border border-purple-500/30 bg-purple-500/10 px-4 py-3">
-                    <span className="font-mono text-xl font-bold tracking-widest text-purple-300 sm:text-2xl">
+                  <div className="flex-1 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3">
+                    <span className="font-mono text-xl font-bold tracking-widest text-cyan-300 sm:text-2xl">
                       {affiliateData.referralCode}
                     </span>
                   </div>
@@ -548,10 +548,10 @@ export default function AffiliatePage() {
         >
           <motion.div variants={fadeUp} custom={2}>
             <StatsCard
-              icon={<Users className="h-5 w-5 text-purple-400" />}
+              icon={<Users className="h-5 w-5 text-cyan-400" />}
               label="Total Referral"
               value={String(totalReferrals)}
-              gradient="from-purple-500/20 to-purple-600/5"
+              gradient="from-blue-500/20 to-blue-600/5"
             />
           </motion.div>
           <motion.div variants={fadeUp} custom={3}>
@@ -732,7 +732,7 @@ export default function AffiliatePage() {
                   <DialogTrigger asChild>
                     <Button
                       disabled={!canWithdraw}
-                      className="bg-gradient-to-r from-purple-600 to-amber-500 text-white hover:from-purple-500 hover:to-amber-400 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="bg-gradient-to-r from-blue-600 to-amber-500 text-white hover:from-blue-500 hover:to-amber-400 disabled:opacity-40 disabled:cursor-not-allowed"
                       size="lg"
                     >
                       <ArrowDownToLine className="mr-2 h-4 w-4" />
@@ -741,7 +741,7 @@ export default function AffiliatePage() {
                   </DialogTrigger>
                   <DialogContent className="border-white/10 bg-[#130d1f] text-white sm:max-w-md">
                     <DialogHeader>
-                      <DialogTitle className="bg-gradient-to-r from-purple-400 to-amber-400 bg-clip-text text-transparent">
+                      <DialogTitle className="bg-gradient-to-r from-cyan-400 to-amber-400 bg-clip-text text-transparent">
                         Request Withdrawal
                       </DialogTitle>
                       <DialogDescription className="text-white/60">
@@ -760,7 +760,7 @@ export default function AffiliatePage() {
                           max={affiliateData.currentBalance}
                           value={withdrawAmount}
                           onChange={(e) => setWithdrawAmount(e.target.value)}
-                          className="border-white/10 bg-white/5 text-white focus-visible:ring-purple-500"
+                          className="border-white/10 bg-white/5 text-white focus-visible:ring-blue-500"
                         />
                         <p className="text-xs text-white/40">
                           Minimum Rp100.000 &middot; Saldo:{' '}
@@ -776,7 +776,7 @@ export default function AffiliatePage() {
                           placeholder="Nama Bank, Nomor Rekening, Nama Pemilik"
                           value={bankInfo}
                           onChange={(e) => setBankInfo(e.target.value)}
-                          className="flex w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-purple-500 resize-none"
+                          className="flex w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 resize-none"
                         />
                       </div>
                     </div>
@@ -792,7 +792,7 @@ export default function AffiliatePage() {
                       <Button
                         onClick={handleWithdraw}
                         disabled={withdrawSubmitting}
-                        className="bg-gradient-to-r from-purple-600 to-amber-500 text-white hover:from-purple-500 hover:to-amber-400"
+                        className="bg-gradient-to-r from-blue-600 to-amber-500 text-white hover:from-blue-500 hover:to-amber-400"
                       >
                         {withdrawSubmitting ? (
                           <>
@@ -883,7 +883,7 @@ export default function AffiliatePage() {
       <Dialog open={updateCodeDialogOpen} onOpenChange={setUpdateCodeDialogOpen}>
         <DialogContent className="border-white/10 bg-[#130d1f] text-white sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="bg-gradient-to-r from-purple-400 to-amber-400 bg-clip-text text-transparent">
+            <DialogTitle className="bg-gradient-to-r from-cyan-400 to-amber-400 bg-clip-text text-transparent">
               Ganti Kode Referral
             </DialogTitle>
             <DialogDescription className="text-white/60">
@@ -900,7 +900,7 @@ export default function AffiliatePage() {
                 onChange={(e) => setNewReferralCode(e.target.value.toUpperCase())}
                 placeholder="contoh: BUDITRADER"
                 maxLength={20}
-                className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:ring-purple-500 font-mono tracking-wider"
+                className="border-white/10 bg-white/5 text-white placeholder:text-white/30 focus-visible:ring-blue-500 font-mono tracking-wider"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleUpdateCode()
@@ -935,7 +935,7 @@ export default function AffiliatePage() {
             <Button
               onClick={handleUpdateCode}
               disabled={updateCodeSubmitting || !newReferralCode.trim()}
-              className="bg-gradient-to-r from-purple-600 to-amber-500 text-white hover:from-purple-500 hover:to-amber-400"
+              className="bg-gradient-to-r from-blue-600 to-amber-500 text-white hover:from-blue-500 hover:to-amber-400"
             >
               {updateCodeSubmitting ? (
                 <>

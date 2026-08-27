@@ -41,7 +41,7 @@ export default function WelcomeModal({ isOpen, onClose, onStartTour, language = 
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 30 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="relative w-full max-w-2xl bg-white/[0.03] backdrop-blur-3xl border border-white/[0.1] rounded-3xl overflow-hidden shadow-2xl shadow-purple-500/20"
+          className="relative w-full max-w-2xl bg-white/[0.03] backdrop-blur-3xl border border-white/[0.1] rounded-3xl overflow-hidden shadow-2xl shadow-blue-500/20"
         >
           {/* Animated Gradient Background */}
           <div className="absolute inset-0 overflow-hidden">
@@ -55,7 +55,7 @@ export default function WelcomeModal({ isOpen, onClose, onStartTour, language = 
                 repeat: Infinity,
                 ease: 'linear',
               }}
-              className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-br from-purple-600/20 via-blue-500/20 to-pink-500/20 rounded-full blur-3xl"
+              className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-br from-blue-600/20 via-blue-500/20 to-cyan-400/20 rounded-full blur-3xl"
             />
             <motion.div
               animate={{
@@ -68,7 +68,7 @@ export default function WelcomeModal({ isOpen, onClose, onStartTour, language = 
                 ease: 'linear',
                 delay: 0.5,
               }}
-              className="absolute -bottom-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-blue-600/20 via-purple-500/20 to-cyan-500/20 rounded-full blur-3xl"
+              className="absolute -bottom-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-blue-600/20 via-blue-500/20 to-cyan-500/20 rounded-full blur-3xl"
             />
           </div>
 
@@ -92,7 +92,7 @@ export default function WelcomeModal({ isOpen, onClose, onStartTour, language = 
                 stiffness: 200,
                 delay: 0.1,
               }}
-              className="w-24 h-24 rounded-3xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-purple-500/50"
+              className="w-24 h-24 rounded-3xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-blue-500/50"
             >
               <Sparkles className="w-12 h-12 text-white" />
             </motion.div>
@@ -105,11 +105,11 @@ export default function WelcomeModal({ isOpen, onClose, onStartTour, language = 
               className="text-center space-y-4"
             >
               <h2 className="text-4xl md:text-5xl font-extrabold">
-                <span className="bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
                   {language === 'id' ? 'Selamat Datang di' : 'Welcome to'}
                 </span>
                 <br />
-                <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-cyan-400 via-cyan-300 to-blue-400 bg-clip-text text-transparent">
                   Luxtrade, {username}!
                 </span>
               </h2>
@@ -130,7 +130,7 @@ export default function WelcomeModal({ isOpen, onClose, onStartTour, language = 
             >
               <Button
                 onClick={onStartTour}
-                className="h-14 px-8 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_40px_rgba(139,92,246,0.6)] transition-all duration-300"
+                className="h-14 px-8 bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-700 hover:to-blue-700 text-lg font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_40px_rgba(139,92,246,0.6)] transition-all duration-300"
               >
                 {language === 'id' ? 'Mulai Tour' : 'Start Tour'}
                 <ArrowRight className="w-5 h-5 ml-2" />

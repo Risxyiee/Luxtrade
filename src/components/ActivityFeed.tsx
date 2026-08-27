@@ -98,8 +98,8 @@ export default function ActivityFeed({ trades, journalEntries = [], language = '
         title: language === 'id' ? '🎯 50 Trade Tercapai!' : '🎯 50 Trades Milestone!',
         description: language === 'id' ? 'Level trader menengah!' : 'Intermediate trader level!',
         timestamp: new Date(Date.now() - 86400000 * 5),
-        color: 'text-purple-400',
-        bgColor: 'bg-purple-500/10 border-purple-500/20',
+        color: 'text-cyan-400',
+        bgColor: 'bg-blue-500/10 border-blue-500/20',
       })
     }
 

@@ -23,8 +23,8 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
     rating: 5,
     text: 'Dulu saya cuma catat trade di notes HP, sekarang semua terstruktur. AI-nya beneran nunjukin pola loss yang saya nggak sadar — selalu FOMO di session London. Win rate naik dari 40% ke 58% dalam 2 bulan.',
     textEn: 'I used to log trades in phone notes, now everything is structured. The AI really shows loss patterns I didn\'t realize — always FOMOing in London session. Win rate went from 40% to 58% in 2 months.',
-    gradient: 'from-purple-500 to-violet-600',
-    borderHover: 'hover:border-purple-500/30',
+    gradient: 'from-blue-500 to-cyan-600',
+    borderHover: 'hover:border-blue-500/30',
   },
   {
     name: 'Rina Wulandari',
@@ -53,8 +53,8 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
     rating: 4,
     text: 'Baru 3 bulan trading dan LuxTrade bantu saya nggak repeat kesalahan sama. Fitur risk calculator juga membantu saya manage lot size yang benar. Recommended buat beginner!',
     textEn: 'Only 3 months trading and LuxTrade helps me not repeat mistakes. The risk calculator also helps me manage proper lot sizes. Recommended for beginners!',
-    gradient: 'from-pink-500 to-rose-600',
-    borderHover: 'hover:border-pink-500/30',
+    gradient: 'from-cyan-400 to-rose-600',
+    borderHover: 'hover:border-cyan-400/30',
   },
   {
     name: 'Budi Santoso',
@@ -73,8 +73,8 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
     rating: 5,
     text: 'Yang paling helpful itu AI pattern detection. Dia detect saya selalu overtrading setelah loss berturut-turut. Sekarang saya punya rule: max 3 trade setelah loss. Discipline naik banget.',
     textEn: 'The most helpful thing is AI pattern detection. It detected I always overtrade after consecutive losses. Now I have a rule: max 3 trades after a loss. Discipline improved a lot.',
-    gradient: 'from-violet-500 to-purple-600',
-    borderHover: 'hover:border-violet-500/30',
+    gradient: 'from-blue-500 to-blue-600',
+    borderHover: 'hover:border-blue-500/30',
   },
 ]
 
@@ -180,7 +180,7 @@ export default function TestimonialSection({ language }: { language: 'id' | 'en'
               <button
                 key={i}
                 onClick={() => { setDirection(i > currentPage ? 1 : -1); setCurrentPage(i) }}
-                className={`w-2.5 h-2.5 rounded-full transition-all ${i === currentPage ? 'bg-purple-500 w-6' : 'bg-[var(--lux-text-label-3)] hover:bg-[var(--lux-text-label-2)]'}`}
+                className={`w-2.5 h-2.5 rounded-full transition-all ${i === currentPage ? 'bg-blue-500 w-6' : 'bg-[var(--lux-text-label-3)] hover:bg-[var(--lux-text-label-2)]'}`}
                 aria-label={`Go to page ${i + 1}`}
               />
             ))}

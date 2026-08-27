@@ -12,7 +12,7 @@ export default function PrivacyPolicyPage() {
     <div className="min-h-screen bg-[#0a0612] text-white">
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0612] via-[#110a1f] to-[#0a0612]" />
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[150px]" />
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-[150px]" />
       </div>
 
       {/* Header */}
@@ -26,7 +26,7 @@ export default function PrivacyPolicyPage() {
               height={36}
               className="object-contain"
             />
-            <span className="text-lg font-bold bg-gradient-to-r from-purple-200 to-purple-400 bg-clip-text text-transparent">
+            <span className="text-lg font-bold bg-gradient-to-r from-cyan-200 to-cyan-400 bg-clip-text text-transparent">
               LuxTrade
             </span>
           </Link>
@@ -61,19 +61,19 @@ export default function PrivacyPolicyPage() {
               <h2 className="text-2xl font-semibold text-white mb-4">2. Informasi yang Kami Kumpulkan</h2>
               <div className="space-y-4">
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
-                  <h3 className="text-lg font-medium text-purple-400 mb-2">Informasi Akun</h3>
+                  <h3 className="text-lg font-medium text-cyan-400 mb-2">Informasi Akun</h3>
                   <p className="text-white/70">Nama lengkap, alamat email, dan informasi profil yang Anda berikan saat mendaftar.</p>
                 </div>
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
-                  <h3 className="text-lg font-medium text-purple-400 mb-2">Data Trading</h3>
+                  <h3 className="text-lg font-medium text-cyan-400 mb-2">Data Trading</h3>
                   <p className="text-white/70">Informasi trading yang Anda input seperti symbol, entry/exit price, profit/loss, dan catatan trading lainnya.</p>
                 </div>
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
-                  <h3 className="text-lg font-medium text-purple-400 mb-2">Data Penggunaan</h3>
+                  <h3 className="text-lg font-medium text-cyan-400 mb-2">Data Penggunaan</h3>
                   <p className="text-white/70">Informasi tentang bagaimana Anda menggunakan platform, termasuk halaman yang dikunjungi dan fitur yang digunakan.</p>
                 </div>
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
-                  <h3 className="text-lg font-medium text-purple-400 mb-2">Data Perangkat</h3>
+                  <h3 className="text-lg font-medium text-cyan-400 mb-2">Data Perangkat</h3>
                   <p className="text-white/70">Jenis perangkat, sistem operasi, browser, dan alamat IP untuk keamanan dan analitik.</p>
                 </div>
               </div>
@@ -117,7 +117,7 @@ export default function PrivacyPolicyPage() {
               </p>
               <div className="space-y-4">
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
-                  <h3 className="text-lg font-medium text-purple-400 mb-2">Data yang Disimpan</h3>
+                  <h3 className="text-lg font-medium text-cyan-400 mb-2">Data yang Disimpan</h3>
                   <ul className="list-disc list-inside space-y-1 text-white/70">
                     <li>Invoice number (ID unik internal)</li>
                     <li>Metode pembayaran yang dipilih</li>
@@ -127,7 +127,7 @@ export default function PrivacyPolicyPage() {
                   </ul>
                 </div>
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
-                  <h3 className="text-lg font-medium text-purple-400 mb-2">Data yang TIDAK Disimpan</h3>
+                  <h3 className="text-lg font-medium text-cyan-400 mb-2">Data yang TIDAK Disimpan</h3>
                   <ul className="list-disc list-inside space-y-1 text-white/70">
                     <li>Nomor kartu kredit/debit (kami tidak menerima kartu langsung)</li>
                     <li>Password atau PIN perbankan</li>
@@ -182,10 +182,10 @@ export default function PrivacyPolicyPage() {
                 Jika Anda memiliki pertanyaan tentang Kebijakan Privasi ini, silakan hubungi kami di:
               </p>
               <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 mt-4 space-y-2">
-                <p className="text-white/70"><strong className="text-purple-400">Nama Usaha:</strong> LuxTrade</p>
-                <p className="text-white/70"><strong className="text-purple-400">Email:</strong> luxtradee@gmail.com</p>
-                <p className="text-white/70"><strong className="text-purple-400">Telepon:</strong> +62 857-1205-4394</p>
-                <p className="text-white/70"><strong className="text-purple-400">Alamat Usaha:</strong> Jakarta, Indonesia</p>
+                <p className="text-white/70"><strong className="text-cyan-400">Nama Usaha:</strong> LuxTrade</p>
+                <p className="text-white/70"><strong className="text-cyan-400">Email:</strong> luxtradee@gmail.com</p>
+                <p className="text-white/70"><strong className="text-cyan-400">Telepon:</strong> +62 857-1205-4394</p>
+                <p className="text-white/70"><strong className="text-cyan-400">Alamat Usaha:</strong> Jakarta, Indonesia</p>
               </div>
             </section>
           </div>

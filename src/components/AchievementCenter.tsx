@@ -121,7 +121,7 @@ export default function AchievementCenter({ userId }: AchievementCenterProps) {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full"
+          className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full"
         />
       </div>
     )
@@ -156,7 +156,7 @@ export default function AchievementCenter({ userId }: AchievementCenterProps) {
             icon={Award}
             label="Total Achievements"
             value={stats.total}
-            color="from-purple-500 to-violet-600"
+            color="from-blue-500 to-cyan-600"
           />
           <StatCard
             icon={CheckCircle2}
@@ -191,16 +191,16 @@ export default function AchievementCenter({ userId }: AchievementCenterProps) {
 
           <Tabs value={filter} onValueChange={(v) => setFilter(v as any)} className="w-full sm:w-auto">
             <TabsList className="bg-white/5 border-white/10">
-              <TabsTrigger value="all" className="data-[state=active]:bg-purple-500/20">
+              <TabsTrigger value="all" className="data-[state=active]:bg-blue-500/20">
                 All
               </TabsTrigger>
-              <TabsTrigger value="trading" className="data-[state=active]:bg-purple-500/20">
+              <TabsTrigger value="trading" className="data-[state=active]:bg-blue-500/20">
                 Trading
               </TabsTrigger>
-              <TabsTrigger value="engagement" className="data-[state=active]:bg-purple-500/20">
+              <TabsTrigger value="engagement" className="data-[state=active]:bg-blue-500/20">
                 Engagement
               </TabsTrigger>
-              <TabsTrigger value="social" className="data-[state=active]:bg-purple-500/20">
+              <TabsTrigger value="social" className="data-[state=active]:bg-blue-500/20">
                 Social
               </TabsTrigger>
             </TabsList>
@@ -432,7 +432,7 @@ function AchievementDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-gradient-to-br from-[#110a1f] to-[#0a0612] border-purple-500/30 text-white max-w-lg">
+      <DialogContent className="bg-gradient-to-br from-[#110a1f] to-[#0a0612] border-blue-500/30 text-white max-w-lg">
         <DialogHeader>
           <div className="flex items-center gap-4 mb-4">
             <motion.div

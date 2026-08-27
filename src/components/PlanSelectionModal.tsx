@@ -286,14 +286,14 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
             onClick={(e) => e.stopPropagation()}
             className="relative w-full max-w-6xl max-h-[90vh] overflow-y-auto"
           >
-            <div className="relative bg-gradient-to-br from-[#0A0612] via-[#1A0F2E] to-[#0D0715] border border-purple-500/20 rounded-3xl overflow-hidden shadow-2xl shadow-purple-900/20">
+            <div className="relative bg-gradient-to-br from-[#0A0612] via-[#1A0F2E] to-[#0D0715] border border-blue-500/20 rounded-3xl overflow-hidden shadow-2xl shadow-blue-900/20">
 
               {/* Decorative Elements */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl" />
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-pink-500/5 rounded-full blur-3xl" />
+              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-400/5 rounded-full blur-3xl" />
 
               {/* Header */}
-              <div className="relative bg-gradient-to-r from-purple-600/90 via-pink-500/90 to-purple-600/90 backdrop-blur-xl border-b border-purple-400/20">
+              <div className="relative bg-gradient-to-r from-blue-600/90 via-cyan-400/90 to-blue-600/90 backdrop-blur-xl border-b border-cyan-400/20">
                 <div className="relative p-6 md:p-8">
                   <div className="flex items-center justify-between">
                     <div>
@@ -303,7 +303,7 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                           Pilih Paket Anda
                         </h2>
                       </div>
-                      <p className="text-purple-200/80 text-sm md:text-base">
+                      <p className="text-cyan-200/80 text-sm md:text-base">
                         Buka semua fitur premium & tingkatkan performa trading Anda
                       </p>
                     </div>
@@ -321,7 +321,7 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
               <div className="px-6 md:px-8 py-4 border-b border-white/5 space-y-3">
                 <div className="flex items-center gap-2 max-w-md mx-auto">
                   <div className="relative flex-1">
-                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-400" />
+                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400" />
                     <input
                       type="text"
                       value={promoCode}
@@ -332,13 +332,13 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                       }}
                       onKeyDown={(e) => e.key === 'Enter' && handleValidatePromo()}
                       placeholder="Kode promo (opsional)"
-                      className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 transition-all"
+                      className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all"
                     />
                   </div>
                   <button
                     onClick={handleValidatePromo}
                     disabled={!promoCode.trim() || promoLoading}
-                    className="px-4 py-2.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-300 text-sm font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="px-4 py-2.5 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-cyan-300 text-sm font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {promoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Pakai'}
                   </button>
@@ -376,20 +376,20 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                       className={`
                         relative rounded-2xl border-2 p-5 md:p-6 cursor-pointer transition-all duration-300 group
                         ${hoveredPlan === plan.id
-                          ? 'border-purple-400 scale-[1.03] shadow-2xl shadow-purple-500/20'
-                          : 'border-purple-500/15 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-900/10'
+                          ? 'border-cyan-400 scale-[1.03] shadow-2xl shadow-blue-500/20'
+                          : 'border-blue-500/15 hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-900/10'
                         }
                         ${plan.highlight
                           ? 'bg-gradient-to-b from-amber-500/10 via-amber-500/5 to-transparent'
                           : plan.popular
-                          ? 'bg-gradient-to-b from-purple-500/10 via-purple-500/5 to-transparent'
+                          ? 'bg-gradient-to-b from-blue-500/10 via-blue-500/5 to-transparent'
                           : 'bg-white/[0.02]'
                         }
                       `}
                     >
                       {plan.popular && (
                         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                          <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[10px] font-bold px-3 py-1 shadow-lg shadow-purple-500/30 tracking-wider uppercase">
+                          <Badge className="bg-gradient-to-r from-blue-500 to-cyan-400 text-white text-[10px] font-bold px-3 py-1 shadow-lg shadow-blue-500/30 tracking-wider uppercase">
                             Terpopuler
                           </Badge>
                         </div>
@@ -417,7 +417,7 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                             {hasDiscount && (
                               <div className="text-xs text-white/30 line-through mb-1">{formatRupiah(plan.price)}</div>
                             )}
-                            <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-amber-300 bg-clip-text text-transparent tracking-tight">
+                            <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-cyan-300 via-pink-300 to-amber-300 bg-clip-text text-transparent tracking-tight">
                               {formatRupiah(discountedPrice)}
                             </div>
                             <div className="text-xs text-white/50 mt-1 flex items-center justify-center gap-1">
@@ -447,10 +447,10 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
                           ${plan.highlight
                             ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white shadow-lg shadow-amber-500/20'
                             : plan.popular
-                            ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white shadow-lg shadow-purple-500/20'
+                            ? 'bg-gradient-to-r from-blue-500 to-cyan-400 hover:from-cyan-400 hover:to-cyan-300 text-white shadow-lg shadow-blue-500/20'
                             : plan.price === 0
                             ? 'bg-white/10 hover:bg-white/15 text-white/80'
-                            : 'bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/20'
+                            : 'bg-blue-500/15 hover:bg-blue-500/25 text-cyan-300 border border-blue-500/20'
                           }
                         `}
                       >
@@ -477,7 +477,7 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelectPlan, onPa
               <div className="px-6 md:px-8 pb-6 md:pb-8">
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-white/30 text-xs">
                   <div className="flex items-center gap-1.5">
-                    <CreditCard className="w-3.5 h-3.5 text-purple-500/60" />
+                    <CreditCard className="w-3.5 h-3.5 text-blue-500/60" />
                     <span>Pembayaran aman via {gatewayAvailable !== false ? 'Midtrans' : 'QRIS'}</span>
                   </div>
                   <span className="hidden sm:inline">•</span>

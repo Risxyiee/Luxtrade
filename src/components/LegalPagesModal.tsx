@@ -90,7 +90,7 @@ export default function LegalPagesModal({ isOpen, onClose, initialTab = 'terms' 
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 40, scale: 0.95 }}
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-2 sm:inset-4 md:inset-8 lg:inset-y-8 lg:inset-x-[10%] z-50 flex flex-col bg-[#0d0814] rounded-2xl border border-white/[0.08] shadow-2xl shadow-purple-500/10 overflow-hidden"
+            className="fixed inset-2 sm:inset-4 md:inset-8 lg:inset-y-8 lg:inset-x-[10%] z-50 flex flex-col bg-[#0d0814] rounded-2xl border border-white/[0.08] shadow-2xl shadow-blue-500/10 overflow-hidden"
           >
             {/* Header with Tabs */}
             <div className="flex-shrink-0 border-b border-white/[0.08]">
@@ -99,7 +99,7 @@ export default function LegalPagesModal({ isOpen, onClose, initialTab = 'terms' 
                 <h2 className="text-lg sm:text-xl font-bold text-white">Informasi Legal</h2>
                 <button
                   onClick={handleClose}
-                  className="w-9 h-9 rounded-xl bg-white/5 border border-white/[0.08] flex items-center justify-center hover:bg-white/10 hover:border-purple-500/30 transition-all"
+                  className="w-9 h-9 rounded-xl bg-white/5 border border-white/[0.08] flex items-center justify-center hover:bg-white/10 hover:border-blue-500/30 transition-all"
                   aria-label="Tutup"
                 >
                   <X className="w-4 h-4 text-white/60" />
@@ -114,7 +114,7 @@ export default function LegalPagesModal({ isOpen, onClose, initialTab = 'terms' 
                     onClick={() => handleTabChange(tab.id)}
                     className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
                       activeTab === tab.id
-                        ? 'bg-[#8a2be2] text-white shadow-lg shadow-purple-500/30'
+                        ? 'bg-[#8a2be2] text-white shadow-lg shadow-blue-500/30'
                         : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70'
                     }`}
                   >
@@ -302,7 +302,7 @@ function RefundContent() {
       </div>
 
       <Section title="1. Produk Digital">
-        <div className="bg-[#2a1b3d]/40 border border-violet-500/20 rounded-xl p-4 mb-3">
+        <div className="bg-[#2a1b3d]/40 border border-blue-500/20 rounded-xl p-4 mb-3">
           <p className="text-amber-400 text-sm font-semibold flex items-center gap-2 mb-1">
             <AlertCircle className="w-4 h-4" />
             Penting
@@ -452,7 +452,7 @@ function FAQContent() {
         ))}
       </Accordion>
 
-      <div className="mt-8 p-5 bg-[#2a1b3d]/40 border border-violet-500/20 rounded-xl text-center">
+      <div className="mt-8 p-5 bg-[#2a1b3d]/40 border border-blue-500/20 rounded-xl text-center">
         <p className="text-white/70 text-sm mb-2">Masih punya pertanyaan?</p>
         <p className="text-white/40 text-xs mb-4">Hubungi kami langsung melalui Discord atau Email</p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">

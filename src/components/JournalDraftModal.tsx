@@ -155,9 +155,9 @@ export default function JournalDraftModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="bg-[#080b12] border-blue-900/30 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-purple-300 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-cyan-300 via-cyan-400 to-cyan-300 bg-clip-text text-transparent">
             {showTradeData ? 'Review & Finalisasi Jurnal' : 'Buat Jurnal Baru'}
           </DialogTitle>
         </DialogHeader>
@@ -165,11 +165,11 @@ export default function JournalDraftModal({
         <div className="space-y-6 py-4">
           {/* Trade Data Section - Read Only */}
           {showTradeData && tradeFormData && (
-            <div className="bg-gradient-to-r from-purple-500/10 to-violet-600/10 rounded-xl border border-purple-900/30 p-4">
+            <div className="bg-gradient-to-r from-blue-500/10 to-cyan-600/10 rounded-xl border border-blue-900/30 p-4">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-purple-400" />
-                  <h3 className="font-semibold text-purple-300">Data Trade (AI Extracted)</h3>
+                  <TrendingUp className="w-5 h-5 text-cyan-400" />
+                  <h3 className="font-semibold text-cyan-300">Data Trade (AI Extracted)</h3>
                   <Badge variant={tradeFormData.profit_loss >= 0 ? 'default' : 'destructive'} className="ml-2">
                     {tradeFormData.profit_loss >= 0 ? 'PROFIT' : 'LOSS'}
                   </Badge>
@@ -179,7 +179,7 @@ export default function JournalDraftModal({
                     variant="outline"
                     size="sm"
                     onClick={() => setEditingTrade(true)}
-                    className="border-purple-900/30 hover:bg-purple-500/10"
+                    className="border-blue-900/30 hover:bg-blue-500/10"
                   >
                     <Edit3 className="w-4 h-4 mr-2" />
                     Edit
@@ -200,48 +200,48 @@ export default function JournalDraftModal({
               {/* Trade Data Display */}
               {!editingTrade ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="bg-[#0a0712] rounded-lg p-3 border border-purple-900/20">
+                  <div className="bg-[#070a10] rounded-lg p-3 border border-blue-900/20">
                     <p className="text-xs text-gray-400 mb-1">Symbol</p>
                     <p className="text-lg font-bold text-white">{tradeFormData.symbol}</p>
                   </div>
-                  <div className="bg-[#0a0712] rounded-lg p-3 border border-purple-900/20">
+                  <div className="bg-[#070a10] rounded-lg p-3 border border-blue-900/20">
                     <p className="text-xs text-gray-400 mb-1">Type</p>
                     <p className={`text-lg font-bold ${tradeFormData.type === 'BUY' ? 'text-emerald-400' : 'text-red-400'}`}>
                       {tradeFormData.type}
                     </p>
                   </div>
-                  <div className="bg-[#0a0712] rounded-lg p-3 border border-purple-900/20">
+                  <div className="bg-[#070a10] rounded-lg p-3 border border-blue-900/20">
                     <p className="text-xs text-gray-400 mb-1">Lot Size</p>
                     <p className="text-lg font-bold text-white">{tradeFormData.lot_size}</p>
                   </div>
-                  <div className="bg-[#0a0712] rounded-lg p-3 border border-purple-900/20">
+                  <div className="bg-[#070a10] rounded-lg p-3 border border-blue-900/20">
                     <p className="text-xs text-gray-400 mb-1">P/L</p>
                     <p className={`text-lg font-bold ${tradeFormData.profit_loss >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                       ${tradeFormData.profit_loss.toFixed(2)}
                     </p>
                   </div>
 
-                  <div className="bg-[#0a0712] rounded-lg p-3 border border-purple-900/20">
+                  <div className="bg-[#070a10] rounded-lg p-3 border border-blue-900/20">
                     <p className="text-xs text-gray-400 mb-1">Open Price</p>
                     <p className="text-sm font-semibold text-white">{tradeFormData.open_price.toFixed(5)}</p>
                   </div>
-                  <div className="bg-[#0a0712] rounded-lg p-3 border border-purple-900/20">
+                  <div className="bg-[#070a10] rounded-lg p-3 border border-blue-900/20">
                     <p className="text-xs text-gray-400 mb-1">Close Price</p>
                     <p className="text-sm font-semibold text-white">{tradeFormData.close_price.toFixed(5)}</p>
                   </div>
-                  <div className="bg-[#0a0712] rounded-lg p-3 border border-purple-900/20">
+                  <div className="bg-[#070a10] rounded-lg p-3 border border-blue-900/20">
                     <div className="flex items-center gap-1 mb-1">
                       <Clock className="w-3 h-3 text-gray-400" />
                       <p className="text-xs text-gray-400">Open Time</p>
                     </div>
-                    <p className="text-xs font-semibold text-purple-300">{formatWIBDate(tradeFormData.open_time)}</p>
+                    <p className="text-xs font-semibold text-cyan-300">{formatWIBDate(tradeFormData.open_time)}</p>
                   </div>
-                  <div className="bg-[#0a0712] rounded-lg p-3 border border-purple-900/20">
+                  <div className="bg-[#070a10] rounded-lg p-3 border border-blue-900/20">
                     <div className="flex items-center gap-1 mb-1">
                       <Clock className="w-3 h-3 text-gray-400" />
                       <p className="text-xs text-gray-400">Close Time</p>
                     </div>
-                    <p className="text-xs font-semibold text-purple-300">{formatWIBDate(tradeFormData.close_time)}</p>
+                    <p className="text-xs font-semibold text-cyan-300">{formatWIBDate(tradeFormData.close_time)}</p>
                   </div>
                 </div>
               ) : (
@@ -252,7 +252,7 @@ export default function JournalDraftModal({
                       <Input
                         value={tradeFormData.symbol}
                         onChange={(e) => handleTradeFieldChange('symbol', e.target.value)}
-                        className="bg-[#0a0712] border-purple-900/30 mt-1"
+                        className="bg-[#070a10] border-blue-900/30 mt-1"
                       />
                     </div>
                     <div>
@@ -261,10 +261,10 @@ export default function JournalDraftModal({
                         value={tradeFormData.type}
                         onValueChange={(value) => handleTradeFieldChange('type', value)}
                       >
-                        <SelectTrigger className="bg-[#0a0712] border-purple-900/30 mt-1">
+                        <SelectTrigger className="bg-[#070a10] border-blue-900/30 mt-1">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="bg-[#0f0b18] border-purple-900/30">
+                        <SelectContent className="bg-[#080b12] border-blue-900/30">
                           <SelectItem value="BUY">BUY</SelectItem>
                           <SelectItem value="SELL">SELL</SelectItem>
                         </SelectContent>
@@ -280,7 +280,7 @@ export default function JournalDraftModal({
                         step="0.00001"
                         value={tradeFormData.open_price}
                         onChange={(e) => handleTradeFieldChange('open_price', parseFloat(e.target.value))}
-                        className="bg-[#0a0712] border-purple-900/30 mt-1"
+                        className="bg-[#070a10] border-blue-900/30 mt-1"
                       />
                     </div>
                     <div>
@@ -290,7 +290,7 @@ export default function JournalDraftModal({
                         step="0.00001"
                         value={tradeFormData.close_price}
                         onChange={(e) => handleTradeFieldChange('close_price', parseFloat(e.target.value))}
-                        className="bg-[#0a0712] border-purple-900/30 mt-1"
+                        className="bg-[#070a10] border-blue-900/30 mt-1"
                       />
                     </div>
                   </div>
@@ -304,7 +304,7 @@ export default function JournalDraftModal({
                         min="0.01"
                         value={tradeFormData.lot_size}
                         onChange={(e) => handleTradeFieldChange('lot_size', parseFloat(e.target.value))}
-                        className="bg-[#0a0712] border-purple-900/30 mt-1"
+                        className="bg-[#070a10] border-blue-900/30 mt-1"
                       />
                     </div>
                     <div>
@@ -314,7 +314,7 @@ export default function JournalDraftModal({
                         step="0.01"
                         value={tradeFormData.profit_loss}
                         onChange={(e) => handleTradeFieldChange('profit_loss', parseFloat(e.target.value))}
-                        className="bg-[#0a0712] border-purple-900/30 mt-1"
+                        className="bg-[#070a10] border-blue-900/30 mt-1"
                       />
                     </div>
                   </div>
@@ -325,10 +325,10 @@ export default function JournalDraftModal({
                       value={tradeFormData.session || ''}
                       onValueChange={(value) => handleTradeFieldChange('session', value)}
                     >
-                      <SelectTrigger className="bg-[#0a0712] border-purple-900/30 mt-1">
+                      <SelectTrigger className="bg-[#070a10] border-blue-900/30 mt-1">
                         <SelectValue placeholder="Pilih session" />
                       </SelectTrigger>
-                      <SelectContent className="bg-[#0f0b18] border-purple-900/30">
+                      <SelectContent className="bg-[#080b12] border-blue-900/30">
                         <SelectItem value="London">London</SelectItem>
                         <SelectItem value="New York">New York</SelectItem>
                         <SelectItem value="Asia">Asia</SelectItem>
@@ -340,13 +340,13 @@ export default function JournalDraftModal({
               )}
 
               {/* Checkbox to save trade */}
-              <div className="flex items-center gap-3 mt-4 p-3 bg-[#0a0712] rounded-lg border border-purple-900/20">
+              <div className="flex items-center gap-3 mt-4 p-3 bg-[#070a10] rounded-lg border border-blue-900/20">
                 <input
                   type="checkbox"
                   id="saveTrade"
                   checked={saveTrade}
                   onChange={(e) => setSaveTrade(e.target.checked)}
-                  className="w-4 h-4 rounded border-purple-900/30 text-purple-500 focus:ring-purple-500 focus:ring-offset-[#0a0712]"
+                  className="w-4 h-4 rounded border-blue-900/30 text-blue-500 focus:ring-blue-500 focus:ring-offset-[#070a10]"
                 />
                 <label htmlFor="saveTrade" className="text-sm text-gray-300 cursor-pointer flex items-center gap-2">
                   <Save className="w-4 h-4" />
@@ -367,7 +367,7 @@ export default function JournalDraftModal({
               <Input
                 id="title"
                 placeholder="Contoh: GBPUSD Buy Setup - Breakout Resistance"
-                className="bg-[#0a0712] border-purple-900/30 mt-1"
+                className="bg-[#070a10] border-blue-900/30 mt-1"
                 value={formData.title}
                 onChange={(e) => handleFieldChange('title', e.target.value)}
               />
@@ -380,7 +380,7 @@ export default function JournalDraftModal({
               <Textarea
                 id="content"
                 placeholder="Deskripsikan analisis Anda, setup yang diambil, dan hasilnya..."
-                className="bg-[#0a0712] border-purple-900/30 mt-1 resize-none"
+                className="bg-[#070a10] border-blue-900/30 mt-1 resize-none"
                 rows={6}
                 value={formData.content}
                 onChange={(e) => handleFieldChange('content', e.target.value)}
@@ -391,10 +391,10 @@ export default function JournalDraftModal({
               <div>
                 <Label htmlFor="mood">Mood</Label>
                 <Select value={formData.mood} onValueChange={(value) => handleFieldChange('mood', value)}>
-                  <SelectTrigger id="mood" className="bg-[#0a0712] border-purple-900/30 mt-1">
+                  <SelectTrigger id="mood" className="bg-[#070a10] border-blue-900/30 mt-1">
                     <SelectValue placeholder="Pilih mood" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#0f0b18] border-purple-900/30">
+                  <SelectContent className="bg-[#080b12] border-blue-900/30">
                     <SelectItem value="confident">😎 Confident</SelectItem>
                     <SelectItem value="neutral">😐 Neutral</SelectItem>
                     <SelectItem value="anxious">😰 Anxious</SelectItem>
@@ -411,10 +411,10 @@ export default function JournalDraftModal({
                   value={formData.market_condition}
                   onValueChange={(value) => handleFieldChange('market_condition', value)}
                 >
-                  <SelectTrigger id="market_condition" className="bg-[#0a0712] border-purple-900/30 mt-1">
+                  <SelectTrigger id="market_condition" className="bg-[#070a10] border-blue-900/30 mt-1">
                     <SelectValue placeholder="Pilih kondisi market" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#0f0b18] border-purple-900/30">
+                  <SelectContent className="bg-[#080b12] border-blue-900/30">
                     <SelectItem value="trending">📈 Trending</SelectItem>
                     <SelectItem value="ranging">↔️ Ranging</SelectItem>
                     <SelectItem value="volatile">🌊 Volatile</SelectItem>
@@ -430,7 +430,7 @@ export default function JournalDraftModal({
               <Input
                 id="tags"
                 placeholder="breakout, support, resistance, gold"
-                className="bg-[#0a0712] border-purple-900/30 mt-1"
+                className="bg-[#070a10] border-blue-900/30 mt-1"
                 value={formData.tags}
                 onChange={(e) => handleFieldChange('tags', e.target.value)}
               />
@@ -442,7 +442,7 @@ export default function JournalDraftModal({
           <Button
             variant="outline"
             onClick={handleCancel}
-            className="border-purple-900/30 hover:bg-white/5"
+            className="border-blue-900/30 hover:bg-white/5"
           >
             <X className="w-4 h-4 mr-2" />
             Batal
@@ -450,7 +450,7 @@ export default function JournalDraftModal({
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700"
+            className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-600"
           >
             {saving ? (
               <>

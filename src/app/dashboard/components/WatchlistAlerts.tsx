@@ -118,7 +118,7 @@ export function WatchlistAlerts({ watchlistItems }: WatchlistAlertsProps) {
           onClick={() => setShowDialog(true)}
           variant="outline"
           size="sm"
-          className="border-purple-500/30 text-purple-400"
+          className="border-blue-500/30 text-cyan-400"
         >
           <Bell className="w-4 h-4 mr-2" />
           Alerts {activeAlerts.length > 0 && <span className="ml-1 bg-red-500 px-2 py-0.5 rounded-full text-xs">{activeAlerts.length}</span>}
@@ -126,7 +126,7 @@ export function WatchlistAlerts({ watchlistItems }: WatchlistAlertsProps) {
       </div>
 
       <AlertDialog open={showDialog} onOpenChange={setShowDialog}>
-        <AlertDialogContent className="bg-[#12091a] border-purple-500/30">
+        <AlertDialogContent className="bg-[#12091a] border-blue-500/30">
           <AlertDialogHeader>
             <AlertDialogTitle>Set Price Alert</AlertDialogTitle>
             <AlertDialogDescription className="text-lux-text-secondary dark:text-gray-400">
@@ -141,7 +141,7 @@ export function WatchlistAlerts({ watchlistItems }: WatchlistAlertsProps) {
               <select
                 value={selectedSymbol}
                 onChange={(e) => setSelectedSymbol(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-lux-surface-hover dark:bg-white/5 border border-lux-border dark:border-purple-500/20 text-white text-sm"
+                className="w-full px-3 py-2 rounded-lg bg-lux-surface-hover dark:bg-white/5 border border-lux-border dark:border-blue-500/20 text-white text-sm"
               >
                 <option value="">Select a symbol...</option>
                 {watchlistItems.map(item => (
@@ -161,7 +161,7 @@ export function WatchlistAlerts({ watchlistItems }: WatchlistAlertsProps) {
                 value={priceTarget}
                 onChange={(e) => setPriceTarget(e.target.value)}
                 step="0.01"
-                className="bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-purple-500/20 text-white"
+                className="bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-blue-500/20 text-white"
               />
             </div>
 
@@ -172,14 +172,14 @@ export function WatchlistAlerts({ watchlistItems }: WatchlistAlertsProps) {
                 <Button
                   onClick={() => setAlertType('above')}
                   variant={alertType === 'above' ? 'default' : 'outline'}
-                  className={alertType === 'above' ? 'bg-purple-500' : 'border-purple-500/30 text-purple-400'}
+                  className={alertType === 'above' ? 'bg-blue-500' : 'border-blue-500/30 text-cyan-400'}
                 >
                   Goes Above
                 </Button>
                 <Button
                   onClick={() => setAlertType('below')}
                   variant={alertType === 'below' ? 'default' : 'outline'}
-                  className={alertType === 'below' ? 'bg-purple-500' : 'border-purple-500/30 text-purple-400'}
+                  className={alertType === 'below' ? 'bg-blue-500' : 'border-blue-500/30 text-cyan-400'}
                 >
                   Goes Below
                 </Button>
@@ -188,7 +188,7 @@ export function WatchlistAlerts({ watchlistItems }: WatchlistAlertsProps) {
 
             {/* Active Alerts List */}
             {activeAlerts.length > 0 && (
-              <div className="pt-2 border-t border-purple-500/10">
+              <div className="pt-2 border-t border-blue-500/10">
                 <p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-2">Active Alerts:</p>
                 {activeAlerts.map(alert => (
                   <div key={alert.symbol} className="flex items-center justify-between text-xs bg-lux-surface-hover dark:bg-white/5 p-2 rounded mb-1">
@@ -208,10 +208,10 @@ export function WatchlistAlerts({ watchlistItems }: WatchlistAlertsProps) {
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
-            <AlertDialogCancel className="border-purple-500/30 text-purple-400">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="border-blue-500/30 text-cyan-400">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleAddAlert}
-              className="bg-purple-500 hover:bg-purple-600"
+              className="bg-blue-500 hover:bg-blue-600"
             >
               Set Alert
             </AlertDialogAction>

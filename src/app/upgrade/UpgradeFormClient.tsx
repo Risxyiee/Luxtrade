@@ -121,14 +121,14 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
       {/* ========== PROGRESS BAR ========== */}
       <div className="space-y-2 shrink-0">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-purple-300 font-medium">
+          <span className="text-cyan-300 font-medium">
             Step {currentStep} of {totalSteps}
           </span>
           <span className="text-gray-400">
             {Math.round(progress)}% Complete
           </span>
         </div>
-        <Progress value={progress} className="h-2 bg-purple-900/30" />
+        <Progress value={progress} className="h-2 bg-blue-900/30" />
       </div>
 
       {/* ========== STEP CONTENT — clean, no touch-action override ========== */}
@@ -147,13 +147,13 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
             {/* Promo Code */}
             <div className="space-y-2">
               <label className="text-white font-semibold text-sm flex items-center gap-2">
-                <Tag className="w-4 h-4 text-purple-400" />
+                <Tag className="w-4 h-4 text-cyan-400" />
                 Kode Promo (opsional)
               </label>
               <div className="relative">
                 <Input type="text" placeholder="Masukkan kode promo..." value={promoCode} onChange={onPromoChange} disabled={isApplying}
-                  className="bg-[#0a0712] border-purple-900/30 text-white placeholder:text-gray-500 pr-10 uppercase text-sm" />
-                {isValidating && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-400 animate-spin" />}
+                  className="bg-[#070a10] border-blue-900/30 text-white placeholder:text-gray-500 pr-10 uppercase text-sm" />
+                {isValidating && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400 animate-spin" />}
                 {promoValid && <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400" />}
               </div>
             </div>
@@ -185,8 +185,8 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
                       onClick={() => { setSelectedPlan(plan); setError('') }}
                       className={`w-full p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none active:scale-[0.98] text-left ${
                         isSelected
-                          ? 'border-purple-500 bg-purple-500/20 shadow-lg shadow-purple-500/20'
-                          : 'border-purple-900/30 bg-white/5 hover:border-purple-500/50'
+                          ? 'border-blue-500 bg-blue-500/20 shadow-lg shadow-blue-500/20'
+                          : 'border-blue-900/30 bg-white/5 hover:border-blue-500/50'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">
@@ -197,7 +197,7 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
                               <span className="text-white font-bold text-sm">{plan.plan}</span>
                               <span className="text-gray-400 text-xs">{plan.label}</span>
                               {plan.badge === 'PROMO' && (
-                                <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-gradient-to-r from-pink-500 to-violet-500 text-white">PROMO</span>
+                                <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-gradient-to-r from-cyan-400 to-blue-500 text-white">PROMO</span>
                               )}
                               {plan.popular && !plan.badge && (
                                 <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-gradient-to-r from-amber-500 to-orange-500 text-white">POPULER</span>
@@ -216,7 +216,7 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
 
                       {/* Expanded features when selected */}
                       {isSelected && (
-                        <div className="mt-3 pt-3 border-t border-purple-900/30">
+                        <div className="mt-3 pt-3 border-t border-blue-900/30">
                           <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                             {plan.features.map((f, fi) => (
                               <div key={fi} className="flex items-center gap-1.5 text-xs text-gray-300">
@@ -290,8 +290,8 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
             )}
 
             {/* Security */}
-            <div className="flex items-center gap-2 p-3 bg-purple-500/10 border border-purple-900/30 rounded-lg">
-              <Lock className="w-4 h-4 text-purple-400 flex-shrink-0" />
+            <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-900/30 rounded-lg">
+              <Lock className="w-4 h-4 text-cyan-400 flex-shrink-0" />
               <span className="text-gray-400 text-xs">Transfer Bank Jago — Konfirmasi manual via Discord</span>
             </div>
           </div>
@@ -299,12 +299,12 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
       </div>
 
       {/* ========== BOTTOM NAV ========== */}
-      <div className="flex gap-3 pt-4 border-t border-purple-900/30 shrink-0">
+      <div className="flex gap-3 pt-4 border-t border-blue-900/30 shrink-0">
         {currentStep === 2 && (
           <Button
             variant="outline"
             onClick={goBack}
-            className="border-purple-900/30 flex-1 text-gray-300 hover:bg-purple-500/10 hover:text-white"
+            className="border-blue-900/30 flex-1 text-gray-300 hover:bg-blue-500/10 hover:text-white"
           >
             <ArrowLeft className="w-4 h-4 mr-1" />
             Kembali
@@ -319,7 +319,7 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
           }
           className={`flex-1 font-semibold ${
             currentStep === 1
-              ? 'bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white disabled:opacity-30'
+              ? 'bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-600 text-white disabled:opacity-30'
               : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white disabled:opacity-30'
           }`}
         >

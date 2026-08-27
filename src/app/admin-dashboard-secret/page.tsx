@@ -199,7 +199,7 @@ export default function AdminDashboard() {
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           >
-            <Loader2 className="w-12 h-12 text-violet-500 mx-auto mb-4" />
+            <Loader2 className="w-12 h-12 text-blue-500 mx-auto mb-4" />
           </motion.div>
           <p className="text-white/60">Verifying admin access...</p>
         </div>
@@ -216,7 +216,7 @@ export default function AdminDashboard() {
           <h1 className="text-2xl font-bold text-white mb-2">Access Denied</h1>
           <p className="text-white/60 mb-6">You don&apos;t have permission to access this page.</p>
           <Link href="/dashboard">
-            <Button className="bg-violet-600 hover:bg-violet-700">
+            <Button className="bg-cyan-600 hover:bg-cyan-600">
               Go to Dashboard
             </Button>
           </Link>
@@ -231,12 +231,12 @@ export default function AdminDashboard() {
       <div className="fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[#1a0a2e] via-[#16082a] to-[#0d0618]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(139,92,246,0.2)_0%,_transparent_50%)]" />
-        <div className="absolute top-[20%] left-[20%] w-[400px] h-[400px] rounded-full bg-gradient-to-r from-violet-600/20 to-purple-600/20 blur-[100px]" />
-        <div className="absolute bottom-[20%] right-[20%] w-[300px] h-[300px] rounded-full bg-gradient-to-r from-purple-600/15 to-fuchsia-600/15 blur-[80px]" />
+        <div className="absolute top-[20%] left-[20%] w-[400px] h-[400px] rounded-full bg-gradient-to-r from-cyan-600/20 to-blue-600/20 blur-[100px]" />
+        <div className="absolute bottom-[20%] right-[20%] w-[300px] h-[300px] rounded-full bg-gradient-to-r from-blue-600/15 to-fuchsia-600/15 blur-[80px]" />
       </div>
 
       {/* Header */}
-      <header className="border-b border-violet-500/20 bg-[#1a0a2e]/80 backdrop-blur-xl sticky top-0 z-50">
+      <header className="border-b border-blue-500/20 bg-[#1a0a2e]/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
@@ -249,13 +249,13 @@ export default function AdminDashboard() {
                   className="object-contain"
                 />
                 <div className="flex flex-col">
-                  <span className="text-lg font-bold bg-gradient-to-r from-violet-200 to-purple-300 bg-clip-text text-transparent">
+                  <span className="text-lg font-bold bg-gradient-to-r from-cyan-200 to-cyan-300 bg-clip-text text-transparent">
                     LuxTrade
                   </span>
-                  <span className="text-[10px] text-violet-400 tracking-widest">ADMIN</span>
+                  <span className="text-[10px] text-cyan-400 tracking-widest">ADMIN</span>
                 </div>
               </Link>
-              <Badge className="bg-violet-500/20 text-violet-300 border-violet-500/30 ml-2">
+              <Badge className="bg-blue-500/20 text-cyan-300 border-blue-500/30 ml-2">
                 <Shield className="w-3 h-3 mr-1" />
                 Admin Panel
               </Badge>
@@ -304,7 +304,7 @@ export default function AdminDashboard() {
             Back to Dashboard
           </Link>
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <Shield className="w-8 h-8 text-violet-400" />
+            <Shield className="w-8 h-8 text-cyan-400" />
             Admin Dashboard
           </h1>
           <p className="text-white/40 mt-2">Manage users and subscription status</p>
@@ -317,11 +317,11 @@ export default function AdminDashboard() {
           transition={{ delay: 0.1 }}
           className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
         >
-          <Card className="bg-white/[0.03] border-violet-500/20">
+          <Card className="bg-white/[0.03] border-blue-500/20">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-violet-400" />
+                <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                  <Users className="w-5 h-5 text-cyan-400" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-white">{stats.totalUsers}</p>
@@ -331,7 +331,7 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
           
-          <Card className="bg-white/[0.03] border-violet-500/20">
+          <Card className="bg-white/[0.03] border-blue-500/20">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
@@ -345,7 +345,7 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
           
-          <Card className="bg-white/[0.03] border-violet-500/20">
+          <Card className="bg-white/[0.03] border-blue-500/20">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
@@ -359,7 +359,7 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
           
-          <Card className="bg-white/[0.03] border-violet-500/20">
+          <Card className="bg-white/[0.03] border-blue-500/20">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center">
@@ -387,7 +387,7 @@ export default function AdminDashboard() {
               placeholder="Search by email or name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-12 bg-white/[0.03] border-violet-500/20 text-white placeholder:text-white/30 focus:border-violet-500/50"
+              className="pl-10 h-12 bg-white/[0.03] border-blue-500/20 text-white placeholder:text-white/30 focus:border-blue-500/50"
             />
           </div>
         </motion.div>
@@ -398,12 +398,12 @@ export default function AdminDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <Card className="bg-white/[0.02] border-violet-500/20 overflow-hidden">
-            <CardHeader className="border-b border-violet-500/10">
+          <Card className="bg-white/[0.02] border-blue-500/20 overflow-hidden">
+            <CardHeader className="border-b border-blue-500/10">
               <CardTitle className="text-white flex items-center gap-2">
-                <Users className="w-5 h-5 text-violet-400" />
+                <Users className="w-5 h-5 text-cyan-400" />
                 User Management
-                <Badge className="ml-2 bg-violet-500/20 text-violet-300">
+                <Badge className="ml-2 bg-blue-500/20 text-cyan-300">
                   {filteredUsers.length} users
                 </Badge>
               </CardTitle>
@@ -412,7 +412,7 @@ export default function AdminDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-violet-500/10 bg-white/[0.02]">
+                    <tr className="border-b border-blue-500/10 bg-white/[0.02]">
                       <th className="text-left p-4 text-white/40 font-medium text-sm">User</th>
                       <th className="text-left p-4 text-white/40 font-medium text-sm">Join Date</th>
                       <th className="text-left p-4 text-white/40 font-medium text-sm">Last Login</th>
@@ -420,7 +420,7 @@ export default function AdminDashboard() {
                       <th className="text-left p-4 text-white/40 font-medium text-sm">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-violet-500/10">
+                  <tbody className="divide-y divide-blue-500/10">
                     {filteredUsers.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="p-8 text-center text-white/40">
@@ -432,7 +432,7 @@ export default function AdminDashboard() {
                         <tr key={user.id} className="hover:bg-white/[0.02] transition-colors">
                           <td className="p-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-sm">
                                 {user.email?.charAt(0).toUpperCase() || 'U'}
                               </div>
                               <div>
@@ -496,7 +496,7 @@ export default function AdminDashboard() {
                                   size="sm"
                                   onClick={() => toggleProStatus(user, true)}
                                   disabled={updatingUserId === user.id}
-                                  className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white shadow-lg shadow-violet-500/25"
+                                  className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-blue-500 hover:to-blue-500 text-white shadow-lg shadow-blue-500/25"
                                 >
                                   {updatingUserId === user.id ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />

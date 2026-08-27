@@ -107,8 +107,8 @@ export default function QuickStats({ trades, analytics, language = 'id' }: Quick
         value: bestSession ? bestSession[0] : '-',
         subtext: bestSession ? `$${bestSession[1].pl} (${bestSession[1].count} trades)` : '',
         icon: <Clock className="w-5 h-5" />,
-        color: 'text-purple-400',
-        bgColor: 'bg-purple-500/10 border-purple-500/20',
+        color: 'text-cyan-400',
+        bgColor: 'bg-blue-500/10 border-blue-500/20',
       },
     ]
   }, [trades, analytics, language])

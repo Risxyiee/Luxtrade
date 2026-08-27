@@ -482,7 +482,7 @@ export default function AdminSubscriptionsPanel() {
     if (plan.isLifetime) {
       return <Badge className="bg-amber-500/20 text-amber-400"><Crown className="w-3 h-3 mr-1" />Lifetime</Badge>
     }
-    return <Badge className="bg-purple-500/20 text-purple-400">{plan.durationMonths} months</Badge>
+    return <Badge className="bg-blue-500/20 text-cyan-400">{plan.durationMonths} months</Badge>
   }
 
   const handleCancelSubscription = async (userId: string) => {
@@ -514,7 +514,7 @@ export default function AdminSubscriptionsPanel() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0a0612]">
-        <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
+        <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
       </div>
     )
   }
@@ -581,8 +581,8 @@ export default function AdminSubscriptionsPanel() {
             <Card className="bg-white/[0.02] border-white/[0.05]">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-purple-500/20">
-                    <Users className="w-5 h-5 text-purple-400" />
+                  <div className="p-2 rounded-lg bg-blue-500/20">
+                    <Users className="w-5 h-5 text-cyan-400" />
                   </div>
                   <div>
                     <div className="text-2xl font-bold">
@@ -728,7 +728,7 @@ export default function AdminSubscriptionsPanel() {
                                 </div>
                               </td>
                               <td className="p-4">
-                                <Badge className="bg-purple-500/20 text-purple-400">
+                                <Badge className="bg-blue-500/20 text-cyan-400">
                                   {user.subscriptionCount}
                                 </Badge>
                               </td>
@@ -742,7 +742,7 @@ export default function AdminSubscriptionsPanel() {
                                   <Button
                                     size="sm"
                                     onClick={() => handleActivatePro(user.id, 'MONTHLY')}
-                                    className="h-10 sm:h-10 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-xs sm:text-sm"
+                                    className="h-10 sm:h-10 bg-gradient-to-r from-blue-500 to-cyan-400 hover:from-blue-600 hover:to-cyan-500 text-xs sm:text-sm"
                                   >
                                     <Crown className="w-3 h-3 mr-1" />
                                     Monthly

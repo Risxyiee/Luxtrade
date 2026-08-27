@@ -101,7 +101,7 @@ function VerifyForm() {
         {/* Loading */}
         {status === 'loading' && (
           <div className="text-center">
-            <Loader2 className="w-12 h-12 text-purple-500 mx-auto mb-4 animate-spin" />
+            <Loader2 className="w-12 h-12 text-blue-500 mx-auto mb-4 animate-spin" />
             <h2 className="text-xl font-bold text-white mb-2">Memverifikasi Email...</h2>
             <p className="text-white/50 text-sm">Mohon tunggu sebentar</p>
           </div>
@@ -190,7 +190,7 @@ function VerifyForm() {
               <Button
                 onClick={handleResend}
                 disabled={resendLoading || !resendEmail}
-                className="h-11 px-4 bg-gradient-to-r from-purple-500 to-violet-600 text-white"
+                className="h-11 px-4 bg-gradient-to-r from-blue-500 to-cyan-600 text-white"
               >
                 {resendLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               </Button>
@@ -219,7 +219,7 @@ function VerifyLoading() {
   return (
     <div className="min-h-screen bg-[#0a0612] flex items-center justify-center p-4">
       <div className="w-full max-w-md text-center">
-        <Loader2 className="w-10 h-10 text-purple-500 mx-auto mb-4 animate-spin" />
+        <Loader2 className="w-10 h-10 text-blue-500 mx-auto mb-4 animate-spin" />
         <p className="text-white/60">Loading...</p>
       </div>
     </div>
@@ -232,7 +232,7 @@ export default function VerifyPage() {
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0612] via-[#110a1f] to-[#0a0612]" />
         <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-amber-500/5 rounded-full blur-[150px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-purple-500/10 rounded-full blur-[100px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-blue-500/10 rounded-full blur-[100px]" />
       </div>
 
       <Suspense fallback={<VerifyLoading />}>

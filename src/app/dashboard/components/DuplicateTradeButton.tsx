@@ -46,7 +46,7 @@ export function DuplicateTradeButton({ tradeId, tradeData, onDuplicate }: Duplic
       onClick={handleDuplicate}
       variant="ghost"
       size="sm"
-      className="text-lux-text-secondary dark:text-gray-400 hover:text-purple-400"
+      className="text-lux-text-secondary dark:text-gray-400 hover:text-cyan-400"
       title="Duplicate this trade template"
     >
       {copied ? (

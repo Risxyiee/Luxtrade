@@ -158,10 +158,10 @@ export function ShareProfitCard({ trade, open, onOpenChange }: ShareProfitCardPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30 max-w-md">
+      <DialogContent className="bg-gradient-to-br from-[#080b12] to-[#12091a] border-blue-900/30 max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-white">
-            <Share2 className="w-5 h-5 text-purple-400" />
+            <Share2 className="w-5 h-5 text-cyan-400" />
             Share Profit Card
           </DialogTitle>
         </DialogHeader>
@@ -404,7 +404,7 @@ export function ShareProfitCard({ trade, open, onOpenChange }: ShareProfitCardPr
           <Button
             onClick={handleDownload}
             disabled={downloading}
-            className="w-full bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-semibold"
+            className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold"
           >
             {downloading ? (
               <>
@@ -433,7 +433,7 @@ export function ShareButton({ onClick }: { onClick: () => void }) {
   return (
     <button 
       onClick={onClick}
-      className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-purple-400 transition-colors"
+      className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-cyan-400 transition-colors"
       title="Share Profit Card"
     >
       <Share2 className="w-4 h-4" />

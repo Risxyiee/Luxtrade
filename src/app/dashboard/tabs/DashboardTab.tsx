@@ -78,11 +78,11 @@ function SkeletonEquityCurve() {
 
 // ==================== STAT CARD (inline, no animation) ====================
 
-function StatCard({ label, value, icon: Icon, color }: { label: string; value: string; icon: any; color: 'green' | 'red' | 'purple' }) {
+function StatCard({ label, value, icon: Icon, color }: { label: string; value: string; icon: any; color: 'green' | 'red' | 'blue' }) {
   const colorMap = {
     green: { iconBg: 'bg-emerald-500/15', iconText: 'text-emerald-400', valueText: 'text-emerald-400' },
     red: { iconBg: 'bg-red-500/15', iconText: 'text-red-400', valueText: 'text-red-400' },
-    purple: { iconBg: 'bg-blue-500/15', iconText: 'text-blue-400', valueText: 'text-blue-300' },
+    blue: { iconBg: 'bg-blue-500/15', iconText: 'text-blue-400', valueText: 'text-blue-300' },
   }
   const c = colorMap[color]
   return (

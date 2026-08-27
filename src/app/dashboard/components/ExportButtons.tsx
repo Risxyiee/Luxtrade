@@ -36,13 +36,13 @@ export function ExportButtons({ journalEntries = [], trades = [], isDisabled = f
           variant="outline"
           size="sm"
           disabled={!hasData || isDisabled}
-          className="border-purple-500/30 text-purple-400 disabled:opacity-50"
+          className="border-blue-500/30 text-cyan-400 disabled:opacity-50"
         >
           <Download className="w-4 h-4 mr-2" />
           Export
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56 bg-[#12091a] border-purple-500/30">
+      <DropdownMenuContent align="end" className="w-56 bg-[#12091a] border-blue-500/30">
         {/* Journal Exports */}
         {journalEntries.length > 0 && (
           <>
@@ -51,7 +51,7 @@ export function ExportButtons({ journalEntries = [], trades = [], isDisabled = f
               onClick={() => exportJournalToPDF(journalEntries, `journal-${new Date().toISOString().split('T')[0]}.pdf`)}
               className="cursor-pointer text-lux-text-primary dark:text-gray-300 hover:text-lux-text-primary dark:hover:text-white"
             >
-              <FileText className="w-4 h-4 mr-2 text-purple-400" />
+              <FileText className="w-4 h-4 mr-2 text-cyan-400" />
               <span>Download as PDF</span>
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -68,7 +68,7 @@ export function ExportButtons({ journalEntries = [], trades = [], isDisabled = f
               <FileText className="w-4 h-4 mr-2 text-blue-400" />
               <span>Print</span>
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-purple-500/10" />
+            <DropdownMenuSeparator className="bg-blue-500/10" />
           </>
         )}
 
@@ -83,7 +83,7 @@ export function ExportButtons({ journalEntries = [], trades = [], isDisabled = f
               <BarChart3 className="w-4 h-4 mr-2 text-emerald-400" />
               <span>Download as CSV</span>
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-purple-500/10" />
+            <DropdownMenuSeparator className="bg-blue-500/10" />
           </>
         )}
 
