@@ -247,16 +247,16 @@ export default function AITab({
               </div>
               <div className="bg-black/20 rounded-lg p-4 border border-lux-border dark:border-blue-500/20">
                 <p className="text-sm text-lux-text-secondary dark:text-gray-400 mb-2">AI Analysis:</p>
-                <p className="text-gray-200 text-sm leading-relaxed">
-                  {loading ? (
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Analyzing chart patterns...
-                    </div>
-                  ) : (
-                    "Chart analysis is powered by AI vision capabilities. Upload a chart screenshot to identify patterns, support/resistance levels, and potential trading opportunities."
-                  )}
-                </p>
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                    <span className="text-blue-400">Analyzing chart patterns...</span>
+                  </div>
+                ) : insight ? (
+                  <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">{insight}</p>
+                ) : (
+                  <p className="text-gray-200 text-sm leading-relaxed">Upload a chart screenshot to identify patterns, support/resistance levels, and potential trading opportunities.</p>
+                )}
               </div>
             </div>
           </CardContent>
