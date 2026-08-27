@@ -1,1418 +1,836 @@
-# LuxTrade — Handoff Document
+# 📘 LuxTrade — Handoff Document
 
-## 1. Gambaran Besar Aplikasi
-
-**LuxTrade** adalah platform jurnal trading forex khusus untuk trader Indonesia. Dengan LuxTrade, user bisa mencatat setiap trade mereka, lalu AI akan menganalisis performa trading secara otomatis.
-
-### Tech Stack
-
-| Teknologi | Fungsi |
-|-----------|--------|
-| Next.js 16 | Framework utama (App Router) |
-| React 19 | UI library |
-| TypeScript | Bahasa pemrograman |
-| Tailwind CSS 4 | Styling |
-| shadcn/ui | Komponen UI (New York style) |
-| Prisma 6 | ORM untuk database |
-| Supabase | Auth (email/password) + PostgreSQL |
-| Zustand | State management client-side |
-| z-ai-web-dev-sdk | AI/LLM integration |
-| Resend | Email service |
-
-### Arsitektur Aplikasi
-
-```
-Landing Page (/) 
-  → Auth (signup/login via Supabase)
-    → Dashboard SPA (/dashboard) dengan 13+ tab lazy-loaded
-      → Tabs: Dashboard, Trades, Calendar, Journal, Watchlist, News,
-         Economic Calendar, Achievements, Risk Calculator, Market Heatmap,
-         Analytics, Targets, AI Insights, Trading Score, Weekly Report,
-         Streaks, Psychology Tracking, User Guide
-```
-
-### Payment Gateway
-
-- **SakuraPay** — gateway utama (QRIS, Virtual Account, E-Wallet)
-- **Midtrans** — gateway cadangan
-- **DOKU** — gateway legacy
-- **Transfer Bank Manual** — opsi manual
-
-### Pricing
-
-| Plan | Harga | Batasan |
-|------|-------|---------|
-| FREE | Rp0 | Maks 50 trade, fitur dasar |
-| PRO 30 hari | Rp39.000 | Semua fitur, 30 hari |
-| Annual | Rp390.000 | Semua fitur, 1 tahun |
-| Lifetime | Rp299.000 | Semua fitur, selamanya |
+> Dokumen panduan maintenance untuk developer baru. Ditulis bahasa Indonesia yang gampang dipahami.
+> Terakhir diperbarui: Agustus 2025
 
 ---
 
-## 2. File Map
+## Daftar Isi
 
-### 2.1 Struktur Folder
+1. [File Map](#1-file-map)
+2. [Data Flow](#2-data-flow)
+3. [Auth Flow](#3-auth-flow)
+4. [Ngoprek AI](#4-ngoprek-ai)
+5. [Risk Map](#5-risk-map)
+6. [Change Guide](#6-change-guide)
+
+---
+
+## 1. File Map
+
+### 1.1 Struktur Folder Utama
 
 ```
-src/
-├── app/
-│   ├── page.tsx                    # Landing page (publik)
-│   ├── layout.tsx                  # Root layout (font, metadata, providers)
-│   ├── globals.css                 # CSS variables, tema warna, custom styles
-│   ├── dashboard/
-│   │   ├── page.tsx                # Wrapper halaman dashboard
-│   │   ├── LuxTradeDashboard.tsx   # ★ KOMPOLEN UTAMA dashboard (~900 baris)
-│   │   ├── tabs/                   # Semua tab dashboard (lazy-loaded)
-│   │   │   ├── DashboardTab.tsx
-│   │   │   ├── TradesTab.tsx
-│   │   │   ├── CalendarTab.tsx
-│   │   │   ├── JournalTab.tsx
-│   │   │   ├── WatchlistTab.tsx
-│   │   │   ├── NewsTab.tsx
-│   │   │   ├── EconomicCalendarTab.tsx
-│   │   │   ├── AchievementsTab.tsx
-│   │   │   ├── RiskCalculatorTab.tsx
-│   │   │   ├── MarketHeatmapTab.tsx
-│   │   │   ├── AnalyticsTab.tsx
-│   │   │   ├── TargetsTab.tsx
-│   │   │   ├── AITab.tsx
-│   │   │   ├── TradingScoreTab.tsx
-│   │   │   ├── WeeklyReportTab.tsx
-│   │   │   ├── StreaksTab.tsx
-│   │   │   ├── PsychologyTab.tsx
-│   │   │   └── UserGuideTab.tsx
-│   │   ├── components/             # Komponen UI dashboard
-│   │   │   ├── TabContent.tsx      # Router untuk tab (dynamic imports)
-│   │   │   ├── TradeForm.tsx       # Form tambah/edit trade
-│   │   │   ├── TradeTable.tsx      # Tabel daftar trade
-│   │   │   ├── AIPanel.tsx         # Panel AI analysis
-│   │   │   ├── Sidebar.tsx         # Sidebar navigasi
-│   │   │   └── ...
-│   │   ├── handlers/               # Logic handlers (di-extract dari Dashboard)
-│   │   │   ├── tradeHandlers.ts
-│   │   │   ├── aiHandlers.ts
-│   │   │   └── ...
-│   │   └── utils/                  # Utility functions dashboard
-│   ├── auth/
-│   │   ├── signup/page.tsx         # Halaman signup
-│   │   ├── login/page.tsx          # Halaman login
-│   │   ├── verify/page.tsx         # Verifikasi email
-│   │   └── forgot-password/page.tsx
-│   ├── admin/                      # Halaman admin (protected)
-│   │   └── page.tsx
-│   ├── pricing/                    # Halaman pricing
-│   │   └── page.tsx
-│   └── api/                        # Semua API routes
-│       ├── auth/                   # Auth endpoints
-│       ├── trades/                 # CRUD trades
-│       ├── journal/                # Journal entries
-│       ├── ai/                     # AI endpoints (router utama)
-│       ├── payment/                # SakuraPay
-│       ├── midtrans/               # Midtrans
-│       ├── admin/                  # Admin endpoints
-│       ├── cron/                   # Scheduled tasks
-│       ├── affiliate/              # Referral system
-│       ├── promo/                  # Promo codes
-│       ├── trading-accounts/       # Akun trading
-│       └── ...
-├── components/
-│   ├── ui/                         # shadcn/ui components (Button, Card, Dialog, dll)
-│   ├── landing/                    # Komponen landing page
-│   └── shared/                     # Komponen bersama (Header, Footer, dll)
-├── lib/
-│   ├── db.ts                       # Prisma database singleton
-│   ├── api-auth.ts                 # requireAuth() untuk API routes
-│   ├── admin-auth.ts               # requireAdmin() dengan 3-tier check
-│   ├── pro-check.ts                # isUserPro() checker
-│   ├── rate-limit.ts               # In-memory rate limiter
-│   ├── pricing.ts                  # Konstanta harga + formatRupiah()
-│   ├── subscription.ts             # isProUser(), getProDaysRemaining()
-│   ├── email.ts                    # Resend wrapper + 2000+ baris templates
-│   ├── zai.ts                      # ZAI SDK wrapper (createZAI)
-│   ├── zai-vision.ts               # VLM (Vision Language Model) integration
-│   ├── tradeCalculations.ts        # Kalkulasi P/L, pip math
-│   ├── utils.ts                    # cn() function (clsx + tailwind-merge)
-│   ├── pdf-export.ts               # PDF generation
-│   ├── achievement-checker.ts      # Logic cek achievement
-│   ├── achievements-data.ts        # Definisi semua achievement
-│   ├── auth-context.tsx            # AuthContext provider (useAuth)
-│   ├── language-context.tsx        # LanguageContext provider (useLanguage, t)
-│   └── supabase/
-│       ├── client.ts               # Supabase client (browser)
-│       └── server.ts               # Supabase server client (API routes)
-├── stores/
-│   ├── userStore.ts                # useUserStore (auth, trade count, free limit)
-│   ├── tradeStore.ts               # useTradeStore (filters, sort, computed stats)
-│   └── layoutStore.ts              # useLayoutStore (sidebar, language, theme)
-└── types/
-    └── index.ts                    # TypeScript type definitions
-
-prisma/
-├── schema.prisma                   # Database schema (15 models)
-└── ...
-
-public/
-├── images/                         # Static images
-└── ...
+my-project/
+├── src/
+│   ├── app/                    # Semua halaman & API routes
+│   │   ├── page.tsx             # Landing page (halaman utama)
+│   │   ├── layout.tsx           # Root layout (AuthProvider, LanguageProvider, Sentry)
+│   │   ├── proxy.ts             # ⚠️ BUKAN middleware.ts! Ini pengganti middleware
+│   │   ├── auth/                # Halaman login, signup, verify, dll
+│   │   ├── dashboard/           # Dashboard utama
+│   │   │   ├── page.tsx         # Entry point dashboard
+│   │   │   ├── layout.tsx       # Dashboard layout
+│   │   │   ├── LuxTradeDashboard.tsx  # ⭐ Komponen utama dashboard (~900 baris)
+│   │   │   ├── tabs/            # 16 tab dashboard
+│   │   │   ├── components/      # Komponen pendukung dashboard
+│   │   │   ├── handlers/        # Handler logic terpisah (trade, journal, dll)
+│   │   │   └── utils/           # Types & helper functions
+│   │   └── api/                 # ~120+ API routes
+│   │       ├── auth/            # Auth routes (signup, login, verify, dll)
+│   │       ├── ai/              # AI routes (analisis, chat, vision)
+│   │       ├── trades/          # CRUD trades
+│   │       ├── payment/         # Pembayaran (SakuraPay, Midtrans)
+│   │       ├── midtrans/        # Midtrans gateway
+│   │       ├── promo/           # Promo codes
+│   │       ├── admin/           # Admin panel routes (~25 routes)
+│   │       ├── cron/            # Scheduled jobs (reminder, summary)
+│   │       └── ...              # Lainnya (journal, watchlist, goals, dll)
+│   ├── components/              # Komponen reusable
+│   │   ├── ui/                  # shadcn/ui components (JANGAN di-edit manual)
+│   │   ├── landing/             # Komponen landing page (~30 file)
+│   │   ├── effects/             # Animasi background
+│   │   └── ...                  # Lainnya (payment, achievement, trading)
+│   ├── lib/                     # Utility & helper functions
+│   │   ├── api-auth.ts          # ⭐ Auth helper (requireAuth)
+│   │   ├── pro-check.ts         # ⭐ Cek PRO status
+│   │   ├── zai.ts               # ⭐ ZAI SDK wrapper (AI)
+│   │   ├── db.ts                # Prisma client
+│   │   ├── auth-context.tsx     # AuthProvider (client-side)
+│   │   ├── supabase/            # Supabase clients (browser, server, admin)
+│   │   ├── payment/             # Payment gateway helpers
+│   │   ├── rate-limit.ts        # Rate limiting
+│   │   ├── email.ts             # Resend email helper
+│   │   └── ...                  # Lainnya
+│   ├── store/                   # Zustand stores
+│   │   ├── useUserStore.ts      # User state
+│   │   ├── useLayoutStore.ts    # Layout state (tab aktif, bahasa, tema)
+│   │   └── useTradeStore.ts     # Trade cache & filter
+│   ├── contexts/                # React contexts
+│   │   └── LanguageContext.tsx   # i18n (Indonesia/English)
+│   └── types/                   # TypeScript type definitions
+├── prisma/
+│   ├── schema.prisma            # ⭐ Database schema (PostgreSQL)
+│   └── migrations/              # Migration files
+├── mini-services/               # Service terpisah (port berbeda)
+│   ├── ollama-service/          # Port 3031 — Ollama Vision API
+│   ├── zai-vision-service/      # Port 3010 — ZAI Vision handler
+│   └── affiliate-ws/            # Port 3004 — WebSocket affiliate
+├── public/                      # Static assets
+├── next.config.ts               # Next.js config
+├── Caddyfile                    # Reverse proxy config
+└── package.json                 # Dependencies
 ```
 
-### 2.2 File Terpenting (Must-Know)
+### 1.2 File Paling Penting
 
-| # | File | Kenapa Penting |
-|---|------|----------------|
-| 1 | `src/app/dashboard/LuxTradeDashboard.tsx` | Komponen utama dashboard — semua state, handler, dan data fetching ada di sini (~900 baris) |
-| 2 | `src/app/api/ai/route.ts` | Router utama AI — handle semua request AI (performa, chat, chart, market) |
-| 3 | `src/lib/api-auth.ts` | Auth guard untuk API routes — dipakai di hampir semua endpoint |
-| 4 | `src/lib/auth-context.tsx` | Auth provider — `useAuth()` dipakai di seluruh client components |
-| 5 | `prisma/schema.prisma` | Database schema — semua model dan relasi didefinisikan di sini |
-| 6 | `src/lib/zai.ts` | ZAI SDK wrapper — cara app berkomunikasi dengan AI |
-| 7 | `src/lib/pricing.ts` | Konstanta harga dan formatRupiah — dipakai di payment dan UI |
-| 8 | `src/app/api/payment/callback.ts` | Payment callback — verifikasi pembayaran SakuraPay |
-| 9 | `src/lib/email.ts` | Email service — semua email (verifikasi, reminder, dll) |
-| 10 | `src/stores/userStore.ts` | User state — auth, trade count, free limit check |
+| File | Fungsi | Frekuensi Diubah |
+|------|--------|------------------|
+| `src/app/dashboard/LuxTradeDashboard.tsx` | Otomatisasi utama dashboard, handler AI, state management | Tinggi |
+| `src/app/api/ai/route.ts` | Semua fitur AI (5 tipe: tips, insight, analisis, chart, chat) | Tinggi |
+| `src/proxy.ts` | Auth guard & admin check (pengganti middleware) | Rendah |
+| `src/lib/api-auth.ts` | requireAuth() — dipakai hampir semua API route | Rendah |
+| `src/lib/pro-check.ts` | isUserPro() — cek status PRO | Rendah |
+| `src/lib/zai.ts` | ZAI SDK wrapper | Rendah |
+| `src/lib/auth-context.tsx` | Client auth state, streak, auto-expiry | Sedang |
+| `prisma/schema.prisma` | Database schema | Rendah |
+| `src/store/useLayoutStore.ts` | Tab aktif, bahasa, tema | Sedang |
+| `src/store/useTradeStore.ts` | Trade cache & filter di client | Sedang |
 
-### 2.3 API Routes
+### 1.3 File untuk Setiap Fitur
 
-#### Core
+#### Landing Page
+| File | Fungsi |
+|------|--------|
+| `src/app/page.tsx` | Render landing page |
+| `src/components/landing/HeroSection.tsx` | Hero banner utama |
+| `src/components/landing/LandingNavbar.tsx` | Navigasi atas |
+| `src/components/landing/FeaturesSection.tsx` | Fitur-fitur app |
+| `src/components/landing/PricingSection.tsx` | Harga & paket |
+| `src/components/landing/FAQSection.tsx` | FAQ |
+| `src/components/landing/TestimonialSection.tsx` | Testimoni pengguna |
 
-| Route | Method | Fungsi |
-|-------|--------|--------|
-| `/api/trades` | GET, POST, PUT, DELETE | CRUD trade |
-| `/api/journal` | GET, POST, PUT, DELETE | CRUD journal entry |
-| `/api/watchlist` | GET, POST, PUT, DELETE | CRUD watchlist |
-| `/api/goals` | GET, POST, PUT, DELETE | CRUD weekly goals |
-| `/api/tags` | GET, POST, DELETE | CRUD tags |
-| `/api/todos` | GET, POST, PUT, DELETE | CRUD todos |
-| `/api/analytic-screenshot` | POST | Upload screenshot analytics |
-| `/api/screenshot-journal` | POST | Upload screenshot journal |
-| `/api/auto-journal` | POST | Auto-generate journal dari trade |
-| `/api/import` | POST | Import data trading |
-| `/api/import/file` | POST | Import dari file |
-| `/api/import/screenshot` | POST | Import dari screenshot (OCR) |
-
-#### Auth
-
-| Route | Method | Fungsi |
-|-------|--------|--------|
-| `/api/auth/signup` | POST | Daftar akun baru |
-| `/api/auth/login` | POST | Login |
-| `/api/auth/logout` | POST | Logout |
-| `/api/auth/verify` | POST | Verifikasi email OTP |
-| `/api/auth/forgot-password` | POST | Lupa password |
-| `/api/auth/reset-password` | POST | Reset password |
-| `/api/auth/resend-verification` | POST | Kirim ulang verifikasi |
-| `/api/profile/me` | GET, PUT | Ambil/update profile |
-| `/api/delete-account` | DELETE | Hapus akun user |
+#### Dashboard Tabs (16 tab)
+| File | Fungsi |
+|------|--------|
+| `tabs/DashboardTab.tsx` | Overview — statistik, equity curve, activity |
+| `tabs/TradesTab.tsx` | Daftar trade + filter |
+| `tabs/JournalTab.tsx` | Journal entri |
+| `tabs/CalendarTab.tsx` | Kalender trade |
+| `tabs/WatchlistTab.tsx` | Watchlist pair |
+| `tabs/AITab.tsx` | ⭐ AI assistant (PRO only) |
+| `tabs/AnalyticsTab.tsx` | Analisis lanjutan |
+| `tabs/AccountsTab.tsx` | Akun trading |
+| `tabs/TargetsTab.tsx` | Target mingguan |
+| `tabs/RiskCalculatorTab.tsx` | Kalkulator risiko |
+| `tabs/HeatmapTab.tsx` | Heatmap pasar |
+| `tabs/MarketNewsTab.tsx` | Berita pasar |
+| `tabs/EconomicCalendarTab.tsx` | Kalender ekonomi |
+| `tabs/PsychologyTab.tsx` | Tracking psikologi |
+| `tabs/UserGuideTab.tsx` | Panduan onboarding |
 
 #### Payment
-
-| Route | Method | Fungsi |
-|-------|--------|--------|
-| `/api/payment/create-order` | POST | Buat order pembayaran |
-| `/api/payment/callback` | POST | Webhook SakuraPay |
-| `/api/payment/check-status` | GET | Cek status pembayaran |
-| `/api/midtrans/create-transaction` | POST | Buat transaksi Midtrans |
-| `/api/midtrans/webhook` | POST | Webhook Midtrans |
-| `/api/pricing` | GET | Ambil data pricing |
-
-#### AI
-
-| Route | Method | Fungsi |
-|-------|--------|--------|
-| `/api/ai` | POST | **★ ROUTER UTAMA** — handle semua type AI request dari dashboard |
-| `/api/ai/chat` | POST | Chat terpisah (tidak dipakai dashboard) |
-| `/api/ai/analyze-trade` | POST | Analisis trade terpisah (tidak dipakai dashboard) |
-| `/api/ai/search` | POST | Pencarian AI |
-| `/api/ai/vlm` | POST | Vision model terpisah |
-| `/api/ai/tts` | POST | Text-to-speech |
-| `/api/ai/generate-image` | POST | Generate gambar AI |
-
-> **Penting:** Dashboard memakai `/api/ai` sebagai router utama. Route AI lainnya (`/api/ai/chat`, `/api/ai/vlm`, dll) adalah route terpisah dan **tidak** dipakai oleh dashboard saat ini.
-
-#### Admin
-
-| Route | Method | Fungsi |
-|-------|--------|--------|
-| `/api/admin/users` | GET | Daftar semua user |
-| `/api/admin/users/[id]` | PUT, DELETE | Edit/hapus user |
-| `/api/admin/stats` | GET | Statistik platform |
-| `/api/admin/payments` | GET | Daftar pembayaran |
-| `/api/admin/broadcast` | POST | Kirim email broadcast |
-| `/api/admin/promo` | POST, PUT, DELETE | Kelola promo code |
-| `/api/admin/affiliate` | GET | Data affiliate |
-
-#### Cron (Scheduled Tasks)
-
-| Route | Method | Fungsi |
-|-------|--------|--------|
-| `/api/cron/daily-reminder` | POST | Kirim reminder harian ke user aktif |
-| `/api/cron/weekly-summary` | POST | Kirim ringkasan mingguan |
-| `/api/cron/re-engage` | POST | Kirim email re-engagement ke user tidak aktif |
-| `/api/cron/downgrade-expired-pro` | POST | Downgrade user PRO yang sudah expired |
-
-#### Affiliate
-
-| Route | Method | Fungsi |
-|-------|--------|--------|
-| `/api/affiliate/info` | GET | Info affiliate user |
-| `/api/affiliate/referrals` | GET | Daftar referral |
-| `/api/affiliate/withdraw` | POST | Request withdrawal komisi |
-
-#### Promo
-
-| Route | Method | Fungsi |
-|-------|--------|--------|
-| `/api/promo/validate` | POST | Validasi kode promo |
-| `/api/promo/apply` | POST | Terapkan kode promo |
-
-#### Trading Accounts
-
-| Route | Method | Fungsi |
-|-------|--------|--------|
-| `/api/trading-accounts` | GET, POST, PUT, DELETE | CRUD akun trading |
-
-#### Other
-
-| Route | Method | Fungsi |
-|-------|--------|--------|
-| `/api/health` | GET | Health check |
-| `/api/analytics` | GET | Data analytics user |
-| `/api/news` | GET | Berita forex |
-| `/api/news/calendar` | GET | Kalender ekonomi |
-| `/api/forex` | GET | Data forex (rate, dll) |
-| `/api/chart/klines` | GET | Data candlestick chart |
-| `/api/equity-curve` | GET | Data equity curve |
-| `/api/file-upload` | POST | Upload file umum |
-| `/api/voice/transcribe` | POST | Transkripsi voice ke teks |
-
-### 2.4 Dashboard Tabs (13+ tabs, lazy loaded via `next/dynamic`)
-
-| # | Tab | File | Deskripsi |
-|---|-----|------|-----------|
-| 1 | Dashboard | `DashboardTab.tsx` | Ringkasan performa, statistik utama, equity curve |
-| 2 | Trades | `TradesTab.tsx` | Daftar trade, filter, sort, CRUD |
-| 3 | Calendar | `CalendarTab.tsx` | Kalender trade (timeline visual) |
-| 4 | Journal | `JournalTab.tsx` | Jurnal trading (catatan harian) |
-| 5 | Watchlist | `WatchlistTab.tsx` | Daftar pair yang di-watch |
-| 6 | News | `NewsTab.tsx` | Berita forex terkini |
-| 7 | Economic Calendar | `EconomicCalendarTab.tsx` | Jadwal event ekonomi |
-| 8 | Achievements | `AchievementsTab.tsx` | Badge dan achievement yang sudah diraih |
-| 9 | Risk Calculator | `RiskCalculatorTab.tsx` | Kalkulator risiko (position size, dll) |
-| 10 | Market Heatmap | `MarketHeatmapTab.tsx` | Heatmap pergerakan mata uang |
-| 11 | Analytics | `AnalyticsTab.tsx` | Analytics lanjutan (win rate per pair, per session, dll) |
-| 12 | Targets | `TargetsTab.tsx` | Target trading mingguan |
-| 13 | AI Insights | `AITab.tsx` | Analisis AI (performa, chat, chart analysis) |
-| 14 | Trading Score | `TradingScoreTab.tsx` | Skor trading berdasarkan metrik |
-| 15 | Weekly Report | `WeeklyReportTab.tsx` | Laporan mingguan otomatis |
-| 16 | Streaks | `StreaksTab.tsx` | Streak menang/kalah |
-| 17 | Psychology | `PsychologyTab.tsx` | Tracking psikologi trading |
-| 18 | User Guide | `UserGuideTab.tsx` | Panduan penggunaan aplikasi |
-
-> Semua tab di-load menggunakan `next/dynamic` dengan `ssr: false` supaya dashboard tidak berat saat pertama kali dibuka.
-
-### 2.5 Database Models (Prisma, 15 models)
-
-#### Profile
-Model utama user.
-
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | String (UUID) | Primary key, sama dengan Supabase auth user ID |
-| `email` | String | Email user |
-| `full_name` | String | Nama lengkap |
-| `plan` | Enum | FREE / PRO_30D / PRO_ANNUAL / LIFETIME |
-| `is_pro` | Boolean | Flag apakah user sedang PRO |
-| `proExpiry` / `subscription_until` | DateTime? | Tanggal expired PRO |
-| `role` | Enum | USER / ADMIN |
-| `achievements` | Json? | Daftar achievement yang sudah diraih |
-| `referral_code` | String? | Kode referral unik user |
-| `referred_by` | String? | Kode referral yang dipakai saat signup |
-| `created_at` | DateTime | Waktu pembuatan akun |
-
-#### Trade
-Setiap transaksi yang dicatat user.
-
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | String (UUID) | Primary key |
-| `userId` | String | FK ke Profile |
-| `symbol` | String | Pair forex (contoh: EURUSD, GBPJPY) |
-| `type` | Enum | BUY / SELL |
-| `open_price` | Float | Harga buka |
-| `close_price` | Float? | Harga tutup |
-| `lot_size` | Float | Ukuran lot |
-| `profit_loss` | Float? | P/L dalam mata uang akun |
-| `open_time` | DateTime | Waktu buka |
-| `close_time` | DateTime? | Waktu tutup |
-| `session` | Enum? | Asia / London / New York / Overlap |
-| `notes` | String? | Catatan trade |
-| `image_url` | String? | Screenshot chart |
-| `tags` | String? | Tags (comma-separated atau JSON) |
-| `stop_loss` | Float? | Harga stop loss |
-| `take_profit` | Float? | Harga take profit |
-| `ticket_number` | String? | Nomor ticket dari broker |
-| `risk_reward_ratio` | Float? | R:R ratio |
-
-#### JournalEntry
-Catatan jurnal trading harian.
-
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | String (UUID) | Primary key |
-| `userId` | String | FK ke Profile |
-| `title` | String | Judul jurnal |
-| `content` | String | Isi jurnal (bisa panjang) |
-| `mood` | Enum? | Mood saat trading (confident, anxious, calm, dll) |
-| `market_condition` | String? | Kondisi market (trending, ranging, volatile) |
-| `tags` | String? | Tags |
-| `image_url` | String? | Gambar attachment |
-| `created_at` | DateTime | Waktu pembuatan |
-
-#### TradingAccount
-Akun trading user (bisa punya banyak akun/broker).
-
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | String (UUID) | Primary key |
-| `userId` | String | FK ke Profile |
-| `name` | String | Nama akun (contoh: "Akun Utama") |
-| `broker` | String | Nama broker |
-| `account_type` | String | Tipe akun (Standard, Cent, ECN, dll) |
-| `account_number` | String | Nomor akun |
-| `balance` | Float? | Saldo |
-| `leverage` | Int? | Leverage |
-| `currency` | String | Mata uang (USD, IDR, dll) |
-
-#### WatchlistItem
-Item yang di-watch user.
-
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | String (UUID) | Primary key |
-| `userId` | String | FK ke Profile |
-| `symbol` | String | Pair forex |
-| `name` | String | Nama pair |
-| `target_price` | Float? | Harga target |
-| `notes` | String? | Catatan |
-
-#### Tag
-Tags untuk trade dan journal.
-
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | String (UUID) | Primary key |
-| `userId` | String | FK ke Profile |
-| `name` | String | Nama tag |
-| `color` | String | Warna tag (hex) |
-
-#### WeeklyGoal
-Target mingguan user.
-
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | String (UUID) | Primary key |
-| `userId` | String | FK ke Profile |
-| `week_start` | DateTime | Awal minggu |
-| `targets` | Json? | Target-target yang ditetapkan |
-| `current_progress` | Json? | Progress saat ini |
-
-#### SocialLink
-Link sosial media user (untuk leaderboard/community).
-
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | String (UUID) | Primary key |
-| `userId` | String | FK ke Profile |
-| `platform` | String | Platform (Instagram, Twitter, dll) |
-| `url` | String | URL profil |
-| `username` | String | Username |
-| `status` | Enum | PENDING / APPROVED / REJECTED |
-
-#### PromoCode
-Kode promo untuk diskon.
-
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | String (UUID) | Primary key |
-| `code` | String | Kode promo (unik) |
-| `discount_percent` | Int | Persentase diskon |
-| `max_quota` | Int | Kuota maksimal penggunaan |
-| `used_quota` | Int | Kuota yang sudah dipakai |
-| `valid_from` | DateTime | Mulai berlaku |
-| `valid_until` | DateTime | Berakhir |
-| `created_by` | String? | Admin yang membuat |
-
-#### PaymentOrder
-Riwayat pembayaran.
-
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | String (UUID) | Primary key |
-| `userId` | String | FK ke Profile |
-| `invoice_number` | String | Nomor invoice unik |
-| `amount` | Float | Jumlah bayar |
-| `plan` | Enum | Plan yang dibeli |
-| `status` | Enum | PENDING / SUCCESS / FAILED / EXPIRED |
-| `payment_url` | String? | URL payment gateway |
-| `paid_at` | DateTime? | Waktu pembayaran |
-| `gateway` | String? | Payment gateway yang dipakai |
-| `promo_code` | String? | Kode promo yang dipakai |
-
-#### BugReport
-Laporan bug dari user.
-
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | String (UUID) | Primary key |
-| `userId` | String | FK ke Profile |
-| `title` | String | Judul bug |
-| `description` | String | Deskripsi bug |
-| `status` | Enum | OPEN / IN_PROGRESS / RESOLVED |
-
-#### EmailBroadcast
-Riwayat email broadcast dari admin.
-
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | String (UUID) | Primary key |
-| `subject` | String | Subject email |
-| `content` | String | Isi email |
-| `sent_at` | DateTime | Waktu kirim |
-| `sent_by` | String | Admin yang mengirim |
-| `recipient_count` | Int | Jumlah penerima |
-
-#### Affiliate & AffiliateReferral & AffiliateWithdrawal
-Sistem referral/affiliate.
-
-**Affiliate:**
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | String (UUID) | Primary key |
-| `userId` | String | FK ke Profile |
-| `referral_code` | String | Kode referral unik |
-| `total_earnings` | Float | Total komisi |
-| `available_balance` | Float | Saldo yang bisa di-withdraw |
-
-**AffiliateReferral:**
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | String (UUID) | Primary key |
-| `affiliate_id` | String | FK ke Affiliate |
-| `referred_user_id` | String | FK ke Profile (user yang direferensikan) |
-| `commission` | Float | Komisi dari referral ini |
-| `status` | Enum | PENDING / CONFIRMED / PAID |
-
-**AffiliateWithdrawal:**
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | String (UUID) | Primary key |
-| `affiliate_id` | String | FK ke Affiliate |
-| `amount` | Float | Jumlah withdraw |
-| `status` | Enum | PENDING / APPROVED / REJECTED / PAID |
-| `bank_name` | String | Nama bank |
-| `account_number` | String | Nomor rekening |
-
-#### UserSubmission
-Bukti submission untuk achievement.
-
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | String (UUID) | Primary key |
-| `userId` | String | FK ke Profile |
-| `achievement_id` | String | Achievement yang di-submit |
-| `proof_url` | String? | URL bukti (screenshot) |
-| `description` | String? | Deskripsi |
-| `status` | Enum | PENDING / APPROVED / REJECTED |
-
-#### MissionProgress
-Progress misi/harian user.
-
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | String (UUID) | Primary key |
-| `userId` | String | FK ke Profile |
-| `mission_type` | String | Tipe misi |
-| `progress` | Int | Progress saat ini |
-| `target` | Int | Target misi |
-| `completed` | Boolean | Sudah selesai atau belum |
-| `completed_at` | DateTime? | Waktu selesai |
-
-### 2.6 State Management
-
-#### Zustand Stores
-
-**`useUserStore`** — State terkait user dan autentikasi:
-
-```typescript
-// Yang disimpan:
-{
-  user: User | null,        // Data user dari Supabase auth
-  profile: Profile | null,  // Data profile dari tabel profiles
-  isPro: boolean,           // Apakah user sedang PRO
-  tradeCount: number,       // Jumlah trade saat ini
-  freeLimit: 50,            // Batas trade untuk FREE plan
-  // Actions:
-  setUser, setProfile, setTradeCount, reset
-}
-```
-
-**`useTradeStore`** — State terkait trade dan filter:
-
-```typescript
-// Yang disimpan:
-{
-  filters: {
-    symbol: string,
-    type: 'ALL' | 'BUY' | 'SELL',
-    session: string,
-    dateRange: { from: Date, to: Date },
-    searchQuery: string,
-  },
-  sortBy: 'date' | 'profit_loss' | 'symbol',
-  sortOrder: 'asc' | 'desc',
-  // Computed:
-  filteredTrades: Trade[],  // Trades yang sudah di-filter & sort
-  stats: {
-    totalTrades: number,
-    winRate: number,
-    profitFactor: number,
-    totalPnL: number,
-    drawdown: number,
-    // ...
-  },
-  // Actions:
-  setFilters, setSortBy, setSortOrder, resetFilters
-}
-```
-
-**`useLayoutStore`** — State terkait layout dan preferensi:
-
-```typescript
-// Yang disimpan:
-{
-  sidebarOpen: boolean,
-  language: 'id' | 'en',
-  theme: 'light' | 'dark',
-  compactMode: boolean,
-  // Actions:
-  toggleSidebar, setLanguage, setTheme, toggleCompactMode
-}
-```
-
-#### React Contexts
-
-**`AuthContext`** (`src/lib/auth-context.tsx`):
-
-```typescript
-useAuth() returns:
-{
-  user: User | null,          // Supabase auth user
-  profile: Profile | null,    // Profile dari DB
-  isPro: boolean,             // Apakah PRO
-  isAdmin: boolean,           // Apakah admin
-  signIn(email, password),    // Login
-  signUp(email, password, name), // Signup
-  signOut(),                  // Logout
-  refreshProfile(),           // Refresh data profile
-  authLoading: boolean,       // Sedang loading
-  authChecked: boolean,       // Sudah cek auth
-}
-```
-
-**`LanguageContext`** (`src/lib/language-context.tsx`):
-
-```typescript
-useLanguage() returns:
-{
-  language: 'id' | 'en',     // Bahasa aktif
-  setLanguage(lang),          // Ubah bahasa
-  t(key),                     // Terjemahkan teks
-  formatPrice(amount),        // Format harga sesuai bahasa
-}
-```
-
-### 2.7 Shared Libraries (`src/lib/`)
-
-| File | Fungsi | Detail Penting |
-|------|--------|----------------|
-| `db.ts` | Prisma database singleton | `import { db } from '@/lib/db'` — sudah di-optimasi agar tidak buat koneksi baru setiap request |
-| `api-auth.ts` | `requireAuth(request)` | Verifikasi user di API route. Coba cookie-based dulu, lalu Bearer token. Return `{ user, error }` |
-| `admin-auth.ts` | `requireAdmin(request)` | 3-tier check: (1) email hardcoded, (2) profile.role ADMIN, (3) Supabase service role |
-| `pro-check.ts` | `isUserPro(userId)` | Cek apakah user PRO dan belum expired |
-| `rate-limit.ts` | In-memory rate limiter | Track request per IP/key. Bisa di-configure window dan max request |
-| `pricing.ts` | `PRICING`, `formatRupiah()` | Konstanta harga semua plan. `formatRupiah(39000)` → "Rp39.000" |
-| `subscription.ts` | `isProUser()`, `getProDaysRemaining()` | Logic cek subscription status |
-| `email.ts` | Resend wrapper + templates | `sendEmail(to, subject, html)`. Template email ada di dalam file ini (~2000+ baris termasuk template HTML) |
-| `zai.ts` | `createZAI()` | Wrapper untuk z-ai-web-dev-sdk. Return instance ZAI yang sudah di-configure |
-| `zai-vision.ts` | VLM integration | `analyzeImage(base64, prompt)` — kirim gambar ke Vision Language Model |
-| `tradeCalculations.ts` | P/L calc, pip math | `calculatePnL(trade)`, `calculatePips(symbol, openPrice, closePrice)`, dll |
-| `utils.ts` | `cn()` function | `cn(...classes)` — gabungkan clsx + tailwind-merge. Dipakai di hampir semua komponen |
-| `pdf-export.ts` | PDF generation | Generate PDF dari data trading (untuk export laporan) |
-| `achievement-checker.ts` | Achievement logic | `checkAchievement(userId, eventType, data)` — cek dan unlock achievement |
-| `achievements-data.ts` | Achievement definitions | Array semua achievement (id, name, description, condition, icon) |
+| File | Fungsi |
+|------|--------|
+| `src/lib/payment/sakura.ts` | ⭐ SakuraPay gateway (primary) |
+| `src/lib/payment/midtrans.ts` | Midtrans gateway (secondary) |
+| `src/lib/payment/doku.ts` | DOKU gateway (tertiary) |
+| `src/lib/pricing.ts` | Konstanta harga (PRO_30_DAYS=39K, dll) |
+| `src/app/api/payment/create-order/route.ts` | Buat order pembayaran |
+| `src/app/api/payment/callback/route.ts` | Callback pembayaran |
 
 ---
 
-## 3. Data Flow
+## 2. Data Flow
 
-### 3.1 User Membuka Trade Baru
-
-```
-1. User klik "+ Add Trade" di dashboard
-2. TradeForm terbuka (modal)
-3. User isi form (symbol, type, harga, lot, SL, TP, notes, dll)
-4. onSubmit -> fetch POST /api/trades
-   body: { symbol, type, open_price, lot_size, stop_loss, take_profit, ... }
-5. API: requireAuth() -> validasi data -> simpan ke DB via Prisma
-6. Response: { success: true, trade: { ... } }
-7. Client: toast sukses -> refresh data trades
-8. Analytics di-recalculate (winRate, profitFactor, drawdown, dll)
-9. Jika tradeCount mendekati 50 (FREE) -> tampilkan warning upgrade
-```
-
-### 3.2 AI Menganalisis Performa
+### 2.1 Alur Data Umum
 
 ```
-1. User klik "Analisis Performa" di tab AI Insights
-2. Dashboard memanggil getPerformanceTips() -> fetch POST /api/ai
-   body: { type: 'performance_tips', language: 'id', data: analytics }
-3. API /api/ai/route.ts:
-   a. requireAuth() -> verifikasi user login
-   b. isUserPro() -> cek apakah user PRO (fitur AI hanya untuk PRO)
-   c. checkAIRateLimit() -> cek rate limit (20 req/min)
-   d. buildPerformancePrompt() -> buat prompt RICHE dari data trading user
-      - Include: total trades, win rate, PF, drawdown, top pairs, session stats
-   e. askZAI() -> kirim prompt ke LLM (model: glm-4.6)
-      - Jika berhasil -> return AI response
-      - Jika gagal (timeout, error) -> buildSmartPerformanceFallback()
-        (fallback BUKAN template — membaca data user dan generate analisis spesifik)
-4. Response: { insight: "Analisis performa trading kamu..." }
-5. Dashboard: setAiInsight(response.insight) -> tampilkan di UI panel
+Browser (React)
+    │
+    ├── fetch('/api/...') ──────────────────────► API Route (src/app/api/...)
+    │                                                │
+    │                                                ├── requireAuth(request) ──► Supabase Auth
+    │                                                │
+    │                                                ├── isUserPro(userId) ───► Supabase Admin (profiles table)
+    │                                                │
+    │                                                ├── db.trade.findMany() ──► PostgreSQL via Prisma
+    │                                                │
+    │                                                └── createZAI() ────────► ZAI AI Service
+    │
+    ◄────────── JSON Response ─────────────────────┘
 ```
 
-### 3.3 AI Chat
+### 2.2 Alur Tambah Trade
 
 ```
-1. User ketik pesan di chat input (contoh: "Kenapa saya sering loss di session London?")
-2. Dashboard memanggil sendAiChat() -> fetch POST /api/ai
-   body: {
-     type: 'chat',
-     language: 'id',
-     data: {
-       message: 'Kenapa saya sering loss di session London?',
-       context: {
-         recentTrades: [...15 trade terakhir],
-         analytics: { winRate, profitFactor, ... },
-         sessionStats: { London: { winRate, count } }
-       }
-     }
-   }
-3. API /api/ai/route.ts:
-   a. Auth + Pro check + Rate limit (sama seperti di atas)
-   b. buildChatPrompt() -> buat prompt dengan konteks:
-      - 15 trade terakhir user
-      - Statistik keseluruhan
-      - Breakdown per session
-      - Pesan user
-   c. askZAI() -> kirim ke LLM dengan konteks lengkap
-   d. Jika gagal -> buildSmartChatFallback()
-      - Cek keyword: sesi? pair? emosi? performa?
-      - Jawab dari data yang tersedia (tanpa AI)
-4. Response: { insight: "Berdasarkan data trading kamu di session London..." }
-5. Dashboard: append ke chat history -> render di chat UI
+1. User isi form di TradeForm.tsx
+2. LuxTradeDashboard.tsx → handleAddTrade()
+3. POST /api/trades → requireAuth() → db.trade.create()
+4. Response → update useTradeStore (client cache)
+5. DashboardTab.tsx re-render dengan data baru
 ```
 
-### 3.4 Chart Analysis (VLM)
+**File terkait:**
+- `src/app/dashboard/components/TradeForm.tsx` — Form input
+- `src/app/dashboard/LuxTradeDashboard.tsx` — Handler `handleAddTrade`
+- `src/app/dashboard/handlers/tradeHandlers.ts` — Logic terpisah
+- `src/app/api/trades/route.ts` — API endpoint
+- `src/store/useTradeStore.ts` — Client cache
+- `src/store/useUserStore.ts` — Update trade count
+
+### 2.3 Alur AI Analysis
 
 ```
-1. User upload screenshot chart (drag & drop atau file picker)
-2. FileReader -> convert ke base64 string
-3. Dashboard memanggil analyzeChart(base64) -> fetch POST /api/ai
-   body: { type: 'chart_analysis', data: { imageData: 'data:image/png;base64,...' } }
-4. API /api/ai/route.ts:
-   a. Auth + Pro check + Rate limit
-   b. askZAIVision() -> kirim gambar + prompt ke Vision Language Model
-      Prompt: "Analisis chart forex ini. Identifikasi: trend, support/resistance,
-               pola chart (head & shoulders, double top, dll), indikator yang terlihat,
-               dan setup trading yang mungkin."
-   c. VLM mengidentifikasi:
-      - Trend direction (bullish/bearish/ranging)
-      - Key support & resistance levels
-      - Chart patterns
-      - Indikator terlihat (MA, RSI, MACD, dll)
-      - Potential setup & entry/exit suggestion
-5. Response: { insight: "Chart menunjukkan..." }
-6. Dashboard: render hasil analisis di panel
+1. User klik tombol di AITab.tsx (misal "Analisis Performa")
+2. LuxTradeDashboard.tsx → handleGetTips()
+3. Fetch trades user dari /api/trades
+4. Hitung analytics (win rate, P/L, session performance, dll)
+5. POST /api/ai { type: 'performance_tips', data: {...}, language: 'id' }
+6. API route:
+   a. requireAuth() → cek login
+   b. isUserPro() → cek PRO (kalo bukan PRO, return 403)
+   c. checkAIRateLimit() → cek rate limit (20 req/menit)
+   d. buildPerformancePrompt(data, lang) → susun prompt
+   e. askZAI(systemPrompt, userPrompt) → panggil ZAI glm-4.6
+   f. Kalo ZAI gagal → buildSmartPerformanceFallback(data, lang) → respons data-driven
+7. Response ke AITab.tsx → tampilkan di UI
 ```
 
-### 3.5 Payment Flow (SakuraPay)
+**File terkait:**
+- `src/app/dashboard/tabs/AITab.tsx` — UI AI tab
+- `src/app/dashboard/LuxTradeDashboard.tsx` — Handler (handleGetTips, handleGetMarket, dll)
+- `src/app/api/ai/route.ts` — ⭐ Endpoint utama AI
+- `src/lib/zai.ts` — ZAI SDK wrapper
+- `src/lib/pro-check.ts` — Cek PRO
+- `src/lib/rate-limit.ts` — Rate limiting
+
+### 2.4 Alur Pembayaran
 
 ```
-1. User klik "Upgrade ke PRO" -> pilih plan (30 hari / Annual / Lifetime)
-2. (Opsional) User masukkan kode promo
-3. POST /api/payment/create-order
-   body: { plan: 'PRO_30D', promoCode?: 'DISKON50' }
-4. API:
-   a. requireAuth() -> cek user login
-   b. Hitung harga: PRICING[plan] - diskon promo
-   c. Simpan PaymentOrder ke DB (status: PENDING)
-   d. createSakuraOrder() -> kirim ke SakuraPay API
-      - Generate invoice number unik
-      - Set payment methods (QRIS, VA, E-Wallet)
-   e. Dapatkan paymentUrl dari SakuraPay
-5. Response: { paymentUrl: "https://pay.sakurapay.id/..." }
-6. Client: window.open(paymentUrl) -> redirect ke payment gateway
-7. User bayar (scan QRIS / transfer VA / e-wallet)
-8. SakuraPay kirim webhook ke POST /api/payment/callback
-   body: { invoiceNumber, status, signature }
-9. Callback API:
-   a. Verifikasi HMAC signature (keamanan)
-   b. Cari PaymentOrder di DB
-   c. Update status -> SUCCESS
-   d. Upgrade profile: is_pro = true, subscription_until = tanggal expired
-   e. Kirim email konfirmasi ke user
-10. User buka dashboard -> AuthContext detect perubahan -> refresh profile
-11. UI berubah: badge PRO muncul, fitur AI terbuka
+1. User pilih paket di UpgradeFormClient.tsx
+2. POST /api/payment/create-order { plan, durationMonths, paymentMethod }
+3. API:
+   a. requireAuth()
+   b. Buat PaymentOrder di database
+   c. Panggil SakuraPay API → dapat payment URL
+   d. Return payment URL ke user
+5. User bayar di payment gateway
+6. Gateway callback → POST /api/payment/callback
+7. Callback verifikasi signature → update PaymentOrder status → activate PRO
+8. Cron job harian cek subscription yang expired → downgrade
 ```
 
-### 3.6 Data Reading Pattern
+**File terkait:**
+- `src/app/upgrade/page.tsx` + `UpgradeFormClient.tsx` — UI upgrade
+- `src/app/api/payment/create-order/route.ts` — Buat order
+- `src/app/api/payment/callback/route.ts` — Callback
+- `src/lib/payment/sakura.ts` — SakuraPay integration
+- `src/lib/pricing.ts` — Harga paket
+- `src/app/api/cron/downgrade-expired-pro/route.ts` — Cron downgrade
 
-#### Client-Side (Browser)
+### 2.5 Alur Auth (Client-side)
+
+```
+1. User login di /auth/login
+2. supabase.auth.signInWithPassword() (dari auth-context.tsx)
+3. AuthProvider update state: user, profile, isPro
+4. Cek login streak → update streak
+5. Cek achievement → tampilkan notifikasi
+6. Redirect ke /dashboard
+```
+
+**File terkait:**
+- `src/lib/auth-context.tsx` — AuthProvider
+- `src/app/auth/login/page.tsx` — Login page
+- `src/app/auth/signup/page.tsx` — Signup page
+- `src/app/api/auth/signup/route.ts` — Signup API
+- `src/lib/supabase/client.ts` — Browser Supabase client
+
+---
+
+## 3. Auth Flow
+
+### 3.1 Gambaran Besar
+
+LuxTrade **TIDAK pakai NextAuth**. Pakai **Supabase Auth** langsung.
+
+Ada **2 lapis** proteksi:
+1. **proxy.ts** — Proteksi halaman (client-side routing)
+2. **requireAuth()** — Proteksi API route (server-side)
+
+### 3.2 Flow Detail
+
+#### Login
+```
+Browser                    Supabase Auth         Database
+  │                            │                    │
+  ├── signInWithPassword() ──► │                    │
+  │                            ├── cek email/pw ────►│
+  ◄── session token ────────── │                    │
+  │                                                 │
+  ├── AuthProvider fetch profile ───────────────────►│
+  ◄── profile data ───────────────────────────────── │
+  │                                                 │
+  └── Update state (user, isPro, isAdmin)           │
+```
+
+#### Signup
+```
+1. POST /api/auth/signup
+2. Supabase Admin API → createUser() → user terbuat di auth.users
+3. Raw SQL → INSERT INTO profiles (id, email, full_name, ...) 
+   ⚠️ Pakai raw SQL, BUKAN Prisma (biar @updatedAt tidak di-set manual)
+4. Resend → kirim email verifikasi dengan token
+5. User klik link → /auth/verify?token=XXX
+6. Lookup profiles.email_verify_token → update email_verified = true
+```
+
+#### Proteksi Halaman (proxy.ts)
+
+```
+User buka /dashboard
+  │
+  ├── proxy.ts jalan
+  ├── cek: apakah path di PUBLIC_PATHS? → Tidak
+  ├── cek: apakah path di adminPaths? → Tidak
+  ├── cek: apakah path di protectedPaths? → Ya (/dashboard)
+  ├── Supabase auth.getUser() dari cookie
+  ├── Kalo belum login → redirect ke /auth/login?redirect=/dashboard
+  └── Kalo sudah login → lanjut ke halaman
+```
+
+#### Proteksi API (requireAuth)
 
 ```typescript
-// Ambil data user/profile:
-const { user, profile, isPro } = useAuth()
-
-// Ambil data trades:
-const res = await fetch('/api/trades')
-const { trades } = await res.json()
-
-// Ambil dari Zustand store:
-const { filteredTrades, stats } = useTradeStore()
-```
-
-#### Server-Side (API Routes)
-
-```typescript
-// Verifikasi auth:
+// Di setiap API route yang butuh auth:
 const { error, user } = await requireAuth(request)
-if (error) return error  // Return 401 response
-
-// Ambil data dari database:
-const trades = await db.trade.findMany({
-  where: { userId: user.id },
-  orderBy: { open_time: 'desc' }
-})
+if (error) return error  // → 401 Unauthorized
+// user.id dan user.email tersedia
 ```
 
-#### Dashboard Pattern
+**2 strategi yang dipakai:**
+1. Cookie-based (standar SSR) — coba dulu
+2. Bearer token (fallback Vercel) — kalo cookie gagal
 
+### 3.3 File Auth — Ringkasan
+
+| File | Fungsi | Risiko | Cara Aman Mengubah |
+|------|--------|--------|-------------------|
+| `src/proxy.ts` | Guard halaman, admin check | Salah config → semua user bisa akses / admin tidak bisa masuk | Tambah path baru di `PUBLIC_PATHS` atau `protectedPaths`. Jangan hapus admin email. |
+| `src/lib/api-auth.ts` | `requireAuth()` untuk API | Ubah logic → semua API bisa bocor | Tambah validasi baru setelah `requireAuth()`, jangan ubah `getAuthUser()` |
+| `src/lib/auth-context.tsx` | AuthProvider client | Bug → user tidak terdeteksi login | Hanya tambah state baru, jangan ubah `SIGNED_IN`/`SIGNED_OUT` handler |
+| `src/lib/supabase/admin.ts` | Supabase admin client | Bocor → akses penuh ke database | Jangan expose ke client, hanya server-side |
+| `src/lib/supabase-admin-alt.ts` | Admin client untuk `isUserPro()` | Sama seperti atas | Jangan diubah kecuali ganti cara cek PRO |
+| `src/app/api/auth/signup/route.ts` | Registrasi | Bug → user tidak bisa daftar | Test signup setelah perubahan |
+
+### 3.4 Admin Detection
+
+Admin **TIDAK** ada di database. Dihardcode:
+
+```typescript
+// Di proxy.ts:
+const ADMIN_EMAILS = ['luxtradee@gmail.com', 'riskiakbarp123@gmail.com']
+
+// Di auth-context.tsx:
+const ADMIN_IDS = ['8f7fe295-...']  // truncated
+const ADMIN_EMAILS = ['luxtradee@gmail.com']
 ```
-LuxTradeDashboard.tsx (komponen utama)
-  ├─ useEffect -> fetch semua data sekaligus:
-  │   ├─ fetch('/api/trades') -> setTrades()
-  │   ├─ fetch('/api/journal') -> setJournals()
-  │   ├─ fetch('/api/watchlist') -> setWatchlist()
-  │   ├─ fetch('/api/goals') -> setGoals()
-  │   └─ fetch('/api/tags') -> setTags()
-  ├─ Compute analytics dari trades (winRate, PF, dll)
-  ├─ Pass data ke tab components via props
-  └─ Setiap tab render sesuai data yang diterima
-```
+
+> ⚠️ **Risiko:** Kalau mau tambah admin, harus update di **2 tempat** (proxy.ts + auth-context.tsx)
 
 ---
 
-## 4. Auth Flow
+## 4. Ngoprek AI
 
-### 4.1 Pendaftaran (Signup)
-
-```
-1. User buka /auth/signup
-2. Isi form: email, password, nama lengkap
-3. Klik "Daftar"
-4. POST /api/auth/signup
-   body: { email, password, fullName }
-5. API:
-   a. Cek apakah email sudah terdaftar
-   b. Supabase auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: fullName } }
-      })
-   c. Supabase otomatis kirim email verifikasi
-      (template email ada di resend-templates/ atau di src/lib/email.ts)
-6. User cek email -> klik link verifikasi
-7. Link redirect ke /auth/verify?token=xxx
-8. POST /api/auth/verify
-   body: { token, email }
-9. API: Supabase verifyOtp() -> verifikasi berhasil
-10. Auto-create profile di tabel profiles:
-    - Trigger database (Supabase) ATAU
-    - ensure-profile logic di API
-    - Default: plan=FREE, role=USER, is_pro=false
-11. Redirect ke /dashboard
-```
-
-### 4.2 Login
+### 4.1 Arsitektur AI
 
 ```
-1. User buka /auth/login
-2. Isi form: email, password
-3. Klik "Masuk"
-4. POST /api/auth/login
-   body: { email, password }
-5. API:
-   a. Supabase auth.signInWithPassword({ email, password })
-   b. Session disimpan (access_token + refresh_token)
-   c. Set cookies (SSR-compatible, httpOnly)
-6. Response: { success: true }
-7. Client: redirect ke /dashboard
-8. AuthContext (di dashboard) detect session change:
-   a. supabase.auth.onAuthStateChange() triggered
-   b. Fetch profile dari DB: GET /api/profile/me
-   c. Set user + profile di context
-   d. Cek: jika is_pro=true tapi subscription_until < now
-      → auto-downgrade ke FREE
-      → update DB: is_pro=false, plan=FREE
-      → toast: "Masa PRO kamu sudah berakhir"
-9. Dashboard siap digunakan
+AITab.tsx (UI)
+    │
+    ├── handleGetTips()        ──► POST /api/ai { type: 'performance_tips' }
+    ├── handleGetMarket()      ──► POST /api/ai { type: 'market_insight' }
+    ├── handleAnalyzeTrade()   ──► POST /api/ai { type: 'trade_analysis' }
+    ├── handleAnalyzeChart()   ──► POST /api/ai { type: 'chart_analysis' }
+    └── handleSendChat()       ──► POST /api/ai { type: 'chat' }
+
+                             ┌─────────────────────────┐
+                             │  /api/ai/route.ts       │
+                             │  ~911 baris              │
+                             │                          │
+                             │  1. requireAuth()        │
+                             │  2. isUserPro()          │
+                             │  3. checkAIRateLimit()   │
+                             │  4. Switch by type:      │
+                             │     - performance_tips  │
+                             │     - market_insight     │
+                             │     - trade_analysis     │
+                             │     - chart_analysis     │
+                             │     - chat               │
+                             │  5. askZAI() → fallback  │
+                             └────────┬────────────────┘
+                                      │
+                          ┌───────────┴───────────┐
+                          │                       │
+                    askZAI()              askZAIVision()
+                    (text only)            (gambar + text)
+                          │                       │
+                    ┌─────┴─────┐               │
+                    │  ZAI SDK  │               │
+                    │  glm-4.6  │               │
+                    └─────┬─────┘               │
+                          │                       │
+                    Kalo gagal → Smart Fallback (data-driven, bukan template)
 ```
 
-### 4.3 Auth di API Routes
+### 4.2 File AI — Detail
 
-**File:** `src/lib/api-auth.ts`
+#### `src/lib/zai.ts` — ZAI SDK Wrapper
+
+**Fungsi:** Inisialisasi client ZAI untuk panggil AI.
 
 ```typescript
-// requireAuth(request) bekerja dengan 2 cara:
-async function requireAuth(request: Request) {
-  // Cara 1: Cookie-based (untuk browser request)
-  const supabase = createClientForApi(request)
-  const { data: { user } } = await supabase.auth.getUser()
-  if (user) return { user: { id: user.id, email: user.email } }
-
-  // Cara 2: Bearer token (untuk API client / Vercel production)
-  const authHeader = request.headers.get('Authorization')
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.replace('Bearer ', '')
-    // Verifikasi token
-    const supabase = createClientForApi(request)
-    const { data: { user } } = await supabase.auth.getUser(token)
-    if (user) return { user: { id: user.id, email: user.email } }
-  }
-
-  // Gagal kedua cara
-  return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
-}
+import { createZAI } from '@/lib/zai'
+const zai = await createZAI()
+// zai.chat.completions.create()    → text generation
+// zai.chat.completions.createVision() → image analysis
 ```
 
-**Penggunaan di API routes:**
+**Konfigurasi dari env:**
+- `ZAI_BASE_URL`
+- `ZAI_API_KEY`
+- `ZAI_CHAT_ID`
+- `ZAI_TOKEN`
+- `ZAI_USER_ID`
 
+**Atau dari file:** `.z-ai-config` (fallback kalau env kosong)
+
+**⚠️ Penting:**
+- Role system prompt harus `'assistant'` (BUKAN `'system'` — ini khusus ZAI SDK)
+- Wajib `thinking: { type: 'disabled' }` di setiap request
+- Vision timeout dipatch ke 120 detik
+
+#### `src/app/api/ai/route.ts` — Endpoint Utama AI
+
+**5 tipe request:**
+
+| Type | Fungsi | Butuh Data | Butuh Vision |
+|------|--------|-----------|-------------|
+| `performance_tips` | Tips performa trading | trades, analytics (winRate, sessionPerformance, dll) | ❌ |
+| `market_insight` | Insight pasar berdasarkan sesi | trades (untuk konteks), sesi saat ini | ❌ |
+| `trade_analysis` | Analisis mendalam 1 trade | selectedTrade, recentTrades | ❌ |
+| `chart_analysis` | Analisis chart dari gambar | imageBase64 | ✅ |
+| `chat` | Chat bebas dengan konteks trading | message, trades, analytics | ❌ |
+
+**Rate limit:** 20 request per user per menit (in-memory, reset otomatis)
+
+**Smart Fallback:** Kalo ZAI gagal (timeout, error, dll), system **TIDAK** return error. Malah generate respons data-driven dari statistik user:
+- `buildSmartPerformanceFallback()` — analisis win rate, risk-reward, EV, streak
+- `buildSmartMarketFallback()` — insight berdasarkan sesi trading
+- `buildSmartTradeFallback()` — analisis trade spesifik
+- `buildSmartChatFallback()` — jawaban chat dengan konteks data
+
+**Prompt bilingual:** Semua system prompt ada versi Indonesia (`lang: 'id'`) dan English (`lang: 'en'`). Default: Indonesia.
+
+#### `src/app/dashboard/tabs/AITab.tsx` — UI AI
+
+**Fitur:**
+- 4 tombol utama: Performance Tips, Market Insights, Analyze Trade, Analyze Chart
+- Chat interface dengan message bubbles
+- Upload gambar chart untuk analisis
+- Paywall untuk user gratis (tombol ke halaman upgrade)
+- Minimum 5 trade untuk Performance Tips
+
+#### File AI Lainnya (TIDAK dipakai dashboard)
+
+| File | Fungsi | Status |
+|------|--------|--------|
+| `src/app/api/ai/chat/route.ts` | Chat standalone | ⚠️ Tidak dipakai dashboard |
+| `src/app/api/ai/analyze-trade/route.ts` | Analisis trade standalone | ⚠️ Tidak dipakai dashboard |
+| `src/app/api/ai/search/route.ts` | AI journal search | Fitur terpisah |
+| `src/app/api/ai/generate-image/route.ts` | Generate gambar AI | Fitur terpisah |
+| `src/app/api/ai/tts/route.ts` | Text-to-speech | Fitur terpisah |
+| `src/app/api/ai/vlm/route.ts` | Vision Language Model | Fitur terpisah |
+| `src/app/analyze-screenshot/route.ts` | Analisis screenshot | Fitur terpisah |
+
+### 4.3 Cara Mengubah AI
+
+#### Menambah Tipe AI Baru
+
+1. Buka `src/app/api/ai/route.ts`
+2. Tambah case di switch `type`:
 ```typescript
-// Di SETIAP API route yang butuh auth:
-import { requireAuth } from '@/lib/api-auth'
-
-export async function POST(request: Request) {
-  const { error, user } = await requireAuth(request)
-  if (error) return error  // Return 401
-
-  // Sekarang user.id dan user.email tersedia
-  const trades = await db.trade.findMany({
-    where: { userId: user.id }
-  })
-
-  return NextResponse.json({ trades })
+case 'nama_baru': {
+  // 1. Validasi data
+  // 2. Bangun prompt
+  // 3. Panggil askZAI()
+  // 4. Fallback kalau gagal
+  break
 }
 ```
+3. Tambah handler di `LuxTradeDashboard.tsx`
+4. Tambah tombol di `AITab.tsx`
 
-### 4.4 Auth di Client Components
+#### Mengubah Model AI
 
-**File:** `src/lib/auth-context.tsx`
+1. Buka `src/app/api/ai/route.ts`
+2. Cari `model: 'glm-4.6'`
+3. Ganti dengan model lain yang didukung ZAI
+4. Test: pastikan respons sesuai format yang diharapkan
 
-```typescript
-// Di komponen manapun:
-import { useAuth } from '@/lib/auth-context'
+#### Mengubah System Prompt
 
-function MyComponent() {
-  const {
-    user,           // Supabase user object { id, email, ... }
-    profile,        // Profile dari DB { full_name, plan, is_pro, ... }
-    isPro,          // boolean
-    isAdmin,        // boolean
-    signIn,         // (email, password) => Promise
-    signUp,         // (email, password, name) => Promise
-    signOut,        // () => Promise
-    refreshProfile, // () => Promise — refresh dari DB
-    authLoading,    // boolean — sedang loading
-    authChecked,    // boolean — sudah cek auth
-  } = useAuth()
+1. Setiap tipe punya prompt builder sendiri (misal `buildPerformancePrompt()`)
+2. Prompt ada 2 versi: Indonesia dan English
+3. Ubah di fungsi builder-nya, JANGAN di `askZAI()`
 
-  if (authLoading) return <Spinner />
-  if (!authChecked) return null
-  if (!user) return <LoginPage />
+#### Menambah Fallback
 
-  return <div>Halo, {profile?.full_name}!</div>
-}
-```
+1. Buat fungsi `buildSmartXxxFallback(data, lang)`
+2. Return string yang informatif berdasarkan data user
+3. Panggil di catch/when ZAI returns null
 
-### 4.5 Admin Auth
+### 4.4 Risiko AI & Cara Mitigasi
 
-**File:** `src/lib/admin-auth.ts`
+| Risiko | Dampak | Mitigasi |
+|--------|--------|----------|
+| ZAI down/error | AI tidak bisa dipanggil | Smart fallback sudah handle → user tetap dapat respons |
+| Rate limit terlalu ketat | User PRO tidak bisa pakai AI | Naikkan `AI_RATE_LIMIT` (baris 8) |
+| Prompt bocor/jelek | AI kasih respons tidak relevan | Test prompt di z-ai-web-dev-sdk CLI dulu |
+| File route.ts hilang/corrupt | SEMUA fitur AI mati | Selalu backup sebelum edit. Jangan rename ke `.bak` tanpa pengganti. |
+| Vision timeout | Chart analysis gagal | Timeout sudah 120s. Kalo masih sering gagal, kompres gambar dulu. |
+| Role salah ('system' vs 'assistant') | ZAI error | WAJIB pakai `role: 'assistant'` untuk system prompt |
+| Nested template literal error | Build gagal | Jangan nested backticks. Extract ke variabel dulu. |
 
-Admin auth menggunakan **3-tier check** untuk keamanan berlapis:
+### 4.5 Env Variables untuk AI
 
-```typescript
-async function requireAdmin(request: Request) {
-  const { error, user } = await requireAuth(request)
-  if (error) return error
+```env
+# ZAI (WAJIB untuk fitur AI)
+ZAI_BASE_URL=https://...
+ZAI_API_KEY=...
+ZAI_CHAT_ID=...
+ZAI_TOKEN=...
+ZAI_USER_ID=...
 
-  // Tier 1: Cek email hardcoded
-  const ADMIN_EMAILS = [
-    'luxtradee@gmail.com',
-    'riskiakbarp123@gmail.com'
-  ]
-  if (!ADMIN_EMAILS.includes(user.email)) {
-    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
-  }
-
-  // Tier 2: Cek Prisma profile.role
-  const profile = await db.profile.findUnique({ where: { id: user.id } })
-  if (!profile || profile.role !== 'ADMIN') {
-    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
-  }
-
-  // Tier 3: Cek Supabase profiles table via service role
-  const supabase = createServiceClient()
-  const { data } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-  if (!data || data.role !== 'ADMIN') {
-    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
-  }
-
-  return { user }
-}
+# Vision AI opsional (untuk screenshot analysis)
+OPENAI_API_KEY=...          # OpenAI vision
+HUGGING_FACE_API_TOKEN=...  # HuggingFace (gratis)
 ```
 
 ---
 
 ## 5. Risk Map
 
-### 🔴 RISIKO TINGGI (Bisa break production)
+### 5.1 Risiko Kritis 🔴
 
-#### 5.1 Menghapus `/api/ai/route.ts`
+| # | Risiko | File Terkait | Dampak | Mitigasi |
+|---|--------|-------------|--------|----------|
+| 1 | `proxy.ts` dihapus/diubah salah | `src/proxy.ts` | Dashboard bisa diakses tanpa login, admin bisa diakses siapa saja | Selalu test akses /dashboard dan /dashboard/admin setelah edit |
+| 2 | `/api/ai/route.ts` hilang/corrupt | `src/app/api/ai/route.ts` | SEMUA 5 fitur AI mati tanpa error yang jelas | Jangan rename ke `.bak` tanpa pengganti. Commit sering. |
+| 3 | Supabase service role key bocor | `.env`, `src/lib/supabase/admin.ts` | Akses penuh ke database, bisa delete semua data | Jangan commit .env. Key hanya di server. |
+| 4 | Payment callback tidak verifikasi signature | `src/app/api/payment/callback/route.ts` | Orang bisa activate PRO gratis | Selalu verifikasi signature dari gateway |
+| 5 | Admin email hardcoded | `proxy.ts`, `auth-context.tsx` | Tambah admin harus edit 2 tempat | Pertimbangkan pindah ke database `
 
-- **File:** `src/app/api/ai/route.ts`
-- **Fungsi:** Router utama untuk **SEMUA** fitur AI di dashboard
-- **Risiko:** Seluruh AI features (analisis performa, chat, chart analysis, market insight, trade analysis) akan **MATI**. Dashboard akan fetch `/api/ai` dan dapat 404.
-- **Cara aman:**
-  - Jangan hapus file ini
-  - Selalu backup ke `.bak` sebelum edit besar
-  - Kalau mau refactor, pastikan `switch-case` types tetap handle: `performance_tips`, `market_insight`, `trade_analysis`, `chart_analysis`, `chat`
+### 5.2 Risiko Tinggi 🟠
 
-#### 5.2 Mengubah Auth Middleware
+| # | Risiko | File Terkait | Dampak | Mitigasi |
+|---|--------|-------------|--------|----------|
+| 6 | `requireAuth()` bypass | `src/lib/api-auth.ts` | API bisa diakses tanpa login | Jangan ubah logic `getAuthUser()` |
+| 7 | `isUserPro()` salah return | `src/lib/pro-check.ts` | User gratis akses fitur PRO, atau user PRO diblokir | Cek `profiles.is_pro` + `subscription_until` di database |
+| 8 | ZAI SDK update breaking change | `z-ai-web-dev-sdk`, `src/lib/zai.ts` | Semua AI mati | Lock version di package.json, test sebelum update |
+| 9 | Prisma schema migration gagal | `prisma/schema.prisma` | Database tidak sinkron, app crash | Selalu backup DB sebelum migration, test di dev dulu |
+| 10 | Rate limit tidak ada di API publik | Semua `/api/` routes | DDoS, brute force | Tambah `rate-limit.ts` ke route yang rawan |
 
-- **File:** `src/lib/api-auth.ts`, `src/lib/supabase/server.ts`
-- **Fungsi:** Verifikasi user di setiap API call
-- **Risiko:**
-  - Semua protected routes (trades, journal, AI, payment) jadi bisa diakses **tanpa login**
-  - ATAU semua user **ter-lockout** tidak bisa akses apapun
-- **Cara aman:**
-  - Test dengan 2 scenario: (1) user yang login bisa akses, (2) user yang belum login dapat 401
-  - Jangan hapus **Bearer token fallback** — itu penting untuk Vercel production
+### 5.3 Risiko Sedang 🟡
 
-#### 5.3 Mengubah Prisma Schema Tanpa Migration
+| # | Risiko | File Terkait | Dampak | Mitigasi |
+|---|--------|-------------|--------|----------|
+| 11 | Trade cache di Zustand tidak sync | `useTradeStore.ts` | Data stale di UI | Invalidate cache setelah CRUD |
+| 12 | Language context tidak lengkap | `LanguageContext.tsx`, semua komponen | Teks campur Indonesia/English | Selalu tambah kedua bahasa |
+| 13 | Mini-service (port 3031/3010/3004) mati | `mini-services/` | Vision/affiliate tidak kerja | Monitoring + auto-restart |
+| 14 | Cron job gagal | `src/app/api/cron/` | Reminder tidak kirim, expired PRO tidak downgrade | Cek Vercel cron log |
+| 15 | Sentry error tracking tidak konfigurasi | `sentry.*.config.ts` | Tidak tahu error di production | Pastikan SENTRY_DSN terisi |
 
-- **File:** `prisma/schema.prisma`
-- **Fungsi:** Definisi seluruh database
-- **Risiko:**
-  - Data loss (kolom dihapus tanpa backup)
-  - Tipe tidak cocok (app crash)
-  - Relasi rusak
-- **Cara aman:**
-  - Selalu `bun run db:push` atau `npx prisma migrate dev` setelah edit
-  - Test query di Prisma Studio (`npx prisma studio`)
-  - **Backup database** sebelum menghapus kolom atau tabel
+### 5.4 Risiko Rendah 🟢
 
-#### 5.4 Mengubah Env Variables
-
-- **File:** `.env.local` (tidak di git), `.env.example`
-- **Fungsi:** Konfigurasi Supabase, payment gateway, AI SDK, email
-- **Risiko:**
-  - App tidak bisa connect ke database
-  - Payment gateway tidak respons
-  - AI tidak bisa diakses
-  - Email tidak terkirim
-- **Cara aman:**
-  - **Jangan push `.env.local` ke git** (sudah ada di .gitignore)
-  - Copy dari `.env.example` untuk environment baru
-  - Setiap env variable yang dihapus/hilang bisa break fitur
+| # | Risiko | File Terkait | Dampak | Mitigasi |
+|---|--------|-------------|--------|----------|
+| 16 | Landing page responsif kurang | `src/components/landing/` | UX jelek di mobile | Test di multiple viewport |
+| 17 | Tema dark/light inkonsisten | Tailwind classes | Tampilan aneh | Pakai `bg-primary`, `text-primary-foreground` |
+| 18 | Shadcn component di-edit manual | `src/components/ui/` | Hilang saat update shadcn | Selalu gunakan CLI: `npx shadcn@latest add ...` |
 
 ---
 
-### 🟡 RISIKO SEDANG (Bisa break fitur tertentu)
+## 6. Change Guide
 
-#### 5.5 Mengubah `LuxTradeDashboard.tsx`
+### 6.1 Aturan Emas
 
-- **File:** `src/app/dashboard/LuxTradeDashboard.tsx` (~900 baris)
-- **Fungsi:** State management utama dashboard — semua state, handler, dan data fetching
-- **Risiko:**
-  - Banyak fitur bergantung: tabs, trade CRUD, AI handlers, modals
-  - Satu typo bisa break **beberapa** fitur sekaligus
-  - Performance bisa menurun kalau re-render tidak dikontrol
-- **Cara aman:**
-  - File ini sudah di-extract sebagian ke:
-    - `handlers/` — logic handlers (tradeHandlers.ts, aiHandlers.ts, dll)
-    - `components/` — komponen UI (TradeForm, TradeTable, dll)
-    - `utils/` — utility functions
-  - **Kalau mau edit handler, edit di `handlers/tradeHandlers.ts` dll, bukan di file utama**
-  - **Untuk UI, edit di `tabs/` atau `components/`**
+1. **Selalu baca file yang mau diubah dulu** — jangan langsung edit tanpa paham konteks
+2. **Commit sering** — setiap perubahan kecil, jangan tunggu besar
+3. **Test di lokal dulu** — `bun run lint` untuk cek error, jangan langsung push
+4. **Jangan edit file `src/components/ui/`** — itu shadcn, pakai CLI untuk update
+5. **Env variables** — jangan commit `.env`, pakai `.env.example` untuk dokumentasi
+6. **Jangan hapus `proxy.ts`** — itu middleware utama, bukan file sampah
 
-#### 5.6 Mengubah System Prompt AI
+### 6.2 Cara Aman Mengubah Setiap Bagian
 
-- **File:** `src/app/api/ai/route.ts` (`getSystemPrompt`, `buildPerformancePrompt`, dll)
-- **Fungsi:** Menentukan kualitas, bahasa, dan konteks jawaban AI
-- **Risiko:**
-  - Jawaban AI jadi generik / tidak membantu
-  - AI jawab dalam bahasa yang salah (padahal user pilih Bahasa Indonesia)
-  - AI tidak memanfaatkan data trading user
-- **Cara aman:**
-  - Edit **prompt-nya saja**, jangan ubah struktur kodenya
-  - Selalu test dengan data trading nyata
-  - Pastikan fallback functions juga di-update (supaya konsisten)
-
-#### 5.7 Mengubah Payment Callback
-
-- **File:** `src/app/api/payment/callback.ts`, `src/app/api/midtrans/webhook/route.ts`
-- **Fungsi:** Menerima konfirmasi pembayaran dari payment gateway
-- **Risiko:**
-  - User bayar tapi **tidak ke-activate** PRO
-  - Atau user tidak bayar tapi ke-activate (keamanan)
-- **Cara aman:**
-  - **Jangan ubah signature verification logic** — itu yang memastikan webhook benar-benar dari payment gateway
-  - Kalau mau tambah log, tambah di tempat yang tidak mengganggu flow utama
-  - Test dengan webhook tester sebelum deploy
-
-#### 5.8 Mengubah CSS Variables / Tema Warna
-
-- **File:** `src/app/globals.css` (bagian `.light {}` dan `.dark {}`)
-- **Fungsi:** Warna seluruh aplikasi via CSS variables (`--primary`, `--accent`, dll)
-- **Risiko:**
-  - Warna jadi tidak konsisten
-  - Kontras buruk (teks tidak terbaca)
-  - shadcn/ui components bisa tampil aneh
-- **Cara aman:**
-  - **Hanya ubah nilai hex-nya**
-  - Jangan hapus variable yang sudah ada
-  - shadcn/ui components bergantung pada variable ini (`--primary`, `--background`, `--foreground`, dll)
-
----
-
-### 🟢 RISIKO RENDAH (Aman diubah)
-
-#### 5.9 Menambah Tab Baru di Dashboard
-
-- **File:**
-  - `src/app/dashboard/tabs/` → buat file tab baru
-  - `src/app/dashboard/components/TabContent.tsx` → import tab baru
-  - `src/app/dashboard/LuxTradeDashboard.tsx` → tambah entry di `menuItems` array
-- **Cara aman:**
-  1. Buat file tab baru di `tabs/MyNewTab.tsx`
-  2. Tambahkan dynamic import di `TabContent.tsx`
-  3. Tambah entry di array `menuItems` di `LuxTradeDashboard.tsx`
-  4. Tidak perlu ubah file lain
-
-#### 5.10 Mengubah Landing Page
-
-- **File:** `src/components/landing/*`, `src/app/page.tsx`
-- **Cara aman:**
-  - Landing page **terpisah** dari dashboard
-  - Aman diubah tanpa affect dashboard atau API
-  - Hanya pastikan routing ke `/auth/login` dan `/dashboard` tetap bekerja
-
-#### 5.11 Menambah API Route Baru
-
-- **File:** `src/app/api/[nama]/route.ts`
-- **Cara aman:**
-  - Copy dari route yang sudah ada sebagai template
-  - Ikuti pattern: `requireAuth` + `try/catch` + `NextResponse.json()`
-  - Tambahkan rate limit kalau perlu
-
----
-
-## 6. Change Guide — Ngoprek AI
-
-### 6.1 Arsitektur AI
+#### A. Menambah Halaman Baru
 
 ```
-Dashboard (Client)                    Server
-      │                                  │
-      │ fetch POST /api/ai               │
-      │ { type, language, data }         │
-      ├────────────────────────────────►│
-      │                                  │
-      │                    /api/ai/route.ts
-      │                    ├── requireAuth() + isUserPro()
-      │                    ├── checkAIRateLimit()
-      │                    ├── switch(type):
-      │                    │   ├── performance_tips → buildPerformancePrompt()
-      │                    │   ├── market_insight   → getMarketInsightPrompt()
-      │                    │   ├── trade_analysis   → buildTradeAnalysisPrompt()
-      │                    │   ├── chart_analysis   → askZAIVision()
-      │                    │   └── chat             → buildChatPrompt()
-      │                    ├── askZAI() → z-ai-web-dev-sdk
-      │                    │   (model: glm-4.6)
-      │                    └── Fallback (kalau AI gagal)
-      │                        ├── buildSmartPerformanceFallback()
-      │                        ├── buildSmartMarketFallback()
-      │                        ├── buildSmartTradeFallback()
-      │                        └── buildSmartChatFallback()
-      │                                  │
-      │◄──────── { insight: "..." } ────┤
-      │                                  │
- setAiInsight() -> render di UI        │
+1. Buat src/app/nama-halaman/page.tsx
+2. Kalo halaman protected (butuh login):
+   - Tidak perlu ubah proxy.ts (otomatis ke-protect kalo path di /dashboard/*)
+   - Kalo path custom, tambah ke protectedPaths di proxy.ts
+3. Kalo halaman publik:
+   - Tambah path ke PUBLIC_PATHS di proxy.ts
 ```
 
-### 6.2 File Terkait AI
+**Risiko:** Lupa tambah ke proxy → halaman tidak bisa diakses atau sebaliknya.
 
-| File | Fungsi | Risiko | Cara Aman Mengubah |
-|------|--------|--------|---------------------|
-| `src/app/api/ai/route.ts` | **Router utama** — handle semua type AI request | 🔴 Tinggi — kalau dihapus, semua AI mati | Jangan hapus. Edit prompt builder functions saja. Jangan ubah switch-case structure. |
-| `src/lib/zai.ts` | SDK wrapper — `createZAI()` mengembalikan instance ZAI | 🟡 Sedang — kalau config salah, AI gagal | Jangan ubah konfigurasi load. Untuk ganti model, ubah parameter `model` di pemanggilan. |
-| `src/app/api/ai/analyze-trade/route.ts` | Route terpisah untuk analisis trade | 🟢 Rendah | Tidak dipakai oleh dashboard saat ini. Dashboard pakai `/api/ai`. |
-| `src/app/api/ai/chat/route.ts` | Route chat terpisah | 🟢 Rendah | Tidak dipakai oleh dashboard saat ini. |
-| `src/app/api/ai/vlm/route.ts` | Route VLM terpisah | 🟢 Rendah | Tidak dipakai oleh dashboard saat ini. |
-| `src/lib/zai-vision.ts` | VLM integration — kirim gambar ke Vision Language Model | 🟡 Sedang | Dipakai oleh route terpisah, bukan oleh `/api/ai` (tapi dipakai internal oleh chart_analysis). |
-| `src/app/dashboard/tabs/AITab.tsx` | UI tab AI di dashboard | 🟡 Sedang — kalau props tidak cocok, UI error | Pastikan props yang diterima sama dengan yang dikirim `LuxTradeDashboard.tsx`. |
-| `src/app/dashboard/LuxTradeDashboard.tsx` | Handler AI: `getPerformanceTips`, `getMarketInsight`, `sendAiChat`, `analyzeTrade`, `analyzeChart` | 🟡 Sedang — kalau fetch URL berubah, handler perlu ikut berubah | Handler ada di sekitar line ~580-728. Jangan ubah fetch URL `/api/ai`. |
+#### B. Menambah API Route Baru
 
-### 6.3 Cara Menambah Fitur AI Baru
-
-#### Contoh: Menambah type `"risk_assessment"`
-
-**Step 1: Tambah handler di dashboard** (`LuxTradeDashboard.tsx`)
+```
+1. Buat src/app/api/nama-route/route.ts
+2. Export GET/POST/PUT/DELETE sesuai kebutuhan
+3. Tambah requireAuth() di awal handler kalo butuh auth
+4. Tambah isUserPro() kalo fitur PRO only
+5. Return NextResponse.json({ ... })
+```
 
 ```typescript
-const getRiskAssessment = useCallback(async () => {
-  setAiLoading(true)
-  try {
-    const res = await fetch('/api/ai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'risk_assessment',
-        language,
-        data: analytics
-      })
-    })
-    const data = await res.json()
-    if (res.ok && data.insight) {
-      setAiInsight(data.insight)
-    }
-  } catch {
-    toast.error('Gagal mendapatkan risk assessment')
-  } finally {
-    setAiLoading(false)
+// Contoh:
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/api-auth'
+import { isUserPro } from '@/lib/pro-check'
+
+export async function POST(request: NextRequest) {
+  const { error, user } = await requireAuth(request)
+  if (error) return error
+
+  const pro = await isUserPro(user.id)
+  if (!pro) {
+    return NextResponse.json({ error: 'PRO_REQUIRED' }, { status: 403 })
   }
-}, [analytics, language])
-```
 
-**Step 2: Tambah case di API** (`src/app/api/ai/route.ts`)
-
-```typescript
-// Di dalam switch(type):
-case 'risk_assessment': {
-  const prompt = `Analisis risiko trading berdasarkan data berikut:
-    Total Trades: ${data.totalTrades}
-    Win Rate: ${data.winRate}%
-    Average Loss: ${data.avgLoss}
-    Max Drawdown: ${data.maxDrawdown}
-    Profit Factor: ${data.profitFactor}
-    
-    Berikan penilaian risiko dan rekomendasi manajemen risiko.`
-  
-  zaiResponse = await askZAI(getSystemPrompt(lang), prompt)
-  if (!zaiResponse) {
-    zaiResponse = buildSmartRiskFallback(data) // Buat fallback function juga
-  }
-  return NextResponse.json({ insight: zaiResponse })
+  // ... logic ...
+  return NextResponse.json({ success: true })
 }
 ```
 
-**Step 3: Tambah button di `AITab.tsx`**
+**Risiko:** Lupa requireAuth → API bisa diakses publik.
 
-```typescript
-<Button
-  onClick={onRiskAssessment}
-  disabled={loading}
-  variant="outline"
-  className="w-full justify-start"
->
-  <Shield className="w-4 h-4 mr-2" />
-  Risk Assessment
-</Button>
+#### C. Mengubah Database Schema
+
+```
+1. Edit prisma/schema.prisma
+2. Jalankan: bun run db:push   (untuk dev)
+   ATAU: bun run db:migrate  (untuk production)
+3. Update TypeScript types di src/types/ kalau perlu
+4. Test CRUD operations
 ```
 
-**Step 4: Tambah props di `TabContent.tsx`** dan hubungkan handler dari `LuxTradeDashboard.tsx` ke `AITab` component.
+**Risiko:** Migration gagal → database stuck. Selalu backup dulu.
 
-### 6.4 Cara Mengubah Kualitas Jawaban AI
+#### D. Mengubah Tampilan Dashboard
 
-**Problem:** Jawaban AI terlalu generik / template.
-
-**Solusi:** Edit prompt builder di `src/app/api/ai/route.ts`:
-
-| Function | Lokasi | Apa yang Dikontrol |
-|----------|--------|---------------------|
-| `getSystemPrompt(lang)` | Line ~65-84 | Persona AI, bahasa, aturan umum jawaban |
-| `buildPerformancePrompt(lang, data)` | Line ~88-168 | Konteks data untuk analisis performa (win rate, PF, drawdown, dll) |
-| `buildTradeAnalysisPrompt(lang, trade)` | Line ~170-231 | Konteks data untuk analisis trade individual |
-| `getMarketInsightPrompt(lang)` | Line ~272-326 | Pertanyaan dan instruksi untuk market insight |
-| `buildChatPrompt(lang, message, context)` | Line ~328-366 | Konteks chat dengan data trading (15 trade terakhir, stats, session) |
-
-**Tips untuk meningkatkan kualitas:**
-
-1. **Tambah data spesifik ke prompt** — contoh: monthly trend, session breakdown, top losing pairs
-2. **Tambah instruksi tegas di system prompt:**
-   ```
-   - JANGAN berikan jawaban template atau generik
-   - Selalu merujuk pada DATA spesifik user
-   - Berikan angka dan persentase spesifik, bukan "cukup baik" atau "perlu ditingkatkan"
-   - Gunakan Bahasa Indonesia yang natural dan casual
-   ```
-3. **Pastikan fallback functions juga di-update** — supaya kalau AI down, jawaban fallback juga spesifik
-
-### 6.5 Cara Mengganti Model AI
-
-Di file `src/app/api/ai/route.ts`, ubah parameter `model`:
-
-```typescript
-// Di function askZAI():
-const result = await zai.chat.completions.create({
-  model: 'glm-4.6',  // ← ubah ini (contoh: 'gpt-4o', 'claude-3', dll)
-  messages: [
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: userPrompt }
-  ],
-  thinking: { type: 'disabled' }
-})
-
-// Di function askZAIVision():
-const result = await zai.chat.completions.createVision({
-  model: 'glm-4.6',  // ← ubah ini juga kalau model vision berbeda
-  messages: [
-    {
-      role: 'user',
-      content: [
-        { type: 'text', text: prompt },
-        { type: 'image_url', image_url: { url: base64Image } }
-      ]
-    }
-  ]
-})
+```
+1. Kalo ubah tab yang sudah ada → edit file di tabs/
+2. Kalo tambah tab baru:
+   a. Buat src/app/dashboard/tabs/NamaTab.tsx
+   b. Tambah di menuItems di LuxTradeDashboard.tsx
+   c. Tambah lazy import di TabContent.tsx (kalau pakai dynamic import)
+3. Gunakan shadcn/ui components dari src/components/ui/
+4. Responsif: selalu test di mobile (sm:), tablet (md:), desktop (lg:)
 ```
 
-> **Catatan:** Pastikan model yang dipilih support fitur yang dibutuhkan (chat completion untuk text, vision untuk gambar).
+**Risiko:** Tab tidak muncul → cek menuItems array. Import salah → tab kosong.
 
-### 6.6 Penting: Fallback System
+#### E. Mengubah Fitur AI
 
-AI bisa gagal kapan saja — timeout, rate limit, config error, server down. Karena itu, **setiap type punya smart fallback**:
-
-| Type | AI Function | Fallback Function |
-|------|------------|-------------------|
-| `performance_tips` | `askZAI()` | `buildSmartPerformanceFallback()` |
-| `trade_analysis` | `askZAI()` | `buildSmartTradeFallback()` |
-| `market_insight` | `askZAI()` | `buildSmartMarketFallback()` |
-| `chat` | `askZAI()` | `buildSmartChatFallback()` |
-| `chart_analysis` | `askZAIVision()` | Error message (tidak ada offline fallback untuk vision) |
-
-**Fallback BUKAN template!** Mereka membaca data trading user dan menghasilkan analisis yang spesifik. Contoh:
-
-```typescript
-// buildSmartPerformanceFallback() membaca data seperti ini:
-function buildSmartPerformanceFallback(data) {
-  const { totalTrades, winRate, profitFactor, avgWin, avgLoss, topPair, worstPair } = data
-  
-  let analysis = `Berdasarkan ${totalTrades} trade kamu:\n\n`
-  analysis += `📊 Win Rate: ${winRate}% — ${winRate >= 50 ? 'Sudah baik!' : 'Perlu ditingkatkan.'}\n`
-  analysis += `💰 Profit Factor: ${profitFactor} — ${profitFactor >= 1.5 ? 'Sangat profitable!' : profitFactor >= 1 ? 'Masih profit, tapi bisa lebih baik.' : 'Sedang loss, coba evaluasi strategi.'}\n`
-  // ... dan seterusnya, semua based on REAL DATA
-  
-  return analysis
-}
+```
+1. Baca section 4 (Ngoprek AI) di dokumen ini
+2. Utamakan edit di src/app/api/ai/route.ts
+3. Test prompt: jalankan di dev, cek log di dev.log
+4. Pastikan fallback tetap kerja: coba matikan ZAI, pastikan respons fallback muncul
+5. Jangan ubah role dari 'assistant' ke 'system'
+6. Jangan nested template literal (backtick dalam backtick)
 ```
 
-Jadi meskipun AI down, user **tetap mendapat jawaban yang berguna dan spesifik** berdasarkan data trading mereka.
+**Risiko:** Salah edit → semua AI mati. Selalu test semua 5 tipe.
 
-### 6.7 Rate Limiting
+#### F. Mengubah Sistem Pembayaran
 
-AI routes punya rate limit: **20 request per menit per user**.
-
-Didefinisikan di `src/app/api/ai/route.ts`:
-
-```typescript
-const AI_RATE_LIMIT = 20
-const AI_RATE_WINDOW = 60 * 1000 // 1 menit dalam milidetik
+```
+1. Harga: edit src/lib/pricing.ts
+2. Gateway logic: edit src/lib/payment/sakura.ts atau midtrans.ts
+3. Callback: edit src/app/api/payment/callback/route.ts
+4. ⚠️ SELALU verifikasi signature di callback
+5. Test dengan payment gateway sandbox dulu
 ```
 
-Kalau user melebihi limit, mereka mendapat response:
+**Risiko:** Salah verifikasi → orang bisa bayar palsu. Sangat berbahaya.
 
-```json
-{
-  "error": "Rate limit exceeded. Coba lagi dalam beberapa detik."
-}
+#### G. Mengubah Auth System
+
+```
+1. Jangan ubah src/lib/api-auth.ts kecuali benar-benar perlu
+2. Tambah admin: edit ADMIN_EMAILS di proxy.ts DAN auth-context.tsx
+3. Ubah halaman auth: edit file di src/app/auth/
+4. Signup flow: hati-hati dengan raw SQL di signup route
 ```
 
-Status code: **429 Too Many Requests**.
+**Risiko:** Salah ubah → tidak ada yang bisa login/signup.
+
+#### H. Deploy ke Vercel
+
+```
+1. Push ke main branch → auto deploy
+2. Cek Vercel build log
+3. Pastikan env variables terisi di Vercel dashboard
+4. Kalo error ERESOLVE: pastikan tidak ada package-lock.json (kita pakai bun)
+5. Kalo error middleware.js.nft.json: ini bug Next.js 16, coba re-deploy
+```
+
+### 6.3 Checklist Sebelum Deploy
+
+- [ ] `bun run lint` pass tanpa error
+- [ ] Semua env variables ada di Vercel
+- [ ] Tidak ada `console.log` yang sisa (boleh `console.warn`/`console.error`)
+- [ ] File `.env` tidak ter-commit
+- [ ] `package-lock.json` tidak ada (kita pakai bun.lock)
+- [ ] Test fitur utama: login, tambah trade, AI, pembayaran
+- [ ] Cek proxy.ts: path baru sudah terdaftar
+
+### 6.4 Komando yang Sering Dipakai
+
+```bash
+# Development
+bun run dev              # Jalankan dev server (port 3000)
+bun run lint             # Cek code quality
+
+# Database
+bun run db:push         # Push schema ke database (dev)
+bun run db:migrate      # Migration dengan file (production)
+bun run db:generate     # Generate Prisma client
+
+# Build & Deploy
+git add . && git commit -m "pesan" && git push  # Push ke GitHub → auto deploy Vercel
+
+# Mini Services
+bun run dev             # Di folder mini-service masing-masing
+```
+
+### 6.5 File JANGAN Pernah Dihapus
+
+| File | Alasan |
+|------|--------|
+| `src/proxy.ts` | Middleware utama, tanpa ini semua halaman tidak protected |
+| `src/app/api/ai/route.ts` | Semua fitur AI bergantung di sini |
+| `src/lib/api-auth.ts` | Semua API route bergantung di sini |
+| `src/lib/zai.ts` | AI SDK wrapper |
+| `src/lib/pro-check.ts` | PRO check untuk semua fitur premium |
+| `src/lib/auth-context.tsx` | Auth state management |
+| `prisma/schema.prisma` | Database schema |
+| `src/lib/supabase/admin.ts` | Admin DB access |
+| `.npmrc` | Prevent Vercel build ERESOLVE |
 
 ---
 
-## 7. Glossary
+## Appendix A: Env Variables Lengkap
 
-| Istilah | Arti |
-|---------|------|
-| **PRO** | Paket berbayar yang membuka fitur premium (AI, analytics lanjutan, unlimited trades, dll) |
-| **Trade** | Transaksi buy/sell yang dicatat user di jurnal |
-| **P/L** | Profit/Loss — keuntungan atau kerugian dari sebuah trade |
-| **Win Rate** | Persentase trade yang profit dari total trade |
-| **Profit Factor (PF)** | Rasio total profit dibagi total loss. PF > 1 = profitable, PF > 1.5 = bagus |
-| **Drawdown** | Penurunan equity dari puncak tertinggi. Ukuran seberapa besar "loss streak" |
-| **Session** | Waktu trading berdasarkan zona waktu: Asia, London, New York, Overlap |
-| **Lot** | Ukuran posisi trading. 1 lot standard = 100.000 unit mata uang dasar |
-| **Pips** | Satuan pergerakan harga terkecil. Untuk kebanyakan pair, 1 pip = 0.0001 |
-| **SL/TP** | Stop Loss / Take Profit — level harga untuk memotong kerugian / mengamankan profit |
-| **R:R** | Risk:Reward ratio — perbandingan risiko vs potensi keuntungan sebuah trade |
-| **ZAI** | z-ai-web-dev-sdk — SDK internal untuk akses AI (LLM + Vision) |
-| **VLM** | Vision Language Model — AI yang bisa "melihat" dan menganalisis gambar |
-| **RLS** | Row Level Security — fitur keamanan Supabase yang membatasi akses data per baris |
-| **SakuraPay** | Payment gateway Indonesia (primary) — mendukung QRIS, VA, E-Wallet |
-| **Midtrans** | Payment gateway Indonesia (secondary) — alternatif SakuraPay |
-| **DOKU** | Payment gateway Indonesia (legacy) — sudah tidak jadi prioritas |
-| **Supabase** | Backend-as-a-Service — menyediakan auth, database (PostgreSQL), dan storage |
-| **Prisma** | ORM (Object-Relational Mapping) — cara mudah akses database dengan TypeScript |
-| **Zustand** | State management library untuk React — ringan dan simple |
-| **shadcn/ui** | Library komponen UI berbasis Radix UI + Tailwind CSS |
-| **SPA** | Single Page Application — dashboard berfungsi seperti SPA dalam satu halaman |
-| **Lazy Loading** | Memuat komponen hanya saat dibutuhkan — membuat dashboard lebih cepat |
-| **Webhook** | Callback dari payment gateway saat ada event (pembayaran berhasil, dll) |
-| **HMAC** | Hash-based Message Authentication Code — untuk verifikasi keaslian webhook |
-| **OCR** | Optical Character Recognition — membaca teks dari gambar (screenshot) |
-| **Equity Curve** | Grafik perkembangan saldo/equity dari waktu ke waktu |
+```env
+# === WAJIB ===
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+DATABASE_URL=postgresql://...
+RESEND_API_KEY=re_...
+RESEND_TEMPLATE_CONFIRM=template_xxx
+RESEND_TEMPLATE_RESET=template_xxx
+
+# === AI (untuk fitur AI) ===
+ZAI_BASE_URL=https://...
+ZAI_API_KEY=...
+ZAI_CHAT_ID=...
+ZAI_TOKEN=...
+ZAI_USER_ID=...
+
+# === Vision AI (opsional) ===
+OPENAI_API_KEY=sk-...
+HUGGING_FACE_API_TOKEN=hf_...
+
+# === Payment (opsional, tergantung gateway) ===
+MIDTRANS_SERVER_KEY=SB-Mid-server-...
+MIDTRANS_CLIENT_KEY=SB-Mid-client-...
+SAKURA_API_ID=...
+SAKURA_API_KEY=...
+DOKU_CLIENT_ID=...
+DOKU_SECRET_KEY=...
+
+# === Lainnya ===
+NEXT_PUBLIC_APP_URL=https://luxtrade.vercel.app
+NEXT_PUBLIC_SITE_URL=https://luxtrade.vercel.app
+SENTRY_DSN=https://...
+METAAPI_TOKEN=...
+```
+
+## Appendix B: Database Models
+
+| Model | Tabel | Fungsi |
+|-------|-------|--------|
+| Profile | profiles | Data user (plan, PRO status, streak, referral) |
+| User | users | Auth user (dari Supabase) |
+| UserSubscription | user_subscriptions | Riwayat subscription |
+| Trade | trades | Data trading (pair, P/L, waktu, dll) |
+| JournalEntry | journal_entries | Journal harian |
+| TradingAccount | trading_accounts | Akun broker |
+| Tag | tags | Tag untuk trade/journal |
+| WeeklyGoal | weekly_goals | Target mingguan |
+| WatchlistItem | watchlist_items | Pair yang di-watch |
+| SocialLink | social_links | Link sosial media user |
+| PromoCode | promo_codes | Kode promo |
+| PaymentOrder | payment_orders | Riwayat pembayaran |
+| BugReport | bug_reports | Laporan bug |
+| Affiliate | affiliates | Data affiliate |
+| AffiliateReferral | affiliate_referrals | Referral tracking |
+| AffiliateWithdrawal | affiliate_withdrawals | Tarikan komisi |
+
+## Appendix C: Warna & Tema
+
+| Elemen | Warna | Tailwind Class |
+|--------|-------|---------------|
+| Primary | #2563eb (blue) | `bg-primary`, `text-primary` |
+| Primary Light | #3b82f6 (blue-500) | `bg-blue-500` |
+| Accent | #06b6d4 (cyan) | `bg-cyan-500` |
+| Success | #10b981 (emerald) | `bg-emerald-500` |
+| Danger | #ef4444 (red) | `bg-red-500` |
+| Warning | #f59e0b (amber) | `bg-amber-500` |
+| Background | White (light) / Dark (dark) | `bg-background` |
+
+> ⚠️ **Jangan pakai indigo atau ungu** kecuali user minta.
+
+## Appendix D: Stack Teknologi
+
+| Teknologi | Versi | Fungsi |
+|-----------|--------|--------|
+| Next.js | 16 | Framework utama (App Router) |
+| React | 19 | UI library |
+| TypeScript | 5 | Type safety |
+| Tailwind CSS | 4 | Styling |
+| shadcn/ui | New York | Component library |
+| Prisma | 6 | ORM |
+| Supabase | Latest | Auth + Database hosting |
+| Zustand | 5 | Client state management |
+| TanStack Query | 5 | Server state |
+| z-ai-web-dev-sdk | 0.0.17 | AI (ZAI) |
+| Framer Motion | 12 | Animasi |
+| Recharts | 2 | Charts |
+| Resend | Latest | Email |
+| SakuraPay | - | Payment gateway (primary) |
+| Midtrans | - | Payment gateway (secondary) |
+| Sentry | 10 | Error monitoring |
+| Lucide React | Latest | Icons |
 
 ---
 
-> **Catatan Penting untuk Developer Berikutnya:**
->
-> - **Jangan pernah** push `.env.local` ke git
-> - Selalu jalankan `bun run lint` sebelum commit
-> - File `/api/ai/route.ts` adalah file **PALING KRITIAL** untuk fitur AI — **JANGAN HAPUS**
-> - Dashboard adalah SPA — semua state ada di `LuxTradeDashboard.tsx`
-> - Gunakan `next/dynamic` dengan `ssr: false` untuk komponen berat
-> - Semua API route yang butuh auth **harus** pakai `requireAuth(request)`
-> - Kalau menambah fitur AI baru, pastikan juga **menambah fallback function**
-> - Test payment flow dengan sandbox environment sebelum production
-> - Backup database sebelum mengubah Prisma schema
-
----
-
-Dokumen ini dibuat sebagai panduan awal. Untuk pertanyaan lebih lanjut, cek kode sumber langsung — kodenya cukup well-documented dengan comments. Kalau ada yang kurang jelas, jangan ragu untuk tanya!
+> 📝 **Catatan:** Dokumen ini bersifat living document. Update setiap kali ada perubahan arsitektur yang signifikan.
