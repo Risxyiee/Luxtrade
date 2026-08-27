@@ -304,8 +304,8 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
                   <AreaChart data={analytics.equityCurve}>
                     <defs>
                       <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <XAxis
@@ -327,7 +327,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
                     <Tooltip
                       contentStyle={{
                         background: '#0a0c12',
-                        border: '1px solid rgba(139,92,246,0.3)',
+                        border: '1px solid rgba(59,130,246,0.3)',
                         borderRadius: 8
                       }}
                       formatter={(value: number) => [`$${value.toFixed(2)}`, 'Equity']}
@@ -339,7 +339,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
                     <Area
                       type="monotone"
                       dataKey="equity"
-                      stroke="#a855f7"
+                      stroke="#3b82f6"
                       strokeWidth={2}
                       fill="url(#equityGradient)"
                     />
@@ -443,7 +443,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
                   <Tooltip
                     contentStyle={{
                       background: '#0a0c12',
-                      border: '1px solid rgba(139,92,246,0.3)',
+                      border: '1px solid rgba(59,130,246,0.3)',
                       borderRadius: 8
                     }}
                     formatter={(value: number) => `$${value.toFixed(2)}`}
@@ -487,7 +487,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
                   <Tooltip
                     contentStyle={{
                       background: '#0a0c12',
-                      border: '1px solid rgba(139,92,246,0.3)',
+                      border: '1px solid rgba(59,130,246,0.3)',
                       borderRadius: 8
                     }}
                     formatter={(value: number) => `$${value.toFixed(2)}`}
@@ -531,7 +531,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
                   <Tooltip
                     contentStyle={{
                       background: '#0a0c12',
-                      border: '1px solid rgba(139,92,246,0.3)',
+                      border: '1px solid rgba(59,130,246,0.3)',
                       borderRadius: 8
                     }}
                     formatter={(value: number) => `$${value.toFixed(2)}`}
@@ -615,7 +615,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
                   <Tooltip
                     contentStyle={{
                       background: '#0a0c12',
-                      border: '1px solid rgba(139,92,246,0.3)',
+                      border: '1px solid rgba(59,130,246,0.3)',
                       borderRadius: 8
                     }}
                     formatter={(value: number) => `$${value.toFixed(2)}`}

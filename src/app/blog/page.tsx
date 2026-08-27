@@ -187,13 +187,13 @@ export default function BlogPage() {
             <div className="flex items-center gap-3">
               <LanguageSwitcher />
               <Link href="/auth/login">
-                <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-all duration-300 font-semibold backdrop-blur-sm">
+                <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 hover:shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all duration-300 font-semibold backdrop-blur-sm">
                   {isEnglish ? 'Login' : 'Masuk'}
                 </Button>
               </Link>
               <Link href="/auth/signup">
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
-                  <Button className="h-10 px-6 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-sm">
+                  <Button className="h-10 px-6 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-all duration-300 backdrop-blur-sm">
                     {isEnglish ? 'Sign Up' : 'Daftar'}
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -284,7 +284,7 @@ export default function BlogPage() {
                     transition={{ duration: 0.3 }}
                   >
                     <Link href={`/blog/${post.slug}`}>
-                      <Card className="h-full backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-all duration-300 overflow-hidden">
+                      <Card className="h-full backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_40px_rgba(59,130,246,0.2)] transition-all duration-300 overflow-hidden">
                         <div className={`p-6`}>
                           {/* Category Badge */}
                           <div className="flex items-center justify-between mb-4">
@@ -361,7 +361,7 @@ export default function BlogPage() {
               </p>
               <Link href="/auth/signup">
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
-                  <Button className="h-14 px-8 text-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_40px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-xl">
+                  <Button className="h-14 px-8 text-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_40px_rgba(59,130,246,0.5)] transition-all duration-300 backdrop-blur-xl">
                     {isEnglish ? 'Subscribe for Free' : 'Berlangganan Gratis'}
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </Button>

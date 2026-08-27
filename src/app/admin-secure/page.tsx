@@ -387,7 +387,7 @@ export default function AdminSecurePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <Card className="bg-gradient-to-br from-[#1a0f2e]/50 via-[#150a25]/50 to-transparent border-blue-500/20 backdrop-blur-sm">
+          <Card className="bg-gradient-to-br from-[#0c1929]/50 via-[#150a25]/50 to-transparent border-blue-500/20 backdrop-blur-sm">
             <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-blue-500/20">
               <div>
                 <CardTitle className="text-xl flex items-center gap-2">

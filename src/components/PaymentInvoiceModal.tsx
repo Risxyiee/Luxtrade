@@ -938,7 +938,7 @@ export default function PaymentInvoiceModal({
                                 style={{
                                   background: `radial-gradient(ellipse at center, ${
                                     cat.type === 'QRIS' ? 'rgba(16,185,129,0.3)' :
-                                    cat.type === 'EWALLET' ? 'rgba(139,92,246,0.3)' :
+                                    cat.type === 'EWALLET' ? 'rgba(59,130,246,0.3)' :
                                     'rgba(245,158,11,0.3)'
                                   }, transparent 70%)`,
                                 }}

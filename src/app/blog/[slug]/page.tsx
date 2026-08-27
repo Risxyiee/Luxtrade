@@ -201,7 +201,7 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
             <div className="flex items-center gap-3">
               <LanguageSwitcher />
               <Link href="/blog">
-                <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-all duration-300 font-semibold backdrop-blur-sm">
+                <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 hover:shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all duration-300 font-semibold backdrop-blur-sm">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   {isEnglish ? 'Back to Blog' : 'Kembali ke Blog'}
                 </Button>
@@ -376,7 +376,7 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {relatedPosts.map((post) => (
                 <Link key={post.id} href="/blog">
-                  <Card className="backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] transition-all duration-300 p-6">
+                  <Card className="backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(59,130,246,0.2)] transition-all duration-300 p-6">
                     <Badge className={`bg-gradient-to-r ${post.gradient} text-white border-0 mb-4`}>
                       {post.category}
                     </Badge>

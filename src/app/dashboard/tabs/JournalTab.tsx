@@ -427,8 +427,8 @@ function JournalTab({
           <span style="font-size: 12px; color: #6b7280;">${new Date(entry.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
         </div>
         <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-          ${entry.mood ? `<span style="display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 12px; font-weight: 500; background: ${entry.mood === 'confident' ? '#d1fae5' : entry.mood === 'anxious' ? '#fee2e2' : '#ede9fe'}; color: ${entry.mood === 'confident' ? '#065f46' : entry.mood === 'anxious' ? '#991b1b' : '#5b21b6'};">${entry.mood}</span>` : ''}
-          ${entry.market_condition ? `<span style="display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 12px; font-weight: 500; background: #f3e8ff; color: #7c3aed;">${entry.market_condition}</span>` : ''}
+          ${entry.mood ? `<span style="display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 12px; font-weight: 500; background: ${entry.mood === 'confident' ? '#d1fae5' : entry.mood === 'anxious' ? '#fee2e2' : '#dbeafe'}; color: ${entry.mood === 'confident' ? '#065f46' : entry.mood === 'anxious' ? '#991b1b' : '#1d4ed8'};">${entry.mood}</span>` : ''}
+          ${entry.market_condition ? `<span style="display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 12px; font-weight: 500; background: #dbeafe; color: #2563eb;">${entry.market_condition}</span>` : ''}
         </div>
         <p style="font-size: 13px; line-height: 1.6; color: #374151; white-space: pre-wrap; margin: 0;">${entry.content}</p>
       </div>
@@ -452,7 +452,7 @@ function JournalTab({
           text-align: center;
           margin-bottom: 32px;
           padding-bottom: 16px;
-          border-bottom: 2px solid #7c3aed;
+          border-bottom: 2px solid #2563eb;
         }
         .header h1 { font-size: 24px; color: #1a1a2e; margin-bottom: 4px; }
         .header .date { font-size: 14px; color: #6b7280; }

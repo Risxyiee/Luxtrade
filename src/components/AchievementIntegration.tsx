@@ -187,7 +187,7 @@ function YourComponent() {
   // Current color themes:
   // - Common: Gray
   // - Rare: Blue
-  // - Epic: Purple
+  // - Epic: Cyan
   // - Legendary: Amber/Gold
   //
   // ============================================

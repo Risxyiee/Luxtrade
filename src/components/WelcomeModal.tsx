@@ -130,7 +130,7 @@ export default function WelcomeModal({ isOpen, onClose, onStartTour, language = 
             >
               <Button
                 onClick={onStartTour}
-                className="h-14 px-8 bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-700 hover:to-blue-700 text-lg font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_40px_rgba(139,92,246,0.6)] transition-all duration-300"
+                className="h-14 px-8 bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-700 hover:to-blue-700 text-lg font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_40px_rgba(59,130,246,0.6)] transition-all duration-300"
               >
                 {language === 'id' ? 'Mulai Tour' : 'Start Tour'}
                 <ArrowRight className="w-5 h-5 ml-2" />
