@@ -125,8 +125,11 @@ const Header = memo(function Header({
     : null
 
   return (
-    <header className="h-14 border-b border-lux-border dark:border-blue-500/15 flex items-center justify-between px-4 lg:px-5
-      bg-lux-bg-tertiary/80 dark:bg-[#050507]/80 backdrop-blur-2xl sticky top-0 z-30">
+    <header className="h-16 border-b border-lux-border dark:border-blue-500/15 flex items-center justify-between px-4 lg:px-5
+      bg-lux-bg-tertiary/80 dark:bg-[#050507]/80 backdrop-blur-[24px] dark:shadow-[0_1px_0_0_rgba(59,130,246,0.08),0_8px_32px_-8px_rgba(59,130,246,0.06)] sticky top-0 z-30 relative">
+
+      {/* Subtle bottom glow line — 1px cyan/blue gradient */}
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent pointer-events-none" />
 
       {/* Left: Hamburger + Tab Title + Refresh */}
       <div className="flex items-center gap-2.5">
@@ -235,16 +238,16 @@ const Header = memo(function Header({
         {/* Add Trade Button — Primary CTA */}
         <button
           onClick={() => setAddTradeOpen(true)}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl
+          className="flex items-center gap-2 px-4 py-2 rounded-xl
             bg-gradient-to-r from-blue-500 to-cyan-500
             hover:from-blue-600 hover:to-cyan-600
             text-white text-sm font-medium
-            shadow-lg shadow-blue-500/25 hover:shadow-blue-500/35
+            shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:shadow-[0_0_20px_rgba(59,130,246,0.25)]
             transition-all duration-200 active:scale-[0.97]"
           title={language === 'id' ? 'Catat Trade Baru' : 'Add New Trade'}
         >
-          <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline text-xs font-semibold">{language === 'id' ? 'Trade Baru' : 'New Trade'}</span>
+          <Plus className="w-[18px] h-[18px]" />
+          <span className="hidden sm:inline text-xs font-semibold tracking-wide">{language === 'id' ? 'Trade Baru' : 'New Trade'}</span>
         </button>
       </div>
 

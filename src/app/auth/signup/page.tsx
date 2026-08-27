@@ -41,34 +41,6 @@ function AuthBackground() {
         style={{ background: 'radial-gradient(circle, #10b981, transparent)', animation: 'float-orb 15s ease-in-out infinite', animationDelay: '-10s' }}
       />
 
-      {/* Spinning LuxTrade Logo */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 1 }}>
-        <div style={{
-          animation: 'auth-logo-spin 16s linear infinite',
-          width: 'clamp(200px, 40vw, 420px)',
-          height: 'clamp(200px, 40vw, 420px)',
-          position: 'relative',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          {/* Outer glow ring */}
-          <div style={{
-            position: 'absolute',
-            inset: '-20%',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(59,130,246,0.1) 0%, rgba(6,182,212,0.06) 40%, transparent 70%)',
-            filter: 'blur(30px)',
-            animation: 'auth-logo-glow 5s ease-in-out infinite',
-          }} />
-          {/* Logo */}
-          <Image src="/logo.png" alt="" width={280} height={280} className="object-contain" style={{
-            opacity: 0.08,
-            filter: 'drop-shadow(0 0 40px rgba(59,130,246,0.3)) drop-shadow(0 0 80px rgba(6,182,212,0.15))',
-          }} priority={false} />
-        </div>
-      </div>
-
       {/* Perspective Grid Floor */}
       <div
         className="absolute pointer-events-none opacity-30"
@@ -84,6 +56,69 @@ function AuthBackground() {
           WebkitMaskImage: 'linear-gradient(to top, black, transparent 50%)',
         }}
       />
+      {/* Large background watermark logo */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 1 }}>
+        <div style={{
+          width: 'clamp(280px, 55vw, 500px)',
+          height: 'clamp(280px, 55vw, 500px)',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          animation: 'auth-logo-spin 25s linear infinite',
+        }}>
+          <Image src="/logo.png" alt="" width={500} height={500} className="object-contain" style={{
+            opacity: 0.04,
+            filter: 'drop-shadow(0 0 60px rgba(59,130,246,0.15)) drop-shadow(0 0 120px rgba(6,182,212,0.08))',
+          }} priority={false} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
+// Spinning Logo (placed above form, visible)
+// ============================================
+function SpinningLogo() {
+  return (
+    <div className="w-full flex justify-center mb-5 relative z-10">
+      <div
+        style={{
+          animation: 'auth-logo-spin 16s linear infinite',
+          width: 'clamp(60px, 14vw, 90px)',
+          height: 'clamp(60px, 14vw, 90px)',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {/* Glow ring behind */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: '-60%',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(6,182,212,0.08) 40%, transparent 70%)',
+            filter: 'blur(20px)',
+            animation: 'auth-logo-glow 5s ease-in-out infinite',
+            pointerEvents: 'none',
+          }}
+        />
+        <Image
+          src="/logo.png"
+          alt=""
+          width={90}
+          height={90}
+          className="object-contain"
+          style={{
+            opacity: 0.85,
+            filter: 'drop-shadow(0 0 25px rgba(59,130,246,0.5)) drop-shadow(0 0 50px rgba(6,182,212,0.3))',
+          }}
+          priority={false}
+        />
+      </div>
     </div>
   )
 }
@@ -279,11 +314,13 @@ function generateDeviceId(): string {
 function SuccessScreen({ email, onLogin }: { email: string; onLogin: () => void }) {
   return (
     <GlassCard className="p-8 md:p-10">
-      <div className="flex justify-center mb-6">
-        <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center">
-          <CheckCircle className="w-8 h-8 text-emerald-400" />
-        </div>
-      </div>
+          {/* Spinning Logo */}
+          <SpinningLogo />
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center">
+              <CheckCircle className="w-8 h-8 text-emerald-400" />
+            </div>
+          </div>
       <div className="text-center mb-6">
         <h2 className="text-2xl font-light text-white tracking-wide mb-2">Akun Berhasil Dibuat!</h2>
         <p className="text-xs text-gray-500 font-[JetBrains_Mono,monospace]">
@@ -449,21 +486,8 @@ function SignUpForm() {
         className="w-full flex flex-col items-center relative z-10"
       >
         <GlassCard className="p-8 md:p-10">
-          {/* Logo */}
-          <div className="flex justify-center mb-8" style={{ transform: 'translateZ(20px)' }}>
-            <Link href="/" className="inline-flex items-center gap-2.5">
-              <Image
-                src="/logo.png"
-                alt="LuxTrade Logo"
-                width={32}
-                height={32}
-                className="object-contain"
-              />
-              <span className="text-xl font-light tracking-wider text-white uppercase">
-                LuxTrade
-              </span>
-            </Link>
-          </div>
+          {/* Spinning Logo */}
+          <SpinningLogo />
 
           {/* Header */}
           <div className="mb-8 text-center" style={{ transform: 'translateZ(20px)' }}>
