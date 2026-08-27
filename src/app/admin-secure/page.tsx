@@ -224,7 +224,7 @@ export default function AdminSecurePage() {
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           >
-            <Shield className="w-12 h-12 text-purple-500 mx-auto mb-4" />
+            <Shield className="w-12 h-12 text-blue-500 mx-auto mb-4" />
           </motion.div>
           <p className="text-white/60">Verifying admin access...</p>
         </div>
@@ -235,7 +235,7 @@ export default function AdminSecurePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a0515] via-[#150a25] to-[#0d0820] text-white">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#150a25]/90 backdrop-blur-xl border-b border-purple-500/20 shadow-2xl shadow-purple-900/10">
+      <header className="sticky top-0 z-50 bg-[#150a25]/90 backdrop-blur-xl border-b border-blue-500/20 shadow-2xl shadow-blue-900/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -249,11 +249,11 @@ export default function AdminSecurePage() {
                 Back to Dashboard
               </Button>
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-purple-500/20 to-violet-500/20 border border-purple-500/30">
-                  <Shield className="w-6 h-6 text-purple-400" />
+                <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/20 border border-blue-500/30">
+                  <Shield className="w-6 h-6 text-cyan-400" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent">
+                  <h1 className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-cyan-400 bg-clip-text text-transparent">
                     Admin Panel Secure
                   </h1>
                   <p className="text-xs text-gray-500">Protected Access</p>
@@ -270,7 +270,7 @@ export default function AdminSecurePage() {
                 size="sm"
                 onClick={fetchUsers}
                 disabled={isLoading}
-                className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+                className="border-blue-500/30 text-cyan-400 hover:bg-blue-500/10"
               >
                 <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Refresh
@@ -297,17 +297,17 @@ export default function AdminSecurePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <Card className="relative overflow-hidden bg-gradient-to-br from-purple-500/10 via-purple-600/5 to-transparent border-purple-500/20 backdrop-blur-sm hover:border-purple-500/40 transition-all group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-all" />
+            <Card className="relative overflow-hidden bg-gradient-to-br from-blue-500/10 via-blue-600/5 to-transparent border-blue-500/20 backdrop-blur-sm hover:border-blue-500/40 transition-all group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all" />
               <CardContent className="p-6 relative">
                 <div className="flex items-start justify-between">
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-purple-300/80">Total Pengguna</p>
+                    <p className="text-sm font-medium text-cyan-300/80">Total Pengguna</p>
                     <p className="text-3xl font-bold text-white">{totalUsers}</p>
-                    <p className="text-xs text-purple-400/60">{proUsers} aktif PRO</p>
+                    <p className="text-xs text-cyan-400/60">{proUsers} aktif PRO</p>
                   </div>
-                  <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform border border-purple-500/20">
-                    <Users className="w-6 h-6 text-purple-400" />
+                  <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform border border-blue-500/20">
+                    <Users className="w-6 h-6 text-cyan-400" />
                   </div>
                 </div>
               </CardContent>
@@ -387,11 +387,11 @@ export default function AdminSecurePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <Card className="bg-gradient-to-br from-[#1a0f2e]/50 via-[#150a25]/50 to-transparent border-purple-500/20 backdrop-blur-sm">
-            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-purple-500/20">
+          <Card className="bg-gradient-to-br from-[#1a0f2e]/50 via-[#150a25]/50 to-transparent border-blue-500/20 backdrop-blur-sm">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-blue-500/20">
               <div>
                 <CardTitle className="text-xl flex items-center gap-2">
-                  <Users className="w-5 h-5 text-purple-400" />
+                  <Users className="w-5 h-5 text-cyan-400" />
                   Manajemen Pengguna
                 </CardTitle>
                 <p className="text-xs text-gray-500 mt-1">Kelola akses dan status PRO pengguna</p>
@@ -404,7 +404,7 @@ export default function AdminSecurePage() {
                     placeholder="Cari email atau nama..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 bg-[#0d0820] border-purple-500/20 text-white placeholder:text-gray-600 w-full sm:w-64 focus:border-purple-500/50"
+                    className="pl-9 bg-[#0d0820] border-blue-500/20 text-white placeholder:text-gray-600 w-full sm:w-64 focus:border-blue-500/50"
                   />
                 </div>
               </div>
@@ -413,7 +413,7 @@ export default function AdminSecurePage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-purple-500/20 text-left text-xs text-gray-500 uppercase tracking-wider">
+                    <tr className="border-b border-blue-500/20 text-left text-xs text-gray-500 uppercase tracking-wider">
                       <th className="p-4">Email</th>
                       <th className="p-4">Nama</th>
                       <th className="p-4">Status</th>
@@ -422,12 +422,12 @@ export default function AdminSecurePage() {
                       <th className="p-4 text-right">Aksi</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-purple-500/10">
+                  <tbody className="divide-y divide-blue-500/10">
                     {isLoading ? (
                       <tr>
                         <td colSpan={6} className="p-8 text-center">
                           <div className="flex items-center justify-center">
-                            <RefreshCw className="w-6 h-6 text-purple-500 animate-spin mr-2" />
+                            <RefreshCw className="w-6 h-6 text-blue-500 animate-spin mr-2" />
                             <span className="text-gray-500">Memuat data...</span>
                           </div>
                         </td>
@@ -442,7 +442,7 @@ export default function AdminSecurePage() {
                       filteredUsers.map((user) => (
                         <tr
                           key={user.id}
-                          className="hover:bg-purple-500/5 transition-colors"
+                          className="hover:bg-blue-500/5 transition-colors"
                         >
                           <td className="p-4">
                             <div className="flex items-center gap-2">
@@ -538,11 +538,11 @@ export default function AdminSecurePage() {
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: -10 }}
-                                        className="absolute right-0 top-full mt-2 bg-[#1a1225] border border-purple-500/30 rounded-lg shadow-xl overflow-hidden z-50 min-w-[180px]"
+                                        className="absolute right-0 top-full mt-2 bg-[#1a1225] border border-blue-500/30 rounded-lg shadow-xl overflow-hidden z-50 min-w-[180px]"
                                       >
                                         <button
                                           onClick={() => activatePro(user.id, 1)}
-                                          className="w-full px-4 py-3 text-left text-sm hover:bg-purple-500/10 transition-colors flex items-center gap-3 border-b border-purple-500/10"
+                                          className="w-full px-4 py-3 text-left text-sm hover:bg-blue-500/10 transition-colors flex items-center gap-3 border-b border-blue-500/10"
                                         >
                                           <Clock className="w-4 h-4 text-amber-400" />
                                           <div>
@@ -552,7 +552,7 @@ export default function AdminSecurePage() {
                                         </button>
                                         <button
                                           onClick={() => activatePro(user.id, 6)}
-                                          className="w-full px-4 py-3 text-left text-sm hover:bg-purple-500/10 transition-colors flex items-center gap-3 border-b border-purple-500/10"
+                                          className="w-full px-4 py-3 text-left text-sm hover:bg-blue-500/10 transition-colors flex items-center gap-3 border-b border-blue-500/10"
                                         >
                                           <Clock className="w-4 h-4 text-emerald-400" />
                                           <div>
@@ -562,12 +562,12 @@ export default function AdminSecurePage() {
                                         </button>
                                         <button
                                           onClick={() => activatePro(user.id, 0)}
-                                          className="w-full px-4 py-3 text-left text-sm hover:bg-purple-500/10 transition-colors flex items-center gap-3 bg-gradient-to-r from-purple-500/10 to-violet-500/10"
+                                          className="w-full px-4 py-3 text-left text-sm hover:bg-blue-500/10 transition-colors flex items-center gap-3 bg-gradient-to-r from-blue-500/10 to-cyan-500/10"
                                         >
-                                          <Sparkles className="w-4 h-4 text-purple-400" />
+                                          <Sparkles className="w-4 h-4 text-cyan-400" />
                                           <div>
-                                            <div className="font-semibold text-purple-300">Lifetime</div>
-                                            <div className="text-xs text-purple-400/60">Akses Selamanya</div>
+                                            <div className="font-semibold text-cyan-300">Lifetime</div>
+                                            <div className="text-xs text-cyan-400/60">Akses Selamanya</div>
                                           </div>
                                         </button>
                                       </motion.div>

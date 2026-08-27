@@ -110,7 +110,7 @@ export default function ConnectionsPage() {
     return (
       <div className="min-h-screen bg-[#0f051d] text-white flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-10 h-10 text-purple-500 animate-spin mx-auto mb-4" />
+          <Loader2 className="w-10 h-10 text-blue-500 animate-spin mx-auto mb-4" />
           <p className="text-white/60">Loading...</p>
         </div>
       </div>
@@ -742,7 +742,7 @@ export default function ConnectionsPage() {
         
         className={`p-4 rounded-xl border transition-all ${
           achievement.unlocked
-            ? 'bg-gradient-to-br from-purple-500/20 to-violet-500/20 border-purple-500/30'
+            ? 'bg-gradient-to-br from-blue-500/20 to-blue-500/20 border-blue-500/30'
             : 'bg-white/[0.03] border-white/[0.08] opacity-60'
         }`}
       >
@@ -750,7 +750,7 @@ export default function ConnectionsPage() {
           <div
             className={`p-2.5 rounded-lg transition-all ${
               achievement.unlocked
-                ? 'bg-gradient-to-br from-purple-500 to-violet-600 shadow-lg shadow-purple-500/30'
+                ? 'bg-gradient-to-br from-blue-500 to-cyan-600 shadow-lg shadow-blue-500/30'
                 : 'bg-white/5'
             }`}
           >
@@ -770,7 +770,7 @@ export default function ConnectionsPage() {
             <p className="text-xs text-white/40 mb-2">{achievement.description}</p>
             <Progress
               value={(achievement.progress / achievement.max) * 100}
-              className={`h-1.5 ${achievement.unlocked ? 'bg-purple-900/30' : 'bg-white/10'}`}
+              className={`h-1.5 ${achievement.unlocked ? 'bg-blue-900/30' : 'bg-white/10'}`}
             />
             <p className="text-[10px] text-white/30 mt-1">
               {achievement.progress}/{achievement.max}
@@ -805,13 +805,13 @@ export default function ConnectionsPage() {
       >
         <div className="flex items-center gap-3 mb-2">
           <div
-            className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600"
+            className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-600"
             
             
           >
             <Link2 className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-3xl font-extrabold bg-gradient-to-r from-white to-purple-300 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-extrabold bg-gradient-to-r from-white to-cyan-300 bg-clip-text text-transparent">
             {content.title}
           </h1>
           {connectedAccounts.length > 0 && (
@@ -833,10 +833,10 @@ export default function ConnectionsPage() {
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Connection Form */}
         <div className="relative z-10">
-          <Card className="bg-[#1a1025] border border-purple-500/30">
-            <CardHeader className="bg-gradient-to-r from-purple-500/10 to-violet-500/10 border-b border-purple-500/30">
+          <Card className="bg-[#0a0e16] border border-blue-500/30">
+            <CardHeader className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border-b border-blue-500/30">
               <CardTitle className="flex items-center gap-2 text-xl">
-                <Sparkles className="w-5 h-5 text-purple-400" />
+                <Sparkles className="w-5 h-5 text-cyan-400" />
                 {language === 'id' ? 'Tambah Koneksi Baru' : 'Add New Connection'}
               </CardTitle>
             </CardHeader>
@@ -845,17 +845,17 @@ export default function ConnectionsPage() {
                 {/* Platform Selection */}
                 <div className="space-y-2">
                   <Label className="text-white/90 font-medium flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-purple-400" />
+                    <Shield className="w-4 h-4 text-cyan-400" />
                     {content.platformLabel}
                   </Label>
                   <Select
                     value={formData.platform}
                     onValueChange={(value: Platform) => setFormData({ ...formData, platform: value })}
                   >
-                    <SelectTrigger className="bg-[#0a0712] border-purple-900/30 text-white h-12">
+                    <SelectTrigger className="bg-[#070a10] border-blue-900/30 text-white h-12">
                       <SelectValue placeholder={content.platformPlaceholder} />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#0f0b18] border-purple-900/30">
+                    <SelectContent className="bg-[#080b12] border-blue-900/30">
                       <SelectItem value="MT4">MT4 (MetaTrader 4)</SelectItem>
                       <SelectItem value="MT5">MT5 (MetaTrader 5)</SelectItem>
                     </SelectContent>
@@ -865,7 +865,7 @@ export default function ConnectionsPage() {
                 {/* Account Number */}
                 <div className="space-y-2">
                   <Label className="text-white/90 font-medium flex items-center gap-2">
-                    <Server className="w-4 h-4 text-purple-400" />
+                    <Server className="w-4 h-4 text-cyan-400" />
                     {content.accountNumberLabel}
                   </Label>
                   <Input
@@ -873,7 +873,7 @@ export default function ConnectionsPage() {
                     placeholder={content.accountNumberPlaceholder}
                     value={formData.accountNumber}
                     onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
-                    className="bg-[#0a0712] border-purple-900/30 text-white h-12 placeholder:text-white/30"
+                    className="bg-[#070a10] border-blue-900/30 text-white h-12 placeholder:text-white/30"
                     required
                   />
                 </div>
@@ -881,7 +881,7 @@ export default function ConnectionsPage() {
                 {/* Password */}
                 <div className="space-y-2">
                   <Label className="text-white/90 font-medium flex items-center gap-2">
-                    <Lock className="w-4 h-4 text-purple-400" />
+                    <Lock className="w-4 h-4 text-cyan-400" />
                     {content.passwordLabel}
                   </Label>
                   <Input
@@ -889,7 +889,7 @@ export default function ConnectionsPage() {
                     placeholder={content.passwordPlaceholder}
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="bg-[#0a0712] border-purple-900/30 text-white h-12 placeholder:text-white/30"
+                    className="bg-[#070a10] border-blue-900/30 text-white h-12 placeholder:text-white/30"
                     required
                   />
                   <p className="text-xs text-white/40 flex items-center gap-1">
@@ -908,20 +908,20 @@ export default function ConnectionsPage() {
                     placeholder={content.brokerServerPlaceholder}
                     value={formData.brokerServer}
                     onChange={(e) => setFormData({ ...formData, brokerServer: e.target.value })}
-                    className="bg-[#0a0712] border-purple-900/30 text-white h-12 placeholder:text-white/30"
+                    className="bg-[#070a10] border-blue-900/30 text-white h-12 placeholder:text-white/30"
                     required
                   />
                 </div>
 
                 {/* Security Notice */}
-                {/* <Alert className="bg-purple-500/10 border-purple-500/30 relative z-0">
-                  <AlertDescription className="text-xs text-purple-200/80">
+                {/* <Alert className="bg-blue-500/10 border-blue-500/30 relative z-0">
+                  <AlertDescription className="text-xs text-cyan-200/80">
                     {content.securityNote}
                   </AlertDescription>
                 </Alert> */}
 
-                <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3 relative z-0">
-                  <p className="text-xs text-purple-200/80">
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 relative z-0">
+                  <p className="text-xs text-cyan-200/80">
                     {content.securityNote}
                   </p>
                 </div>
@@ -936,8 +936,8 @@ export default function ConnectionsPage() {
                     }}
                     className={`w-full h-14 font-extrabold shadow-lg transition-all duration-300 text-base pointer-events-auto ${
                       isConnecting
-                        ? 'bg-purple-900/50 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] cursor-pointer'
+                        ? 'bg-blue-900/50 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-600 hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] cursor-pointer'
                     } text-white`}
                   >
                     {isConnecting ? (
@@ -958,8 +958,8 @@ export default function ConnectionsPage() {
           </Card>
 
           {/* Achievements Section */}
-          <Card className="bg-[#1a1025] border border-purple-500/30 mt-6">
-            <CardHeader className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-b border-purple-500/30">
+          <Card className="bg-[#0a0e16] border border-blue-500/30 mt-6">
+            <CardHeader className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-b border-blue-500/30">
               <CardTitle className="flex items-center gap-2 text-xl">
                 <Trophy className="w-5 h-5 text-amber-400" />
                 {content.achievementsTitle}
@@ -977,8 +977,8 @@ export default function ConnectionsPage() {
 
         {/* Connected Accounts List */}
         <div>
-          <Card className="bg-[#1a1025] border border-purple-500/30 h-full">
-            <CardHeader className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-b border-purple-500/30">
+          <Card className="bg-[#0a0e16] border border-blue-500/30 h-full">
+            <CardHeader className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-b border-blue-500/30">
               <CardTitle className="flex items-center gap-2 text-xl">
                 <CheckCircle className="w-5 h-5 text-emerald-400" />
                 {content.connectedAccounts}
@@ -1058,15 +1058,15 @@ export default function ConnectionsPage() {
                   {connectedAccounts.map((account, index) => (
                     <div
                       key={account.id}
-                      className={`p-4 rounded-xl bg-white/[0.03] border border-purple-500/20 hover:border-purple-500/30 hover:bg-white/[0.06] transition-all ${
-                        syncingAccountId === account.id ? 'ring-2 ring-purple-500/50' : ''
+                      className={`p-4 rounded-xl bg-white/[0.03] border border-blue-500/20 hover:border-blue-500/30 hover:bg-white/[0.06] transition-all ${
+                        syncingAccountId === account.id ? 'ring-2 ring-blue-500/50' : ''
                       }`}
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-lg font-bold text-white">{account.account_number}</span>
-                            <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-xs font-bold border border-purple-500/30">
+                            <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-cyan-300 text-xs font-bold border border-blue-500/30">
                               {account.platform}
                             </span>
                           </div>
@@ -1097,12 +1097,12 @@ export default function ConnectionsPage() {
                       {/* Sync Progress */}
                       {syncingAccountId === account.id && (
                         <div className="mb-3">
-                          <div className="flex items-center gap-2 text-xs text-purple-300 mb-1.5">
+                          <div className="flex items-center gap-2 text-xs text-cyan-300 mb-1.5">
                             <Database className="w-3 h-3 animate-pulse" />
                             <span>{language === 'id' ? 'Menarik data trading...' : 'Fetching trading data...'}</span>
                             <span className="ml-auto">{Math.round(syncProgress)}%</span>
                           </div>
-                          <Progress value={syncProgress} className="h-1.5 bg-purple-900/30" />
+                          <Progress value={syncProgress} className="h-1.5 bg-blue-900/30" />
                         </div>
                       )}
 
@@ -1129,7 +1129,7 @@ export default function ConnectionsPage() {
                               size="sm"
                               onClick={() => handleSync(account.id)}
                               disabled={syncingAccountId === account.id}
-                              className={`text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 h-8 ${
+                              className={`text-cyan-400 hover:text-cyan-300 hover:bg-blue-500/10 h-8 ${
                                 syncingAccountId === account.id ? 'cursor-not-allowed' : ''
                               }`}
                             >
@@ -1221,7 +1221,7 @@ export default function ConnectionsPage() {
                     Trading Accounts ({debugInfo.accounts.count})
                   </h3>
                   {debugInfo.accounts.accounts.length > 0 ? (
-                    <pre className="text-xs text-purple-400 overflow-x-auto">
+                    <pre className="text-xs text-cyan-400 overflow-x-auto">
                       {JSON.stringify(debugInfo.accounts, null, 2)}
                     </pre>
                   ) : (

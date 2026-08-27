@@ -255,7 +255,7 @@ export default function WelcomeOnboarding({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.88, y: 30 }}
           transition={{ type: 'spring', damping: 22, stiffness: 260 }}
-          className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0f0b18] shadow-2xl shadow-purple-500/10"
+          className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/[0.08] bg-[#080b12] shadow-2xl shadow-blue-500/10"
           style={{ minHeight: 520 }}
         >
           {/* Top accent glow */}
@@ -365,7 +365,7 @@ export default function WelcomeOnboarding({
                         'AI menganalisis pola & mendeteksi kesalahan trading berulang.',
                         'AI analyzes patterns & detects recurring trading mistakes.'
                     )}
-                      gradient="from-purple-500 to-violet-600"
+                      gradient="from-blue-500 to-cyan-600"
                       delay={0.5}
                       lang={language}
                     />
@@ -483,12 +483,12 @@ export default function WelcomeOnboarding({
                       transition={{ delay: 0.3, duration: 0.5 }}
                       onClick={handleLoadSample}
                       disabled={loadingSample}
-                      className="group relative w-full overflow-hidden rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 via-violet-500/5 to-transparent p-5 text-left transition-all hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10 disabled:opacity-60 disabled:pointer-events-none"
+                      className="group relative w-full overflow-hidden rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent p-5 text-left transition-all hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10 disabled:opacity-60 disabled:pointer-events-none"
                     >
-                      <div className="pointer-events-none absolute -inset-px rounded-2xl bg-gradient-to-br from-purple-500/0 to-violet-500/0 transition-all group-hover:from-purple-500/10 group-hover:to-violet-500/10" />
+                      <div className="pointer-events-none absolute -inset-px rounded-2xl bg-gradient-to-br from-blue-500/0 to-blue-500/0 transition-all group-hover:from-blue-500/10 group-hover:to-blue-500/10" />
 
                       <div className="relative flex items-start gap-4">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-violet-600 shadow-lg shadow-purple-500/30">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-600 shadow-lg shadow-blue-500/30">
                           {loadingSample ? (
                             <Loader2 className="h-7 w-7 text-white animate-spin" />
                           ) : (
@@ -508,7 +508,7 @@ export default function WelcomeOnboarding({
                               'Instantly see how the dashboard looks with data. 15 realistic demo trades.'
                             )}
                           </p>
-                          <div className="mt-3 flex items-center gap-1.5 text-purple-400 text-xs font-semibold">
+                          <div className="mt-3 flex items-center gap-1.5 text-cyan-400 text-xs font-semibold">
                             <Sparkles className="h-3.5 w-3.5" />
                             {t('Instan — 1 klik', 'Instant — 1 click')}
                           </div>

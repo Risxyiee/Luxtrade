@@ -714,7 +714,7 @@ function LuxTradeDashboardContent() {
     return (
       <div className="min-h-screen bg-lux-bg-primary flex items-center justify-center" suppressHydrationWarning={true}>
         <div className="text-center">
-          <Loader2 className="w-8 h-8 text-purple-500 animate-spin mx-auto mb-4" />
+          <Loader2 className="w-8 h-8 text-blue-500 animate-spin mx-auto mb-4" />
           <p className="text-lux-text-muted text-sm">Loading...</p>
         </div>
       </div>

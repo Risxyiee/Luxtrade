@@ -111,7 +111,7 @@ export function RewardBugButton({
     <Button
       onClick={handleReward}
       disabled={loading}
-      className="gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+      className="gap-2 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-pink-700"
     >
       {loading ? (
         <>

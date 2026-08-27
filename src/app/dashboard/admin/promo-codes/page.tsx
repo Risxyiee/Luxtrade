@@ -105,11 +105,11 @@ function PromoCodeCard({ promo, usageList }: { promo: PromoCode; usageList: Prom
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="bg-[#1e1338] border-purple-500/20 hover:border-purple-500/40 transition-colors">
+      <Card className="bg-[#1e1338] border-blue-500/20 hover:border-blue-500/40 transition-colors">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Tag className="h-4 w-4 text-purple-400" />
+              <Tag className="h-4 w-4 text-cyan-400" />
               <CardTitle className="text-base font-mono text-white tracking-wide">
                 {promo.code}
               </CardTitle>
@@ -143,7 +143,7 @@ function PromoCodeCard({ promo, usageList }: { promo: PromoCode; usageList: Prom
               Diskon {promo.discountPercent}%
             </span>
             <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3 text-purple-400" />
+              <Clock className="h-3 w-3 text-cyan-400" />
               {promo.durationMonths} bulan
             </span>
             <span className="flex items-center gap-1">
@@ -208,7 +208,7 @@ function UsageTable({ usage }: { usage: PromoUsage[] }) {
                 <td className="py-3 pr-4 text-gray-300 font-mono text-xs">{u.email}</td>
                 <td className="py-3 pr-4 text-white">{u.fullName || '-'}</td>
                 <td className="py-3 pr-4">
-                  <Badge variant="outline" className="font-mono text-xs bg-purple-500/10 border-purple-500/30 text-purple-300">
+                  <Badge variant="outline" className="font-mono text-xs bg-blue-500/10 border-blue-500/30 text-cyan-300">
                     {u.promoCode}
                   </Badge>
                 </td>
@@ -245,7 +245,7 @@ function UsageTable({ usage }: { usage: PromoUsage[] }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.04, duration: 0.3 }}
           >
-            <Card className="bg-[#1e1338] border-purple-500/15 p-4">
+            <Card className="bg-[#1e1338] border-blue-500/15 p-4">
               <div className="flex items-start justify-between mb-2">
                 <div className="space-y-0.5">
                   <p className="text-white text-sm font-medium">{u.fullName || u.email}</p>
@@ -266,7 +266,7 @@ function UsageTable({ usage }: { usage: PromoUsage[] }) {
                 )}
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-400">
-                <Badge variant="outline" className="font-mono text-[10px] bg-purple-500/10 border-purple-500/30 text-purple-300">
+                <Badge variant="outline" className="font-mono text-[10px] bg-blue-500/10 border-blue-500/30 text-cyan-300">
                   {u.promoCode}
                 </Badge>
                 <span className="text-amber-400">{u.discountPercent}% off</span>
@@ -423,7 +423,7 @@ export default function PromoCodesPage() {
   if (checkingAuth) {
     return (
       <div className="min-h-screen bg-[#1a0f2e] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 text-purple-400 animate-spin" />
+        <Loader2 className="h-8 w-8 text-cyan-400 animate-spin" />
       </div>
     )
   }
@@ -435,7 +435,7 @@ export default function PromoCodesPage() {
   return (
     <div className="min-h-screen bg-[#1a0f2e]">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#1a0f2e]/90 backdrop-blur-md border-b border-purple-500/10">
+      <header className="sticky top-0 z-50 bg-[#1a0f2e]/90 backdrop-blur-md border-b border-blue-500/10">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/dashboard/admin">
@@ -445,9 +445,9 @@ export default function PromoCodesPage() {
             </Link>
             <div className="h-5 w-px bg-white/10" />
             <div className="flex items-center gap-2">
-              <Tag className="h-4 w-4 text-purple-400" />
+              <Tag className="h-4 w-4 text-cyan-400" />
               <h1 className="text-white font-semibold text-base">Promo Codes</h1>
-              <Shield className="h-3 w-3 text-purple-400/60" />
+              <Shield className="h-3 w-3 text-cyan-400/60" />
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -499,7 +499,7 @@ export default function PromoCodesPage() {
 
         {/* Create New Promo */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="bg-[#1e1338] border-purple-500/20">
+          <Card className="bg-[#1e1338] border-blue-500/20">
             <CardHeader className="pb-4">
               <CardTitle className="text-white flex items-center gap-2 text-base">
                 <Plus className="h-4 w-4 text-amber-400" />
@@ -551,7 +551,7 @@ export default function PromoCodesPage() {
                   <Button
                     onClick={handleCreate}
                     disabled={creating || !newCode.trim()}
-                    className="w-full bg-purple-600 hover:bg-purple-500 text-white h-10"
+                    className="w-full bg-blue-600 hover:bg-blue-500 text-white h-10"
                   >
                     {creating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
                     Buat Promo
@@ -571,7 +571,7 @@ export default function PromoCodesPage() {
             className="grid grid-cols-2 lg:grid-cols-4 gap-3"
           >
             {[
-              { label: 'Total Kode', value: data.summary.totalPromoCodes, icon: Tag, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+              { label: 'Total Kode', value: data.summary.totalPromoCodes, icon: Tag, color: 'text-cyan-400', bg: 'bg-blue-500/10' },
               { label: 'Kode Aktif', value: data.summary.activePromoCodes, icon: Zap, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
               { label: 'Total Terpakai', value: data.summary.totalQuotaUsed, icon: Users, color: 'text-amber-400', bg: 'bg-amber-500/10' },
               { label: 'Sisa Quota', value: data.summary.totalQuotaRemaining, icon: BarChart3, color: 'text-blue-400', bg: 'bg-blue-500/10' },
@@ -594,7 +594,7 @@ export default function PromoCodesPage() {
         {/* Loading state */}
         {loading && !data && (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-6 w-6 text-purple-400 animate-spin" />
+            <Loader2 className="h-6 w-6 text-cyan-400 animate-spin" />
           </div>
         )}
 
@@ -634,14 +634,14 @@ export default function PromoCodesPage() {
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-white font-semibold flex items-center gap-2">
-                <Mail className="h-4 w-4 text-purple-400" />
+                <Mail className="h-4 w-4 text-cyan-400" />
                 Penggunaan Promo
                 <Badge variant="outline" className="text-[10px] bg-white/5 border-white/10 text-gray-400">
                   {data.promoUsage.length}
                 </Badge>
               </h2>
             </div>
-            <Card className="bg-[#1e1338] border-purple-500/20">
+            <Card className="bg-[#1e1338] border-blue-500/20">
               <CardContent className="p-4 max-h-[500px] overflow-y-auto">
                 <UsageTable usage={data.promoUsage} />
               </CardContent>

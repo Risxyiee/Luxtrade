@@ -73,11 +73,11 @@ function EquityWidget() {
       const maxVal = Math.max(...values)
       const range = maxVal - minVal || 1
       
-      // Draw gradient background with premium purple gradient
+      // Draw gradient background with premium blue gradient
       const gradient = ctx.createLinearGradient(0, 0, 0, height)
       const isPositive = chartData[chartData.length - 1].value >= chartData[0].value
       if (isPositive) {
-        gradient.addColorStop(0, 'rgba(147, 51, 234, 0.4)') // Purple
+        gradient.addColorStop(0, 'rgba(59, 130, 246, 0.4)') // Blue
         gradient.addColorStop(0.5, 'rgba(59, 130, 246, 0.3)') // Blue
         gradient.addColorStop(1, 'rgba(59, 130, 246, 0)')
       } else {
@@ -114,7 +114,7 @@ function EquityWidget() {
       
       // Electric Blue Gradient for line
       const lineGradient = ctx.createLinearGradient(0, 0, width, 0)
-      lineGradient.addColorStop(0, '#9333ea') // Purple
+      lineGradient.addColorStop(0, '#06b6d4') // Blue
       lineGradient.addColorStop(0.5, '#3b82f6') // Blue
       lineGradient.addColorStop(1, '#06b6d4') // Cyan
       
@@ -163,7 +163,7 @@ function EquityWidget() {
     <div className="rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] p-6 hover:shadow-[0_0_40px_rgba(139,92,246,0.3)] transition-shadow duration-500">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-sm text-purple-300/80 font-semibold tracking-wide uppercase text-xs">Portfolio Equity</p>
+          <p className="text-sm text-cyan-300/80 font-semibold tracking-wide uppercase text-xs">Portfolio Equity</p>
           <div className="flex items-baseline gap-3">
             <span className="text-3xl font-extrabold text-white tracking-tight">
               ${currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -203,7 +203,7 @@ function EquityWidget() {
         className="w-full h-32"
       />
       
-      <div className="flex items-center justify-between mt-4 text-xs text-purple-300/60 font-medium">
+      <div className="flex items-center justify-between mt-4 text-xs text-cyan-300/60 font-medium">
         <span>Start: $10,500.00</span>
         <span>Updated just now</span>
       </div>
@@ -274,7 +274,7 @@ function AnimatedForexTrades() {
         return (
           <motion.div 
             key={`${tradeIdx}-${i}`}
-            className="flex items-center justify-between p-3 rounded-xl backdrop-blur-md bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-purple-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.2)] transition-all duration-300"
+            className="flex items-center justify-between p-3 rounded-xl backdrop-blur-md bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.2)] transition-all duration-300"
             initial={false}
             animate={{
               opacity: isExiting ? 0 : 1,
@@ -312,7 +312,7 @@ function AnimatedForexTrades() {
                     {trade.pair}
                   </motion.span>
                   <motion.span 
-                    className="text-[9px] px-2.5 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 font-bold backdrop-blur-sm"
+                    className="text-[9px] px-2.5 py-0.5 rounded-full bg-blue-500/20 border border-blue-500/30 text-cyan-300 font-bold backdrop-blur-sm"
                     animate={{ opacity: [0.6, 1, 0.6] }}
                     transition={{ duration: 2, repeat: Infinity }}
                   >
@@ -381,7 +381,7 @@ function AnimatedForexTrades() {
           {[0, 1, 2].map((i) => (
             <motion.div 
               key={i}
-              className="w-2 h-2 rounded-full bg-gradient-to-r from-purple-500 to-blue-500"
+              className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-500"
               animate={{ opacity: [0.3, 1, 0.3] }}
               transition={{ duration: 1, delay: i * 0.2, repeat: Infinity }}
             />
@@ -545,13 +545,13 @@ export default function LuxTradeLanding() {
       icon: BarChart3,
       title: 'Performance Analytics',
       description: 'Track win rate, profit factor, and monthly performance with interactive charts.',
-      gradient: 'from-purple-500 to-violet-600'
+      gradient: 'from-blue-500 to-cyan-600'
     },
     {
       icon: BookOpen,
       title: 'Trading Journal',
       description: 'Document trades, emotions, and market conditions to refine your edge.',
-      gradient: 'from-purple-500 to-violet-600'
+      gradient: 'from-blue-500 to-cyan-600'
     },
     {
       icon: Brain,
@@ -569,13 +569,13 @@ export default function LuxTradeLanding() {
       icon: LineChart,
       title: 'P/L Tracking',
       description: 'Automatic profit/loss calculations for every position.',
-      gradient: 'from-rose-500 to-pink-600'
+      gradient: 'from-rose-500 to-cyan-500'
     },
     {
       icon: Shield,
       title: 'Bank-Grade Security',
       description: 'Your trading data is encrypted and never shared.',
-      gradient: 'from-indigo-500 to-purple-600'
+      gradient: 'from-blue-500 to-cyan-500'
     }
   ]
 
@@ -621,41 +621,41 @@ export default function LuxTradeLanding() {
       {/* Partikel Background - Tailwind Murni */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-10">
         {/* Partikel KIRI (left: 2% - 25%) */}
-        <div className="absolute w-3 h-3 bg-purple-500/40 rounded-full animate-ping" style={{ top: '5%', left: '3%', animationDuration: '3s' }} />
-        <div className="absolute w-2 h-2 bg-purple-400/50 rounded-full animate-pulse" style={{ top: '12%', left: '8%', animationDuration: '4s' }} />
+        <div className="absolute w-3 h-3 bg-blue-500/40 rounded-full animate-ping" style={{ top: '5%', left: '3%', animationDuration: '3s' }} />
+        <div className="absolute w-2 h-2 bg-cyan-400/50 rounded-full animate-pulse" style={{ top: '12%', left: '8%', animationDuration: '4s' }} />
         <div className="absolute w-4 h-4 bg-blue-500/30 rounded-full animate-ping" style={{ top: '8%', left: '15%', animationDuration: '3.5s' }} />
-        <div className="absolute w-2 h-2 bg-purple-300/60 rounded-full animate-pulse" style={{ top: '18%', left: '20%', animationDuration: '2.5s' }} />
-        <div className="absolute w-3 h-3 bg-purple-500/35 rounded-full animate-ping" style={{ top: '25%', left: '5%', animationDuration: '4.5s' }} />
+        <div className="absolute w-2 h-2 bg-cyan-300/60 rounded-full animate-pulse" style={{ top: '18%', left: '20%', animationDuration: '2.5s' }} />
+        <div className="absolute w-3 h-3 bg-blue-500/35 rounded-full animate-ping" style={{ top: '25%', left: '5%', animationDuration: '4.5s' }} />
         <div className="absolute w-2 h-2 bg-blue-400/40 rounded-full animate-pulse" style={{ top: '35%', left: '12%', animationDuration: '3s' }} />
-        <div className="absolute w-4 h-4 bg-purple-500/35 rounded-full animate-ping" style={{ top: '30%', left: '22%', animationDuration: '4.5s' }} />
-        <div className="absolute w-2 h-2 bg-purple-300/50 rounded-full animate-pulse" style={{ top: '40%', left: '18%', animationDuration: '3s' }} />
+        <div className="absolute w-4 h-4 bg-blue-500/35 rounded-full animate-ping" style={{ top: '30%', left: '22%', animationDuration: '4.5s' }} />
+        <div className="absolute w-2 h-2 bg-cyan-300/50 rounded-full animate-pulse" style={{ top: '40%', left: '18%', animationDuration: '3s' }} />
         <div className="absolute w-3 h-3 bg-blue-400/40 rounded-full animate-ping" style={{ top: '50%', left: '8%', animationDuration: '3.5s' }} />
-        <div className="absolute w-2 h-2 bg-purple-500/45 rounded-full animate-pulse" style={{ top: '58%', left: '15%', animationDuration: '4s' }} />
-        <div className="absolute w-3 h-3 bg-purple-500/40 rounded-full animate-ping" style={{ top: '70%', left: '10%', animationDuration: '4.2s' }} />
+        <div className="absolute w-2 h-2 bg-blue-500/45 rounded-full animate-pulse" style={{ top: '58%', left: '15%', animationDuration: '4s' }} />
+        <div className="absolute w-3 h-3 bg-blue-500/40 rounded-full animate-ping" style={{ top: '70%', left: '10%', animationDuration: '4.2s' }} />
         <div className="absolute w-2 h-2 bg-blue-400/45 rounded-full animate-pulse" style={{ top: '78%', left: '20%', animationDuration: '3.5s' }} />
-        <div className="absolute w-4 h-4 bg-purple-400/35 rounded-full animate-ping" style={{ top: '72%', left: '6%', animationDuration: '4.5s' }} />
-        <div className="absolute w-2 h-2 bg-purple-500/45 rounded-full animate-pulse" style={{ top: '88%', left: '3%', animationDuration: '4s' }} />
+        <div className="absolute w-4 h-4 bg-cyan-400/35 rounded-full animate-ping" style={{ top: '72%', left: '6%', animationDuration: '4.5s' }} />
+        <div className="absolute w-2 h-2 bg-blue-500/45 rounded-full animate-pulse" style={{ top: '88%', left: '3%', animationDuration: '4s' }} />
         <div className="absolute w-2 h-2 bg-blue-400/40 rounded-full animate-ping" style={{ top: '92%', left: '12%', animationDuration: '3.5s' }} />
 
         {/* Partikel KANAN (left: 75% - 95%) */}
-        <div className="absolute w-2 h-2 bg-purple-500/50 rounded-full animate-pulse" style={{ top: '20%', left: '78%', animationDuration: '4.2s' }} />
+        <div className="absolute w-2 h-2 bg-blue-500/50 rounded-full animate-pulse" style={{ top: '20%', left: '78%', animationDuration: '4.2s' }} />
         <div className="absolute w-4 h-4 bg-blue-500/35 rounded-full animate-ping" style={{ top: '7%', left: '88%', animationDuration: '3.2s' }} />
-        <div className="absolute w-2 h-2 bg-purple-300/55 rounded-full animate-pulse" style={{ top: '14%', left: '92%', animationDuration: '2.8s' }} />
+        <div className="absolute w-2 h-2 bg-cyan-300/55 rounded-full animate-pulse" style={{ top: '14%', left: '92%', animationDuration: '2.8s' }} />
         <div className="absolute w-2 h-2 bg-blue-500/40 rounded-full animate-pulse" style={{ top: '42%', left: '82%', animationDuration: '3.2s' }} />
-        <div className="absolute w-4 h-4 bg-purple-300/50 rounded-full animate-ping" style={{ top: '26%', left: '90%', animationDuration: '2.8s' }} />
-        <div className="absolute w-2 h-2 bg-purple-400/45 rounded-full animate-pulse" style={{ top: '36%', left: '95%', animationDuration: '4s' }} />
-        <div className="absolute w-3 h-3 bg-purple-500/45 rounded-full animate-ping" style={{ top: '62%', left: '78%', animationDuration: '4.2s' }} />
+        <div className="absolute w-4 h-4 bg-cyan-300/50 rounded-full animate-ping" style={{ top: '26%', left: '90%', animationDuration: '2.8s' }} />
+        <div className="absolute w-2 h-2 bg-cyan-400/45 rounded-full animate-pulse" style={{ top: '36%', left: '95%', animationDuration: '4s' }} />
+        <div className="absolute w-3 h-3 bg-blue-500/45 rounded-full animate-ping" style={{ top: '62%', left: '78%', animationDuration: '4.2s' }} />
         <div className="absolute w-2 h-2 bg-blue-400/35 rounded-full animate-pulse" style={{ top: '50%', left: '85%', animationDuration: '4.5s' }} />
-        <div className="absolute w-4 h-4 bg-purple-400/40 rounded-full animate-ping" style={{ top: '58%', left: '90%', animationDuration: '3s' }} />
-        <div className="absolute w-2 h-2 bg-purple-300/50 rounded-full animate-pulse" style={{ top: '48%', left: '92%', animationDuration: '2.8s' }} />
+        <div className="absolute w-4 h-4 bg-cyan-400/40 rounded-full animate-ping" style={{ top: '58%', left: '90%', animationDuration: '3s' }} />
+        <div className="absolute w-2 h-2 bg-cyan-300/50 rounded-full animate-pulse" style={{ top: '48%', left: '92%', animationDuration: '2.8s' }} />
         <div className="absolute w-3 h-3 bg-blue-500/45 rounded-full animate-pulse" style={{ top: '56%', left: '97%', animationDuration: '4s' }} />
-        <div className="absolute w-2 h-2 bg-purple-300/45 rounded-full animate-pulse" style={{ top: '85%', left: '80%', animationDuration: '3.8s' }} />
-        <div className="absolute w-4 h-4 bg-purple-400/40 rounded-full animate-ping" style={{ top: '72%', left: '88%', animationDuration: '4.5s' }} />
+        <div className="absolute w-2 h-2 bg-cyan-300/45 rounded-full animate-pulse" style={{ top: '85%', left: '80%', animationDuration: '3.8s' }} />
+        <div className="absolute w-4 h-4 bg-cyan-400/40 rounded-full animate-ping" style={{ top: '72%', left: '88%', animationDuration: '4.5s' }} />
         <div className="absolute w-2 h-2 bg-blue-500/35 rounded-full animate-pulse" style={{ top: '82%', left: '93%', animationDuration: '3s' }} />
-        <div className="absolute w-3 h-3 bg-purple-300/50 rounded-full animate-ping" style={{ top: '75%', left: '95%', animationDuration: '2.8s' }} />
-        <div className="absolute w-3 h-3 bg-purple-500/45 rounded-full animate-pulse" style={{ top: '96%', left: '85%', animationDuration: '3.8s' }} />
+        <div className="absolute w-3 h-3 bg-cyan-300/50 rounded-full animate-ping" style={{ top: '75%', left: '95%', animationDuration: '2.8s' }} />
+        <div className="absolute w-3 h-3 bg-blue-500/45 rounded-full animate-pulse" style={{ top: '96%', left: '85%', animationDuration: '3.8s' }} />
         <div className="absolute w-2 h-2 bg-blue-400/35 rounded-full animate-pulse" style={{ top: '91%', left: '90%', animationDuration: '4.5s' }} />
-        <div className="absolute w-4 h-4 bg-purple-400/40 rounded-full animate-pulse" style={{ top: '95%', left: '80%', animationDuration: '3s' }} />
+        <div className="absolute w-4 h-4 bg-cyan-400/40 rounded-full animate-pulse" style={{ top: '95%', left: '80%', animationDuration: '3s' }} />
       </div>
 
       {/* Navigation - Premium Glassmorphism */}
@@ -681,10 +681,10 @@ export default function LuxTradeLanding() {
                   />
                 </div>
                 <div>
-                  <span className="text-xl font-extrabold bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
+                  <span className="text-xl font-extrabold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
                     LuxTrade
                   </span>
-                  <span className="hidden sm:inline text-[10px] text-purple-400/70 ml-2 tracking-[0.2em] font-bold">PREMIUM</span>
+                  <span className="hidden sm:inline text-[10px] text-cyan-400/70 ml-2 tracking-[0.2em] font-bold">PREMIUM</span>
                 </div>
               </div>
               
@@ -693,10 +693,10 @@ export default function LuxTradeLanding() {
                   <a 
                     key={item.key}
                     href={`#${item.key}`}
-                    className="text-sm text-white/60 hover:text-white hover:text-purple-300 transition-all duration-300 font-medium relative group"
+                    className="text-sm text-white/60 hover:text-white hover:text-cyan-300 transition-all duration-300 font-medium relative group"
                   >
                     {item.label}
-                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 group-hover:w-full transition-all duration-300" />
+                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-blue-500 group-hover:w-full transition-all duration-300" />
                   </a>
                 ))}
               </div>
@@ -704,7 +704,7 @@ export default function LuxTradeLanding() {
               <div className="flex items-center gap-3">
                 <LanguageSwitcher />
                 <Link href="/auth/login">
-                  <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-all duration-300 font-semibold backdrop-blur-sm">
+                  <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 hover:shadow-[0_0_15px_rgba(6,182,212,0.3)] transition-all duration-300 font-semibold backdrop-blur-sm">
                     {t('nav.login')}
                   </Button>
                 </Link>
@@ -713,7 +713,7 @@ export default function LuxTradeLanding() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <Button className="h-10 px-6 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-sm">
+                    <Button className="h-10 px-6 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] transition-all duration-300 backdrop-blur-sm">
                       {t('nav.signup')}
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
@@ -737,7 +737,7 @@ export default function LuxTradeLanding() {
             {/* Badge */}
             <motion.div variants={fadeInUp} className="flex justify-center mb-8">
               <motion.div 
-                className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-purple-500/10 border border-purple-500/30 hover:border-purple-500/50 transition-all duration-300 cursor-default"
+                className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-blue-500/10 border border-blue-500/30 hover:border-blue-500/50 transition-all duration-300 cursor-default"
                 whileHover={{ scale: 1.02 }}
               >
                 <motion.div
@@ -746,19 +746,19 @@ export default function LuxTradeLanding() {
                   }}
                   transition={{ duration: 2, repeat: Infinity }}
                 >
-                  <Sparkles className="w-4.5 h-4.5 text-purple-400" />
+                  <Sparkles className="w-4.5 h-4.5 text-cyan-400" />
                 </motion.div>
-                <span className="text-sm text-purple-300 font-semibold">{t('hero.subtitle').split('.')[0]}</span>
+                <span className="text-sm text-cyan-300 font-semibold">{t('hero.subtitle').split('.')[0]}</span>
               </motion.div>
             </motion.div>
             
-            {/* Main Headline - Lexend Extra Bold with gradient from white to purple-400 */}
+            {/* Main Headline - Lexend Extra Bold with gradient from white to cyan-400 */}
             <motion.h1
               variants={fadeInUp}
               className="text-5xl sm:text-6xl lg:text-7xl font-extrabold mb-8 leading-tight tracking-tight font-lexend"
               style={{ letterSpacing: '-0.02em' }}
             >
-              <span className="bg-gradient-to-r from-white to-purple-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-white to-cyan-400 bg-clip-text text-transparent">
                 {t('hero.title')}
               </span>
             </motion.h1>
@@ -770,7 +770,7 @@ export default function LuxTradeLanding() {
               {t('hero.subtitle')}
             </motion.p>
             
-            {/* CTA Buttons - Neon Glow Effect with hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] */}
+            {/* CTA Buttons - Neon Glow Effect with hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] */}
             <motion.div
               variants={fadeInUp}
               className="flex flex-col sm:flex-row items-center justify-center gap-5 mb-20"
@@ -780,7 +780,7 @@ export default function LuxTradeLanding() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <Button size="lg" className="h-16 px-10 text-xl bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-2xl shadow-purple-500/40 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-xl border border-purple-400/20">
+                  <Button size="lg" className="h-16 px-10 text-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold shadow-2xl shadow-blue-500/40 hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] transition-all duration-300 backdrop-blur-xl border border-cyan-400/20">
                     {t('hero.cta.primary')}
                     <ArrowRight className="w-6 h-6 ml-3" />
                   </Button>
@@ -791,7 +791,7 @@ export default function LuxTradeLanding() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <Button variant="outline" size="lg" className="h-16 px-10 text-xl border-2 border-white/10 hover:border-white/20 text-white hover:bg-white/5 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] backdrop-blur-xl font-semibold transition-all duration-300">
+                  <Button variant="outline" size="lg" className="h-16 px-10 text-xl border-2 border-white/10 hover:border-white/20 text-white hover:bg-white/5 hover:shadow-[0_0_20px_rgba(6,182,212,0.3)] backdrop-blur-xl font-semibold transition-all duration-300">
                     <Play className="w-6 h-6 mr-3" />
                     {t('hero.cta.secondary')}
                   </Button>
@@ -807,10 +807,10 @@ export default function LuxTradeLanding() {
               {stats.map((stat, index) => (
                 <motion.div
                   key={index}
-                  className="p-5 rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-purple-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] transition-all duration-300 group"
+                  className="p-5 rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] transition-all duration-300 group"
                   whileHover={{ scale: 1.02, y: -2 }}
                 >
-                  <stat.icon className="w-5 h-5 text-purple-400/70 mb-3 mx-auto group-hover:text-purple-400 transition-colors" />
+                  <stat.icon className="w-5 h-5 text-cyan-400/70 mb-3 mx-auto group-hover:text-cyan-400 transition-colors" />
                   <div className="text-3xl font-extrabold text-white mb-1">{stat.value}</div>
                   <div className="text-xs text-white/50 font-medium uppercase tracking-wide">{stat.label}</div>
                 </motion.div>
@@ -839,13 +839,13 @@ export default function LuxTradeLanding() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-purple-500/10 border border-purple-500/30 mb-6">
-              <Zap className="w-4.5 h-4.5 text-purple-400" />
-              <span className="text-sm text-purple-300 font-semibold">{t('features.title')}</span>
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-blue-500/10 border border-blue-500/30 mb-6">
+              <Zap className="w-4.5 h-4.5 text-cyan-400" />
+              <span className="text-sm text-cyan-300 font-semibold">{t('features.title')}</span>
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
               <span className="text-white">{t('features.subtitle').split('for')[0]}</span>
-              <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">{t('features.subtitle').includes('for') ? 'for' : ''} {t('features.subtitle').split('for')[1] || ''}</span>
+              <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">{t('features.subtitle').includes('for') ? 'for' : ''} {t('features.subtitle').split('for')[1] || ''}</span>
             </h2>
             <p className="text-xl text-white/50 max-w-2xl mx-auto font-light">
               {t('features.subtitle')}
@@ -863,14 +863,14 @@ export default function LuxTradeLanding() {
                 className="group"
               >
                 <motion.div
-                  className="h-full p-6 rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-purple-500/30 hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-all duration-300"
+                  className="h-full p-6 rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-all duration-300"
                   whileHover={{ scale: 1.02, y: -4 }}
                 >
                   <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-lg`}>
                     <feature.icon className="w-7 h-7 text-white" />
                   </div>
-                  <h3 className="text-xl font-extrabold text-white mb-3">{language === 'id' ? feature.title : t(`features.${feature.gradient.includes('purple') ? 'journal' : feature.gradient.includes('cyan') ? 'ai' : feature.gradient.includes('emerald') ? 'insights' : 'risk'}.title`)}</h3>
-                  <p className="text-white/50 text-base leading-relaxed">{language === 'id' ? feature.description : t(`features.${feature.gradient.includes('purple') ? 'journal' : feature.gradient.includes('cyan') ? 'ai' : feature.gradient.includes('emerald') ? 'insights' : 'risk'}.desc`)}</p>
+                  <h3 className="text-xl font-extrabold text-white mb-3">{language === 'id' ? feature.title : t(`features.${feature.gradient.includes('blue') ? 'journal' : feature.gradient.includes('cyan') ? 'ai' : feature.gradient.includes('emerald') ? 'insights' : 'risk'}.title`)}</h3>
+                  <p className="text-white/50 text-base leading-relaxed">{language === 'id' ? feature.description : t(`features.${feature.gradient.includes('blue') ? 'journal' : feature.gradient.includes('cyan') ? 'ai' : feature.gradient.includes('emerald') ? 'insights' : 'risk'}.desc`)}</p>
                 </motion.div>
               </motion.div>
             ))}
@@ -879,7 +879,7 @@ export default function LuxTradeLanding() {
       </section>
 
       {/* Live Demo Section - Premium */}
-      <section id="demo" className="py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/10 to-transparent">
+      <section id="demo" className="py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-blue-900/10 to-transparent">
         <div className="max-w-7xl mx-auto">
           <motion.div 
             className="text-center mb-16"
@@ -902,7 +902,7 @@ export default function LuxTradeLanding() {
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="rounded-3xl backdrop-blur-xl border border-white/[0.08] bg-gradient-to-br from-[#1a0f2e]/50 to-[#0d0715]/50 p-1.5 shadow-2xl shadow-purple-500/20 hover:shadow-[0_0_60px_rgba(139,92,246,0.3)] transition-shadow duration-500"
+            className="rounded-3xl backdrop-blur-xl border border-white/[0.08] bg-gradient-to-br from-[#1a0f2e]/50 to-[#0d0715]/50 p-1.5 shadow-2xl shadow-blue-500/20 hover:shadow-[0_0_60px_rgba(139,92,246,0.3)] transition-shadow duration-500"
           >
             <div className="rounded-2xl overflow-hidden">
               {/* Mock Dashboard Header */}
@@ -923,9 +923,9 @@ export default function LuxTradeLanding() {
                 <div className="grid grid-cols-4 gap-4">
                   {[
                     { label: 'Total P/L', value: '+$1,247', color: 'emerald', delay: 0 },
-                    { label: 'Win Rate', value: '68%', color: 'purple', delay: 0.5 },
+                    { label: 'Win Rate', value: '68%', color: 'blue', delay: 0.5 },
                     { label: 'Open', value: '3', color: 'cyan', delay: 1 },
-                    { label: 'Profit Factor', value: '2.14', color: 'purple', delay: 1.5 },
+                    { label: 'Profit Factor', value: '2.14', color: 'blue', delay: 1.5 },
                   ].map((stat, i) => (
                     <motion.div 
                       key={i}
@@ -940,7 +940,7 @@ export default function LuxTradeLanding() {
                 </div>
                 
                 {/* Mini Chart */}
-                <div className="h-32 rounded-xl backdrop-blur-sm bg-gradient-to-br from-purple-500/10 to-transparent border border-white/[0.08] p-4">
+                <div className="h-32 rounded-xl backdrop-blur-sm bg-gradient-to-br from-blue-500/10 to-transparent border border-white/[0.08] p-4">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm text-white/40 font-semibold">Equity Curve</span>
                     <motion.div 
@@ -956,7 +956,7 @@ export default function LuxTradeLanding() {
                     {[40, 55, 45, 60, 50, 70, 65, 80, 75, 90, 85, 95, 88, 92, 100, 95, 98, 105, 100, 110].map((h, i) => (
                       <motion.div 
                         key={i}
-                        className="flex-1 bg-gradient-to-t from-purple-500 to-blue-500 rounded-t"
+                        className="flex-1 bg-gradient-to-t from-blue-500 to-blue-500 rounded-t"
                         style={{ height: `${h}%` }}
                         animate={{ opacity: [0.5, 1, 0.5] }}
                         transition={{ duration: 1, delay: i * 0.05, repeat: Infinity }}
@@ -996,13 +996,13 @@ export default function LuxTradeLanding() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-pink-500/10 border border-pink-500/30 mb-6">
-              <Trophy className="w-4.5 h-4.5 text-pink-400" />
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-cyan-400/10 border border-cyan-400/30 mb-6">
+              <Trophy className="w-4.5 h-4.5 text-cyan-300" />
               <span className="text-sm text-pink-300 font-semibold">Trusted by Traders</span>
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
               <span className="text-white">What Traders</span>
-              <span className="bg-gradient-to-r from-pink-400 to-rose-400 bg-clip-text text-transparent"> Are Saying</span>
+              <span className="bg-gradient-to-r from-cyan-300 to-rose-400 bg-clip-text text-transparent"> Are Saying</span>
             </h2>
           </motion.div>
 
@@ -1016,17 +1016,17 @@ export default function LuxTradeLanding() {
                 transition={{ delay: index * 0.15 }}
               >
                 <motion.div
-                  className="h-full p-6 rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-pink-500/30 hover:shadow-[0_0_40px_rgba(236,72,153,0.2)] transition-all duration-300"
+                  className="h-full p-6 rounded-2xl backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-cyan-400/30 hover:shadow-[0_0_40px_rgba(236,72,153,0.2)] transition-all duration-300"
                   whileHover={{ scale: 1.02, y: -4 }}
                 >
                   <div className="flex gap-1.5 mb-4">
                     {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="w-4.5 h-4.5 fill-purple-400 text-purple-400" />
+                      <Star key={i} className="w-4.5 h-4.5 fill-cyan-400 text-cyan-400" />
                     ))}
                   </div>
                   <p className="text-white/60 mb-5 text-base leading-relaxed font-light">&ldquo;{testimonial.content}&rdquo;</p>
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-violet-500 flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-bold text-sm shadow-lg">
                       {testimonial.avatar}
                     </div>
                     <div>
@@ -1042,7 +1042,7 @@ export default function LuxTradeLanding() {
       </section>
 
       {/* Pricing - 3 Paket: Free, Elite Pro Rp 49.000, dan Lifetime Ultra Rp 52.000 */}
-      <section id="pricing" className="py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/10 to-transparent">
+      <section id="pricing" className="py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-blue-900/10 to-transparent">
         <div className="max-w-6xl mx-auto">
           <motion.div
             className="text-center mb-20"
@@ -1050,9 +1050,9 @@ export default function LuxTradeLanding() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-purple-500/10 border border-purple-500/30 mb-6">
-              <Crown className="w-4.5 h-4.5 text-purple-400" />
-              <span className="text-sm text-purple-300 font-semibold">{t('pricing.title')}</span>
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-blue-500/10 border border-blue-500/30 mb-6">
+              <Crown className="w-4.5 h-4.5 text-cyan-400" />
+              <span className="text-sm text-cyan-300 font-semibold">{t('pricing.title')}</span>
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
               <span className="text-white">{t('pricing.title')}</span>
@@ -1081,7 +1081,7 @@ export default function LuxTradeLanding() {
             >
               {[
                 { icon: Lock, text: language === 'id' ? 'Diamankan SSL' : 'SSL Secured', color: 'cyan' },
-                { icon: Shield, text: language === 'id' ? 'Enkripsi Ujung ke Ujung' : 'End-to-End Encryption', color: 'purple' },
+                { icon: Shield, text: language === 'id' ? 'Enkripsi Ujung ke Ujung' : 'End-to-End Encryption', color: 'blue' },
                 { icon: ShieldCheck, text: language === 'id' ? 'Mematuhi SOC 2' : 'SOC 2 Compliant', color: 'emerald' },
               ].map((badge, i) => (
                 <div key={i} className="flex items-center gap-2 px-4 py-2 backdrop-blur-sm bg-white/5 rounded-xl border border-white/[0.08]">
@@ -1139,11 +1139,11 @@ export default function LuxTradeLanding() {
               transition={{ delay: 0.2 }}
             >
               <motion.div
-                className="h-full relative backdrop-blur-xl bg-gradient-to-b from-purple-500/10 to-transparent border border-purple-500/50 rounded-2xl p-6 pt-8 hover:shadow-[0_0_50px_rgba(139,92,246,0.3)] transition-all duration-300"
+                className="h-full relative backdrop-blur-xl bg-gradient-to-b from-blue-500/10 to-transparent border border-blue-500/50 rounded-2xl p-6 pt-8 hover:shadow-[0_0_50px_rgba(139,92,246,0.3)] transition-all duration-300"
                 whileHover={{ scale: 1.02, y: -4 }}
               >
                 <motion.div 
-                  className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-xs font-extrabold text-white backdrop-blur-xl border border-purple-400/30"
+                  className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-500 text-xs font-extrabold text-white backdrop-blur-xl border border-cyan-400/30"
                   animate={{ 
                     boxShadow: ['0 0 0 0 rgba(139, 92, 246, 0.7)', '0 0 0 10px rgba(139, 92, 246, 0)', '0 0 0 0 rgba(139, 92, 246, 0.7)']
                   }}
@@ -1151,7 +1151,7 @@ export default function LuxTradeLanding() {
                 >
                   {language === 'id' ? 'Paling Populer' : 'Most Popular'}
                 </motion.div>
-                <div className="text-sm text-purple-400 mb-1 font-bold tracking-wide uppercase text-xs">{t('pricing.pro.title')}</div>
+                <div className="text-sm text-cyan-400 mb-1 font-bold tracking-wide uppercase text-xs">{t('pricing.pro.title')}</div>
                 <div className="text-4xl font-extrabold text-white mb-1">
                   {t('pricing.pro.price').split(' /')[0]}
                   <span className="text-base font-normal text-white/40"> / {language === 'id' ? 'bulan' : 'Month'}</span>
@@ -1178,7 +1178,7 @@ export default function LuxTradeLanding() {
                   <Button
                     onClick={handleProUpgrade}
                     disabled={payLoading === 'PRO_30_DAYS'}
-                    className="w-full h-12 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-xl disabled:opacity-60"
+                    className="w-full h-12 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] transition-all duration-300 backdrop-blur-xl disabled:opacity-60"
                   >
                     {payLoading === 'PRO_30_DAYS' ? 'Membuka pembayaran...' : t('pricing.cta.upgrade')}
                   </Button>
@@ -1203,7 +1203,7 @@ export default function LuxTradeLanding() {
                   <tr className="border-b border-white/[0.08]">
                     <th className="p-5 text-left text-white/40 font-bold text-sm uppercase tracking-wide">{language === 'id' ? 'Fitur' : 'Features'}</th>
                     <th className="p-5 text-center text-white/40 font-bold text-sm uppercase tracking-wide">{t('pricing.free.title')}</th>
-                    <th className="p-5 text-center text-purple-400 font-extrabold text-sm uppercase tracking-wide">{t('pricing.pro.title')}</th>
+                    <th className="p-5 text-center text-cyan-400 font-extrabold text-sm uppercase tracking-wide">{t('pricing.pro.title')}</th>
                     <th className="p-5 text-center text-amber-400 font-extrabold text-sm uppercase tracking-wide">{t('pricing.lifetime.title')}</th>
                   </tr>
                 </thead>
@@ -1274,11 +1274,11 @@ export default function LuxTradeLanding() {
               ].map((item, index) => (
                 <React.Fragment key={index}>
                   <motion.div 
-                    className="flex flex-col items-center p-6 backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] rounded-2xl hover:bg-white/[0.06] hover:border-purple-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] transition-all duration-300"
+                    className="flex flex-col items-center p-6 backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] rounded-2xl hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] transition-all duration-300"
                     whileHover={{ scale: 1.05, y: -4 }}
                   >
-                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 flex items-center justify-center mb-4">
-                      <item.icon className="w-6 h-6 text-purple-400" />
+                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/20 border border-blue-500/30 flex items-center justify-center mb-4">
+                      <item.icon className="w-6 h-6 text-cyan-400" />
                     </div>
                     <span className="text-white font-extrabold">{item.title}</span>
                     <span className="text-white/40 text-sm font-medium">{item.time}</span>
@@ -1333,7 +1333,7 @@ export default function LuxTradeLanding() {
       </section>
 
       {/* Roadmap Section - Premium */}
-      <section id="roadmap" className="py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/10 to-transparent">
+      <section id="roadmap" className="py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-blue-900/10 to-transparent">
         <div className="max-w-5xl mx-auto">
           <motion.div 
             className="text-center mb-16"
@@ -1341,13 +1341,13 @@ export default function LuxTradeLanding() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-purple-500/10 border border-purple-500/30 mb-6">
-              <Clock className="w-4.5 h-4.5 text-purple-400" />
-              <span className="text-sm text-purple-300 font-semibold">{language === 'id' ? 'Peta Jalan Produk' : 'Product Roadmap'}</span>
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full backdrop-blur-xl bg-blue-500/10 border border-blue-500/30 mb-6">
+              <Clock className="w-4.5 h-4.5 text-cyan-400" />
+              <span className="text-sm text-cyan-300 font-semibold">{language === 'id' ? 'Peta Jalan Produk' : 'Product Roadmap'}</span>
             </div>
             <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
               <span className="text-white">{language === 'id' ? 'Yang' : 'What'}&apos;s</span>
-              <span className="bg-gradient-to-r from-purple-400 to-violet-400 bg-clip-text text-transparent"> {language === 'id' ? 'Akan Datang' : 'Coming Next'}</span>
+              <span className="bg-gradient-to-r from-cyan-400 to-cyan-400 bg-clip-text text-transparent"> {language === 'id' ? 'Akan Datang' : 'Coming Next'}</span>
             </h2>
             <p className="text-white/40 max-w-xl mx-auto font-light text-lg">
               {language === 'id' ? 'Kami terus meningkatkan LuxTrade. Inilah yang sedang kami kerjakan.' : 'We&apos;re constantly improving LuxTrade. Here&apos;s what we&apos;re working on.'}
@@ -1362,7 +1362,7 @@ export default function LuxTradeLanding() {
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="h-full backdrop-blur-xl bg-gradient-to-br from-[#1a0f2e]/50 to-[#0d0715]/50 border-purple-500/20 border border-white/[0.08] hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-shadow duration-500">
+              <Card className="h-full backdrop-blur-xl bg-gradient-to-br from-[#1a0f2e]/50 to-[#0d0715]/50 border-blue-500/20 border border-white/[0.08] hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-shadow duration-500">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4 mb-6">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center">
@@ -1406,15 +1406,15 @@ export default function LuxTradeLanding() {
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
             >
-              <Card className="h-full backdrop-blur-xl bg-gradient-to-br from-[#1a0f2e]/50 to-[#0d0715]/50 border-violet-500/20 border border-white/[0.08] hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-shadow duration-500">
+              <Card className="h-full backdrop-blur-xl bg-gradient-to-br from-[#1a0f2e]/50 to-[#0d0715]/50 border-blue-500/20 border border-white/[0.08] hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-shadow duration-500">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4 mb-6">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/30 flex items-center justify-center">
-                      <Lightning className="w-6 h-6 text-violet-400" />
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/20 border border-blue-500/30 flex items-center justify-center">
+                      <Lightning className="w-6 h-6 text-cyan-400" />
                     </div>
                     <div>
                       <h3 className="font-extrabold text-white text-lg">Bulan Ini</h3>
-                      <p className="text-xs text-violet-400 font-bold tracking-wide">IN DEVELOPMENT</p>
+                      <p className="text-xs text-cyan-400 font-bold tracking-wide">IN DEVELOPMENT</p>
                     </div>
                   </div>
                   <ul className="space-y-4">
@@ -1425,7 +1425,7 @@ export default function LuxTradeLanding() {
                     ].map((item, index) => (
                       <motion.li 
                         key={index}
-                        className="flex items-start gap-4 p-4 rounded-xl backdrop-blur-sm bg-white/[0.02] border border-white/[0.05] hover:border-violet-500/20 hover:bg-white/[0.04] transition-all duration-300"
+                        className="flex items-start gap-4 p-4 rounded-xl backdrop-blur-sm bg-white/[0.02] border border-white/[0.05] hover:border-blue-500/20 hover:bg-white/[0.04] transition-all duration-300"
                         initial={{ opacity: 0, y: 10 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
@@ -1530,7 +1530,7 @@ export default function LuxTradeLanding() {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card className="backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-purple-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] transition-all duration-300">
+                <Card className="backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)] transition-all duration-300">
                   <CardContent className="p-6">
                     <h3 className="text-lg font-extrabold text-white mb-2">{faq.q}</h3>
                     <p className="text-white/50 font-light leading-relaxed">{faq.a}</p>
@@ -1556,10 +1556,10 @@ export default function LuxTradeLanding() {
                   className="object-contain"
                 />
                 <div>
-                  <span className="text-xl font-extrabold bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
+                  <span className="text-xl font-extrabold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
                     LuxTrade
                   </span>
-                  <span className="text-[10px] text-purple-400/70 ml-2 tracking-[0.2em] font-bold">PREMIUM</span>
+                  <span className="text-[10px] text-cyan-400/70 ml-2 tracking-[0.2em] font-bold">PREMIUM</span>
                 </div>
               </div>
               <p className="text-white/50 mb-6 max-w-sm font-light text-lg">
@@ -1568,7 +1568,7 @@ export default function LuxTradeLanding() {
               <div className="flex gap-4">
                 <motion.a
                 href="https://t.me/Risxyiee" target="_blank" rel="noopener noreferrer"
-                className="w-10 h-10 rounded-xl backdrop-blur-sm bg-white/5 border border-white/[0.08] flex items-center justify-center hover:bg-white/10 hover:border-purple-500/30 transition-all duration-300"
+                className="w-10 h-10 rounded-xl backdrop-blur-sm bg-white/5 border border-white/[0.08] flex items-center justify-center hover:bg-white/10 hover:border-blue-500/30 transition-all duration-300"
                 whileHover={{ scale: 1.1, y: -2 }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="text-white/60"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0a12 12 0 00-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
@@ -1578,16 +1578,16 @@ export default function LuxTradeLanding() {
             <div>
               <h4 className="font-extrabold text-white mb-4">Produk</h4>
               <ul className="space-y-3">
-                <li><a href="#features" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Fitur</a></li>
-                <li><a href="#pricing" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Harga</a></li>
-                <li><a href="#roadmap" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Peta Jalan</a></li>
+                <li><a href="#features" className="text-white/50 hover:text-white hover:text-cyan-300 transition-colors font-medium">Fitur</a></li>
+                <li><a href="#pricing" className="text-white/50 hover:text-white hover:text-cyan-300 transition-colors font-medium">Harga</a></li>
+                <li><a href="#roadmap" className="text-white/50 hover:text-white hover:text-cyan-300 transition-colors font-medium">Peta Jalan</a></li>
               </ul>
             </div>
             <div>
               <h4 className="font-extrabold text-white mb-4">Company</h4>
               <ul className="space-y-3">
-                <li><Link href="/contact" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Contact</Link></li>
-                <li><Link href="/terms" className="text-white/50 hover:text-white hover:text-purple-300 transition-colors font-medium">Ketentuan</Link></li>
+                <li><Link href="/contact" className="text-white/50 hover:text-white hover:text-cyan-300 transition-colors font-medium">Contact</Link></li>
+                <li><Link href="/terms" className="text-white/50 hover:text-white hover:text-cyan-300 transition-colors font-medium">Ketentuan</Link></li>
               </ul>
             </div>
           </div>

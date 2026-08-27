@@ -27,7 +27,7 @@ const tourSteps = [
       id: 'Pantau pasar secara real-time dengan akurasi tinggi. Analisis pergerakan harga dan buat keputusan trading yang lebih baik.',
       en: 'Monitor the market in real-time with high accuracy. Analyze price movements and make better trading decisions.',
     },
-    color: 'from-purple-500 to-violet-600',
+    color: 'from-blue-500 to-cyan-600',
     action: {
       id: 'Buka Chart',
       en: 'Open Chart',
@@ -150,7 +150,7 @@ export default function SimpleInteractiveTour({
             exit={{ opacity: 0, y: -20 }}
             className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[10000] w-full max-w-lg px-4"
           >
-            <div className="bg-[#0f0b18]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl">
+            <div className="bg-[#080b12]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl">
               {/* Progress Bar */}
               <div className="flex items-center gap-2 mb-4">
                 {tourSteps.map((_, i) => (
@@ -158,7 +158,7 @@ export default function SimpleInteractiveTour({
                     key={i}
                     className={`h-1 rounded-full transition-all duration-300 ${
                       i === currentStep
-                        ? 'flex-1 bg-gradient-to-r from-purple-500 to-pink-500'
+                        ? 'flex-1 bg-gradient-to-r from-blue-500 to-cyan-400'
                         : i < currentStep
                         ? 'flex-1 bg-green-500'
                         : 'flex-1 bg-white/10'
@@ -256,10 +256,10 @@ export default function SimpleInteractiveTour({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative w-full max-w-md bg-[#0f0b18] border border-purple-500/30 rounded-3xl overflow-hidden shadow-2xl shadow-purple-500/30"
+              className="relative w-full max-w-md bg-[#080b12] border border-blue-500/30 rounded-3xl overflow-hidden shadow-2xl shadow-blue-500/30"
             >
               {/* Gradient Background */}
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-blue-500/10" />
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-blue-500/10" />
 
               {/* Content */}
               <div className="relative p-8 text-center">
@@ -268,7 +268,7 @@ export default function SimpleInteractiveTour({
                   initial={{ scale: 0, rotate: -10 }}
                   animate={{ scale: 1, rotate: 0 }}
                   transition={{ type: 'spring', damping: 15, stiffness: 200 }}
-                  className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-purple-500/50"
+                  className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-blue-500/50"
                 >
                   <Trophy className="w-12 h-12 text-white" />
                 </motion.div>
@@ -279,7 +279,7 @@ export default function SimpleInteractiveTour({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
                 >
-                  <h2 className="text-3xl font-extrabold mb-2 bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
+                  <h2 className="text-3xl font-extrabold mb-2 bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-400 bg-clip-text text-transparent">
                     {language === 'id' ? 'Achievement Unlocked!' : 'Achievement Unlocked!'}
                   </h2>
                   <p className="text-emerald-400 font-bold text-lg mb-2">
@@ -309,7 +309,7 @@ export default function SimpleInteractiveTour({
                       // Navigate to achievements
                       window.location.href = '/dashboard?tab=achievements'
                     }}
-                    className="w-full h-14 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-lg font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all duration-300"
+                    className="w-full h-14 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-lg font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all duration-300"
                   >
                     {language === 'id' ? 'Lihat Misi Saya Selanjutnya' : 'View My Next Missions'}
                     <ChevronRight className="w-5 h-5 ml-2" />

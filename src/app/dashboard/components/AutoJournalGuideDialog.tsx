@@ -171,13 +171,13 @@ export default function JournalGuideDialog({ open, onOpenChange, language, mode 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white max-w-md w-[95vw] max-h-[88vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="bg-lux-bg-card dark:bg-[#080b12] border-lux-border dark:border-blue-900/30 text-lux-text-primary dark:text-white max-w-md w-[95vw] max-h-[88vh] overflow-hidden flex flex-col p-0">
         {/* Header */}
-        <DialogHeader className="shrink-0 px-5 pt-5 pb-3 border-b border-lux-border dark:border-purple-900/20">
+        <DialogHeader className="shrink-0 px-5 pt-5 pb-3 border-b border-lux-border dark:border-blue-900/20">
           <DialogTitle className="text-lg flex items-center gap-2">
             <div className={`w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center flex-shrink-0 ${
               mode === 'auto'
-                ? 'from-purple-500 to-violet-600'
+                ? 'from-blue-500 to-cyan-600'
                 : 'from-emerald-500 to-teal-600'
             }`}>
               {mode === 'auto' ? <Sparkles className="w-4 h-4 text-white" /> : <BookOpen className="w-4 h-4 text-white" />}
@@ -197,12 +197,12 @@ export default function JournalGuideDialog({ open, onOpenChange, language, mode 
           {/* Step-by-step */}
           <div className="space-y-2.5">
             <p className="text-sm font-semibold text-lux-text-primary dark:text-white flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
               {tr.stepsLabel}
             </p>
             {tr.steps.map((step, idx) => (
               <div key={idx} className="flex gap-3 items-start">
-                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-xs font-bold text-purple-300">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-xs font-bold text-cyan-300">
                   {idx + 1}
                 </div>
                 <div className="min-w-0">
@@ -215,20 +215,20 @@ export default function JournalGuideDialog({ open, onOpenChange, language, mode 
 
           {/* Divider */}
           <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-lux-border dark:bg-purple-900/20" />
+            <div className="flex-1 h-px bg-lux-border dark:bg-blue-900/20" />
             <Camera className="w-3.5 h-3.5 text-lux-text-muted dark:text-gray-500 flex-shrink-0" />
-            <div className="flex-1 h-px bg-lux-border dark:bg-purple-900/20" />
+            <div className="flex-1 h-px bg-lux-border dark:bg-blue-900/20" />
           </div>
 
           {/* Example Screenshots */}
           {tr.examples.map((ex, idx) => (
             <div key={idx} className="space-y-2">
               <p className="text-sm font-semibold text-lux-text-primary dark:text-white flex items-center gap-1.5">
-                <Camera className="w-3.5 h-3.5 text-purple-400" />
+                <Camera className="w-3.5 h-3.5 text-cyan-400" />
                 {ex.title}
               </p>
               <p className="text-xs text-lux-text-secondary dark:text-gray-400">{ex.desc}</p>
-              <div className="relative rounded-xl overflow-hidden border border-lux-border dark:border-purple-900/30 bg-black/40">
+              <div className="relative rounded-xl overflow-hidden border border-lux-border dark:border-blue-900/30 bg-black/40">
                 <Image
                   src={ex.image}
                   alt={ex.alt}
@@ -242,8 +242,8 @@ export default function JournalGuideDialog({ open, onOpenChange, language, mode 
 
           {/* Divider */}
           <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-lux-border dark:bg-purple-900/20" />
-            <div className="flex-1 h-px bg-lux-border dark:bg-purple-900/20" />
+            <div className="flex-1 h-px bg-lux-border dark:bg-blue-900/20" />
+            <div className="flex-1 h-px bg-lux-border dark:bg-blue-900/20" />
           </div>
 
           {/* Do's and Don'ts */}

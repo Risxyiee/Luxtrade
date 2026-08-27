@@ -57,7 +57,7 @@ export function isoToDatetimeLocal(isoString: string): string {
 // Mood options for journal
 export const moodOptions = [
   { value: 'confident', label: 'Confident', icon: 'Smile', color: 'text-emerald-400' },
-  { value: 'neutral', label: 'Neutral', icon: 'Meh', color: 'text-purple-400' },
+  { value: 'neutral', label: 'Neutral', icon: 'Meh', color: 'text-cyan-400' },
   { value: 'anxious', label: 'Anxious', icon: 'Frown', color: 'text-red-400' },
 ]
 

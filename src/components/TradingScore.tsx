@@ -179,7 +179,7 @@ export default function TradingScore({
 
   if (!analytics || analytics.totalTrades < 5) {
     return (
-      <div className="rounded-2xl bg-[#0a0712] border border-white/[0.06] p-6 flex flex-col items-center justify-center min-h-[380px] gap-4">
+      <div className="rounded-2xl bg-[#070a10] border border-white/[0.06] p-6 flex flex-col items-center justify-center min-h-[380px] gap-4">
         <div className="relative w-32 h-32">
           <svg viewBox="0 0 220 220" className="w-full h-full -rotate-90">
             <circle
@@ -229,7 +229,7 @@ export default function TradingScore({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
-      className="rounded-2xl bg-[#0a0712] border border-white/[0.06] p-6 flex flex-col items-center relative overflow-hidden"
+      className="rounded-2xl bg-[#070a10] border border-white/[0.06] p-6 flex flex-col items-center relative overflow-hidden"
     >
       {/* ── SVG Definitions ── */}
       <svg width="0" height="0" className="absolute">
@@ -258,7 +258,7 @@ export default function TradingScore({
 
       {/* ── Title ── */}
       <div className="flex items-center gap-2 mb-4 z-10">
-        <Trophy className="w-4 h-4 text-purple-400" />
+        <Trophy className="w-4 h-4 text-cyan-400" />
         <h3 className="text-sm font-semibold text-white/80 tracking-wide uppercase">
           Performance Score
         </h3>
@@ -392,10 +392,10 @@ export default function TradingScore({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6, duration: 0.5 }}
-          className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#0a0712]/60 backdrop-blur-xl rounded-2xl gap-3 px-6"
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#070a10]/60 backdrop-blur-xl rounded-2xl gap-3 px-6"
         >
-          <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
-            <Trophy className="w-5 h-5 text-purple-400" />
+          <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+            <Trophy className="w-5 h-5 text-cyan-400" />
           </div>
           <div className="text-center space-y-1.5">
             <h4 className="text-sm font-semibold text-white/90">
@@ -408,7 +408,7 @@ export default function TradingScore({
           </div>
           <button
             onClick={onUpgrade}
-            className="mt-1 px-5 py-2 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 transition-all duration-200 shadow-lg shadow-purple-500/20 hover:shadow-purple-500/35 cursor-pointer"
+            className="mt-1 px-5 py-2 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-blue-500 transition-all duration-200 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/35 cursor-pointer"
           >
             Upgrade to PRO
           </button>

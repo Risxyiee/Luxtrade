@@ -111,7 +111,7 @@ const TARGET_OPTIONS = [
   { value: 'unverified', label: 'Belum Verifikasi', icon: UserX, color: 'text-orange-400', badge: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
   { value: 'verified', label: 'Sudah Verifikasi', icon: ShieldCheck, color: 'text-green-400', badge: 'bg-green-500/10 text-green-400 border-green-500/20' },
   { value: 'pro', label: 'User PRO', icon: Crown, color: 'text-amber-400', badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-  { value: 'free', label: 'User Free', icon: Users, color: 'text-purple-400', badge: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
+  { value: 'free', label: 'User Free', icon: Users, color: 'text-cyan-400', badge: 'bg-blue-500/10 text-cyan-400 border-blue-500/20' },
   { value: 'all', label: 'Semua User', icon: Mail, color: 'text-blue-400', badge: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
 ]
 
@@ -387,7 +387,7 @@ export default function AdminEmailPage() {
               <StatCard label="Belum Verifikasi" value={stats.unverified} icon={UserX} color="text-orange-400" />
               <StatCard label="Sudah Verifikasi" value={stats.verified} icon={ShieldCheck} color="text-green-400" />
               <StatCard label="User PRO" value={stats.pro} icon={Crown} color="text-amber-400" />
-              <StatCard label="User Free" value={stats.free} icon={Users} color="text-purple-400" />
+              <StatCard label="User Free" value={stats.free} icon={Users} color="text-cyan-400" />
             </>
           )}
         </motion.div>

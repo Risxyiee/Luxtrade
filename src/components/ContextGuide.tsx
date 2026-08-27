@@ -175,10 +175,10 @@ export function ContextGuide({
   }
 
   const arrowStyles = {
-    top: 'bottom-[-6px] left-1/2 -translate-x-1/2 border-l-purple-500 border-r-purple-500 border-b-purple-500',
-    bottom: 'top-[-6px] left-1/2 -translate-x-1/2 border-l-purple-500 border-r-purple-500 border-t-purple-500',
-    left: 'right-[-6px] top-1/2 -translate-y-1/2 border-t-purple-500 border-b-purple-500 border-r-purple-500',
-    right: 'left-[-6px] top-1/2 -translate-y-1/2 border-t-purple-500 border-b-purple-500 border-l-purple-500'
+    top: 'bottom-[-6px] left-1/2 -translate-x-1/2 border-l-blue-500 border-r-blue-500 border-b-blue-500',
+    bottom: 'top-[-6px] left-1/2 -translate-x-1/2 border-l-blue-500 border-r-blue-500 border-t-blue-500',
+    left: 'right-[-6px] top-1/2 -translate-y-1/2 border-t-blue-500 border-b-blue-500 border-r-blue-500',
+    right: 'left-[-6px] top-1/2 -translate-y-1/2 border-t-blue-500 border-b-blue-500 border-l-blue-500'
   }
 
   return (
@@ -200,9 +200,9 @@ export function ContextGuide({
             className={`fixed z-50 w-72 max-w-sm ${positionStyles[position]}`}
           >
             {/* Tooltip Content */}
-            <div className="relative bg-[#1a1628] border border-purple-500/30 rounded-xl shadow-2xl shadow-purple-500/20 overflow-hidden">
+            <div className="relative bg-[#1a1628] border border-blue-500/30 rounded-xl shadow-2xl shadow-blue-500/20 overflow-hidden">
               {/* Header */}
-              <div className="bg-gradient-to-r from-purple-500/20 to-violet-500/20 px-4 py-3 border-b border-purple-500/20">
+              <div className="bg-gradient-to-r from-blue-500/20 to-blue-500/20 px-4 py-3 border-b border-blue-500/20">
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-sm font-bold text-white flex-1">{title}</h3>
                   <button
@@ -222,10 +222,10 @@ export function ContextGuide({
               {/* Tips */}
               {tips && (
                 <div className="px-4 pb-3">
-                  <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-2">
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-2">
                     <div className="flex items-start gap-2">
-                      <span className="text-purple-400 mt-0.5">💡</span>
-                      <p className="text-[11px] text-purple-300 leading-snug">{tips}</p>
+                      <span className="text-cyan-400 mt-0.5">💡</span>
+                      <p className="text-[11px] text-cyan-300 leading-snug">{tips}</p>
                     </div>
                   </div>
                 </div>

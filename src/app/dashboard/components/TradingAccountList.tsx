@@ -140,7 +140,7 @@ export default function TradingAccountList({ accounts, loading, onRefresh }: Tra
     <>
       <div className="space-y-4">
         {accounts.map((account) => (
-          <Card key={account.id} className="bg-lux-bg-card dark:bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-lux-border dark:border-purple-900/30">
+          <Card key={account.id} className="bg-lux-bg-card dark:bg-lux-bg-card dark:bg-[#080b12] border-lux-border dark:border-lux-border dark:border-blue-900/30">
             <CardContent className="p-4">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -212,7 +212,7 @@ export default function TradingAccountList({ accounts, loading, onRefresh }: Tra
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-lux-bg-card dark:bg-lux-bg-card dark:bg-[#0f0b18] border-red-500/30 text-white max-w-md">
+        <AlertDialogContent className="bg-lux-bg-card dark:bg-lux-bg-card dark:bg-[#080b12] border-red-500/30 text-white max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-red-400">
               <AlertTriangle className="w-5 h-5" />

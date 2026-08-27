@@ -105,14 +105,14 @@ export default function AboutPage() {
     <div className="min-h-screen bg-[#0f051d] text-white overflow-x-hidden">
       {/* Partikel Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-10">
-        <div className="absolute w-3 h-3 bg-purple-500/40 rounded-full animate-ping" style={{ top: '5%', left: '3%', animationDuration: '3s' }} />
-        <div className="absolute w-2 h-2 bg-purple-400/50 rounded-full animate-pulse" style={{ top: '12%', left: '8%', animationDuration: '4s' }} />
+        <div className="absolute w-3 h-3 bg-blue-500/40 rounded-full animate-ping" style={{ top: '5%', left: '3%', animationDuration: '3s' }} />
+        <div className="absolute w-2 h-2 bg-cyan-400/50 rounded-full animate-pulse" style={{ top: '12%', left: '8%', animationDuration: '4s' }} />
         <div className="absolute w-4 h-4 bg-blue-500/30 rounded-full animate-ping" style={{ top: '8%', left: '15%', animationDuration: '3.5s' }} />
-        <div className="absolute w-2 h-2 bg-purple-300/60 rounded-full animate-pulse" style={{ top: '18%', left: '20%', animationDuration: '2.5s' }} />
-        <div className="absolute w-3 h-3 bg-purple-500/35 rounded-full animate-ping" style={{ top: '25%', left: '5%', animationDuration: '4.5s' }} />
+        <div className="absolute w-2 h-2 bg-cyan-300/60 rounded-full animate-pulse" style={{ top: '18%', left: '20%', animationDuration: '2.5s' }} />
+        <div className="absolute w-3 h-3 bg-blue-500/35 rounded-full animate-ping" style={{ top: '25%', left: '5%', animationDuration: '4.5s' }} />
         <div className="absolute w-2 h-2 bg-blue-400/40 rounded-full animate-pulse" style={{ top: '35%', left: '12%', animationDuration: '3s' }} />
-        <div className="absolute w-3 h-3 bg-purple-500/35 rounded-full animate-ping" style={{ top: '50%', left: '8%', animationDuration: '3.5s' }} />
-        <div className="absolute w-2 h-2 bg-purple-500/45 rounded-full animate-pulse" style={{ top: '70%', left: '10%', animationDuration: '4.2s' }} />
+        <div className="absolute w-3 h-3 bg-blue-500/35 rounded-full animate-ping" style={{ top: '50%', left: '8%', animationDuration: '3.5s' }} />
+        <div className="absolute w-2 h-2 bg-blue-500/45 rounded-full animate-pulse" style={{ top: '70%', left: '10%', animationDuration: '4.2s' }} />
         <div className="absolute w-2 h-2 bg-blue-400/45 rounded-full animate-pulse" style={{ top: '78%', left: '20%', animationDuration: '3.5s' }} />
       </div>
 
@@ -129,7 +129,7 @@ export default function AboutPage() {
                 className="object-contain"
               />
               <div>
-                <Link href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
+                <Link href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
                   LuxTrade
                 </Link>
               </div>
@@ -146,10 +146,10 @@ export default function AboutPage() {
                 <Link
                   key={item.key}
                   href={item.href}
-                  className="text-sm text-white/60 hover:text-white hover:text-purple-300 transition-all duration-300 font-medium relative group"
+                  className="text-sm text-white/60 hover:text-white hover:text-cyan-300 transition-all duration-300 font-medium relative group"
                 >
                   {item.label}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 group-hover:w-full transition-all duration-300" />
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-blue-500 group-hover:w-full transition-all duration-300" />
                 </Link>
               ))}
             </div>
@@ -163,7 +163,7 @@ export default function AboutPage() {
               </Link>
               <Link href="/auth/signup">
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
-                  <Button className="h-10 px-6 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-sm">
+                  <Button className="h-10 px-6 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-sm">
                     {isEnglish ? 'Sign Up' : 'Daftar'}
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -183,15 +183,15 @@ export default function AboutPage() {
             variants={staggerContainer}
           >
             <motion.div variants={fadeInUp} className="text-center mb-8">
-              <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 mb-6">
+              <Badge className="bg-blue-500/20 text-cyan-300 border-blue-500/30 mb-6">
                 {isEnglish ? 'About Us' : 'Tentang Kami'}
               </Badge>
               <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold mb-6 leading-tight tracking-tight">
-                <span className="bg-gradient-to-r from-white to-purple-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-white to-cyan-400 bg-clip-text text-transparent">
                   {isEnglish ? 'Empowering Traders' : 'Memberdayakan Trader'}
                 </span>
                 <br />
-                <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
                   {isEnglish ? 'With Data & AI' : 'Dengan Data & AI'}
                 </span>
               </h1>
@@ -216,9 +216,9 @@ export default function AboutPage() {
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
             >
-              <Card className="h-full backdrop-blur-xl bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/30 hover:border-purple-500/50 hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-all duration-300">
+              <Card className="h-full backdrop-blur-xl bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/30 hover:border-blue-500/50 hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-all duration-300">
                 <CardContent className="p-8">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center mb-6 shadow-lg shadow-purple-500/30">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center mb-6 shadow-lg shadow-blue-500/30">
                     <Target className="w-8 h-8 text-white" />
                   </div>
                   <h2 className="text-3xl font-extrabold text-white mb-4">
@@ -261,7 +261,7 @@ export default function AboutPage() {
       </section>
 
       {/* Our Values */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/10 to-transparent">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-blue-900/10 to-transparent">
         <div className="max-w-6xl mx-auto">
           <motion.div
             className="text-center mb-16"
@@ -292,12 +292,12 @@ export default function AboutPage() {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card className="h-full backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-purple-500/30 hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-all duration-300 p-6">
+                <Card className="h-full backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-all duration-300 p-6">
                   <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${
-                    index === 0 ? 'from-purple-500 to-violet-600' :
+                    index === 0 ? 'from-blue-500 to-cyan-600' :
                     index === 1 ? 'from-amber-500 to-orange-600' :
                     index === 2 ? 'from-emerald-500 to-teal-600' :
-                    'from-pink-500 to-rose-600'
+                    'from-cyan-400 to-rose-600'
                   } flex items-center justify-center mb-5 shadow-lg`}>
                     <value.icon className="w-7 h-7 text-white" />
                   </div>
@@ -364,22 +364,22 @@ export default function AboutPage() {
       </section>
 
       {/* Join Us CTA */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/10 to-transparent">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-blue-900/10 to-transparent">
         <div className="max-w-4xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <Card className="backdrop-blur-xl bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/30 p-12 text-center">
+            <Card className="backdrop-blur-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/30 p-12 text-center">
               <div className="flex justify-center mb-6">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-2xl shadow-purple-500/30">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-2xl shadow-blue-500/30">
                   <Users className="w-10 h-10 text-white" />
                 </div>
               </div>
               <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
                 <span className="text-white">{isEnglish ? 'Join Our' : 'Bergabung dengan'}</span>
-                <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
                   {isEnglish ? ' Community' : ' Komunitas Kami'}
                 </span>
               </h2>
@@ -393,7 +393,7 @@ export default function AboutPage() {
                   href="https://www.instagram.com/luxtrade.web"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-12 h-12 rounded-xl backdrop-blur-sm bg-white/5 border border-white/[0.08] flex items-center justify-center hover:bg-white/10 hover:border-purple-500/30 transition-all duration-300 hover:scale-110"
+                  className="w-12 h-12 rounded-xl backdrop-blur-sm bg-white/5 border border-white/[0.08] flex items-center justify-center hover:bg-white/10 hover:border-blue-500/30 transition-all duration-300 hover:scale-110"
                 >
                   <span className="text-sm font-bold text-white/60">I</span>
                 </a>
@@ -401,7 +401,7 @@ export default function AboutPage() {
                   href="https://www.tiktok.com/@luxtradeee"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-12 h-12 rounded-xl backdrop-blur-sm bg-white/5 border border-white/[0.08] flex items-center justify-center hover:bg-white/10 hover:border-purple-500/30 transition-all duration-300 hover:scale-110"
+                  className="w-12 h-12 rounded-xl backdrop-blur-sm bg-white/5 border border-white/[0.08] flex items-center justify-center hover:bg-white/10 hover:border-blue-500/30 transition-all duration-300 hover:scale-110"
                 >
                   <span className="text-sm font-bold text-white/60">T</span>
                 </a>
@@ -419,7 +419,7 @@ export default function AboutPage() {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link href="/auth/signup">
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
-                    <Button className="h-14 px-8 text-lg bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_40px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-xl">
+                    <Button className="h-14 px-8 text-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_40px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-xl">
                       {isEnglish ? 'Start Free Trial' : 'Mulai Gratis Sekarang'}
                       <ArrowRight className="w-5 h-5 ml-2" />
                     </Button>

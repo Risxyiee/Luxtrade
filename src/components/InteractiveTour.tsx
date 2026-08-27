@@ -27,8 +27,8 @@ export default function InteractiveTour({ isOpen, onClose, onComplete, language 
       content: (
         <div className="space-y-3">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-purple-500/20 rounded-lg">
-              <Sparkles className="w-6 h-6 text-purple-400" />
+            <div className="p-2 bg-blue-500/20 rounded-lg">
+              <Sparkles className="w-6 h-6 text-cyan-400" />
             </div>
             <h3 className="text-lg font-bold text-white">
               {language === 'id' ? 'Trading Chart' : 'Trading Chart'}
@@ -255,10 +255,10 @@ export default function InteractiveTour({ isOpen, onClose, onComplete, language 
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative w-full max-w-md bg-[#0f0b18] border border-purple-500/30 rounded-3xl overflow-hidden shadow-2xl shadow-purple-500/30"
+              className="relative w-full max-w-md bg-[#080b12] border border-blue-500/30 rounded-3xl overflow-hidden shadow-2xl shadow-blue-500/30"
             >
               {/* Gradient Background */}
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-blue-500/10" />
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-blue-500/10" />
 
               {/* Content */}
               <div className="relative p-8 text-center">
@@ -267,7 +267,7 @@ export default function InteractiveTour({ isOpen, onClose, onComplete, language 
                   initial={{ scale: 0, rotate: -10 }}
                   animate={{ scale: 1, rotate: 0 }}
                   transition={{ type: 'spring', damping: 15, stiffness: 200 }}
-                  className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-purple-500/50"
+                  className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-blue-500/50"
                 >
                   <Trophy className="w-12 h-12 text-white" />
                 </motion.div>
@@ -278,7 +278,7 @@ export default function InteractiveTour({ isOpen, onClose, onComplete, language 
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
                 >
-                  <h2 className="text-3xl font-extrabold mb-2 bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
+                  <h2 className="text-3xl font-extrabold mb-2 bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-400 bg-clip-text text-transparent">
                     {language === 'id' ? 'Achievement Unlocked!' : 'Achievement Unlocked!'}
                   </h2>
                   <p className="text-emerald-400 font-bold text-lg mb-2">
@@ -308,7 +308,7 @@ export default function InteractiveTour({ isOpen, onClose, onComplete, language 
                       // Navigate to achievements
                       window.location.href = '/dashboard?tab=achievements'
                     }}
-                    className="w-full h-14 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-lg font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all duration-300"
+                    className="w-full h-14 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-lg font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all duration-300"
                   >
                     {language === 'id' ? 'Lihat Misi Saya Selanjutnya' : 'View My Next Missions'}
                     <ChevronRight className="w-5 h-5 ml-2" />

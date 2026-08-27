@@ -95,7 +95,7 @@ export default function SidebarMewah({
   })
 
   return (
-    <aside className={`bg-[#0a0712]/98 backdrop-blur-xl border-r border-white/5 flex flex-col fixed h-full z-40 transition-all duration-300 
+    <aside className={`bg-[#070a10]/98 backdrop-blur-xl border-r border-white/5 flex flex-col fixed h-full z-40 transition-all duration-300 
       ${sidebarOpen ? 'w-64' : 'w-20'} 
       ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
     >
@@ -190,12 +190,12 @@ export default function SidebarMewah({
           ))}
         </div>
 
-        {/* ==================== LANJUTAN Section (PURPLE PRO) ==================== */}
+        {/* ==================== LANJUTAN Section (CYAN PRO) ==================== */}
         <div className="mb-3">
           {sidebarOpen && (
             <div className="px-3 py-2 flex items-center gap-2">
               <span className="text-[10px] font-bold text-white uppercase tracking-widest">LANJUTAN</span>
-              <span className="text-[8px] font-black bg-gradient-to-r from-purple-500 to-violet-500 text-white px-2 py-0.5 rounded-full shadow-lg shadow-purple-500/30">PRO</span>
+              <span className="text-[8px] font-black bg-gradient-to-r from-blue-500 to-blue-500 text-white px-2 py-0.5 rounded-full shadow-lg shadow-blue-500/30">PRO</span>
             </div>
           )}
           {visibleMenuItems.filter(item => item.category === 'advanced').map((item) => (
@@ -204,7 +204,7 @@ export default function SidebarMewah({
               onClick={() => handleMenuClick(item)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative ${
                 activeTab === item.id
-                  ? 'bg-purple-500/20 text-purple-400 border-l-2 border-purple-500'
+                  ? 'bg-blue-500/20 text-cyan-400 border-l-2 border-blue-500'
                   : 'text-gray-400 hover:bg-white/5 hover:text-white'
               }`}
               whileHover={{ x: 2 }}
@@ -219,8 +219,8 @@ export default function SidebarMewah({
                   {/* SELALU tampilkan PRO badge untuk item PRO */}
                   {item.proOnly && (
                     <span className="flex items-center gap-1">
-                      <Lock className="w-3.5 h-3.5 text-purple-400" />
-                      <span className="text-[7px] font-black bg-gradient-to-r from-purple-500 to-violet-500 text-white px-1.5 py-0.5 rounded shadow-lg shadow-purple-500/30">PRO</span>
+                      <Lock className="w-3.5 h-3.5 text-cyan-400" />
+                      <span className="text-[7px] font-black bg-gradient-to-r from-blue-500 to-blue-500 text-white px-1.5 py-0.5 rounded shadow-lg shadow-blue-500/30">PRO</span>
                     </span>
                   )}
                 </>
@@ -307,7 +307,7 @@ export default function SidebarMewah({
             className={`w-full py-2.5 px-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
               demoMode
                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                : 'bg-purple-600/30 text-purple-300 border border-purple-500/30 hover:bg-purple-600/40'
+                : 'bg-blue-600/30 text-cyan-300 border border-blue-500/30 hover:bg-blue-600/40'
             }`}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.99 }}

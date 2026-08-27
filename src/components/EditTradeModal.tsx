@@ -127,9 +127,9 @@ export default function EditTradeModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="bg-[#080b12] border-blue-900/30 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-purple-300 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-cyan-300 via-cyan-400 to-cyan-300 bg-clip-text text-transparent">
             Edit Trade
           </DialogTitle>
         </DialogHeader>
@@ -137,18 +137,18 @@ export default function EditTradeModal({
         <div className="space-y-4 py-4">
           {/* Quick Stats */}
           <div className="grid grid-cols-3 gap-3 mb-6">
-            <div className="bg-gradient-to-br from-purple-500/20 to-violet-600/20 rounded-lg p-3 border border-purple-900/30">
-              <p className="text-xs text-purple-300 mb-1">Symbol</p>
+            <div className="bg-gradient-to-br from-blue-500/20 to-cyan-600/20 rounded-lg p-3 border border-blue-900/30">
+              <p className="text-xs text-cyan-300 mb-1">Symbol</p>
               <p className="text-lg font-bold">{formData.symbol}</p>
             </div>
-            <div className="bg-gradient-to-br from-purple-500/20 to-violet-600/20 rounded-lg p-3 border border-purple-900/30">
-              <p className="text-xs text-purple-300 mb-1">Type</p>
+            <div className="bg-gradient-to-br from-blue-500/20 to-cyan-600/20 rounded-lg p-3 border border-blue-900/30">
+              <p className="text-xs text-cyan-300 mb-1">Type</p>
               <Badge className={`${formData.type === 'BUY' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
                 {formData.type}
               </Badge>
             </div>
-            <div className="bg-gradient-to-br from-purple-500/20 to-violet-600/20 rounded-lg p-3 border border-purple-900/30">
-              <p className="text-xs text-purple-300 mb-1">P/L</p>
+            <div className="bg-gradient-to-br from-blue-500/20 to-cyan-600/20 rounded-lg p-3 border border-blue-900/30">
+              <p className="text-xs text-cyan-300 mb-1">P/L</p>
               <p className={`text-lg font-bold ${formData.profit_loss >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                 ${formData.profit_loss.toFixed(2)}
               </p>
@@ -166,7 +166,7 @@ export default function EditTradeModal({
                 <Input
                   id="symbol"
                   placeholder="EURUSD"
-                  className="bg-[#0a0712] border-purple-900/30 mt-1"
+                  className="bg-[#070a10] border-blue-900/30 mt-1"
                   value={formData.symbol}
                   onChange={(e) => handleFieldChange('symbol', e.target.value)}
                 />
@@ -178,10 +178,10 @@ export default function EditTradeModal({
                   value={formData.type}
                   onValueChange={(value) => handleFieldChange('type', value)}
                 >
-                  <SelectTrigger id="type" className="bg-[#0a0712] border-purple-900/30 mt-1">
+                  <SelectTrigger id="type" className="bg-[#070a10] border-blue-900/30 mt-1">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#0f0b18] border-purple-900/30">
+                  <SelectContent className="bg-[#080b12] border-blue-900/30">
                     <SelectItem value="BUY">BUY</SelectItem>
                     <SelectItem value="SELL">SELL</SelectItem>
                   </SelectContent>
@@ -200,7 +200,7 @@ export default function EditTradeModal({
                   type="number"
                   step="0.00001"
                   placeholder="1.0850"
-                  className="bg-[#0a0712] border-purple-900/30 mt-1"
+                  className="bg-[#070a10] border-blue-900/30 mt-1"
                   value={formData.open_price}
                   onChange={(e) => handleFieldChange('open_price', parseFloat(e.target.value))}
                 />
@@ -216,7 +216,7 @@ export default function EditTradeModal({
                   type="number"
                   step="0.00001"
                   placeholder="1.0890"
-                  className="bg-[#0a0712] border-purple-900/30 mt-1"
+                  className="bg-[#070a10] border-blue-900/30 mt-1"
                   value={formData.close_price}
                   onChange={(e) => handleFieldChange('close_price', parseFloat(e.target.value))}
                 />
@@ -235,7 +235,7 @@ export default function EditTradeModal({
                   step="0.01"
                   min="0.01"
                   placeholder="0.1"
-                  className="bg-[#0a0712] border-purple-900/30 mt-1"
+                  className="bg-[#070a10] border-blue-900/30 mt-1"
                   value={formData.lot_size}
                   onChange={(e) => handleFieldChange('lot_size', parseFloat(e.target.value))}
                 />
@@ -251,7 +251,7 @@ export default function EditTradeModal({
                   type="number"
                   step="0.01"
                   placeholder="100"
-                  className="bg-[#0a0712] border-purple-900/30 mt-1"
+                  className="bg-[#070a10] border-blue-900/30 mt-1"
                   value={formData.profit_loss}
                   onChange={(e) => handleFieldChange('profit_loss', parseFloat(e.target.value))}
                 />
@@ -267,11 +267,11 @@ export default function EditTradeModal({
                 <Input
                   id="open_time"
                   type="datetime-local"
-                  className="bg-[#0a0712] border-purple-900/30 mt-1"
+                  className="bg-[#070a10] border-blue-900/30 mt-1"
                   value={formData.open_time ? formData.open_time.slice(0, 16) : ''}
                   onChange={(e) => handleFieldChange('open_time', e.target.value ? e.target.value + ':00' : '')}
                 />
-                <p className="text-[10px] text-purple-300 mt-1">
+                <p className="text-[10px] text-cyan-300 mt-1">
                   {formatWIBDate(formData.open_time)}
                 </p>
               </div>
@@ -284,11 +284,11 @@ export default function EditTradeModal({
                 <Input
                   id="close_time"
                   type="datetime-local"
-                  className="bg-[#0a0712] border-purple-900/30 mt-1"
+                  className="bg-[#070a10] border-blue-900/30 mt-1"
                   value={formData.close_time ? formData.close_time.slice(0, 16) : ''}
                   onChange={(e) => handleFieldChange('close_time', e.target.value ? e.target.value + ':00' : '')}
                 />
-                <p className="text-[10px] text-purple-300 mt-1">
+                <p className="text-[10px] text-cyan-300 mt-1">
                   {formatWIBDate(formData.close_time)}
                 </p>
               </div>
@@ -300,10 +300,10 @@ export default function EditTradeModal({
                 value={formData.session}
                 onValueChange={(value) => handleFieldChange('session', value)}
               >
-                <SelectTrigger id="session" className="bg-[#0a0712] border-purple-900/30 mt-1">
+                <SelectTrigger id="session" className="bg-[#070a10] border-blue-900/30 mt-1">
                   <SelectValue placeholder="Pilih session" />
                 </SelectTrigger>
-                <SelectContent className="bg-[#0f0b18] border-purple-900/30">
+                <SelectContent className="bg-[#080b12] border-blue-900/30">
                   <SelectItem value="London">London</SelectItem>
                   <SelectItem value="New York">New York</SelectItem>
                   <SelectItem value="Asia">Asia</SelectItem>
@@ -317,7 +317,7 @@ export default function EditTradeModal({
               <Input
                 id="notes"
                 placeholder="Additional notes..."
-                className="bg-[#0a0712] border-purple-900/30 mt-1"
+                className="bg-[#070a10] border-blue-900/30 mt-1"
                 value={formData.notes}
                 onChange={(e) => handleFieldChange('notes', e.target.value)}
               />
@@ -329,7 +329,7 @@ export default function EditTradeModal({
           <Button
             variant="outline"
             onClick={handleCancel}
-            className="border-purple-900/30 hover:bg-white/5"
+            className="border-blue-900/30 hover:bg-white/5"
           >
             <X className="w-4 h-4 mr-2" />
             Batal
@@ -337,7 +337,7 @@ export default function EditTradeModal({
           <Button
             onClick={handleUpdate}
             disabled={saving}
-            className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700"
+            className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-600"
           >
             {saving ? (
               <>

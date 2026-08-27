@@ -354,15 +354,15 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
 
   // STATIC RENDER - always render the same DOM structure
   return (
-    <div className="w-full bg-gradient-to-br from-[#0f0b18] to-[#1a0f2e] border border-purple-500/20 rounded-xl overflow-hidden">
+    <div className="w-full bg-gradient-to-br from-[#080b12] to-[#1a0f2e] border border-blue-500/20 rounded-xl overflow-hidden">
       {/* Header - ALWAYS rendered */}
-      <div className="flex items-center justify-between px-4 py-3 bg-black/20 border-b border-purple-500/10">
+      <div className="flex items-center justify-between px-4 py-3 bg-black/20 border-b border-blue-500/10">
         <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-purple-400" />
+          <Activity className="w-4 h-4 text-cyan-400" />
           <span className="text-sm font-semibold text-white">{symbol} ({interval})</span>
         </div>
         {loading ? (
-          <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
+          <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
         ) : uiPrice !== null ? (
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold text-white">
@@ -384,7 +384,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
         {/* Loading overlay - only shown during loading */}
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/30 z-20">
-            <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
+            <Loader2 className="w-6 h-6 text-cyan-400 animate-spin" />
           </div>
         )}
 
@@ -398,7 +398,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
                 setChartError(false)
                 fetchKlines()
               }}
-              className="mt-3 px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded text-xs font-medium transition-colors"
+              className="mt-3 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-medium transition-colors"
             >
               Retry
             </button>
@@ -408,7 +408,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
         {/* Paywall overlay for FREE users - ALWAYS rendered */}
         {!demoMode && !isPro && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-10">
-            <Lock className="w-8 h-8 text-purple-400 mb-2" />
+            <Lock className="w-8 h-8 text-cyan-400 mb-2" />
             <p className="text-sm font-semibold text-white mb-1">PRO Feature</p>
             <p className="text-xs text-gray-300 text-center px-4">
               Upgrade to see 80% Momentum Signals
@@ -468,7 +468,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
 
       {/* Latest signal indicator - ALWAYS rendered */}
       {isPro && uiSignals.length > 0 && !loading && (
-        <div className="px-4 py-2 bg-black/20 border-t border-purple-500/10">
+        <div className="px-4 py-2 bg-black/20 border-t border-blue-500/10">
           <div className="flex items-center justify-center gap-2">
             <span className="text-xs text-gray-400">Latest Signal:</span>
             <div className={`px-2 py-0.5 rounded text-xs font-bold flex items-center gap-1 ${

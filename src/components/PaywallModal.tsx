@@ -156,9 +156,9 @@ export default function PaywallModal({
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto"
           >
-            <Card className="bg-gradient-to-br from-[#1a0f2e] via-[#150a25] to-[#0d0820] border-purple-500/30 shadow-2xl shadow-purple-500/20 overflow-hidden">
+            <Card className="bg-gradient-to-br from-[#1a0f2e] via-[#150a25] to-[#0d0820] border-blue-500/30 shadow-2xl shadow-blue-500/20 overflow-hidden">
               {/* Decorative gradient header */}
-              <div className="relative h-32 bg-gradient-to-br from-purple-600/20 via-violet-600/20 to-blue-600/20 overflow-hidden">
+              <div className="relative h-32 bg-gradient-to-br from-blue-600/20 via-cyan-600/20 to-blue-600/20 overflow-hidden">
                 <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djRoLTJ2LTRoLTJ2NGgtMnYtNGgtMnY0aC0ydi00aC0ydjRoLTJ2NGgtMnYtNGgtMnY0aC0ydi00aC0ydi00aDJ2NGgydi00aDJ2NGgydi00aDJ2NGgydjRoLTJ2NGgtMnY0aDJ2LTJoLTJ2LTJoLTJ2LTJoLTJ2LTJoLTJ2LTJoLTJ6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30" />
                 <motion.div
                   animate={{
@@ -171,8 +171,8 @@ export default function PaywallModal({
                   }}
                   className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
                 >
-                  <div className="w-40 h-40 border border-purple-500/20 rounded-full" />
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 border border-purple-500/10 rounded-full" />
+                  <div className="w-40 h-40 border border-blue-500/20 rounded-full" />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 border border-blue-500/10 rounded-full" />
                 </motion.div>
 
                 {/* Close button */}
@@ -190,7 +190,7 @@ export default function PaywallModal({
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', delay: 0.1 }}
-                  className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-2xl shadow-purple-500/30"
+                  className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-2xl shadow-blue-500/30"
                 >
                   <Lock className="w-10 h-10 text-white" />
                 </motion.div>
@@ -213,7 +213,7 @@ export default function PaywallModal({
                   ) : (
                     <>
                       <h2 className="text-2xl font-extrabold text-white mb-2 flex items-center justify-center gap-2">
-                        <Sparkles className="w-6 h-6 text-purple-400" />
+                        <Sparkles className="w-6 h-6 text-cyan-400" />
                         {featureName}
                       </h2>
                       <p className="text-white/60 text-sm leading-relaxed">
@@ -228,7 +228,7 @@ export default function PaywallModal({
                   <div className="space-y-3 mb-6">
                     {/* Elite Pro */}
                     <Card
-                      className={`bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/30 hover:border-purple-500/50 transition-all cursor-pointer group ${isEnglish ? '' : 'hover:scale-[1.02]'}`}
+                      className={`bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/30 hover:border-blue-500/50 transition-all cursor-pointer group ${isEnglish ? '' : 'hover:scale-[1.02]'}`}
                       onClick={handleProUpgrade}
                     >
                       <CardContent className="p-4">
@@ -245,7 +245,7 @@ export default function PaywallModal({
                               <span className="text-sm font-normal text-white/40"> {pricing.pro.period}</span>
                             </div>
                           </div>
-                          <Crown className="w-8 h-8 text-purple-400 group-hover:scale-110 transition-transform" />
+                          <Crown className="w-8 h-8 text-cyan-400 group-hover:scale-110 transition-transform" />
                         </div>
 
                         {/* Features list - collapsible */}
@@ -255,7 +255,7 @@ export default function PaywallModal({
                               e.stopPropagation()
                               setShowFeatures(!showFeatures)
                             }}
-                            className="flex items-center gap-2 text-xs text-purple-300 hover:text-purple-200 transition-colors mb-2"
+                            className="flex items-center gap-2 text-xs text-cyan-300 hover:text-cyan-200 transition-colors mb-2"
                           >
                             <HelpCircle className="w-3.5 h-3.5" />
                             {isEnglish ? 'View Features' : 'Lihat Fitur'}
@@ -397,7 +397,7 @@ export default function PaywallModal({
                     <>
                       <Button
                         onClick={handleProUpgrade}
-                        className={`w-full h-12 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all ${isEnglish ? 'hover:scale-[1.02]' : ''}`}
+                        className={`w-full h-12 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-600 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all ${isEnglish ? 'hover:scale-[1.02]' : ''}`}
                       >
                         <Crown className="w-5 h-5 mr-2" />
                         {isEnglish ? 'Upgrade to Elite PRO Now' : 'Upgrade ke Elite PRO Sekarang'}
@@ -429,7 +429,7 @@ export default function PaywallModal({
                           onUpgrade?.()
                           onClose()
                         }}
-                        className="w-full h-12 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all"
+                        className="w-full h-12 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-600 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all"
                       >
                         <Sparkles className="w-5 h-5 mr-2" />
                         {isEnglish ? `Use Trial (${remainingTrials} left)` : `Gunakan Trial (${remainingTrials} tersisa)`}
@@ -457,25 +457,25 @@ export default function PaywallModal({
                       {isEnglish ? (
                         <div className="text-left space-y-2 bg-white/5 rounded-lg p-3">
                           <div className="flex items-start gap-2">
-                            <span className="text-purple-400 text-xs font-bold mt-0.5">1.</span>
+                            <span className="text-cyan-400 text-xs font-bold mt-0.5">1.</span>
                             <p className="text-xs text-white/60 leading-relaxed">
                               Click <span className="text-amber-400 font-semibold">"Upgrade to Elite PRO"</span> or <span className="text-amber-400 font-semibold">"Get Lifetime Ultra"</span> button
                             </p>
                           </div>
                           <div className="flex items-start gap-2">
-                            <span className="text-purple-400 text-xs font-bold mt-0.5">2.</span>
+                            <span className="text-cyan-400 text-xs font-bold mt-0.5">2.</span>
                             <p className="text-xs text-white/60 leading-relaxed">
                               Complete payment via <span className="text-amber-400 font-semibold">Skrill</span> (secure & instant)
                             </p>
                           </div>
                           <div className="flex items-start gap-2">
-                            <span className="text-purple-400 text-xs font-bold mt-0.5">3.</span>
+                            <span className="text-cyan-400 text-xs font-bold mt-0.5">3.</span>
                             <p className="text-xs text-white/60 leading-relaxed">
                               After payment, send screenshot to admin on Discord for activation
                             </p>
                           </div>
                           <div className="flex items-start gap-2">
-                            <span className="text-purple-400 text-xs font-bold mt-0.5">4.</span>
+                            <span className="text-cyan-400 text-xs font-bold mt-0.5">4.</span>
                             <p className="text-xs text-white/60 leading-relaxed">
                               Your PRO access will be activated within <span className="text-amber-400 font-semibold">5-10 minutes</span>
                             </p>
@@ -484,31 +484,31 @@ export default function PaywallModal({
                       ) : (
                         <div className="text-left space-y-2 bg-white/5 rounded-lg p-3">
                           <div className="flex items-start gap-2">
-                            <span className="text-purple-400 text-xs font-bold mt-0.5">1.</span>
+                            <span className="text-cyan-400 text-xs font-bold mt-0.5">1.</span>
                             <p className="text-xs text-white/60 leading-relaxed">
                               Klik tombol <span className="text-emerald-400 font-semibold">"Upgrade ke Elite PRO"</span> atau pilih paket Lifetime
                             </p>
                           </div>
                           <div className="flex items-start gap-2">
-                            <span className="text-purple-400 text-xs font-bold mt-0.5">2.</span>
+                            <span className="text-cyan-400 text-xs font-bold mt-0.5">2.</span>
                             <p className="text-xs text-white/60 leading-relaxed">
                               Anda akan diarahkan ke <span className="text-emerald-400 font-semibold">Discord Admin</span>
                             </p>
                           </div>
                           <div className="flex items-start gap-2">
-                            <span className="text-purple-400 text-xs font-bold mt-0.5">3.</span>
+                            <span className="text-cyan-400 text-xs font-bold mt-0.5">3.</span>
                             <p className="text-xs text-white/60 leading-relaxed">
                               Kirim pesan: <span className="text-emerald-400 font-semibold">"Halo saya ingin upgrade ke Elite PRO"</span>
                             </p>
                           </div>
                           <div className="flex items-start gap-2">
-                            <span className="text-purple-400 text-xs font-bold mt-0.5">4.</span>
+                            <span className="text-cyan-400 text-xs font-bold mt-0.5">4.</span>
                             <p className="text-xs text-white/60 leading-relaxed">
                               Ikuti instruksi pembayaran dari admin (Transfer Bank / E-Wallet)
                             </p>
                           </div>
                           <div className="flex items-start gap-2">
-                            <span className="text-purple-400 text-xs font-bold mt-0.5">5.</span>
+                            <span className="text-cyan-400 text-xs font-bold mt-0.5">5.</span>
                             <p className="text-xs text-white/60 leading-relaxed">
                               Kirim bukti transfer dan akun Anda akan diaktifkan dalam <span className="text-emerald-400 font-semibold">5-10 menit</span>
                             </p>

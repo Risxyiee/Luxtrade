@@ -52,10 +52,10 @@ const PAYMENT_CATEGORIES: {
       { code: 'LINKAJA', label: 'LinkAja' },
     ],
     color: {
-      sel: 'border-violet-400 bg-violet-500/15',
+      sel: 'border-cyan-400 bg-blue-500/15',
       unsel: 'border-white/10 bg-white/[0.03]',
-      glow: 'shadow-violet-500/30 shadow-lg',
-      iconBg: 'bg-violet-500',
+      glow: 'shadow-blue-500/30 shadow-lg',
+      iconBg: 'bg-blue-500',
     },
   },
   {
@@ -436,7 +436,7 @@ export default function PaymentInvoiceModal({
             relative rounded-3xl overflow-hidden shadow-2xl
             ${isPaid
               ? 'border border-emerald-400/30 shadow-emerald-500/20'
-              : 'border border-purple-500/20 shadow-purple-900/20'
+              : 'border border-blue-500/20 shadow-blue-900/20'
             }
           `}>
             {/* Background */}
@@ -453,7 +453,7 @@ export default function PaymentInvoiceModal({
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-emerald-500/8 rounded-full blur-3xl" />
             )}
             {!isPaid && (
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-80 bg-purple-500/5 rounded-full blur-3xl" />
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl" />
             )}
 
             {/* ============================================ */}
@@ -838,14 +838,14 @@ export default function PaymentInvoiceModal({
                 <>
                   {/* Invoice Card */}
                   <div className="relative bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/10 rounded-2xl overflow-hidden">
-                    <div className="h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-amber-500" />
+                    <div className="h-1 bg-gradient-to-r from-blue-500 via-cyan-400 to-amber-500" />
                     <div className="p-5 space-y-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Sparkles className="w-5 h-5 text-amber-400" />
                           <span className="font-bold text-white tracking-tight">LuxTrade</span>
                         </div>
-                        <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-300 bg-purple-500/10">
+                        <Badge variant="outline" className="text-[10px] border-blue-500/30 text-cyan-300 bg-blue-500/10">
                           INVOICE
                         </Badge>
                       </div>
@@ -893,7 +893,7 @@ export default function PaymentInvoiceModal({
 
                       <div className="flex items-center justify-between">
                         <span className="text-white/60 font-medium">Total Pembayaran</span>
-                        <span className="text-2xl font-bold bg-gradient-to-r from-purple-300 via-pink-300 to-amber-300 bg-clip-text text-transparent">
+                        <span className="text-2xl font-bold bg-gradient-to-r from-cyan-300 via-pink-300 to-amber-300 bg-clip-text text-transparent">
                           {formatRupiah(amount)}
                         </span>
                       </div>
@@ -910,7 +910,7 @@ export default function PaymentInvoiceModal({
                   {/* ===== STEP 1: CATEGORY SELECTION ===== */}
                   <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-4 space-y-3">
                     <p className="text-xs text-white/50 font-medium flex items-center gap-1.5">
-                      <Lock className="w-3.5 h-3.5 text-purple-400" />
+                      <Lock className="w-3.5 h-3.5 text-cyan-400" />
                       Langkah 1 — Pilih Kategori Pembayaran
                     </p>
                     <div className="grid grid-cols-3 gap-2">
@@ -993,7 +993,7 @@ export default function PaymentInvoiceModal({
                       className="bg-white/[0.02] border border-white/10 rounded-2xl p-4 space-y-3"
                     >
                       <p className="text-xs text-white/50 font-medium flex items-center gap-1.5">
-                        <CreditCard className="w-3.5 h-3.5 text-purple-400" />
+                        <CreditCard className="w-3.5 h-3.5 text-cyan-400" />
                         Langkah 2 — Pilih Metode Spesifik
                       </p>
                       <div className="space-y-2">

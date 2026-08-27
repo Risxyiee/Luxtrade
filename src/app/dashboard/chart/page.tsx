@@ -234,7 +234,7 @@ export default function LuxtradeChart() {
   if (!mounted || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0a0612]">
-        <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
+        <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
       </div>
     )
   }
@@ -252,10 +252,10 @@ export default function LuxtradeChart() {
             </div>
             <h2 className="text-2xl font-bold mb-4">Indikator Terkunci</h2>
             <p className="text-white/60 mb-6">
-              Indikator Luxtrade 80% Momentum hanya untuk Member <span className="text-amber-400 font-semibold">PRO</span> atau <span className="text-purple-400 font-semibold">LIFETIME</span>!
+              Indikator Luxtrade 80% Momentum hanya untuk Member <span className="text-amber-400 font-semibold">PRO</span> atau <span className="text-cyan-400 font-semibold">LIFETIME</span>!
             </p>
             <div className="space-y-3">
-              <Button className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
+              <Button className="w-full bg-gradient-to-r from-blue-500 to-cyan-400 hover:from-blue-600 hover:to-cyan-500">
                 <Crown className="w-4 h-4 mr-2" />
                 Upgrade ke PRO
               </Button>
@@ -279,7 +279,7 @@ export default function LuxtradeChart() {
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold mb-2 flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-purple-400" />
+            <TrendingUp className="w-6 h-6 text-cyan-400" />
             Luxtrade Indicator
           </h1>
           <p className="text-white/60">

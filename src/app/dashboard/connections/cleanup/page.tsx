@@ -58,8 +58,8 @@ export default function CleanupPage() {
           </Button>
         </div>
 
-        <Card className="bg-[#1a1025] border border-purple-500/30">
-          <CardHeader className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border-b border-purple-500/30">
+        <Card className="bg-[#0a0e16] border border-blue-500/30">
+          <CardHeader className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border-b border-blue-500/30">
             <CardTitle className="flex items-center gap-2 text-xl">
               <Trash2 className="w-5 h-5 text-red-400" />
               Cleanup Akun Trading Terjebak

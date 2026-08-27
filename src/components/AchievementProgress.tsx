@@ -121,7 +121,7 @@ export default function AchievementProgress({
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-gradient-to-br from-purple-500/10 to-violet-600/10 border border-purple-500/20 rounded-xl p-4 space-y-3"
+        className="bg-gradient-to-br from-blue-500/10 to-cyan-600/10 border border-blue-500/20 rounded-xl p-4 space-y-3"
       >
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -204,7 +204,7 @@ export default function AchievementProgress({
         {/* View All Button */}
         <Button
           onClick={() => setShowCenter(true)}
-          className="w-full bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-semibold text-sm"
+          className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold text-sm"
         >
           <Trophy className="w-4 h-4 mr-2" />
           View Achievement Center
@@ -213,7 +213,7 @@ export default function AchievementProgress({
 
       {/* Achievement Center Modal */}
       <Dialog open={showCenter} onOpenChange={setShowCenter}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-[#110a1f] to-[#0a0612] border-purple-500/30">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-[#110a1f] to-[#0a0612] border-blue-500/30">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Trophy className="w-6 h-6 text-yellow-400" />

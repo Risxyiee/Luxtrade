@@ -148,7 +148,7 @@ const Sidebar = memo(function Sidebar({
           className="fixed top-0 left-0 h-dvh z-50 lg:hidden w-72 flex flex-col overflow-hidden"
         >
           {/* Glassmorphism Background */}
-          <div className="absolute inset-0 bg-gradient-to-b from-lux-bg-sidebar via-lux-bg-tertiary to-lux-bg-sidebar dark:from-[#0d0a1a]/98 dark:via-[#0f0b18]/98 dark:to-[#0d0a1a]/98 border-r border-lux-border dark:border-blue-500/20 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-b from-lux-bg-sidebar via-lux-bg-tertiary to-lux-bg-sidebar dark:from-[#0d0a1a]/98 dark:via-[#080b12]/98 dark:to-[#0d0a1a]/98 border-r border-lux-border dark:border-blue-500/20 pointer-events-none" />
           <div className="absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-blue-500/25 to-transparent pointer-events-none" />
           <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-blue-500/[0.06] to-transparent pointer-events-none" />
 

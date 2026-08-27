@@ -308,7 +308,7 @@ export default function ScreenshotJournalDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o) }}>
-      <DialogContent className="bg-lux-bg-card dark:bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-lux-border dark:border-purple-900/30 text-white max-w-lg max-h-[92vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="bg-lux-bg-card dark:bg-lux-bg-card dark:bg-[#080b12] border-lux-border dark:border-lux-border dark:border-blue-900/30 text-white max-w-lg max-h-[92vh] overflow-hidden flex flex-col p-0">
         {/* Header */}
         <DialogHeader className="shrink-0 px-5 pt-5 pb-3">
           <DialogTitle className="text-lg flex items-center gap-2">
@@ -335,7 +335,7 @@ export default function ScreenshotJournalDialog({
               >
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-purple-900/40 rounded-2xl p-8 text-center hover:border-amber-500/50 hover:bg-amber-500/5 transition-all cursor-pointer active:scale-[0.98]"
+                  className="border-2 border-dashed border-blue-900/40 rounded-2xl p-8 text-center hover:border-amber-500/50 hover:bg-amber-500/5 transition-all cursor-pointer active:scale-[0.98]"
                 >
                   <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center">
                     <Camera className="w-8 h-8 text-amber-400" />
@@ -374,7 +374,7 @@ export default function ScreenshotJournalDialog({
                 className="py-8"
               >
                 {imagePreview && (
-                  <div className="rounded-xl overflow-hidden border border-lux-border dark:border-lux-border dark:border-purple-900/30 mb-6">
+                  <div className="rounded-xl overflow-hidden border border-lux-border dark:border-lux-border dark:border-blue-900/30 mb-6">
                     <img src={imagePreview} alt="Screenshot" className="w-full max-h-40 object-contain bg-black/50" />
                   </div>
                 )}
@@ -410,7 +410,7 @@ export default function ScreenshotJournalDialog({
 
                 {/* Screenshot Preview (small) */}
                 {imagePreview && (
-                  <div className="rounded-lg overflow-hidden border border-lux-border dark:border-purple-900/20">
+                  <div className="rounded-lg overflow-hidden border border-lux-border dark:border-blue-900/20">
                     <img src={imagePreview} alt="Screenshot" className="w-full max-h-28 object-contain bg-black/30" />
                   </div>
                 )}
@@ -483,7 +483,7 @@ export default function ScreenshotJournalDialog({
                     {editTrade.session && (
                       <div className="flex items-center gap-2 text-xs text-lux-text-secondary dark:text-lux-text-secondary dark:text-gray-400">
                         <span>Session:</span>
-                        <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-300">
+                        <Badge variant="outline" className="text-[10px] border-blue-500/30 text-cyan-300">
                           {editTrade.session}
                         </Badge>
                         {editTrade.open_time && (
@@ -510,7 +510,7 @@ export default function ScreenshotJournalDialog({
                       <Input
                         value={editJournal.title}
                         onChange={(e) => setEditJournal({ ...editJournal, title: e.target.value })}
-                        className="h-8 text-sm font-medium bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-lux-border dark:border-purple-900/30"
+                        className="h-8 text-sm font-medium bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-lux-border dark:border-blue-900/30"
                       />
                     </div>
 
@@ -519,7 +519,7 @@ export default function ScreenshotJournalDialog({
                       <Textarea
                         value={editJournal.content}
                         onChange={(e) => setEditJournal({ ...editJournal, content: e.target.value })}
-                        className="bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-lux-border dark:border-purple-900/30 text-sm resize-none min-h-[80px]"
+                        className="bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-lux-border dark:border-blue-900/30 text-sm resize-none min-h-[80px]"
                         rows={4}
                       />
                     </div>
@@ -531,7 +531,7 @@ export default function ScreenshotJournalDialog({
                         </Badge>
                       )}
                       {editJournal.market_condition && editJournal.market_condition !== 'unknown' && (
-                        <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-300">
+                        <Badge variant="outline" className="text-[10px] border-blue-500/30 text-cyan-300">
                           {editJournal.market_condition}
                         </Badge>
                       )}
@@ -567,7 +567,7 @@ export default function ScreenshotJournalDialog({
                     <Button
                       variant="outline"
                       onClick={() => { reset() }}
-                      className="border-lux-border dark:border-lux-border dark:border-purple-900/30 h-11"
+                      className="border-lux-border dark:border-lux-border dark:border-blue-900/30 h-11"
                     >
                       <ImageIcon className="w-4 h-4" />
                     </Button>
@@ -579,7 +579,7 @@ export default function ScreenshotJournalDialog({
                   <Button
                     variant="outline"
                     onClick={reset}
-                    className="w-full border-lux-border dark:border-lux-border dark:border-purple-900/30 h-11"
+                    className="w-full border-lux-border dark:border-lux-border dark:border-blue-900/30 h-11"
                   >
                     <Camera className="w-4 h-4 mr-2" />
                     Coba Screenshot Lain

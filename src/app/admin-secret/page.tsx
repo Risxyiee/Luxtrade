@@ -247,9 +247,9 @@ export default function AdminPanel() {
 
   if (loading || !user || user.email !== ADMIN_EMAIL) {
     return (
-      <div className="min-h-screen bg-[#0a0712] flex items-center justify-center">
+      <div className="min-h-screen bg-[#070a10] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-12 h-12 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-400">Verifying admin access...</p>
         </div>
       </div>
@@ -257,9 +257,9 @@ export default function AdminPanel() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0712] text-white">
+    <div className="min-h-screen bg-[#070a10] text-white">
       {/* Header */}
-      <header className="border-b border-purple-900/30 bg-[#0f0b18]/80 backdrop-blur-md sticky top-0 z-50">
+      <header className="border-b border-blue-900/30 bg-[#080b12]/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-orange-600 flex items-center justify-center shadow-lg shadow-red-500/30">
@@ -279,7 +279,7 @@ export default function AdminPanel() {
               variant="outline"
               size="sm"
               onClick={() => setImpersonationEmail('')}
-              className="border-purple-500/30 text-purple-400"
+              className="border-blue-500/30 text-cyan-400"
             >
               <Eye className="w-4 h-4 mr-2" />
               View As User
@@ -308,7 +308,7 @@ export default function AdminPanel() {
       <main className="max-w-7xl mx-auto px-4 py-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <Card className="bg-gradient-to-br from-[#080b12] to-[#12091a] border-blue-900/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
@@ -322,7 +322,7 @@ export default function AdminPanel() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <Card className="bg-gradient-to-br from-[#080b12] to-[#12091a] border-blue-900/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
@@ -336,7 +336,7 @@ export default function AdminPanel() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <Card className="bg-gradient-to-br from-[#080b12] to-[#12091a] border-blue-900/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-gray-500/20 flex items-center justify-center">
@@ -350,7 +350,7 @@ export default function AdminPanel() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
+          <Card className="bg-gradient-to-br from-[#080b12] to-[#12091a] border-blue-900/30">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
@@ -366,10 +366,10 @@ export default function AdminPanel() {
         </div>
 
         {/* Users Table */}
-        <Card className="bg-gradient-to-br from-[#0f0b18] to-[#12091a] border-purple-900/30">
-          <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-purple-900/30">
+        <Card className="bg-gradient-to-br from-[#080b12] to-[#12091a] border-blue-900/30">
+          <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-blue-900/30">
             <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-purple-400" />
+              <Users className="w-5 h-5 text-cyan-400" />
               User Management
             </CardTitle>
 
@@ -381,7 +381,7 @@ export default function AdminPanel() {
                   placeholder="Cari email..."
                   value={searchEmail}
                   onChange={(e) => setSearchEmail(e.target.value)}
-                  className="bg-[#0a0712] border-purple-900/30 pl-9 text-sm w-full md:w-64"
+                  className="bg-[#070a10] border-blue-900/30 pl-9 text-sm w-full md:w-64"
                 />
               </div>
 
@@ -391,7 +391,7 @@ export default function AdminPanel() {
                   variant={statusFilter === 'all' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setStatusFilter('all')}
-                  className={statusFilter === 'all' ? 'bg-purple-600' : 'border-purple-500/30 text-purple-400'}
+                  className={statusFilter === 'all' ? 'bg-blue-600' : 'border-blue-500/30 text-cyan-400'}
                 >
                   All
                 </Button>
@@ -399,7 +399,7 @@ export default function AdminPanel() {
                   variant={statusFilter === 'pro' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setStatusFilter('pro')}
-                  className={statusFilter === 'pro' ? 'bg-amber-600' : 'border-purple-500/30 text-amber-400'}
+                  className={statusFilter === 'pro' ? 'bg-amber-600' : 'border-blue-500/30 text-amber-400'}
                 >
                   PRO
                 </Button>
@@ -407,7 +407,7 @@ export default function AdminPanel() {
                   variant={statusFilter === 'free' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setStatusFilter('free')}
-                  className={statusFilter === 'free' ? 'bg-gray-600' : 'border-purple-500/30 text-gray-400'}
+                  className={statusFilter === 'free' ? 'bg-gray-600' : 'border-blue-500/30 text-gray-400'}
                 >
                   FREE
                 </Button>
@@ -415,7 +415,7 @@ export default function AdminPanel() {
                   variant={statusFilter === 'expired' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setStatusFilter('expired')}
-                  className={statusFilter === 'expired' ? 'bg-red-600' : 'border-purple-500/30 text-red-400'}
+                  className={statusFilter === 'expired' ? 'bg-red-600' : 'border-blue-500/30 text-red-400'}
                 >
                   Expired
                 </Button>
@@ -426,7 +426,7 @@ export default function AdminPanel() {
                 size="sm"
                 onClick={fetchUsers}
                 disabled={isLoading}
-                className="border-purple-500/30 text-purple-400"
+                className="border-blue-500/30 text-cyan-400"
               >
                 <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Refresh
@@ -437,7 +437,7 @@ export default function AdminPanel() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-purple-900/30 text-left text-xs text-gray-500 uppercase tracking-wider">
+                  <tr className="border-b border-blue-900/30 text-left text-xs text-gray-500 uppercase tracking-wider">
                     <th className="p-4">Email</th>
                     <th className="p-4">Name</th>
                     <th className="p-4">Status</th>
@@ -447,12 +447,12 @@ export default function AdminPanel() {
                     <th className="p-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-purple-900/20">
+                <tbody className="divide-y divide-blue-900/20">
                   {isLoading ? (
                     <tr>
                       <td colSpan={7} className="p-8 text-center">
                         <div className="flex items-center justify-center">
-                          <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mr-2" />
+                          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2" />
                           Loading users...
                         </div>
                       </td>
@@ -517,7 +517,7 @@ export default function AdminPanel() {
                               variant="outline"
                               size="sm"
                               onClick={() => openEditModal(user)}
-                              className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+                              className="border-blue-500/30 text-cyan-400 hover:bg-blue-500/10"
                               title="Edit User Subscription"
                             >
                               <Edit className="w-4 h-4" />
@@ -536,14 +536,14 @@ export default function AdminPanel() {
 
       {/* Edit User Modal */}
       <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-        <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-md">
+        <DialogContent className="bg-[#080b12] border-blue-900/30 text-white max-w-md">
           <DialogHeader>
             <DialogTitle>Edit User Subscription</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             {editingUser && (
               <div className="space-y-3 text-sm">
-                <div className="p-3 bg-[#0a0712] rounded-lg border border-purple-900/20">
+                <div className="p-3 bg-[#070a10] rounded-lg border border-blue-900/20">
                   <p><span className="text-gray-500">Email:</span> {editingUser.email}</p>
                   <p><span className="text-gray-500">Name:</span> {editingUser.full_name}</p>
                   <p><span className="text-gray-500">Current Plan:</span>
@@ -561,7 +561,7 @@ export default function AdminPanel() {
                     <Button
                       type="button"
                       variant={editingPlan === 'PRO' ? 'default' : 'outline'}
-                      className={editingPlan === 'PRO' ? 'bg-amber-500 hover:bg-amber-600' : 'border-purple-500/30 text-purple-400'}
+                      className={editingPlan === 'PRO' ? 'bg-amber-500 hover:bg-amber-600' : 'border-blue-500/30 text-cyan-400'}
                       onClick={() => setEditingPlan('PRO')}
                     >
                       <Crown className="w-4 h-4 mr-2" /> PRO
@@ -569,7 +569,7 @@ export default function AdminPanel() {
                     <Button
                       type="button"
                       variant={editingPlan === 'FREE' ? 'default' : 'outline'}
-                      className={editingPlan === 'FREE' ? 'bg-gray-500 hover:bg-gray-600' : 'border-purple-500/30 text-purple-400'}
+                      className={editingPlan === 'FREE' ? 'bg-gray-500 hover:bg-gray-600' : 'border-blue-500/30 text-cyan-400'}
                       onClick={() => setEditingPlan('FREE')}
                     >
                       <UserX className="w-4 h-4 mr-2" /> FREE
@@ -584,7 +584,7 @@ export default function AdminPanel() {
                         <Button
                           type="button"
                           variant={editingDuration === 30 ? 'default' : 'outline'}
-                          className={editingDuration === 30 ? 'bg-blue-500 hover:bg-blue-600' : 'border-purple-500/30 text-purple-400'}
+                          className={editingDuration === 30 ? 'bg-blue-500 hover:bg-blue-600' : 'border-blue-500/30 text-cyan-400'}
                           onClick={() => setEditingDuration(30)}
                         >
                           30 Days
@@ -592,7 +592,7 @@ export default function AdminPanel() {
                         <Button
                           type="button"
                           variant={editingDuration === 180 ? 'default' : 'outline'}
-                          className={editingDuration === 180 ? 'bg-emerald-500 hover:bg-emerald-600' : 'border-purple-500/30 text-purple-400'}
+                          className={editingDuration === 180 ? 'bg-emerald-500 hover:bg-emerald-600' : 'border-blue-500/30 text-cyan-400'}
                           onClick={() => setEditingDuration(180)}
                         >
                           180 Days
@@ -600,14 +600,14 @@ export default function AdminPanel() {
                         <Button
                           type="button"
                           variant={editingDuration === 365 ? 'default' : 'outline'}
-                          className={editingDuration === 365 ? 'bg-purple-500 hover:bg-purple-600' : 'border-purple-500/30 text-purple-400'}
+                          className={editingDuration === 365 ? 'bg-blue-500 hover:bg-blue-600' : 'border-blue-500/30 text-cyan-400'}
                           onClick={() => setEditingDuration(365)}
                         >
                           365 Days
                         </Button>
                       </div>
                     </div>
-                    <div className="p-3 bg-[#0a0712] rounded-lg border border-purple-900/20">
+                    <div className="p-3 bg-[#070a10] rounded-lg border border-blue-900/20">
                       <p className="text-xs text-gray-500 mb-1">Harga:</p>
                       <p className="text-lg font-bold text-amber-400">
                         {editingDuration === 30 ? formatRupiah(PRO_PRICE_30_DAYS) :
@@ -621,11 +621,11 @@ export default function AdminPanel() {
             )}
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setEditModalOpen(false)} className="border-purple-900/30">Batal</Button>
+            <Button variant="outline" onClick={() => setEditModalOpen(false)} className="border-blue-900/30">Batal</Button>
             <Button
               onClick={handleUserUpdate}
               disabled={processingEdit}
-              className="bg-purple-600 hover:bg-purple-700"
+              className="bg-blue-600 hover:bg-blue-700"
             >
               {processingEdit ? 'Memproses...' : 'Update User'}
             </Button>
@@ -635,7 +635,7 @@ export default function AdminPanel() {
 
       {/* Impersonation Modal */}
       <Dialog open={impersonationEmail !== ''} onOpenChange={(open) => !open && setImpersonationEmail('')}>
-        <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-md">
+        <DialogContent className="bg-[#080b12] border-blue-900/30 text-white max-w-md">
           <DialogHeader>
             <DialogTitle>View As User</DialogTitle>
           </DialogHeader>
@@ -646,7 +646,7 @@ export default function AdminPanel() {
                 value={impersonationEmail}
                 onChange={(e) => setImpersonationEmail(e.target.value)}
                 placeholder="user@example.com"
-                className="bg-[#0a0712] border-purple-900/30 mt-1"
+                className="bg-[#070a10] border-blue-900/30 mt-1"
               />
             </div>
             <p className="text-xs text-gray-500">
@@ -654,10 +654,10 @@ export default function AdminPanel() {
             </p>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setImpersonationEmail('')} className="border-purple-900/30">Batal</Button>
+            <Button variant="outline" onClick={() => setImpersonationEmail('')} className="border-blue-900/30">Batal</Button>
             <Button
               onClick={handleImpersonation}
-              className="bg-purple-600 hover:bg-purple-700"
+              className="bg-blue-600 hover:bg-blue-700"
             >
               <Eye className="w-4 h-4 mr-2" />
               Lihat sebagai User

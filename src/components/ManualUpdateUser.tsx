@@ -144,10 +144,10 @@ export function ManualUpdateUser() {
   }
 
   return (
-    <Card className="bg-[#1a0f2e]/50 border-purple-500/20 backdrop-blur-sm">
+    <Card className="bg-[#1a0f2e]/50 border-blue-500/20 backdrop-blur-sm">
       <CardHeader>
         <CardTitle className="text-white flex items-center gap-2">
-          <UserIcon className="w-5 h-5 text-purple-400" />
+          <UserIcon className="w-5 h-5 text-cyan-400" />
           Manual Update User
         </CardTitle>
       </CardHeader>
@@ -162,7 +162,7 @@ export function ManualUpdateUser() {
                 placeholder="user@email.com"
                 value={searchEmail}
                 onChange={(e) => setSearchEmail(e.target.value)}
-                className="bg-[#0d0820] border-purple-500/20 pl-9 text-white focus:border-purple-500/50"
+                className="bg-[#0d0820] border-blue-500/20 pl-9 text-white focus:border-blue-500/50"
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') searchUser()
                 }}
@@ -171,7 +171,7 @@ export function ManualUpdateUser() {
             <Button
               onClick={searchUser}
               disabled={searching || !searchEmail.trim()}
-              className="bg-purple-600 hover:bg-purple-700"
+              className="bg-blue-600 hover:bg-blue-700"
             >
               {searching ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -190,7 +190,7 @@ export function ManualUpdateUser() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-4 border-t border-purple-500/20 pt-4"
+            className="space-y-4 border-t border-blue-500/20 pt-4"
           >
             {/* User Info */}
             <div className="bg-[#0d0820] rounded-lg p-4 space-y-3">
@@ -232,7 +232,7 @@ export function ManualUpdateUser() {
               <div>
                 <label className="text-xs text-white/60 mb-2 block">Plan Baru</label>
                 <Select value={plan} onValueChange={(value: 'FREE' | 'PRO') => setPlan(value)}>
-                  <SelectTrigger className="bg-[#0d0820] border-purple-500/20 text-white">
+                  <SelectTrigger className="bg-[#0d0820] border-blue-500/20 text-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -250,7 +250,7 @@ export function ManualUpdateUser() {
                       type="date"
                       value={proExpiry}
                       onChange={(e) => setProExpiry(e.target.value)}
-                      className="bg-[#0d0820] border-purple-500/20 text-white focus:border-purple-500/50"
+                      className="bg-[#0d0820] border-blue-500/20 text-white focus:border-blue-500/50"
                       min={new Date().toISOString().split('T')[0]}
                     />
                   </div>
@@ -266,7 +266,7 @@ export function ManualUpdateUser() {
                       variant="outline"
                       size="sm"
                       onClick={() => setProExpiry(getExpiryDate(30))}
-                      className="border-purple-500/30 text-white/60 hover:bg-purple-500/10 text-xs"
+                      className="border-blue-500/30 text-white/60 hover:bg-blue-500/10 text-xs"
                     >
                       30 Hari
                     </Button>
@@ -274,7 +274,7 @@ export function ManualUpdateUser() {
                       variant="outline"
                       size="sm"
                       onClick={() => setProExpiry(getExpiryDate(90))}
-                      className="border-purple-500/30 text-white/60 hover:bg-purple-500/10 text-xs"
+                      className="border-blue-500/30 text-white/60 hover:bg-blue-500/10 text-xs"
                     >
                       90 Hari
                     </Button>
@@ -282,7 +282,7 @@ export function ManualUpdateUser() {
                       variant="outline"
                       size="sm"
                       onClick={() => setProExpiry(getExpiryDate(180))}
-                      className="border-purple-500/30 text-white/60 hover:bg-purple-500/10 text-xs"
+                      className="border-blue-500/30 text-white/60 hover:bg-blue-500/10 text-xs"
                     >
                       180 Hari
                     </Button>
@@ -290,7 +290,7 @@ export function ManualUpdateUser() {
                       variant="outline"
                       size="sm"
                       onClick={() => setProExpiry(getExpiryDate(365))}
-                      className="border-purple-500/30 text-white/60 hover:bg-purple-500/10 text-xs"
+                      className="border-blue-500/30 text-white/60 hover:bg-blue-500/10 text-xs"
                     >
                       1 Tahun
                     </Button>
@@ -302,7 +302,7 @@ export function ManualUpdateUser() {
               <Button
                 onClick={updateUser}
                 disabled={updating}
-                className="w-full bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white"
+                className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-600 text-white"
               >
                 {updating ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />

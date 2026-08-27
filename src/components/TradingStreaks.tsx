@@ -283,7 +283,7 @@ function UpgradeOverlay({ onUpgrade }: { onUpgrade: () => void }) {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-xl bg-[#0f0b18]/80 backdrop-blur-md"
+      className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-xl bg-[#080b12]/80 backdrop-blur-md"
     >
       <Lock className="mb-3 h-8 w-8 text-amber-400" />
       <p className="mb-1 text-lg font-semibold text-white">
@@ -343,7 +343,7 @@ export default function TradingStreaks({ trades, isPro, onUpgrade }: TradingStre
 
   return (
     <div className="relative">
-      <Card className="relative overflow-hidden border-white/10 bg-[#0f0b18] shadow-lg">
+      <Card className="relative overflow-hidden border-white/10 bg-[#080b12] shadow-lg">
         {/* Header */}
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">

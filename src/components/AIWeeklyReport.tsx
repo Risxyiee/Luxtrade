@@ -506,7 +506,7 @@ function SectionHeader({
       transition={{ delay, duration: 0.3 }}
       className="flex items-center gap-2 mb-3"
     >
-      <Icon className="h-4 w-4 text-purple-400" />
+      <Icon className="h-4 w-4 text-cyan-400" />
       <h3 className="text-sm font-semibold tracking-wide text-white uppercase">{title}</h3>
       <div className="flex-1 h-px bg-white/5" />
     </motion.div>
@@ -575,17 +575,17 @@ export default function AIWeeklyReport({
 
   // ── Render ───────────────────────────────────────────────────────────
   return (
-    <Card className="relative overflow-hidden border-white/[0.06] bg-[#0f0b18] shadow-2xl shadow-purple-500/5">
+    <Card className="relative overflow-hidden border-white/[0.06] bg-[#080b12] shadow-2xl shadow-blue-500/5">
       {/* Ambient glow */}
-      <div className="pointer-events-none absolute -top-24 right-0 h-48 w-48 rounded-full bg-purple-600/10 blur-[80px]" />
+      <div className="pointer-events-none absolute -top-24 right-0 h-48 w-48 rounded-full bg-blue-600/10 blur-[80px]" />
       <div className="pointer-events-none absolute -bottom-24 left-0 h-48 w-48 rounded-full bg-emerald-600/5 blur-[80px]" />
 
       {/* ─── Header ──────────────────────────────────────────────────── */}
       <CardHeader className="relative z-10 pb-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/20">
-              <Brain className="h-5 w-5 text-purple-400" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/20">
+              <Brain className="h-5 w-5 text-cyan-400" />
             </div>
             <div>
               <CardTitle className="text-base font-bold text-white">
@@ -638,7 +638,7 @@ export default function AIWeeklyReport({
                 }
               }}
               disabled={isGenerating}
-              className="gap-1.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-purple-400"
+              className="gap-1.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-cyan-400"
             >
               {isGenerating ? (
                 <>
@@ -687,10 +687,10 @@ export default function AIWeeklyReport({
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 rounded-xl bg-[#0f0b18]/90 backdrop-blur-md"
+                  className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 rounded-xl bg-[#080b12]/90 backdrop-blur-md"
                 >
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500/30 to-purple-600/20 border border-purple-500/30">
-                    <Sparkles className="h-7 w-7 text-purple-400" />
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500/30 to-blue-600/20 border border-blue-500/30">
+                    <Sparkles className="h-7 w-7 text-cyan-400" />
                   </div>
                   <div className="text-center">
                     <h3 className="text-lg font-bold text-white">Pro Feature</h3>
@@ -700,7 +700,7 @@ export default function AIWeeklyReport({
                   </div>
                   <Button
                     onClick={onUpgrade}
-                    className="mt-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-lg shadow-purple-500/25 hover:from-purple-500 hover:to-purple-400"
+                    className="mt-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/25 hover:from-blue-500 hover:to-cyan-400"
                   >
                     <Sparkles className="mr-2 h-4 w-4" />
                     Upgrade to Pro
@@ -841,7 +841,7 @@ export default function AIWeeklyReport({
                           transition={{ delay: 0.4 + i * 0.06 }}
                           className="flex gap-2.5 text-sm text-slate-300"
                         >
-                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-purple-500/25 bg-purple-500/10 text-[10px] font-bold text-purple-400">
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-blue-500/25 bg-blue-500/10 text-[10px] font-bold text-cyan-400">
                             {i + 1}
                           </span>
                           <span className="leading-relaxed">{goal}</span>
