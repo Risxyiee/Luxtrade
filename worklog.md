@@ -1890,3 +1890,89 @@ Stage Summary:
 - Lint passes with zero errors
 - Dashboard now uses consistent blue/cyan theme matching landing page
 ---\nTask ID: 1\nAgent: Main Agent\nTask: Fix 3D hero logo size/colors + replace auth page gem animations with spinning LuxTrade logo\n\nWork Log:\n- Made hero 3D logo 56% larger (desktop: 320→500px, mobile: 160→260px)\n- Increased logo image size (desktop: 220→340, mobile: 110→180)\n- Enhanced glow colors: stronger blue-500 (0.35), cyan (0.2), emerald (0.1)\n- Added secondary glow ring for depth effect\n- Increased opacity from 0.2/0.12 to 0.35/0.25\n- Replaced wireframe gem in login page AuthBg with spinning LuxTrade logo (16s rotation)\n- Replaced wireframe gem in signup page AuthBackground with spinning LuxTrade logo (16s rotation)\n- Added auth-logo-spin and auth-logo-glow keyframes in globals.css\n- Removed old auth-gem-mask, auth-gem, auth-rotate-3d CSS rules\n- Removed rotate-3d keyframes from signup page inline styles\n\nStage Summary:\n- Hero logo is now significantly bigger with more vibrant blue/cyan glow colors\n- Both login and signup pages now show a smoothly spinning LuxTrade logo (like a wheel) instead of the old wireframe gem\n- Logo spins at 16s per revolution for smooth wheel-like effect\n- All changes pass bun run lint with no errors
+
+---
+Task ID: 1
+Agent: Explore
+Task: Read all dashboard layout files
+
+Work Log:
+- Read 7 files: SidebarNav.tsx, SidebarHeader.tsx, SidebarFooter.tsx, Sidebar.tsx, Header.tsx, layout.tsx, SidebarMewah.tsx
+- All 7 files found and read in full
+
+Stage Summary:
+## Dashboard Layout Architecture
+
+### layout.tsx (14 lines) - Minimal Server Component
+- Exports Metadata only (title: "Dashboard - LuxTrade", no-index robots)
+- Simply passes `children` through - no layout shell, no sidebar, no header
+- All layout structure is handled inside the page-level component (page.tsx)
+
+### Sidebar.tsx (307 lines) - Active Sidebar (Primary)
+- Composed from 3 sub-components: SidebarHeader, SidebarNav, SidebarFooter + DeleteAccountDialog
+- Wrapped with `memo` for render optimization
+- Two sidebar instances:
+  - Desktop: `hidden lg:flex`, always rendered on lg+. Width toggles w-80/w-20. Glassmorphism bg with blue-tinted dark gradients
+  - Mobile: `fixed h-dvh z-50 lg:hidden`, only rendered when open. Always w-80. Has backdrop overlay. Focus trapping + Escape to close
+- Handles delete-account state + API (DELETE /api/trading-accounts/:id)
+- Receives all app state from parent (auth, accounts, PRO, language, trade count)
+- Haptic feedback on mobile close
+
+### SidebarHeader.tsx (248 lines)
+- Logo with motion hover animation, gradient text "LuxTrade"
+- Account selector with radio-like selection, "All Accounts" option, per-account delete button
+- Quick action buttons: Add Account + Add Trade (with guide "?" buttons using ContextGuide)
+- Guide links for Screenshot AI and Auto-Journal help
+- Only shows text/controls when sidebar is open (collapsed = icons only)
+
+### SidebarNav.tsx (217 lines)
+- 15 menu items across 4 categories: UTAMA (4 free), PASAR (3 free), ALAT (4 PRO-gold), LANJUTAN (6 PRO-purple)
+- Bilingual labels (id/en), per-item icons from lucide-react
+- PRO items show Lock icon + gradient PRO badge, clicking opens plan modal
+- Active state: blue gradient bg + glow shadow
+- Context guide "?" buttons on items with guideData
+- Haptic feedback on menu click (navigator.vibrate(5))
+- Exports menuCategories and menuItems for use by Header component
+
+### SidebarFooter.tsx (332 lines)
+- Promo code claim button (non-PRO only) -> opens Dialog with API call to POST /api/promo/apply
+- Upgrade to PRO CTA button (non-PRO) with shimmer animation
+- ELITE PRO badge (PRO users)
+- Referral Program link (/affiliate)
+- Settings link (/settings)
+- User profile card with avatar initials, name, PRO/Free badge
+- Admin Panel + Email Broadcast links (admin only)
+- Free user trade usage indicator (tradeCount/FREE_TRADE_LIMIT)
+- Discord community banner with inline SVG icon
+- Collapse/expand toggle button with rotating X/Menu icon
+
+### Header.tsx (129 lines)
+- Sticky top header (h-16, z-30) with backdrop blur
+- Mobile: hamburger menu button to open mobile sidebar
+- Active tab title (from menuItems array)
+- Refresh button (triggers fetchData, spins when loading)
+- Language switcher, Theme toggle, Keyboard shortcuts dialog (from @/lib/keyboard-shortcuts)
+- Lazy-loaded NotificationCenter (dynamic import, SSR disabled)
+- Connection status indicator (green dot + "Connected")
+- Sign out button, user avatar with initials
+- Wrapped with `memo`
+
+### SidebarMewah.tsx (360 lines) - Legacy/Alternative Sidebar
+- Single-file monolithic sidebar (NOT currently used in production)
+- Amber/orange color scheme (vs blue/cyan in active sidebar)
+- Uses `useAuth()` hook directly (vs props drilling in active sidebar)
+- Has `demoMode` toggle and language switcher built-in
+- Fewer menu items (12 vs 15), different categorization (main/tools/advanced/admin)
+- Missing: account selector, user profile, promo code, referral, discord, notification center
+- Appears to be an older iteration or demo-mode variant
+- Note: has unused imports (Trophy, Eye not imported but referenced)
+
+### Architecture Pattern
+- Props drilling from page.tsx -> Sidebar/Header (all state lifted to page level)
+- Desktop: flex row layout (sidebar + main content area)
+- Mobile: overlay sidebar with backdrop, triggered by Header hamburger
+- Responsive breakpoint: lg (1024px)
+- Design system: custom `lux-*` Tailwind tokens + blue/cyan gradient theme
+- Motion: framer-motion for micro-interactions throughout
+- Accessibility: aria labels, focus trapping on mobile, keyboard shortcuts, semantic roles
+---

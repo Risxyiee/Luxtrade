@@ -734,30 +734,15 @@ function LuxTradeDashboardContent() {
         setActiveTab={setActiveTab}
         isPro={isPro}
         user={user}
-        profile={profile}
         isAdmin={isAdmin}
         language={language}
-        isFreeUser={isFreeUser}
-        tradeCount={filteredTrades.length}
-        FREE_TRADE_LIMIT={FREE_TRADE_LIMIT}
         setPlanSelectionModalOpen={setPlanSelectionModalOpen}
-        userInitials={userInitials}
-        handleSignOut={handleSignOut}
-        tradingAccounts={tradingAccounts}
-        selectedAccountId={selectedAccountId}
-        setSelectedAccountId={setSelectedAccountId}
-        fetchData={fetchData}
-        refreshProfile={refreshProfile}
-        addTradeOpen={addTradeOpen}
-        setAddTradeOpen={setAddTradeOpen}
-        addAccountOpen={isAddAccountOpen}
-        setAddAccountOpen={setIsAddAccountOpen}
       />
 
       {/* Main Content - MOBILE: Full width, DESKTOP: Adjusted by sidebar */}
       <main id="main-content" className={`flex-1 overflow-auto transition-all duration-300 min-h-screen
         w-full ml-0 pl-0 pr-0
-        ${sidebarOpen ? 'lg:ml-64 lg:pl-0' : 'lg:ml-20 lg:pl-0'}
+        ${sidebarOpen ? 'lg:ml-64 lg:pl-0' : 'lg:ml-[72px] lg:pl-0'}
       `}>
         <Header
           sidebarOpen={sidebarOpen}
@@ -772,6 +757,12 @@ function LuxTradeDashboardContent() {
           handleSignOut={handleSignOut}
           userInitials={userInitials}
           language={language}
+          tradingAccounts={tradingAccounts}
+          selectedAccountId={selectedAccountId}
+          setSelectedAccountId={setSelectedAccountId}
+          setAddAccountOpen={setIsAddAccountOpen}
+          setAddTradeOpen={setAddTradeOpen}
+          isAdmin={isAdmin}
         />
 
         {/* Tab Content */}
