@@ -60,10 +60,13 @@ export default function SidebarFooter({
 
       {/* Version Tag */}
       {(sidebarOpen || mobileSidebarOpen) && (
-        <div className="px-3 py-1.5">
-          <span className="text-[10px] font-mono text-lux-text-muted/40 dark:text-gray-600 tracking-wider">
-            LUXTRADE v2.1.0
-          </span>
+        <div className="px-3 py-2">
+          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.05]">
+            <span className="w-1 h-1 rounded-full bg-blue-400/50" />
+            <span className="text-[10px] font-mono text-gray-500 dark:text-gray-600 tracking-[0.15em] uppercase">
+              v2.1.0
+            </span>
+          </div>
         </div>
       )}
 
