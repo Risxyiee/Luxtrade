@@ -77,13 +77,13 @@ export default function HeroSection({ language = 'id' }: HeroSectionProps) {
           transition={{ duration: 0.7, delay: 0.3 }}
         >
           <div className="phone-mockup w-64 absolute top-10 left-1/2 -translate-x-1/2 z-30 animate-float-lux glow-bg-luxury">
-            <Image src="/screenshot-dashboard.jpeg" alt="Dashboard LuxTradee" width={256} height={500} className="shadow-2xl" />
+            <Image src="/screenshot-dashboard.jpeg" alt="Dashboard LuxTradee" width={256} height={500} loading="lazy" className="shadow-2xl" />
           </div>
           <div className="phone-mockup w-48 absolute top-32 left-0 z-20 -rotate-12 animate-float-lux" style={{ animationDelay: '1s' }}>
-            <Image src="/screenshot-calendar.jpeg" alt="Kalender Trading" width={192} height={380} className="shadow-2xl opacity-80" />
+            <Image src="/screenshot-calendar.jpeg" alt="Kalender Trading" width={192} height={380} loading="lazy" className="shadow-2xl opacity-80" />
           </div>
           <div className="phone-mockup w-48 absolute top-32 right-0 z-20 rotate-12 animate-float-lux" style={{ animationDelay: '2s' }}>
-            <Image src="/screenshot-trades.jpeg" alt="Histori Trade" width={192} height={380} className="shadow-2xl opacity-80" />
+            <Image src="/screenshot-trades.jpeg" alt="Histori Trade" width={192} height={380} loading="lazy" className="shadow-2xl opacity-80" />
           </div>
         </motion.div>
 
@@ -95,7 +95,7 @@ export default function HeroSection({ language = 'id' }: HeroSectionProps) {
           transition={{ duration: 0.6, delay: 0.4 }}
         >
           <div className="phone-mockup glow-bg-luxury animate-float-lux">
-            <Image src="/screenshot-dashboard.jpeg" alt="Dashboard LuxTradee" width={300} height={600} />
+            <Image src="/screenshot-dashboard.jpeg" alt="Dashboard LuxTradee" width={300} height={600} priority loading="lazy" />
           </div>
         </motion.div>
       </div>

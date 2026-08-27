@@ -74,15 +74,13 @@ export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNav
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <div className="hidden sm:block"><LanguageSwitcher /></div>
-            <Link href="/auth/login" prefetch={false} className="hidden md:inline-flex">
-              <span className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">
-                {t('nav.login')}
-              </span>
+            <Link href="/auth/login" prefetch={false} className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">
+              {t('nav.login')}
             </Link>
-            <Link href="/auth/signup" prefetch={false} className="hidden sm:inline-flex">
-              <span className="bg-blue-500 text-white text-[12px] font-medium px-4 py-1.5 rounded-full hover:bg-blue-600 active:scale-[0.97] transition-all duration-200">
+            <Link href="/auth/signup" prefetch={false}>
+              <span className="bg-blue-500 text-white text-[12px] font-medium px-3 sm:px-4 py-1.5 rounded-full hover:bg-blue-600 active:scale-[0.97] transition-all duration-200">
                 {t('nav.signup')}
               </span>
             </Link>
