@@ -60,12 +60,12 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
   if (!isPro) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center mb-4">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-4">
           <Crown className="w-8 h-8 text-white" />
         </div>
         <h3 className="text-xl font-bold text-white mb-2">{language === 'id' ? 'Fitur Premium' : 'Premium Feature'}</h3>
         <p className="text-lux-text-secondary dark:text-gray-400 text-center max-w-sm mb-6">{language === 'id' ? 'Berita pasar forex hanya tersedia untuk pengguna PRO' : 'Forex market news is only available for PRO users'}</p>
-        <button onClick={onUpgrade} className="px-6 py-2.5 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity">
+        <button onClick={onUpgrade} className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity">
           {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
         </button>
       </div>
@@ -114,7 +114,7 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
     <div className="space-y-6">
       {/* Source Badge */}
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.05] w-fit">
-        <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
         <span className="text-xs text-lux-text-muted dark:text-gray-500">{t.investingSource}</span>
       </div>
 
@@ -122,7 +122,7 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <Newspaper className="w-5 h-5 text-purple-400" />
+            <Newspaper className="w-5 h-5 text-blue-400" />
             {t.newsTitle}
           </h2>
           <p className="text-sm text-lux-text-muted dark:text-gray-500 mt-1">{t.newsSub}</p>
@@ -133,7 +133,7 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
               {t.lastUpdated}: {new Date(lastFetched).toLocaleTimeString(language === 'id' ? 'id-ID' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
-          <Button variant="outline" size="sm" onClick={fetchNews} disabled={newsLoading} className="border-lux-border dark:border-purple-900/30 hover:bg-purple-500/10">
+          <Button variant="outline" size="sm" onClick={fetchNews} disabled={newsLoading} className="border-lux-border dark:border-blue-900/30 hover:bg-blue-500/10">
             <RefreshCw className={`w-4 h-4 mr-1.5 ${newsLoading ? 'animate-spin' : ''}`} />
             {t.refresh}
           </Button>
@@ -166,7 +166,7 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
             onClick={() => setFilter(f)}
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
               filter === f
-                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
                 : 'bg-lux-surface-hover dark:bg-white/[0.03] text-lux-text-secondary dark:text-gray-400 border border-lux-border dark:border-white/[0.06] hover:bg-lux-surface-hover dark:bg-white/[0.06] hover:text-lux-text-primary dark:text-gray-300'
             }`}
           >
@@ -178,7 +178,7 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
       {/* Loading */}
       {newsLoading && (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
-          <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
+          <RefreshCw className="w-8 h-8 animate-spin text-blue-400" />
           <span className="text-sm text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Mengambil berita dari Bloomberg...' : 'Fetching news from Bloomberg...'}</span>
         </div>
       )}
@@ -221,7 +221,7 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, delay: index * 0.03 }}
                 onClick={() => setExpandedId(isExpanded ? null : `${item.url}-${index}`)}
-                className={`block rounded-xl border p-4 transition-all ${isClickable ? 'cursor-pointer hover:scale-[1.005]' : ''} ${isInvesting ? 'bg-purple-500/5 border-lux-border dark:border-purple-500/20' : cfg.bg}`}
+                className={`block rounded-xl border p-4 transition-all ${isClickable ? 'cursor-pointer hover:scale-[1.005]' : ''} ${isInvesting ? 'bg-blue-500/5 border-lux-border dark:border-blue-500/20' : cfg.bg}`}
               >
                 <div className="flex items-start gap-3">
                   <div className="mt-0.5">
@@ -232,7 +232,7 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
                       <Badge variant="outline" className={`${cfg.badge} text-[10px] px-2 py-0 border-0`}>{cfg.label}</Badge>
                       <span className="text-[11px] text-lux-text-muted dark:text-gray-500 font-medium">{item.source}</span>
                       {isInvesting && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-medium">INVESTING</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-medium">INVESTING</span>
                       )}
                       {item.date && (
                         <span className="text-[11px] text-gray-600">
@@ -245,7 +245,7 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
                       <p className={`mt-2 text-xs leading-relaxed text-lux-text-secondary dark:text-gray-400 transition-all ${isExpanded ? '' : 'line-clamp-2'}`}>{item.snippet}</p>
                     )}
                     {isClickable && (
-                      <span className="inline-flex items-center gap-1 mt-2 text-[11px] text-purple-400/70 hover:text-purple-400">
+                      <span className="inline-flex items-center gap-1 mt-2 text-[11px] text-blue-400/70 hover:text-blue-400">
                         {t.clickToRead} <ExternalLink className="w-3 h-3" />
                       </span>
                     )}

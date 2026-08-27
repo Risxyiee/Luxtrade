@@ -180,9 +180,9 @@ const Sidebar = memo(function Sidebar({
           ${sidebarOpen ? 'w-80' : 'w-20'}
         `}>
           {/* Glassmorphism Background */}
-          <div className="absolute inset-0 bg-gradient-to-b from-lux-bg-sidebar via-lux-bg-tertiary to-lux-bg-sidebar dark:from-[#0d0a1a]/98 dark:via-[#0f0b18]/98 dark:to-[#0d0a1a]/98 backdrop-blur-xl border-r border-lux-border dark:border-purple-500/20 pointer-events-none" />
-          <div className="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-purple-500/30 to-transparent pointer-events-none" />
-          <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-500/5 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-b from-lux-bg-sidebar via-lux-bg-tertiary to-lux-bg-sidebar dark:from-[#050507]/98 dark:via-[#060810]/98 dark:to-[#050507]/98 backdrop-blur-xl border-r border-lux-border dark:border-blue-500/20 pointer-events-none" />
+          <div className="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-blue-500/30 to-transparent pointer-events-none" />
+          <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-blue-500/5 to-transparent pointer-events-none" />
 
           <SidebarHeader
             sidebarOpen={sidebarOpen}
@@ -240,8 +240,8 @@ const Sidebar = memo(function Sidebar({
         >
           {/* Glassmorphism Background */}
           <div className="absolute inset-0 bg-gradient-to-b from-lux-bg-sidebar via-lux-bg-tertiary to-lux-bg-sidebar dark:from-[#0d0a1a]/98 dark:via-[#0f0b18]/98 dark:to-[#0d0a1a]/98 border-r border-lux-border dark:border-purple-500/20 pointer-events-none" />
-          <div className="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-purple-500/30 to-transparent pointer-events-none" />
-          <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-500/5 to-transparent pointer-events-none" />
+          <div className="absolute inset-y-0 right-0 w-[1px] bg-gradient-to-b from-transparent via-blue-500/30 to-transparent pointer-events-none" />
+          <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-blue-500/5 to-transparent pointer-events-none" />
 
           <SidebarHeader
             sidebarOpen={true}

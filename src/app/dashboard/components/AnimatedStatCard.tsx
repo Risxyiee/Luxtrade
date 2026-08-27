@@ -62,7 +62,7 @@ interface AnimatedStatCardProps {
     value: number
     positive: boolean
   }
-  color?: 'purple' | 'emerald' | 'red' | 'blue' | 'amber'
+  color?: 'blue' | 'emerald' | 'red' | 'amber'
 }
 
 function AnimatedStatCard({
@@ -73,11 +73,11 @@ function AnimatedStatCard({
   decimals = 2,
   subtitle,
   icon: Icon,
-  iconColor = 'text-purple-500 dark:text-purple-400',
-  iconBgColor = 'bg-purple-500/20',
+  iconColor = 'text-blue-500 dark:text-blue-400',
+  iconBgColor = 'bg-blue-500/20',
   valueColor = 'text-lux-text-primary dark:text-white',
   trend,
-  color = 'purple'
+  color = 'blue'
 }: AnimatedStatCardProps) {
   const animatedValue = useCountUp(isFinite(value) ? value : 0, 1500, 0, decimals)
   const [mounted, setMounted] = useState(false)
@@ -88,17 +88,16 @@ function AnimatedStatCard({
   }, [])
 
   const gradientColors: Record<string, string> = {
-    purple: 'from-purple-500 to-violet-600',
+    blue: 'from-blue-500 to-cyan-600',
     emerald: 'from-emerald-500 to-green-600',
     red: 'from-red-500 to-rose-600',
-    blue: 'from-blue-500 to-cyan-600',
     amber: 'from-amber-500 to-orange-600',
   }
 
-  const gradientColor = gradientColors[color] || gradientColors.purple
+  const gradientColor = gradientColors[color] || gradientColors.blue
 
   return (
-    <Card className="bg-lux-bg-card dark:bg-[#0a0712] border-lux-border dark:border-purple-900/30 overflow-hidden relative group hover:border-purple-500/50 transition-all duration-300">
+    <Card className="bg-lux-bg-card dark:bg-[#060810] border-lux-border dark:border-blue-900/30 overflow-hidden relative group hover:border-blue-500/50 transition-all duration-300">
       {/* Gradient accent line at top */}
       <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${gradientColor} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
 

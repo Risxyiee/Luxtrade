@@ -27,7 +27,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.2 }}
     >
-      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10">
+      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12]/80 dark:to-[#080a14]/80 backdrop-blur-md border-lux-border dark:border-blue-500/20 transition-all duration-300 hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Equity Curve</CardTitle>
           <div className="flex items-center gap-2">
@@ -44,11 +44,11 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
                 <defs>
                   <linearGradient id="equityGradient" x1="0" y1="0" x2="1" y2="0">
                     <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.8} />
-                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.8} />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.8} />
                   </linearGradient>
                   <linearGradient id="equityFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <XAxis
@@ -63,7 +63,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
                   tickLine={false}
                 />
                 <Tooltip
-                  contentStyle={{ background: '#0f0b18', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 8 }}
+                  contentStyle={{ background: '#0a0c12', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8 }}
                   labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
                   formatter={(value: number) => formatCurrency(value)}
                 />

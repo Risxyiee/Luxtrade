@@ -72,7 +72,7 @@ export default function AccountsTab() {
         </div>
         <Button
           onClick={() => setAddAccountOpen(true)}
-          className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700"
+          className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
         >
           <Plus className="w-4 h-4 mr-2" />
           Tambah Akun
@@ -80,10 +80,10 @@ export default function AccountsTab() {
       </div>
 
       {/* Accounts List */}
-      <Card className="bg-lux-bg-card dark:bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-lux-border dark:border-purple-900/30">
+      <Card className="bg-lux-bg-card dark:bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-lux-border dark:border-blue-900/30">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-purple-400" />
+            <Wallet className="w-5 h-5 text-blue-400" />
             Daftar Akun Trading
           </CardTitle>
         </CardHeader>

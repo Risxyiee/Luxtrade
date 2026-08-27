@@ -194,8 +194,8 @@ function TradeForm({
   return (
     <div className="space-y-4">
       {/* Quick Import Section - Show First */}
-      <div className="bg-gradient-to-r from-purple-500/10 to-violet-600/10 rounded-lg border border-lux-input-border dark:border-purple-900/30 p-4">
-        <Label className="text-sm font-semibold text-purple-300 mb-3 block flex items-center gap-2">
+      <div className="bg-gradient-to-r from-blue-500/10 to-blue-600/10 rounded-lg border border-lux-input-border dark:border-blue-900/30 p-4">
+        <Label className="text-sm font-semibold text-blue-300 mb-3 block flex items-center gap-2">
           <Sparkles className="w-4 h-4" />
           Quick Import - Choose One
         </Label>
@@ -206,15 +206,15 @@ function TradeForm({
               id="screenshot"
               type="file"
               accept="image/jpeg,image/png,image/webp"
-              className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 text-xs"
+              className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 text-xs"
               onChange={handleScreenshotUpload}
               disabled={analyzingScreenshot}
             />
             <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-400">
               {analyzingScreenshot ? (
                 <>
-                  <Loader2 className="w-3 h-3 animate-spin text-purple-400" />
-                  <span className="text-purple-400">Analyzing with AI...</span>
+                  <Loader2 className="w-3 h-3 animate-spin text-blue-400" />
+                  <span className="text-blue-400">Analyzing with AI...</span>
                 </>
               ) : (
                 <>
@@ -231,15 +231,15 @@ function TradeForm({
               id="mt5-file"
               type="file"
               accept=".csv,.txt,.xlsx,.xls"
-              className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 text-xs"
+              className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 text-xs"
               onChange={handleMT5Upload}
               disabled={uploadingMT5}
             />
             <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-400">
               {uploadingMT5 ? (
                 <>
-                  <Loader2 className="w-3 h-3 animate-spin text-purple-400" />
-                  <span className="text-purple-400">Importing...</span>
+                  <Loader2 className="w-3 h-3 animate-spin text-blue-400" />
+                  <span className="text-blue-400">Importing...</span>
                 </>
               ) : (
                 <>
@@ -256,7 +256,7 @@ function TradeForm({
       </div>
 
       {/* Manual Entry Section */}
-      <div className="border-t border-lux-input-border dark:border-purple-900/30 pt-4">
+      <div className="border-t border-lux-input-border dark:border-blue-900/30 pt-4">
         <Label className="text-xs font-semibold text-gray-400 mb-3 block">
           Or Fill Manually
         </Label>
@@ -271,7 +271,7 @@ function TradeForm({
             <Input
               id="symbol"
               placeholder="EURUSD"
-              className={`bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1 transition-colors ${
+              className={`bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1 transition-colors ${
                 getFieldStatus('symbol') === 'invalid' ? 'border-red-500/50 focus:border-red-500' :
                 getFieldStatus('symbol') === 'valid' ? 'border-emerald-500/50 focus:border-emerald-500' : ''
               }`}
@@ -288,10 +288,10 @@ function TradeForm({
           <div>
             <Label htmlFor="type">Type</Label>
             <Select value={formData.type} onValueChange={onTypeChange}>
-              <SelectTrigger id="type" className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1">
+              <SelectTrigger id="type" className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-input-border dark:border-purple-900/30">
+              <SelectContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-input-border dark:border-blue-900/30">
                 <SelectItem value="BUY">BUY</SelectItem>
                 <SelectItem value="SELL">SELL</SelectItem>
               </SelectContent>
@@ -311,7 +311,7 @@ function TradeForm({
               type="number"
               step="0.0001"
               placeholder="1.0850"
-              className={`bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1 transition-colors ${
+              className={`bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1 transition-colors ${
                 getFieldStatus('open_price') === 'invalid' ? 'border-red-500/50 focus:border-red-500' :
                 getFieldStatus('open_price') === 'valid' ? 'border-emerald-500/50 focus:border-emerald-500' : ''
               }`}
@@ -336,7 +336,7 @@ function TradeForm({
               type="number"
               step="0.0001"
               placeholder="1.0890"
-              className={`bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1 transition-colors ${
+              className={`bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1 transition-colors ${
                 getFieldStatus('close_price') === 'invalid' ? 'border-red-500/50 focus:border-red-500' :
                 getFieldStatus('close_price') === 'valid' ? 'border-emerald-500/50 focus:border-emerald-500' : ''
               }`}
@@ -365,7 +365,7 @@ function TradeForm({
               step="0.01"
               min="0.01"
               placeholder="0.1"
-              className={`bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1 transition-colors ${
+              className={`bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1 transition-colors ${
                 getFieldStatus('lot_size') === 'invalid' ? 'border-red-500/50 focus:border-red-500' :
                 getFieldStatus('lot_size') === 'valid' ? 'border-emerald-500/50 focus:border-emerald-500' : ''
               }`}
@@ -390,7 +390,7 @@ function TradeForm({
               type="number"
               step="0.01"
               placeholder="400"
-              className={`bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1 transition-colors ${
+              className={`bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1 transition-colors ${
                 getFieldStatus('profit_loss') === 'invalid' ? 'border-red-500/50 focus:border-red-500' :
                 getFieldStatus('profit_loss') === 'valid' ? 'border-emerald-500/50 focus:border-emerald-500' : ''
               }`}
@@ -412,7 +412,7 @@ function TradeForm({
             <Input
               id="open_time"
               type="datetime-local"
-              className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1"
+              className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1"
               value={formData.open_time ? formData.open_time.slice(0, 16) : ''}
               onChange={(e) => onFormChange('open_time', e.target.value ? datetimeLocalToFormat(e.target.value) : '')}
             />
@@ -422,7 +422,7 @@ function TradeForm({
             <Input
               id="close_time"
               type="datetime-local"
-              className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1"
+              className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1"
               value={formData.close_time ? formData.close_time.slice(0, 16) : ''}
               onChange={(e) => onFormChange('close_time', e.target.value ? datetimeLocalToFormat(e.target.value) : '')}
             />
@@ -432,10 +432,10 @@ function TradeForm({
         <div>
           <Label htmlFor="session">Session</Label>
           <Select value={formData.session} onValueChange={onSessionChange}>
-            <SelectTrigger id="session" className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1">
+            <SelectTrigger id="session" className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1">
               <SelectValue placeholder="Select session" />
             </SelectTrigger>
-            <SelectContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-input-border dark:border-purple-900/30">
+            <SelectContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-input-border dark:border-blue-900/30">
               <SelectItem value="London">London</SelectItem>
               <SelectItem value="New York">New York</SelectItem>
               <SelectItem value="Asia">Asia</SelectItem>
@@ -449,7 +449,7 @@ function TradeForm({
           <Textarea
             id="notes"
             placeholder="Trade notes, setup, emotions..."
-            className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 mt-1 resize-none"
+            className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1 resize-none"
             rows={3}
             value={formData.notes}
             onChange={(e) => onFormChange('notes', e.target.value)}
@@ -460,7 +460,7 @@ function TradeForm({
       {/* Screenshot Preview */}
       {formData.image_url && (
         <div className="relative group">
-          <div className="rounded-lg overflow-hidden border border-lux-input-border dark:border-purple-900/30">
+          <div className="rounded-lg overflow-hidden border border-lux-input-border dark:border-blue-900/30">
             <img
               src={formData.image_url}
               alt="Trade screenshot"
@@ -481,8 +481,8 @@ function TradeForm({
         <Button
           onClick={onSave}
           disabled={saving || !isFormValid()}
-          className={`flex-1 bg-gradient-to-r from-purple-500 to-violet-600 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden transition-all ${
-            isFormValid() && !saving ? 'hover:shadow-lg hover:shadow-purple-500/30 hover:scale-[1.02]' : ''
+          className={`flex-1 bg-gradient-to-r from-blue-500 to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden transition-all ${
+            isFormValid() && !saving ? 'hover:shadow-lg hover:shadow-blue-500/30 hover:scale-[1.02]' : ''
           }`}
         >
           {saving ? (
@@ -495,7 +495,7 @@ function TradeForm({
         <Button
           variant="outline"
           onClick={onCancel}
-          className="border-lux-input-border dark:border-purple-900/30 hover:bg-white/5 active:bg-white/10 transition-all"
+          className="border-lux-input-border dark:border-blue-900/30 hover:bg-white/5 active:bg-white/10 transition-all"
         >
           Cancel
         </Button>
@@ -531,7 +531,7 @@ function TradeForm({
       {/* Required Fields Notice */}
       <div className="text-center">
         <p className="text-xs text-gray-500">
-          <span className="text-purple-400">*</span> Required fields
+          <span className="text-blue-400">*</span> Required fields
         </p>
       </div>
     </div>

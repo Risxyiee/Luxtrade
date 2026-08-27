@@ -37,7 +37,7 @@ export const RecentTrades: React.FC<RecentTradesProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.3 }}
     >
-      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Recent Trades</CardTitle>
           <span className="text-xs text-lux-text-secondary dark:text-gray-400">{trades.length} total</span>
@@ -76,7 +76,7 @@ export const RecentTrades: React.FC<RecentTradesProps> = ({
                       className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-white/10"
                       title="Edit trade"
                     >
-                      <Pencil className="w-3.5 h-3.5 text-gray-400 hover:text-purple-400" />
+                      <Pencil className="w-3.5 h-3.5 text-gray-400 hover:text-blue-400" />
                     </button>
                   )}
                 </div>

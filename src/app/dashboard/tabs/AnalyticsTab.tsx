@@ -11,7 +11,7 @@ interface AnalyticsTabProps {
   initialAnalytics?: any | null // Pre-fetched from parent (period='all')
 }
 
-const COLORS = ['#a855f7', '#f59e0b', '#22c55e', '#3b82f6', '#ec4899']
+const COLORS = ['#3b82f6', '#f59e0b', '#22c55e', '#3b82f6', '#06b6d4']
 
 // Color coding helper for ratio-based metrics
 const getRatioColor = (value: number, goodThreshold = 2, midThreshold = 1) => {
@@ -57,7 +57,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((i) => (
-          <Card key={i} className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-sm border border-white/10">
+          <Card key={i} className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12]/80 dark:to-[#080a14]/80 backdrop-blur-sm border border-white/10">
             <CardContent className="p-6">
               <div className="h-4 w-24 bg-white/10 rounded animate-pulse mb-3" />
               <div className="h-8 w-32 bg-white/10 rounded animate-pulse" />
@@ -70,9 +70,9 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
 
   if (!analytics) {
     return (
-      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
         <CardContent className="py-20 text-center">
-          <Activity className="w-12 h-12 text-purple-400 mx-auto mb-4" />
+          <Activity className="w-12 h-12 text-blue-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">No Data Available</h3>
           <p className="text-lux-text-secondary dark:text-gray-400">Start logging trades to see analytics</p>
         </CardContent>
@@ -93,7 +93,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
             onClick={() => setPeriod(p)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               period === p
-                ? 'bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg shadow-purple-500/30'
+                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30'
                 : 'bg-lux-surface-hover dark:bg-white/5 text-lux-text-secondary dark:text-gray-400 hover:bg-lux-surface-hover dark:hover:bg-white/10 hover:text-white'
             }`}
           >
@@ -110,10 +110,10 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
 
       {/* Today's Performance */}
       {analytics.today && (
-        <Card className="bg-gradient-to-br from-purple-500/15 via-violet-500/10 to-pink-500/10 backdrop-blur-sm border border-purple-500/30">
+        <Card className="bg-gradient-to-br from-blue-500/15 via-blue-400/10 to-cyan-500/10 backdrop-blur-sm border border-blue-500/30">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-purple-400" />
+              <TrendingUp className="w-5 h-5 text-blue-400" />
               {language === 'id' ? 'Performa Hari Ini' : "Today's Performance"}
             </CardTitle>
           </CardHeader>
@@ -181,7 +181,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
             <Card className={`bg-gradient-to-br ${getRatioBg(analytics.profitFactor || 0)}`}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <BarChart3 className="w-4 h-4 text-purple-400" />
+                  <BarChart3 className="w-4 h-4 text-blue-400" />
                   <p className="text-xs text-lux-text-secondary dark:text-gray-400">{language === 'id' ? 'Faktor Profit' : 'Profit Factor'}</p>
                 </div>
                 <p className={`text-2xl font-bold ${getRatioColor(analytics.profitFactor || 0)}`}>
@@ -211,7 +211,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
             <Card className={`bg-gradient-to-br ${getRatioBg(analytics.sharpeRatio || 0)}`}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Zap className="w-4 h-4 text-purple-400" />
+                  <Zap className="w-4 h-4 text-blue-400" />
                   <p className="text-xs text-lux-text-secondary dark:text-gray-400">Sharpe Ratio</p>
                 </div>
                 <p className={`text-2xl font-bold ${getRatioColor(analytics.sharpeRatio || 0)}`}>
@@ -257,10 +257,10 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+            <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <DollarSign className="w-4 h-4 text-purple-400" />
+                  <DollarSign className="w-4 h-4 text-blue-400" />
                   <p className="text-xs text-lux-text-secondary dark:text-gray-400">{language === 'id' ? 'Rata-rata Win/Loss' : 'Avg Win / Loss'}</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -291,10 +291,10 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
         >
-          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <Activity className="w-5 h-5 text-purple-400" />
+                <Activity className="w-5 h-5 text-blue-400" />
                 {language === 'id' ? 'Kurva Ekuitas' : 'Equity Curve'}
               </CardTitle>
             </CardHeader>
@@ -326,7 +326,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
                     />
                     <Tooltip
                       contentStyle={{
-                        background: '#0f0b18',
+                        background: '#0a0c12',
                         border: '1px solid rgba(139,92,246,0.3)',
                         borderRadius: 8
                       }}
@@ -358,10 +358,10 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <Globe className="w-5 h-5 text-purple-400" />
+                <Globe className="w-5 h-5 text-blue-400" />
                 {language === 'id' ? 'Performa Sesi' : 'Session Performance'}
               </CardTitle>
             </CardHeader>
@@ -371,12 +371,12 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
                   const maxPL = Math.max(...analytics.sessionPerformance.map((s: any) => Math.abs(s.pl)))
                   const barWidth = maxPL > 0 ? (Math.abs(session.pl) / maxPL) * 100 : 0
                   const sessionColors: Record<string, string> = {
-                    'London': '#a855f7',
+                    'London': '#3b82f6',
                     'New York': '#22c55e',
                     'Asia': '#f59e0b',
                     'Off-Market': '#6b7280',
                   }
-                  const barColor = sessionColors[session.session] || '#a855f7'
+                  const barColor = sessionColors[session.session] || '#3b82f6'
 
                   return (
                     <div key={session.session} className="space-y-1.5">
@@ -418,10 +418,10 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
 
       {/* Symbol Performance */}
       {analytics.symbolPerformance && analytics.symbolPerformance.length > 0 && (
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Target className="w-5 h-5 text-purple-400" />
+              <Target className="w-5 h-5 text-blue-400" />
               {language === 'id' ? 'Performa Symbol' : 'Symbol Performance'}
             </CardTitle>
           </CardHeader>
@@ -442,7 +442,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
                   />
                   <Tooltip
                     contentStyle={{
-                      background: '#0f0b18',
+                      background: '#0a0c12',
                       border: '1px solid rgba(139,92,246,0.3)',
                       borderRadius: 8
                     }}
@@ -462,10 +462,10 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
 
       {/* Monthly Performance */}
       {analytics.monthlyPerformance && analytics.monthlyPerformance.length > 0 && (
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-purple-400" />
+              <DollarSign className="w-5 h-5 text-blue-400" />
               {language === 'id' ? 'Performa Bulanan' : 'Monthly Performance'}
             </CardTitle>
           </CardHeader>
@@ -486,7 +486,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
                   />
                   <Tooltip
                     contentStyle={{
-                      background: '#0f0b18',
+                      background: '#0a0c12',
                       border: '1px solid rgba(139,92,246,0.3)',
                       borderRadius: 8
                     }}
@@ -506,10 +506,10 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
 
       {/* Day of Week Performance */}
       {analytics.dayOfWeekPerformance && analytics.dayOfWeekPerformance.length > 0 && (
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Activity className="w-5 h-5 text-purple-400" />
+              <Activity className="w-5 h-5 text-blue-400" />
               {language === 'id' ? 'Performa Hari' : 'Day of Week Performance'}
             </CardTitle>
           </CardHeader>
@@ -530,7 +530,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
                   />
                   <Tooltip
                     contentStyle={{
-                      background: '#0f0b18',
+                      background: '#0a0c12',
                       border: '1px solid rgba(139,92,246,0.3)',
                       borderRadius: 8
                     }}
@@ -550,10 +550,10 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
 
       {/* Trade Duration & R:R Ratio */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Clock className="w-5 h-5 text-purple-400" />
+              <Clock className="w-5 h-5 text-blue-400" />
               {language === 'id' ? 'Durasi Rata-rata' : 'Avg Trade Duration'}
             </CardTitle>
           </CardHeader>
@@ -567,10 +567,10 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
           </CardContent>
         </Card>
 
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Target className="w-5 h-5 text-purple-400" />
+              <Target className="w-5 h-5 text-blue-400" />
               {language === 'id' ? 'R:R Ratio Rata-rata' : 'Avg R:R Ratio'}
             </CardTitle>
           </CardHeader>
@@ -587,10 +587,10 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
 
       {/* Setup Type Performance */}
       {analytics.setupTypePerformance && analytics.setupTypePerformance.length > 0 && (
-        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Target className="w-5 h-5 text-purple-400" />
+              <Target className="w-5 h-5 text-blue-400" />
               {language === 'id' ? 'Performa Setup Type' : 'Setup Type Performance'}
             </CardTitle>
           </CardHeader>
@@ -614,7 +614,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
                   />
                   <Tooltip
                     contentStyle={{
-                      background: '#0f0b18',
+                      background: '#0a0c12',
                       border: '1px solid rgba(139,92,246,0.3)',
                       borderRadius: 8
                     }}

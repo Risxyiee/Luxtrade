@@ -72,17 +72,17 @@ function HeatmapTab({ isPro, onUpgrade, trades }: HeatmapTabProps) {
   return (
     <div className="space-y-6">
       {!isPro ? (
-        <Card className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border-purple-500/30">
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-400/10 border-blue-500/30">
           <CardContent className="py-8 text-center">
             <motion.div
               animate={{ scale: [1, 1.1, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              <Lock className="w-12 h-12 mx-auto mb-4 text-purple-400" />
+              <Lock className="w-12 h-12 mx-auto mb-4 text-blue-400" />
             </motion.div>
-            <h3 className="text-lg font-bold text-purple-400 mb-2">Market Heatmap - PRO Feature</h3>
+            <h3 className="text-lg font-bold text-blue-400 mb-2">Market Heatmap - PRO Feature</h3>
             <p className="text-lux-text-secondary dark:text-gray-400 mb-4">Visualize market strength across all pairs</p>
-            <Button onClick={onUpgrade} className="bg-gradient-to-r from-purple-500 to-violet-600">
+            <Button onClick={onUpgrade} className="bg-gradient-to-r from-blue-500 to-blue-600">
               <Zap className="w-4 h-4 mr-2" /> Upgrade to PRO
             </Button>
           </CardContent>
@@ -90,10 +90,10 @@ function HeatmapTab({ isPro, onUpgrade, trades }: HeatmapTabProps) {
       ) : (
         <div className="space-y-6">
           {/* Day/Session Heatmap */}
-          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <Grid3X3 className="w-5 h-5 text-purple-400" />
+                <Grid3X3 className="w-5 h-5 text-blue-400" />
                 Performance Heatmap
               </CardTitle>
             </CardHeader>
@@ -174,10 +174,10 @@ function HeatmapTab({ isPro, onUpgrade, trades }: HeatmapTabProps) {
           </Card>
 
           {/* Symbol Performance */}
-          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-purple-400" />
+                <BarChart3 className="w-5 h-5 text-blue-400" />
                 Symbol Performance
               </CardTitle>
             </CardHeader>

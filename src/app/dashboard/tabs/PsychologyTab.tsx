@@ -97,17 +97,17 @@ function PsychologyTab({ isPro, onUpgrade, trades }: PsychologyTabProps) {
   return (
     <div className="space-y-6">
       {!isPro ? (
-        <Card className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border-purple-500/30">
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-400/10 border-blue-500/30">
           <CardContent className="py-8 text-center">
             <motion.div
               animate={{ scale: [1, 1.1, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              <Lock className="w-12 h-12 mx-auto mb-4 text-purple-400" />
+              <Lock className="w-12 h-12 mx-auto mb-4 text-blue-400" />
             </motion.div>
-            <h3 className="text-lg font-bold text-purple-400 mb-2">Psychology Tracking - PRO Feature</h3>
+            <h3 className="text-lg font-bold text-blue-400 mb-2">Psychology Tracking - PRO Feature</h3>
             <p className="text-lux-text-secondary dark:text-gray-400 mb-4">Track your emotional patterns and improve trading discipline</p>
-            <Button onClick={onUpgrade} className="bg-gradient-to-r from-purple-500 to-violet-600">
+            <Button onClick={onUpgrade} className="bg-gradient-to-r from-blue-500 to-blue-600">
               <Zap className="w-4 h-4 mr-2" /> Upgrade to PRO
             </Button>
           </CardContent>
@@ -115,10 +115,10 @@ function PsychologyTab({ isPro, onUpgrade, trades }: PsychologyTabProps) {
       ) : (
         <div className="space-y-6">
           {/* Psychology Score */}
-          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30">
+          <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <Heart className="w-5 h-5 text-pink-400" />
+                <Heart className="w-5 h-5 text-cyan-400" />
                 Trading Psychology Analysis
               </CardTitle>
             </CardHeader>
@@ -134,21 +134,21 @@ function PsychologyTab({ isPro, onUpgrade, trades }: PsychologyTabProps) {
                   <div className="text-2xl font-bold text-red-400">{longestLoseStreak}</div>
                   <p className="text-xs text-lux-text-muted dark:text-gray-500 mt-1">Worst consecutive losses</p>
                 </div>
-                <div className="p-4 rounded-xl bg-purple-500/10 border border-lux-border dark:border-purple-500/20">
+                <div className="p-4 rounded-xl bg-blue-500/10 border border-lux-border dark:border-blue-500/20">
                   <div className="text-sm text-lux-text-secondary dark:text-gray-400 mb-1">Best Session</div>
-                  <div className="text-xl font-bold text-purple-400">{bestSession?.[0] || '-'}</div>
+                  <div className="text-xl font-bold text-blue-400">{bestSession?.[0] || '-'}</div>
                   <p className="text-xs text-lux-text-muted dark:text-gray-500 mt-1">{bestSession ? `+${bestSession[1].totalPL.toFixed(0)} P/L` : ''}</p>
                 </div>
-                <div className="p-4 rounded-xl bg-purple-500/10 border border-lux-border dark:border-purple-500/20">
+                <div className="p-4 rounded-xl bg-blue-500/10 border border-lux-border dark:border-blue-500/20">
                   <div className="text-sm text-lux-text-secondary dark:text-gray-400 mb-1">Revenge Trades</div>
-                  <div className="text-2xl font-bold text-purple-400">{revengeTrades.length}</div>
+                  <div className="text-2xl font-bold text-blue-400">{revengeTrades.length}</div>
                   <p className="text-xs text-lux-text-muted dark:text-gray-500 mt-1">Trades within 1hr after loss</p>
                 </div>
               </div>
 
               {/* Session Psychology */}
               <h4 className="font-semibold mb-3 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-purple-400" />
+                <Clock className="w-4 h-4 text-blue-400" />
                 Session Performance Psychology
               </h4>
               <div className="space-y-2">
@@ -156,7 +156,7 @@ function PsychologyTab({ isPro, onUpgrade, trades }: PsychologyTabProps) {
                   const winRate = ((stats.wins / (stats.wins + stats.losses)) * 100) || 0
                   const isProfitable = stats.totalPL >= 0
                   return (
-                    <div key={session} className="flex items-center justify-between p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5 border border-lux-border dark:border-purple-900/30">
+                    <div key={session} className="flex items-center justify-between p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5 border border-lux-border dark:border-blue-900/30">
                       <div className="flex items-center gap-3">
                         <div className={`w-3 h-3 rounded-full ${isProfitable ? 'bg-emerald-400' : 'bg-red-400'}`} />
                         <span className="font-medium">{session}</span>
@@ -186,7 +186,7 @@ function PsychologyTab({ isPro, onUpgrade, trades }: PsychologyTabProps) {
                   <ul className="text-sm text-lux-text-primary dark:text-gray-300 space-y-2">
                     {revengeTrades.length > 2 && (
                       <li className="flex items-start gap-2">
-                        <AlertTriangle className="w-4 h-4 text-purple-400 mt-0.5" />
+                        <AlertTriangle className="w-4 h-4 text-blue-400 mt-0.5" />
                         <span>Consider taking a break after a loss. You have {revengeTrades.length} potential revenge trades.</span>
                       </li>
                     )}
@@ -204,7 +204,7 @@ function PsychologyTab({ isPro, onUpgrade, trades }: PsychologyTabProps) {
                     )}
                     {trades.length >= 5 && (
                       <li className="flex items-start gap-2">
-                        <Sparkles className="w-4 h-4 text-purple-400 mt-0.5" />
+                        <Sparkles className="w-4 h-4 text-blue-400 mt-0.5" />
                         <span>Keep tracking your trades to unlock more personalized psychology insights.</span>
                       </li>
                     )}

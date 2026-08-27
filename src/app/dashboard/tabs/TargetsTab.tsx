@@ -79,14 +79,14 @@ function TargetsTab({ isPro, onUpgrade, language, analytics, trades }: TargetsTa
 
   if (!isPro) {
     return (
-      <Card className="bg-gradient-to-br from-purple-500/10 to-violet-500/10 border-purple-500/30">
+      <Card className="bg-gradient-to-br from-blue-500/10 to-blue-400/10 border-blue-500/30">
         <CardContent className="py-8 text-center">
           <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: Infinity }}>
-            <Lock className="w-12 h-12 mx-auto mb-4 text-purple-400" />
+            <Lock className="w-12 h-12 mx-auto mb-4 text-blue-400" />
           </motion.div>
-          <h3 className="text-lg font-bold text-purple-400 mb-2">{language === "id" ? "Target - Fitur PRO" : "Targets - PRO Feature"}</h3>
+          <h3 className="text-lg font-bold text-blue-400 mb-2">{language === "id" ? "Target - Fitur PRO" : "Targets - PRO Feature"}</h3>
           <p className="text-lux-text-secondary dark:text-gray-400 mb-4">{language === "id" ? "Tetapkan dan lacak target trading Anda" : "Set and track your trading goals"}</p>
-          <Button onClick={onUpgrade} className="bg-gradient-to-r from-purple-500 to-violet-600">
+          <Button onClick={onUpgrade} className="bg-gradient-to-r from-blue-500 to-blue-600">
             <Zap className="w-4 h-4 mr-2" /> {language === "id" ? "Upgrade ke PRO" : "Upgrade to PRO"}
           </Button>
         </CardContent>
@@ -102,11 +102,11 @@ function TargetsTab({ isPro, onUpgrade, language, analytics, trades }: TargetsTa
 
         return (
           <motion.div key={target.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <Card className={"bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18] dark:to-[#12091a] border-lux-border dark:border-purple-900/30 " + (isCompleted ? "border-emerald-500/50" : "")}>
+            <Card className={"bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30 " + (isCompleted ? "border-emerald-500/50" : "")}>
               <CardContent className="py-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-medium">{target.name}</span>
-                  <span className={"text-sm font-bold " + (isCompleted ? "text-emerald-400" : "text-purple-400")}>
+                  <span className={"text-sm font-bold " + (isCompleted ? "text-emerald-400" : "text-blue-400")}>
                     {target.unit === "$" ? "$" : ""}{target.current}{target.unit !== "$" ? target.unit : ""} / {target.unit === "$" ? "$" : ""}{target.target}{target.unit !== "$" ? target.unit : ""}
                   </span>
                 </div>
