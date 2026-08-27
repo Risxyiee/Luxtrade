@@ -1821,3 +1821,26 @@ Stage Summary:
 - 3D logo simplified to smooth rotating spin with glassmorphic backdrop
 - Logo size: 110px image on 160px glassmorphic platform
 
+---
+Task ID: candlestick-to-3d-logo
+Agent: Main
+Task: Replace candlestick background with scroll-driven 3D LuxTrade logo
+
+Work Log:
+- Completely rewrote CandlestickBackground.tsx from candlestick chart animation to 3D scroll-spinning logo
+- Removed all candle generation, SVG rendering, Framer Motion candle clusters
+- Implemented scroll-driven rotation using useScroll + useTransform + useSpring from Framer Motion
+- Logo rotates 360° on X-axis as user scrolls through the hero section
+- Y-axis tilts 0→45→0° at scroll midpoint for natural 3D feel
+- Logo is centered, low opacity (18% desktop, 10% mobile) as a watermark background
+- Glassmorphic circular disc behind the logo
+- Soft breathing glow animation behind
+- Responsive: 260px desktop / 160px mobile
+- Kept same file name and export so no import changes needed in HeroSection
+- Lint clean, compiled with no new errors
+
+Stage Summary:
+- CandlestickBackground.tsx: Replaced candlestick SVG animation with scroll-driven 3D LuxTrade logo
+- Logo spins smoothly (1 full X rotation per hero scroll-through)
+- Pushed to GitHub
+
