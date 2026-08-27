@@ -24,7 +24,7 @@ export default function RefundPolicyPage() {
               alt="LuxTrade Logo" 
               width={36} 
               height={36}
-              className="rounded-lg"
+              className="object-contain"
             />
             <span className="text-lg font-bold bg-gradient-to-r from-purple-200 to-purple-400 bg-clip-text text-transparent">
               LuxTrade

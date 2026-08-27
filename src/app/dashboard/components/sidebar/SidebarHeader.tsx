@@ -50,7 +50,7 @@ export default function SidebarHeader({
             alt="LuxTrade Logo"
             width={40}
             height={40}
-            className="relative rounded-xl shadow-xl"
+            className="relative object-contain"
           />
         </motion.div>
         {(sidebarOpen || mobileSidebarOpen) && (
