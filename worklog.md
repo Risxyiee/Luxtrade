@@ -1844,3 +1844,22 @@ Stage Summary:
 - Logo spins smoothly (1 full X rotation per hero scroll-through)
 - Pushed to GitHub
 
+---
+Task ID: 2
+Agent: Main
+Task: Fix 4 issues: build error, mobile hero logo position, auth background on mobile, language toggle color
+
+Work Log:
+- Fixed ENOENT middleware.js.nft.json build error by deleting leftover `/home/z/my-project/middleware.ts` (root-level file that conflicted with the renamed `src/proxy.ts`)
+- Fixed 3D hero logo position on mobile: changed top from 30% to 15%, reduced mobile logo size from 180/120 to 160/110
+- Fixed login page mobile auth background: added CSS media query to make .auth-page align to top on mobile (not centered), reduced glass card background opacity from 0.35 to 0.25 on mobile, increased orb visibility with opacity 0.6 and reduced blur on mobile, made gem smaller (350px) on mobile
+- Fixed signup page mobile auth background: changed AuthBackground z-index from -z-10 to z-0 (fixed stacking context issue), added .auth-signup-page class for mobile top-alignment CSS override, added !important on glass card transparency override for inline-styled elements
+- Changed language toggle to blue theme: wrapper bg-blue-500/10 with border-blue-500/30, active button bg-blue-500 with blue glow shadow, inactive text-blue-300/60 with blue hover states
+- Verified all 3 pages compile successfully: GET / 200, GET /auth/login 200, GET /auth/signup 200
+
+Stage Summary:
+- Deleted `/home/z/my-project/middleware.ts` (root-level leftover)
+- Modified `src/components/landing/HeroSection.tsx` (mobile logo position + size)
+- Modified `src/app/globals.css` (auth page mobile layout + glass card transparency + orb visibility)
+- Modified `src/app/auth/signup/page.tsx` (AuthBackground z-index, auth-signup-page class)
+- Rewritten `src/components/LanguageSwitcher.tsx` (blue color scheme)
