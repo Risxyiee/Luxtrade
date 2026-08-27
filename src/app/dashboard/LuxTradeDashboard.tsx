@@ -723,8 +723,15 @@ function LuxTradeDashboardContent() {
 
   return (
     <ContextGuideProvider>
-      <div className="min-h-screen bg-lux-bg-secondary text-lux-text-primary flex w-full" suppressHydrationWarning={true}>
-      {/* Sidebar */}
+      <div className="min-h-screen bg-lux-bg-secondary text-lux-text-primary flex w-full relative" suppressHydrationWarning={true}>
+      {/* Subtle noise texture overlay for premium feel */}
+      <div className="fixed inset-0 pointer-events-none z-0 opacity-[0.018]" style={{backgroundImage: 'url(\"data:image/svg+xml,%3Csvg viewBox=\"0 0 256 256\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cfilter id=\"noiseFilter\"%3E%3CfeTurbulence type=\"fractalNoise\" baseFrequency=\"0.9\" numOctaves=\"4\" stitchTiles=\"stitch\"/%3E%3C/filter%3E%3Crect width=\"100%25\" height=\"100%25\" filter=\"url(%23noiseFilter)\"/%3E%3C/svg%3E")'}} />
+
+      {/* Ambient glow spots */}
+      <div className="fixed top-0 right-0 w-[600px] h-[600px] pointer-events-none z-0" style={{background: 'radial-gradient(ellipse at center, rgba(59,130,246,0.03) 0%, transparent 70%)'}} />
+      <div className="fixed bottom-0 left-[30%] w-[500px] h-[500px] pointer-events-none z-0" style={{background: 'radial-gradient(ellipse at center, rgba(6,182,212,0.02) 0%, transparent 70%)'}} />
+
+    {/* Sidebar */}
       <Sidebar
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
