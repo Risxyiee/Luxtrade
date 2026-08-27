@@ -108,7 +108,7 @@ function StatCard({
   accent: string
 }) {
   return (
-    <Card className="bg-[#12091f]/80 border-purple-500/10 backdrop-blur-sm relative overflow-hidden group hover:border-purple-500/20 transition-colors">
+    <Card className="bg-[#12091f]/80 border-blue-500/10 backdrop-blur-sm relative overflow-hidden group hover:border-blue-500/20 transition-colors">
       <div
         className={`absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r ${accent}`}
       />
@@ -296,7 +296,7 @@ export default function AffiliateManagementPage() {
   if (checkingAuth) {
     return (
       <div className="min-h-screen bg-[#0a0612] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
       </div>
     )
   }
@@ -331,7 +331,7 @@ export default function AffiliateManagementPage() {
         {/* ── Header ──────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-purple-600 to-purple-800 shadow-lg shadow-purple-900/30">
+            <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 shadow-lg shadow-blue-900/30">
               <Users className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -362,7 +362,7 @@ export default function AffiliateManagementPage() {
             label="Total Affiliate"
             value={loadingData ? '—' : totalAffiliates.toString()}
             sub="Registered affiliates"
-            accent="from-purple-600 to-purple-800"
+            accent="from-blue-600 to-blue-800"
           />
           <StatCard
             icon={Banknote}
@@ -381,7 +381,7 @@ export default function AffiliateManagementPage() {
         </div>
 
         {/* ── Pending Withdrawals ──────────────────────────────────── */}
-        <Card className="bg-[#12091f]/80 border-purple-500/10 backdrop-blur-sm">
+        <Card className="bg-[#12091f]/80 border-blue-500/10 backdrop-blur-sm">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <Wallet className="w-5 h-5 text-amber-400" />
@@ -471,13 +471,13 @@ export default function AffiliateManagementPage() {
         </Card>
 
         {/* ── All Affiliates Table ─────────────────────────────────── */}
-        <Card className="bg-[#12091f]/80 border-purple-500/10 backdrop-blur-sm">
+        <Card className="bg-[#12091f]/80 border-blue-500/10 backdrop-blur-sm">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-purple-400" />
+              <Users className="w-5 h-5 text-cyan-400" />
               <CardTitle className="text-white text-lg">Daftar Affiliate</CardTitle>
               {!loadingData && (
-                <Badge className="bg-purple-500/15 text-purple-400 border-purple-500/25 ml-2">
+                <Badge className="bg-blue-500/15 text-cyan-400 border-blue-500/25 ml-2">
                   {totalAffiliates}
                 </Badge>
               )}
@@ -545,7 +545,7 @@ export default function AffiliateManagementPage() {
                               <span className="text-white/80 text-sm font-mono">{aff.email}</span>
                             </TableCell>
                             <TableCell className="hidden sm:table-cell">
-                              <code className="px-2 py-1 rounded bg-purple-500/10 text-purple-300 text-xs font-mono border border-purple-500/15">
+                              <code className="px-2 py-1 rounded bg-blue-500/10 text-cyan-300 text-xs font-mono border border-blue-500/15">
                                 {aff.referralCode}
                               </code>
                             </TableCell>
@@ -612,7 +612,7 @@ export default function AffiliateManagementPage() {
                                       <p className="text-[10px] uppercase tracking-widest text-white/25 font-semibold">
                                         Kode Referral
                                       </p>
-                                      <p className="text-sm font-mono text-purple-300">
+                                      <p className="text-sm font-mono text-cyan-300">
                                         {aff.referralCode}
                                       </p>
                                     </div>
@@ -680,7 +680,7 @@ export default function AffiliateManagementPage() {
 
       {/* ── Confirmation Dialog ────────────────────────────────────── */}
       <AlertDialog open={!!confirmWithdrawal} onOpenChange={(open) => !open && setConfirmWithdrawal(null)}>
-        <AlertDialogContent className="bg-[#1a0f2e] border-purple-500/20 sm:max-w-md">
+        <AlertDialogContent className="bg-[#1a0f2e] border-blue-500/20 sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Konfirmasi Pembayaran</AlertDialogTitle>
             <AlertDialogDescription className="text-white/50 space-y-3">

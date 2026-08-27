@@ -79,7 +79,7 @@ interface TrafficData {
   referrers: [string, number][]
 }
 
-function MiniBarChart({ data, maxValue, color = 'bg-purple-500' }: { data: number[]; maxValue: number; color?: string }) {
+function MiniBarChart({ data, maxValue, color = 'bg-blue-500' }: { data: number[]; maxValue: number; color?: string }) {
   return (
     <div className="flex items-end gap-[3px] h-8">
       {data.map((val, i) => (
@@ -139,7 +139,7 @@ function TrafficTab() {
   if (loading && !data) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
       </div>
     )
   }
@@ -151,7 +151,7 @@ function TrafficTab() {
         <p className="text-white/60 mb-2">Gagal memuat data traffic</p>
         <p className="text-white/30 text-sm mb-4">Error: {error}</p>
         <p className="text-white/30 text-xs mb-4">Jika pertama kali deploy, table database belum tersedia. Coba akses halaman web lain dulu, lalu refresh ini.</p>
-        <Button onClick={fetchTraffic} variant="outline" className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10">
+        <Button onClick={fetchTraffic} variant="outline" className="border-blue-500/30 text-cyan-400 hover:bg-blue-500/10">
           <RefreshCw className="w-4 h-4 mr-2" />
           Coba Lagi
         </Button>
@@ -174,8 +174,8 @@ function TrafficTab() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-purple-500/20">
-            <BarChart3 className="w-5 h-5 text-purple-400" />
+          <div className="p-2 rounded-xl bg-blue-500/20">
+            <BarChart3 className="w-5 h-5 text-cyan-400" />
           </div>
           <div>
             <h2 className="text-lg font-bold text-white">Traffic Analytics</h2>
@@ -184,7 +184,7 @@ function TrafficTab() {
         </div>
         <div className="flex items-center gap-2">
           <Select value={range} onValueChange={setRange}>
-            <SelectTrigger className="w-[100px] bg-[#0d0820] border-purple-500/20 text-white/60 text-xs h-8">
+            <SelectTrigger className="w-[100px] bg-[#0d0820] border-blue-500/20 text-white/60 text-xs h-8">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -197,7 +197,7 @@ function TrafficTab() {
             onClick={fetchTraffic}
             variant="outline"
             size="sm"
-            className="border-purple-500/30 text-white/60 hover:text-white hover:bg-purple-500/10 h-8"
+            className="border-blue-500/30 text-white/60 hover:text-white hover:bg-blue-500/10 h-8"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </Button>
@@ -206,11 +206,11 @@ function TrafficTab() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="bg-[#1a0f2e]/50 border-purple-500/20">
+        <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-white/50">Total Page Views</span>
-              <Eye className="w-4 h-4 text-purple-400/50" />
+              <Eye className="w-4 h-4 text-cyan-400/50" />
             </div>
             <p className="text-2xl font-bold text-white">{formatNumber(data.totalPageViews)}</p>
             <div className="flex items-center gap-1 mt-1">
@@ -226,7 +226,7 @@ function TrafficTab() {
           </CardContent>
         </Card>
 
-        <Card className="bg-[#1a0f2e]/50 border-purple-500/20">
+        <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-white/50">Unique Visitors</span>
@@ -237,7 +237,7 @@ function TrafficTab() {
           </CardContent>
         </Card>
 
-        <Card className="bg-[#1a0f2e]/50 border-purple-500/20">
+        <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-white/50">Hari Ini</span>
@@ -248,7 +248,7 @@ function TrafficTab() {
           </CardContent>
         </Card>
 
-        <Card className="bg-[#1a0f2e]/50 border-purple-500/20">
+        <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-white/50">Kemarin</span>
@@ -261,10 +261,10 @@ function TrafficTab() {
       </div>
 
       {/* Daily Chart */}
-      <Card className="bg-[#1a0f2e]/50 border-purple-500/20">
+      <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm text-white flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-purple-400" />
+            <TrendingUp className="w-4 h-4 text-cyan-400" />
             Page Views Harian
           </CardTitle>
         </CardHeader>
@@ -275,7 +275,7 @@ function TrafficTab() {
               const isToday = d.date === new Date().toISOString().split('T')[0]
               return (
                 <div key={d.date} className="flex items-center gap-3">
-                  <span className={`text-[11px] w-16 text-right flex-shrink-0 ${isToday ? 'text-purple-400 font-bold' : 'text-white/40'}`}>
+                  <span className={`text-[11px] w-16 text-right flex-shrink-0 ${isToday ? 'text-cyan-400 font-bold' : 'text-white/40'}`}>
                     {dayName}
                     {isToday && ' *'}
                   </span>
@@ -284,7 +284,7 @@ function TrafficTab() {
                       initial={{ width: 0 }}
                       animate={{ width: `${maxChartValue > 0 ? (d.views / maxChartValue) * 100 : 0}%` }}
                       transition={{ delay: i * 0.02, duration: 0.5 }}
-                      className={`h-full rounded-full ${isToday ? 'bg-gradient-to-r from-purple-500 to-violet-500' : 'bg-purple-500/60'}`}
+                      className={`h-full rounded-full ${isToday ? 'bg-gradient-to-r from-blue-500 to-blue-500' : 'bg-blue-500/60'}`}
                     />
                   </div>
                   <span className="text-[11px] text-white/60 w-10 text-right flex-shrink-0 font-mono">{d.views}</span>
@@ -299,7 +299,7 @@ function TrafficTab() {
             })}
           </div>
           <div className="flex items-center justify-center gap-4 mt-3 text-[10px] text-white/30">
-            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-purple-500/60" /> Page Views</span>
+            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-blue-500/60" /> Page Views</span>
             <span className="flex items-center gap-1"><Users className="w-2.5 h-2.5" /> Unique Visitors</span>
             <span>* Hari ini</span>
           </div>
@@ -309,10 +309,10 @@ function TrafficTab() {
       {/* Bottom Grid: Top Pages + Devices + Browsers */}
       <div className="grid lg:grid-cols-3 gap-4">
         {/* Top Pages */}
-        <Card className="bg-[#1a0f2e]/50 border-purple-500/20">
+        <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm text-white flex items-center gap-2">
-              <FileText className="w-4 h-4 text-purple-400" />
+              <FileText className="w-4 h-4 text-cyan-400" />
               Halaman Populer
             </CardTitle>
           </CardHeader>
@@ -327,7 +327,7 @@ function TrafficTab() {
                       <span className="text-[10px] text-white/30 w-4">{i + 1}</span>
                       <span className="text-xs text-white/70 truncate">{p.path}</span>
                     </div>
-                    <Badge className="bg-purple-500/10 text-purple-400 border-purple-500/20 text-[10px] h-5 flex-shrink-0 ml-2">
+                    <Badge className="bg-blue-500/10 text-cyan-400 border-blue-500/20 text-[10px] h-5 flex-shrink-0 ml-2">
                       {p.count}
                     </Badge>
                   </div>
@@ -338,10 +338,10 @@ function TrafficTab() {
         </Card>
 
         {/* Devices */}
-        <Card className="bg-[#1a0f2e]/50 border-purple-500/20">
+        <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm text-white flex items-center gap-2">
-              <Monitor className="w-4 h-4 text-purple-400" />
+              <Monitor className="w-4 h-4 text-cyan-400" />
               Perangkat
             </CardTitle>
           </CardHeader>
@@ -354,7 +354,7 @@ function TrafficTab() {
                   <div key={name} className="space-y-1">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-purple-400">{deviceIcons[name] || <Monitor className="w-3.5 h-3.5" />}</span>
+                        <span className="text-cyan-400">{deviceIcons[name] || <Monitor className="w-3.5 h-3.5" />}</span>
                         <span className="text-xs text-white/70">{name}</span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -367,7 +367,7 @@ function TrafficTab() {
                         initial={{ width: 0 }}
                         animate={{ width: `${pct}%` }}
                         transition={{ duration: 0.6 }}
-                        className="h-full rounded-full bg-gradient-to-r from-purple-500 to-violet-500"
+                        className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-500"
                       />
                     </div>
                   </div>
@@ -379,10 +379,10 @@ function TrafficTab() {
 
         {/* Browsers + Referrers */}
         <div className="space-y-4">
-          <Card className="bg-[#1a0f2e]/50 border-purple-500/20">
+          <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm text-white flex items-center gap-2">
-                <Globe className="w-4 h-4 text-purple-400" />
+                <Globe className="w-4 h-4 text-cyan-400" />
                 Browser
               </CardTitle>
             </CardHeader>
@@ -396,7 +396,7 @@ function TrafficTab() {
                       <span className="text-xs text-white/70">{name}</span>
                       <div className="flex items-center gap-2">
                         <div className="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                          <div className="h-full bg-purple-500/60 rounded-full" style={{ width: `${pct}%` }} />
+                          <div className="h-full bg-blue-500/60 rounded-full" style={{ width: `${pct}%` }} />
                         </div>
                         <span className="text-[10px] text-white/40 w-8 text-right">{pct}%</span>
                       </div>
@@ -407,10 +407,10 @@ function TrafficTab() {
             </CardContent>
           </Card>
 
-          <Card className="bg-[#1a0f2e]/50 border-purple-500/20">
+          <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm text-white flex items-center gap-2">
-                <ExternalLink className="w-4 h-4 text-purple-400" />
+                <ExternalLink className="w-4 h-4 text-cyan-400" />
                 Sumber Trafik
               </CardTitle>
             </CardHeader>
@@ -433,10 +433,10 @@ function TrafficTab() {
       </div>
 
       {/* OS Breakdown - small */}
-      <Card className="bg-[#1a0f2e]/50 border-purple-500/20">
+      <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm text-white flex items-center gap-2">
-            <Monitor className="w-4 h-4 text-purple-400" />
+            <Monitor className="w-4 h-4 text-cyan-400" />
             Sistem Operasi
           </CardTitle>
         </CardHeader>
@@ -448,7 +448,7 @@ function TrafficTab() {
               return (
                 <div key={name} className="px-3 py-2 rounded-lg bg-white/5 border border-white/5 flex items-center gap-2">
                   <span className="text-xs text-white/70">{name}</span>
-                  <span className="text-[10px] text-purple-400 font-mono">{pct}%</span>
+                  <span className="text-[10px] text-cyan-400 font-mono">{pct}%</span>
                   <span className="text-[10px] text-white/30">({count})</span>
                 </div>
               )
@@ -747,7 +747,7 @@ export default function AdminPanel() {
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           >
-            <Loader2 className="w-10 h-10 text-purple-500 mx-auto mb-4" />
+            <Loader2 className="w-10 h-10 text-blue-500 mx-auto mb-4" />
           </motion.div>
           <p className="text-white/60">Verifying admin access...</p>
         </div>
@@ -758,7 +758,7 @@ export default function AdminPanel() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f0a1a] via-[#1a0f2e] to-[#0d0820]">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#150a25]/90 backdrop-blur-xl border-b border-purple-500/20">
+      <header className="sticky top-0 z-50 bg-[#150a25]/90 backdrop-blur-xl border-b border-blue-500/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -769,9 +769,9 @@ export default function AdminPanel() {
                 </Button>
               </Link>
               <div className="flex items-center gap-2">
-                <Shield className="w-6 h-6 text-purple-400" />
+                <Shield className="w-6 h-6 text-cyan-400" />
                 <h1 className="text-xl font-bold text-white">Admin Panel</h1>
-                <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">v2.0</Badge>
+                <Badge className="bg-blue-500/20 text-cyan-300 border-blue-500/30">v2.0</Badge>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -779,7 +779,7 @@ export default function AdminPanel() {
                 onClick={activeTab === 'users' ? fetchUsers : () => {}}
                 variant="outline"
                 size="sm"
-                className="border-purple-500/30 text-white/60 hover:text-white hover:bg-purple-500/10"
+                className="border-blue-500/30 text-white/60 hover:text-white hover:bg-blue-500/10"
               >
                 <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
@@ -819,8 +819,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('users')}
             variant={activeTab === 'users' ? 'default' : 'outline'}
             className={activeTab === 'users'
-              ? 'bg-gradient-to-r from-purple-600 to-violet-600 text-white'
-              : 'border-purple-500/30 text-white/50 hover:text-white hover:bg-purple-500/10'
+              ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
+              : 'border-blue-500/30 text-white/50 hover:text-white hover:bg-blue-500/10'
             }
           >
             <Users className="w-4 h-4 mr-2" />
@@ -831,8 +831,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('traffic')}
             variant={activeTab === 'traffic' ? 'default' : 'outline'}
             className={activeTab === 'traffic'
-              ? 'bg-gradient-to-r from-purple-600 to-violet-600 text-white'
-              : 'border-purple-500/30 text-white/50 hover:text-white hover:bg-purple-500/10'
+              ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
+              : 'border-blue-500/30 text-white/50 hover:text-white hover:bg-blue-500/10'
             }
           >
             <BarChart3 className="w-4 h-4 mr-2" />
@@ -887,11 +887,11 @@ export default function AdminPanel() {
             <motion.div key="users" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
               {/* Stats */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-                <Card className="bg-[#1a0f2e]/50 border-purple-500/20 backdrop-blur-sm">
+                <Card className="bg-[#1a0f2e]/50 border-blue-500/20 backdrop-blur-sm">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-purple-500/20">
-                        <Users className="w-5 h-5 text-purple-400" />
+                      <div className="p-2 rounded-lg bg-blue-500/20">
+                        <Users className="w-5 h-5 text-cyan-400" />
                       </div>
                       <div>
                         <p className="text-white/60 text-xs">Total Users</p>
@@ -900,7 +900,7 @@ export default function AdminPanel() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="bg-[#1a0f2e]/50 border-purple-500/20 backdrop-blur-sm">
+                <Card className="bg-[#1a0f2e]/50 border-blue-500/20 backdrop-blur-sm">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-emerald-500/20">
@@ -913,7 +913,7 @@ export default function AdminPanel() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="bg-[#1a0f2e]/50 border-purple-500/20 backdrop-blur-sm">
+                <Card className="bg-[#1a0f2e]/50 border-blue-500/20 backdrop-blur-sm">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-red-500/20">
@@ -946,7 +946,7 @@ export default function AdminPanel() {
               )}
 
               {/* User Management Table */}
-              <Card className="bg-[#1a0f2e]/50 border-purple-500/20 backdrop-blur-sm">
+              <Card className="bg-[#1a0f2e]/50 border-blue-500/20 backdrop-blur-sm">
                 <CardHeader>
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <CardTitle className="text-white flex items-center gap-2">
@@ -977,7 +977,7 @@ export default function AdminPanel() {
                           placeholder="Search users..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="bg-[#0d0820] border-purple-500/20 pl-9 w-full sm:w-64 focus:border-purple-500/50"
+                          className="bg-[#0d0820] border-blue-500/20 pl-9 w-full sm:w-64 focus:border-blue-500/50"
                         />
                       </div>
                     </div>
@@ -986,7 +986,7 @@ export default function AdminPanel() {
                 <CardContent>
                   {loading ? (
                     <div className="flex items-center justify-center py-12">
-                      <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+                      <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
                     </div>
                   ) : filteredUsers.length === 0 ? (
                     <div className="text-center py-12">
@@ -1006,7 +1006,7 @@ export default function AdminPanel() {
                             key={u?.id || 'unknown'}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="bg-white/[0.03] border border-purple-500/10 rounded-xl p-4 space-y-3"
+                            className="bg-white/[0.03] border border-blue-500/10 rounded-xl p-4 space-y-3"
                           >
                             {/* Row 1: Email + Status Badge */}
                             <div className="flex items-start justify-between gap-2">
@@ -1048,7 +1048,7 @@ export default function AdminPanel() {
                               {u?.referred_by_code && (
                                 <div className="col-span-2">
                                   <span className="text-white/40">Referred by: </span>
-                                  <span className="text-purple-300 font-mono">{u?.referred_by_code}</span>
+                                  <span className="text-cyan-300 font-mono">{u?.referred_by_code}</span>
                                   {u?.referred_by?.email && (
                                     <span className="text-white/30 ml-1">({u.referred_by.email})</span>
                                   )}
@@ -1070,7 +1070,7 @@ export default function AdminPanel() {
                                   <Button
                                     disabled={updatingId === u?.id}
                                     variant="outline"
-                                    className={`w-full h-11 min-h-[44px] text-sm gap-2 justify-center ${isActivePRO ? 'border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-500/10' : 'border-purple-500/30 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10'}`}
+                                    className={`w-full h-11 min-h-[44px] text-sm gap-2 justify-center ${isActivePRO ? 'border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-500/10' : 'border-blue-500/30 text-cyan-400 hover:text-cyan-300 hover:bg-blue-500/10'}`}
                                     style={{ touchAction: 'manipulation' }}
                                   >
                                     {updatingId === u?.id ? (
@@ -1084,7 +1084,7 @@ export default function AdminPanel() {
                                     )}
                                   </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="center" className="bg-[#1a0f2e] border-purple-500/20 min-w-[220px]">
+                                <DropdownMenuContent align="center" className="bg-[#1a0f2e] border-blue-500/20 min-w-[220px]">
                                   {isActivePRO && (
                                     <DropdownMenuItem
                                       onClick={() => revokePRO(u?.id || '')}
@@ -1094,17 +1094,17 @@ export default function AdminPanel() {
                                       Downgrade ke Free
                                     </DropdownMenuItem>
                                   )}
-                                  <DropdownMenuSeparator className="bg-purple-500/20" />
+                                  <DropdownMenuSeparator className="bg-blue-500/20" />
                                   <DropdownMenuItem
                                     onClick={() => activateWithPlan(u?.id || '', 'PRO_30_DAYS', 'PRO 30 Hari', u?.email || '')}
-                                    className="text-purple-300 focus:text-purple-200 focus:bg-purple-500/10 cursor-pointer py-2.5"
+                                    className="text-cyan-300 focus:text-cyan-200 focus:bg-blue-500/10 cursor-pointer py-2.5"
                                   >
                                     <Crown className="w-4 h-4 mr-2" />
                                     Upgrade PRO — 30 Hari
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={() => activateWithPlan(u?.id || '', 'PRO_180_DAYS', 'PRO 180 Hari', u?.email || '')}
-                                    className="text-purple-300 focus:text-purple-200 focus:bg-purple-500/10 cursor-pointer py-2.5"
+                                    className="text-cyan-300 focus:text-cyan-200 focus:bg-blue-500/10 cursor-pointer py-2.5"
                                   >
                                     <Crown className="w-4 h-4 mr-2" />
                                     Upgrade PRO — 180 Hari
@@ -1128,7 +1128,7 @@ export default function AdminPanel() {
                     <div className="hidden md:block overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="border-b border-purple-500/20">
+                          <tr className="border-b border-blue-500/20">
                             <th className="text-left py-3 px-2 text-white/60 font-medium">Email</th>
                             <th className="text-left py-3 px-2 text-white/60 font-medium">Name</th>
                             <th className="text-left py-3 px-2 text-white/60 font-medium">Status</th>
@@ -1153,7 +1153,7 @@ export default function AdminPanel() {
                                   initial={{ opacity: 0 }}
                                   animate={{ opacity: 1 }}
                                   exit={{ opacity: 0 }}
-                                  className="border-b border-purple-500/10 hover:bg-purple-500/5 transition-colors"
+                                  className="border-b border-blue-500/10 hover:bg-blue-500/5 transition-colors"
                                 >
                                   <td className="py-3 px-2">
                                     <div className="flex items-center gap-2">
@@ -1195,7 +1195,7 @@ export default function AdminPanel() {
                                         <span className="text-white/40 text-xs">({u?.referred_by_code || '-'})</span>
                                       </div>
                                     ) : u?.referred_by_code ? (
-                                      <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-xs font-mono">
+                                      <Badge className="bg-blue-500/20 text-cyan-300 border-blue-500/30 text-xs font-mono">
                                         {u?.referred_by_code}
                                       </Badge>
                                     ) : (
@@ -1249,7 +1249,7 @@ export default function AdminPanel() {
                                             size="sm"
                                             variant="outline"
                                             style={{ touchAction: 'manipulation' }}
-                                            className={`h-7 text-xs px-2 gap-1 ${isActivePRO ? 'border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-500/10' : 'border-purple-500/30 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10'}`}
+                                            className={`h-7 text-xs px-2 gap-1 ${isActivePRO ? 'border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-500/10' : 'border-blue-500/30 text-cyan-400 hover:text-cyan-300 hover:bg-blue-500/10'}`}
                                           >
                                             {updatingId === u?.id ? (
                                               <Loader2 className="w-3 h-3 animate-spin" />
@@ -1262,7 +1262,7 @@ export default function AdminPanel() {
                                             )}
                                           </Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="bg-[#1a0f2e] border-purple-500/20 min-w-[200px]">
+                                        <DropdownMenuContent align="end" className="bg-[#1a0f2e] border-blue-500/20 min-w-[200px]">
                                           {isActivePRO && (
                                             <DropdownMenuItem
                                               onClick={() => revokePRO(u?.id || '')}
@@ -1272,17 +1272,17 @@ export default function AdminPanel() {
                                               Downgrade ke Free
                                             </DropdownMenuItem>
                                           )}
-                                          <DropdownMenuSeparator className="bg-purple-500/20" />
+                                          <DropdownMenuSeparator className="bg-blue-500/20" />
                                           <DropdownMenuItem
                                             onClick={() => activateWithPlan(u?.id || '', 'PRO_30_DAYS', 'PRO 30 Hari', u?.email || '')}
-                                            className="text-purple-300 focus:text-purple-200 focus:bg-purple-500/10 cursor-pointer"
+                                            className="text-cyan-300 focus:text-cyan-200 focus:bg-blue-500/10 cursor-pointer"
                                           >
                                             <Crown className="w-4 h-4 mr-2" />
                                             Upgrade PRO — 30 Hari
                                           </DropdownMenuItem>
                                           <DropdownMenuItem
                                             onClick={() => activateWithPlan(u?.id || '', 'PRO_180_DAYS', 'PRO 180 Hari', u?.email || '')}
-                                            className="text-purple-300 focus:text-purple-200 focus:bg-purple-500/10 cursor-pointer"
+                                            className="text-cyan-300 focus:text-cyan-200 focus:bg-blue-500/10 cursor-pointer"
                                           >
                                             <Crown className="w-4 h-4 mr-2" />
                                             Upgrade PRO — 180 Hari
@@ -1309,7 +1309,7 @@ export default function AdminPanel() {
                     )}
                     {/* Pagination */}
                     {totalPages > 1 && (
-                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-purple-500/10">
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-blue-500/10">
                         <p className="text-xs text-white/40">
                           Menampilkan {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredUsers.length)} dari {filteredUsers.length} user
                         </p>
@@ -1319,7 +1319,7 @@ export default function AdminPanel() {
                             disabled={currentPage === 1}
                             variant="outline"
                             size="sm"
-                            className="h-7 px-2 border-purple-500/20 text-white/50 hover:text-white hover:bg-purple-500/10 disabled:opacity-30"
+                            className="h-7 px-2 border-blue-500/20 text-white/50 hover:text-white hover:bg-blue-500/10 disabled:opacity-30"
                           >
                             <ChevronLeft className="w-4 h-4 mr-1" />
                             Prev
@@ -1346,8 +1346,8 @@ export default function AdminPanel() {
                                 size="sm"
                                 className={`h-7 w-7 p-0 text-xs ${
                                   currentPage === page
-                                    ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                                    : 'border-purple-500/20 text-white/50 hover:text-white hover:bg-purple-500/10'
+                                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                    : 'border-blue-500/20 text-white/50 hover:text-white hover:bg-blue-500/10'
                                 }`}
                               >
                                 {page}
@@ -1359,7 +1359,7 @@ export default function AdminPanel() {
                             disabled={currentPage === totalPages}
                             variant="outline"
                             size="sm"
-                            className="h-7 px-2 border-purple-500/20 text-white/50 hover:text-white hover:bg-purple-500/10 disabled:opacity-30"
+                            className="h-7 px-2 border-blue-500/20 text-white/50 hover:text-white hover:bg-blue-500/10 disabled:opacity-30"
                           >
                             Next
                             <ChevronRight className="w-4 h-4 ml-1" />
@@ -1372,10 +1372,10 @@ export default function AdminPanel() {
 
               {/* Info Cards */}
               <div className="grid md:grid-cols-2 gap-6 mt-6">
-                <Card className="bg-[#1a0f2e]/50 border-purple-500/20 backdrop-blur-sm">
+                <Card className="bg-[#1a0f2e]/50 border-blue-500/20 backdrop-blur-sm">
                   <CardContent className="p-6">
                     <div className="flex items-start gap-4">
-                      <div className="p-2 rounded-lg bg-purple-500/20"><Shield className="w-5 h-5 text-purple-400" /></div>
+                      <div className="p-2 rounded-lg bg-blue-500/20"><Shield className="w-5 h-5 text-cyan-400" /></div>
                       <div>
                         <h3 className="text-white font-semibold mb-2">Subscription Logic</h3>
                         <ul className="text-white/60 text-sm space-y-1">

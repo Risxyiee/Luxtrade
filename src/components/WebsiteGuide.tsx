@@ -215,10 +215,10 @@ export default function WebsiteGuide({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#0f0b18] border-purple-900/30 text-white max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="bg-[#080b12] border-blue-900/30 text-white max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader className="shrink-0">
           <DialogTitle className="text-2xl flex items-center gap-3">
-            <BookOpen className="w-6 h-6 text-purple-400" />
+            <BookOpen className="w-6 h-6 text-cyan-400" />
             {language === 'id' ? 'Panduan Website LuxTrade' : 'LuxTrade Website Guide'}
           </DialogTitle>
           <p className="text-gray-400 mt-2">
@@ -231,7 +231,7 @@ export default function WebsiteGuide({
 
         <div className="flex flex-1 overflow-hidden gap-4 mt-4">
           {/* Sidebar - Section List */}
-          <ScrollArea className="w-64 shrink-0 border-r border-purple-900/30 pr-2">
+          <ScrollArea className="w-64 shrink-0 border-r border-blue-900/30 pr-2">
             <div className="space-y-2">
               {guideSections.map((section) => (
                 <motion.button
@@ -239,13 +239,13 @@ export default function WebsiteGuide({
                   onClick={() => setActiveSection(activeSection === section.id ? null : section.id)}
                   className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${
                     activeSection === section.id
-                      ? 'bg-purple-500/20 border border-purple-500/30 text-purple-300'
+                      ? 'bg-blue-500/20 border border-blue-500/30 text-cyan-300'
                       : 'hover:bg-white/5 text-gray-300'
                   }`}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <div className={`shrink-0 ${activeSection === section.id ? 'text-purple-400' : 'text-gray-500'}`}>
+                  <div className={`shrink-0 ${activeSection === section.id ? 'text-cyan-400' : 'text-gray-500'}`}>
                     {section.icon}
                   </div>
                   <span className="text-sm font-medium">{section.title[language]}</span>
@@ -259,7 +259,7 @@ export default function WebsiteGuide({
             <div className="space-y-6 pr-4">
               {!activeSection ? (
                 <div className="text-center py-12">
-                  <BookOpen className="w-16 h-16 mx-auto mb-4 text-purple-400/50" />
+                  <BookOpen className="w-16 h-16 mx-auto mb-4 text-cyan-400/50" />
                   <p className="text-gray-400">
                     {language === 'id'
                       ? 'Pilih section di kiri untuk melihat panduan'
@@ -284,8 +284,8 @@ export default function WebsiteGuide({
                           className="space-y-6"
                         >
                           {/* Section Header */}
-                          <div className="flex items-center gap-3 pb-4 border-b border-purple-900/30">
-                            <div className="text-purple-400">{section.icon}</div>
+                          <div className="flex items-center gap-3 pb-4 border-b border-blue-900/30">
+                            <div className="text-cyan-400">{section.icon}</div>
                             <h3 className="text-xl font-bold">{section.title[language]}</h3>
                           </div>
 
@@ -296,10 +296,10 @@ export default function WebsiteGuide({
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: index * 0.1 }}
-                              className="bg-white/5 rounded-lg p-5 border border-purple-900/20 hover:border-purple-500/30 transition-colors"
+                              className="bg-white/5 rounded-lg p-5 border border-blue-900/20 hover:border-blue-500/30 transition-colors"
                             >
                               <div className="flex items-start gap-3 mb-3">
-                                <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+                                <Badge className="bg-blue-500/20 text-cyan-300 border-blue-500/30">
                                   {index + 1}
                                 </Badge>
                                 <h4 className="text-lg font-semibold text-white">{step.title[language]}</h4>
@@ -320,7 +320,7 @@ export default function WebsiteGuide({
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 pt-4 mt-4 border-t border-purple-900/30 flex justify-between items-center">
+        <div className="shrink-0 pt-4 mt-4 border-t border-blue-900/30 flex justify-between items-center">
           <p className="text-xs text-gray-500">
             {language === 'id'
               ? 'Tips: Baca panduan secara bertahap dan praktekan langsung'
@@ -329,7 +329,7 @@ export default function WebsiteGuide({
           </p>
           <Button
             onClick={() => onOpenChange(false)}
-            className="bg-purple-500 hover:bg-purple-600"
+            className="bg-blue-500 hover:bg-blue-600"
           >
             {language === 'id' ? 'Tutup' : 'Close'}
           </Button>

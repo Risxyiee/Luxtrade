@@ -272,10 +272,10 @@ export const RARITY_COLORS = {
     badge: 'bg-blue-500 text-white'
   },
   epic: {
-    bg: 'from-purple-500/20 to-purple-600/20',
-    border: 'border-purple-500/30',
-    text: 'text-purple-300',
-    badge: 'bg-purple-500 text-white'
+    bg: 'from-blue-500/20 to-blue-600/20',
+    border: 'border-blue-500/30',
+    text: 'text-cyan-300',
+    badge: 'bg-blue-500 text-white'
   },
   legendary: {
     bg: 'from-amber-500/20 to-orange-600/20',

@@ -216,10 +216,10 @@ export default function SocialLinksPage() {
       {/* Header */}
       <div className="max-w-4xl mx-auto mb-8">
         <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600">
+          <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-600">
             <Link2 className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-3xl font-extrabold bg-gradient-to-r from-white to-purple-300 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-extrabold bg-gradient-to-r from-white to-cyan-300 bg-clip-text text-transparent">
             {content.title}
           </h1>
         </div>
@@ -228,10 +228,10 @@ export default function SocialLinksPage() {
 
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Add New Link Form */}
-        <Card className="bg-[#1a1025] border border-purple-500/30">
-          <CardHeader className="bg-gradient-to-r from-purple-500/10 to-violet-500/10 border-b border-purple-500/30">
+        <Card className="bg-[#0a0e16] border border-blue-500/30">
+          <CardHeader className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border-b border-blue-500/30">
             <CardTitle className="flex items-center gap-2 text-xl">
-              <Plus className="w-5 h-5 text-purple-400" />
+              <Plus className="w-5 h-5 text-cyan-400" />
               {content.addNew}
             </CardTitle>
           </CardHeader>
@@ -244,10 +244,10 @@ export default function SocialLinksPage() {
                   value={formData.platform}
                   onValueChange={(value) => setFormData({ ...formData, platform: value })}
                 >
-                  <SelectTrigger className="bg-[#0a0712] border-purple-900/30 text-white h-12">
+                  <SelectTrigger className="bg-[#070a10] border-blue-900/30 text-white h-12">
                     <SelectValue placeholder={content.selectPlatform} />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#0f0b18] border-purple-900/30">
+                  <SelectContent className="bg-[#080b12] border-blue-900/30">
                     {PLATFORMS.map((platform) => (
                       <SelectItem key={platform} value={platform} className="capitalize">
                         {platform}
@@ -265,7 +265,7 @@ export default function SocialLinksPage() {
                   placeholder={content.urlPlaceholder}
                   value={formData.url}
                   onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-                  className="bg-[#0a0712] border-purple-900/30 text-white h-12 placeholder:text-white/30"
+                  className="bg-[#070a10] border-blue-900/30 text-white h-12 placeholder:text-white/30"
                   required
                 />
               </div>
@@ -278,7 +278,7 @@ export default function SocialLinksPage() {
                   placeholder={content.usernamePlaceholder}
                   value={formData.username}
                   onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  className="bg-[#0a0712] border-purple-900/30 text-white h-12 placeholder:text-white/30"
+                  className="bg-[#070a10] border-blue-900/30 text-white h-12 placeholder:text-white/30"
                 />
               </div>
 
@@ -286,7 +286,7 @@ export default function SocialLinksPage() {
               <Button
                 type="submit"
                 disabled={submitting || !formData.platform || !formData.url}
-                className="w-full h-12 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-semibold"
+                className="w-full h-12 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold"
               >
                 {submitting ? (
                   <>
@@ -305,12 +305,12 @@ export default function SocialLinksPage() {
         </Card>
 
         {/* My Links List */}
-        <Card className="bg-[#1a1025] border border-purple-500/30">
-          <CardHeader className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-b border-purple-500/30">
+        <Card className="bg-[#0a0e16] border border-blue-500/30">
+          <CardHeader className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-b border-blue-500/30">
             <CardTitle className="flex items-center gap-2 text-xl">
               <Link2 className="w-5 h-5 text-emerald-400" />
               {content.myLinks}
-              <Badge className="ml-auto bg-purple-500/20 text-purple-400 border-purple-500/30">
+              <Badge className="ml-auto bg-blue-500/20 text-cyan-400 border-blue-500/30">
                 {socialLinks.length}
               </Badge>
             </CardTitle>
@@ -318,7 +318,7 @@ export default function SocialLinksPage() {
           <CardContent className="p-6">
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+                <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
               </div>
             ) : socialLinks.length === 0 ? (
               <div className="text-center py-12">
@@ -331,13 +331,13 @@ export default function SocialLinksPage() {
                 {socialLinks.map((link) => (
                   <div
                     key={link.id}
-                    className="p-4 rounded-lg bg-white/[0.03] border border-white/[0.08] hover:border-purple-500/30 transition-colors"
+                    className="p-4 rounded-lg bg-white/[0.03] border border-white/[0.08] hover:border-blue-500/30 transition-colors"
                   >
                     <div className="flex items-start justify-between gap-4">
                       {/* Left Side - Link Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
-                          <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-purple-300 capitalize">
+                          <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-cyan-300 capitalize">
                             {link.platform}
                           </Badge>
                           {getStatusBadge(link.status)}
@@ -347,7 +347,7 @@ export default function SocialLinksPage() {
                           href={link.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-purple-400 hover:text-purple-300 text-sm flex items-center gap-1 hover:underline truncate"
+                          className="text-cyan-400 hover:text-cyan-300 text-sm flex items-center gap-1 hover:underline truncate"
                         >
                           {link.url}
                           <ExternalLink className="w-3 h-3 flex-shrink-0" />

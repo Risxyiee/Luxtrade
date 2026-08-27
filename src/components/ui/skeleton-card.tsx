@@ -19,7 +19,7 @@ export function SkeletonCard() {
 
 export function SkeletonHero() {
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-purple-600/20 via-violet-600/10 to-amber-500/10 border-purple-500/30 backdrop-blur-sm rounded-xl">
+    <div className="relative overflow-hidden bg-gradient-to-br from-blue-600/20 via-cyan-600/10 to-amber-500/10 border-blue-500/30 backdrop-blur-sm rounded-xl">
       <div className="p-6 lg:p-8">
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1">

@@ -10,7 +10,7 @@ const menuCategories = {
   utama: { label: 'UTAMA' },
   pasar: { label: 'PASAR' },
   alat: { label: 'ALAT', proType: 'gold' },
-  lanjutan: { label: 'LANJUTAN', proType: 'purple' },
+  lanjutan: { label: 'LANJUTAN', proType: 'cyan' },
 }
 
 const menuItems = [
@@ -28,12 +28,12 @@ const menuItems = [
   { id: 'analytics', label: 'Analytics', labelId: 'Analitik', icon: PieChart, category: 'alat', proOnly: true, proType: 'gold' },
   { id: 'targets', label: 'Targets', labelId: 'Target', icon: Target, category: 'alat', proOnly: true, proType: 'gold' },
 
-  { id: 'ai', label: 'AI Insights', labelId: 'Insight AI', icon: Brain, category: 'lanjutan', proOnly: true, proType: 'purple' },
-  { id: 'score', label: 'Trading Score', labelId: 'Skor Trading', icon: Trophy, category: 'lanjutan', proOnly: true, proType: 'purple' },
-  { id: 'report', label: 'Weekly Report', labelId: 'Laporan Mingguan', icon: FileText, category: 'lanjutan', proOnly: true, proType: 'purple' },
-  { id: 'streaks', label: 'Streaks', labelId: 'Streak', icon: Flame, category: 'lanjutan', proOnly: true, proType: 'purple' },
-  { id: 'psychology', label: 'Psychology', labelId: 'Psikologi', icon: Heart, category: 'lanjutan', proOnly: true, proType: 'purple' },
-  { id: 'achievements', label: 'Achievements', labelId: 'Pencapaian', icon: Trophy, category: 'lanjutan', proOnly: true, proType: 'purple' },
+  { id: 'ai', label: 'AI Insights', labelId: 'Insight AI', icon: Brain, category: 'lanjutan', proOnly: true, proType: 'cyan' },
+  { id: 'score', label: 'Trading Score', labelId: 'Skor Trading', icon: Trophy, category: 'lanjutan', proOnly: true, proType: 'cyan' },
+  { id: 'report', label: 'Weekly Report', labelId: 'Laporan Mingguan', icon: FileText, category: 'lanjutan', proOnly: true, proType: 'cyan' },
+  { id: 'streaks', label: 'Streaks', labelId: 'Streak', icon: Flame, category: 'lanjutan', proOnly: true, proType: 'cyan' },
+  { id: 'psychology', label: 'Psychology', labelId: 'Psikologi', icon: Heart, category: 'lanjutan', proOnly: true, proType: 'cyan' },
+  { id: 'achievements', label: 'Achievements', labelId: 'Pencapaian', icon: Trophy, category: 'lanjutan', proOnly: true, proType: 'cyan' },
 ]
 
 interface SidebarNavProps {

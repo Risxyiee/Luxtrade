@@ -171,10 +171,10 @@ export default function AddAccountForm({ open, onOpenChange, onSuccess }: AddAcc
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="bg-gradient-to-br from-lux-bg-card dark:from-[#0f0b18] to-[#1a1030] border-lux-input-border dark:border-purple-900/30 text-white max-w-md">
+      <DialogContent className="bg-gradient-to-br from-lux-bg-card dark:from-[#080b12] to-[#0a0e18] border-lux-input-border dark:border-blue-900/30 text-white max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
-            <Wallet className="w-6 h-6 text-purple-400" />
+            <Wallet className="w-6 h-6 text-cyan-400" />
             Add Trading Account
           </DialogTitle>
           <p className="text-sm text-gray-400 mt-1">
@@ -194,8 +194,8 @@ export default function AddAccountForm({ open, onOpenChange, onSuccess }: AddAcc
               placeholder="My Main Account"
               value={formData.name}
               onChange={(e) => handleInputChange('name', e.target.value)}
-              className={`bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 text-white placeholder:text-lux-text-muted dark:placeholder:text-gray-600 
-                ${errors.name ? 'border-red-500 focus:border-red-500' : 'focus:border-purple-500'}
+              className={`bg-lux-input-bg dark:bg-[#070a10] border-lux-input-border dark:border-blue-900/30 text-white placeholder:text-lux-text-muted dark:placeholder:text-gray-600 
+                ${errors.name ? 'border-red-500 focus:border-red-500' : 'focus:border-blue-500'}
               `}
             />
             {errors.name && (
@@ -217,8 +217,8 @@ export default function AddAccountForm({ open, onOpenChange, onSuccess }: AddAcc
               placeholder="e.g., Exness, ICMarkets, XM"
               value={formData.broker}
               onChange={(e) => handleInputChange('broker', e.target.value)}
-              className={`bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 text-white placeholder:text-lux-text-muted dark:placeholder:text-gray-600 
-                ${errors.broker ? 'border-red-500 focus:border-red-500' : 'focus:border-purple-500'}
+              className={`bg-lux-input-bg dark:bg-[#070a10] border-lux-input-border dark:border-blue-900/30 text-white placeholder:text-lux-text-muted dark:placeholder:text-gray-600 
+                ${errors.broker ? 'border-red-500 focus:border-red-500' : 'focus:border-blue-500'}
               `}
             />
             {errors.broker && (
@@ -240,13 +240,13 @@ export default function AddAccountForm({ open, onOpenChange, onSuccess }: AddAcc
             >
               <SelectTrigger 
                 id="account_type"
-                className={`bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 text-white 
-                  ${errors.account_type ? 'border-red-500 focus:border-red-500' : 'focus:border-purple-500'}
+                className={`bg-lux-input-bg dark:bg-[#070a10] border-lux-input-border dark:border-blue-900/30 text-white 
+                  ${errors.account_type ? 'border-red-500 focus:border-red-500' : 'focus:border-blue-500'}
                 `}
               >
                 <SelectValue placeholder="Select account type" />
               </SelectTrigger>
-              <SelectContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-input-border dark:border-purple-900/30">
+              <SelectContent className="bg-lux-bg-card dark:bg-[#080b12] border-lux-input-border dark:border-blue-900/30">
                 <SelectItem value="DEMO" className="text-blue-400">
                   📊 Demo Account
                 </SelectItem>
@@ -281,8 +281,8 @@ export default function AddAccountForm({ open, onOpenChange, onSuccess }: AddAcc
                 placeholder="1000"
                 value={formData.initial_balance}
                 onChange={(e) => handleInputChange('initial_balance', e.target.value)}
-                className={`bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 text-white placeholder:text-lux-text-muted dark:placeholder:text-gray-600 
-                  ${errors.initial_balance ? 'border-red-500 focus:border-red-500' : 'focus:border-purple-500'}
+                className={`bg-lux-input-bg dark:bg-[#070a10] border-lux-input-border dark:border-blue-900/30 text-white placeholder:text-lux-text-muted dark:placeholder:text-gray-600 
+                  ${errors.initial_balance ? 'border-red-500 focus:border-red-500' : 'focus:border-blue-500'}
                 `}
               />
               {errors.initial_balance && (
@@ -304,13 +304,13 @@ export default function AddAccountForm({ open, onOpenChange, onSuccess }: AddAcc
               >
                 <SelectTrigger 
                   id="currency"
-                  className={`bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 text-white 
-                    ${errors.currency ? 'border-red-500 focus:border-red-500' : 'focus:border-purple-500'}
+                  className={`bg-lux-input-bg dark:bg-[#070a10] border-lux-input-border dark:border-blue-900/30 text-white 
+                    ${errors.currency ? 'border-red-500 focus:border-red-500' : 'focus:border-blue-500'}
                   `}
                 >
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
-                <SelectContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-input-border dark:border-purple-900/30">
+                <SelectContent className="bg-lux-bg-card dark:bg-[#080b12] border-lux-input-border dark:border-blue-900/30">
                   <SelectItem value="USD">
                     🇺🇸 USD
                   </SelectItem>
@@ -339,7 +339,7 @@ export default function AddAccountForm({ open, onOpenChange, onSuccess }: AddAcc
               placeholder="0"
               value={formData.broker_gmt_offset}
               onChange={(e) => handleInputChange('broker_gmt_offset', e.target.value)}
-              className="bg-lux-input-bg dark:bg-[#0a0712] border-lux-input-border dark:border-purple-900/30 text-white placeholder:text-lux-text-muted dark:placeholder:text-gray-600 focus:border-purple-500"
+              className="bg-lux-input-bg dark:bg-[#070a10] border-lux-input-border dark:border-blue-900/30 text-white placeholder:text-lux-text-muted dark:placeholder:text-gray-600 focus:border-blue-500"
             />
             <p className="text-[10px] text-gray-500">
               Cek jam yang tertera di pojok kanan bawah chart MT5/MT4 kamu, lalu bandingkan dengan jam HP kamu sekarang untuk tahu selisihnya. Kosongkan kalau tidak yakin.
@@ -353,14 +353,14 @@ export default function AddAccountForm({ open, onOpenChange, onSuccess }: AddAcc
               variant="outline"
               onClick={handleClose}
               disabled={isSubmitting}
-              className="flex-1 border-lux-input-border dark:border-lux-border dark:border-purple-900/30 text-lux-text-secondary dark:text-gray-300 hover:bg-lux-surface-hover dark:hover:bg-purple-900/10"
+              className="flex-1 border-lux-input-border dark:border-lux-border dark:border-blue-900/30 text-lux-text-secondary dark:text-gray-300 hover:bg-lux-surface-hover dark:hover:bg-blue-900/10"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-medium"
+              className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-600 text-white font-medium"
             >
               {isSubmitting ? (
                 <>

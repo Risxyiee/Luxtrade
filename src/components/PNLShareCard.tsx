@@ -500,7 +500,7 @@ const PNLShareCard = forwardRef<HTMLDivElement, PNLShareCardProps>(function PNLS
           <Button
             onClick={handleExport}
             disabled={exporting}
-            className="bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-semibold"
+            className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold"
           >
             {exporting ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />

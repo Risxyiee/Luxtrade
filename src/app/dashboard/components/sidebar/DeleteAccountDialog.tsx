@@ -21,7 +21,7 @@ export default function DeleteAccountDialog({
 }: DeleteAccountDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-lux-bg-card dark:bg-[#0f0b18] border-lux-border dark:border-purple-900/30 text-lux-text-primary dark:text-white max-w-md">
+      <DialogContent className="bg-lux-bg-card dark:bg-[#080b12] border-lux-border dark:border-blue-900/30 text-lux-text-primary dark:text-white max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center gap-2 text-red-400">
             <Trash2 className="w-5 h-5" />

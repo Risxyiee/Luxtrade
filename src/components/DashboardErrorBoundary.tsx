@@ -56,8 +56,8 @@ function DashboardErrorFallback({ error, errorInfo }: { error?: Error; errorInfo
   const router = useRouter()
 
   return (
-    <div className="min-h-screen bg-[#0a0712] flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-gradient-to-br from-[#0f0b18] to-[#1a0f2e] border border-red-500/20 rounded-2xl p-6 text-center">
+    <div className="min-h-screen bg-[#070a10] flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-gradient-to-br from-[#080b12] to-[#1a0f2e] border border-red-500/20 rounded-2xl p-6 text-center">
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/20 flex items-center justify-center">
           <AlertTriangle className="w-8 h-8 text-red-400" />
         </div>
@@ -69,7 +69,7 @@ function DashboardErrorFallback({ error, errorInfo }: { error?: Error; errorInfo
 
         {error && (
           <details className="mb-4 text-left">
-            <summary className="cursor-pointer text-xs text-purple-400 hover:text-purple-300 mb-2">
+            <summary className="cursor-pointer text-xs text-cyan-400 hover:text-cyan-300 mb-2">
               Error Details
             </summary>
             <div className="bg-black/30 rounded-lg p-3 text-xs text-red-400 font-mono overflow-auto max-h-32">
@@ -86,7 +86,7 @@ function DashboardErrorFallback({ error, errorInfo }: { error?: Error; errorInfo
         <div className="flex flex-col gap-2">
           <button
             onClick={() => window.location.reload()}
-            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white rounded-lg text-sm font-medium transition-all"
+            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-600 text-white rounded-lg text-sm font-medium transition-all"
           >
             <RefreshCw className="w-4 h-4" />
             Reload Page

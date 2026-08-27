@@ -48,7 +48,7 @@ export default function PaymentConfirmationModal({
           className="relative w-full max-w-md max-h-[90vh] overflow-y-auto"
         >
           {/* Main Card */}
-          <div className="relative bg-gradient-to-br from-[#0A0612] via-[#1A0F2E] to-[#0D0715] border border-purple-500/30 rounded-3xl overflow-hidden">
+          <div className="relative bg-gradient-to-br from-[#0A0612] via-[#1A0F2E] to-[#0D0715] border border-blue-500/30 rounded-3xl overflow-hidden">
             {/* Header */}
             <div className="relative bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-600 backdrop-blur-xl border-b border-emerald-500/30">
               <div className="relative p-6">
@@ -77,16 +77,16 @@ export default function PaymentConfirmationModal({
 
               {/* Plan Summary */}
               {planName && (
-                <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-2xl p-4">
+                <div className="bg-gradient-to-r from-blue-500/10 to-cyan-400/10 border border-blue-500/20 rounded-2xl p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-purple-300 mb-1">Paket yang dipilih</p>
+                      <p className="text-xs text-cyan-300 mb-1">Paket yang dipilih</p>
                       <p className="text-lg font-bold text-white">{planName}</p>
                     </div>
                     {planPrice && planPrice > 0 && (
                       <div className="text-right">
-                        <p className="text-xs text-purple-300 mb-1">Total Pembayaran</p>
-                        <p className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                        <p className="text-xs text-cyan-300 mb-1">Total Pembayaran</p>
+                        <p className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-cyan-300 bg-clip-text text-transparent">
                           {formatPrice(planPrice)}
                         </p>
                       </div>

@@ -59,7 +59,7 @@ const faqSections: { title: string; items: FAQItem[] }[] = [
         answer: (
           <>
             Karena LuxTrade adalah produk digital (SaaS), pembelian bersifat non-refundable. Namun kami menyediakan free trial 7 hari untuk evaluasi. Pengecualian hanya untuk pembayaran ganda atau error teknis. Lihat halaman{' '}
-            <Link href="/refund" className="text-purple-400 underline hover:text-purple-300 transition-colors">Refund Policy</Link> untuk detail lengkap.
+            <Link href="/refund" className="text-cyan-400 underline hover:text-cyan-300 transition-colors">Refund Policy</Link> untuk detail lengkap.
           </>
         ),
       },
@@ -115,7 +115,7 @@ function FAQAccordion({ item, index }: { item: FAQItem; index: number }) {
           transition={{ duration: 0.25 }}
           className="shrink-0"
         >
-          <ChevronDown className="w-5 h-5 text-purple-400" />
+          <ChevronDown className="w-5 h-5 text-cyan-400" />
         </motion.div>
       </button>
 
@@ -143,7 +143,7 @@ export default function FAQPage() {
     <div className="min-h-screen bg-[#0a0612] text-white">
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0612] via-[#110a1f] to-[#0a0612]" />
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[150px]" />
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-[150px]" />
       </div>
 
       {/* Header */}
@@ -157,7 +157,7 @@ export default function FAQPage() {
               height={36}
               className="object-contain"
             />
-            <span className="text-lg font-bold bg-gradient-to-r from-purple-200 to-purple-400 bg-clip-text text-transparent">
+            <span className="text-lg font-bold bg-gradient-to-r from-cyan-200 to-cyan-400 bg-clip-text text-transparent">
               LuxTrade
             </span>
           </Link>
@@ -185,7 +185,7 @@ export default function FAQPage() {
           <div className="space-y-10">
             {faqSections.map((section) => (
               <section key={section.title}>
-                <h2 className="text-xl font-semibold text-purple-400 mb-4">
+                <h2 className="text-xl font-semibold text-cyan-400 mb-4">
                   {section.title}
                 </h2>
                 <div className="space-y-3">

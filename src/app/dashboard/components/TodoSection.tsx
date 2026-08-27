@@ -37,18 +37,18 @@ export const TodoSection: React.FC<TodoSectionProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.25 }}
     >
-      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10">
+      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#080b12]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-blue-500/20 transition-all duration-300 hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-purple-400" />
+            <CheckCircle2 className="w-5 h-5 text-cyan-400" />
             {language === 'id' ? 'Tugas Trading' : 'Trading Tasks'}
           </CardTitle>
           {onAdd && (
             <button
               onClick={onAdd}
-              className="p-2 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 transition-colors"
+              className="p-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 transition-colors"
             >
-              <Plus className="w-4 h-4 text-purple-400" />
+              <Plus className="w-4 h-4 text-cyan-400" />
             </button>
           )}
         </CardHeader>
@@ -66,7 +66,7 @@ export const TodoSection: React.FC<TodoSectionProps> = ({
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
                   todo.completed
                     ? 'bg-emerald-500 border-emerald-500'
-                    : 'border-gray-500 group-hover:border-purple-400'
+                    : 'border-gray-500 group-hover:border-cyan-400'
                 }`}>
                   {todo.completed && (
                     <CheckCircle2 className="w-3 h-3 text-white" />

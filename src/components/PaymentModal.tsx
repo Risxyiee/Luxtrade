@@ -43,10 +43,10 @@ const PAYMENT_CATEGORIES: {
       { code: 'LINKAJA', label: 'LinkAja' },
     ],
     color: {
-      sel: 'border-violet-400 bg-violet-500/15',
+      sel: 'border-cyan-400 bg-blue-500/15',
       unsel: 'border-white/10 bg-white/[0.03]',
-      glow: 'shadow-violet-500/30 shadow-lg',
-      iconBg: 'bg-violet-500',
+      glow: 'shadow-blue-500/30 shadow-lg',
+      iconBg: 'bg-blue-500',
     },
   },
   {
@@ -202,26 +202,26 @@ export default function PaymentModal({
           className="relative w-full max-w-md max-h-[90vh] overflow-y-auto"
         >
           {/* Neon Glow Background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-purple-500/10 to-pink-500/20 blur-xl rounded-3xl" />
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-blue-500/10 to-cyan-400/20 blur-xl rounded-3xl" />
           <div className="absolute inset-0 shadow-[0_0_40px_rgba(138,43,226,0.3)] rounded-3xl" />
 
           {/* Main Card */}
-          <div className="relative bg-[#0A0A0A]/95 border border-purple-500/30 rounded-2xl overflow-hidden">
+          <div className="relative bg-[#0A0A0A]/95 border border-blue-500/30 rounded-2xl overflow-hidden">
             {/* Animated Border */}
             <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/20 to-transparent animate-pulse" />
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500/20 to-transparent animate-pulse" />
             </div>
 
             {/* Header */}
-            <div className="relative p-6 border-b border-purple-500/20">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600" />
+            <div className="relative p-6 border-b border-blue-500/20">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 via-cyan-400 to-blue-600" />
 
               <div className="flex items-center justify-between">
                 <div>
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="text-xs font-bold tracking-widest text-purple-400 mb-1"
+                    className="text-xs font-bold tracking-widest text-cyan-400 mb-1"
                   >
                     UPGRADE MEMBERSHIP
                   </motion.div>
@@ -233,7 +233,7 @@ export default function PaymentModal({
                   >
                     {paid ? 'Pembayaran Diproses' : 'Pilih Metode Pembayaran'}
                   </motion.h2>
-                  <p className="text-purple-300/70 text-xs mt-1">
+                  <p className="text-cyan-300/70 text-xs mt-1">
                     {paid ? 'Selesaikan pembayaran di tab baru' : `${planName} — ${formatRupiah(amount)}`}
                   </p>
                 </div>
@@ -269,7 +269,7 @@ export default function PaymentModal({
                 <>
                   {/* ===== STEP 1: CATEGORY SELECTION ===== */}
                   <div className="space-y-3">
-                    <p className="text-xs text-purple-300 font-medium flex items-center gap-1.5">
+                    <p className="text-xs text-cyan-300 font-medium flex items-center gap-1.5">
                       <CreditCard className="w-3.5 h-3.5" />
                       Langkah 1 — Pilih Kategori
                     </p>
@@ -321,7 +321,7 @@ export default function PaymentModal({
                       animate={{ opacity: 1, y: 0 }}
                       className="space-y-2"
                     >
-                      <p className="text-xs text-purple-300 font-medium flex items-center gap-1.5">
+                      <p className="text-xs text-cyan-300 font-medium flex items-center gap-1.5">
                         <Lock className="w-3.5 h-3.5" />
                         Langkah 2 — Pilih Metode
                       </p>

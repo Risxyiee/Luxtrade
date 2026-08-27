@@ -45,7 +45,7 @@ export default function BlogPage() {
       readTime: isEnglish ? '8 min read' : '8 bacaan',
       date: 'December 2024',
       icon: BookOpen,
-      gradient: 'from-purple-500 to-violet-600'
+      gradient: 'from-blue-500 to-cyan-600'
     },
     {
       id: 2,
@@ -60,7 +60,7 @@ export default function BlogPage() {
       readTime: isEnglish ? '6 min read' : '6 bacaan',
       date: 'December 2024',
       icon: Brain,
-      gradient: 'from-pink-500 to-rose-600'
+      gradient: 'from-cyan-400 to-rose-600'
     },
     {
       id: 3,
@@ -120,7 +120,7 @@ export default function BlogPage() {
       readTime: isEnglish ? '9 min read' : '9 bacaan',
       date: 'December 2024',
       icon: TrendingUp,
-      gradient: 'from-indigo-500 to-purple-600'
+      gradient: 'from-blue-500 to-cyan-500'
     }
   ]
 
@@ -138,11 +138,11 @@ export default function BlogPage() {
     <div className="min-h-screen bg-[#0f051d] text-white overflow-x-hidden">
       {/* Partikel Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-10">
-        <div className="absolute w-3 h-3 bg-purple-500/40 rounded-full animate-ping" style={{ top: '5%', left: '3%', animationDuration: '3s' }} />
-        <div className="absolute w-2 h-2 bg-purple-400/50 rounded-full animate-pulse" style={{ top: '12%', left: '8%', animationDuration: '4s' }} />
+        <div className="absolute w-3 h-3 bg-blue-500/40 rounded-full animate-ping" style={{ top: '5%', left: '3%', animationDuration: '3s' }} />
+        <div className="absolute w-2 h-2 bg-cyan-400/50 rounded-full animate-pulse" style={{ top: '12%', left: '8%', animationDuration: '4s' }} />
         <div className="absolute w-4 h-4 bg-blue-500/30 rounded-full animate-ping" style={{ top: '8%', left: '15%', animationDuration: '3.5s' }} />
-        <div className="absolute w-2 h-2 bg-purple-300/60 rounded-full animate-pulse" style={{ top: '18%', left: '20%', animationDuration: '2.5s' }} />
-        <div className="absolute w-3 h-3 bg-purple-500/35 rounded-full animate-ping" style={{ top: '25%', left: '5%', animationDuration: '4.5s' }} />
+        <div className="absolute w-2 h-2 bg-cyan-300/60 rounded-full animate-pulse" style={{ top: '18%', left: '20%', animationDuration: '2.5s' }} />
+        <div className="absolute w-3 h-3 bg-blue-500/35 rounded-full animate-ping" style={{ top: '25%', left: '5%', animationDuration: '4.5s' }} />
         <div className="absolute w-2 h-2 bg-blue-400/40 rounded-full animate-pulse" style={{ top: '35%', left: '12%', animationDuration: '3s' }} />
       </div>
 
@@ -159,7 +159,7 @@ export default function BlogPage() {
                 className="object-contain"
               />
               <div>
-                <Link href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
+                <Link href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
                   LuxTrade
                 </Link>
               </div>
@@ -176,10 +176,10 @@ export default function BlogPage() {
                 <Link
                   key={item.key}
                   href={item.href}
-                  className="text-sm text-white/60 hover:text-white hover:text-purple-300 transition-all duration-300 font-medium relative group"
+                  className="text-sm text-white/60 hover:text-white hover:text-cyan-300 transition-all duration-300 font-medium relative group"
                 >
                   {item.label}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-500 to-blue-500 group-hover:w-full transition-all duration-300" />
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-blue-500 group-hover:w-full transition-all duration-300" />
                 </Link>
               ))}
             </div>
@@ -193,7 +193,7 @@ export default function BlogPage() {
               </Link>
               <Link href="/auth/signup">
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
-                  <Button className="h-10 px-6 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-sm">
+                  <Button className="h-10 px-6 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-sm">
                     {isEnglish ? 'Sign Up' : 'Daftar'}
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -213,16 +213,16 @@ export default function BlogPage() {
             variants={staggerContainer}
           >
             <motion.div variants={fadeInUp} className="text-center mb-8">
-              <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 mb-6">
+              <Badge className="bg-blue-500/20 text-cyan-300 border-blue-500/30 mb-6">
                 <BookOpen className="w-3.5 h-3.5 mr-2" />
                 {isEnglish ? 'Trading Blog' : 'Blog Trading'}
               </Badge>
               <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold mb-6 leading-tight tracking-tight">
-                <span className="bg-gradient-to-r from-white to-purple-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-white to-cyan-400 bg-clip-text text-transparent">
                   {isEnglish ? 'Trading Insights' : 'Wawasan Trading'}
                 </span>
                 <br />
-                <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
                   {isEnglish ? '& Strategies' : '& Strategi'}
                 </span>
               </h1>
@@ -249,17 +249,17 @@ export default function BlogPage() {
             >
               <Card className="backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] p-6 sticky top-24">
                 <h3 className="text-lg font-extrabold text-white mb-4 flex items-center gap-2">
-                  <Eye className="w-5 h-5 text-purple-400" />
+                  <Eye className="w-5 h-5 text-cyan-400" />
                   {isEnglish ? 'Categories' : 'Kategori'}
                 </h3>
                 <div className="space-y-2">
                   {categories.map((cat, index) => (
                     <button
                       key={index}
-                      className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-white/5 hover:bg-purple-500/20 hover:border-purple-500/30 border border-transparent text-left transition-all duration-300 group"
+                      className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-white/5 hover:bg-blue-500/20 hover:border-blue-500/30 border border-transparent text-left transition-all duration-300 group"
                     >
                       <span className="text-white/70 group-hover:text-white font-medium text-sm">{cat.name}</span>
-                      <Badge variant="outline" className="text-xs border-white/10 text-white/50 group-hover:border-purple-500/30 group-hover:text-purple-300">
+                      <Badge variant="outline" className="text-xs border-white/10 text-white/50 group-hover:border-blue-500/30 group-hover:text-cyan-300">
                         {cat.count}
                       </Badge>
                     </button>
@@ -284,7 +284,7 @@ export default function BlogPage() {
                     transition={{ duration: 0.3 }}
                   >
                     <Link href={`/blog/${post.slug}`}>
-                      <Card className="h-full backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-purple-500/30 hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-all duration-300 overflow-hidden">
+                      <Card className="h-full backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_40px_rgba(139,92,246,0.2)] transition-all duration-300 overflow-hidden">
                         <div className={`p-6`}>
                           {/* Category Badge */}
                           <div className="flex items-center justify-between mb-4">
@@ -309,7 +309,7 @@ export default function BlogPage() {
                           </div>
 
                           {/* Title */}
-                          <h2 className="text-xl font-extrabold text-white mb-3 line-clamp-2 hover:text-purple-300 transition-colors">
+                          <h2 className="text-xl font-extrabold text-white mb-3 line-clamp-2 hover:text-cyan-300 transition-colors">
                             {post.title}
                           </h2>
 
@@ -319,7 +319,7 @@ export default function BlogPage() {
                           </p>
 
                           {/* Read More */}
-                          <div className="flex items-center gap-2 text-purple-400 text-sm font-semibold group-hover:gap-3 transition-all">
+                          <div className="flex items-center gap-2 text-cyan-400 text-sm font-semibold group-hover:gap-3 transition-all">
                             {isEnglish ? 'Read Article' : 'Baca Artikel'}
                             <ArrowRight className="w-4 h-4" />
                           </div>
@@ -335,22 +335,22 @@ export default function BlogPage() {
       </section>
 
       {/* Newsletter CTA */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-purple-900/10 to-transparent">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-blue-900/10 to-transparent">
         <div className="max-w-4xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <Card className="backdrop-blur-xl bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/30 p-12 text-center">
+            <Card className="backdrop-blur-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/30 p-12 text-center">
               <div className="flex justify-center mb-6">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-2xl shadow-purple-500/30">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-2xl shadow-blue-500/30">
                   <BookOpen className="w-10 h-10 text-white" />
                 </div>
               </div>
               <h2 className="text-4xl sm:text-5xl font-extrabold mb-6">
                 <span className="text-white">{isEnglish ? 'Get Weekly' : 'Dapatkan'}</span>
-                <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
                   {isEnglish ? ' Trading Tips' : ' Tips Trading Mingguan'}
                 </span>
               </h2>
@@ -361,7 +361,7 @@ export default function BlogPage() {
               </p>
               <Link href="/auth/signup">
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
-                  <Button className="h-14 px-8 text-lg bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_40px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-xl">
+                  <Button className="h-14 px-8 text-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_40px_rgba(168,85,247,0.5)] transition-all duration-300 backdrop-blur-xl">
                     {isEnglish ? 'Subscribe for Free' : 'Berlangganan Gratis'}
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </Button>

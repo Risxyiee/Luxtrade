@@ -417,15 +417,15 @@ export default function ProPromoTab() {
           </CardContent>
         </Card>
 
-        <Card className="bg-[#1a0f2e]/50 border-purple-500/20">
+        <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-purple-500/20">
-                <Tag className="w-5 h-5 text-purple-400" />
+              <div className="p-2 rounded-lg bg-blue-500/20">
+                <Tag className="w-5 h-5 text-cyan-400" />
               </div>
               <div>
                 <p className="text-white/50 text-[10px] uppercase tracking-wider">Kuota Tersisa</p>
-                <p className="text-2xl font-bold text-purple-400">{data.summary.totalQuotaRemaining}</p>
+                <p className="text-2xl font-bold text-cyan-400">{data.summary.totalQuotaRemaining}</p>
                 <p className="text-[10px] text-white/30">dari {data.summary.totalQuotaUsed + data.summary.totalQuotaRemaining} total</p>
               </div>
             </div>
@@ -449,7 +449,7 @@ export default function ProPromoTab() {
                 <Plus className="w-3.5 h-3.5" /> Buat Promo Baru
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-[#1a0f2e] border-purple-500/30 text-white max-w-sm">
+            <DialogContent className="bg-[#1a0f2e] border-blue-500/30 text-white max-w-sm">
               <DialogHeader>
                 <DialogTitle className="text-amber-300">Buat Promo Code Baru</DialogTitle>
               </DialogHeader>
@@ -540,7 +540,7 @@ export default function ProPromoTab() {
                                 <MoreVertical className="w-3.5 h-3.5" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-[#1a0f2e] border-purple-500/20 min-w-[180px]">
+                            <DropdownMenuContent align="end" className="bg-[#1a0f2e] border-blue-500/20 min-w-[180px]">
                               {/* Toggle Active */}
                               <DropdownMenuItem
                                 onClick={() => handleTogglePromo(promo)}
@@ -565,7 +565,7 @@ export default function ProPromoTab() {
                                 <RotateCcw className="w-4 h-4 mr-2" />
                                 Reset Kuota (pakai=0)
                               </DropdownMenuItem>
-                              <DropdownMenuSeparator className="bg-purple-500/20" />
+                              <DropdownMenuSeparator className="bg-blue-500/20" />
                               {/* Delete */}
                               <DropdownMenuItem
                                 onClick={() => setDeleteTarget(promo)}
@@ -716,7 +716,7 @@ export default function ProPromoTab() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-white/70 flex items-center gap-2">
-            <Users className="w-4 h-4 text-purple-400" />
+            <Users className="w-4 h-4 text-cyan-400" />
             User yang Pakai Promo Code
             <Badge variant="outline" className="border-white/10 text-white/40 text-[10px]">
               {filteredUsage.length} dari {data.promoUsage.length}
@@ -733,7 +733,7 @@ export default function ProPromoTab() {
           </Button>
         </div>
 
-        <Card className="bg-[#1a0f2e]/50 border-purple-500/20">
+        <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
           <CardContent className="p-0">
             {filteredUsage.length === 0 ? (
               <div className="text-center py-12">
@@ -745,7 +745,7 @@ export default function ProPromoTab() {
                 {/* Mobile: Card list */}
                 <div className="md:hidden space-y-2 p-3">
                   {filteredUsage.map((u) => (
-                    <div key={u.id} className="bg-white/[0.03] border border-purple-500/10 rounded-xl p-3 space-y-2">
+                    <div key={u.id} className="bg-white/[0.03] border border-blue-500/10 rounded-xl p-3 space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-sm text-white font-medium truncate">{u.email || '-'}</p>
@@ -787,7 +787,7 @@ export default function ProPromoTab() {
                 {/* Desktop: Table */}
                 <table className="w-full text-sm hidden md:table">
                   <thead>
-                    <tr className="border-b border-purple-500/20">
+                    <tr className="border-b border-blue-500/20">
                       <th className="text-left py-3 px-3 text-white/50 font-medium text-xs">User</th>
                       <th className="text-left py-3 px-3 text-white/50 font-medium text-xs">Promo Code</th>
                       <th className="text-left py-3 px-3 text-white/50 font-medium text-xs">Status</th>
@@ -804,7 +804,7 @@ export default function ProPromoTab() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: i * 0.02 }}
-                        className="border-b border-purple-500/5 hover:bg-purple-500/5 transition-colors"
+                        className="border-b border-blue-500/5 hover:bg-blue-500/5 transition-colors"
                       >
                         <td className="py-3 px-3">
                           <div>
@@ -928,7 +928,7 @@ export default function ProPromoTab() {
 
       {/* ── Edit Quota Dialog ── */}
       <Dialog open={!!editQuotaPromo} onOpenChange={(open) => { if (!open) setEditQuotaPromo(null) }}>
-        <DialogContent className="bg-[#1a0f2e] border-purple-500/30 text-white max-w-sm">
+        <DialogContent className="bg-[#1a0f2e] border-blue-500/30 text-white max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-amber-300">Ubah Kuota Promo</DialogTitle>
             <DialogDescription className="text-white/40 text-xs">

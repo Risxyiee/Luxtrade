@@ -160,7 +160,7 @@ export default function NotificationCenter({ trades = [], isPro = false, demoMod
     switch (type) {
       case 'success': return <TrendingUp className="w-4 h-4 text-emerald-400" />
       case 'warning': return <AlertTriangle className="w-4 h-4 text-amber-400" />
-      case 'achievement': return <Gift className="w-4 h-4 text-purple-400" />
+      case 'achievement': return <Gift className="w-4 h-4 text-cyan-400" />
       case 'pro': return <Crown className="w-4 h-4 text-amber-400" />
       case 'payout': return <Wallet className="w-4 h-4 text-emerald-400" />
       default: return <Bell className="w-4 h-4 text-blue-400" />
@@ -172,7 +172,7 @@ export default function NotificationCenter({ trades = [], isPro = false, demoMod
     switch (type) {
       case 'success': return 'bg-emerald-500/5 hover:bg-emerald-500/10'
       case 'warning': return 'bg-amber-500/5 hover:bg-amber-500/10'
-      case 'achievement': return 'bg-purple-500/5 hover:bg-purple-500/10'
+      case 'achievement': return 'bg-blue-500/5 hover:bg-blue-500/10'
       case 'pro': return 'bg-amber-500/5 hover:bg-amber-500/10'
       default: return 'bg-blue-500/5 hover:bg-blue-500/10'
     }
@@ -203,7 +203,7 @@ export default function NotificationCenter({ trades = [], isPro = false, demoMod
           <motion.span
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full text-[10px] font-bold flex items-center justify-center text-white border-2 border-[#0f0b18]"
+            className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full text-[10px] font-bold flex items-center justify-center text-white border-2 border-[#080b12]"
           >
             {unreadCount > 9 ? '9+' : unreadCount}
           </motion.span>
@@ -217,14 +217,14 @@ export default function NotificationCenter({ trades = [], isPro = false, demoMod
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="absolute right-0 top-12 w-80 sm:w-96 bg-[#0f0b18]/95 backdrop-blur-xl border border-purple-900/30 rounded-2xl shadow-2xl shadow-purple-500/10 z-50 overflow-hidden"
+            className="absolute right-0 top-12 w-80 sm:w-96 bg-[#080b12]/95 backdrop-blur-xl border border-blue-900/30 rounded-2xl shadow-2xl shadow-blue-500/10 z-50 overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-white">Notifications</h3>
                 {unreadCount > 0 && (
-                  <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-[10px]">
+                  <Badge className="bg-blue-500/20 text-cyan-300 border-blue-500/30 text-[10px]">
                     {unreadCount} new
                   </Badge>
                 )}
@@ -271,7 +271,7 @@ export default function NotificationCenter({ trades = [], isPro = false, demoMod
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           {!notif.read && (
-                            <div className="w-2 h-2 rounded-full bg-purple-400 flex-shrink-0" />
+                            <div className="w-2 h-2 rounded-full bg-cyan-400 flex-shrink-0" />
                           )}
                           <button
                             onClick={(e) => {
@@ -299,7 +299,7 @@ export default function NotificationCenter({ trades = [], isPro = false, demoMod
                 onClick={() => {
                   setNotifications(prev => prev.filter(n => n.read))
                 }}
-                className="text-xs text-gray-500 hover:text-purple-400 transition-colors"
+                className="text-xs text-gray-500 hover:text-cyan-400 transition-colors"
               >
                 Clear all read notifications
               </button>

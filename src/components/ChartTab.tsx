@@ -20,7 +20,7 @@ const CandlestickChart = dynamic(() => import('@/components/CandlestickChart'), 
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center" style={{ height: '400px' }}>
-      <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+      <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
     </div>
   )
 })
@@ -146,7 +146,7 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
   if (!hasMounted) {
     return (
       <div className="flex items-center justify-center" style={{ height: '500px' }} suppressHydrationWarning={true}>
-        <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
       </div>
     )
   }
@@ -157,7 +157,7 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-purple-400" />
+            <TrendingUp className="w-6 h-6 text-cyan-400" />
             Trading Chart
           </h2>
           <p className="text-white/60">
@@ -242,7 +242,7 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
       {/* Chart */}
       <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg p-4 relative overflow-hidden">
         {chartError && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0712]/90 rounded-lg z-10">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#070a10]/90 rounded-lg z-10">
             <AlertTriangle className="w-12 h-12 text-red-400 mb-3" />
             <p className="text-white font-semibold mb-2">Chart Error</p>
             <p className="text-white/60 text-sm mb-4">{chartError}</p>
@@ -260,8 +260,8 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
         )}
 
         {!chartError && isLoadingData && chartData.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0a0712]/90 rounded-lg z-10">
-            <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center bg-[#070a10]/90 rounded-lg z-10">
+            <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
           </div>
         )}
 
@@ -273,7 +273,7 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
 
       {/* Info */}
       <div className="flex gap-4">
-        <Badge className="bg-purple-500/20 text-purple-400">
+        <Badge className="bg-blue-500/20 text-cyan-400">
           {selectedSymbol}
         </Badge>
         <Badge className="bg-emerald-500/20 text-emerald-400">

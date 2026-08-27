@@ -203,10 +203,10 @@ export default function AdminSocialLinksPage() {
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-8">
         <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600">
+          <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-600">
             <Shield className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-3xl font-extrabold bg-gradient-to-r from-white to-purple-300 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-extrabold bg-gradient-to-r from-white to-cyan-300 bg-clip-text text-transparent">
             {content.title}
           </h1>
         </div>
@@ -215,10 +215,10 @@ export default function AdminSocialLinksPage() {
 
       <div className="max-w-7xl mx-auto">
         {/* Filter */}
-        <Card className="bg-[#1a1025] border border-purple-500/30 mb-6">
+        <Card className="bg-[#0a0e16] border border-blue-500/30 mb-6">
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-purple-400" />
+              <Filter className="w-4 h-4 text-cyan-400" />
               <span className="text-sm text-white/70 mr-2">{language === 'id' ? 'Filter:' : 'Filter:'}</span>
               {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map((status) => (
                 <Button
@@ -228,7 +228,7 @@ export default function AdminSocialLinksPage() {
                   onClick={() => setFilter(status)}
                   className={
                     filter === status
-                      ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
                       : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
                   }
                 >
@@ -247,10 +247,10 @@ export default function AdminSocialLinksPage() {
         {/* Social Links List */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
           </div>
         ) : socialLinks.length === 0 ? (
-          <Card className="bg-[#1a1025] border border-purple-500/30">
+          <Card className="bg-[#0a0e16] border border-blue-500/30">
             <CardContent className="p-12 text-center">
               <p className="text-white/50">{content.noResults}</p>
             </CardContent>
@@ -258,14 +258,14 @@ export default function AdminSocialLinksPage() {
         ) : (
           <div className="space-y-4">
             {socialLinks.map((link) => (
-              <Card key={link.id} className="bg-[#1a1025] border border-purple-500/30">
+              <Card key={link.id} className="bg-[#0a0e16] border border-blue-500/30">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between gap-4">
                     {/* Left Side - User Info & Link Details */}
                     <div className="flex-1 space-y-3">
                       {/* User Info */}
                       <div className="flex items-center gap-2 text-sm">
-                        <User className="w-4 h-4 text-purple-400" />
+                        <User className="w-4 h-4 text-cyan-400" />
                         <span className="text-white/90 font-medium">
                           {link.user.name || link.user.email}
                         </span>
@@ -275,7 +275,7 @@ export default function AdminSocialLinksPage() {
                       {/* Platform & URL */}
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-purple-300">
+                          <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-cyan-300">
                             {link.platform.toUpperCase()}
                           </Badge>
                           {link.username && (
@@ -286,7 +286,7 @@ export default function AdminSocialLinksPage() {
                           href={link.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-purple-400 hover:text-purple-300 text-sm flex items-center gap-1 hover:underline"
+                          className="text-cyan-400 hover:text-cyan-300 text-sm flex items-center gap-1 hover:underline"
                         >
                           {link.url}
                           <ExternalLink className="w-3 h-3" />
@@ -390,7 +390,7 @@ export default function AdminSocialLinksPage() {
 
       {/* Reject Dialog */}
       <Dialog open={!!selectedLink} onOpenChange={(open) => !open && setSelectedLink(null)}>
-        <DialogContent className="bg-[#1a1025] border border-purple-500/30 text-white">
+        <DialogContent className="bg-[#0a0e16] border border-blue-500/30 text-white">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <XCircle className="w-5 h-5 text-red-400" />
@@ -411,7 +411,7 @@ export default function AdminSocialLinksPage() {
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 placeholder={content.rejectReasonPlaceholder}
-                className="bg-[#0a0712] border-purple-900/30 text-white min-h-[100px]"
+                className="bg-[#070a10] border-blue-900/30 text-white min-h-[100px]"
               />
             </div>
           </div>

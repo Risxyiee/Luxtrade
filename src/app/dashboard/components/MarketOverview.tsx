@@ -37,10 +37,10 @@ export const MarketOverview: React.FC<MarketOverviewProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.2 }}
     >
-      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0f0b18]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-purple-500/20 transition-all duration-300 hover:border-purple-500/40 hover:shadow-lg hover:shadow-purple-500/10">
+      <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#080b12]/80 dark:to-[#12091a]/80 backdrop-blur-md border-lux-border dark:border-blue-500/20 transition-all duration-300 hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <BarChart className="w-5 h-5 text-purple-400" />
+            <BarChart className="w-5 h-5 text-cyan-400" />
             {language === 'id' ? 'Ikhtisar Pasar' : 'Market Overview'}
           </CardTitle>
         </CardHeader>
@@ -55,8 +55,8 @@ export const MarketOverview: React.FC<MarketOverviewProps> = ({
                 transition={{ duration: 0.3, delay: index * 0.05 }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                    <DollarSign className="w-5 h-5 text-purple-400" />
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                    <DollarSign className="w-5 h-5 text-cyan-400" />
                   </div>
                   <div>
                     <p className="font-bold text-lux-text-primary dark:text-white">{market.symbol}</p>

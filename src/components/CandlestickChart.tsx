@@ -215,7 +215,7 @@ function CandlestickChartInner({
     return (
       <div className={containerClassName} style={{ height: '400px', minHeight: '400px' }} suppressHydrationWarning={true}>
         <div className="flex items-center justify-center h-full">
-          <div className="w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
         </div>
       </div>
     )
@@ -228,7 +228,7 @@ function CandlestickChartInner({
       style={{
         height: '400px',
         minHeight: '400px',
-        backgroundColor: '#0a0712',
+        backgroundColor: '#070a10',
         position: 'relative'
       }}
       suppressHydrationWarning={true}
@@ -244,7 +244,7 @@ function CandlestickChartInner({
           color: '#9ca3af',
           padding: '20px'
         }}>
-          <div className="w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+          <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
           <p>Initializing chart...</p>
         </div>
       )}
@@ -265,7 +265,7 @@ function CandlestickChartInner({
           <p className="text-sm text-white/60">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-3 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded text-sm"
+            className="mt-3 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
           >
             Reload Page
           </button>
