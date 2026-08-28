@@ -38,6 +38,7 @@ interface TabContentProps {
   aiChatMessages: { role: 'user' | 'assistant'; content: string }[]
   aiChatInput: string
   setAddTradeOpen: (open: boolean) => void
+  setAddAccountOpen?: (open: boolean) => void
   setAddJournalOpen: (open: boolean) => void
   setAddWatchlistOpen: (open: boolean) => void
   setPlanSelectionModalOpen: (open: boolean) => void
@@ -77,6 +78,7 @@ export default function TabContent({
   aiChatMessages,
   aiChatInput,
   setAddTradeOpen,
+  setAddAccountOpen,
   setAddJournalOpen,
   setAddWatchlistOpen,
   setPlanSelectionModalOpen,
@@ -112,6 +114,7 @@ export default function TabContent({
               journalEntries={journalEntries}
               loading={loading}
               setAddTradeOpen={setAddTradeOpen}
+              setAddAccountOpen={setAddAccountOpen}
               onView={onView}
               onEdit={onEdit}
               onDelete={onDelete}

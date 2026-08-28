@@ -6,7 +6,12 @@ import { isDatabaseAvailable } from '@/lib/db'
 // ==================== IN-MEMORY CACHE ====================
 // Key: "period|sortBy" → { data, timestamp }
 const leaderboardCache = new Map<string, { data: LeaderboardEntry[]; timestamp: number }>()
-const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+const CACHE_TTL = 30 * 1000 // 30 seconds (short TTL for real-time leaderboard updates)
+
+// Expose cache invalidation for public-profile toggle
+export function invalidateLeaderboardCache() {
+  leaderboardCache.clear()
+}
 
 interface LeaderboardEntry {
   rank: number
@@ -101,7 +106,6 @@ async function fetchLeaderboardFromDB(period: string, sortBy: string): Promise<L
   const results = await db.$queryRawUnsafe<{
     user_id: string
     display_name: string | null
-    avatar_url: string | null
     is_pro: boolean
     streak_count: number
     total_trades: bigint
@@ -111,7 +115,6 @@ async function fetchLeaderboardFromDB(period: string, sortBy: string): Promise<L
     SELECT 
       p.id as user_id,
       p.full_name as display_name,
-      (p.image_url) as avatar_url,
       p.is_pro,
       p.streak_count,
       COUNT(t.id) as total_trades,
@@ -121,7 +124,7 @@ async function fetchLeaderboardFromDB(period: string, sortBy: string): Promise<L
     INNER JOIN trades t ON t.user_id = p.id
     WHERE p.public_profile = true
       AND t.close_time >= $1
-    GROUP BY p.id, p.full_name, p.image_url, p.is_pro, p.streak_count
+    GROUP BY p.id, p.full_name, p.is_pro, p.streak_count
     HAVING COUNT(t.id) >= 1
     ORDER BY ${sortClause}
     LIMIT 20
@@ -138,7 +141,7 @@ async function fetchLeaderboardFromDB(period: string, sortBy: string): Promise<L
     totalTrades: Number(row.total_trades),
     streak: row.streak_count,
     isPro: row.is_pro,
-    avatarUrl: row.avatar_url,
+    avatarUrl: null,
   }))
 }
 
@@ -158,12 +161,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const period = searchParams.get('period') || 'month'
     const sortBy = searchParams.get('sortBy') || 'totalPL'
+    const refresh = searchParams.get('refresh') === '1'
 
     const cacheKey = `${period}|${sortBy}`
     const cached = leaderboardCache.get(cacheKey)
     const now = Date.now()
 
-    if (cached && now - cached.timestamp < CACHE_TTL) {
+    if (!refresh && cached && now - cached.timestamp < CACHE_TTL) {
       return NextResponse.json({ leaderboard: cached.data })
     }
 
