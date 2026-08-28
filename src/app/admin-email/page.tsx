@@ -8,7 +8,7 @@ import {
   CheckCircle, XCircle, Clock, AlertTriangle, Eye, EyeOff,
   ArrowLeft, BarChart3, FileText, Megaphone, Settings,
   Code, Paintbrush, Vibrate, FlaskConical, ChevronDown, DatabaseBackup,
-  Sparkles,
+  Sparkles, GitBranch, RefreshCw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -51,12 +51,34 @@ interface BroadcastTemplate {
   body: string
 }
 
+interface AutoUpdatePreview {
+  features: string[]
+  fixes: string[]
+  improvements: string[]
+  totalCommits: number
+}
+
+const AUTO_UPDATE_TARGET_OPTIONS = [
+  { value: 'verified', label: 'Sudah Verifikasi' },
+  { value: 'pro', label: 'User PRO' },
+  { value: 'all', label: 'Semua User' },
+]
+
+const AUTO_UPDATE_DEFAULT_SUBJECT = '✨ Pembaruan LuxTrade — Fitur Baru & Perbaikan Bug'
+
 const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
   {
     value: 'custom',
     label: 'Custom',
     icon: FileText,
     subject: '',
+    body: '',
+  },
+  {
+    value: 'auto-update',
+    label: 'Auto Update',
+    icon: GitBranch,
+    subject: AUTO_UPDATE_DEFAULT_SUBJECT,
     body: '',
   },
   {
@@ -263,6 +285,14 @@ export default function AdminEmailPage() {
   const [sendingTest, setSendingTest] = useState(false)
   const [syncing, setSyncing] = useState(false)
 
+  // Auto Update state
+  const [autoDays, setAutoDays] = useState(7)
+  const [autoSubject, setAutoSubject] = useState(AUTO_UPDATE_DEFAULT_SUBJECT)
+  const [autoTarget, setAutoTarget] = useState('verified')
+  const [autoPreview, setAutoPreview] = useState<AutoUpdatePreview | null>(null)
+  const [autoPreviewLoading, setAutoPreviewLoading] = useState(false)
+  const [autoSending, setAutoSending] = useState(false)
+
   // Sync users from Auth → DB then refresh stats
   const syncAndRefresh = async () => {
     if (syncing) return
@@ -336,6 +366,7 @@ export default function AdminEmailPage() {
 
   // Update default subject when target changes
   useEffect(() => {
+    if (selectedTemplate === 'auto-update') return
     if (selectedTarget === 'unverified') {
       setSubject('Hei {{name}}, akun kamu belum diverifikasi nih 😅')
       setHtmlBody('')
@@ -347,6 +378,61 @@ export default function AdminEmailPage() {
     }
     setResult(null)
   }, [selectedTarget, selectedTemplate])
+
+  // Fetch auto-update commit preview when days changes
+  const fetchAutoPreview = useCallback(async () => {
+    if (selectedTemplate !== 'auto-update') return
+    setAutoPreviewLoading(true)
+    try {
+      const res = await authFetch(`/api/admin/auto-update-email?days=${autoDays}`, {
+        headers: { 'x-admin-email': ADMIN_EMAIL },
+      })
+      if (res.ok) {
+        setAutoPreview(await res.json())
+      } else {
+        setAutoPreview(null)
+      }
+    } catch {
+      setAutoPreview(null)
+    } finally {
+      setAutoPreviewLoading(false)
+    }
+  }, [selectedTemplate, autoDays])
+
+  useEffect(() => {
+    if (selectedTemplate === 'auto-update') {
+      fetchAutoPreview()
+    }
+  }, [selectedTemplate, fetchAutoPreview])
+
+  // Handle auto-update send
+  const handleAutoUpdateSend = async () => {
+    if (autoSending) return
+    setAutoSending(true)
+    setResult(null)
+    try {
+      const res = await authFetch('/api/admin/auto-update-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-email': ADMIN_EMAIL },
+        body: JSON.stringify({ days: autoDays, target: autoTarget, subject: autoSubject }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setResult({ sent: data.sent, failed: data.failed, errors: [] })
+        toast.success(`Auto update terkirim! ${data.sent} berhasil, ${data.failed} gagal`)
+        const statsRes = await authFetch('/api/admin/email-stats', {
+          headers: { 'x-admin-email': ADMIN_EMAIL },
+        })
+        if (statsRes.ok) setStats(await statsRes.json())
+      } else {
+        toast.error(data.error || 'Gagal mengirim auto update')
+      }
+    } catch {
+      toast.error('Terjadi kesalahan saat mengirim auto update')
+    } finally {
+      setAutoSending(false)
+    }
+  }
 
   // Apply template
   const handleTemplateChange = (templateValue: string) => {
@@ -606,30 +692,219 @@ export default function AdminEmailPage() {
                   </div>
                 )}
 
-                {/* Subject */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="subject" className="text-[#f0f2ff]/70 text-sm font-medium">
-                      Subject Email
-                    </Label>
-                    <span className="text-[11px] text-[#8892b0]">
-                      {subject.length} karakter
-                    </span>
-                  </div>
-                  <Input
-                    id="subject"
-                    value={subject}
-                    onChange={e => setSubject(e.target.value)}
-                    placeholder={selectedTarget === 'unverified' ? 'Hei {{name}}, akun kamu belum diverifikasi nih 😅' : 'Masukkan subject email...'}
-                    className="bg-white/[0.03] border border-white/[0.06] text-[#f0f2ff] placeholder:text-[#8892b0]/50 focus:border-blue-500/40 focus:ring-blue-500/20 rounded-xl"
-                  />
-                  <p className="text-xs text-[#8892b0]">
-                    Gunakan {'{{name}}'} dan {'{{email}}'} sebagai placeholder
-                  </p>
-                </div>
+                {/* ─── Auto Update Form ─── */}
+                {selectedTemplate === 'auto-update' && selectedTarget !== 'unverified' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-4"
+                  >
+                    {/* Info banner */}
+                    <div className="flex items-start gap-3 p-3.5 rounded-xl bg-blue-500/[0.06] border border-blue-500/20">
+                      <GitBranch className="w-5 h-5 text-blue-400 mt-0.5 shrink-0" />
+                      <div className="text-sm text-[#8892b0]">
+                        <p className="font-medium text-blue-300/80 mb-1">Auto Update Email</p>
+                        <p>Sistem akan membaca commit git terbaru dan menghasilkan email update secara otomatis. Kamu hanya perlu atur jangka waktu, target, dan subject.</p>
+                      </div>
+                    </div>
 
-                {/* Rich Text Editor (non-unverified) */}
-                {selectedTarget !== 'unverified' && (
+                    {/* Controls row */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Days input */}
+                      <div className="space-y-1.5">
+                        <Label className="text-[#f0f2ff]/70 text-sm font-medium">Jumlah hari terakhir</Label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            min={1}
+                            max={90}
+                            value={autoDays}
+                            onChange={e => setAutoDays(Math.max(1, Math.min(90, parseInt(e.target.value) || 7)))}
+                            className="bg-white/[0.03] border border-white/[0.06] text-[#f0f2ff] placeholder:text-[#8892b0]/50 focus:border-blue-500/40 focus:ring-blue-500/20 rounded-xl pr-16"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#8892b0] pointer-events-none">hari</span>
+                        </div>
+                      </div>
+
+                      {/* Target select */}
+                      <div className="space-y-1.5">
+                        <Label className="text-[#f0f2ff]/70 text-sm font-medium">Target Penerima</Label>
+                        <div className="relative">
+                          <select
+                            value={autoTarget}
+                            onChange={e => setAutoTarget(e.target.value)}
+                            className="w-full appearance-none bg-white/[0.03] border border-white/[0.06] text-[#f0f2ff] text-sm rounded-xl px-3 py-2.5 pr-10 focus:outline-none focus:border-blue-500/40 focus:ring-blue-500/20"
+                          >
+                            {AUTO_UPDATE_TARGET_OPTIONS.map(opt => (
+                              <option key={opt.value} value={opt.value} className="bg-[#0e1117] text-[#f0f2ff]">
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8892b0] pointer-events-none" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Subject input */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[#f0f2ff]/70 text-sm font-medium">Subject Email</Label>
+                        <span className="text-[11px] text-[#8892b0]">{autoSubject.length} karakter</span>
+                      </div>
+                      <Input
+                        value={autoSubject}
+                        onChange={e => setAutoSubject(e.target.value)}
+                        placeholder="Subject email auto update..."
+                        className="bg-white/[0.03] border border-white/[0.06] text-[#f0f2ff] placeholder:text-[#8892b0]/50 focus:border-blue-500/40 focus:ring-blue-500/20 rounded-xl"
+                      />
+                    </div>
+
+                    {/* Commit Preview */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[#f0f2ff]/70 text-sm font-medium">Preview Commit</Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={fetchAutoPreview}
+                          disabled={autoPreviewLoading}
+                          className="text-blue-400 hover:text-blue-300 text-xs h-7 px-2"
+                        >
+                          <RefreshCw className={`w-3 h-3 mr-1 ${autoPreviewLoading ? 'animate-spin' : ''}`} />
+                          Refresh
+                        </Button>
+                      </div>
+
+                      {autoPreviewLoading ? (
+                        <div className="flex items-center justify-center py-8 rounded-xl border border-white/[0.06] bg-white/[0.02]">
+                          <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+                          <span className="ml-2 text-sm text-[#8892b0]">Membaca commit...</span>
+                        </div>
+                      ) : autoPreview && autoPreview.totalCommits > 0 ? (
+                        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] divide-y divide-white/[0.06] overflow-hidden">
+                          {/* Total */}
+                          <div className="px-4 py-2.5 flex items-center justify-between">
+                            <span className="text-xs text-[#8892b0]">Total commit ditemukan</span>
+                            <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-[10px] px-1.5 py-0">
+                              {autoPreview.totalCommits}
+                            </Badge>
+                          </div>
+
+                          {/* Features */}
+                          {autoPreview.features.length > 0 && (
+                            <div className="px-4 py-3">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <span className="text-blue-400 text-xs">✦</span>
+                                <span className="text-xs font-medium text-blue-300/80">Fitur Baru ({autoPreview.features.length})</span>
+                              </div>
+                              <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                                {autoPreview.features.map((f, i) => (
+                                  <div key={i} className="flex items-start gap-2 text-xs text-[#8892b0]">
+                                    <span className="text-blue-400/60 mt-0.5 shrink-0">•</span>
+                                    <span className="break-words">{f}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Fixes */}
+                          {autoPreview.fixes.length > 0 && (
+                            <div className="px-4 py-3">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <span className="text-emerald-400 text-xs">✓</span>
+                                <span className="text-xs font-medium text-emerald-300/80">Perbaikan ({autoPreview.fixes.length})</span>
+                              </div>
+                              <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                                {autoPreview.fixes.map((f, i) => (
+                                  <div key={i} className="flex items-start gap-2 text-xs text-[#8892b0]">
+                                    <span className="text-emerald-400/60 mt-0.5 shrink-0">•</span>
+                                    <span className="break-words">{f}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Improvements */}
+                          {autoPreview.improvements.length > 0 && (
+                            <div className="px-4 py-3">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <span className="text-amber-400 text-xs">⚡</span>
+                                <span className="text-xs font-medium text-amber-300/80">Peningkatan & Optimasi ({autoPreview.improvements.length})</span>
+                              </div>
+                              <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                                {autoPreview.improvements.map((item, i) => (
+                                  <div key={i} className="flex items-start gap-2 text-xs text-[#8892b0]">
+                                    <span className="text-amber-400/60 mt-0.5 shrink-0">•</span>
+                                    <span className="break-words">{item}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : autoPreview && autoPreview.totalCommits === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-8 rounded-xl border border-white/[0.06] bg-white/[0.02]">
+                          <GitBranch className="w-8 h-8 text-[#8892b0]/20 mb-2" />
+                          <span className="text-sm text-[#8892b0]/50">Tidak ada commit dalam {autoDays} hari terakhir</span>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {/* Send Auto Update Button */}
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button
+                        type="button"
+                        onClick={handleAutoUpdateSend}
+                        disabled={autoSending || !autoPreview || autoPreview.totalCommits === 0 || !autoSubject.trim()}
+                        className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-400 hover:from-blue-600 hover:to-cyan-500 text-white font-medium py-6 text-base disabled:opacity-40 disabled:cursor-not-allowed rounded-xl"
+                      >
+                        {autoSending ? (
+                          <>
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                            Sedang Mengirim Auto Update...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-5 h-5 mr-2" />
+                            Kirim Auto Update
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Subject (hidden for auto-update, has its own) */}
+                {selectedTemplate !== 'auto-update' && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="subject" className="text-[#f0f2ff]/70 text-sm font-medium">
+                        Subject Email
+                      </Label>
+                      <span className="text-[11px] text-[#8892b0]">
+                        {subject.length} karakter
+                      </span>
+                    </div>
+                    <Input
+                      id="subject"
+                      value={subject}
+                      onChange={e => setSubject(e.target.value)}
+                      placeholder={selectedTarget === 'unverified' ? 'Hei {{name}}, akun kamu belum diverifikasi nih 😅' : 'Masukkan subject email...'}
+                      className="bg-white/[0.03] border border-white/[0.06] text-[#f0f2ff] placeholder:text-[#8892b0]/50 focus:border-blue-500/40 focus:ring-blue-500/20 rounded-xl"
+                    />
+                    <p className="text-xs text-[#8892b0]">
+                      Gunakan {'{{name}}'} dan {'{{email}}'} sebagai placeholder
+                    </p>
+                  </div>
+                )}
+
+                {/* Rich Text Editor (non-unverified, non-auto-update) */}
+                {selectedTarget !== 'unverified' && selectedTemplate !== 'auto-update' && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-[#f0f2ff]/70 text-sm font-medium">
@@ -867,48 +1142,50 @@ export default function AdminEmailPage() {
                   </motion.div>
                 )}
 
-                {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3">
-                  {/* Test Email Button */}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleSendTestEmail}
-                    disabled={sendingTest || sending || !subject.trim()}
-                    className="flex-1 sm:flex-none border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.04] rounded-xl"
-                  >
-                    {sendingTest ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <FlaskConical className="w-4 h-4 mr-2" />
-                        Kirim Test Email
-                      </>
-                    )}
-                  </Button>
+                {/* Action Buttons (hidden for auto-update, has its own) */}
+                {selectedTemplate !== 'auto-update' && (
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {/* Test Email Button */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleSendTestEmail}
+                      disabled={sendingTest || sending || !subject.trim()}
+                      className="flex-1 sm:flex-none border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.04] rounded-xl"
+                    >
+                      {sendingTest ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <FlaskConical className="w-4 h-4 mr-2" />
+                          Kirim Test Email
+                        </>
+                      )}
+                    </Button>
 
-                  {/* Send Broadcast Button */}
-                  <Button
-                    onClick={handleOpenConfirmDialog}
-                    disabled={sending || !subject.trim() || (selectedTarget !== 'unverified' && !htmlBody.trim())}
-                    className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-400 hover:from-blue-600 hover:to-cyan-500 text-white font-medium py-6 text-base disabled:opacity-40 disabled:cursor-not-allowed rounded-xl"
-                  >
-                    {sending ? (
-                      <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Sedang Mengirim...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-5 h-5 mr-2" />
-                        Kirim Broadcast
-                      </>
-                    )}
-                  </Button>
-                </div>
+                    {/* Send Broadcast Button */}
+                    <Button
+                      onClick={handleOpenConfirmDialog}
+                      disabled={sending || !subject.trim() || (selectedTarget !== 'unverified' && !htmlBody.trim())}
+                      className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-400 hover:from-blue-600 hover:to-cyan-500 text-white font-medium py-6 text-base disabled:opacity-40 disabled:cursor-not-allowed rounded-xl"
+                    >
+                      {sending ? (
+                        <>
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                          Sedang Mengirim...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-5 h-5 mr-2" />
+                          Kirim Broadcast
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
 
                 {/* Result */}
                 <AnimatePresence>

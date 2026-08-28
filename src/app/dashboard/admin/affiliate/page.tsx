@@ -108,14 +108,14 @@ function StatCard({
   accent: string
 }) {
   return (
-    <Card className="bg-[#12091f]/80 border-blue-500/10 backdrop-blur-sm relative overflow-hidden group hover:border-blue-500/20 transition-colors">
+    <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06] relative overflow-hidden group hover:border-white/[0.06] transition-colors">
       <div
         className={`absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r ${accent}`}
       />
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <p className="text-xs font-medium text-white/40 uppercase tracking-wider">
+            <p className="text-xs font-medium text-[#8892b0] uppercase tracking-wider">
               {label}
             </p>
             <p className="text-2xl font-bold text-white">{value}</p>
@@ -139,11 +139,11 @@ function TableSkeleton({ rows = 5 }: { rows?: number }) {
     <div className="space-y-3 p-4">
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="flex items-center gap-4">
-          <Skeleton className="h-4 w-48 bg-white/5" />
-          <Skeleton className="h-4 w-24 bg-white/5" />
-          <Skeleton className="h-4 w-32 bg-white/5" />
-          <Skeleton className="h-4 w-28 bg-white/5" />
-          <Skeleton className="h-8 w-32 bg-white/5 rounded-md" />
+          <Skeleton className="h-4 w-48 bg-white/[0.06]" />
+          <Skeleton className="h-4 w-24 bg-white/[0.06]" />
+          <Skeleton className="h-4 w-32 bg-white/[0.06]" />
+          <Skeleton className="h-4 w-28 bg-white/[0.06]" />
+          <Skeleton className="h-8 w-32 bg-white/[0.06] rounded-md" />
         </div>
       ))}
     </div>
@@ -295,7 +295,7 @@ export default function AffiliateManagementPage() {
   // ─── Render: Auth checking ─────────────────────────────────────────────
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-[#0a0612] flex items-center justify-center">
+      <div className="min-h-screen bg-[#050507] flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
       </div>
     )
@@ -304,18 +304,18 @@ export default function AffiliateManagementPage() {
   // ─── Render: Access denied ─────────────────────────────────────────────
   if (!isAuthorized) {
     return (
-      <div className="min-h-screen bg-[#0a0612] flex flex-col items-center justify-center gap-6 px-4">
+      <div className="min-h-screen bg-[#050507] flex flex-col items-center justify-center gap-6 px-4">
         <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20">
           <ShieldX className="w-12 h-12 text-red-400" />
         </div>
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-bold text-white">Access Denied</h1>
-          <p className="text-white/50 max-w-md">
+          <p className="text-[#8892b0] max-w-md">
             Anda tidak memiliki akses ke halaman ini. Halaman ini hanya untuk admin.
           </p>
         </div>
         <Link href="/dashboard">
-          <Button variant="outline" className="border-white/10 text-white/70 hover:text-white hover:bg-white/5">
+          <Button variant="outline" className="border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03]">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Kembali ke Dashboard
           </Button>
@@ -326,10 +326,13 @@ export default function AffiliateManagementPage() {
 
   // ─── Render: Main content ──────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#0a0612]">
+    <div className="min-h-screen bg-[#050507] relative">
+      {/* Ambient glow */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[60%] h-[40%] pointer-events-none" aria-hidden="true" style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, rgba(6,182,212,0.08) 30%, rgba(16,185,129,0.04) 50%, transparent 70%)' }} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* ── Header ──────────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="bg-[#050507]/90 backdrop-blur-xl border border-white/[0.06] rounded-xl p-4 sm:p-6 relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent pointer-events-none" />
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 shadow-lg shadow-blue-900/30">
               <Users className="w-5 h-5 text-white" />
@@ -338,7 +341,7 @@ export default function AffiliateManagementPage() {
               <h1 className="text-2xl font-bold text-white tracking-tight">
                 Affiliate Management
               </h1>
-              <p className="text-sm text-white/40 mt-0.5">
+              <p className="text-sm text-[#8892b0] mt-0.5">
                 Kelola affiliate dan permintaan withdrawal
               </p>
             </div>
@@ -348,7 +351,7 @@ export default function AffiliateManagementPage() {
             size="sm"
             onClick={fetchData}
             disabled={loadingData}
-            className="border-white/10 text-white/60 hover:text-white hover:bg-white/5 w-fit"
+            className="border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03] w-fit"
           >
             <RefreshCw className={`w-4 h-4 mr-1.5 ${loadingData ? 'animate-spin' : ''}`} />
             Refresh
@@ -381,7 +384,7 @@ export default function AffiliateManagementPage() {
         </div>
 
         {/* ── Pending Withdrawals ──────────────────────────────────── */}
-        <Card className="bg-[#12091f]/80 border-blue-500/10 backdrop-blur-sm">
+        <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <Wallet className="w-5 h-5 text-amber-400" />
@@ -409,20 +412,20 @@ export default function AffiliateManagementPage() {
               <div className="overflow-x-auto max-h-96 overflow-y-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-white/5 hover:bg-transparent">
-                      <TableHead className="text-white/40 font-semibold text-xs uppercase tracking-wider">
+                    <TableRow className="border-white/[0.06] hover:bg-transparent">
+                      <TableHead className="text-[#8892b0] font-semibold text-xs uppercase tracking-wider">
                         Affiliate Email
                       </TableHead>
-                      <TableHead className="text-white/40 font-semibold text-xs uppercase tracking-wider">
+                      <TableHead className="text-[#8892b0] font-semibold text-xs uppercase tracking-wider">
                         Jumlah
                       </TableHead>
-                      <TableHead className="text-white/40 font-semibold text-xs uppercase tracking-wider hidden md:table-cell">
+                      <TableHead className="text-[#8892b0] font-semibold text-xs uppercase tracking-wider hidden md:table-cell">
                         Info Bank
                       </TableHead>
-                      <TableHead className="text-white/40 font-semibold text-xs uppercase tracking-wider hidden sm:table-cell">
+                      <TableHead className="text-[#8892b0] font-semibold text-xs uppercase tracking-wider hidden sm:table-cell">
                         Tanggal Request
                       </TableHead>
-                      <TableHead className="text-white/40 font-semibold text-xs uppercase tracking-wider text-right">
+                      <TableHead className="text-[#8892b0] font-semibold text-xs uppercase tracking-wider text-right">
                         Aksi
                       </TableHead>
                     </TableRow>
@@ -431,7 +434,7 @@ export default function AffiliateManagementPage() {
                     {pendingWithdrawals.map((wd) => (
                       <TableRow
                         key={wd.id}
-                        className="border-white/5 hover:bg-white/[0.02] transition-colors"
+                        className="border-white/[0.06] hover:bg-white/[0.02] transition-colors"
                       >
                         <TableCell className="text-white/70 text-sm font-mono">
                           {wd.bankInfo ? (
@@ -444,12 +447,12 @@ export default function AffiliateManagementPage() {
                           </span>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
-                          <span className="text-white/50 text-xs max-w-[200px] truncate block">
+                          <span className="text-[#8892b0] text-xs max-w-[200px] truncate block">
                             {wd.bankInfo || '—'}
                           </span>
                         </TableCell>
                         <TableCell className="hidden sm:table-cell">
-                          <span className="text-white/40 text-xs">{formatDate(wd.createdAt)}</span>
+                          <span className="text-[#8892b0] text-xs">{formatDate(wd.createdAt)}</span>
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
@@ -471,13 +474,13 @@ export default function AffiliateManagementPage() {
         </Card>
 
         {/* ── All Affiliates Table ─────────────────────────────────── */}
-        <Card className="bg-[#12091f]/80 border-blue-500/10 backdrop-blur-sm">
+        <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-cyan-400" />
               <CardTitle className="text-white text-lg">Daftar Affiliate</CardTitle>
               {!loadingData && (
-                <Badge className="bg-blue-500/15 text-cyan-400 border-blue-500/25 ml-2">
+                <Badge className="bg-blue-500/15 text-cyan-400 border-white/[0.06] ml-2">
                   {totalAffiliates}
                 </Badge>
               )}
@@ -499,24 +502,24 @@ export default function AffiliateManagementPage() {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-white/5 hover:bg-transparent">
-                      <TableHead className="text-white/40 font-semibold text-xs uppercase tracking-wider w-8" />
-                      <TableHead className="text-white/40 font-semibold text-xs uppercase tracking-wider">
+                    <TableRow className="border-white/[0.06] hover:bg-transparent">
+                      <TableHead className="text-[#8892b0] font-semibold text-xs uppercase tracking-wider w-8" />
+                      <TableHead className="text-[#8892b0] font-semibold text-xs uppercase tracking-wider">
                         Email
                       </TableHead>
-                      <TableHead className="text-white/40 font-semibold text-xs uppercase tracking-wider hidden sm:table-cell">
+                      <TableHead className="text-[#8892b0] font-semibold text-xs uppercase tracking-wider hidden sm:table-cell">
                         Kode Referral
                       </TableHead>
-                      <TableHead className="text-white/40 font-semibold text-xs uppercase tracking-wider text-center">
+                      <TableHead className="text-[#8892b0] font-semibold text-xs uppercase tracking-wider text-center">
                         Total Referral
                       </TableHead>
-                      <TableHead className="text-white/40 font-semibold text-xs uppercase tracking-wider text-right hidden md:table-cell">
+                      <TableHead className="text-[#8892b0] font-semibold text-xs uppercase tracking-wider text-right hidden md:table-cell">
                         Total Earned
                       </TableHead>
-                      <TableHead className="text-white/40 font-semibold text-xs uppercase tracking-wider text-right">
+                      <TableHead className="text-[#8892b0] font-semibold text-xs uppercase tracking-wider text-right">
                         Saldo
                       </TableHead>
-                      <TableHead className="text-white/40 font-semibold text-xs uppercase tracking-wider text-right hidden lg:table-cell">
+                      <TableHead className="text-[#8892b0] font-semibold text-xs uppercase tracking-wider text-right hidden lg:table-cell">
                         Withdrawal History
                       </TableHead>
                     </TableRow>
@@ -532,7 +535,7 @@ export default function AffiliateManagementPage() {
                           <TableRow
                             key={aff.id}
                             onClick={() => toggleRow(aff.id)}
-                            className="border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer"
+                            className="border-white/[0.06] hover:bg-white/[0.02] transition-colors cursor-pointer"
                           >
                             <TableCell className="w-8">
                               <ChevronDown
@@ -545,7 +548,7 @@ export default function AffiliateManagementPage() {
                               <span className="text-white/80 text-sm font-mono">{aff.email}</span>
                             </TableCell>
                             <TableCell className="hidden sm:table-cell">
-                              <code className="px-2 py-1 rounded bg-blue-500/10 text-cyan-300 text-xs font-mono border border-blue-500/15">
+                              <code className="px-2 py-1 rounded bg-white/[0.06] text-cyan-300 text-xs font-mono border border-white/[0.06]">
                                 {aff.referralCode}
                               </code>
                             </TableCell>
@@ -560,7 +563,7 @@ export default function AffiliateManagementPage() {
                             <TableCell className="text-right">
                               <span
                                 className={`text-sm font-bold ${
-                                  aff.balance > 0 ? 'text-emerald-400' : 'text-white/40'
+                                  aff.balance > 0 ? 'text-emerald-400' : 'text-[#8892b0]'
                                 }`}
                               >
                                 {formatRupiah(aff.balance)}
@@ -582,9 +585,9 @@ export default function AffiliateManagementPage() {
 
                           {/* Expanded detail */}
                           {isExpanded && (
-                            <TableRow className="border-white/5 hover:bg-transparent">
+                            <TableRow className="border-white/[0.06] hover:bg-transparent">
                               <TableCell colSpan={7} className="p-0">
-                                <div className="bg-white/[0.01] border-t border-white/5 px-6 py-4">
+                                <div className="bg-white/[0.01] border-t border-white/[0.06] px-6 py-4">
                                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                                     <div className="space-y-1">
                                       <p className="text-[10px] uppercase tracking-widest text-white/25 font-semibold">
@@ -624,10 +627,10 @@ export default function AffiliateManagementPage() {
                                       <p className="text-[10px] uppercase tracking-widest text-white/25 font-semibold">
                                         Riwayat Withdrawal
                                       </p>
-                                      <div className="max-h-48 overflow-y-auto rounded-lg border border-white/5">
+                                      <div className="max-h-48 overflow-y-auto rounded-lg border border-white/[0.06]">
                                         <Table>
                                           <TableHeader>
-                                            <TableRow className="border-white/5 hover:bg-transparent">
+                                            <TableRow className="border-white/[0.06] hover:bg-transparent">
                                               <TableHead className="text-white/30 text-[10px] uppercase tracking-wider">
                                                 Tanggal
                                               </TableHead>
@@ -643,12 +646,12 @@ export default function AffiliateManagementPage() {
                                             {aff.withdrawals.map((w) => (
                                               <TableRow
                                                 key={w.id}
-                                                className="border-white/5 hover:bg-transparent"
+                                                className="border-white/[0.06] hover:bg-transparent"
                                               >
-                                                <TableCell className="text-white/40 text-xs">
+                                                <TableCell className="text-[#8892b0] text-xs">
                                                   {formatDate(w.createdAt)}
                                                 </TableCell>
-                                                <TableCell className="text-white/60 text-xs font-medium">
+                                                <TableCell className="text-[#8892b0] text-xs font-medium">
                                                   {formatRupiah(w.amount)}
                                                 </TableCell>
                                                 <TableCell>{statusBadge(w.status)}</TableCell>
@@ -680,28 +683,28 @@ export default function AffiliateManagementPage() {
 
       {/* ── Confirmation Dialog ────────────────────────────────────── */}
       <AlertDialog open={!!confirmWithdrawal} onOpenChange={(open) => !open && setConfirmWithdrawal(null)}>
-        <AlertDialogContent className="bg-[#1a0f2e] border-blue-500/20 sm:max-w-md">
+        <AlertDialogContent className="bg-[#0e1117] backdrop-blur-xl border-white/[0.06] sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Konfirmasi Pembayaran</AlertDialogTitle>
-            <AlertDialogDescription className="text-white/50 space-y-3">
+            <AlertDialogDescription className="text-[#8892b0] space-y-3">
               <p>
                 Apakah Anda yakin ingin menandai withdrawal ini sebagai <span className="text-emerald-400 font-semibold">sudah dibayar</span>?
               </p>
               {confirmWithdrawal && (
-                <div className="bg-white/5 rounded-lg p-3 space-y-1.5 border border-white/5">
+                <div className="bg-white/[0.06] rounded-lg p-3 space-y-1.5 border border-white/[0.06]">
                   <div className="flex justify-between text-xs">
-                    <span className="text-white/40">Jumlah</span>
+                    <span className="text-[#8892b0]">Jumlah</span>
                     <span className="text-amber-400 font-bold">{formatRupiah(confirmWithdrawal.amount)}</span>
                   </div>
                   {confirmWithdrawal.bankInfo && (
                     <div className="flex justify-between text-xs">
-                      <span className="text-white/40">Info Bank</span>
+                      <span className="text-[#8892b0]">Info Bank</span>
                       <span className="text-white/70 text-right max-w-[200px] truncate">{confirmWithdrawal.bankInfo}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-xs">
-                    <span className="text-white/40">Tanggal Request</span>
-                    <span className="text-white/60">{formatDate(confirmWithdrawal.createdAt)}</span>
+                    <span className="text-[#8892b0]">Tanggal Request</span>
+                    <span className="text-[#8892b0]">{formatDate(confirmWithdrawal.createdAt)}</span>
                   </div>
                 </div>
               )}
@@ -713,7 +716,7 @@ export default function AffiliateManagementPage() {
           <AlertDialogFooter>
             <AlertDialogCancel
               disabled={markingPaid}
-              className="border-white/10 text-white/60 hover:text-white hover:bg-white/5 bg-transparent"
+              className="border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03] bg-transparent"
             >
               Batal
             </AlertDialogCancel>

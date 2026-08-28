@@ -133,7 +133,7 @@ async function fetchLeaderboardFromDB(period: string, sortBy: string): Promise<L
     FROM profiles p
     INNER JOIN trades t ON t.user_id = p.id
     WHERE p.public_profile = true
-      AND t.close_time >= $1
+      AND t.close_time >= $1::timestamp
     GROUP BY p.id, p.full_name, p.is_pro, p.streak_count
     HAVING COUNT(t.id) >= 1
     ORDER BY ${sortClause}

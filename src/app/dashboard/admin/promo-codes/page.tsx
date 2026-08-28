@@ -105,7 +105,7 @@ function PromoCodeCard({ promo, usageList }: { promo: PromoCode; usageList: Prom
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="bg-[#1e1338] border-blue-500/20 hover:border-blue-500/40 transition-colors">
+      <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06] hover:border-white/[0.12] transition-colors">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -208,7 +208,7 @@ function UsageTable({ usage }: { usage: PromoUsage[] }) {
                 <td className="py-3 pr-4 text-gray-300 font-mono text-xs">{u.email}</td>
                 <td className="py-3 pr-4 text-white">{u.fullName || '-'}</td>
                 <td className="py-3 pr-4">
-                  <Badge variant="outline" className="font-mono text-xs bg-blue-500/10 border-blue-500/30 text-cyan-300">
+                  <Badge variant="outline" className="font-mono text-xs bg-blue-500/10 border-white/[0.06] text-cyan-300">
                     {u.promoCode}
                   </Badge>
                 </td>
@@ -245,7 +245,7 @@ function UsageTable({ usage }: { usage: PromoUsage[] }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.04, duration: 0.3 }}
           >
-            <Card className="bg-[#1e1338] border-blue-500/15 p-4">
+            <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06] p-4">
               <div className="flex items-start justify-between mb-2">
                 <div className="space-y-0.5">
                   <p className="text-white text-sm font-medium">{u.fullName || u.email}</p>
@@ -266,7 +266,7 @@ function UsageTable({ usage }: { usage: PromoUsage[] }) {
                 )}
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-400">
-                <Badge variant="outline" className="font-mono text-[10px] bg-blue-500/10 border-blue-500/30 text-cyan-300">
+                <Badge variant="outline" className="font-mono text-[10px] bg-blue-500/10 border-white/[0.06] text-cyan-300">
                   {u.promoCode}
                 </Badge>
                 <span className="text-amber-400">{u.discountPercent}% off</span>
@@ -422,7 +422,7 @@ export default function PromoCodesPage() {
   // Loading / Auth screen
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-[#1a0f2e] flex items-center justify-center">
+      <div className="min-h-screen bg-[#050507] flex items-center justify-center">
         <Loader2 className="h-8 w-8 text-cyan-400 animate-spin" />
       </div>
     )
@@ -433,9 +433,11 @@ export default function PromoCodesPage() {
   const hasMissingTables = data?.missingTables && data.missingTables.length > 0
 
   return (
-    <div className="min-h-screen bg-[#1a0f2e]">
+    <div className="min-h-screen bg-[#050507]">
+      {/* Ambient Glow */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[60%] h-[40%] pointer-events-none" aria-hidden="true" style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, rgba(6,182,212,0.08) 30%, rgba(16,185,129,0.04) 50%, transparent 70%)' }} />
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#1a0f2e]/90 backdrop-blur-md border-b border-blue-500/10">
+      <header className="sticky top-0 z-50 bg-[#050507]/90 backdrop-blur-xl border-b border-white/[0.06] relative">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/dashboard/admin">
@@ -461,6 +463,7 @@ export default function PromoCodesPage() {
             </Button>
           </div>
         </div>
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent pointer-events-none" />
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
@@ -499,7 +502,7 @@ export default function PromoCodesPage() {
 
         {/* Create New Promo */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="bg-[#1e1338] border-blue-500/20">
+          <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
             <CardHeader className="pb-4">
               <CardTitle className="text-white flex items-center gap-2 text-base">
                 <Plus className="h-4 w-4 text-amber-400" />
@@ -576,7 +579,7 @@ export default function PromoCodesPage() {
               { label: 'Total Terpakai', value: data.summary.totalQuotaUsed, icon: Users, color: 'text-amber-400', bg: 'bg-amber-500/10' },
               { label: 'Sisa Quota', value: data.summary.totalQuotaRemaining, icon: BarChart3, color: 'text-blue-400', bg: 'bg-blue-500/10' },
             ].map(s => (
-              <Card key={s.label} className="bg-[#1e1338] border-white/5">
+              <Card key={s.label} className="bg-[#0e1117]/80 backdrop-blur-xl border-white/5">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-1">
                     <div className={`p-1.5 rounded-md ${s.bg}`}>
@@ -618,7 +621,7 @@ export default function PromoCodesPage() {
                 ))}
               </div>
             ) : (
-              <Card className="bg-[#1e1338]/50 border-dashed border-white/10">
+              <Card className="bg-white/[0.03] border-dashed border-white/10">
                 <CardContent className="py-12 text-center">
                   <Tag className="h-8 w-8 text-gray-600 mx-auto mb-3" />
                   <p className="text-gray-500 text-sm">Belum ada kode promo</p>
@@ -641,7 +644,7 @@ export default function PromoCodesPage() {
                 </Badge>
               </h2>
             </div>
-            <Card className="bg-[#1e1338] border-blue-500/20">
+            <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
               <CardContent className="p-4 max-h-[500px] overflow-y-auto">
                 <UsageTable usage={data.promoUsage} />
               </CardContent>
@@ -652,7 +655,7 @@ export default function PromoCodesPage() {
         {/* Empty usage state */}
         {data && !hasMissingTables && data.promoUsage && data.promoUsage.length === 0 && data.promoCodes && data.promoCodes.length > 0 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
-            <Card className="bg-[#1e1338]/50 border-dashed border-white/10">
+            <Card className="bg-white/[0.03] border-dashed border-white/10">
               <CardContent className="py-12 text-center">
                 <Users className="h-8 w-8 text-gray-600 mx-auto mb-3" />
                 <p className="text-gray-500 text-sm">Belum ada penggunaan promo</p>
