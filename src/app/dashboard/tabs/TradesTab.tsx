@@ -498,20 +498,20 @@ function TradesTab({
       <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm" aria-label={language === 'id' ? 'Daftar trade' : 'Trade list'}>
               <thead>
                 <tr className="border-b border-lux-border dark:border-blue-900/30 text-lux-text-secondary dark:text-gray-400">
-                  <th className="text-left p-4 font-medium">Symbol</th>
-                  <th className="text-left p-4 font-medium">Type</th>
-                  <th className="text-left p-4 font-medium hidden lg:table-cell">Setup</th>
-                  <th className="text-left p-4 font-medium hidden md:table-cell">Duration</th>
-                  <th className="text-left p-4 font-medium hidden md:table-cell">R:R</th>
-                  <th className="text-left p-4 font-medium hidden sm:table-cell">Tags</th>
-                  <th className="text-left p-4 font-medium hidden sm:table-cell">Entry</th>
-                  <th className="text-left p-4 font-medium hidden sm:table-cell">Exit</th>
-                  <th className="text-left p-4 font-medium hidden md:table-cell">Session</th>
-                  <th className="text-right p-4 font-medium">P/L</th>
-                  <th className="text-right p-4 font-medium">Actions</th>
+                  <th className="text-left p-4 font-medium" scope="col">Symbol</th>
+                  <th className="text-left p-4 font-medium" scope="col">Type</th>
+                  <th className="text-left p-4 font-medium hidden lg:table-cell" scope="col">Setup</th>
+                  <th className="text-left p-4 font-medium hidden md:table-cell" scope="col">Duration</th>
+                  <th className="text-left p-4 font-medium hidden md:table-cell" scope="col">R:R</th>
+                  <th className="text-left p-4 font-medium hidden sm:table-cell" scope="col">Tags</th>
+                  <th className="text-left p-4 font-medium hidden sm:table-cell" scope="col">Entry</th>
+                  <th className="text-left p-4 font-medium hidden sm:table-cell" scope="col">Exit</th>
+                  <th className="text-left p-4 font-medium hidden md:table-cell" scope="col">Session</th>
+                  <th className="text-right p-4 font-medium" scope="col">P/L</th>
+                  <th className="text-right p-4 font-medium" scope="col">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -604,16 +604,17 @@ function TradesTab({
                         <div className="flex items-center justify-end gap-1">
                           {/* Journal Link */}
                           {trade.linked_journal_id && (
-                            <Link2 className="w-4 h-4 text-amber-400" />
+                            <Link2 className="w-4 h-4 text-amber-400" aria-hidden="true" />
                           )}
                           {/* Image Attachment Indicator */}
                           {trade.image_url && (
-                            <ImageIcon className="w-4 h-4 text-blue-400" />
+                            <ImageIcon className="w-4 h-4 text-blue-400" aria-hidden="true" />
                           )}
                           <button
                             onClick={() => onView(trade)}
                             className="p-1.5 rounded-lg hover:bg-lux-surface-hover dark:hover:bg-white/10 text-lux-text-secondary dark:text-gray-400 hover:text-lux-text-primary dark:hover:text-white transition-colors"
                             title="View trade"
+                            aria-label="View trade"
                           >
                             <ViewIcon className="w-4 h-4" />
                           </button>
@@ -621,6 +622,7 @@ function TradesTab({
                             onClick={() => onEdit(trade)}
                             className="p-1.5 rounded-lg hover:bg-lux-surface-hover dark:hover:bg-white/10 text-lux-text-secondary dark:text-gray-400 hover:text-blue-400 transition-colors"
                             title="Edit trade"
+                            aria-label="Edit trade"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
@@ -629,6 +631,7 @@ function TradesTab({
                               onClick={() => handleDuplicate(trade)}
                               className="p-1.5 rounded-lg hover:bg-lux-surface-hover dark:hover:bg-white/10 text-lux-text-secondary dark:text-gray-400 hover:text-amber-400 transition-colors"
                               title="Duplicate trade"
+                              aria-label="Duplicate trade"
                             >
                               <Copy className="w-4 h-4" />
                             </button>
@@ -637,6 +640,7 @@ function TradesTab({
                             onClick={() => onDelete(trade)}
                             className="p-1.5 rounded-lg hover:bg-lux-surface-hover dark:hover:bg-white/10 text-lux-text-secondary dark:text-gray-400 hover:text-red-400 transition-colors"
                             title="Delete trade"
+                            aria-label="Delete trade"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>

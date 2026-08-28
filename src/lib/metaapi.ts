@@ -42,6 +42,30 @@ export enum MetaApiConnectionStatus {
   ERROR = 'ERROR'
 }
 
+// ============================================
+// Return Type Interfaces
+// ============================================
+
+interface MetaApiAccount {
+  id: string
+  accountNumber: string
+  platform: string
+  name: string
+  [key: string]: unknown
+}
+
+interface MetaApiDeal {
+  id: string
+  accountId: string
+  symbol: string
+  type: string
+  volume: number
+  price: number
+  profit: number
+  time: string
+  [key: string]: unknown
+}
+
 /**
  * Create MetaApi account using their API
  * This will be called from the backend API route
@@ -52,7 +76,7 @@ export async function createMetaApiAccount(accountData: {
   server: string
   platform: 'MT4' | 'MT5'
   name?: string
-}) {
+}): Promise<MetaApiAccount> {
   if (!isMetaApiConfigured()) {
     throw new Error('MetaApi token is not configured. Please set METAAPI_TOKEN environment variable.')
   }
@@ -94,7 +118,7 @@ export async function createMetaApiAccount(accountData: {
 /**
  * Get MetaApi account information
  */
-export async function getMetaApiAccount(accountId: string) {
+export async function getMetaApiAccount(accountId: string): Promise<MetaApiAccount> {
   if (!isMetaApiConfigured()) {
     throw new Error('MetaApi token is not configured')
   }
@@ -118,7 +142,7 @@ export async function getMetaApiAccount(accountId: string) {
 /**
  * Delete MetaApi account
  */
-export async function deleteMetaApiAccount(accountId: string) {
+export async function deleteMetaApiAccount(accountId: string): Promise<boolean> {
   if (!isMetaApiConfigured()) {
     throw new Error('MetaApi token is not configured')
   }
@@ -147,7 +171,7 @@ export async function getMetaApiDeals(accountId: string, options?: {
   endTime?: string
   limit?: number
   offset?: number
-}) {
+}): Promise<MetaApiDeal[]> {
   if (!isMetaApiConfigured()) {
     throw new Error('MetaApi token is not configured')
   }

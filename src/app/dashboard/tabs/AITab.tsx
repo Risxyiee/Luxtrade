@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Brain, Sparkles, TrendingUp, MessageCircle, Bot, User, Send, Lock, AlertCircle, Loader2, Mic, Upload, BarChart3, FileText, Image as ImageIcon } from 'lucide-react'
+import { Brain, Sparkles, TrendingUp, MessageCircle, Bot, User, Send, Lock, AlertCircle, Loader2, Mic, Upload, BarChart3, Image as ImageIcon, Lightbulb } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -45,6 +45,7 @@ interface AITabProps {
   loading: boolean
   onGetTips: () => void
   onGetMarket: () => void
+  onGetRecommendations: () => void
   chatMessages: { role: 'user' | 'assistant'; content: string }[]
   chatInput: string
   onChatChange: (v: string) => void
@@ -64,6 +65,7 @@ export default function AITab({
   loading,
   onGetTips,
   onGetMarket,
+  onGetRecommendations,
   chatMessages,
   chatInput,
   onChatChange,
@@ -131,6 +133,14 @@ export default function AITab({
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+            <Button
+              onClick={onGetRecommendations}
+              disabled={loading || !hasEnoughTrades}
+              className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-purple-400 hover:bg-purple-500/30 justify-start"
+            >
+              {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Lightbulb className="w-4 h-4 mr-2" />}
+              {language === 'id' ? 'Rekomendasi AI' : 'Recommendation Engine'}
+            </Button>
             <Button
               onClick={onGetTips}
               disabled={loading || !hasEnoughTrades}

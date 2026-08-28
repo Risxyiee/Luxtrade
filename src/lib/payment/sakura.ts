@@ -307,12 +307,13 @@ export async function createSakuraOrder(params: SakuraOrderParams): Promise<Saku
     const errorMessage = result.message || `SakuraPay API error: ${response.status}`
     console.error('❌ [SakuraPay] API Error:', errorMessage)
     throw new Error(errorMessage)
-  } catch (error: any) {
-    if (error.message.includes('SakuraPay credentials') || error.message.includes('SakuraPay API')) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (message.includes('SakuraPay credentials') || message.includes('SakuraPay API')) {
       throw error
     }
-    console.error('❌ [SakuraPay] Network/Fetch error:', error.message)
-    throw new Error(`Gagal terhubung ke SakuraPay: ${error.message}`)
+    console.error('❌ [SakuraPay] Network/Fetch error:', message)
+    throw new Error(`Gagal terhubung ke SakuraPay: ${message}`)
   }
 }
 
