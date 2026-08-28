@@ -1,141 +1,224 @@
-# 🚀 Welcome to Z.ai Code Scaffold
+<p align="center">
+  <img src="public/favicon.ico" alt="LuxTrade" width="64" height="64" />
+</p>
 
-A modern, production-ready web application scaffold powered by cutting-edge technologies, designed to accelerate your development with [Z.ai](https://chat.z.ai)'s AI-powered coding assistance.
+<h1 align="center">LuxTrade</h1>
 
-## ✨ Technology Stack
+<p align="center">
+  <strong>Trading Journal & Analytics Platform</strong><br/>
+  Catat, analisis, dan tingkatkan performa trading kamu — semua dalam satu tempat.
+</p>
 
-This scaffold provides a robust foundation built with:
-
-### 🎯 Core Framework
-- **⚡ Next.js 16** - The React framework for production with App Router
-- **📘 TypeScript 5** - Type-safe JavaScript for better developer experience
-- **🎨 Tailwind CSS 4** - Utility-first CSS framework for rapid UI development
-
-### 🧩 UI Components & Styling
-- **🧩 shadcn/ui** - High-quality, accessible components built on Radix UI
-- **🎯 Lucide React** - Beautiful & consistent icon library
-- **🌈 Framer Motion** - Production-ready motion library for React
-- **🎨 Next Themes** - Perfect dark mode in 2 lines of code
-
-### 📋 Forms & Validation
-- **🎣 React Hook Form** - Performant forms with easy validation
-- **✅ Zod** - TypeScript-first schema validation
-
-### 🔄 State Management & Data Fetching
-- **🐻 Zustand** - Simple, scalable state management
-- **🔄 TanStack Query** - Powerful data synchronization for React
-- **🌐 Fetch** - Promise-based HTTP request
-
-### 🗄️ Database & Backend
-- **🗄️ Prisma** - Next-generation TypeScript ORM
-- **🔐 NextAuth.js** - Complete open-source authentication solution
-
-### 🎨 Advanced UI Features
-- **📊 TanStack Table** - Headless UI for building tables and datagrids
-- **🖱️ DND Kit** - Modern drag and drop toolkit for React
-- **📊 Recharts** - Redefined chart library built with React and D3
-- **🖼️ Sharp** - High performance image processing
-
-### 🌍 Internationalization & Utilities
-- **🌍 Next Intl** - Internationalization library for Next.js
-- **📅 Date-fns** - Modern JavaScript date utility library
-- **🪝 ReactUse** - Collection of essential React hooks for modern development
-
-## 🎯 Why This Scaffold?
-
-- **🏎️ Fast Development** - Pre-configured tooling and best practices
-- **🎨 Beautiful UI** - Complete shadcn/ui component library with advanced interactions
-- **🔒 Type Safety** - Full TypeScript configuration with Zod validation
-- **📱 Responsive** - Mobile-first design principles with smooth animations
-- **🗄️ Database Ready** - Prisma ORM configured for rapid backend development
-- **🔐 Auth Included** - NextAuth.js for secure authentication flows
-- **📊 Data Visualization** - Charts, tables, and drag-and-drop functionality
-- **🌍 i18n Ready** - Multi-language support with Next Intl
-- **🚀 Production Ready** - Optimized build and deployment settings
-- **🤖 AI-Friendly** - Structured codebase perfect for AI assistance
-
-## 🚀 Quick Start
-
-```bash
-# Install dependencies
-bun install
-
-# Start development server
-bun run dev
-
-# Build for production
-bun run build
-
-# Start production server
-bun start
-```
-
-Open [http://localhost:3000](http://localhost:3000) to see your application running.
-
-## 🤖 Powered by Z.ai
-
-This scaffold is optimized for use with [Z.ai](https://chat.z.ai) - your AI assistant for:
-
-- **💻 Code Generation** - Generate components, pages, and features instantly
-- **🎨 UI Development** - Create beautiful interfaces with AI assistance  
-- **🔧 Bug Fixing** - Identify and resolve issues with intelligent suggestions
-- **📝 Documentation** - Auto-generate comprehensive documentation
-- **🚀 Optimization** - Performance improvements and best practices
-
-Ready to build something amazing? Start chatting with Z.ai at [chat.z.ai](https://chat.z.ai) and experience the future of AI-powered development!
-
-## 📁 Project Structure
-
-```
-src/
-├── app/                 # Next.js App Router pages
-├── components/          # Reusable React components
-│   └── ui/             # shadcn/ui components
-├── hooks/              # Custom React hooks
-└── lib/                # Utility functions and configurations
-```
-
-## 🎨 Available Features & Components
-
-This scaffold includes a comprehensive set of modern web development tools:
-
-### 🧩 UI Components (shadcn/ui)
-- **Layout**: Card, Separator, Aspect Ratio, Resizable Panels
-- **Forms**: Input, Textarea, Select, Checkbox, Radio Group, Switch
-- **Feedback**: Alert, Toast (Sonner), Progress, Skeleton
-- **Navigation**: Breadcrumb, Menubar, Navigation Menu, Pagination
-- **Overlay**: Dialog, Sheet, Popover, Tooltip, Hover Card
-- **Data Display**: Badge, Avatar, Calendar
-
-### 📊 Advanced Data Features
-- **Tables**: Powerful data tables with sorting, filtering, pagination (TanStack Table)
-- **Charts**: Beautiful visualizations with Recharts
-- **Forms**: Type-safe forms with React Hook Form + Zod validation
-
-### 🎨 Interactive Features
-- **Animations**: Smooth micro-interactions with Framer Motion
-- **Drag & Drop**: Modern drag-and-drop functionality with DND Kit
-- **Theme Switching**: Built-in dark/light mode support
-
-### 🔐 Backend Integration
-- **Authentication**: Ready-to-use auth flows with NextAuth.js
-- **Database**: Type-safe database operations with Prisma
-- **API Client**: HTTP requests with Fetch + TanStack Query
-- **State Management**: Simple and scalable with Zustand
-
-### 🌍 Production Features
-- **Internationalization**: Multi-language support with Next Intl
-- **Image Optimization**: Automatic image processing with Sharp
-- **Type Safety**: End-to-end TypeScript with Zod validation
-- **Essential Hooks**: 100+ useful React hooks with ReactUse for common patterns
-
-## 🤝 Get Started with Z.ai
-
-1. **Clone this scaffold** to jumpstart your project
-2. **Visit [chat.z.ai](https://chat.z.ai)** to access your AI coding assistant
-3. **Start building** with intelligent code generation and assistance
-4. **Deploy with confidence** using the production-ready setup
+<p align="center">
+  <a href="https://luxtrade.vercel.app">Live Demo</a> &middot;
+  <a href="#fitur">Fitur</a> &middot;
+  <a href="HANDOFF.md">Handoff Doc</a> &middot;
+  <a href="#tech-stack">Tech Stack</a>
+</p>
 
 ---
 
-Built with ❤️ for the developer community. Supercharged by [Z.ai](https://chat.z.ai) 🚀
+## Tentang
+
+LuxTrade adalah platform **trading journal** yang dirancang khusus untuk trader Indonesia. Menyediakan fitur pencatatan trade, analisis performa, journal psikologi, dan asisten AI — semuanya dalam satu dashboard yang bersih dan responsif.
+
+### Kenapa LuxTrade?
+
+- **Journal Trading** — Catat setiap trade dengan detail lengkap (pair, lot, entry/exit, S/L, T/P, emosi, screenshot)
+- **AI Assistant** — Analisis performa, insight pasar, dan chat AI berbasis data trading kamu
+- **Analytics Mendalam** — Win rate, profit factor, max drawdown, equity curve, heatmap sesi, analisis per pair
+- **Payment Terintegrasi** — SakuraPay, Midtrans, DOKU — semua dalam Rupiah
+- **Bahasa Indonesia** — Default Bahasa Indonesia, dengan opsi English
+
+---
+
+## Fitur
+
+### Dashboard (16 Tab)
+
+| Tab | Deskripsi |
+|-----|-----------|
+| Overview | Statistik utama, equity curve, activity feed, weekly performance |
+| Trades | Daftar trade dengan filter, sort, search, export |
+| Journal | Catatan journal harian dengan mood & market condition |
+| Calendar | Kalender trade visual |
+| Watchlist | Pair yang di-monitor |
+| **AI Assistant** | Tips performa, insight pasar, analisis trade, analisis chart, chat AI |
+| Analytics | Analisis lanjutan per pair, sesi, timeframe |
+| Accounts | Manajemen akun broker |
+| Targets | Target mingguan |
+| Risk Calculator | Kalkulator position sizing |
+| Heatmap | Heatmap performa per hari/jam |
+| Market News | Feed berita pasar |
+| Economic Calendar | Kalender ekonomi |
+| Psychology | Tracking emosi & psikologi trading |
+| User Guide | Panduan onboarding |
+
+### AI Features (PRO)
+
+- **Performance Tips** — Analisis win rate, risk-reward, expected value, streak
+- **Market Insight** — Insight pasar berdasarkan sesi trading saat ini
+- **Trade Analysis** — Deep dive analisis trade spesifik dengan konteks
+- **Chart Analysis** — Upload chart screenshot, AI analisis trend, S/R, pattern
+- **AI Chat** — Chat bebas tentang trading dengan konteks data kamu
+
+### Pricing (IDR)
+
+| Paket | Harga |
+|-------|-------|
+| PRO Bulanan | Rp39.000 / bulan |
+| PRO Tahunan | Rp390.000 / tahun (hemat 2 bulan) |
+| PRO Lifetime | Rp299.000 (30 slot founding member) |
+
+---
+
+## Tech Stack
+
+| Teknologi | Fungsi |
+|-----------|--------|
+| **Next.js 16** (App Router) | Framework utama |
+| **React 19** + TypeScript 5 | UI & type safety |
+| **Tailwind CSS 4** + shadcn/ui | Styling & komponen |
+| **Prisma 6** + PostgreSQL | Database ORM |
+| **Supabase Auth** | Autentikasi |
+| **Zustand** | Client state management |
+| **z-ai-web-dev-sdk** (GLM-4.6) | AI assistant |
+| **SakuraPay / Midtrans / DOKU** | Payment gateway |
+| **Recharts** | Charts & visualisasi |
+| **Framer Motion** | Animasi |
+| **Resend** | Email service |
+| **Sentry** | Error monitoring |
+
+---
+
+## Project Structure
+
+```
+src/
+├── app/
+│   ├── page.tsx                 # Landing page
+│   ├── proxy.ts                 # Auth guard (pengganti middleware.ts)
+│   ├── auth/                    # Login, signup, verify
+│   ├── dashboard/
+│   │   ├── LuxTradeDashboard.tsx  # Komponen utama dashboard
+│   │   ├── tabs/                   # 16 tab dashboard
+│   │   ├── components/             # Komponen pendukung
+│   │   └── handlers/               # Handler logic terpisah
+│   └── api/                     # ~120+ API routes
+│       ├── ai/route.ts            # AI endpoint utama (5 tipe)
+│       ├── trades/                # CRUD trades
+│       ├── payment/               # SakuraPay
+│       ├── midtrans/              # Midtrans
+│       ├── promo/                 # Promo codes
+│       ├── admin/                 # Admin panel
+│       └── cron/                  # Scheduled jobs
+├── components/
+│   ├── ui/                      # shadcn/ui (jangan edit manual)
+│   └── landing/                 # Landing page components
+├── lib/
+│   ├── api-auth.ts             # requireAuth()
+│   ├── pro-check.ts            # isUserPro()
+│   ├── zai.ts                   # ZAI SDK wrapper
+│   ├── db.ts                    # Prisma client
+│   ├── auth-context.tsx         # AuthProvider
+│   └── payment/                 # Gateway helpers
+├── store/                       # Zustand stores
+├── contexts/                    # React contexts (i18n)
+└── types/                       # TypeScript types
+
+prisma/
+├── schema.prisma                # 16 database models
+
+mini-services/
+├── ollama-service/              # Vision AI (port 3031)
+├── zai-vision-service/          # ZAI Vision (port 3010)
+└── affiliate-ws/                # WebSocket affiliate (port 3004)
+```
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- [Bun](https://bun.sh/) (recommended) atau Node.js 18+
+- PostgreSQL database (Supabase recommended)
+
+### Setup
+
+```bash
+# 1. Clone repo
+
+# 2. Install dependencies
+bun install
+
+# 3. Setup environment variables
+
+# 4. Push database schema
+bun run db:push
+
+# 5. Start dev server
+bun run dev
+```
+
+### Environment Variables
+
+```env
+# Supabase (WAJIB)
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+DATABASE_URL=
+
+# Email (WAJIB)
+RESEND_API_KEY=
+RESEND_TEMPLATE_CONFIRM=
+RESEND_TEMPLATE_RESET=
+
+# AI (untuk fitur AI)
+ZAI_BASE_URL=
+ZAI_API_KEY=
+ZAI_CHAT_ID=
+ZAI_TOKEN=
+ZAI_USER_ID=
+
+# App URL
+NEXT_PUBLIC_APP_URL=
+NEXT_PUBLIC_SITE_URL=
+
+# Payment (opsional, sesuai gateway)
+SAKURA_API_ID=
+SAKURA_API_KEY=
+MIDTRANS_SERVER_KEY=
+MIDTRANS_CLIENT_KEY=
+```
+
+### Useful Commands
+
+```bash
+bun run dev              # Start dev server (port 3000)
+bun run lint             # Cek code quality
+bun run db:push           # Push schema ke database
+bun run db:migrate        # Migration (production)
+bun run db:generate       # Generate Prisma client
+```
+
+---
+
+## Documentation
+
+| Dokumen | Deskripsi |
+|---------|-----------|
+| [HANDOFF.md](HANDOFF.md) | Panduan maintenance lengkap (file map, data flow, auth, AI, risk map, change guide) |
+
+---
+
+## License
+
+Private project. All rights reserved.
+
+---
+
+<p align="center">
+  Built for Indonesian traders &middot; Powered by Next.js & AI
+</p>
