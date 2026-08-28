@@ -431,3 +431,58 @@ Stage Summary:
 - New template 'Update & Perbaikan' available in admin panel dropdown
 - Professional 3-section layout: blue (features), green (fixes), amber (performance)
 - Ready to customize with actual feature/fix names before sending
+
+## Admin-Email Page Redesign & DashboardFAB Removal — 2026-08-28 11:17 UTC
+
+### Changes Applied:
+
+- **TARGET_OPTIONS badge colors**: Changed `verified` from green to emerald (`text-emerald-400`, `bg-emerald-500/10`), changed `pro` from amber to blue (`text-blue-400`, `bg-blue-500/10`). Kept `unverified` (orange), `free` (cyan), `all` (blue) unchanged.
+- **Quill editor colors**: Changed `#fbbf24` → `#60a5fa` for editor link color and picker selected/hover color.
+- **Sidebar Recent Broadcasts card**: Changed from `bg-[#1a0f2e]/50 backdrop-blur-sm` to `bg-[#0a0a1a] border border-white/[0.06] rounded-2xl hover:bg-[#0f0f25] transition-colors duration-300`. Added HISTORY section label. Changed icon from `text-amber-400` to `text-blue-400`. Changed text from `text-white` to `text-[#f0f2ff]`. Empty state updated from `text-white/10`/`text-white/30` to `text-[#8892b0]/20`/`text-[#8892b0]/50`.
+- **Sidebar Info Card**: Changed from `bg-[#1a0f2e]/50 backdrop-blur-sm` to `bg-[#0a0a1a] border border-white/[0.06] rounded-2xl hover:bg-[#0f0f25] transition-colors duration-300`. Added INFO section label. Changed bullet dots from `text-amber-400` to `text-blue-400`. Changed text from `text-white/40` to `text-[#8892b0]`. Changed strong text from `text-white/60` to `text-[#f0f2ff]/70`.
+- **Confirmation Dialog**: Changed from `bg-[#1a0f2e] border-white/[0.08]` to `bg-[#0a0a1a] border border-white/[0.06] rounded-2xl`. Send icon from `text-amber-400` to `text-blue-400`. Title from `text-white` to `text-[#f0f2ff]`. Description from `text-white/50` to `text-[#8892b0]`. Info boxes from `rounded-lg` to `rounded-xl`. Warning box from `bg-amber-500/[0.06] border-amber-500/15 text-amber-300/70 text-amber-300` to `bg-blue-500/[0.06] border-blue-500/15 text-blue-300/70 text-blue-300`. Cancel button text from `text-white/60 hover:text-white` to `text-[#8892b0] hover:text-[#f0f2ff]`. Send button from `from-amber-600 to-orange-600` to `from-blue-500 to-cyan-400` with `rounded-xl`.
+- **StatCard component**: Removed Card/CardContent wrapper, replaced with plain div using `bg-[#0a0a1a] hover:bg-[#0f0f25] transition-colors duration-300 p-6`. Changed label from `text-xs text-white/40` to `text-[11px] font-medium tracking-[0.12em] uppercase text-[#8892b0]`. Changed value from `text-2xl font-bold text-white` to `text-2xl font-bold text-[#f0f2ff]`. Changed spacing from `mb-2` to `mb-3`.
+- **DashboardFAB removal**: Checked LuxTradeDashboard.tsx — DashboardFAB was not imported or used there (no reference found). No changes needed.
+
+### Design tokens applied throughout:
+- Background: `bg-[#0a0a1a]` (cards), `hover:bg-[#0f0f25]`
+- Card border: `border border-white/[0.06] rounded-2xl`
+- Text primary: `text-[#f0f2ff]`
+- Text muted: `text-[#8892b0]`
+- Accent: `text-blue-400`, `bg-blue-500/10`, `border-blue-500/20`
+- CTA: `bg-gradient-to-r from-blue-500 to-cyan-400`
+- Section labels: `text-[11px] font-medium tracking-[0.16em] uppercase text-blue-400`
+
+### Lint: Passed with no errors.
+
+---
+Task ID: 18
+Agent: Main
+Task: Redesign admin-email page to match landing page + remove DashboardFAB
+
+Work Log:
+- **Removed DashboardFAB** from LuxTradeDashboard.tsx (import + JSX usage)
+- **Redesigned admin-email page** visual layer only (no logic changes):
+  - Background: `#0a0612` → `#050510`
+  - Cards: `#1a0f2e/50` → `#0a0a1a` with `border-white/[0.06] rounded-2xl`
+  - Header: matches landing navbar `#050510/90 backdrop-blur-xl`
+  - Text: `text-white` → `text-[#f0f2ff]`, muted → `text-[#8892b0]`
+  - Accent: amber/orange → blue-400/cyan-400
+  - CTA buttons: `from-amber-600 to-orange-600` → `from-blue-500 to-cyan-400`
+  - Stats grid: gap-px bordered grid (landing page style)
+  - StatCard: plain div with hover state, uppercase label
+  - Section labels: `text-[11px] tracking-[0.16em] uppercase text-blue-400`
+  - Active tabs: blue accent background
+  - Quill editor active colors: amber → blue
+  - Alert/notice boxes: amber → blue
+  - Dialog: `#0a0a1a` with blue accents
+  - Added ambient blue glow at top
+  - Max width: `max-w-6xl` → `max-w-7xl`
+- **Updated TARGET_OPTIONS**: verified → emerald, pro → blue
+- Lint passes clean
+
+Stage Summary:
+- 2 files modified: admin-email/page.tsx, LuxTradeDashboard.tsx
+- Admin panel now uses same design system as landing page
+- DashboardFAB (floating + button) completely removed from dashboard
+- All colors, borders, radiuses, typography match landing page tokens
