@@ -210,6 +210,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Password minimal 8 karakter' }, { status: 400 })
     }
 
+    if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password) || !/[!@#$%^&*()_+\-=\[\]{};':"|<>,.?\/`~]/.test(password)) {
+      return NextResponse.json({ error: 'Password wajib mengandung: huruf kecil, huruf besar, angka, dan simbol (contoh: !@#)' }, { status: 400 })
+    }
+
     if (!supabaseAdmin) {
       return NextResponse.json({ error: 'Server tidak dikonfigurasi dengan benar.' }, { status: 500 })
     }
@@ -374,6 +378,9 @@ export async function POST(request: NextRequest) {
       }
       if (errorMsg.toLowerCase().includes('rate limit') || errorMsg.toLowerCase().includes('too many')) {
         return NextResponse.json({ error: 'Terlalu banyak percobaan. Tunggu beberapa menit.' }, { status: 429 })
+      }
+      if ((createError as any).code === 'weak_password') {
+        return NextResponse.json({ error: 'Password terlalu lemah. Wajib: huruf besar, kecil, angka, dan simbol (!@#$).' }, { status: 400 })
       }
       return NextResponse.json({ error: `Gagal membuat akun: ${errorMsg}` }, { status: 400 })
     }
