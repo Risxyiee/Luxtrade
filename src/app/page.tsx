@@ -155,7 +155,7 @@ export default function LuxTradeLanding() {
         </header>
         <LandingSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} language={language} t={t} openLegalPage={openLegalPage} />
 
-        <main id="main-content" className="flex-1">
+        <main id="main-content" className="flex-1 pb-20 md:pb-0">
           <HeroSection language={language} />
           <SocialProofBar language={language} />
           <AIVisionSimulator language={language} />

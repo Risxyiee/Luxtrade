@@ -3,7 +3,7 @@
 import { memo, useState, useMemo, useRef, useEffect } from 'react'
 import {
   Menu, RefreshCw, LogOut, Keyboard, Plus, Wallet,
-  ChevronDown, Trash2, Grid3X3, Zap, Gift
+  ChevronDown, Trash2, Grid3X3, Zap, Gift, Settings
 } from 'lucide-react'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import dynamic from 'next/dynamic'
@@ -18,6 +18,8 @@ import {
 import { getShortcutsList } from '@/lib/keyboard-shortcuts'
 import { toast } from 'sonner'
 import DeleteAccountDialog from './sidebar/DeleteAccountDialog'
+import NotificationPreferences from './NotificationPreferences'
+import type { TradeAlertPreferences } from '@/lib/trade-alerts'
 
 // Lazy-loaded to reduce initial bundle
 const NotificationCenter = dynamic(() => import('@/components/NotificationCenter').then(m => ({ default: m.default })), { ssr: false })
@@ -68,6 +70,24 @@ const Header = memo(function Header({
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
   const [accountToDelete, setAccountToDelete] = useState<any>(null)
   const [deleting, setDeleting] = useState(false)
+  const [notifPrefsOpen, setNotifPrefsOpen] = useState(false)
+  const [notifPreferences, setNotifPreferences] = useState<Partial<TradeAlertPreferences> | undefined>()
+
+  // Fetch notification preferences on mount
+  useEffect(() => {
+    async function loadPrefs() {
+      try {
+        const res = await fetch('/api/notifications/preferences', { credentials: 'include' })
+        if (res.ok) {
+          const data = await res.json()
+          setNotifPreferences(data.preferences)
+        }
+      } catch {
+        // Use defaults
+      }
+    }
+    loadPrefs()
+  }, [])
   const shortcuts = useMemo(() => getShortcutsList(), [])
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -155,7 +175,7 @@ const Header = memo(function Header({
       </div>
 
       {/* Center: Command Center — Account Switcher + Action Buttons */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         {/* Account Switcher Dropdown */}
         {tradingAccounts.length > 0 && (
           <div className="relative" ref={dropdownRef}>
@@ -282,7 +302,16 @@ const Header = memo(function Header({
           </DialogContent>
         </Dialog>
 
-        <NotificationCenter trades={trades} isPro={isPro} />
+        <div className="flex items-center gap-0.5">
+          <NotificationCenter trades={trades} isPro={isPro} notificationPreferences={notifPreferences} />
+          <button
+            onClick={() => setNotifPrefsOpen(true)}
+            className="p-2 text-gray-500 hover:text-gray-300 transition-colors rounded-lg hover:bg-white/5"
+            aria-label={language === 'id' ? 'Pengaturan notifikasi' : 'Notification settings'}
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        </div>
 
         <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
@@ -303,6 +332,22 @@ const Header = memo(function Header({
           {userInitials}
         </div>
       </div>
+
+      {/* Notification Preferences Dialog */}
+      <NotificationPreferences
+        open={notifPrefsOpen}
+        onOpenChange={(open) => {
+          setNotifPrefsOpen(open)
+          if (!open) {
+            // Re-fetch preferences after closing so NotificationCenter stays in sync
+            fetch('/api/notifications/preferences', { credentials: 'include' })
+              .then(res => res.ok ? res.json() : null)
+              .then(data => { if (data?.preferences) setNotifPreferences(data.preferences) })
+              .catch(() => {})
+          }
+        }}
+        language={language}
+      />
 
       {/* Delete Account Dialog */}
       <DeleteAccountDialog
