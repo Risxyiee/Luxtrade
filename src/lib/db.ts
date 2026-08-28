@@ -2,8 +2,14 @@ import { PrismaClient } from '@prisma/client'
 
 /**
  * Database connection with URL normalization.
+ *
+ * Pooler URL resolution (priority order):
+ *   1. DATABASE_POOLER_URL — if set, used directly (no transformation)
+ *   2. Legacy auto-detect — checks for Supabase direct URLs and converts to pooler
+ *      (logs a warning; set DATABASE_POOLER_URL for reliability)
+ *
+ * Other handling:
  * - Fixes common Vercel env var corruption (file prefix, doubled protocol)
- * - Auto-detects Supabase direct connection and converts to pooler
  * - Handles pgbouncer compatibility (pooler port, pgBouncer mode)
  * - Graceful fallback for local dev without proper database (returns safe responses instead of crashes)
  */
@@ -33,12 +39,19 @@ function normalizeUrl(raw: string): string {
     url = url.substring(url.indexOf('postgres://'))
   }
 
-  // Auto-detect Supabase direct connection and convert to pooler
+  // Env-driven pooler URL: if DATABASE_POOLER_URL is set, use it directly
+  const poolerEnvUrl = process.env.DATABASE_POOLER_URL?.trim()
+  if (poolerEnvUrl) {
+    return poolerEnvUrl
+  }
+
+  // Legacy auto-detect: convert Supabase direct connection to pooler
   const isDirectSupabase = url.includes('supabase.co') && (url.includes(':5432') || url.match(/db\.[\w-]+\.supabase\.co/))
 
   if (isDirectSupabase && url.includes(':5432')) {
     const match = url.match(/:\/\/([^:]+):([^@]+)@db\.([\w-]+)\.supabase\.co:5432\/(\w+)/)
     if (match) {
+      console.warn('[db] DATABASE_POOLER_URL not set, using auto-detect pooler conversion. Set DATABASE_POOLER_URL for reliability.')
       const [, user, password, project, database] = match
       const poolerUrl = `postgresql://${user}.${project}:${password}@aws-0-ap-southeast-1.pooler.supabase.com:6543/${database}?pgbouncer=true`
 
@@ -117,8 +130,9 @@ try {
     console.log('🗄️ Features requiring database will return safe defaults.')
     console.log('🗄️ ============================================')
   }
-} catch (err: any) {
-  _dbUnavailableReason = err.message || 'Unknown error'
+} catch (err: unknown) {
+  const message = err instanceof Error ? err.message : 'Unknown error'
+  _dbUnavailableReason = message
   console.error('⚠️ [DB] Failed to initialize database client:', err)
   console.log('🗄️ ============================================')
   console.log('🗄️ Database: UNAVAILABLE — running in offline mode')
@@ -156,7 +170,7 @@ function createDbProxy(prisma: PrismaClient | undefined): PrismaClient {
 
       return new Proxy({}, {
         get(_, methodProp) {
-          return (...args: any[]) => {
+          return (...args: unknown[]) => {
             throw new Error(
               `Database is not available (${_dbUnavailableReason || 'no DATABASE_URL'}). ` +
               `Cannot execute db.${String(prop)}.${String(methodProp)}().`

@@ -1,4 +1,4 @@
-import ZAI from 'z-ai-web-dev-sdk'
+import ZAI, { type CreateChatCompletionVisionBody } from 'z-ai-web-dev-sdk'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
@@ -9,6 +9,18 @@ interface ZAIConfig {
   chatId: string
   token: string
   userId: string
+}
+
+function isValidZAIConfig(config: unknown): config is ZAIConfig {
+  if (typeof config !== 'object' || config === null) return false
+  const c = config as Record<string, unknown>
+  return (
+    typeof c.baseUrl === 'string' &&
+    typeof c.apiKey === 'string' &&
+    typeof c.chatId === 'string' &&
+    typeof c.token === 'string' &&
+    typeof c.userId === 'string'
+  )
 }
 
 function loadConfigFromFile(): ZAIConfig | null {
@@ -23,8 +35,8 @@ function loadConfigFromFile(): ZAIConfig | null {
       if (fs.existsSync(filePath)) {
         const configStr = fs.readFileSync(filePath, 'utf-8')
         const config = JSON.parse(configStr)
-        if (config.baseUrl && config.apiKey) {
-          return config as ZAIConfig
+        if (isValidZAIConfig(config)) {
+          return config
         }
       }
     } catch {
@@ -50,34 +62,38 @@ function loadConfigFromEnv(): ZAIConfig | null {
 }
 
 let cachedConfig: ZAIConfig | null = null
-let zaiInstance: any = null
+let zaiInstance: ZAI | null = null
+
+// Map to track timeout IDs for AbortControllers
+const controllerTimeouts = new Map<AbortController, NodeJS.Timeout>()
 
 // Create AbortController with timeout
 function createTimeoutController(timeoutMs: number): AbortController {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-  
-  // Store timeout ID so it can be cleared if needed
-  ;(controller as any)._timeoutId = timeoutId
-  
+  controllerTimeouts.set(controller, timeoutId)
   return controller
 }
 
 // Fetch with timeout
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs: number = 120000): Promise<Response> {
   const controller = createTimeoutController(timeoutMs)
-  
+  const timeoutId = controllerTimeouts.get(controller)
+
   try {
     return await fetch(input, {
       ...init,
       signal: controller.signal
     })
   } finally {
-    clearTimeout((controller as any)._timeoutId)
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId)
+      controllerTimeouts.delete(controller)
+    }
   }
 }
 
-export async function createZAI(): Promise<any> {
+export async function createZAI(): Promise<ZAI> {
   if (!cachedConfig) {
     // Priority: env var > file config
     cachedConfig = loadConfigFromEnv() || loadConfigFromFile()
@@ -109,18 +125,19 @@ export async function createZAI(): Promise<any> {
 
     // Patch createVision method to use timeout
     const originalCreateVision = zaiInstance.chat.completions.createVision
-    zaiInstance.chat.completions.createVision = async (body: any) => {
+    zaiInstance.chat.completions.createVision = async (body: CreateChatCompletionVisionBody) => {
       console.log('🤖 [ZAI] createVision called with 120s timeout')
       const startTime = Date.now()
-      
+
       try {
         const result = await originalCreateVision.call(zaiInstance.chat.completions, body)
         const duration = ((Date.now() - startTime) / 1000).toFixed(2)
         console.log(`✅ [ZAI] createVision completed in ${duration}s`)
         return result
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error)
         const duration = ((Date.now() - startTime) / 1000).toFixed(2)
-        console.error(`❌ [ZAI] createVision failed after ${duration}s:`, error.message)
+        console.error(`❌ [ZAI] createVision failed after ${duration}s:`, message)
         throw error
       }
     }

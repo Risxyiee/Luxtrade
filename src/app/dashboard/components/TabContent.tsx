@@ -18,6 +18,7 @@ const RiskCalculatorTab = dynamic(() => import('../tabs/RiskCalculatorTab').then
 const TargetsTab = dynamic(() => import('../tabs/TargetsTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const MarketNewsTab = dynamic(() => import('../tabs/MarketNewsTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const EconomicCalendarTab = dynamic(() => import('../tabs/EconomicCalendarTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const CommunityTab = dynamic(() => import('../tabs/CommunityTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 
 // Lazy-loaded feature components
 const TradingScore = dynamic(() => import('@/components/TradingScore').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
@@ -50,6 +51,7 @@ interface TabContentProps {
   onWatchlistDelete: (id: string) => void
   onGetTips: () => void
   onGetMarket: () => void
+  onGetRecommendations: () => void
   onChatChange: (value: string) => void
   onSendChat: () => void
   onAnalyzeTrade?: (tradeId: string) => void
@@ -88,6 +90,7 @@ export default function TabContent({
   onWatchlistDelete,
   onGetTips,
   onGetMarket,
+  onGetRecommendations,
   onChatChange,
   onSendChat,
   onAnalyzeTrade,
@@ -171,6 +174,7 @@ export default function TabContent({
               loading={aiLoading}
               onGetTips={onGetTips}
               onGetMarket={onGetMarket}
+              onGetRecommendations={onGetRecommendations}
               chatMessages={aiChatMessages}
               chatInput={aiChatInput}
               onChatChange={onChatChange}
@@ -224,6 +228,17 @@ export default function TabContent({
 
           {activeTab === 'achievements' && hasMounted && (
             <AchievementCenter userId={user?.id || profile?.id || ''} />
+          )}
+
+          {activeTab === 'community' && (
+            <CommunityTab
+              trades={trades}
+              analytics={analytics}
+              language={language}
+              isPro={isPro}
+              profile={profile}
+              onAddTradeOpen={setAddTradeOpen}
+            />
           )}
     </div>
   )

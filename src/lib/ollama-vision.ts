@@ -7,16 +7,15 @@ const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
 const DEFAULT_MODEL = process.env.OLLAMA_MODEL || 'llava:7b';
 
 interface OllamaAnalysisResult {
-  symbol?: string;
-  type?: string;
-  entry_price?: number;
-  exit_price?: number;
-  profit_loss?: number;
-  lot_size?: number;
-  timeframe?: string;
-  strategy?: string;
-  notes?: string;
-  [key: string]: any;
+  symbol?: string | null;
+  type?: string | null;
+  entry_price?: number | null;
+  exit_price?: number | null;
+  profit_loss?: number | null;
+  lot_size?: number | null;
+  timeframe?: string | null;
+  strategy?: string | null;
+  notes?: string | null;
 }
 
 interface OllamaOptions {
@@ -40,10 +39,11 @@ export async function checkOllamaHealth(): Promise<{ running: boolean; version?:
 
     const data = await response.json();
     return { running: true, version: data.version };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
     return {
       running: false,
-      error: error.message || 'Unknown error'
+      error: message
     };
   }
 }
@@ -60,7 +60,7 @@ export async function checkModelAvailability(model: string = DEFAULT_MODEL): Pro
     if (!response.ok) return false;
 
     const data = await response.json();
-    return data.models?.some((m: any) => m.name.includes(model)) || false;
+    return data.models?.some((m: { name: string }) => m.name.includes(model)) || false;
   } catch {
     return false;
   }
@@ -192,8 +192,9 @@ If you cannot extract certain information, set it to null.`;
     });
 
     return result;
-  } catch (error: any) {
-    console.error('❌ [Ollama Vision] Error:', error);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('❌ [Ollama Vision] Error:', message);
     throw error;
   }
 }

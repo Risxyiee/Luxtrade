@@ -140,3 +140,210 @@ Stage Summary:
 - Trade alerts generated in-memory from trade data respecting user thresholds
 - Email alert API with rate limiting and preference-aware sending
 - All code passes lint, matches dark blue/luxury theme, supports id/en
+
+---
+Task ID: 10
+Agent: Recommendation Engine Agent
+Task: Build AI Trade Recommendation Engine (API + UI button)
+
+Work Log:
+- **Read all context**: worklog.md, /api/ai/route.ts (rate limit + ZAI patterns), AITab.tsx, LuxTradeDashboard.tsx, TabContent.tsx, types/index.ts, zai.ts, api-auth.ts, pro-check.ts
+- **Created API route** (`src/app/api/ai/recommendations/route.ts`):
+  - POST endpoint with auth (requireAuth) + PRO check (isUserPro)
+  - In-memory rate limiter: 20 req/min per user (same Map pattern as /api/ai/route.ts)
+  - Accepts `{ trades, analytics, language }` body
+  - Calculates stats from raw trade data:
+    - `calcSetupStats()` — groups by setup_type, computes win rate, total P/L, avg P/L, sorted by P/L then win rate
+    - `calcSessionStats()` — groups by session field, same metrics
+    - `calcPairStats()` — groups by symbol, same metrics
+    - `calcDayStats()` — groups by day-of-week from close_time, same metrics
+  - Calls ZAI (glm-4.6) with specialized system prompt ("trading coach") + structured user prompt containing all calculated stats
+  - Role = 'assistant', thinking = disabled (per rules)
+  - Smart fallback: If ZAI fails, `generateFallbackRecommendations()` generates 3-5 data-driven recommendations from stats (best setup, worst setup warning, best session, top 3 pairs, best day, win rate insight)
+  - Returns `{ recommendations: string, stats: { bestSetups, bestSessions, bestPairs, bestDays } }`
+- **Added handler in LuxTradeDashboard.tsx**:
+  - `getRecommendations` useCallback following exact same pattern as `getPerformanceTips`
+  - Fetches POST /api/ai/recommendations with filteredTrades + analytics + language
+  - Sets aiInsight on success, toast.error on failure
+  - Passed as `onGetRecommendations` prop to TabContent
+- **Updated TabContent.tsx**:
+  - Added `onGetRecommendations: () => void` to TabContentProps interface
+  - Destructured in component props
+  - Passed to AITab component
+- **Updated AITab.tsx**:
+  - Added `Lightbulb` icon import (replaced unused `FileText`)
+  - Added `onGetRecommendations: () => void` to AITabProps interface
+  - Destructured in component props
+  - Added new "Rekomendasi AI" / "Recommendation Engine" button with purple/pink gradient styling
+  - Button placed as first item in the 2-column grid (above Performance Tips)
+  - Disabled when loading or < 5 trades (same gate as other AI features)
+  - Button only visible for PRO users (already gated inside the `{isPro && (...)}` block)
+- **Lint**: `bun run lint` passes clean (0 errors, 0 warnings)
+
+Stage Summary:
+- 1 file created: src/app/api/ai/recommendations/route.ts (API endpoint)
+- 3 files modified: LuxTradeDashboard.tsx (handler), TabContent.tsx (prop pass-through), AITab.tsx (UI button)
+- Recommendation Engine analyzes user's trade history across 4 dimensions: setup_type, session, symbol, day-of-week
+- ZAI-powered personalized coaching with smart fallback to stat-based recommendations
+- Full i18n support (id/en), PRO-gated, rate-limited, passes lint
+
+---
+Task ID: 11
+Agent: Community Features Agent
+Task: Build community features — leaderboard, trade sharing, and social comparison
+
+Work Log:
+- **Read all context**: worklog.md, schema.prisma, LuxTradeDashboard.tsx, TabContent.tsx, SidebarNav.tsx, api-auth.ts, db.ts, types/index.ts, utils/types.ts, pro-check.ts, PsychologyTab.tsx (for pattern reference)
+- **Updated Prisma schema**:
+  - Added `publicProfile Boolean @default(false) @map("public_profile")` to Profile model
+  - Added `sharedTrades SharedTrade[]` relation to Profile model
+  - Added `sharedTrade SharedTrade?` relation to Trade model
+  - Created new `SharedTrade` model with: id, tradeId (unique FK to Trade), userId (FK to Profile), shareCode (unique), includeAnalytics, createdAt
+  - Mapped to `shared_trades` table with indexes on userId and shareCode
+  - Generated Prisma client
+- **Created Leaderboard API** (`src/app/api/community/leaderboard/route.ts`):
+  - GET endpoint requiring auth via `requireAuth`
+  - Raw SQL aggregation: joins profiles + trades, groups by user, counts wins, sums P/L
+  - Only shows users with `public_profile = true` and at least 1 trade in period
+  - Query params: `?period=week|month|all` and `?sortBy=winRate|totalPL|totalTrades`
+  - Returns top 20 with: rank, userId, displayName, winRate, totalPL, totalTrades, streak, isPro, avatarUrl
+  - In-memory cache using Map<string, {data, timestamp}> with 5-minute TTL
+  - Auto-creates `public_profile` column and `shared_trades` table via raw SQL if missing
+- **Created Trade Sharing API** (`src/app/api/community/share-trade/route.ts`):
+  - POST: Generates shareable trade card. Accepts `{ tradeId, includeAnalytics }`
+  - Verifies trade belongs to authenticated user
+  - Generates 12-char hex share code with collision detection (up to 5 retries)
+  - Returns existing shareCode if trade already shared
+  - GET: Retrieves shared trade by `?code=` param (no auth required for viewing)
+  - Returns only public-safe data: P/L % (calculated from prices), pair, type, setup, session
+  - Optionally includes owner's aggregate stats (totalTrades, winRate, totalPL)
+  - Returns owner's displayName, isPro, streak, bestStreak (no private info like exact prices)
+- **Created Public Profile API** (`src/app/api/community/public-profile/route.ts`):
+  - GET: Returns current user's public_profile boolean status
+  - PUT: Accepts `{ publicProfile: boolean }` and updates profiles table
+  - Auto-creates `public_profile` column if missing via raw SQL
+- **Created CommunityTab UI** (`src/app/dashboard/tabs/CommunityTab.tsx`):
+  - Client component with 3 sub-sections via internal tab bar (animated with framer-motion):
+    1. **Leaderboard** — Filter pills for period (week/month/all) and sortBy (totalPL/winRate/totalTrades). Table with rank medals (gold/silver/bronze for top 3), avatar initials, display name, PRO badge, win rate progress bar, P/L amount, trade count, streak with flame icon. Empty state with helpful message.
+    2. **Share Trade** — PRO-gated with lock screen and upgrade CTA. Shows latest trade preview card with type badge, symbol, P/L. Toggle for including analytics. Share button generates share code. Copy link button. Also includes a "View Shared Trade" lookup section where users can enter a share code to see a shared trade card.
+    3. **My Public Profile** — Toggle switch for public_profile. Fetches and updates via API. Shows a public preview card: avatar initial, display name, PRO badge, streak, 4-stat grid (total trades, win rate, total P/L, best streak), win rate progress bar, privacy warning when profile is private.
+  - Full i18n support (id/en) with 40+ translation keys
+  - Dark blue theme matching dashboard: `bg-[#0d1117]`, `dark:bg-[#0a0c12]`, blue accents, slate borders
+  - Props interface: `{ trades, analytics, language, isPro, profile, onAddTradeOpen }`
+  - Responsive design with mobile-first approach
+- **Wired into dashboard**:
+  - Added `Users` icon import in SidebarNav.tsx
+  - Added `{ id: 'community', label: 'Community', labelId: 'Komunitas', icon: Users, category: 'lanjutan', proOnly: false }` to SidebarNav menuItems (not PRO-gated — accessible to all users)
+  - Added `{ id: 'community', label: 'Community', labelId: 'Komunitas' }` to LuxTradeDashboard.tsx menuItems array
+  - Added `CommunityTab` lazy import in TabContent.tsx (same dynamic import pattern as other tabs)
+  - Added `{activeTab === 'community' && (...)}` render block in TabContent.tsx passing all required props
+- **Lint**: `bun run lint` passes clean (0 errors, 0 warnings)
+
+Stage Summary:
+- 3 API routes created: leaderboard, share-trade, public-profile (all under /api/community/)
+- 1 new tab component: CommunityTab.tsx with 3 sub-sections (leaderboard, share trade, public profile)
+- 1 new Prisma model: SharedTrade (shared_trades table)
+- 1 new column: public_profile on profiles table
+- 4 files modified: schema.prisma, LuxTradeDashboard.tsx, TabContent.tsx, SidebarNav.tsx
+- Community tab placed in "LANJUTAN" category, NOT PRO-gated (accessible to all users, share trade feature is PRO-gated within)
+- All code passes lint, matches dark blue/luxury theme, supports id/en
+
+---
+Task ID: 12
+Agent: Type Safety Agent
+Task: Fix type safety gaps across the codebase (7 files)
+
+Work Log:
+- **Read SDK types**: Examined `z-ai-web-dev-sdk/dist/index.d.ts` to understand exported types (ZAI class, CreateChatCompletionVisionBody, CreateImageGenerationBody, etc.)
+- **Fixed src/lib/zai.ts** (6 changes):
+  1. `zaiInstance: any` → `zaiInstance: ZAI | null` (imported ZAI class as type)
+  2. `Promise<any>` → `Promise<ZAI>` on createZAI()
+  3. `(controller as any)._timeoutId` monkey-patching → `Map<AbortController, NodeJS.Timeout>` (controllerTimeouts map) for both createTimeoutController and fetchWithTimeout
+  4. `async (body: any)` on patched createVision → `async (body: CreateChatCompletionVisionBody)` (imported from SDK)
+  5. `config as ZAIConfig` (line 27) → Added `isValidZAIConfig()` type guard with proper `unknown` narrowing
+  6. `catch (error: any)` → `catch (error: unknown)` with `instanceof Error` narrowing
+- **Fixed src/lib/metaapi.ts** (4 changes):
+  1. Added `MetaApiAccount` interface with typed fields + `[key: string]: unknown` index signature
+  2. Added `MetaApiDeal` interface with typed fields + `[key: string]: unknown` index signature
+  3. `createMetaApiAccount()` return: implicit `Promise<any>` → `Promise<MetaApiAccount>`
+  4. `getMetaApiAccount()` return: implicit `Promise<any>` → `Promise<MetaApiAccount>`
+  5. `deleteMetaApiAccount()` return: implicit `Promise<any>` → `Promise<boolean>`
+  6. `getMetaApiDeals()` return: implicit `Promise<any>` → `Promise<MetaApiDeal[]>`
+- **Fixed src/lib/ollama-vision.ts** (3 changes):
+  1. `[key: string]: any` index signature → Removed; made all fields explicitly `string | null` or `number | null`
+  2. `catch (error: any)` in checkOllamaHealth → `catch (error: unknown)` with `instanceof Error` narrowing
+  3. `(m: any)` in checkModelAvailability → `(m: { name: string })` structural typing
+  4. `catch (error: any)` in analyzeImageWithOllama → `catch (error: unknown)` with narrowing
+- **Fixed src/lib/db.ts** (2 changes):
+  1. `catch (err: any)` → `catch (err: unknown)` with `instanceof Error` narrowing for message extraction
+  2. `(...args: any[])` in proxy handler → `(...args: unknown[])`
+- **Fixed src/lib/zai-image.ts** (2 changes):
+  1. `size as any` → `size as CreateImageGenerationBody['size']` with typed `requestBody: CreateImageGenerationBody`
+  2. `catch (error: any)` → `catch (error: unknown)` with narrowing
+- **Fixed src/lib/zai-vision.ts** (1 change):
+  1. `raw?: any` → `raw?: Record<string, unknown>`
+- **Fixed src/lib/payment/sakura.ts** (1 change):
+  1. `catch (error: any)` in createSakuraOrder → `catch (error: unknown)` with narrowing
+- **Lint**: `bun run lint` passes clean (0 errors, 0 warnings)
+
+Stage Summary:
+- 7 files modified: zai.ts, metaapi.ts, ollama-vision.ts, db.ts, zai-image.ts, zai-vision.ts, sakura.ts
+- All `any` types in scope eliminated: 19 individual type safety fixes
+- All `catch (error: any)` → `catch (error: unknown)` with `instanceof Error` pattern (6 occurrences)
+- Monkey-patching replaced with proper Map-based timeout tracking
+- Implicit `Promise<any>` returns replaced with typed interfaces
+- Index signatures narrowed from `any` to specific types or `unknown`
+- All changes pass lint with zero errors
+
+---
+Task ID: 14
+Agent: DB Pooling & A11y Agent
+Task: Database Pooling — Env-driven URL handling
+
+Work Log:
+- **Read src/lib/db.ts** fully to understand the `normalizeUrl()` function and surrounding logic
+- **Updated top-of-file JSDoc** to document the new env-var-driven pooler URL resolution priority order
+- **Added DATABASE_POOLER_URL env-var check** (lines 42-46): If `process.env.DATABASE_POOLER_URL` is set and non-empty, return it directly with no transformation — this is the new primary path
+- **Kept URL corruption fixes** (file: prefix, doubled protocol) unchanged — those remain defensive and useful
+- **Converted auto-detect to LEGACY path**: The Supabase direct→pooler conversion now only runs when `DATABASE_POOLER_URL` is NOT set, and logs a `console.warn` advising the user to set the env var for reliability
+- **Preserved pgbouncer append logic** (pooler.supabase.com + missing pgbouncer param) unchanged
+- **No changes** to singleton pattern, graceful offline mode, or connection_limit settings
+- **Lint**: `bun run lint` passes clean (0 errors, 0 warnings)
+
+Stage Summary:
+- 1 file modified: src/lib/db.ts
+- New `DATABASE_POOLER_URL` env-var takes priority over auto-detect (set it for reliability)
+- Legacy auto-detect path still works but emits `console.warn` recommending the env-var
+- All other db.ts logic (singleton, offline mode, connection limits) untouched
+
+---
+Task ID: 15
+Agent: DB Pooling & A11y Agent
+Task: Accessibility — Add aria-* attributes to 4 key components
+
+Work Log:
+- **15A) Header.tsx** (src/app/dashboard/components/Header.tsx):
+  1. Account switcher dropdown button (~line 182): Added `aria-expanded={accountDropdownOpen}`, `aria-haspopup="listbox"`, `aria-label` (localized id/en)
+  2. Add Account button (~line 244): Added `aria-label` (localized: "Tambah Akun Trading" / "Add Trading Account")
+  3. Add Trade CTA button (~line 259): Added `aria-label` (localized: "Catat Trade Baru" / "Add New Trade")
+  4. Notification area: Added `aria-label` (localized: "Notifikasi" / "Notifications") to the wrapper div containing NotificationCenter + settings gear
+- **15B) TradesTab.tsx** (src/app/dashboard/tabs/TradesTab.tsx):
+  1. `<table>` element (~line 501): Added `aria-label` (localized: "Daftar trade" / "Trade list")
+  2. All 11 `<th>` elements: Added `scope="col"`
+  3. Action buttons: Added `aria-label` matching `title` for View, Edit, Duplicate, Delete buttons
+  4. Icon-only indicators: Added `aria-hidden="true"` to Link2 and ImageIcon (decorative, not interactive)
+- **15C) Sidebar.tsx** (src/app/dashboard/components/Sidebar.tsx):
+  1. Desktop `<aside>` element (~line 98): Added `aria-label="Dashboard navigation"`
+  2. Mobile sidebar already had `aria-label` (localized), `role="dialog"`, `aria-modal="true"`, and focus trap — no changes needed
+  3. Hamburger button is in Header.tsx (already has `aria-label`); Sidebar doesn't contain one
+- **15D) LandingNavbar.tsx** (src/components/landing/LandingNavbar.tsx):
+  1. Added skip-to-content link before `<motion.nav>`: `<a href="#main-content" className="sr-only focus:not-sr-only ...">Skip to content</a>`
+  2. `<motion.nav>`: Added `aria-label="Main navigation"`
+- **Lint**: `bun run lint` passes clean (0 errors, 0 warnings)
+
+Stage Summary:
+- 5 files modified: db.ts, Header.tsx, TradesTab.tsx, Sidebar.tsx, LandingNavbar.tsx
+- ARIA attributes added: `aria-expanded`, `aria-haspopup`, `aria-label` (localized), `aria-hidden`, `scope="col"`, `aria-label` on nav/aside
+- Skip-to-content link added to landing page navbar
+- All changes minimal and non-breaking, full i18n support for localized labels
+- All changes pass lint with zero errors

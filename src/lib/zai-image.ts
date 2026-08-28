@@ -4,6 +4,7 @@
  */
 
 import { createZAI } from '@/lib/zai'
+import type { CreateImageGenerationBody } from 'z-ai-web-dev-sdk'
 
 export async function generateImageWithZAI(
   prompt: string,
@@ -16,11 +17,13 @@ export async function generateImageWithZAI(
   try {
     const zai = await createZAI()
 
-    const response = await zai.images.generations.create({
+    const requestBody: CreateImageGenerationBody = {
       prompt: prompt,
       model: model,
-      size: size as any
-    })
+      size: size as CreateImageGenerationBody['size']
+    }
+
+    const response = await zai.images.generations.create(requestBody)
 
     console.log('✅ [Z.ai Image] Image generated successfully')
 
@@ -31,8 +34,9 @@ export async function generateImageWithZAI(
     }
 
     return imageUrl
-  } catch (error: any) {
-    console.error('❌ [Z.ai Image] Error:', error.message)
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('❌ [Z.ai Image] Error:', message)
     throw error
   }
 }
