@@ -63,6 +63,7 @@ const menuItems = [
   { id: 'report', label: 'Weekly Report', labelId: 'Laporan Mingguan' },
   { id: 'streaks', label: 'Streaks', labelId: 'Streak' },
   { id: 'psychology', label: 'Psychology Tracking', labelId: 'Psikologi' },
+  { id: 'community', label: 'Community', labelId: 'Komunitas' },
 ]
 
 
@@ -727,6 +728,35 @@ function LuxTradeDashboardContent() {
     }
   }, [language])
 
+  // Get AI-powered trade recommendations
+  const getRecommendations = useCallback(async () => {
+    if (!analytics || analytics.totalTrades < 5) {
+      toast.error(language === 'id' ? 'Minimal 5 trades untuk mendapatkan rekomendasi AI' : 'Add at least 5 trades to get AI recommendations')
+      return
+    }
+
+    setAiLoading(true)
+    setAiInsight('')
+    try {
+      const res = await fetch('/api/ai/recommendations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trades: filteredTrades, analytics, language })
+      })
+
+      const data = await res.json()
+      if (res.ok && data.recommendations) {
+        setAiInsight(data.recommendations)
+      } else {
+        toast.error(data.error || (language === 'id' ? 'Gagal mendapatkan rekomendasi. Coba lagi nanti.' : 'Failed to get recommendations. Try again later.'))
+      }
+    } catch {
+      toast.error(language === 'id' ? 'Koneksi AI gagal. Coba lagi nanti.' : 'AI connection failed. Try again later.')
+    } finally {
+      setAiLoading(false)
+    }
+  }, [analytics, filteredTrades, language])
+
   // User initials with hydration safety check
   const userInitials = profile?.full_name
     ? profile.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -821,6 +851,7 @@ function LuxTradeDashboardContent() {
           onWatchlistDelete={handleDeleteWatchlist}
           onGetTips={getPerformanceTips}
           onGetMarket={getMarketInsight}
+          onGetRecommendations={getRecommendations}
           onChatChange={setAiChatInput}
           onSendChat={sendAiChat}
           onAnalyzeTrade={analyzeTrade}

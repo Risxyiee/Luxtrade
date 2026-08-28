@@ -31,6 +31,7 @@ model Profile {
   referredByCode    String?                              @map("referred_by_code")
   hasEverBeenPro    Boolean   @default(false)            @map("has_ever_been_pro")
   commissionPaid    Boolean   @default(false)            @map("commission_paid")
+  publicProfile     Boolean   @default(false)            @map("public_profile")
 
   submissions       UserSubmission[]
   missionProgresses  MissionProgress[]
@@ -42,6 +43,7 @@ model Profile {
   watchlistItems    WatchlistItem[]
   socialLinks       SocialLink[]
   paymentOrders     PaymentOrder[]
+  sharedTrades      SharedTrade[]
 
   @@map("profiles")
 }
@@ -147,6 +149,7 @@ model Trade {
   user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   account           TradingAccount? @relation(fields: [account_id], references: [id])
   linkedJournal     JournalEntry? @relation("TradeJournal", fields: [linked_journal_id], references: [id])
+  sharedTrade       SharedTrade?
 
   @@index([user_id])
   @@index([user_id, close_time])
@@ -388,4 +391,20 @@ model AffiliateWithdrawal {
   @@index([affiliateId])
   @@index([status])
   @@map("affiliate_withdrawals")
+}
+
+model SharedTrade {
+  id                String    @id @default(uuid())
+  tradeId           String    @unique @map("trade_id")
+  userId            String    @map("user_id")
+  shareCode         String    @unique @map("share_code")
+  includeAnalytics  Boolean   @default(true) @map("include_analytics")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  trade             Trade     @relation(fields: [tradeId], references: [id])
+  user              Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([shareCode])
+  @@map("shared_trades")
 }

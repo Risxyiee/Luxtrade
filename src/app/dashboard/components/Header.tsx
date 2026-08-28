@@ -181,6 +181,9 @@ const Header = memo(function Header({
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setAccountDropdownOpen(!accountDropdownOpen)}
+              aria-expanded={accountDropdownOpen}
+              aria-haspopup="listbox"
+              aria-label={language === 'id' ? 'Pilih akun trading' : 'Select trading account'}
               className="flex items-center gap-2 px-3 py-1.5 rounded-xl
                 bg-white/[0.04] dark:bg-white/[0.04]
                 border border-white/[0.08] dark:border-blue-500/20
@@ -250,6 +253,7 @@ const Header = memo(function Header({
             backdrop-blur-xl transition-all duration-200 text-sm
             text-lux-text-secondary dark:text-gray-400 hover:text-blue-400"
           title={language === 'id' ? 'Tambah Akun Trading' : 'Add Trading Account'}
+          aria-label={language === 'id' ? 'Tambah Akun Trading' : 'Add Trading Account'}
         >
           <Wallet className="w-4 h-4" />
           <span className="hidden lg:inline text-xs font-medium">{language === 'id' ? 'Akun' : 'Account'}</span>
@@ -265,6 +269,7 @@ const Header = memo(function Header({
             shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:shadow-[0_0_20px_rgba(59,130,246,0.25)]
             transition-all duration-200 active:scale-[0.97]"
           title={language === 'id' ? 'Catat Trade Baru' : 'Add New Trade'}
+          aria-label={language === 'id' ? 'Catat Trade Baru' : 'Add New Trade'}
         >
           <Plus className="w-[18px] h-[18px]" />
           <span className="hidden sm:inline text-xs font-semibold tracking-wide">{language === 'id' ? 'Trade Baru' : 'New Trade'}</span>
@@ -302,7 +307,7 @@ const Header = memo(function Header({
           </DialogContent>
         </Dialog>
 
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5" aria-label={language === 'id' ? 'Notifikasi' : 'Notifications'}>
           <NotificationCenter trades={trades} isPro={isPro} notificationPreferences={notifPreferences} />
           <button
             onClick={() => setNotifPrefsOpen(true)}

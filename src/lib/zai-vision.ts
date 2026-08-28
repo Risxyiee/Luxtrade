@@ -8,7 +8,7 @@ import ZAI from 'z-ai-web-dev-sdk'
 
 interface VisionAnalysisResult {
   text: string
-  raw?: any
+  raw?: Record<string, unknown>
 }
 
 interface ZAIVisionOptions {
