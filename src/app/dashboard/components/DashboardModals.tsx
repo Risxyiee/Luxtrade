@@ -19,7 +19,7 @@ import { emptyFormData, moodOptions, marketConditions } from '../utils/helpers'
 const PNLShareCard = dynamic(() => import('@/components/PNLShareCard').then(m => ({ default: m.default })), { ssr: false })
 const PlanSelectionModal = dynamic(() => import('@/components/PlanSelectionModal').then(m => ({ default: m.default })), { ssr: false })
 const PaywallModal = dynamic(() => import('@/components/PaywallModal').then(m => ({ default: m.default })), { ssr: false })
-const WelcomeOnboarding = dynamic(() => import('@/components/WelcomeOnboarding').then(m => ({ default: m.default })), { ssr: false })
+const OnboardingOverlay = dynamic(() => import('./OnboardingOverlay').then(m => ({ default: m.default })), { ssr: false })
 const TradeWizardForm = dynamic(() => import('./TradeWizardForm').then(m => ({ default: m.default })), { ssr: false })
 import AddAccountForm from './AddAccountForm'
 
@@ -47,6 +47,7 @@ interface DashboardModalsProps {
   setPaywallModalOpen: (open: boolean) => void
   showOnboarding: boolean
   setShowOnboarding: (show: boolean) => void
+  onOnboardingComplete: () => void
   onAddFirstTrade: () => void
   onLoadSampleData: () => void
   addTradeOpen: boolean
@@ -116,6 +117,7 @@ const DashboardModals = memo(function DashboardModals({
   paymentConfirmationPlanPrice,
   showOnboarding,
   setShowOnboarding,
+  onOnboardingComplete,
   onAddFirstTrade,
   onLoadSampleData,
   addTradeOpen,
@@ -588,14 +590,12 @@ const DashboardModals = memo(function DashboardModals({
         remainingTrials={proTrialCount}
       /> */}
 
-      <WelcomeOnboarding
-        isOpen={showOnboarding}
-        onClose={() => setShowOnboarding(false)}
-        onAddFirstTrade={onAddFirstTrade}
-        onLoadSampleData={onLoadSampleData}
-        onUpgrade={() => setPlanSelectionModalOpen(true)}
-        language={language}
-      />
+      {showOnboarding && (
+        <OnboardingOverlay
+          language={language}
+          onComplete={onOnboardingComplete}
+        />
+      )}
     </>
   )
 })

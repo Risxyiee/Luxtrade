@@ -25,6 +25,7 @@ interface CommunityTabProps {
   isPro: boolean
   profile?: any
   onAddTradeOpen: (open: boolean) => void
+  onPublicProfileToggled?: () => void
 }
 
 interface LeaderboardEntry {
@@ -200,7 +201,7 @@ function SubTabBar({
 
 // ==================== LEADERBOARD SECTION ====================
 
-function LeaderboardSection({ language }: { language: 'id' | 'en' }) {
+function LeaderboardSection({ language, refreshKey }: { language: 'id' | 'en'; refreshKey?: number }) {
   const [period, setPeriod] = useState<'week' | 'month' | 'all'>('month')
   const [sortBy, setSortBy] = useState<'winRate' | 'totalPL' | 'totalTrades'>('totalPL')
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
@@ -209,7 +210,7 @@ function LeaderboardSection({ language }: { language: 'id' | 'en' }) {
   const fetchLeaderboard = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ period, sortBy })
+      const params = new URLSearchParams({ period, sortBy, refresh: '1' })
       const res = await fetch(`/api/community/leaderboard?${params}`)
       if (res.ok) {
         const data = await res.json()
@@ -224,7 +225,7 @@ function LeaderboardSection({ language }: { language: 'id' | 'en' }) {
 
   useEffect(() => {
     fetchLeaderboard()
-  }, [fetchLeaderboard])
+  }, [fetchLeaderboard, refreshKey])
 
   return (
     <motion.div
@@ -718,11 +719,13 @@ function PublicProfileSection({
   analytics,
   profile,
   language,
+  onPublicProfileToggled,
 }: {
   trades: Trade[]
   analytics: Analytics | null
   profile?: any
   language: 'id' | 'en'
+  onPublicProfileToggled?: () => void
 }) {
   const [isPublic, setIsPublic] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -760,6 +763,7 @@ function PublicProfileSection({
           ? (language === 'id' ? 'Profil publik diaktifkan!' : 'Public profile enabled!')
           : (language === 'id' ? 'Profil publik dinonaktifkan' : 'Public profile disabled')
         )
+        onPublicProfileToggled?.()
       }
     } catch {
       toast.error(t('error', language))
@@ -922,8 +926,15 @@ export default function CommunityTab({
   isPro,
   profile,
   onAddTradeOpen,
+  onPublicProfileToggled,
 }: CommunityTabProps) {
   const [activeSection, setActiveSection] = useState<SubTabId>('leaderboard')
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const handlePublicProfileToggled = useCallback(() => {
+    setRefreshKey(prev => prev + 1)
+    onPublicProfileToggled?.()
+  }, [onPublicProfileToggled])
 
   return (
     <div className="space-y-4">
@@ -944,7 +955,7 @@ export default function CommunityTab({
       {/* Sections */}
       <AnimatePresence mode="wait">
         {activeSection === 'leaderboard' && (
-          <LeaderboardSection key="leaderboard" language={language} />
+          <LeaderboardSection key="leaderboard" language={language} refreshKey={refreshKey} />
         )}
         {activeSection === 'share' && (
           <ShareTradeSection
@@ -963,6 +974,7 @@ export default function CommunityTab({
             analytics={analytics}
             profile={profile}
             language={language}
+            onPublicProfileToggled={handlePublicProfileToggled}
           />
         )}
       </AnimatePresence>

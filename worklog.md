@@ -347,3 +347,29 @@ Stage Summary:
 - Skip-to-content link added to landing page navbar
 - All changes minimal and non-breaking, full i18n support for localized labels
 - All changes pass lint with zero errors
+---
+Task ID: 1-5
+Agent: Main
+Task: Move buttons to dashboard, add onboarding overlay, fix community leaderboard
+
+Work Log:
+- Analyzed existing Header.tsx (buttons already removed from header, moved to DashboardFAB in prior session)
+- Added "Catat Trade Baru" + "Tambah Akun Trading" labeled buttons to DashboardTab.tsx body (after welcome banner, before equity curve)
+- Wired setAddAccountOpen prop chain: LuxTradeDashboard → TabContent → DashboardTab
+- Created /api/onboarding API route (GET checks onboarding_completed, POST marks complete, with ensureColumn migration)
+- Added onboarding_completed column to prisma/schema.prisma (Profile model)
+- Created OnboardingOverlay.tsx: 9-step guided tour covering all features (Welcome, FAB, Accounts, Dashboard, Journal, AI, Community, Sidebar, Start), with progress bar, skip/dismiss, bilingual ID/EN, spring animations
+- Replaced old WelcomeOnboarding with new OnboardingOverlay in DashboardModals.tsx
+- Updated LuxTradeDashboard onboarding trigger: now uses /api/onboarding API (DB-backed) instead of localStorage-only, shows for ALL new users (not just 0 trades)
+- Fixed community leaderboard SQL: removed reference to non-existent p.image_url column, fixed GROUP BY clause
+- Added cache refresh mechanism: refresh=1 query param support, reduced cache TTL from 5min to 30sec
+- Added refreshKey prop to CommunityTab LeaderboardSection that re-fetches after profile toggle
+- Added onPublicProfileToggled callback chain: PublicProfileSection → CommunityTab → LeaderboardSection
+
+Stage Summary:
+- Action buttons now visible in dashboard body with clear labels (no more mysterious + button)
+- New users see comprehensive 9-step onboarding overlay on first visit, persisted in DB
+- Community leaderboard should now work: SQL query fixed, cache refreshes on profile toggle
+- All changes pass ESLint with zero errors
+- Files modified: DashboardTab.tsx, TabContent.tsx, LuxTradeDashboard.tsx, DashboardModals.tsx, CommunityTab.tsx, leaderboard/route.ts, public-profile/route.ts, schema.prisma
+- Files created: OnboardingOverlay.tsx, api/onboarding/route.ts

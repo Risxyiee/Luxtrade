@@ -32,6 +32,7 @@ model Profile {
   hasEverBeenPro    Boolean   @default(false)            @map("has_ever_been_pro")
   commissionPaid    Boolean   @default(false)            @map("commission_paid")
   publicProfile     Boolean   @default(false)            @map("public_profile")
+  onboardingCompleted Boolean   @default(false)            @map("onboarding_completed")
 
   submissions       UserSubmission[]
   missionProgresses  MissionProgress[]

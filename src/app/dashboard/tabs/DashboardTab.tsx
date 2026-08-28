@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 import {
   DollarSign, Target, Activity, TrendingUp, TrendingDown,
   Sparkles, AlertTriangle, Clock, BarChart3, Plus,
-  Trophy, Flame, Loader2
+  Trophy, Flame, Loader2, Wallet
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -171,6 +171,7 @@ interface DashboardTabProps {
   journalEntries: JournalEntry[]
   loading: boolean
   setAddTradeOpen: (open: boolean) => void
+  setAddAccountOpen?: (open: boolean) => void
   onView: (trade: Trade) => void
   onEdit: (trade: Trade) => void
   onDelete: (trade: Trade) => void
@@ -187,6 +188,7 @@ function DashboardTab({
   journalEntries,
   loading,
   setAddTradeOpen,
+  setAddAccountOpen,
   onView,
   onEdit,
   onDelete,
@@ -307,6 +309,37 @@ function DashboardTab({
             </div>
           </CardContent>
         </Card>
+      </motion.div>
+
+      {/* ============================================ */}
+      {/* 1.5 QUICK ACTION BUTTONS                    */}
+      {/* ============================================ */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+      >
+        <div className="flex flex-wrap gap-3">
+          <Button
+            onClick={() => setAddTradeOpen(true)}
+            size="sm"
+            className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-medium shadow-lg shadow-blue-500/20 transition-all active:scale-[0.97]"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            {language === 'id' ? 'Catat Trade Baru' : 'Log New Trade'}
+          </Button>
+          {setAddAccountOpen && (
+            <Button
+              onClick={() => setAddAccountOpen(true)}
+              variant="outline"
+              size="sm"
+              className="border-blue-500/30 text-blue-300 hover:bg-blue-500/10 hover:text-blue-200 hover:border-blue-500/50 transition-all"
+            >
+              <Wallet className="w-4 h-4 mr-2" />
+              {language === 'id' ? 'Tambah Akun Trading' : 'Add Trading Account'}
+            </Button>
+          )}
+        </div>
       </motion.div>
 
       {/* ============================================ */}
