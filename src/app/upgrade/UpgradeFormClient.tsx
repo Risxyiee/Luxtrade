@@ -339,7 +339,7 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
       </div>
 
       {/* Trust badges */}
-      <div className="flex items-center justify-center gap-4 pt-2">
+      <div className="flex items-center justify-center gap-4 pt-2 flex-wrap">
         {[
           { icon: Shield, text: 'Aman' },
           { icon: Zap, text: 'Instan' },
