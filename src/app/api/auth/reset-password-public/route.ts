@@ -22,6 +22,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Password minimal 8 karakter' }, { status: 400 })
     }
 
+    // Server-side validation matching Supabase password policy
+    if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password) || !/[!@#$%^&*()_+\-=\[\]{};':"|<>,.?\/`~]/.test(password)) {
+      return NextResponse.json({ error: 'Password wajib mengandung: huruf kecil, huruf besar, angka, dan simbol (contoh: !@#)' }, { status: 400 })
+    }
+
     // Rate limit: 5 reset attempts per 15 minutes per email
     const rl = rateLimitByEmail('reset-password-public', email, {
       maxRequests: 5,
@@ -54,8 +59,11 @@ export async function POST(request: NextRequest) {
     })
 
     if (updateError) {
-      console.error('[ResetPassword-Public] Update error:', updateError)
-      return NextResponse.json({ error: `Gagal mengubah password: ${updateError.message}` }, { status: 400 })
+      const code = (updateError as any).code
+      if (code === 'weak_password') {
+        return NextResponse.json({ error: 'Password terlalu lemah. Wajib: huruf besar, kecil, angka, dan simbol (!@#$).' }, { status: 400 })
+      }
+      return NextResponse.json({ error: 'Gagal mengubah password. Coba password berbeda.' }, { status: 400 })
     }
 
     return NextResponse.json({ success: true, message: 'Password berhasil diubah!' })
