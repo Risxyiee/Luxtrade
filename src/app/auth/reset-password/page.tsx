@@ -120,6 +120,7 @@ function ResetPasswordContent() {
   const hasUppercase = /[A-Z]/.test(password)
   const hasLowercase = /[a-z]/.test(password)
   const hasNumber = /[0-9]/.test(password)
+  const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"|<>,.?\/`~]/.test(password)
   const passwordsMatch = password === confirmPassword && password !== ''
 
   const emailFromUrl = searchParams.get('email')
@@ -128,8 +129,8 @@ function ResetPasswordContent() {
     e.preventDefault()
     setError('')
 
-    if (!hasMinLength || !hasUppercase || !hasLowercase || !hasNumber) {
-      setError('Password minimal 8 karakter dengan huruf besar, huruf kecil, dan angka')
+    if (!hasMinLength || !hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) {
+      setError('Password minimal 8 karakter: huruf besar, kecil, angka, dan simbol (contoh: !@#)')
       return
     }
     if (password !== confirmPassword) {
@@ -271,7 +272,7 @@ function ResetPasswordContent() {
               />
               {password && (
                 <div className="grid grid-cols-2 gap-2 mt-2">
-                  {[{ ok: hasMinLength, l: 'Min. 8 karakter' }, { ok: hasUppercase, l: 'Huruf besar' }, { ok: hasLowercase, l: 'Huruf kecil' }, { ok: hasNumber, l: 'Angka' }].map(i => (
+                  {[{ ok: hasMinLength, l: 'Min. 8 karakter' }, { ok: hasUppercase, l: 'Huruf besar' }, { ok: hasLowercase, l: 'Huruf kecil' }, { ok: hasNumber, l: 'Angka' }, { ok: hasSpecial, l: 'Simbol (!@#)' }].map(i => (
                     <div key={i.l} className={`flex items-center gap-1.5 text-[11px] ${i.ok ? 'text-emerald-400' : 'text-gray-600'}`}>
                       <div className={`w-1.5 h-1.5 rounded-full ${i.ok ? 'bg-emerald-400' : 'bg-white/20'}`} />{i.l}
                     </div>
