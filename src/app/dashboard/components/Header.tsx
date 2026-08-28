@@ -1,9 +1,8 @@
 'use client'
 
-import { memo, useState, useMemo, useRef, useEffect } from 'react'
+import { memo, useState, useMemo, useEffect } from 'react'
 import {
-  Menu, RefreshCw, LogOut, Keyboard, Plus, Wallet,
-  ChevronDown, Trash2, Grid3X3, Zap, Gift, Settings
+  Menu, RefreshCw, LogOut, Keyboard, Settings
 } from 'lucide-react'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import dynamic from 'next/dynamic'
@@ -16,8 +15,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { getShortcutsList } from '@/lib/keyboard-shortcuts'
-import { toast } from 'sonner'
-import DeleteAccountDialog from './sidebar/DeleteAccountDialog'
 import NotificationPreferences from './NotificationPreferences'
 import type { TradeAlertPreferences } from '@/lib/trade-alerts'
 
@@ -66,10 +63,6 @@ const Header = memo(function Header({
   isAdmin = false
 }: HeaderProps) {
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
-  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false)
-  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
-  const [accountToDelete, setAccountToDelete] = useState<any>(null)
-  const [deleting, setDeleting] = useState(false)
   const [notifPrefsOpen, setNotifPrefsOpen] = useState(false)
   const [notifPreferences, setNotifPreferences] = useState<Partial<TradeAlertPreferences> | undefined>()
 
@@ -89,61 +82,7 @@ const Header = memo(function Header({
     loadPrefs()
   }, [])
   const shortcuts = useMemo(() => getShortcutsList(), [])
-  const dropdownRef = useRef<HTMLDivElement>(null)
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setAccountDropdownOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
-  const handleDeleteAccount = async () => {
-    if (!accountToDelete) return
-    setDeleting(true)
-    try {
-      const res = await fetch(`/api/trading-accounts/${accountToDelete.id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      })
-      if (res.ok) {
-        const data = await res.json()
-        toast.success(data.message || 'Akun trading berhasil dihapus')
-        setDeleteAccountOpen(false)
-        setAccountToDelete(null)
-        if (selectedAccountId === accountToDelete.id) {
-          setSelectedAccountId(null)
-        }
-        fetchData()
-      } else {
-        const data = await res.json()
-        toast.error(data.error || 'Gagal menghapus akun trading')
-      }
-    } catch {
-      toast.error('Gagal menghapus akun trading')
-    } finally {
-      setDeleting(false)
-    }
-  }
-
-  const openDeleteModal = (account: any) => {
-    if (tradingAccounts.length <= 1) {
-      toast.error('Tidak bisa menghapus akun terakhir.')
-      return
-    }
-    setAccountToDelete(account)
-    setDeleteAccountOpen(true)
-    setAccountDropdownOpen(false)
-  }
-
-  const selectedAccountName = selectedAccountId
-    ? tradingAccounts.find((a: any) => a.id === selectedAccountId)?.name
-    : null
-
+  
   return (
     <header className="h-16 border-b border-lux-border dark:border-blue-500/15 flex items-center justify-between px-4 lg:px-5
       bg-lux-bg-tertiary/80 dark:bg-[#050507]/80 backdrop-blur-[24px] dark:shadow-[0_1px_0_0_rgba(59,130,246,0.08),0_8px_32px_-8px_rgba(59,130,246,0.06)] sticky top-0 z-30 relative">
@@ -174,107 +113,8 @@ const Header = memo(function Header({
         </button>
       </div>
 
-      {/* Center: Command Center — Account Switcher + Action Buttons */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {/* Account Switcher Dropdown */}
-        {tradingAccounts.length > 0 && (
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setAccountDropdownOpen(!accountDropdownOpen)}
-              aria-expanded={accountDropdownOpen}
-              aria-haspopup="listbox"
-              aria-label={language === 'id' ? 'Pilih akun trading' : 'Select trading account'}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl
-                bg-white/[0.04] dark:bg-white/[0.04]
-                border border-white/[0.08] dark:border-blue-500/20
-                hover:bg-white/[0.07] dark:hover:bg-white/[0.07] hover:border-blue-500/30
-                backdrop-blur-xl transition-all duration-200 text-sm group"
-            >
-              <Wallet className="w-4 h-4 text-blue-400/80 group-hover:text-blue-400 transition-colors" />
-              <span className="hidden md:inline max-w-[120px] truncate text-lux-text-secondary dark:text-gray-300 group-hover:text-white transition-colors">
-                {selectedAccountName || (language === 'id' ? 'Semua Akun' : 'All Accounts')}
-              </span>
-              <ChevronDown className={`w-3.5 h-3.5 text-lux-text-muted dark:text-gray-500 transition-transform duration-200 ${accountDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {/* Dropdown Menu */}
-            {accountDropdownOpen && (
-              <div className="absolute top-full left-0 mt-2 w-64 rounded-2xl overflow-hidden z-50
-                bg-[#0a0c14]/95 dark:bg-[#0a0c14]/98 backdrop-blur-2xl
-                border border-blue-500/20 shadow-2xl shadow-blue-500/10">
-                <div className="p-2">
-                  <button
-                    onClick={() => { setSelectedAccountId(null); setAccountDropdownOpen(false); toast.success('All Accounts selected') }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-all
-                      ${selectedAccountId === null
-                        ? 'bg-blue-500/15 text-white border border-blue-500/30'
-                        : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'}`}>
-                    <Grid3X3 className={`w-4 h-4 ${selectedAccountId === null ? 'text-blue-400' : 'text-gray-500'}`} />
-                    <span className="flex-1 text-left">{language === 'id' ? 'Semua Akun' : 'All Accounts'}</span>
-                  </button>
-
-                  {tradingAccounts.map((account: any) => (
-                    <div key={account.id} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-all group
-                      ${selectedAccountId === account.id
-                        ? 'bg-blue-500/15 text-white border border-blue-500/30'
-                        : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'}`}>
-                      <button
-                        onClick={() => { setSelectedAccountId(account.id); setAccountDropdownOpen(false); toast.success(`Switched to ${account.name}`) }}
-                        className="flex-1 flex items-center gap-2.5 text-left"
-                      >
-                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${selectedAccountId === account.id ? 'bg-emerald-400' : 'bg-gray-500'}`} />
-                        <span className="truncate">{account.name}</span>
-                        <span className="text-xs text-gray-500">{account.currency}</span>
-                      </button>
-                      {tradingAccounts.length > 1 && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openDeleteModal(account) }}
-                          className="p-1 rounded text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100"
-                          aria-label={`Hapus ${account.name}`}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Add Account Button */}
-        <button
-          onClick={() => setAddAccountOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl
-            bg-white/[0.04] dark:bg-white/[0.04]
-            border border-white/[0.08] dark:border-blue-500/20
-            hover:bg-blue-500/15 hover:border-blue-500/30
-            backdrop-blur-xl transition-all duration-200 text-sm
-            text-lux-text-secondary dark:text-gray-400 hover:text-blue-400"
-          title={language === 'id' ? 'Tambah Akun Trading' : 'Add Trading Account'}
-          aria-label={language === 'id' ? 'Tambah Akun Trading' : 'Add Trading Account'}
-        >
-          <Wallet className="w-4 h-4" />
-          <span className="hidden lg:inline text-xs font-medium">{language === 'id' ? 'Akun' : 'Account'}</span>
-        </button>
-
-        {/* Add Trade Button — Primary CTA */}
-        <button
-          onClick={() => setAddTradeOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl
-            bg-gradient-to-r from-blue-500 to-cyan-500
-            hover:from-blue-600 hover:to-cyan-600
-            text-white text-sm font-medium
-            shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:shadow-[0_0_20px_rgba(59,130,246,0.25)]
-            transition-all duration-200 active:scale-[0.97]"
-          title={language === 'id' ? 'Catat Trade Baru' : 'Add New Trade'}
-          aria-label={language === 'id' ? 'Catat Trade Baru' : 'Add New Trade'}
-        >
-          <Plus className="w-[18px] h-[18px]" />
-          <span className="hidden sm:inline text-xs font-semibold tracking-wide">{language === 'id' ? 'Trade Baru' : 'New Trade'}</span>
-        </button>
-      </div>
+      {/* Center spacer (buttons moved to DashboardFAB) */}
+      <div className="flex-1" />
 
       {/* Right: Utility Controls */}
       <div className="flex items-center gap-1.5">
@@ -354,14 +194,6 @@ const Header = memo(function Header({
         language={language}
       />
 
-      {/* Delete Account Dialog */}
-      <DeleteAccountDialog
-        open={deleteAccountOpen}
-        onOpenChange={(open) => { setDeleteAccountOpen(open); if (!open) setAccountToDelete(null) }}
-        accountToDelete={accountToDelete}
-        deleting={deleting}
-        handleDeleteAccount={handleDeleteAccount}
-      />
     </header>
   )
 })
