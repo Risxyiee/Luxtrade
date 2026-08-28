@@ -143,6 +143,8 @@ export default function TabContent({
               onDelete={onJournalDelete}
               isPro={isPro}
               onUpgrade={() => setPlanSelectionModalOpen(true)}
+              trades={trades}
+              language={language}
             />
           )}
 

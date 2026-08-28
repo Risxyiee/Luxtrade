@@ -2,26 +2,29 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bell, Check, CheckCheck, Trash2, Settings, TrendingUp, AlertTriangle, Gift, Crown, Wallet } from 'lucide-react'
+import { Bell, Check, CheckCheck, Trash2, TrendingUp, AlertTriangle, Gift, Crown, Wallet, Flame, ShieldAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { generateTradeAlerts, type TradeAlertPreferences } from '@/lib/trade-alerts'
 
 interface Notification {
   id: string
-  type: 'success' | 'warning' | 'info' | 'achievement' | 'pro' | 'payout'
+  type: 'success' | 'warning' | 'info' | 'achievement' | 'pro' | 'payout' | 'trade_alert'
   title: string
   message: string
   timestamp: Date
   read: boolean
+  severity?: 'success' | 'warning' | 'danger'
 }
 
 interface NotificationCenterProps {
-  trades?: { id: string; symbol: string; profit_loss: number; created_at?: string }[]
+  trades?: { id: string; symbol: string; profit_loss: number; created_at?: string; close_time?: string }[]
   isPro?: boolean
   demoMode?: boolean
+  notificationPreferences?: Partial<TradeAlertPreferences>
 }
 
-export default function NotificationCenter({ trades = [], isPro = false, demoMode = false }: NotificationCenterProps) {
+export default function NotificationCenter({ trades = [], isPro = false, demoMode = false, notificationPreferences }: NotificationCenterProps) {
   const [isOpen, setIsOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -29,16 +32,38 @@ export default function NotificationCenter({ trades = [], isPro = false, demoMod
   const initialNotifications = useMemo(() => {
     const generated: Notification[] = []
 
+    // --- Trade Alert System ---
+    const tradeAlerts = generateTradeAlerts(trades, notificationPreferences)
+    for (const alert of tradeAlerts) {
+      const notifType = alert.severity === 'danger' ? 'warning' : alert.severity === 'warning' ? 'warning' : 'success'
+      generated.push({
+        id: alert.id,
+        type: 'trade_alert',
+        title: alert.title,
+        message: alert.message,
+        timestamp: alert.timestamp,
+        read: alert.read,
+        severity: alert.severity,
+      })
+    }
+
+    // --- Legacy notification generation ---
     if (trades.length > 0) {
       const latestTrades = trades.slice(0, 5)
       latestTrades.forEach((trade, i) => {
+        // Skip generating per-trade notifications if trade alerts already covered big wins/losses
+        const hasAlertForBigWin = tradeAlerts.some(a => a.type === 'big_win' && trade.profit_loss >= 500)
+        const hasAlertForBigLoss = tradeAlerts.some(a => a.type === 'big_loss' && trade.profit_loss <= -100)
+
+        if (hasAlertForBigWin || hasAlertForBigLoss) return
+
         const time = trade.created_at ? new Date(trade.created_at) : new Date(Date.now() - i * 3600000)
-        
+
         if (trade.profit_loss >= 500) {
           generated.push({
             id: `big-win-${trade.id}`,
             type: 'achievement',
-            title: 'Big Win! 🎉',
+            title: 'Big Win!',
             message: `${trade.symbol} closed with +$${trade.profit_loss} profit`,
             timestamp: time,
             read: i > 0,
@@ -71,28 +96,31 @@ export default function NotificationCenter({ trades = [], isPro = false, demoMod
         generated.push({
           id: 'winrate',
           type: 'achievement',
-          title: 'Win Rate Excellent! 🔥',
+          title: 'Win Rate Excellent!',
           message: `Your win rate is ${winRate}% across ${trades.length} trades`,
           timestamp: new Date(Date.now() - 7200000),
           read: true,
         })
       }
 
-      // Consecutive wins
-      let streak = 0
-      for (const trade of trades) {
-        if (trade.profit_loss >= 0) streak++
-        else break
-      }
-      if (streak >= 3) {
-        generated.push({
-          id: 'streak',
-          type: 'achievement',
-          title: `${streak}-Win Streak! 🔥`,
-          message: 'You are on a hot streak. Keep it up!',
-          timestamp: new Date(Date.now() - 1800000),
-          read: false,
-        })
+      // Consecutive wins — only if streak alert system didn't already generate one
+      const hasStreakAlert = tradeAlerts.some(a => a.type === 'streak')
+      if (!hasStreakAlert) {
+        let streak = 0
+        for (const trade of trades) {
+          if (trade.profit_loss >= 0) streak++
+          else break
+        }
+        if (streak >= 3) {
+          generated.push({
+            id: 'streak',
+            type: 'achievement',
+            title: `${streak}-Win Streak!`,
+            message: 'You are on a hot streak. Keep it up!',
+            timestamp: new Date(Date.now() - 1800000),
+            read: false,
+          })
+        }
       }
     }
 
@@ -122,16 +150,21 @@ export default function NotificationCenter({ trades = [], isPro = false, demoMod
     generated.push({
       id: 'tips',
       type: 'info',
-      title: 'Trading Tip 💡',
+      title: 'Trading Tip',
       message: 'Always set a stop-loss before entering any trade to protect your capital.',
       timestamp: new Date(Date.now() - 172800000),
       read: true,
     })
 
     return generated
-  }, [trades, isPro, demoMode])
+  }, [trades, isPro, demoMode, notificationPreferences])
 
   const [notifications, setNotifications] = useState<Notification[]>(initialNotifications)
+
+  useEffect(() => {
+    setNotifications(initialNotifications)
+  }, [initialNotifications])
+
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
@@ -156,7 +189,15 @@ export default function NotificationCenter({ trades = [], isPro = false, demoMod
     setNotifications(prev => prev.filter(n => n.id !== id))
   }
 
-  const getIcon = (type: Notification['type']) => {
+  const getIcon = (type: Notification['type'], severity?: string) => {
+    if (type === 'trade_alert') {
+      switch (severity) {
+        case 'danger': return <ShieldAlert className="w-4 h-4 text-red-400" />
+        case 'warning': return <AlertTriangle className="w-4 h-4 text-amber-400" />
+        case 'success': return <Flame className="w-4 h-4 text-emerald-400" />
+        default: return <Bell className="w-4 h-4 text-blue-400" />
+      }
+    }
     switch (type) {
       case 'success': return <TrendingUp className="w-4 h-4 text-emerald-400" />
       case 'warning': return <AlertTriangle className="w-4 h-4 text-amber-400" />
@@ -167,8 +208,16 @@ export default function NotificationCenter({ trades = [], isPro = false, demoMod
     }
   }
 
-  const getBgColor = (type: Notification['type'], read: boolean) => {
+  const getBgColor = (type: Notification['type'], read: boolean, severity?: string) => {
     if (read) return 'bg-transparent hover:bg-white/[0.02]'
+    if (type === 'trade_alert') {
+      switch (severity) {
+        case 'danger': return 'bg-red-500/5 hover:bg-red-500/10'
+        case 'warning': return 'bg-amber-500/5 hover:bg-amber-500/10'
+        case 'success': return 'bg-emerald-500/5 hover:bg-emerald-500/10'
+        default: return 'bg-blue-500/5 hover:bg-blue-500/10'
+      }
+    }
     switch (type) {
       case 'success': return 'bg-emerald-500/5 hover:bg-emerald-500/10'
       case 'warning': return 'bg-amber-500/5 hover:bg-amber-500/10'
@@ -253,11 +302,11 @@ export default function NotificationCenter({ trades = [], isPro = false, demoMod
                 notifications.map((notif) => (
                   <div
                     key={notif.id}
-                    className={`flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer ${getBgColor(notif.type, notif.read)}`}
+                    className={`flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer ${getBgColor(notif.type, notif.read, notif.severity)}`}
                     onClick={() => markAsRead(notif.id)}
                   >
                     <div className="mt-0.5 flex-shrink-0">
-                      {getIcon(notif.type)}
+                      {getIcon(notif.type, notif.severity)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">

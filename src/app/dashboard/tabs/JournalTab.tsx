@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   BookOpen, Plus, Edit, Trash2, Smile, Meh, Frown, Sparkles,
-  BarChart3, Brain, Zap, Crown, RefreshCw, Calendar, Tag, Image as ImageIcon, Link2, ChevronLeft, ChevronRight, FileText, Printer, X, PenLine
+  BarChart3, Brain, Zap, Crown, RefreshCw, Calendar, Tag, Image as ImageIcon, Link2, ChevronLeft, ChevronRight, X, PenLine
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { safeParseTags } from '@/lib/parseUtils'
 import { toast } from 'sonner'
 import { JournalFilterPanel } from '@/app/dashboard/components/JournalFilterPanel'
-import type { JournalEntry } from '@/types'
+import { ExportButtons } from '@/app/dashboard/components/ExportButtons'
+import type { Trade, JournalEntry } from '@/types'
 
 // ==================== DAILY PROMPTS ====================
 
@@ -71,6 +72,8 @@ interface JournalTabProps {
   onDelete: (id: string) => void
   isPro?: boolean
   onUpgrade?: () => void
+  trades?: Trade[]
+  language?: 'id' | 'en'
 }
 
 // Separate Calendar View Component (defined outside to avoid component-in-render warning)
@@ -224,7 +227,9 @@ function JournalTab({
   onEdit,
   onDelete,
   isPro = true,
-  onUpgrade
+  onUpgrade,
+  trades = [],
+  language = 'id',
 }: JournalTabProps) {
   const [showAnalytics, setShowAnalytics] = useState(false)
   const [journalAnalytics, setJournalAnalytics] = useState<Record<string, any> | null>(null)
@@ -232,7 +237,11 @@ function JournalTab({
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [reminderDismissed, setReminderDismissed] = useState(false)
-  const [exporting, setExporting] = useState(false)
+  const [_exporting, _setExporting] = useState(false)
+
+  // suppress unused warnings for legacy functions that are still in the component
+  void _exporting
+  void _setExporting
 
   // Check if reminder was dismissed this session
   useEffect(() => {
@@ -255,14 +264,13 @@ function JournalTab({
     setFilteredEntries(entries)
   }, [entries])
 
-  // ============ FEATURE 1: EXPORT PDF ============
+  // ============ LEGACY EXPORT (kept for reference, UI moved to ExportButtons) ============
   const handleExportPDF = useCallback(async () => {
-    if (typeof window === 'undefined') return
     if (filteredEntries.length === 0) {
       toast.error('Tidak ada entri jurnal untuk diekspor')
       return
     }
-    setExporting(true)
+    _setExporting(true)
     try {
       const jsPDFModule = await import('jspdf')
       const jsPDF = jsPDFModule.default
@@ -408,7 +416,7 @@ function JournalTab({
       console.error('PDF export error:', error)
       toast.error(`Gagal mengekspor PDF: ${error.message || 'Unknown error'}`)
     } finally {
-      setExporting(false)
+      _setExporting(false)
     }
   }, [filteredEntries])
 
@@ -505,6 +513,8 @@ function JournalTab({
   }, [showAnalytics, journalAnalytics, entries.length])
 
   // Memoized computed values (must be before any conditional returns)
+  void handleExportPDF
+  void handlePrint
   const todayStr = new Date().toDateString()
   const hasTodayEntry = useMemo(
     () => filteredEntries.some(e => new Date(e.created_at).toDateString() === todayStr),
@@ -594,24 +604,12 @@ function JournalTab({
               {showAnalytics ? 'Hide Analytics' : 'Analytics'}
             </Button>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportPDF}
-            disabled={entries.length === 0 || exporting}
-            className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
-          >
-            <FileText className={`w-4 h-4 mr-1 ${exporting ? 'animate-spin' : ''}`} /> {exporting ? 'Exporting...' : 'Export PDF'}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handlePrint}
-            disabled={entries.length === 0}
-            className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
-          >
-            <Printer className="w-4 h-4 mr-1" /> Print
-          </Button>
+          <ExportButtons
+            journalEntries={entries}
+            trades={trades}
+            isPro={isPro}
+            language={language}
+          />
           <Button onClick={onAdd} className="bg-gradient-to-r from-blue-500 to-blue-600">
             <Plus className="w-4 h-4 mr-2" />New Entry
           </Button>

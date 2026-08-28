@@ -15,6 +15,7 @@ import { formatCurrency } from '@/lib/supabase'
 import ActivityFeed from '@/components/ActivityFeed'
 import { useConfetti } from '@/hooks/useConfetti'
 import AnimatedStatCard from '../components/AnimatedStatCard'
+import { ExportButtons } from '../components/ExportButtons'
 import type { Trade, JournalEntry, Analytics } from '@/types'
 import {
   BarChart, Bar, Cell, CartesianGrid, Tooltip, ResponsiveContainer, XAxis, YAxis
@@ -135,7 +136,7 @@ function PerformanceSection({ trades, language }: { trades: Trade[]; language: '
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">{language === 'id' ? 'Transaksi' : 'Trades'}</p><p className="text-lg font-bold text-blue-300">{perf.trades}</p></div>
           <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">P/L</p><p className={`text-lg font-bold ${perf.totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtPL(perf.totalPL)}</p></div>
           <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">Win Rate</p><p className="text-lg font-bold text-blue-300">{fmtPct(perf.winRate)}</p></div>
@@ -283,13 +284,26 @@ function DashboardTab({
                   {language === 'id' ? `Halo, ${profile?.full_name?.split(' ')[0] || 'Trader'}! 👋` : `Hello, ${profile?.full_name?.split(' ')[0] || 'Trader'}! 👋`}
                 </h1>
               </div>
-              {/* Single highlight: Total P/L */}
-              {hasData && (
-                <div className="hidden sm:block text-right flex-shrink-0">
-                  <p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-0.5">{language === 'id' ? 'Total P/L' : 'Total P/L'}</p>
-                  <p className={`text-xl font-bold ${totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtPL(totalPL)}</p>
-                </div>
-              )}
+              <div className="flex items-center gap-3 flex-shrink-0">
+                {hasData && (
+                  <ExportButtons
+                    trades={trades}
+                    journalEntries={journalEntries}
+                    analytics={analytics}
+                    isPro={isPro}
+                    language={language}
+                    showDashboardReport
+                    username={profile?.full_name || 'Trader'}
+                  />
+                )}
+                {/* Single highlight: Total P/L */}
+                {hasData && (
+                  <div className="hidden sm:block text-right">
+                    <p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-0.5">{language === 'id' ? 'Total P/L' : 'Total P/L'}</p>
+                    <p className={`text-xl font-bold ${totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtPL(totalPL)}</p>
+                  </div>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
