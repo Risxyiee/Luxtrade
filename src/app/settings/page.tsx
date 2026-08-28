@@ -62,6 +62,7 @@ export default function SettingsPage() {
   const hasUppercase = /[A-Z]/.test(newPassword)
   const hasLowercase = /[a-z]/.test(newPassword)
   const hasNumber = /[0-9]/.test(newPassword)
+  const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"|<>,.?\/`~]/.test(newPassword)
   const passwordsMatch = newPassword === confirmPassword && newPassword !== ''
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -78,7 +79,7 @@ export default function SettingsPage() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!currentPassword) { toast.error('Masukkan password saat ini'); return }
-    if (!hasMinLength || !hasUppercase || !hasLowercase || !hasNumber) { toast.error('Password tidak memenuhi syarat'); return }
+    if (!hasMinLength || !hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) { toast.error('Password tidak memenuhi syarat (perlu simbol seperti !@#)'); return }
     if (newPassword !== confirmPassword) { toast.error('Password baru tidak cocok'); return }
     setPasswordLoading(true)
     try {
@@ -347,7 +348,7 @@ export default function SettingsPage() {
                           </div>
                           {newPassword && (
                             <div className="grid grid-cols-2 gap-2 mt-2">
-                              {[{ ok: hasMinLength, l: 'Min. 8 karakter' }, { ok: hasUppercase, l: 'Huruf besar' }, { ok: hasLowercase, l: 'Huruf kecil' }, { ok: hasNumber, l: 'Angka' }].map(i => (
+                              {[{ ok: hasMinLength, l: 'Min. 8 karakter' }, { ok: hasUppercase, l: 'Huruf besar' }, { ok: hasLowercase, l: 'Huruf kecil' }, { ok: hasNumber, l: 'Angka' }, { ok: hasSpecial, l: 'Simbol (!@#)' }].map(i => (
                                 <div key={i.l} className={`flex items-center gap-1.5 text-[11px] ${i.ok ? 'text-emerald-400' : 'text-white/20'}`}>
                                   <div className={`w-1.5 h-1.5 rounded-full ${i.ok ? 'bg-emerald-400' : 'bg-white/10'}`} />{i.l}
                                 </div>

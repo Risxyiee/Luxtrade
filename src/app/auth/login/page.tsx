@@ -150,6 +150,7 @@ function AuthPage() {
   const hasUpper = /[A-Z]/.test(password)
   const hasLower = /[a-z]/.test(password)
   const hasNum = /[0-9]/.test(password)
+  const hasSpec = /[!@#$%^&*()_+\-=\[\]{};':"|<>,.?\/`~]/.test(password)
 
   // ---- LOGIN HANDLER ----
   const handleLogin = async (e: React.FormEvent) => {
@@ -195,7 +196,7 @@ function AuthPage() {
     e.preventDefault()
     setRegError(''); setRegFieldErrors({}); setTermsError(false)
     if (!termsChecked) { setTermsError(true); setTimeout(() => setTermsError(false), 500); setRegError('Anda harus menyetujui Syarat & Ketentuan.'); return }
-    if (!hasMin || !hasUpper || !hasLower || !hasNum) { setRegError('Password tidak memenuhi syarat (min 8, huruf besar, kecil, angka)'); return }
+    if (!hasMin || !hasUpper || !hasLower || !hasNum || !hasSpec) { setRegError('Password tidak memenuhi syarat (min 8, huruf besar, kecil, angka, simbol)'); return }
     const errs: Record<string, boolean> = {}
     if (!fullName) errs.name = true
     if (!email) errs.email = true
@@ -357,8 +358,8 @@ function AuthPage() {
                     </button>
                   } />
                   {password && (
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                      {[{ ok: hasMin, l: 'Min. 8 karakter' }, { ok: hasUpper, l: 'Huruf besar' }, { ok: hasLower, l: 'Huruf kecil' }, { ok: hasNum, l: 'Angka' }].map(i => (
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 mt-2">
+                      {[{ ok: hasMin, l: 'Min. 8 karakter' }, { ok: hasUpper, l: 'Huruf besar' }, { ok: hasLower, l: 'Huruf kecil' }, { ok: hasNum, l: 'Angka' }, { ok: hasSpec, l: 'Simbol (!@#)' }].map(i => (
                         <div key={i.l} className={`flex items-center gap-1.5 text-[11px] ${i.ok ? 'text-emerald-400' : 'text-gray-600'}`}>
                           <div className={`w-1.5 h-1.5 rounded-full ${i.ok ? 'bg-emerald-400' : 'bg-white/20'}`} />{i.l}
                         </div>
