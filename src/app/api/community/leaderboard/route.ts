@@ -73,16 +73,26 @@ async function ensurePublicProfileColumn() {
 
 async function ensureSharedTradesTable() {
   try {
+    // Fix existing table if it was created with wrong UUID type for trade_id
     await db.$executeRawUnsafe(`
       DO $$
       BEGIN
+        -- Check if table exists with wrong trade_id type (uuid instead of text)
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'shared_trades' AND column_name = 'trade_id' AND data_type = 'uuid'
+        ) THEN
+          -- Drop and recreate with correct types
+          DROP TABLE IF EXISTS shared_trades CASCADE;
+        END IF;
+        
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.tables 
           WHERE table_name = 'shared_trades'
         ) THEN
           CREATE TABLE shared_trades (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            trade_id UUID NOT NULL UNIQUE REFERENCES trades(id),
+            id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+            trade_id TEXT NOT NULL UNIQUE REFERENCES trades(id) ON DELETE CASCADE,
             user_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
             share_code TEXT NOT NULL UNIQUE,
             include_analytics BOOLEAN NOT NULL DEFAULT true,
