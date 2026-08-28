@@ -26,6 +26,7 @@ import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import DashboardModals from './components/DashboardModals'
 import TabContent from './components/TabContent'
+import DashboardFAB from './components/DashboardFAB'
 
 // Extracted Utils & Hooks
 import type { Trade, JournalEntry, WatchlistItem, Analytics } from '@/types'
@@ -865,6 +866,17 @@ function LuxTradeDashboardContent() {
           tradingAccounts={tradingAccounts}
         />
       </main>
+
+      {/* Floating Action Button — Add Trade & Account */}
+      <DashboardFAB
+        language={language}
+        tradingAccounts={tradingAccounts}
+        selectedAccountId={selectedAccountId}
+        setSelectedAccountId={setSelectedAccountId}
+        setAddAccountOpen={setIsAddAccountOpen}
+        setAddTradeOpen={setAddTradeOpen}
+        fetchData={fetchData}
+      />
 
       {/* All Modals */}
       <DashboardModals
