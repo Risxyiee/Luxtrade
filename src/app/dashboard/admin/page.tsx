@@ -151,7 +151,7 @@ function TrafficTab() {
         <p className="text-white/60 mb-2">Gagal memuat data traffic</p>
         <p className="text-white/30 text-sm mb-4">Error: {error}</p>
         <p className="text-white/30 text-xs mb-4">Jika pertama kali deploy, table database belum tersedia. Coba akses halaman web lain dulu, lalu refresh ini.</p>
-        <Button onClick={fetchTraffic} variant="outline" className="border-blue-500/30 text-cyan-400 hover:bg-blue-500/10">
+        <Button onClick={fetchTraffic} variant="outline" className="border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03]">
           <RefreshCw className="w-4 h-4 mr-2" />
           Coba Lagi
         </Button>
@@ -174,7 +174,7 @@ function TrafficTab() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-blue-500/20">
+          <div className="p-2 rounded-xl bg-blue-500/10 border-blue-500/20">
             <BarChart3 className="w-5 h-5 text-cyan-400" />
           </div>
           <div>
@@ -184,7 +184,7 @@ function TrafficTab() {
         </div>
         <div className="flex items-center gap-2">
           <Select value={range} onValueChange={setRange}>
-            <SelectTrigger className="w-[100px] bg-[#0d0820] border-blue-500/20 text-white/60 text-xs h-8">
+            <SelectTrigger className="w-[100px] bg-white/[0.03] border-white/[0.06] text-[#8892b0] text-xs h-8">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -197,7 +197,7 @@ function TrafficTab() {
             onClick={fetchTraffic}
             variant="outline"
             size="sm"
-            className="border-blue-500/30 text-white/60 hover:text-white hover:bg-blue-500/10 h-8"
+            className="border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03] h-8"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </Button>
@@ -206,7 +206,7 @@ function TrafficTab() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
+        <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-white/50">Total Page Views</span>
@@ -226,7 +226,7 @@ function TrafficTab() {
           </CardContent>
         </Card>
 
-        <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
+        <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-white/50">Unique Visitors</span>
@@ -237,7 +237,7 @@ function TrafficTab() {
           </CardContent>
         </Card>
 
-        <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
+        <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-white/50">Hari Ini</span>
@@ -248,7 +248,7 @@ function TrafficTab() {
           </CardContent>
         </Card>
 
-        <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
+        <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-white/50">Kemarin</span>
@@ -261,7 +261,7 @@ function TrafficTab() {
       </div>
 
       {/* Daily Chart */}
-      <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
+      <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm text-white flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-cyan-400" />
@@ -309,7 +309,7 @@ function TrafficTab() {
       {/* Bottom Grid: Top Pages + Devices + Browsers */}
       <div className="grid lg:grid-cols-3 gap-4">
         {/* Top Pages */}
-        <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
+        <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm text-white flex items-center gap-2">
               <FileText className="w-4 h-4 text-cyan-400" />
@@ -338,7 +338,7 @@ function TrafficTab() {
         </Card>
 
         {/* Devices */}
-        <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
+        <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm text-white flex items-center gap-2">
               <Monitor className="w-4 h-4 text-cyan-400" />
@@ -379,7 +379,7 @@ function TrafficTab() {
 
         {/* Browsers + Referrers */}
         <div className="space-y-4">
-          <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
+          <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm text-white flex items-center gap-2">
                 <Globe className="w-4 h-4 text-cyan-400" />
@@ -407,7 +407,7 @@ function TrafficTab() {
             </CardContent>
           </Card>
 
-          <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
+          <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm text-white flex items-center gap-2">
                 <ExternalLink className="w-4 h-4 text-cyan-400" />
@@ -433,7 +433,7 @@ function TrafficTab() {
       </div>
 
       {/* OS Breakdown - small */}
-      <Card className="bg-[#1a0f2e]/50 border-blue-500/20">
+      <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm text-white flex items-center gap-2">
             <Monitor className="w-4 h-4 text-cyan-400" />
@@ -741,7 +741,7 @@ export default function AdminPanel() {
   // Show loading while checking auth
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-[#080510] flex items-center justify-center">
+      <div className="min-h-screen bg-[#050507] flex items-center justify-center">
         <div className="text-center">
           <motion.div
             animate={{ rotate: 360 }}
@@ -756,9 +756,12 @@ export default function AdminPanel() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f0a1a] via-[#1a0f2e] to-[#0d0820]">
+    <div className="min-h-screen bg-[#050507] relative">
+      {/* Ambient glow blob */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[60%] h-[40%] pointer-events-none" aria-hidden="true" style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, rgba(6,182,212,0.08) 30%, rgba(16,185,129,0.04) 50%, transparent 70%)' }} />
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#150a25]/90 backdrop-blur-xl border-b border-blue-500/20">
+      <header className="sticky top-0 z-50 bg-[#050507]/90 backdrop-blur-xl border-b border-white/[0.06] relative">
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent pointer-events-none" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -779,7 +782,7 @@ export default function AdminPanel() {
                 onClick={activeTab === 'users' ? fetchUsers : () => {}}
                 variant="outline"
                 size="sm"
-                className="border-blue-500/30 text-white/60 hover:text-white hover:bg-blue-500/10"
+                className="border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03]"
               >
                 <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
@@ -819,8 +822,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('users')}
             variant={activeTab === 'users' ? 'default' : 'outline'}
             className={activeTab === 'users'
-              ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
-              : 'border-blue-500/30 text-white/50 hover:text-white hover:bg-blue-500/10'
+              ? 'bg-gradient-to-r from-blue-500 to-cyan-400 text-white'
+              : 'border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03]'
             }
           >
             <Users className="w-4 h-4 mr-2" />
@@ -831,8 +834,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('traffic')}
             variant={activeTab === 'traffic' ? 'default' : 'outline'}
             className={activeTab === 'traffic'
-              ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
-              : 'border-blue-500/30 text-white/50 hover:text-white hover:bg-blue-500/10'
+              ? 'bg-gradient-to-r from-blue-500 to-cyan-400 text-white'
+              : 'border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03]'
             }
           >
             <BarChart3 className="w-4 h-4 mr-2" />
@@ -844,7 +847,7 @@ export default function AdminPanel() {
             variant={activeTab === 'manual-update' ? 'default' : 'outline'}
             className={activeTab === 'manual-update'
               ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white'
-              : 'border-amber-500/30 text-white/50 hover:text-white hover:bg-amber-500/10'
+              : 'border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03]'
             }
           >
             <UserPen className="w-4 h-4 mr-2" />
@@ -855,7 +858,7 @@ export default function AdminPanel() {
             variant={activeTab === 'pro-promo' ? 'default' : 'outline'}
             className={activeTab === 'pro-promo'
               ? 'bg-gradient-to-r from-amber-500 to-emerald-600 text-white'
-              : 'border-emerald-500/30 text-white/50 hover:text-white hover:bg-emerald-500/10'
+              : 'border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03]'
             }
           >
             <Crown className="w-4 h-4 mr-2" />
@@ -865,7 +868,7 @@ export default function AdminPanel() {
           <Link href="/dashboard/admin/affiliate">
             <Button
               variant="outline"
-              className="border-emerald-500/30 text-white/50 hover:text-white hover:bg-emerald-500/10"
+              className="border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03]"
             >
               <Share2 className="w-4 h-4 mr-2" />
               Affiliate
@@ -874,7 +877,7 @@ export default function AdminPanel() {
           <Link href="/admin-email">
             <Button
               variant="outline"
-              className="border-amber-500/30 text-white/50 hover:text-white hover:bg-amber-500/10"
+              className="border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03]"
             >
               <Send className="w-4 h-4 mr-2" />
               Email Broadcast
@@ -887,10 +890,10 @@ export default function AdminPanel() {
             <motion.div key="users" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
               {/* Stats */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-                <Card className="bg-[#1a0f2e]/50 border-blue-500/20 backdrop-blur-sm">
+                <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-blue-500/20">
+                      <div className="p-2 rounded-lg bg-blue-500/10 border-blue-500/20">
                         <Users className="w-5 h-5 text-cyan-400" />
                       </div>
                       <div>
@@ -900,7 +903,7 @@ export default function AdminPanel() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="bg-[#1a0f2e]/50 border-blue-500/20 backdrop-blur-sm">
+                <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-emerald-500/20">
@@ -913,7 +916,7 @@ export default function AdminPanel() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="bg-[#1a0f2e]/50 border-blue-500/20 backdrop-blur-sm">
+                <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-red-500/20">
@@ -946,7 +949,7 @@ export default function AdminPanel() {
               )}
 
               {/* User Management Table */}
-              <Card className="bg-[#1a0f2e]/50 border-blue-500/20 backdrop-blur-sm">
+              <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
                 <CardHeader>
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <CardTitle className="text-white flex items-center gap-2">
@@ -965,7 +968,7 @@ export default function AdminPanel() {
                         disabled={syncing}
                         variant="outline"
                         size="sm"
-                        className="border-emerald-500/30 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50 h-8"
+                        className="border-blue-500/20 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 disabled:opacity-50 h-8"
                         title="Sinkronkan user dari Supabase Auth ke Database"
                       >
                         <DatabaseBackup className={`w-3.5 h-3.5 mr-1.5 ${syncing ? 'animate-pulse' : ''}`} />
@@ -977,7 +980,7 @@ export default function AdminPanel() {
                           placeholder="Search users..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="bg-[#0d0820] border-blue-500/20 pl-9 w-full sm:w-64 focus:border-blue-500/50"
+                          className="bg-white/[0.03] border-white/[0.06] pl-9 w-full sm:w-64 focus:border-blue-500/50"
                         />
                       </div>
                     </div>
@@ -1006,7 +1009,7 @@ export default function AdminPanel() {
                             key={u?.id || 'unknown'}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="bg-white/[0.03] border border-blue-500/10 rounded-xl p-4 space-y-3"
+                            className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 space-y-3"
                           >
                             {/* Row 1: Email + Status Badge */}
                             <div className="flex items-start justify-between gap-2">
@@ -1084,7 +1087,7 @@ export default function AdminPanel() {
                                     )}
                                   </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="center" className="bg-[#1a0f2e] border-blue-500/20 min-w-[220px]">
+                                <DropdownMenuContent align="center" className="bg-[#0e1117] border-white/[0.06] min-w-[220px]">
                                   {isActivePRO && (
                                     <DropdownMenuItem
                                       onClick={() => revokePRO(u?.id || '')}
@@ -1094,7 +1097,7 @@ export default function AdminPanel() {
                                       Downgrade ke Free
                                     </DropdownMenuItem>
                                   )}
-                                  <DropdownMenuSeparator className="bg-blue-500/20" />
+                                  <DropdownMenuSeparator className="bg-white/[0.06]" />
                                   <DropdownMenuItem
                                     onClick={() => activateWithPlan(u?.id || '', 'PRO_30_DAYS', 'PRO 30 Hari', u?.email || '')}
                                     className="text-cyan-300 focus:text-cyan-200 focus:bg-blue-500/10 cursor-pointer py-2.5"
@@ -1128,7 +1131,7 @@ export default function AdminPanel() {
                     <div className="hidden md:block overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="border-b border-blue-500/20">
+                          <tr className="border-b border-white/[0.06]">
                             <th className="text-left py-3 px-2 text-white/60 font-medium">Email</th>
                             <th className="text-left py-3 px-2 text-white/60 font-medium">Name</th>
                             <th className="text-left py-3 px-2 text-white/60 font-medium">Status</th>
@@ -1153,7 +1156,7 @@ export default function AdminPanel() {
                                   initial={{ opacity: 0 }}
                                   animate={{ opacity: 1 }}
                                   exit={{ opacity: 0 }}
-                                  className="border-b border-blue-500/10 hover:bg-blue-500/5 transition-colors"
+                                  className="border-b border-white/[0.04] hover:bg-blue-500/5 transition-colors"
                                 >
                                   <td className="py-3 px-2">
                                     <div className="flex items-center gap-2">
@@ -1262,7 +1265,7 @@ export default function AdminPanel() {
                                             )}
                                           </Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="bg-[#1a0f2e] border-blue-500/20 min-w-[200px]">
+                                        <DropdownMenuContent align="end" className="bg-[#0e1117] border-white/[0.06] min-w-[200px]">
                                           {isActivePRO && (
                                             <DropdownMenuItem
                                               onClick={() => revokePRO(u?.id || '')}
@@ -1272,7 +1275,7 @@ export default function AdminPanel() {
                                               Downgrade ke Free
                                             </DropdownMenuItem>
                                           )}
-                                          <DropdownMenuSeparator className="bg-blue-500/20" />
+                                          <DropdownMenuSeparator className="bg-white/[0.06]" />
                                           <DropdownMenuItem
                                             onClick={() => activateWithPlan(u?.id || '', 'PRO_30_DAYS', 'PRO 30 Hari', u?.email || '')}
                                             className="text-cyan-300 focus:text-cyan-200 focus:bg-blue-500/10 cursor-pointer"
@@ -1309,7 +1312,7 @@ export default function AdminPanel() {
                     )}
                     {/* Pagination */}
                     {totalPages > 1 && (
-                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-blue-500/10">
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/[0.04]">
                         <p className="text-xs text-white/40">
                           Menampilkan {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredUsers.length)} dari {filteredUsers.length} user
                         </p>
@@ -1319,7 +1322,7 @@ export default function AdminPanel() {
                             disabled={currentPage === 1}
                             variant="outline"
                             size="sm"
-                            className="h-7 px-2 border-blue-500/20 text-white/50 hover:text-white hover:bg-blue-500/10 disabled:opacity-30"
+                            className="h-7 px-2 border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03] disabled:opacity-30"
                           >
                             <ChevronLeft className="w-4 h-4 mr-1" />
                             Prev
@@ -1346,8 +1349,8 @@ export default function AdminPanel() {
                                 size="sm"
                                 className={`h-7 w-7 p-0 text-xs ${
                                   currentPage === page
-                                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                                    : 'border-blue-500/20 text-white/50 hover:text-white hover:bg-blue-500/10'
+                                    ? 'bg-blue-500/15 text-[#f0f2ff] border-blue-500/30'
+                                    : 'border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03]'
                                 }`}
                               >
                                 {page}
@@ -1359,7 +1362,7 @@ export default function AdminPanel() {
                             disabled={currentPage === totalPages}
                             variant="outline"
                             size="sm"
-                            className="h-7 px-2 border-blue-500/20 text-white/50 hover:text-white hover:bg-blue-500/10 disabled:opacity-30"
+                            className="h-7 px-2 border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03] disabled:opacity-30"
                           >
                             Next
                             <ChevronRight className="w-4 h-4 ml-1" />
@@ -1372,10 +1375,10 @@ export default function AdminPanel() {
 
               {/* Info Cards */}
               <div className="grid md:grid-cols-2 gap-6 mt-6">
-                <Card className="bg-[#1a0f2e]/50 border-blue-500/20 backdrop-blur-sm">
+                <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
                   <CardContent className="p-6">
                     <div className="flex items-start gap-4">
-                      <div className="p-2 rounded-lg bg-blue-500/20"><Shield className="w-5 h-5 text-cyan-400" /></div>
+                      <div className="p-2 rounded-lg bg-blue-500/10 border-blue-500/20"><Shield className="w-5 h-5 text-cyan-400" /></div>
                       <div>
                         <h3 className="text-white font-semibold mb-2">Subscription Logic</h3>
                         <ul className="text-white/60 text-sm space-y-1">
