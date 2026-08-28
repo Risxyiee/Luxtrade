@@ -41,11 +41,11 @@ const steps: Step[] = [
     icon: Plus,
     titleId: 'Catat Trade Anda',
     titleEn: 'Log Your Trades',
-    descId: 'Klik tombol "+" di pojok kanan bawah (FAB) untuk membuka menu aksi cepat. Di sana Anda bisa menambah trade baru, mengelola akun trading, dan beralih antar akun.',
-    descEn: 'Click the "+" button at the bottom right corner (FAB) to open the quick action menu. There you can add new trades, manage trading accounts, and switch between accounts.',
+    descId: 'Gunakan tombol "Catat Trade" dan "Tambah Akun" di bawah section selamat datang untuk menambah trade baru dan mengelola akun trading.',
+    descEn: 'Use the "Log Trade" and "Add Account" buttons below the welcome section to add new trades and manage trading accounts.',
     gradient: 'from-emerald-500/20 via-emerald-600/10 to-teal-500/10',
     iconBg: 'from-emerald-500 to-teal-500',
-    highlight: 'dashboard-fab-area',
+
   },
   {
     icon: Wallet,

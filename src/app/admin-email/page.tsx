@@ -452,7 +452,7 @@ export default function AdminEmailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#050510] flex items-center justify-center">
+      <div className="min-h-screen bg-[#050507] flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
       </div>
     )
@@ -465,11 +465,13 @@ export default function AdminEmailPage() {
   const estimatedMinutes = Math.ceil(recipientCount / (5 * 10)) // ~10 emails/sec with 5 concurrent
 
   return (
-    <div className="min-h-screen bg-[#050510]">
+    <div className="min-h-screen bg-[#050507] landing-noise">
       {/* Ambient glow */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[60%] h-[40%] bg-blue-600/[0.06] blur-[150px] rounded-full pointer-events-none" aria-hidden="true" />
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[60%] h-[40%] pointer-events-none" aria-hidden="true" style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, rgba(6,182,212,0.08) 30%, rgba(16,185,129,0.04) 50%, transparent 70%)' }} />
       {/* Header */}
-      <header className="border-b border-white/[0.06] bg-[#050510]/90 backdrop-blur-xl sticky top-0 z-50">
+      <header className="border-b border-white/[0.06] bg-[#050507]/90 backdrop-blur-xl sticky top-0 z-50 relative">
+        {/* Subtle bottom glow line */}
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent pointer-events-none" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-4">
           <Button
             variant="ghost"
@@ -511,7 +513,7 @@ export default function AdminEmailPage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px bg-white/[0.06] rounded-2xl overflow-hidden border border-white/[0.06]"
+          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px bg-white/[0.04] rounded-2xl overflow-hidden border border-white/[0.06]"
         >
           {stats && (
             <>
@@ -533,7 +535,7 @@ export default function AdminEmailPage() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="lg:col-span-2 space-y-4"
           >
-            <Card className="bg-[#0a0a1a] border border-white/[0.06] rounded-2xl">
+            <Card className="bg-[#0e1117]/80 backdrop-blur-xl border border-white/[0.06] rounded-2xl">
               <CardHeader className="pb-5">
                 <p className="text-[11px] font-medium tracking-[0.16em] uppercase text-blue-400 mb-2">BROADCAST</p>
                 <CardTitle className="text-[#f0f2ff] text-xl font-medium tracking-tight flex items-center gap-2">
@@ -594,7 +596,7 @@ export default function AdminEmailPage() {
                         className="w-full appearance-none bg-white/[0.03] border border-white/[0.06] text-[#f0f2ff] text-sm rounded-xl px-3 py-2.5 pr-10 focus:outline-none focus:border-blue-500/40 focus:ring-blue-500/20"
                       >
                         {BROADCAST_TEMPLATES.map(tmpl => (
-                          <option key={tmpl.value} value={tmpl.value} className="bg-[#0a0a1a] text-[#f0f2ff]">
+                          <option key={tmpl.value} value={tmpl.value} className="bg-[#0e1117] text-[#f0f2ff]">
                             {tmpl.label}
                           </option>
                         ))}
@@ -714,7 +716,7 @@ export default function AdminEmailPage() {
                             color: rgba(255,255,255,0.4) !important;
                           }
                           .email-editor-wrapper .ql-snow .ql-picker-options {
-                            background: #0a0a1a !important;
+                            background: #0e1117 !important;
                             border-color: rgba(255,255,255,0.1) !important;
                             border-radius: 8px !important;
                             padding: 4px !important;
@@ -742,7 +744,7 @@ export default function AdminEmailPage() {
                             fill: #60a5fa !important;
                           }
                           .email-editor-wrapper .ql-snow .ql-tooltip {
-                            background: #0a0a1a !important;
+                            background: #0e1117 !important;
                             border-color: rgba(255,255,255,0.1) !important;
                             border-radius: 8px !important;
                             color: rgba(255,255,255,0.8) !important;
@@ -814,7 +816,7 @@ export default function AdminEmailPage() {
                               {/* Email header bar */}
                               <div className="px-6 py-4 border-b border-gray-100">
                                 <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center">
+                                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
                                     <span className="text-lg">👑</span>
                                   </div>
                                   <div>
@@ -850,7 +852,7 @@ export default function AdminEmailPage() {
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="border border-blue-500/20 rounded-xl bg-blue-500/[0.04] p-4"
+                    className="border border-blue-500/20 rounded-xl bg-blue-500/[0.06] p-4"
                   >
                     <div className="flex items-start gap-3">
                       <AlertTriangle className="w-5 h-5 text-blue-400 mt-0.5 shrink-0" />
@@ -918,14 +920,14 @@ export default function AdminEmailPage() {
                       className="space-y-3"
                     >
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/[0.06] border border-green-500/20">
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/[0.08] border border-green-500/20">
                           <CheckCircle className="w-5 h-5 text-green-400" />
                           <div>
                             <p className="text-green-400 font-semibold text-lg">{result.sent}</p>
                             <p className="text-green-300/50 text-xs">Berhasil Terkirim</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/[0.06] border border-red-500/20">
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/[0.08] border border-red-500/20">
                           <XCircle className="w-5 h-5 text-red-400" />
                           <div>
                             <p className="text-red-400 font-semibold text-lg">{result.failed}</p>
@@ -957,7 +959,7 @@ export default function AdminEmailPage() {
             className="space-y-4"
           >
             {/* Recent Broadcasts */}
-            <Card className="bg-[#0a0a1a] border border-white/[0.06] rounded-2xl hover:bg-[#0f0f25] transition-colors duration-300">
+            <Card className="bg-[#0e1117]/80 backdrop-blur-xl border border-white/[0.06] rounded-2xl hover:bg-[#0e1117] transition-colors duration-300">
               <CardHeader className="pb-3">
                 <p className="text-[11px] font-medium tracking-[0.16em] uppercase text-blue-400 mb-1">HISTORY</p>
                 <CardTitle className="text-[#f0f2ff] text-sm flex items-center gap-2">
@@ -974,7 +976,7 @@ export default function AdminEmailPage() {
                       return (
                         <div
                           key={broadcast.id}
-                          className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-2"
+                          className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] space-y-2"
                         >
                           <div className="flex items-center gap-2 text-xs text-white/40">
                             <Icon className={`w-3.5 h-3.5 ${target?.color}`} />
@@ -1012,7 +1014,7 @@ export default function AdminEmailPage() {
             </Card>
 
             {/* Info Card */}
-            <Card className="bg-[#0a0a1a] border border-white/[0.06] rounded-2xl hover:bg-[#0f0f25] transition-colors duration-300">
+            <Card className="bg-[#0e1117]/80 backdrop-blur-xl border border-white/[0.06] rounded-2xl hover:bg-[#0e1117] transition-colors duration-300">
               <CardHeader className="pb-3">
                 <p className="text-[11px] font-medium tracking-[0.16em] uppercase text-blue-400 mb-1">INFO</p>
                 <CardTitle className="text-[#f0f2ff] text-sm">Info Penting</CardTitle>
@@ -1046,7 +1048,7 @@ export default function AdminEmailPage() {
 
       {/* Confirmation Dialog */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <DialogContent className="bg-[#0a0a1a] border border-white/[0.06] rounded-2xl max-w-md">
+        <DialogContent className="bg-[#0e1117] backdrop-blur-xl border border-white/[0.06] rounded-2xl max-w-md">
           <DialogHeader>
             <DialogTitle className="text-[#f0f2ff] flex items-center gap-2">
               <Send className="w-5 h-5 text-blue-400" />
@@ -1058,20 +1060,20 @@ export default function AdminEmailPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+              <div className="p-3 rounded-xl bg-white/[0.04] border border-white/[0.06]">
                 <p className="text-[11px] text-[#8892b0] mb-1">Target</p>
                 <p className="text-sm text-[#f0f2ff] font-medium">{currentTarget?.label}</p>
               </div>
-              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+              <div className="p-3 rounded-xl bg-white/[0.04] border border-white/[0.06]">
                 <p className="text-[11px] text-[#8892b0] mb-1">Jumlah Penerima</p>
                 <p className="text-sm text-[#f0f2ff] font-medium">{recipientCount} user</p>
               </div>
             </div>
-            <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+            <div className="p-3 rounded-xl bg-white/[0.04] border border-white/[0.06]">
               <p className="text-[11px] text-[#8892b0] mb-1">Subject</p>
               <p className="text-sm text-[#f0f2ff]/80 truncate">{subject}</p>
             </div>
-            <div className="p-3 rounded-xl bg-blue-500/[0.06] border border-blue-500/15">
+            <div className="p-3 rounded-xl bg-blue-500/[0.08] border border-blue-500/20">
               <p className="text-xs text-blue-300/70 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 Email akan dikirim ke <strong className="text-blue-300">{recipientCount}</strong> user secara bersamaan. Tindakan ini tidak bisa dibatalkan.
@@ -1115,7 +1117,7 @@ function StatCard({ label, value, icon: Icon, color }: {
   color: string
 }) {
   return (
-    <div className="bg-[#0a0a1a] hover:bg-[#0f0f25] transition-colors duration-300 p-6">
+    <div className="bg-white/[0.02] hover:bg-white/[0.04] backdrop-blur-sm transition-colors duration-300 p-6">
       <div className="flex items-center gap-2 mb-3">
         <Icon className={`w-4 h-4 ${color}`} />
         <span className="text-[11px] font-medium tracking-[0.12em] uppercase text-[#8892b0]">{label}</span>

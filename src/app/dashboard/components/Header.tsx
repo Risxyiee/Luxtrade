@@ -113,7 +113,7 @@ const Header = memo(function Header({
         </button>
       </div>
 
-      {/* Center spacer (buttons moved to DashboardFAB) */}
+      {/* Center spacer */}
       <div className="flex-1" />
 
       {/* Right: Utility Controls */}
