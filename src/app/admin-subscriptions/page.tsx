@@ -513,14 +513,16 @@ export default function AdminSubscriptionsPanel() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0612]">
+      <div className="min-h-screen flex items-center justify-center bg-[#050507]">
         <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0612] text-white p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-[#050507] text-white p-4 sm:p-6 lg:p-8 relative">
+      {/* Ambient glow */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[60%] h-[40%] pointer-events-none" aria-hidden="true" style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, rgba(6,182,212,0.08) 30%, rgba(16,185,129,0.04) 50%, transparent 70%)' }} />
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.div
@@ -528,10 +530,11 @@ export default function AdminSubscriptionsPanel() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <div className="flex items-center justify-between mb-6">
+          <div className="bg-[#050507]/90 backdrop-blur-xl border border-white/[0.06] rounded-xl p-4 sm:p-6 mb-6 relative flex items-center justify-between">
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent pointer-events-none" />
             <div>
               <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
-              <div className="flex items-center gap-2 text-white/60">
+              <div className="flex items-center gap-2 text-[#8892b0]">
                 <p>Manage users and subscriptions</p>
                 {isRealTimeConnected && (
                   <Badge className="bg-emerald-500/20 text-emerald-400 text-xs flex items-center gap-1">
@@ -547,7 +550,7 @@ export default function AdminSubscriptionsPanel() {
                 variant="outline"
                 size="sm"
                 disabled={isSyncing}
-                className="bg-amber-500/20 border-amber-500/30 text-amber-300 hover:bg-amber-500/30 hover:text-amber-200"
+                className="bg-amber-500/20 border-white/[0.06] text-amber-300 hover:bg-amber-500/30 hover:text-amber-200"
               >
                 {isSyncing ? (
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -565,7 +568,7 @@ export default function AdminSubscriptionsPanel() {
 
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <Card className="bg-white/[0.02] border-white/[0.05]">
+            <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-blue-500/20">
@@ -573,12 +576,12 @@ export default function AdminSubscriptionsPanel() {
                   </div>
                   <div>
                     <div className="text-2xl font-bold">{users.length}</div>
-                    <div className="text-xs text-white/40">Total Users</div>
+                    <div className="text-xs text-[#8892b0]">Total Users</div>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-white/[0.02] border-white/[0.05]">
+            <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-blue-500/20">
@@ -588,12 +591,12 @@ export default function AdminSubscriptionsPanel() {
                     <div className="text-2xl font-bold">
                       {subscriptions.filter(s => s.isActive).length}
                     </div>
-                    <div className="text-xs text-white/40">Total Subscriptions</div>
+                    <div className="text-xs text-[#8892b0]">Total Subscriptions</div>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-white/[0.02] border-white/[0.05]">
+            <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-emerald-500/20">
@@ -603,12 +606,12 @@ export default function AdminSubscriptionsPanel() {
                     <div className="text-2xl font-bold">
                       {subscriptions.filter(s => s.isActive).length}
                     </div>
-                    <div className="text-xs text-white/40">Active Subscriptions</div>
+                    <div className="text-xs text-[#8892b0]">Active Subscriptions</div>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-white/[0.02] border-white/[0.05]">
+            <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-cyan-500/20">
@@ -620,7 +623,7 @@ export default function AdminSubscriptionsPanel() {
                         .filter(s => s.isActive && s.paymentStatus === 'completed')
                         .reduce((sum, s) => sum + (s.amountPaid || 0), 0)}
                     </div>
-                    <div className="text-xs text-white/40">Total Revenue</div>
+                    <div className="text-xs text-[#8892b0]">Total Revenue</div>
                   </div>
                 </div>
               </CardContent>
@@ -630,7 +633,7 @@ export default function AdminSubscriptionsPanel() {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-white/5 w-full md:w-auto">
+          <TabsList className="bg-white/[0.03] border border-white/[0.06] w-full md:w-auto">
             <TabsTrigger value="users">
               <Users className="w-4 h-4 mr-2" />
               Users ({users.length})
@@ -656,7 +659,7 @@ export default function AdminSubscriptionsPanel() {
                       New User
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="bg-[#1a0f2e] border-white/10 text-white">
+                  <DialogContent className="bg-[#0e1117] backdrop-blur-xl border-white/[0.06] text-white">
                     <DialogHeader>
                       <DialogTitle>Create New User</DialogTitle>
                     </DialogHeader>
@@ -668,7 +671,7 @@ export default function AdminSubscriptionsPanel() {
                           type="email"
                           value={createUserEmail}
                           onChange={(e) => setCreateUserEmail(e.target.value)}
-                          className="bg-white/5 border-white/10"
+                          className="bg-white/[0.03] border-white/[0.06]"
                           placeholder="user@example.com"
                         />
                       </div>
@@ -678,7 +681,7 @@ export default function AdminSubscriptionsPanel() {
                           id="userName"
                           value={createUserName}
                           onChange={(e) => setCreateUserName(e.target.value)}
-                          className="bg-white/5 border-white/10"
+                          className="bg-white/[0.03] border-white/[0.06]"
                           placeholder="John Doe"
                         />
                       </div>
@@ -690,29 +693,29 @@ export default function AdminSubscriptionsPanel() {
                 </Dialog>
               </div>
 
-              <Card className="bg-white/[0.02] border-white/[0.05]">
+              <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
-                        <tr className="border-b border-white/5">
-                          <th className="text-left p-4 text-white/40 font-medium text-sm">User</th>
-                          <th className="text-left p-4 text-white/40 font-medium text-sm">Email</th>
-                          <th className="text-left p-4 text-white/40 font-medium text-sm">Subscriptions</th>
-                          <th className="text-left p-4 text-white/40 font-medium text-sm">Created</th>
-                          <th className="text-left p-4 text-white/40 font-medium text-sm">Actions</th>
+                        <tr className="border-b border-white/[0.06]">
+                          <th className="text-left p-4 text-[#8892b0] font-medium text-sm">User</th>
+                          <th className="text-left p-4 text-[#8892b0] font-medium text-sm">Email</th>
+                          <th className="text-left p-4 text-[#8892b0] font-medium text-sm">Subscriptions</th>
+                          <th className="text-left p-4 text-[#8892b0] font-medium text-sm">Created</th>
+                          <th className="text-left p-4 text-[#8892b0] font-medium text-sm">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {users.length === 0 ? (
                           <tr>
-                            <td colSpan={5} className="p-8 text-center text-white/40">
+                            <td colSpan={5} className="p-8 text-center text-[#8892b0]">
                               No users found. Create a new user to get started.
                             </td>
                           </tr>
                         ) : (
                           users.map((user) => (
-                            <tr key={user.id} className="border-b border-white/5 hover:bg-white/[0.02] py-4">
+                            <tr key={user.id} className="border-b border-white/[0.06] hover:bg-white/[0.02] py-4">
                               <td className="p-4 sm:py-6">
                                 <div className="flex items-center gap-3">
                                   <div className="p-2 rounded-full bg-blue-500/20">
@@ -723,7 +726,7 @@ export default function AdminSubscriptionsPanel() {
                               </td>
                               <td className="p-4">
                                 <div className="flex items-center gap-2">
-                                  <Mail className="w-4 h-4 text-white/40" />
+                                  <Mail className="w-4 h-4 text-[#8892b0]" />
                                   {user.email}
                                 </div>
                               </td>
@@ -733,7 +736,7 @@ export default function AdminSubscriptionsPanel() {
                                 </Badge>
                               </td>
                               <td className="p-4">
-                                <div className="text-sm text-white/60">
+                                <div className="text-sm text-[#8892b0]">
                                   {new Date(user.createdAt).toLocaleDateString()}
                                 </div>
                               </td>
@@ -805,7 +808,7 @@ export default function AdminSubscriptionsPanel() {
                   transition={{ delay: 0.1 }}
                   className="mb-6"
                 >
-                  <Card className="bg-white/[0.02] border-white/[0.05]">
+                  <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <Shield className="w-5 h-5 text-amber-400" />
@@ -814,7 +817,7 @@ export default function AdminSubscriptionsPanel() {
                     </CardHeader>
                     <CardContent>
                       <div className="mb-4">
-                        <div className="text-sm text-white/60 mb-2">
+                        <div className="text-sm text-[#8892b0] mb-2">
                           {slotInfo.isSoldOut ? (
                             <span className="text-red-400 font-semibold">All 30 slots taken</span>
                           ) : (
@@ -835,7 +838,7 @@ export default function AdminSubscriptionsPanel() {
                             }}
                           />
                         </div>
-                        <div className="flex justify-between text-xs text-white/40">
+                        <div className="flex justify-between text-xs text-[#8892b0]">
                           <span>{slotInfo.usedSlots} used</span>
                           <span>{slotInfo.totalSlots} total</span>
                         </div>
@@ -854,7 +857,7 @@ export default function AdminSubscriptionsPanel() {
                       New Subscription
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="bg-[#1a0f2e] border-white/10 text-white">
+                  <DialogContent className="bg-[#0e1117] backdrop-blur-xl border-white/[0.06] text-white">
                     <DialogHeader>
                       <DialogTitle>Create New Subscription</DialogTitle>
                     </DialogHeader>
@@ -866,7 +869,7 @@ export default function AdminSubscriptionsPanel() {
                           type="email"
                           value={newUserEmail}
                           onChange={(e) => setNewUserEmail(e.target.value)}
-                          className="bg-white/5 border-white/10"
+                          className="bg-white/[0.03] border-white/[0.06]"
                         />
                       </div>
                       <div>
@@ -875,13 +878,13 @@ export default function AdminSubscriptionsPanel() {
                           id="userName"
                           value={newUserName}
                           onChange={(e) => setNewUserName(e.target.value)}
-                          className="bg-white/5 border-white/10"
+                          className="bg-white/[0.03] border-white/[0.06]"
                         />
                       </div>
                       <div>
                         <Label htmlFor="plan">Plan *</Label>
                         <Select value={newPlanId} onValueChange={setNewPlanId}>
-                          <SelectTrigger className="bg-white/5 border-white/10">
+                          <SelectTrigger className="bg-white/[0.03] border-white/[0.06] text-[#8892b0]">
                             <SelectValue placeholder="Select a plan" />
                           </SelectTrigger>
                           <SelectContent>
@@ -901,7 +904,7 @@ export default function AdminSubscriptionsPanel() {
                 </Dialog>
               </div>
 
-              <Card className="bg-white/[0.02] border-white/[0.05]">
+              <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
                 <CardHeader>
                   <CardTitle>Subscriptions</CardTitle>
                 </CardHeader>
@@ -909,28 +912,28 @@ export default function AdminSubscriptionsPanel() {
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
-                        <tr className="border-b border-white/5">
-                          <th className="text-left p-4 text-white/40 font-medium text-sm">User</th>
-                          <th className="text-left p-4 text-white/40 font-medium text-sm">Plan</th>
-                          <th className="text-left p-4 text-white/40 font-medium text-sm">Status</th>
-                          <th className="text-left p-4 text-white/40 font-medium text-sm">Payment</th>
-                          <th className="text-left p-4 text-white/40 font-medium text-sm">Period</th>
-                          <th className="text-left p-4 text-white/40 font-medium text-sm">Actions</th>
+                        <tr className="border-b border-white/[0.06]">
+                          <th className="text-left p-4 text-[#8892b0] font-medium text-sm">User</th>
+                          <th className="text-left p-4 text-[#8892b0] font-medium text-sm">Plan</th>
+                          <th className="text-left p-4 text-[#8892b0] font-medium text-sm">Status</th>
+                          <th className="text-left p-4 text-[#8892b0] font-medium text-sm">Payment</th>
+                          <th className="text-left p-4 text-[#8892b0] font-medium text-sm">Period</th>
+                          <th className="text-left p-4 text-[#8892b0] font-medium text-sm">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {subscriptions.map((sub) => (
-                          <tr key={sub.id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                          <tr key={sub.id} className="border-b border-white/[0.06] hover:bg-white/[0.02]">
                             <td className="p-4">
                               <div>
                                 <div className="font-medium">{sub.userName || sub.userEmail}</div>
-                                <div className="text-xs text-white/40">{sub.userEmail}</div>
+                                <div className="text-xs text-[#8892b0]">{sub.userEmail}</div>
                               </div>
                             </td>
                             <td className="p-4">
                               <div>
                                 <div className="font-medium">{sub.plan.name}</div>
-                                <div className="text-xs text-white/40">
+                                <div className="text-xs text-[#8892b0]">
                                   {sub.plan.currency} {sub.plan.price.toLocaleString()}
                                 </div>
                               </div>
@@ -953,16 +956,16 @@ export default function AdminSubscriptionsPanel() {
                             <td className="p-4">
                               {getPaymentStatusBadge(sub.paymentStatus)}
                               {sub.amountPaid && (
-                                <div className="text-xs text-white/40 mt-1">
+                                <div className="text-xs text-[#8892b0] mt-1">
                                   {sub.plan.currency} {sub.amountPaid.toLocaleString()}
                                 </div>
                               )}
                             </td>
                             <td className="p-4">
-                              <div className="text-sm text-white/60">
+                              <div className="text-sm text-[#8892b0]">
                                 {sub.endDate ? new Date(sub.endDate).toLocaleDateString() : 'Lifetime'}
                               </div>
-                              <div className="text-xs text-white/40">
+                              <div className="text-xs text-[#8892b0]">
                                 {new Date(sub.startDate).toLocaleDateString()}
                               </div>
                             </td>
@@ -1010,21 +1013,21 @@ export default function AdminSubscriptionsPanel() {
 
         {/* Edit Subscription Dialog */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent className="bg-[#1a0f2e] border-white/10 text-white">
+          <DialogContent className="bg-[#0e1117] backdrop-blur-xl border-white/[0.06] text-white">
             <DialogHeader>
               <DialogTitle>Edit Subscription</DialogTitle>
             </DialogHeader>
             {selectedSubscription && (
               <div className="space-y-4 py-4">
-                <div className="bg-white/5 p-4 rounded-lg">
+                <div className="bg-white/[0.03] p-4 rounded-lg">
                   <div className="font-semibold mb-2">{selectedSubscription.plan.name}</div>
-                  <div className="text-sm text-white/60">
+                  <div className="text-sm text-[#8892b0]">
                     {selectedSubscription.userName || selectedSubscription.userEmail}
                   </div>
                 </div>
 
                 <Tabs defaultValue="date">
-                  <TabsList className="bg-white/5">
+                  <TabsList className="bg-white/[0.03] border border-white/[0.06]">
                     <TabsTrigger value="date">Set End Date</TabsTrigger>
                     <TabsTrigger value="duration">Set Duration</TabsTrigger>
                   </TabsList>
@@ -1036,7 +1039,7 @@ export default function AdminSubscriptionsPanel() {
                         type="date"
                         value={editEndDate}
                         onChange={(e) => setEditEndDate(e.target.value)}
-                        className="bg-white/5 border-white/10"
+                        className="bg-white/[0.03] border-white/[0.06]"
                       />
                     </div>
                   </TabsContent>
@@ -1049,11 +1052,11 @@ export default function AdminSubscriptionsPanel() {
                           type="number"
                           value={editDuration}
                           onChange={(e) => setEditDuration(e.target.value)}
-                          className="bg-white/5 border-white/10"
+                          className="bg-white/[0.03] border-white/[0.06]"
                           placeholder="e.g. 6"
                         />
                         <Select value={editDurationType} onValueChange={(v) => setEditDurationType(v as 'months' | 'years')}>
-                          <SelectTrigger className="bg-white/5 border-white/10 w-32">
+                          <SelectTrigger className="bg-white/[0.03] border-white/[0.06] text-[#8892b0] w-32">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1072,7 +1075,7 @@ export default function AdminSubscriptionsPanel() {
                     id="adminNote"
                     value={editAdminNote}
                     onChange={(e) => setEditAdminNote(e.target.value)}
-                    className="bg-white/5 border-white/10"
+                    className="bg-white/[0.03] border-white/[0.06]"
                     placeholder="Add a note..."
                   />
                 </div>

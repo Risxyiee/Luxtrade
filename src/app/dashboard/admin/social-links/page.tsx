@@ -199,9 +199,12 @@ export default function AdminSocialLinksPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f051d] text-white p-6">
+    <div className="min-h-screen bg-[#050507] text-white p-6 relative">
+      {/* Ambient glow */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[60%] h-[40%] pointer-events-none" aria-hidden="true" style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, rgba(6,182,212,0.08) 30%, rgba(16,185,129,0.04) 50%, transparent 70%)' }} />
       {/* Header */}
-      <div className="max-w-7xl mx-auto mb-8">
+      <div className="bg-[#050507]/90 backdrop-blur-xl border-white/[0.06] border rounded-xl p-4 sm:p-6 mb-8 relative max-w-7xl mx-auto">
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent pointer-events-none" />
         <div className="flex items-center gap-3 mb-2">
           <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-600">
             <Shield className="w-6 h-6 text-white" />
@@ -210,12 +213,12 @@ export default function AdminSocialLinksPage() {
             {content.title}
           </h1>
         </div>
-        <p className="text-white/60 text-lg">{content.subtitle}</p>
+        <p className="text-[#8892b0] text-lg">{content.subtitle}</p>
       </div>
 
       <div className="max-w-7xl mx-auto">
         {/* Filter */}
-        <Card className="bg-[#0a0e16] border border-blue-500/30 mb-6">
+        <Card className="bg-[#0e1117]/80 backdrop-blur-xl border border-white/[0.06] mb-6">
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-cyan-400" />
@@ -229,7 +232,7 @@ export default function AdminSocialLinksPage() {
                   className={
                     filter === status
                       ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                      : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
+                      : 'bg-white/[0.03] border-white/[0.06] text-[#8892b0] hover:bg-white/[0.03]'
                   }
                 >
                   {content.status[status]}
@@ -250,15 +253,15 @@ export default function AdminSocialLinksPage() {
             <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
           </div>
         ) : socialLinks.length === 0 ? (
-          <Card className="bg-[#0a0e16] border border-blue-500/30">
+          <Card className="bg-[#0e1117]/80 backdrop-blur-xl border border-white/[0.06]">
             <CardContent className="p-12 text-center">
-              <p className="text-white/50">{content.noResults}</p>
+              <p className="text-[#8892b0]">{content.noResults}</p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-4">
             {socialLinks.map((link) => (
-              <Card key={link.id} className="bg-[#0a0e16] border border-blue-500/30">
+              <Card key={link.id} className="bg-[#0e1117]/80 backdrop-blur-xl border border-white/[0.06]">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between gap-4">
                     {/* Left Side - User Info & Link Details */}
@@ -275,11 +278,11 @@ export default function AdminSocialLinksPage() {
                       {/* Platform & URL */}
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-cyan-300">
+                          <Badge variant="outline" className="bg-white/[0.03] border-white/[0.06] text-cyan-300">
                             {link.platform.toUpperCase()}
                           </Badge>
                           {link.username && (
-                            <span className="text-sm text-white/60">@{link.username}</span>
+                            <span className="text-sm text-[#8892b0]">@{link.username}</span>
                           )}
                         </div>
                         <a
@@ -294,7 +297,7 @@ export default function AdminSocialLinksPage() {
                       </div>
 
                       {/* Metadata */}
-                      <div className="flex items-center gap-4 text-xs text-white/50">
+                      <div className="flex items-center gap-4 text-xs text-[#8892b0]">
                         <div className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           {content.submittedAt}: {new Date(link.createdAt).toLocaleDateString()}
@@ -390,7 +393,7 @@ export default function AdminSocialLinksPage() {
 
       {/* Reject Dialog */}
       <Dialog open={!!selectedLink} onOpenChange={(open) => !open && setSelectedLink(null)}>
-        <DialogContent className="bg-[#0a0e16] border border-blue-500/30 text-white">
+        <DialogContent className="bg-[#0e1117] backdrop-blur-xl border border-white/[0.06] text-white">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <XCircle className="w-5 h-5 text-red-400" />
@@ -411,7 +414,7 @@ export default function AdminSocialLinksPage() {
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 placeholder={content.rejectReasonPlaceholder}
-                className="bg-[#070a10] border-blue-900/30 text-white min-h-[100px]"
+                className="bg-white/[0.03] border-white/[0.06] text-white min-h-[100px]"
               />
             </div>
           </div>
@@ -422,7 +425,7 @@ export default function AdminSocialLinksPage() {
                 setSelectedLink(null)
                 setRejectReason('')
               }}
-              className="bg-white/5 border-white/10 text-white hover:bg-white/10"
+              className="bg-white/[0.03] border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03]"
             >
               {content.cancel}
             </Button>
