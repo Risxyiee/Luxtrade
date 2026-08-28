@@ -240,8 +240,8 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
 
 const TARGET_OPTIONS = [
   { value: 'unverified', label: 'Belum Verifikasi', icon: UserX, color: 'text-orange-400', badge: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
-  { value: 'verified', label: 'Sudah Verifikasi', icon: ShieldCheck, color: 'text-green-400', badge: 'bg-green-500/10 text-green-400 border-green-500/20' },
-  { value: 'pro', label: 'User PRO', icon: Crown, color: 'text-amber-400', badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+  { value: 'verified', label: 'Sudah Verifikasi', icon: ShieldCheck, color: 'text-emerald-400', badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+  { value: 'pro', label: 'User PRO', icon: Crown, color: 'text-blue-400', badge: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
   { value: 'free', label: 'User Free', icon: Users, color: 'text-cyan-400', badge: 'bg-blue-500/10 text-cyan-400 border-blue-500/20' },
   { value: 'all', label: 'Semua User', icon: Mail, color: 'text-blue-400', badge: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
 ]
@@ -452,8 +452,8 @@ export default function AdminEmailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0612] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
+      <div className="min-h-screen bg-[#050510] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
       </div>
     )
   }
@@ -465,27 +465,28 @@ export default function AdminEmailPage() {
   const estimatedMinutes = Math.ceil(recipientCount / (5 * 10)) // ~10 emails/sec with 5 concurrent
 
   return (
-    <div className="min-h-screen bg-[#0a0612]">
+    <div className="min-h-screen bg-[#050510]">
+      {/* Ambient glow */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[60%] h-[40%] bg-blue-600/[0.06] blur-[150px] rounded-full pointer-events-none" aria-hidden="true" />
       {/* Header */}
-      <header className="border-b border-white/5 bg-[#0d0a18]/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-4">
+      <header className="border-b border-white/[0.06] bg-[#050510]/90 backdrop-blur-xl sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-4">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => router.push('/')}
-            className="text-white/60 hover:text-white hover:bg-white/5"
+            className="text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/5"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Kembali
+            <span className="text-[13px]">Kembali</span>
           </Button>
-          <div className="h-6 w-px bg-white/10" />
+          <div className="h-5 w-px bg-white/10" />
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center border border-amber-500/20">
-              <Mail className="w-5 h-5 text-amber-400" />
+            <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+              <Mail className="w-4 h-4 text-blue-400" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-white">Email Broadcast</h1>
-              <p className="text-xs text-white/40">Kirim email massal ke user LuxTrade</p>
+              <h1 className="text-[15px] font-medium text-[#f0f2ff] tracking-tight">Email Broadcast</h1>
             </div>
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -494,30 +495,30 @@ export default function AdminEmailPage() {
               disabled={syncing}
               variant="outline"
               size="sm"
-              className="border-emerald-500/30 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"
+              className="border-blue-500/20 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 disabled:opacity-50 text-xs"
               title="Sinkronkan user dari Auth ke DB sebelum broadcast"
             >
-              <DatabaseBackup className={`w-4 h-4 mr-2 ${syncing ? 'animate-pulse' : ''}`} />
+              <DatabaseBackup className={`w-3.5 h-3.5 mr-1.5 ${syncing ? 'animate-pulse' : ''}`} />
               {syncing ? 'Syncing...' : 'Sync Users'}
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 relative z-10">
         {/* Stats Cards */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3"
+          transition={{ duration: 0.5 }}
+          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px bg-white/[0.06] rounded-2xl overflow-hidden border border-white/[0.06]"
         >
           {stats && (
             <>
-              <StatCard label="Total User" value={stats.total} icon={Users} color="text-white" />
+              <StatCard label="Total User" value={stats.total} icon={Users} color="text-[#f0f2ff]" />
               <StatCard label="Belum Verifikasi" value={stats.unverified} icon={UserX} color="text-orange-400" />
-              <StatCard label="Sudah Verifikasi" value={stats.verified} icon={ShieldCheck} color="text-green-400" />
-              <StatCard label="User PRO" value={stats.pro} icon={Crown} color="text-amber-400" />
+              <StatCard label="Sudah Verifikasi" value={stats.verified} icon={ShieldCheck} color="text-emerald-400" />
+              <StatCard label="User PRO" value={stats.pro} icon={Crown} color="text-blue-400" />
               <StatCard label="User Free" value={stats.free} icon={Users} color="text-cyan-400" />
             </>
           )}
@@ -532,20 +533,21 @@ export default function AdminEmailPage() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="lg:col-span-2 space-y-4"
           >
-            <Card className="bg-[#1a0f2e]/50 border-white/[0.06] backdrop-blur-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-white text-lg flex items-center gap-2">
-                  <Send className="w-5 h-5 text-amber-400" />
+            <Card className="bg-[#0a0a1a] border border-white/[0.06] rounded-2xl">
+              <CardHeader className="pb-5">
+                <p className="text-[11px] font-medium tracking-[0.16em] uppercase text-blue-400 mb-2">BROADCAST</p>
+                <CardTitle className="text-[#f0f2ff] text-xl font-medium tracking-tight flex items-center gap-2">
+                  <Send className="w-5 h-5 text-blue-400" />
                   Kirim Email Broadcast
                 </CardTitle>
-                <CardDescription className="text-white/40">
+                <CardDescription className="text-[#8892b0] text-[14px]">
                   Pilih target user, tulis subject dan konten, lalu kirim
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-5">
+              <CardContent className="space-y-6">
                 {/* Target Selection */}
                 <div className="space-y-3">
-                  <Label className="text-white/70 text-sm font-medium">Target Penerima</Label>
+                  <Label className="text-[#f0f2ff]/70 text-sm font-medium">Target Penerima</Label>
                   <Tabs value={selectedTarget} onValueChange={setSelectedTarget} className="w-full">
                     <TabsList className="w-full bg-white/[0.03] border border-white/[0.06] h-auto p-1 flex flex-wrap gap-1">
                       {TARGET_OPTIONS.map(opt => {
@@ -554,7 +556,7 @@ export default function AdminEmailPage() {
                           <TabsTrigger
                             key={opt.value}
                             value={opt.value}
-                            className="flex-1 min-w-[120px] py-2 px-3 data-[state=active]:bg-white/[0.08] data-[state=active]:text-white text-white/50 rounded-md text-xs sm:text-sm transition-all"
+                            className="flex-1 min-w-[120px] py-2 px-3 data-[state=active]:bg-blue-500/15 data-[state=active]:text-[#f0f2ff] data-[state=active]:border-blue-500/30 text-[#8892b0] rounded-lg text-xs sm:text-sm transition-all border border-transparent"
                           >
                             <Icon className={`w-4 h-4 mr-1.5 ${opt.color}`} />
                             <span className="hidden sm:inline">{opt.label}</span>
@@ -571,7 +573,7 @@ export default function AdminEmailPage() {
                       <Badge variant="outline" className={currentTarget.badge}>
                         {recipientCount} user
                       </Badge>
-                      <span className="text-white/40">
+                      <span className="text-[#8892b0]">
                         akan menerima email ini (maks 50/batch)
                         {estimatedMinutes > 0 && (
                           <span className="ml-1">· est. ~{estimatedMinutes} menit</span>
@@ -584,20 +586,20 @@ export default function AdminEmailPage() {
                 {/* Template Selection (non-unverified) */}
                 {selectedTarget !== 'unverified' && (
                   <div className="space-y-2">
-                    <Label className="text-white/70 text-sm font-medium">Template</Label>
+                    <Label className="text-[#f0f2ff]/70 text-sm font-medium">Template</Label>
                     <div className="relative">
                       <select
                         value={selectedTemplate}
                         onChange={(e) => handleTemplateChange(e.target.value)}
-                        className="w-full appearance-none bg-white/[0.03] border border-white/[0.08] text-white text-sm rounded-lg px-3 py-2.5 pr-10 focus:outline-none focus:border-amber-500/40 focus:ring-amber-500/20"
+                        className="w-full appearance-none bg-white/[0.03] border border-white/[0.06] text-[#f0f2ff] text-sm rounded-xl px-3 py-2.5 pr-10 focus:outline-none focus:border-blue-500/40 focus:ring-blue-500/20"
                       >
                         {BROADCAST_TEMPLATES.map(tmpl => (
-                          <option key={tmpl.value} value={tmpl.value} className="bg-[#1a0f2e] text-white">
+                          <option key={tmpl.value} value={tmpl.value} className="bg-[#0a0a1a] text-[#f0f2ff]">
                             {tmpl.label}
                           </option>
                         ))}
                       </select>
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8892b0] pointer-events-none" />
                     </div>
                   </div>
                 )}
@@ -605,10 +607,10 @@ export default function AdminEmailPage() {
                 {/* Subject */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="subject" className="text-white/70 text-sm font-medium">
+                    <Label htmlFor="subject" className="text-[#f0f2ff]/70 text-sm font-medium">
                       Subject Email
                     </Label>
-                    <span className="text-[11px] text-white/30">
+                    <span className="text-[11px] text-[#8892b0]">
                       {subject.length} karakter
                     </span>
                   </div>
@@ -617,9 +619,9 @@ export default function AdminEmailPage() {
                     value={subject}
                     onChange={e => setSubject(e.target.value)}
                     placeholder={selectedTarget === 'unverified' ? 'Hei {{name}}, akun kamu belum diverifikasi nih 😅' : 'Masukkan subject email...'}
-                    className="bg-white/[0.03] border-white/[0.08] text-white placeholder:text-white/25 focus:border-amber-500/40 focus:ring-amber-500/20"
+                    className="bg-white/[0.03] border border-white/[0.06] text-[#f0f2ff] placeholder:text-[#8892b0]/50 focus:border-blue-500/40 focus:ring-blue-500/20 rounded-xl"
                   />
-                  <p className="text-xs text-white/30">
+                  <p className="text-xs text-[#8892b0]">
                     Gunakan {'{{name}}'} dan {'{{email}}'} sebagai placeholder
                   </p>
                 </div>
@@ -628,19 +630,19 @@ export default function AdminEmailPage() {
                 {selectedTarget !== 'unverified' && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-white/70 text-sm font-medium">
+                      <Label className="text-[#f0f2ff]/70 text-sm font-medium">
                         Konten Email
                       </Label>
                       <div className="flex items-center gap-2">
                         {/* Editor mode toggle */}
-                        <div className="flex items-center bg-white/[0.03] border border-white/[0.06] rounded-lg p-0.5">
+                        <div className="flex items-center bg-white/[0.03] border border-white/[0.06] rounded-xl p-0.5">
                           <button
                             type="button"
                             onClick={() => setEditorMode('visual')}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all ${
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all ${
                               editorMode === 'visual'
-                                ? 'bg-white/[0.08] text-white'
-                                : 'text-white/40 hover:text-white/60'
+                                ? 'bg-blue-500/15 text-[#f0f2ff]'
+                                : 'text-[#8892b0] hover:text-[#f0f2ff]'
                             }`}
                           >
                             <Paintbrush className="w-3.5 h-3.5" />
@@ -649,10 +651,10 @@ export default function AdminEmailPage() {
                           <button
                             type="button"
                             onClick={() => setEditorMode('html')}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-all ${
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all ${
                               editorMode === 'html'
-                                ? 'bg-white/[0.08] text-white'
-                                : 'text-white/40 hover:text-white/60'
+                                ? 'bg-blue-500/15 text-[#f0f2ff]'
+                                : 'text-[#8892b0] hover:text-[#f0f2ff]'
                             }`}
                           >
                             <Code className="w-3.5 h-3.5" />
@@ -665,7 +667,7 @@ export default function AdminEmailPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => setShowPreview(!showPreview)}
-                          className="text-white/40 hover:text-white/70 text-xs h-8 px-2"
+                          className="text-[#8892b0] hover:text-[#f0f2ff] text-xs h-8 px-2"
                         >
                           {showPreview ? <EyeOff className="w-3.5 h-3.5 mr-1" /> : <Eye className="w-3.5 h-3.5 mr-1" />}
                           {showPreview ? 'Tutup' : 'Preview'}
@@ -675,7 +677,7 @@ export default function AdminEmailPage() {
 
                     {/* Quill Editor (visual mode) */}
                     {editorMode === 'visual' && (
-                      <div className="email-editor-wrapper rounded-lg overflow-hidden border border-white/[0.08]">
+                      <div className="email-editor-wrapper rounded-xl overflow-hidden border border-white/[0.06]">
                         <style jsx global>{`
                           .email-editor-wrapper .ql-toolbar {
                             background: rgba(255,255,255,0.03) !important;
@@ -700,7 +702,7 @@ export default function AdminEmailPage() {
                             font-style: normal !important;
                           }
                           .email-editor-wrapper .ql-editor a {
-                            color: #fbbf24 !important;
+                            color: #60a5fa !important;
                           }
                           .email-editor-wrapper .ql-snow .ql-stroke {
                             stroke: rgba(255,255,255,0.4) !important;
@@ -712,7 +714,7 @@ export default function AdminEmailPage() {
                             color: rgba(255,255,255,0.4) !important;
                           }
                           .email-editor-wrapper .ql-snow .ql-picker-options {
-                            background: #1a0f2e !important;
+                            background: #0a0a1a !important;
                             border-color: rgba(255,255,255,0.1) !important;
                             border-radius: 8px !important;
                             padding: 4px !important;
@@ -722,25 +724,25 @@ export default function AdminEmailPage() {
                           }
                           .email-editor-wrapper .ql-snow .ql-picker-item:hover,
                           .email-editor-wrapper .ql-snow .ql-picker-item.ql-selected {
-                            color: #fbbf24 !important;
+                            color: #60a5fa !important;
                           }
                           .email-editor-wrapper .ql-snow .ql-active .ql-stroke {
-                            stroke: #f59e0b !important;
+                            stroke: #3b82f6 !important;
                           }
                           .email-editor-wrapper .ql-snow .ql-active .ql-fill {
-                            fill: #f59e0b !important;
+                            fill: #3b82f6 !important;
                           }
                           .email-editor-wrapper .ql-snow .ql-active {
-                            color: #f59e0b !important;
+                            color: #3b82f6 !important;
                           }
                           .email-editor-wrapper .ql-toolbar .ql-formats button:hover .ql-stroke {
-                            stroke: #fbbf24 !important;
+                            stroke: #60a5fa !important;
                           }
                           .email-editor-wrapper .ql-toolbar .ql-formats button:hover .ql-fill {
-                            fill: #fbbf24 !important;
+                            fill: #60a5fa !important;
                           }
                           .email-editor-wrapper .ql-snow .ql-tooltip {
-                            background: #1a0f2e !important;
+                            background: #0a0a1a !important;
                             border-color: rgba(255,255,255,0.1) !important;
                             border-radius: 8px !important;
                             color: rgba(255,255,255,0.8) !important;
@@ -768,7 +770,7 @@ export default function AdminEmailPage() {
                           onChange={e => setHtmlBody(e.target.value)}
                           placeholder="Tulis konten email broadcast... (support HTML tags)"
                           rows={10}
-                          className="bg-white/[0.03] border-white/[0.08] text-white placeholder:text-white/25 focus:border-amber-500/40 focus:ring-amber-500/20 text-sm min-h-[200px]"
+                          className="bg-white/[0.03] border-white/[0.06] text-[#f0f2ff] placeholder:text-[#8892b0]/50 focus:border-blue-500/40 focus:ring-blue-500/20 text-sm min-h-[200px]"
                         />
                       </div>
                     )}
@@ -780,13 +782,13 @@ export default function AdminEmailPage() {
                         onChange={e => setHtmlBody(e.target.value)}
                         placeholder={`<h1>Halo {{name}}!</h1>\n<p>Ini adalah email broadcast dari LuxTrade...</p>\n<a href="https://luxtradee.web.id">Kunjungi LuxTrade</a>`}
                         rows={12}
-                        className="bg-white/[0.03] border-white/[0.08] text-white placeholder:text-white/25 focus:border-amber-500/40 focus:ring-amber-500/20 font-mono text-sm"
+                        className="bg-white/[0.03] border border-white/[0.06] text-[#f0f2ff] placeholder:text-[#8892b0]/50 focus:border-blue-500/40 focus:ring-blue-500/20 font-mono text-sm rounded-xl"
                       />
                     )}
 
                     {/* Character count */}
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] text-white/30">
+                      <span className="text-[11px] text-[#8892b0]">
                         {htmlBody.length} karakter · {htmlBody.replace(/<[^>]*>/g, '').split(/\s+/).filter(Boolean).length} kata (tanpa HTML)
                       </span>
                     </div>
@@ -798,11 +800,11 @@ export default function AdminEmailPage() {
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={{ opacity: 0, height: 0 }}
-                          className="border border-white/[0.06] rounded-lg overflow-hidden"
+                          className="border border-white/[0.06] rounded-xl overflow-hidden"
                         >
-                          <div className="px-4 py-2 bg-white/[0.02] border-b border-white/[0.06] flex items-center justify-between">
-                            <span className="text-xs text-white/40 font-medium">Preview Output</span>
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-white/[0.02] border-white/[0.06] text-white/30">
+                          <div className="px-4 py-2.5 bg-white/[0.02] border-b border-white/[0.06] flex items-center justify-between">
+                            <span className="text-[11px] font-medium tracking-[0.12em] uppercase text-blue-400">Preview</span>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-white/[0.02] border-white/[0.06] text-[#8892b0]">
                               Desktop
                             </Badge>
                           </div>
@@ -848,12 +850,12 @@ export default function AdminEmailPage() {
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="border border-amber-500/20 rounded-lg bg-amber-500/[0.04] p-4"
+                    className="border border-blue-500/20 rounded-xl bg-blue-500/[0.04] p-4"
                   >
                     <div className="flex items-start gap-3">
-                      <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
-                      <div className="text-sm text-amber-200/70">
-                        <p className="font-medium text-amber-300/80 mb-1">Template Otomatis</p>
+                      <AlertTriangle className="w-5 h-5 text-blue-400 mt-0.5 shrink-0" />
+                      <div className="text-sm text-[#8892b0]">
+                        <p className="font-medium text-blue-300/80 mb-1">Template Otomatis</p>
                         <p>
                           Untuk target &quot;Belum Verifikasi&quot;, sistem akan otomatis mengirim email reminder dengan
                           link verifikasi baru yang berlaku 24 jam. Kamu cukup atur subject-nya saja.
@@ -871,7 +873,7 @@ export default function AdminEmailPage() {
                     variant="outline"
                     onClick={handleSendTestEmail}
                     disabled={sendingTest || sending || !subject.trim()}
-                    className="flex-1 sm:flex-none border-white/[0.08] text-white/70 hover:text-white hover:bg-white/[0.04]"
+                    className="flex-1 sm:flex-none border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.04] rounded-xl"
                   >
                     {sendingTest ? (
                       <>
@@ -890,7 +892,7 @@ export default function AdminEmailPage() {
                   <Button
                     onClick={handleOpenConfirmDialog}
                     disabled={sending || !subject.trim() || (selectedTarget !== 'unverified' && !htmlBody.trim())}
-                    className="flex-1 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-semibold py-6 text-base disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-400 hover:from-blue-600 hover:to-cyan-500 text-white font-medium py-6 text-base disabled:opacity-40 disabled:cursor-not-allowed rounded-xl"
                   >
                     {sending ? (
                       <>
@@ -955,10 +957,11 @@ export default function AdminEmailPage() {
             className="space-y-4"
           >
             {/* Recent Broadcasts */}
-            <Card className="bg-[#1a0f2e]/50 border-white/[0.06] backdrop-blur-sm">
+            <Card className="bg-[#0a0a1a] border border-white/[0.06] rounded-2xl hover:bg-[#0f0f25] transition-colors duration-300">
               <CardHeader className="pb-3">
-                <CardTitle className="text-white text-sm flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-amber-400" />
+                <p className="text-[11px] font-medium tracking-[0.16em] uppercase text-blue-400 mb-1">HISTORY</p>
+                <CardTitle className="text-[#f0f2ff] text-sm flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-blue-400" />
                   Riwayat Broadcast
                 </CardTitle>
               </CardHeader>
@@ -1001,37 +1004,38 @@ export default function AdminEmailPage() {
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <Clock className="w-8 h-8 text-white/10 mx-auto mb-2" />
-                    <p className="text-xs text-white/30">Belum ada riwayat broadcast</p>
+                    <Clock className="w-8 h-8 text-[#8892b0]/20 mx-auto mb-2" />
+                    <p className="text-xs text-[#8892b0]/50">Belum ada riwayat broadcast</p>
                   </div>
                 )}
               </CardContent>
             </Card>
 
             {/* Info Card */}
-            <Card className="bg-[#1a0f2e]/50 border-white/[0.06] backdrop-blur-sm">
+            <Card className="bg-[#0a0a1a] border border-white/[0.06] rounded-2xl hover:bg-[#0f0f25] transition-colors duration-300">
               <CardHeader className="pb-3">
-                <CardTitle className="text-white text-sm">Info Penting</CardTitle>
+                <p className="text-[11px] font-medium tracking-[0.16em] uppercase text-blue-400 mb-1">INFO</p>
+                <CardTitle className="text-[#f0f2ff] text-sm">Info Penting</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-start gap-2 text-xs text-white/40">
-                  <span className="text-amber-400 mt-0.5">•</span>
-                  <span>Maksimal <strong className="text-white/60">50 email</strong> per batch</span>
+                <div className="flex items-start gap-2 text-xs text-[#8892b0]">
+                  <span className="text-blue-400 mt-0.5">•</span>
+                  <span>Maksimal <strong className="text-[#f0f2ff]/70">50 email</strong> per batch</span>
                 </div>
-                <div className="flex items-start gap-2 text-xs text-white/40">
-                  <span className="text-amber-400 mt-0.5">•</span>
+                <div className="flex items-start gap-2 text-xs text-[#8892b0]">
+                  <span className="text-blue-400 mt-0.5">•</span>
                   <span>Dikirim paralel (maks 5 concurrent)</span>
                 </div>
-                <div className="flex items-start gap-2 text-xs text-white/40">
-                  <span className="text-amber-400 mt-0.5">•</span>
+                <div className="flex items-start gap-2 text-xs text-[#8892b0]">
+                  <span className="text-blue-400 mt-0.5">•</span>
                   <span>Unverified: token baru otomatis 24 jam</span>
                 </div>
-                <div className="flex items-start gap-2 text-xs text-white/40">
-                  <span className="text-amber-400 mt-0.5">•</span>
+                <div className="flex items-start gap-2 text-xs text-[#8892b0]">
+                  <span className="text-blue-400 mt-0.5">•</span>
                   <span>Placeholder: {'{{name}}'} dan {'{{email}}'}</span>
                 </div>
-                <div className="flex items-start gap-2 text-xs text-white/40">
-                  <span className="text-amber-400 mt-0.5">•</span>
+                <div className="flex items-start gap-2 text-xs text-[#8892b0]">
+                  <span className="text-blue-400 mt-0.5">•</span>
                   <span>From: LuxTrade &lt;noreply@luxtradee.web.id&gt;</span>
                 </div>
               </CardContent>
@@ -1042,48 +1046,48 @@ export default function AdminEmailPage() {
 
       {/* Confirmation Dialog */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <DialogContent className="bg-[#1a0f2e] border-white/[0.08] max-w-md">
+        <DialogContent className="bg-[#0a0a1a] border border-white/[0.06] rounded-2xl max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
-              <Send className="w-5 h-5 text-amber-400" />
+            <DialogTitle className="text-[#f0f2ff] flex items-center gap-2">
+              <Send className="w-5 h-5 text-blue-400" />
               Konfirmasi Kirim Broadcast
             </DialogTitle>
-            <DialogDescription className="text-white/50">
+            <DialogDescription className="text-[#8892b0]">
               Pastikan subject dan konten email sudah benar sebelum mengirim.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                <p className="text-[11px] text-white/40 mb-1">Target</p>
-                <p className="text-sm text-white font-medium">{currentTarget?.label}</p>
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                <p className="text-[11px] text-[#8892b0] mb-1">Target</p>
+                <p className="text-sm text-[#f0f2ff] font-medium">{currentTarget?.label}</p>
               </div>
-              <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                <p className="text-[11px] text-white/40 mb-1">Jumlah Penerima</p>
-                <p className="text-sm text-white font-medium">{recipientCount} user</p>
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                <p className="text-[11px] text-[#8892b0] mb-1">Jumlah Penerima</p>
+                <p className="text-sm text-[#f0f2ff] font-medium">{recipientCount} user</p>
               </div>
             </div>
-            <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-              <p className="text-[11px] text-white/40 mb-1">Subject</p>
-              <p className="text-sm text-white/80 truncate">{subject}</p>
+            <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+              <p className="text-[11px] text-[#8892b0] mb-1">Subject</p>
+              <p className="text-sm text-[#f0f2ff]/80 truncate">{subject}</p>
             </div>
-            <div className="p-3 rounded-lg bg-amber-500/[0.06] border border-amber-500/15">
-              <p className="text-xs text-amber-300/70 flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-blue-500/[0.06] border border-blue-500/15">
+              <p className="text-xs text-blue-300/70 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
-                Email akan dikirim ke <strong className="text-amber-300">{recipientCount}</strong> user secara bersamaan. Tindakan ini tidak bisa dibatalkan.
+                Email akan dikirim ke <strong className="text-blue-300">{recipientCount}</strong> user secara bersamaan. Tindakan ini tidak bisa dibatalkan.
               </p>
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <DialogClose asChild>
-              <Button variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5">
+              <Button variant="ghost" className="text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/5">
                 Batal
               </Button>
             </DialogClose>
             <Button
               onClick={handleSend}
               disabled={sending}
-              className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-semibold"
+              className="bg-gradient-to-r from-blue-500 to-cyan-400 hover:from-blue-600 hover:to-cyan-500 text-white font-semibold rounded-xl"
             >
               {sending ? (
                 <>
@@ -1111,14 +1115,12 @@ function StatCard({ label, value, icon: Icon, color }: {
   color: string
 }) {
   return (
-    <Card className="bg-[#1a0f2e]/40 border-white/[0.05] backdrop-blur-sm">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Icon className={`w-4 h-4 ${color}`} />
-          <span className="text-xs text-white/40">{label}</span>
-        </div>
-        <p className="text-2xl font-bold text-white">{value}</p>
-      </CardContent>
-    </Card>
+    <div className="bg-[#0a0a1a] hover:bg-[#0f0f25] transition-colors duration-300 p-6">
+      <div className="flex items-center gap-2 mb-3">
+        <Icon className={`w-4 h-4 ${color}`} />
+        <span className="text-[11px] font-medium tracking-[0.12em] uppercase text-[#8892b0]">{label}</span>
+      </div>
+      <p className="text-2xl font-bold text-[#f0f2ff]">{value}</p>
+    </div>
   )
 }
