@@ -8,6 +8,7 @@ import {
   CheckCircle, XCircle, Clock, AlertTriangle, Eye, EyeOff,
   ArrowLeft, BarChart3, FileText, Megaphone, Settings,
   Code, Paintbrush, Vibrate, FlaskConical, ChevronDown, DatabaseBackup,
+  Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -154,6 +155,86 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
     </td>
   </tr>
 </table>`,
+  },
+  {
+    value: 'update-fix',
+    label: 'Update & Perbaikan',
+    icon: Sparkles,
+    subject: '✨ Pembaruan LuxTrade — Fitur Baru & Perbaikan Bug',
+    body: `<h2 style="color: #1a1a2e; font-size: 20px; margin: 0 0 8px 0; font-weight: 700;">Kami Terus Berkembang untuk Kamu! 🚀</h2>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Halo {{name}},</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Tim LuxTrade terus bekerja keras buat bikin pengalaman trading kamu makin baik. Kali ini kami sudah merilis beberapa <strong style="color: #1a1a2e;">pembaruan fitur dan perbaikan bug</strong> yang penting:</p>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
+  <tr>
+    <td style="background-color: #f0f4ff; border-radius: 12px; padding: 22px 22px;">
+      <p style="color: #1e40af; font-size: 14px; font-weight: 700; margin: 0 0 14px 0;">🆕 Fitur Baru</p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+          <td style="padding: 3px 0; color: #555770; font-size: 14px; line-height: 1.8;">
+            <span style="color: #3b82f6; margin-right: 8px; font-size: 16px;">✦</span> [Nama fitur baru 1] — [deskripsi singkat manfaatnya]
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 3px 0; color: #555770; font-size: 14px; line-height: 1.8;">
+            <span style="color: #3b82f6; margin-right: 8px; font-size: 16px;">✦</span> [Nama fitur baru 2] — [deskripsi singkat manfaatnya]
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 3px 0; color: #555770; font-size: 14px; line-height: 1.8;">
+            <span style="color: #3b82f6; margin-right: 8px; font-size: 16px;">✦</span> [Nama fitur baru 3] — [deskripsi singkat manfaatnya]
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
+  <tr>
+    <td style="background-color: #ecfdf5; border-radius: 12px; padding: 22px 22px;">
+      <p style="color: #059669; font-size: 14px; font-weight: 700; margin: 0 0 14px 0;">🔧 Perbaikan</p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+          <td style="padding: 3px 0; color: #555770; font-size: 14px; line-height: 1.8;">
+            <span style="color: #059669; margin-right: 8px; font-size: 16px;">✓</span> [Perbaikan 1 — masalah apa yang diperbaiki]
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 3px 0; color: #555770; font-size: 14px; line-height: 1.8;">
+            <span style="color: #059669; margin-right: 8px; font-size: 16px;">✓</span> [Perbaikan 2 — masalah apa yang diperbaiki]
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 3px 0; color: #555770; font-size: 14px; line-height: 1.8;">
+            <span style="color: #059669; margin-right: 8px; font-size: 16px;">✓</span> [Perbaikan 3 — masalah apa yang diperbaiki]
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 24px 0;">
+  <tr>
+    <td style="background-color: #fef3c7; border-radius: 12px; padding: 18px 22px;">
+      <p style="color: #92400e; font-size: 14px; font-weight: 700; margin: 0 0 6px 0;">⚡ Peningkatan Performa</p>
+      <p style="color: #555770; font-size: 14px; line-height: 1.7; margin: 0;">[Deskripsi peningkatan performa — misalnya: Kami sudah mengoptimalkan kecepatan loading dashboard hingga 2x lebih cepat, dan memperbaiki stabilitas koneksi database untuk pengalaman yang lebih mulus.]</p>
+    </td>
+  </tr>
+</table>
+
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 24px 0;">Masih banyak ide dan fitur yang sedang kami kerjakan. Kalau kamu punya <strong style="color: #1a1a2e;">saran atau feedback</strong>, jangan ragu buat kasih tau kami ya!</p>
+
+<table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+  <tr>
+    <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px;">
+      <a href="https://luxtradee.web.id/dashboard" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Buka Dashboard Sekarang →</a>
+    </td>
+  </tr>
+</table>
+
+<p style="color: #8b8da0; font-size: 13px; line-height: 1.6; margin: 24px 0 0 0; text-align: center;">Terima kasih sudah setia pakai LuxTrade. Happy trading! 📈</p>`,
   },
 ]
 
