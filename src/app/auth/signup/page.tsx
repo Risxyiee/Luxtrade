@@ -389,13 +389,14 @@ function SignUpForm() {
   const hasUppercase = /[A-Z]/.test(password)
   const hasLowercase = /[a-z]/.test(password)
   const hasNumber = /[0-9]/.test(password)
+  const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"|<>,.?\/`~]/.test(password)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setFieldErrors({})
 
-    if (!hasMinLength || !hasUppercase || !hasLowercase || !hasNumber) {
+    if (!hasMinLength || !hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) {
       setError('Password tidak memenuhi syarat')
       return
     }
@@ -604,6 +605,7 @@ function SignUpForm() {
                     { ok: hasUppercase, label: 'Huruf besar' },
                     { ok: hasLowercase, label: 'Huruf kecil' },
                     { ok: hasNumber, label: 'Angka' },
+                    { ok: hasSpecial, label: 'Simbol (!@#)' },
                   ].map((item) => (
                     <div key={item.label} className={`flex items-center gap-1.5 text-[11px] ${item.ok ? 'text-emerald-400' : 'text-gray-600'}`}>
                       <div className={`w-1.5 h-1.5 rounded-full ${item.ok ? 'bg-emerald-400' : 'bg-white/20'}`} />
