@@ -261,6 +261,13 @@ function LuxTradeDashboardContent() {
 
   const handleOnAddFirstTrade = useCallback(() => setAddTradeOpen(true), [])
 
+  const handleOnboardingComplete = useCallback(() => {
+    setShowOnboarding(false)
+    // Mark as completed in DB and localStorage
+    fetch('/api/onboarding', { method: 'POST', credentials: 'include' }).catch(() => {})
+    localStorage.setItem('luxtrade_onboarding_done', 'true')
+  }, [])
+
   useEffect(() => {
     const checkMobile = () => {
       const userAgent = navigator.userAgent || ''
@@ -438,12 +445,24 @@ function LuxTradeDashboardContent() {
     if (loading) return // wait for first fetch to finish
     authCheckedRef.current = true
 
-    const onboardingDone = localStorage.getItem('luxtrade_onboarding_done')
-    if (!onboardingDone && trades.length === 0) {
-      const timer = setTimeout(() => setShowOnboarding(true), 1500)
-      return () => clearTimeout(timer)
-    }
-  }, [authLoading, user, loading, trades.length])
+    // Check API for onboarding status (database-backed)
+    fetch('/api/onboarding', { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.completed) {
+          const timer = setTimeout(() => setShowOnboarding(true), 800)
+          return () => clearTimeout(timer)
+        }
+      })
+      .catch(() => {
+        // Fallback to localStorage
+        const onboardingDone = localStorage.getItem('luxtrade_onboarding_done')
+        if (!onboardingDone) {
+          const timer = setTimeout(() => setShowOnboarding(true), 800)
+          return () => clearTimeout(timer)
+        }
+      })
+  }, [authLoading, user, loading])
 
   // ==================== KEYBOARD SHORTCUTS ====================
   useEffect(() => {
@@ -839,6 +858,7 @@ function LuxTradeDashboardContent() {
           aiChatMessages={aiChatMessages}
           aiChatInput={aiChatInput}
           setAddTradeOpen={setAddTradeOpen}
+          setAddAccountOpen={setIsAddAccountOpen}
           setAddJournalOpen={setAddJournalOpen}
           setAddWatchlistOpen={setAddWatchlistOpen}
           setPlanSelectionModalOpen={setPlanSelectionModalOpen}
@@ -901,6 +921,7 @@ function LuxTradeDashboardContent() {
         setPaywallModalOpen={setPaywallModalOpen}
         showOnboarding={showOnboarding}
         setShowOnboarding={setShowOnboarding}
+        onOnboardingComplete={handleOnboardingComplete}
         onAddFirstTrade={handleOnAddFirstTrade}
         onLoadSampleData={handleLoadSampleData}
         addTradeOpen={addTradeOpen}
