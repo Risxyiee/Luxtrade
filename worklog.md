@@ -373,3 +373,36 @@ Stage Summary:
 - All changes pass ESLint with zero errors
 - Files modified: DashboardTab.tsx, TabContent.tsx, LuxTradeDashboard.tsx, DashboardModals.tsx, CommunityTab.tsx, leaderboard/route.ts, public-profile/route.ts, schema.prisma
 - Files created: OnboardingOverlay.tsx, api/onboarding/route.ts
+
+---
+Task ID: 16
+Agent: Main
+Task: Fix email broadcast template - wrap HTML body with professional template + redesign templates
+
+Work Log:
+- **Identified root problem**: Broadcast API sent raw HTML fragment directly via `sendEmail()` — no LuxTrade header, logo, footer, or branding wrapper
+- **Found existing solution**: `getPromotionalEmailHtml()` in `src/lib/email.ts` already provides professional wrapper (logo, divider, greeting, footer, unsubscribe link) but was never used by broadcast API
+- **Fixed `src/app/api/admin/email-broadcast/route.ts`**:
+  - Added `getPromotionalEmailHtml` to import
+  - GET handler (test email): Now wraps htmlBody with `getPromotionalEmailHtml('Admin', subject, body)` before sending
+  - POST handler (broadcast): Now wraps each user's personalized htmlBody with `getPromotionalEmailHtml(name, subject, body)` before sending
+- **Redesigned 3 broadcast templates in `src/app/admin-email/page.tsx`**:
+  - **Promo PRO**: Changed from `<ul>` (broken in Outlook) to table-based feature list with blue accent icons, blue CTA button (`#3b82f6`), light blue info box
+  - **Maintenance Notice**: Added proper table-based info box with amber left-border, separate "Keamanan Data" blue info card, centered closing text
+  - **New Feature**: Green bordered feature card, blue CTA button, consistent styling
+  - All templates now use email-safe `<table>` layouts instead of `<div>` (Outlook compatibility)
+  - All templates use consistent LuxTrade color palette (`#1a1a2e`, `#555770`, `#8b8da0`, `#3b82f6`)
+  - Template content is now just body fragment (no full HTML) since `getPromotionalEmailHtml` adds header/footer
+- **Upgraded preview in admin panel**:
+  - Replaced dark-themed raw HTML preview with realistic email client simulation
+  - Shows white card on gray (#f4f4f7) background, matching real email clients
+  - Includes simulated header (LuxTrade logo, sender email, subject line)
+  - Includes simulated footer (copyright, noreply address)
+  - Body content renders with proper light-theme colors
+
+Stage Summary:
+- 2 files modified: `src/app/api/admin/email-broadcast/route.ts`, `src/app/admin-email/page.tsx`
+- Broadcast emails now include full LuxTrade branding (header, logo, footer, unsubscribe link)
+- 3 templates redesigned with email-safe table layouts and consistent branding colors
+- Preview in admin panel now realistically simulates email client appearance
+- ESLint passes clean (0 errors)

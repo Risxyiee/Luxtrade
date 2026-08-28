@@ -63,47 +63,97 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
     label: 'Promo PRO',
     icon: Crown,
     subject: '🔥 Promo Spesial: Upgrade ke PRO LuxTrade Sekarang!',
-    body: `<h2 style="color: #f59e0b; margin-bottom: 16px;">Upgrade ke PRO & Raih Keuntungan Lebih Banyak!</h2>
-<p style="color: #555770; line-height: 1.7; margin-bottom: 16px;">Halo {{name}},</p>
-<p style="color: #555770; line-height: 1.7; margin-bottom: 16px;">Kami punya <strong>penawaran spesial</strong> buat kamu! Upgrade ke akun PRO LuxTrade sekarang dan nikmatin semua fitur premium:</p>
-<ul style="color: #555770; line-height: 2; margin-bottom: 16px; padding-left: 20px;">
-  <li>📊 Analisa AI yang lebih mendalam</li>
-  <li>📈 Unlimited trading journal entries</li>
-  <li>🎯 Personalized trading insights</li>
-  <li>⚡ Priority support</li>
-</ul>
-<p style="color: #555770; line-height: 1.7; margin-bottom: 16px;">Jangan lewatkan kesempatan ini! Promo terbatas hanya untuk pengguna setia LuxTrade.</p>
-<p style="margin-top: 20px;"><a href="https://luxtradee.web.id/dashboard" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; text-decoration: none; border-radius: 12px; font-weight: 700;">Upgrade ke PRO Sekarang →</a></p>`,
+    body: `<h2 style="color: #1a1a2e; font-size: 20px; margin: 0 0 8px 0; font-weight: 700;">Upgrade ke PRO & Raih Keuntungan Lebih Banyak!</h2>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Halo {{name}},</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Kami punya <strong style="color: #1a1a2e;">penawaran spesial</strong> buat kamu! Upgrade ke akun PRO LuxTrade sekarang dan nikmatin semua fitur premium:</p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
+  <tr>
+    <td style="background-color: #f0f4ff; border-radius: 12px; padding: 20px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+          <td style="padding: 4px 0; color: #555770; font-size: 14px; line-height: 1.8;">
+            <span style="color: #3b82f6; margin-right: 8px; font-size: 16px;">📊</span> Analisa AI yang lebih mendalam
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0; color: #555770; font-size: 14px; line-height: 1.8;">
+            <span style="color: #3b82f6; margin-right: 8px; font-size: 16px;">📈</span> Unlimited trading journal entries
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0; color: #555770; font-size: 14px; line-height: 1.8;">
+            <span style="color: #3b82f6; margin-right: 8px; font-size: 16px;">🎯</span> Personalized trading insights
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0; color: #555770; font-size: 14px; line-height: 1.8;">
+            <span style="color: #3b82f6; margin-right: 8px; font-size: 16px;">⚡</span> Priority support
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 24px 0;">Jangan lewatkan kesempatan ini! Promo terbatas hanya untuk pengguna setia LuxTrade.</p>
+<table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+  <tr>
+    <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px;">
+      <a href="https://luxtradee.web.id/dashboard" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Upgrade ke PRO Sekarang →</a>
+    </td>
+  </tr>
+</table>`,
   },
   {
     value: 'maintenance',
     label: 'Maintenance Notice',
     icon: Settings,
     subject: '🔧 Pemberitahuan Maintenance LuxTrade',
-    body: `<h2 style="color: #dc2626; margin-bottom: 16px;">Pemeliharaan Sistem Terjadwal</h2>
-<p style="color: #555770; line-height: 1.7; margin-bottom: 16px;">Halo {{name}},</p>
-<p style="color: #555770; line-height: 1.7; margin-bottom: 16px;">Kami akan melakukan <strong>pemeliharaan sistem</strong> pada LuxTrade untuk meningkatkan performa dan keamanan layanan kami.</p>
-<div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
-  <p style="color: #92400e; margin: 0;"><strong>⏰ Waktu:</strong> [Tanggal dan jam maintenance]</p>
-  <p style="color: #92400e; margin: 8px 0 0 0;"><strong>⏱️ Estimasi durasi:</strong> [Durasi maintenance]</p>
-</div>
-<p style="color: #555770; line-height: 1.7; margin-bottom: 16px;">Selama maintenance, beberapa fitur mungkin tidak tersedia sementara. Data kamu akan <strong>aman dan terlindungi</strong>.</p>
-<p style="color: #555770; line-height: 1.7;">Terima kasih atas pengertiannya. 🙏</p>`,
+    body: `<h2 style="color: #1a1a2e; font-size: 20px; margin: 0 0 8px 0; font-weight: 700;">Pemeliharaan Sistem Terjadwal</h2>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Halo {{name}},</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Kami akan melakukan <strong style="color: #1a1a2e;">pemeliharaan sistem</strong> pada LuxTrade untuk meningkatkan performa dan keamanan layanan kami.</p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
+  <tr>
+    <td style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0 12px 12px 0; padding: 18px 20px;">
+      <p style="color: #92400e; font-size: 14px; font-weight: 700; margin: 0 0 8px 0;">⏰ Detail Maintenance</p>
+      <p style="color: #92400e; font-size: 14px; line-height: 1.7; margin: 0 0 4px 0;"><strong>Waktu:</strong> [Tanggal dan jam maintenance]</p>
+      <p style="color: #92400e; font-size: 14px; line-height: 1.7; margin: 0;"><strong>Estimasi durasi:</strong> [Durasi maintenance]</p>
+    </td>
+  </tr>
+</table>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
+  <tr>
+    <td style="background-color: #f0f4ff; border-radius: 12px; padding: 18px 20px;">
+      <p style="color: #1e40af; font-size: 14px; font-weight: 700; margin: 0 0 6px 0;">🔒 Keamanan Data</p>
+      <p style="color: #555770; font-size: 14px; line-height: 1.7; margin: 0;">Selama maintenance, beberapa fitur mungkin tidak tersedia sementara. Data kamu akan <strong>aman dan terlindungi</strong>.</p>
+    </td>
+  </tr>
+</table>
+<p style="color: #8b8da0; font-size: 13px; line-height: 1.6; margin: 0; text-align: center;">Terima kasih atas pengertiannya. 🙏</p>`,
   },
   {
     value: 'new-feature',
     label: 'New Feature',
     icon: Megaphone,
     subject: '🚀 Fitur Baru di LuxTrade!',
-    body: `<h2 style="color: #059669; margin-bottom: 16px;">Fitur Baru Telah Hadir!</h2>
-<p style="color: #555770; line-height: 1.7; margin-bottom: 16px;">Halo {{name}},</p>
-<p style="color: #555770; line-height: 1.7; margin-bottom: 16px;">Kami dengan senang hati memperkenalkan <strong>fitur terbaru</strong> di LuxTrade!</p>
-<div style="background: #ecfdf5; border: 1px solid #a7f3d0; padding: 20px; border-radius: 12px; margin-bottom: 16px;">
-  <h3 style="color: #059669; margin: 0 0 12px 0;">✨ [Nama Fitur Baru]</h3>
-  <p style="color: #555770; line-height: 1.7; margin: 0;">[Deskripsi singkat fitur baru dan manfaatnya untuk pengguna]</p>
-</div>
-<p style="color: #555770; line-height: 1.7; margin-bottom: 16px;">Coba fitur baru ini sekarang dan rasakan pengalaman trading yang lebih baik bersama LuxTrade!</p>
-<p style="margin-top: 20px;"><a href="https://luxtradee.web.id/dashboard" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; text-decoration: none; border-radius: 12px; font-weight: 700;">Coba Sekarang →</a></p>`,
+    body: `<h2 style="color: #1a1a2e; font-size: 20px; margin: 0 0 8px 0; font-weight: 700;">Fitur Baru Telah Hadir!</h2>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Halo {{name}},</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Kami dengan senang hati memperkenalkan <strong style="color: #1a1a2e;">fitur terbaru</strong> di LuxTrade!</p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
+  <tr>
+    <td style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 22px 22px;">
+      <p style="color: #059669; font-size: 16px; font-weight: 700; margin: 0 0 10px 0;">✨ [Nama Fitur Baru]</p>
+      <p style="color: #555770; font-size: 14px; line-height: 1.7; margin: 0;">[Deskripsi singkat fitur baru dan manfaatnya untuk pengguna]</p>
+    </td>
+  </tr>
+</table>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 24px 0;">Coba fitur baru ini sekarang dan rasakan pengalaman trading yang lebih baik bersama LuxTrade!</p>
+<table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+  <tr>
+    <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px;">
+      <a href="https://luxtradee.web.id/dashboard" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Coba Sekarang →</a>
+    </td>
+  </tr>
+</table>`,
   },
 ]
 
@@ -675,12 +725,37 @@ export default function AdminEmailPage() {
                               Desktop
                             </Badge>
                           </div>
-                          <div
-                            className="p-4 bg-white/[0.01] text-white/80 text-sm max-h-80 overflow-y-auto prose prose-invert prose-sm max-w-none [&_a]:text-amber-400"
-                            dangerouslySetInnerHTML={{
-                              __html: htmlBody.replace(/\{\{name\}\}/g, 'John').replace(/\{\{email\}\}/g, 'john@example.com'),
-                            }}
-                          />
+                          {/* Email client simulation */}
+                          <div className="p-4 bg-[#f4f4f7]">
+                            <div className="max-w-[600px] mx-auto bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                              {/* Email header bar */}
+                              <div className="px-6 py-4 border-b border-gray-100">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center">
+                                    <span className="text-lg">👑</span>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-bold text-gray-900">LuxTrade</p>
+                                    <p className="text-[11px] text-gray-400">noreply@luxtradee.web.id</p>
+                                  </div>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-2 font-medium">{subject.replace(/\{\{name\}\}/g, 'John').replace(/\{\{email\}\}/g, 'john@example.com')}</p>
+                              </div>
+                              {/* Email body */}
+                              <div
+                                className="px-10 py-6 text-sm max-h-80 overflow-y-auto"
+                                style={{ color: '#555770' }}
+                                dangerouslySetInnerHTML={{
+                                  __html: htmlBody.replace(/\{\{name\}\}/g, 'John').replace(/\{\{email\}\}/g, 'john@example.com'),
+                                }}
+                              />
+                              {/* Email footer */}
+                              <div className="px-10 py-4 border-t border-gray-100 text-center">
+                                <p className="text-[11px] text-gray-400">© {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
+                                <p className="text-[10px] text-gray-300 mt-1">Email ini dikirim dari noreply@luxtradee.web.id</p>
+                              </div>
+                            </div>
+                          </div>
                         </motion.div>
                       )}
                     </AnimatePresence>
