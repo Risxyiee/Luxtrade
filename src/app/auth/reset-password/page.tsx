@@ -1,16 +1,111 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react'
-import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Lock, Eye, EyeOff, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Lock, Eye, EyeOff, Loader2, CheckCircle, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
+// ============================================
+// Input field (matches login page .auth-input)
+// ============================================
+function LuxInput({ icon: Icon, placeholder, value, onChange, type = 'text', required, rightElement, error: hasError, onClearError, disabled }: {
+  icon?: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
+  placeholder?: string
+  value: string
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  type?: string
+  required?: boolean
+  rightElement?: React.ReactNode
+  error?: boolean
+  onClearError?: () => void
+  disabled?: boolean
+}) {
+  const [focused, setFocused] = React.useState(false)
+
+  return (
+    <div className="relative flex items-center">
+      {Icon && (
+        <Icon
+          className="absolute left-4 w-4 h-4 pointer-events-none transition-colors duration-300"
+          style={{ color: focused ? '#06b6d4' : hasError ? 'rgba(239,68,68,0.7)' : 'rgba(255,255,255,0.4)' }}
+        />
+      )}
+      <input
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => { onChange(e); onClearError?.() }}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        required={required}
+        disabled={disabled}
+        className={`w-full transition-all duration-300 outline-none font-[JetBrains_Mono,monospace] ${hasError ? 'auth-input-error' : 'auth-input'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      />
+      {rightElement && <div className="absolute right-3">{rightElement}</div>}
+    </div>
+  )
+}
+
+// ============================================
+// Background
+// ============================================
+function AuthBg() {
+  return (
+    <>
+      <div className="auth-ambient" />
+      <div className="auth-orb auth-orb-1" />
+      <div className="auth-orb auth-orb-2" />
+      <div className="auth-orb auth-orb-3" />
+      <div className="auth-grid-floor" />
+      <div className="fixed inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 2 }}>
+        <div style={{
+          width: 'clamp(280px, 55vw, 500px)',
+          height: 'clamp(280px, 55vw, 500px)',
+          position: 'relative',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          animation: 'auth-logo-spin 25s linear infinite',
+        }}>
+          <Image src="/logo.png" alt="" width={500} height={500} className="object-contain" style={{
+            opacity: 0.04,
+            filter: 'drop-shadow(0 0 60px rgba(59,130,246,0.15)) drop-shadow(0 0 120px rgba(6,182,212,0.08))',
+          }} priority={false} />
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ============================================
+// Spinning Logo
+// ============================================
+function SpinningLogo() {
+  return (
+    <div className="w-full flex justify-center mb-5 relative z-10">
+      <div style={{
+        animation: 'auth-logo-spin 16s linear infinite',
+        width: 'clamp(60px, 14vw, 90px)',
+        height: 'clamp(60px, 14vw, 90px)',
+        position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <div style={{
+          position: 'absolute', inset: '-60%', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(6,182,212,0.08) 40%, transparent 70%)',
+          filter: 'blur(20px)', animation: 'auth-logo-glow 5s ease-in-out infinite', pointerEvents: 'none',
+        }} />
+        <Image src="/logo.png" alt="" width={90} height={90} className="object-contain" style={{
+          opacity: 0.85,
+          filter: 'drop-shadow(0 0 25px rgba(59,130,246,0.5)) drop-shadow(0 0 50px rgba(6,182,212,0.3))',
+        }} priority={false} />
+      </div>
+    </div>
+  )
+}
+
+// ============================================
+// Main Content
+// ============================================
 function ResetPasswordContent() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -22,7 +117,7 @@ function ResetPasswordContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  // Password strength check
+  // Password strength
   const hasMinLength = password.length >= 8
   const hasUppercase = /[A-Z]/.test(password)
   const hasLowercase = /[a-z]/.test(password)
@@ -31,49 +126,30 @@ function ResetPasswordContent() {
 
   // Check for session from the reset link (multi-strategy)
   const checkSession = useCallback(async () => {
-    console.log('🔑 [ResetPassword] Checking session...')
-
     // Try 1: direct getSession
     const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      console.log('✅ [ResetPassword] Session found via getSession')
-      setSessionStatus('ready')
-      return
-    }
+    if (session) { setSessionStatus('ready'); return }
 
     // Try 2: wait for URL hash processing
-    console.log('⏳ [ResetPassword] No session yet, waiting...')
     await new Promise(resolve => setTimeout(resolve, 2000))
-
     const { data: { session: session2 } } = await supabase.auth.getSession()
-    if (session2) {
-      console.log('✅ [ResetPassword] Session found after delay')
-      setSessionStatus('ready')
-      return
-    }
+    if (session2) { setSessionStatus('ready'); return }
 
     // Try 3: onAuthStateChange
-    const { data } = supabase.auth.onAuthStateChange((event, sess) => {
-      console.log('🔄 [ResetPassword] Auth event:', event, 'session:', sess ? 'EXISTS' : 'NULL')
+    const { data } = supabase.auth.onAuthStateChange((_event, sess) => {
       if (sess) setSessionStatus('ready')
     })
     await new Promise(resolve => setTimeout(resolve, 2000))
     data.subscription.unsubscribe()
 
     const { data: { session: session3 } } = await supabase.auth.getSession()
-    if (session3) {
-      setSessionStatus('ready')
-      return
-    }
+    if (session3) { setSessionStatus('ready'); return }
 
-    // No session — admin API fallback will be used
-    console.log('⚠️ [ResetPassword] No session, will use admin API fallback')
+    // No session — admin API fallback
     setSessionStatus('no-session')
   }, [])
 
-  useEffect(() => {
-    checkSession()
-  }, [checkSession])
+  useEffect(() => { checkSession() }, [checkSession])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -99,7 +175,6 @@ function ResetPasswordContent() {
           setTimeout(() => router.push('/auth/login'), 2000)
           return
         }
-        console.warn('⚠️ Client update failed:', updateError.message)
         // Fall through to admin API
       }
 
@@ -111,7 +186,7 @@ function ResetPasswordContent() {
         return
       }
 
-      const response = await fetch('/api/auth/reset-password-admin', {
+      const response = await fetch('/api/auth/reset-password-public', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password, email: emailFromUrl }),
@@ -131,169 +206,140 @@ function ResetPasswordContent() {
     }
   }
 
+  // ---- SUCCESS SCREEN ----
   if (success) {
     return (
-      <div className="min-h-screen bg-[#0a0612] flex items-center justify-center p-4">
-        <div className="fixed inset-0 -z-10">
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0a0612] via-[#110a1f] to-[#0a0612]" />
-        </div>
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-md text-center"
-        >
-          <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-8 backdrop-blur-sm">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-8 h-8 text-emerald-400" />
+      <div className="auth-page">
+        <AuthBg />
+        <div className="auth-noise" />
+        <div className="w-full flex flex-col items-center relative z-10">
+          <div className="auth-perspective w-full max-w-md relative">
+            <div className="auth-glass-card p-8 md:p-10">
+              <SpinningLogo />
+              <div className="flex justify-center mb-6">
+                <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                  <CheckCircle className="w-8 h-8 text-emerald-400" />
+                </div>
+              </div>
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-light text-white tracking-wide mb-2">Password Berhasil Diubah!</h2>
+                <p className="text-xs text-gray-500 font-[JetBrains_Mono,monospace]">Silakan login dengan password baru Anda.</p>
+              </div>
+              <Loader2 className="w-5 h-5 text-cyan-400 animate-spin mx-auto" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Password Berhasil Diubah!</h2>
-            <p className="text-white/60 text-sm mb-4">Silakan login dengan password baru Anda.</p>
-            <Loader2 className="w-5 h-5 text-amber-400 animate-spin mx-auto" />
           </div>
-        </motion.div>
+          <p className="text-center mt-8 text-[10px] text-gray-700 font-[JetBrains_Mono,monospace] uppercase tracking-widest">© 2026 LuxTrade. All rights reserved.</p>
+        </div>
       </div>
     )
   }
 
+  // ---- FORM SCREEN ----
   return (
-    <div className="min-h-screen bg-[#0a0612] flex items-center justify-center p-4">
-      <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0612] via-[#110a1f] to-[#0a0612]" />
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-amber-500/5 rounded-full blur-[150px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-blue-500/10 rounded-full blur-[100px]" />
-      </div>
+    <div className="auth-page">
+      <AuthBg />
+      <div className="auth-noise" />
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
-      >
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-3">
-            <Image src="/logo-premium.png" alt="LuxTrade Logo" width={48} height={48} className="object-contain" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent">LuxTrade</span>
-          </Link>
-        </div>
+      <div className="auth-perspective w-full max-w-md relative z-10">
+        <div className="auth-glass-card p-8 md:p-10">
+          <SpinningLogo />
 
-        <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-8 backdrop-blur-sm">
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-white mb-2">Buat Password Baru</h1>
-            <p className="text-white/40 text-sm">Masukkan password baru untuk akun Anda</p>
+          <div className="mb-8 text-center">
+            <h1 className="text-2xl font-light text-white tracking-wide mb-2">Buat Password Baru</h1>
+            <p className="text-xs text-gray-500 font-[JetBrains_Mono,monospace]">Masukkan password baru untuk akun Anda.</p>
           </div>
 
           {sessionStatus === 'checking' && (
-            <div className="flex items-center justify-center gap-2 py-4 text-white/40 text-sm mb-4">
+            <div className="flex items-center justify-center gap-2 py-4 text-gray-500 text-xs font-[JetBrains_Mono,monospace] mb-4">
               <Loader2 className="w-4 h-4 animate-spin" />
               Memverifikasi link reset...
             </div>
           )}
 
           {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-2 p-3 mb-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm"
-            >
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{error}</span>
-            </motion.div>
+            <div className="flex items-start gap-2 p-3 mb-5 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>{error}</span>
+            </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-white/70 text-sm">Password Baru</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={sessionStatus === 'checking'}
-                  className="pl-10 pr-10 h-12 bg-white/[0.03] border-white/10 text-white placeholder:text-white/30 focus:border-amber-500/50"
-                />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors">
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
+            <div>
+              <label className="text-[10px] font-[JetBrains_Mono,monospace] text-gray-500 uppercase tracking-widest mb-2 block">Password Baru</label>
+              <LuxInput
+                icon={Lock}
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Min. 8 karakter"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                mono
+                disabled={sessionStatus === 'checking'}
+                rightElement={
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white/30 hover:text-cyan-400 transition-colors bg-transparent border-none cursor-pointer">
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                }
+              />
               {password && (
                 <div className="grid grid-cols-2 gap-2 mt-2">
-                  <div className={`flex items-center gap-1.5 text-xs ${hasMinLength ? 'text-emerald-400' : 'text-white/30'}`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${hasMinLength ? 'bg-emerald-400' : 'bg-white/20'}`} />
-                    Min. 8 karakter
-                  </div>
-                  <div className={`flex items-center gap-1.5 text-xs ${hasUppercase ? 'text-emerald-400' : 'text-white/30'}`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${hasUppercase ? 'bg-emerald-400' : 'bg-white/20'}`} />
-                    Huruf besar
-                  </div>
-                  <div className={`flex items-center gap-1.5 text-xs ${hasLowercase ? 'text-emerald-400' : 'text-white/30'}`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${hasLowercase ? 'bg-emerald-400' : 'bg-white/20'}`} />
-                    Huruf kecil
-                  </div>
-                  <div className={`flex items-center gap-1.5 text-xs ${hasNumber ? 'text-emerald-400' : 'text-white/30'}`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${hasNumber ? 'bg-emerald-400' : 'bg-white/20'}`} />
-                    Angka
-                  </div>
+                  {[{ ok: hasMinLength, l: 'Min. 8 karakter' }, { ok: hasUppercase, l: 'Huruf besar' }, { ok: hasLowercase, l: 'Huruf kecil' }, { ok: hasNumber, l: 'Angka' }].map(i => (
+                    <div key={i.l} className={`flex items-center gap-1.5 text-[11px] ${i.ok ? 'text-emerald-400' : 'text-gray-600'}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${i.ok ? 'bg-emerald-400' : 'bg-white/20'}`} />{i.l}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-white/70 text-sm">Konfirmasi Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
-                <Input
-                  id="confirmPassword"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  disabled={sessionStatus === 'checking'}
-                  className="pl-10 h-12 bg-white/[0.03] border-white/10 text-white placeholder:text-white/30 focus:border-amber-500/50"
-                />
-              </div>
+            <div>
+              <label className="text-[10px] font-[JetBrains_Mono,monospace] text-gray-500 uppercase tracking-widest mb-2 block">Konfirmasi Password</label>
+              <LuxInput
+                icon={Lock}
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Ulangi password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                required
+                mono
+                disabled={sessionStatus === 'checking'}
+              />
               {confirmPassword && (
-                <p className={`text-xs ${passwordsMatch ? 'text-emerald-400' : 'text-red-400'}`}>
+                <p className={`text-[11px] mt-2 ${passwordsMatch ? 'text-emerald-400' : 'text-red-400'}`}>
                   {passwordsMatch ? '✓ Password cocok' : '✗ Password tidak cocok'}
                 </p>
               )}
             </div>
 
-            <Button
-              type="submit"
-              disabled={isLoading || sessionStatus === 'checking'}
-              className="w-full h-12 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold shadow-lg shadow-amber-500/25 disabled:opacity-50"
-            >
-              {isLoading ? (
-                <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Menyimpan...</>
-              ) : (
-                'Simpan Password Baru'
-              )}
-            </Button>
+            <div className="pt-4">
+              <button type="submit" disabled={isLoading || sessionStatus === 'checking'} className="auth-glow-btn w-full py-3.5 disabled:opacity-50">
+                {isLoading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Menyimpan...</>
+                ) : (
+                  <>Simpan Password Baru <ArrowRight className="w-4 h-4" /></>
+                )}
+              </button>
+              <p className="mt-4 text-[10px] text-gray-600 flex items-center justify-center gap-1.5 font-[JetBrains_Mono,monospace]">
+                <ShieldCheck className="w-3 h-3" /> Password dilindungi enkripsi end-to-end
+              </p>
+            </div>
           </form>
 
-          <div className="text-center mt-6">
-            <Link href="/auth/login" className="inline-flex items-center gap-2 text-white/40 text-sm hover:text-white/60 transition-colors">
+          <div className="mt-6 text-center">
+            <Link href="/auth/login" className="inline-flex items-center gap-1.5 text-gray-500 text-xs font-light hover:text-cyan-400 transition-all">
               Kembali ke Login
             </Link>
           </div>
         </div>
-      </motion.div>
+
+        <p className="text-center mt-8 text-[10px] text-gray-700 font-[JetBrains_Mono,monospace] uppercase tracking-widest relative z-10">© 2026 LuxTrade. All rights reserved.</p>
+      </div>
     </div>
   )
 }
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#0a0612] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
-      </div>
-    }>
+    <Suspense fallback={<div className="auth-page"><Loader2 className="w-8 h-8 text-blue-400 animate-spin" /></div>}>
       <ResetPasswordContent />
     </Suspense>
   )
