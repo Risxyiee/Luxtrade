@@ -1,11 +1,10 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, Suspense } from 'react'
+import React, { useState, Suspense } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Lock, Eye, EyeOff, Loader2, CheckCircle, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
 
 // ============================================
 // Input field (matches login page .auth-input)
@@ -113,7 +112,6 @@ function ResetPasswordContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
-  const [sessionStatus, setSessionStatus] = useState<'checking' | 'ready' | 'no-session'>('checking')
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -124,32 +122,7 @@ function ResetPasswordContent() {
   const hasNumber = /[0-9]/.test(password)
   const passwordsMatch = password === confirmPassword && password !== ''
 
-  // Check for session from the reset link (multi-strategy)
-  const checkSession = useCallback(async () => {
-    // Try 1: direct getSession
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) { setSessionStatus('ready'); return }
-
-    // Try 2: wait for URL hash processing
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    const { data: { session: session2 } } = await supabase.auth.getSession()
-    if (session2) { setSessionStatus('ready'); return }
-
-    // Try 3: onAuthStateChange
-    const { data } = supabase.auth.onAuthStateChange((_event, sess) => {
-      if (sess) setSessionStatus('ready')
-    })
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    data.subscription.unsubscribe()
-
-    const { data: { session: session3 } } = await supabase.auth.getSession()
-    if (session3) { setSessionStatus('ready'); return }
-
-    // No session — admin API fallback
-    setSessionStatus('no-session')
-  }, [])
-
-  useEffect(() => { checkSession() }, [checkSession])
+  const emailFromUrl = searchParams.get('email')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -164,28 +137,14 @@ function ResetPasswordContent() {
       return
     }
 
+    if (!emailFromUrl) {
+      setError('Link reset tidak valid. Coba kirim ulang dari halaman Lupa Password.')
+      return
+    }
+
     setIsLoading(true)
 
     try {
-      // Strategy 1: Client session
-      if (sessionStatus === 'ready') {
-        const { error: updateError } = await supabase.auth.updateUser({ password })
-        if (!updateError) {
-          setSuccess(true)
-          setTimeout(() => router.push('/auth/login'), 2000)
-          return
-        }
-        // Fall through to admin API
-      }
-
-      // Strategy 2: Admin API fallback
-      const emailFromUrl = searchParams.get('email')
-      if (!emailFromUrl) {
-        setError('Tidak dapat mengidentifikasi akun. Coba kirim ulang link reset dari halaman login.')
-        setIsLoading(false)
-        return
-      }
-
       const response = await fetch('/api/auth/reset-password-public', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -197,7 +156,7 @@ function ResetPasswordContent() {
         setSuccess(true)
         setTimeout(() => router.push('/auth/login'), 2000)
       } else {
-        setError(data.error || 'Gagal mengubah password. Coba kirim ulang link dari halaman login.')
+        setError(data.error || 'Gagal mengubah password. Coba kirim ulang link dari halaman Lupa Password.')
       }
     } catch {
       setError('Terjadi kesalahan. Silakan coba lagi.')
@@ -225,10 +184,46 @@ function ResetPasswordContent() {
                 <h2 className="text-2xl font-light text-white tracking-wide mb-2">Password Berhasil Diubah!</h2>
                 <p className="text-xs text-gray-500 font-[JetBrains_Mono,monospace]">Silakan login dengan password baru Anda.</p>
               </div>
-              <Loader2 className="w-5 h-5 text-cyan-400 animate-spin mx-auto" />
+              <Link href="/auth/login" className="block">
+                <button className="auth-glow-btn w-full py-3.5">
+                  Login Sekarang <ArrowRight className="w-4 h-4" />
+                </button>
+              </Link>
             </div>
           </div>
           <p className="text-center mt-8 text-[10px] text-gray-700 font-[JetBrains_Mono,monospace] uppercase tracking-widest">© 2026 LuxTrade. All rights reserved.</p>
+        </div>
+      </div>
+    )
+  }
+
+  // ---- NO EMAIL (invalid link) ----
+  if (!emailFromUrl) {
+    return (
+      <div className="auth-page">
+        <AuthBg />
+        <div className="auth-noise" />
+        <div className="auth-perspective w-full max-w-md relative z-10">
+          <div className="auth-glass-card p-8 md:p-10">
+            <SpinningLogo />
+            <div className="text-center">
+              <div className="flex justify-center mb-6">
+                <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center">
+                  <AlertCircle className="w-8 h-8 text-red-400" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-light text-white tracking-wide mb-2">Link Tidak Valid</h2>
+              <p className="text-xs text-gray-500 font-[JetBrains_Mono,monospace] mb-6">
+                Link reset password tidak mengandung informasi email. Silakan kirim ulang dari halaman Lupa Password.
+              </p>
+              <Link href="/auth/forgot-password" className="block">
+                <button className="auth-glow-btn w-full py-3.5">
+                  Kirim Ulang Link Reset <ArrowRight className="w-4 h-4" />
+                </button>
+              </Link>
+            </div>
+          </div>
+          <p className="text-center mt-8 text-[10px] text-gray-700 font-[JetBrains_Mono,monospace] uppercase tracking-widest relative z-10">© 2026 LuxTrade. All rights reserved.</p>
         </div>
       </div>
     )
@@ -246,15 +241,10 @@ function ResetPasswordContent() {
 
           <div className="mb-8 text-center">
             <h1 className="text-2xl font-light text-white tracking-wide mb-2">Buat Password Baru</h1>
-            <p className="text-xs text-gray-500 font-[JetBrains_Mono,monospace]">Masukkan password baru untuk akun Anda.</p>
+            <p className="text-xs text-gray-500 font-[JetBrains_Mono,monospace]">
+              Untuk akun: <span className="text-cyan-400">{emailFromUrl}</span>
+            </p>
           </div>
-
-          {sessionStatus === 'checking' && (
-            <div className="flex items-center justify-center gap-2 py-4 text-gray-500 text-xs font-[JetBrains_Mono,monospace] mb-4">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Memverifikasi link reset...
-            </div>
-          )}
 
           {error && (
             <div className="flex items-start gap-2 p-3 mb-5 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
@@ -273,7 +263,6 @@ function ResetPasswordContent() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 mono
-                disabled={sessionStatus === 'checking'}
                 rightElement={
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white/30 hover:text-cyan-400 transition-colors bg-transparent border-none cursor-pointer">
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -301,7 +290,6 @@ function ResetPasswordContent() {
                 onChange={e => setConfirmPassword(e.target.value)}
                 required
                 mono
-                disabled={sessionStatus === 'checking'}
               />
               {confirmPassword && (
                 <p className={`text-[11px] mt-2 ${passwordsMatch ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -311,7 +299,7 @@ function ResetPasswordContent() {
             </div>
 
             <div className="pt-4">
-              <button type="submit" disabled={isLoading || sessionStatus === 'checking'} className="auth-glow-btn w-full py-3.5 disabled:opacity-50">
+              <button type="submit" disabled={isLoading} className="auth-glow-btn w-full py-3.5 disabled:opacity-50">
                 {isLoading ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Menyimpan...</>
                 ) : (
