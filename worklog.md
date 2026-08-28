@@ -406,3 +406,28 @@ Stage Summary:
 - 3 templates redesigned with email-safe table layouts and consistent branding colors
 - Preview in admin panel now realistically simulates email client appearance
 - ESLint passes clean (0 errors)
+
+---
+Task ID: 17
+Agent: Main
+Task: Add 'Update & Perbaikan' broadcast email template with professional copywriting
+
+Work Log:
+- Added `Sparkles` icon import from lucide-react
+- Created new broadcast template `update-fix` with value/label/icon/subject/body
+- Template structure: 3 visual sections (Fitur Baru / Perbaikan / Peningkatan Performa) + CTA button + closing
+- Subject: '✨ Pembaruan LuxTrade — Fitur Baru & Perbaikan Bug'
+- All sections use email-safe `<table>` layouts with distinct color coding:
+  - Blue card (#f0f4ff) for new features with ✦ bullets
+  - Green card (#ecfdf5) for bug fixes with ✓ bullets
+  - Amber card (#fef3c7) for performance improvements
+- Placeholder items [Nama fitur baru 1], [Perbaikan 1], etc. for admin to customize
+- CTA: 'Buka Dashboard Sekarang →' with blue gradient button
+- Closing: 'Terima kasih sudah setia pakai LuxTrade. Happy trading! 📈'
+- ESLint passes clean
+
+Stage Summary:
+- 1 file modified: `src/app/admin-email/page.tsx`
+- New template 'Update & Perbaikan' available in admin panel dropdown
+- Professional 3-section layout: blue (features), green (fixes), amber (performance)
+- Ready to customize with actual feature/fix names before sending
