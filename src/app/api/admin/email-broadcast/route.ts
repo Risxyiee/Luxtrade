@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, isDatabaseAvailable } from '@/lib/db'
-import { sendEmail, getUnverifiedBulkReminderHtml, getVerificationPromoEmailHtml } from '@/lib/email'
+import { sendEmail, getUnverifiedBulkReminderHtml, getVerificationPromoEmailHtml, getPromotionalEmailHtml } from '@/lib/email'
 import { requireAdmin } from '@/lib/admin-auth'
 import crypto from 'crypto'
 
@@ -22,12 +22,15 @@ export async function GET(request: NextRequest) {
     const adminEmail = user!.email || 'admin'
 
     const personalizedSubject = subject.replace(/\{\{name\}\}/g, 'Admin').replace(/\{\{email\}\}/g, adminEmail)
-    const personalizedHtml = htmlBody.replace(/\{\{name\}\}/g, 'Admin').replace(/\{\{email\}\}/g, adminEmail)
+    const personalizedBody = htmlBody.replace(/\{\{name\}\}/g, 'Admin').replace(/\{\{email\}\}/g, adminEmail)
+
+    // Wrap with professional email template (full HTML with header, footer, branding)
+    const fullHtml = getPromotionalEmailHtml('Admin', personalizedSubject, personalizedBody)
 
     const result = await sendEmail({
       to: adminEmail,
       subject: personalizedSubject,
-      html: personalizedHtml,
+      html: fullHtml,
       replyTo: 'luxtradee@gmail.com',
     })
 
@@ -215,13 +218,16 @@ export async function POST(request: NextRequest) {
           }
         } else {
           // Use custom HTML body (replace {{name}} placeholder if present)
-          const personalizedHtml = htmlBody.replace(/\{\{name\}\}/g, name).replace(/\{\{email\}\}/g, userEmail)
+          const personalizedBody = htmlBody.replace(/\{\{name\}\}/g, name).replace(/\{\{email\}\}/g, userEmail)
           const personalizedSubject = subject.replace(/\{\{name\}\}/g, name).replace(/\{\{email\}\}/g, userEmail)
+
+          // Wrap with professional email template (full HTML with header, footer, branding)
+          const fullHtml = getPromotionalEmailHtml(name, personalizedSubject, personalizedBody)
 
           const result = await sendEmail({
             to: userEmail,
             subject: personalizedSubject,
-            html: personalizedHtml,
+            html: fullHtml,
             replyTo: 'luxtradee@gmail.com',
           })
 
