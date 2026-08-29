@@ -486,3 +486,23 @@ Stage Summary:
 - Admin panel now uses same design system as landing page
 - DashboardFAB (floating + button) completely removed from dashboard
 - All colors, borders, radiuses, typography match landing page tokens
+---
+Task ID: 1
+Agent: Main
+Task: Fix timestamp cast bugs, fix auto-update email, add Auto Update tab
+
+Work Log:
+- Fixed `photo-trade-match/route.ts`: Added `::timestamp` cast to $2, $3, $4 parameters in raw SQL WHERE/ORDER BY clauses
+- Fixed `batch-photo-match/route.ts`: Same `::timestamp` cast fix for $2, $3, $4 parameters
+- Rewrote `auto-update-email/route.ts`: Removed `execSync('git log')` dependency that fails on Vercel deployments. API now accepts manual `features[]`, `fixes[]`, `improvements[]` arrays in POST body. GET returns recipient count for preview.
+- Created `AutoUpdateEmailTab.tsx`: New admin panel tab component with 3 input sections (Fitur Baru/Perbaikan/Peningkatan), target selector with live recipient count, subject input, and send button
+- Integrated Auto Update tab into `dashboard/admin/page.tsx`: Added import, extended activeTab type, added tab button, added conditional rendering
+- Verified social-links and promo-codes pages already have landing design system
+- Fixed 2 JSX comment syntax errors in AutoUpdateEmailTab.tsx
+
+Stage Summary:
+- 5 files modified: photo-trade-match/route.ts, batch-photo-match/route.ts, auto-update-email/route.ts, admin/page.tsx, AutoUpdateEmailTab.tsx (new)
+- Prisma timestamp cast bug fixed in 2 API routes
+- Auto-update email now works on deployed servers (no git dependency)
+- New "Auto Update" tab in admin panel for sending changelog emails
+- Lint passes clean

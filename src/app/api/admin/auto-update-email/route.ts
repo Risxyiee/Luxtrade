@@ -1,68 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { execSync } from 'child_process'
 import { db, isDatabaseAvailable } from '@/lib/db'
 import { sendEmail, getPromotionalEmailHtml } from '@/lib/email'
 import { requireAdmin } from '@/lib/admin-auth'
 
-const BATCH_SIZE = 50
 const EMAIL_DELAY_MS = 600
 const DEFAULT_SUBJECT = '✨ Pembaruan LuxTrade — Fitur Baru & Perbaikan Bug'
-
-// ── Commit categorization keywords ──────────────────────────────────────────
-const FEATURE_KEYWORDS = /(?:feat|add|new|fitur|tambah|implement)/i
-const FIX_KEYWORDS = /(?:fix|bug|perbaiki|perbaikan|repair|patch|hotfix)/i
-const IMPROVE_KEYWORDS = /(?:perf|optim|improve|peningkatan|refactor|redesign|upgrade|enhance|faster|speed)/i
-
-interface CategorizedCommits {
-  features: string[]
-  fixes: string[]
-  improvements: string[]
-  totalCommits: number
-}
-
-/**
- * Read git log for the last N days and categorize commits.
- */
-function getCommits(days: number): CategorizedCommits {
-  const result: CategorizedCommits = {
-    features: [],
-    fixes: [],
-    improvements: [],
-    totalCommits: 0,
-  }
-
-  try {
-    const raw = execSync(`git log --oneline --since="${days} days ago"`, {
-      cwd: '/home/z/my-project',
-      encoding: 'utf-8',
-    })
-
-    const lines = raw
-      .split('\n')
-      .map(l => l.trim())
-      .filter(Boolean)
-
-    for (const line of lines) {
-      // Remove hash prefix (e.g. "abc1234 commit message" → "commit message")
-      const message = line.replace(/^\S+\s+/, '').trim()
-      if (!message) continue
-
-      if (FEATURE_KEYWORDS.test(message)) {
-        result.features.push(message)
-      } else if (FIX_KEYWORDS.test(message)) {
-        result.fixes.push(message)
-      } else {
-        result.improvements.push(message)
-      }
-    }
-
-    result.totalCommits = result.features.length + result.fixes.length + result.improvements.length
-  } catch {
-    // No commits found or git error
-  }
-
-  return result
-}
 
 /**
  * Generate the email HTML body using the same table layout style
@@ -168,29 +110,52 @@ ${items}
 }
 
 /**
- * GET: Return categorized commits WITHOUT sending.
- * Query params: days (default 7)
+ * GET: Return a preview of how many users would receive the email.
+ * Query params: target (default 'verified')
  */
 export async function GET(request: NextRequest) {
   try {
     const { error } = await requireAdmin(request)
     if (error) return error
 
-    const daysParam = request.nextUrl.searchParams.get('days')
-    const days = daysParam ? Math.max(1, Math.min(90, parseInt(daysParam, 10) || 7)) : 7
+    if (!isDatabaseAvailable()) {
+      return NextResponse.json({ error: 'Database tidak tersedia' }, { status: 500 })
+    }
 
-    const commits = getCommits(days)
+    const target = request.nextUrl.searchParams.get('target') || 'verified'
+    const validTargets = ['verified', 'all', 'pro']
+    if (!validTargets.includes(target)) {
+      return NextResponse.json({ error: `Target tidak valid. Gunakan: ${validTargets.join(', ')}` }, { status: 400 })
+    }
 
-    return NextResponse.json(commits)
+    const whereClause: Record<string, unknown> = { email: { not: null } }
+    if (target === 'verified') whereClause.emailVerified = true
+    if (target === 'pro') whereClause.is_pro = true
+
+    const count = await db.profile.count({ where: whereClause })
+
+    return NextResponse.json({
+      target,
+      recipientCount: count,
+      message: `Email akan dikirim ke ${count} user (${target})`,
+    })
   } catch (error: unknown) {
     console.error('[API /admin/auto-update-email GET] Error:', error)
-    return NextResponse.json({ error: 'Gagal membaca commit' }, { status: 500 })
+    return NextResponse.json({ error: 'Gagal menghitung penerima' }, { status: 500 })
   }
 }
 
 /**
- * POST: Read commits, generate email, send to target users.
- * Body: { days?: number, target?: string, subject?: string }
+ * POST: Send update email to users.
+ * Body: {
+ *   features?: string[],    // list of feature descriptions
+ *   fixes?: string[],       // list of fix descriptions
+ *   improvements?: string[],// list of improvement descriptions
+ *   target?: string,        // 'verified' | 'all' | 'pro'
+ *   subject?: string        // email subject
+ * }
+ *
+ * Admin provides the change descriptions directly — no git dependency.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -198,7 +163,9 @@ export async function POST(request: NextRequest) {
     if (error) return error
 
     const body = await request.json()
-    const days = Math.max(1, Math.min(90, parseInt(String(body.days), 10) || 7))
+    const features: string[] = Array.isArray(body.features) ? body.features.filter((s: string) => s.trim()) : []
+    const fixes: string[] = Array.isArray(body.fixes) ? body.fixes.filter((s: string) => s.trim()) : []
+    const improvements: string[] = Array.isArray(body.improvements) ? body.improvements.filter((s: string) => s.trim()) : []
     const target = body.target || 'verified'
     const subject = body.subject || DEFAULT_SUBJECT
     const adminEmail = user!.email || 'admin'
@@ -212,29 +179,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Read and categorize commits
-    const commits = getCommits(days)
-
-    if (commits.totalCommits === 0) {
+    // Must have at least one item
+    const totalItems = features.length + fixes.length + improvements.length
+    if (totalItems === 0) {
       return NextResponse.json({
         success: false,
-        error: `Tidak ada commit ditemukan dalam ${days} hari terakhir`,
-        features: [],
-        fixes: [],
-        improvements: [],
+        error: 'Tambahkan minimal 1 item (fitur, perbaikan, atau peningkatan)',
         sent: 0,
         failed: 0,
       })
     }
 
-    // Generate email HTML body
-    const htmlBody = generateUpdateEmailHtml(commits.features, commits.fixes, commits.improvements)
-
-    // Build query based on target
     if (!isDatabaseAvailable()) {
       return NextResponse.json({ error: 'Database tidak tersedia' }, { status: 500 })
     }
 
+    // Build query based on target
     const whereClause: Record<string, unknown> = { email: { not: null } }
     switch (target) {
       case 'verified':
@@ -243,7 +203,6 @@ export async function POST(request: NextRequest) {
       case 'pro':
         whereClause.is_pro = true
         break
-      // 'all' — no additional filter
     }
 
     const profiles = await db.profile.findMany({
@@ -255,13 +214,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: false,
         error: 'Tidak ada user yang cocok dengan target ini',
-        features: commits.features,
-        fixes: commits.fixes,
-        improvements: commits.improvements,
+        features,
+        fixes,
+        improvements,
         sent: 0,
         failed: 0,
       })
     }
+
+    // Generate email HTML body
+    const htmlBody = generateUpdateEmailHtml(features, fixes, improvements)
 
     // Send emails sequentially with delay
     let sent = 0
@@ -319,9 +281,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      features: commits.features,
-      fixes: commits.fixes,
-      improvements: commits.improvements,
+      features,
+      fixes,
+      improvements,
       sent,
       failed,
     })
