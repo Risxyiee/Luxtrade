@@ -90,12 +90,12 @@ export async function POST(request: NextRequest) {
       FROM trades
       WHERE user_id = $1
         AND (
-          (open_time >= $2 AND open_time <= $3) OR
-          (close_time >= $2 AND close_time <= $3)
+          (open_time >= $2::timestamp AND open_time <= $3::timestamp) OR
+          (close_time >= $2::timestamp AND close_time <= $3::timestamp)
         )
       ORDER BY
-        ABS(EXTRACT(EPOCH FROM open_time - $4)) +
-        ABS(EXTRACT(EPOCH FROM close_time - $4)) ASC
+        ABS(EXTRACT(EPOCH FROM open_time - $4::timestamp)) +
+        ABS(EXTRACT(EPOCH FROM close_time - $4::timestamp)) ASC
       LIMIT 10
     `
 
