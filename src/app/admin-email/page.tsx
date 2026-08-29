@@ -8,7 +8,7 @@ import {
   CheckCircle, XCircle, Clock, AlertTriangle, Eye, EyeOff,
   ArrowLeft, BarChart3, FileText, Megaphone, Settings,
   Code, Paintbrush, Vibrate, FlaskConical, ChevronDown, DatabaseBackup,
-  Sparkles, GitBranch, Plus, X, RefreshCw,
+  Sparkles, GitBranch, Plus, X, RefreshCw, Bell, GraduationCap, Zap, Trophy,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -250,6 +250,174 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
 </table>
 
 <p style="color: #8b8da0; font-size: 13px; line-height: 1.6; margin: 24px 0 0 0; text-align: center;">Terima kasih sudah setia pakai LuxTrade. Happy trading! 📈</p>`,
+  },
+  {
+    value: 'announcement',
+    label: 'Pengumuman',
+    icon: Bell,
+    subject: '📢 Pengumuman Penting dari LuxTrade',
+    body: `<h2 style="color: #1a1a2e; font-size: 20px; margin: 0 0 8px 0; font-weight: 700;">📢 Pengumuman Penting</h2>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Halo {{name}},</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Kami ingin menyampaikan <strong style="color: #1a1a2e;">informasi penting</strong> mengenai LuxTrade:</p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
+  <tr>
+    <td style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0 12px 12px 0; padding: 20px 22px;">
+      <p style="color: #92400e; font-size: 15px; font-weight: 700; margin: 0 0 10px 0;">Isi Pengumuman</p>
+      <p style="color: #555770; font-size: 14px; line-height: 1.8; margin: 0 0 12px 0;">[Tulis isi pengumuman kamu di sini. Bisa berupa kebijakan baru, perubahan layanan, event, atau informasi penting lainnya.]</p>
+      <p style="color: #555770; font-size: 14px; line-height: 1.8; margin: 0;">[Tambahkan detail tambahan jika diperlukan.]</p>
+    </td>
+  </tr>
+</table>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 24px 0;">Pertanyaan lebih lanjut? Hubungi kami melalui fitur <strong style="color: #1a1a2e;">Contact</strong> di website LuxTrade.</p>
+<table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+  <tr>
+    <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px;">
+      <a href="https://luxtradee.web.id/dashboard" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Buka Dashboard →</a>
+    </td>
+  </tr>
+</table>`,
+  },
+  {
+    value: 'tips-edukasi',
+    label: 'Tips & Edukasi',
+    icon: GraduationCap,
+    subject: '💡 Tips Trading: [Judul Tips]',
+    body: `<h2 style="color: #1a1a2e; font-size: 20px; margin: 0 0 8px 0; font-weight: 700;">💡 Tips Trading Minggu Ini</h2>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Halo {{name}},</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Kali ini tim LuxTrade mau berbagi <strong style="color: #1a1a2e;">tips trading</strong> yang bisa langsung kamu praktekkan:</p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 16px 0;">
+  <tr>
+    <td style="background-color: #f0f4ff; border-radius: 12px; padding: 22px 22px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+          <td style="padding: 4px 0; color: #555770; font-size: 14px; line-height: 1.8;"><span style="color: #3b82f6; margin-right: 8px; font-size: 16px; font-weight: 700;">1.</span> <strong style="color: #1a1a2e;">[Judul Tips 1]</strong> — [Deskripsi singkat tips pertama yang berguna untuk trading]</td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0; color: #555770; font-size: 14px; line-height: 1.8;"><span style="color: #3b82f6; margin-right: 8px; font-size: 16px; font-weight: 700;">2.</span> <strong style="color: #1a1a2e;">[Judul Tips 2]</strong> — [Deskripsi singkat tips kedua]</td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0; color: #555770; font-size: 14px; line-height: 1.8;"><span style="color: #3b82f6; margin-right: 8px; font-size: 16px; font-weight: 700;">3.</span> <strong style="color: #1a1a2e;">[Judul Tips 3]</strong> — [Deskripsi singkat tips ketiga]</td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0; color: #555770; font-size: 14px; line-height: 1.8;"><span style="color: #3b82f6; margin-right: 8px; font-size: 16px; font-weight: 700;">4.</span> <strong style="color: #1a1a2e;">[Judul Tips 4]</strong> — [Deskripsi singkat tips keempat]</td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0; color: #555770; font-size: 14px; line-height: 1.8;"><span style="color: #3b82f6; margin-right: 8px; font-size: 16px; font-weight: 700;">5.</span> <strong style="color: #1a1a2e;">[Judul Tips 5]</strong> — [Deskripsi singkat tips kelima]</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
+  <tr>
+    <td style="background-color: #ecfdf5; border-radius: 12px; padding: 18px 22px;">
+      <p style="color: #059669; font-size: 14px; font-weight: 700; margin: 0 0 6px 0;">📌 Kesimpulan</p>
+      <p style="color: #555770; font-size: 14px; line-height: 1.7; margin: 0;">[Tulis kesimpulan atau pesan penutup yang memotivasi pembaca untuk menerapkan tips tersebut di trading mereka.]</p>
+    </td>
+  </tr>
+</table>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 24px 0;">Ingin belajar lebih banyak? Cek <strong style="color: #1a1a2e;">journal trading</strong> kamu di dashboard untuk review performa!</p>
+<table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+  <tr>
+    <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px;">
+      <a href="https://luxtradee.web.id/dashboard" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Buka Trading Journal →</a>
+    </td>
+  </tr>
+</table>
+
+<p style="color: #8b8da0; font-size: 13px; line-height: 1.6; margin: 24px 0 0 0; text-align: center;">Semoga bermanfaat. Happy trading! 📈</p>`,
+  },
+  {
+    value: 'reminder',
+    label: 'Reminder Aktif',
+    icon: Zap,
+    subject: '⏰ Jangan Lupa! Akun LuxTrade Kamu Menunggu',
+    body: `<h2 style="color: #1a1a2e; font-size: 20px; margin: 0 0 8px 0; font-weight: 700;">Kami Rindu Kamu, {{name}}! 👋</h2>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Sudah lama tidak melihat kamu di LuxTrade.</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Semakin sering kamu mencatat trade di <strong style="color: #1a1a2e;">journal</strong>, semakin banyak <strong style="color: #1a1a2e;">insight berharga</strong> yang kamu dapat untuk meningkatkan performa tradingmu.</p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
+  <tr>
+    <td style="background-color: #f0f4ff; border-radius: 12px; padding: 20px 22px;">
+      <p style="color: #1e40af; font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">📊 Kenapa Harus Aktif di LuxTrade?</p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+          <td style="padding: 4px 0; color: #555770; font-size: 14px; line-height: 1.8;"><span style="color: #3b82f6; margin-right: 8px;">✦</span> Catat & analisa setiap trade dengan detail</td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0; color: #555770; font-size: 14px; line-height: 1.8;"><span style="color: #3b82f6; margin-right: 8px;">✦</span> Track profit/loss, win rate, dan performa harian</td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0; color: #555770; font-size: 14px; line-height: 1.8;"><span style="color: #3b82f6; margin-right: 8px;">✦</span> Analisa AI otomatis untuk setiap trade kamu</td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0; color: #555770; font-size: 14px; line-height: 1.8;"><span style="color: #3b82f6; margin-right: 8px;">✦</span> Connect broker langsung (FXBlue, Myfxbook)</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
+  <tr>
+    <td style="background-color: #ecfdf5; border-radius: 12px; padding: 18px 22px;">
+      <p style="color: #059669; font-size: 14px; font-weight: 700; margin: 0 0 6px 0;">💡 Tips Cepat</p>
+      <p style="color: #555770; font-size: 14px; line-height: 1.7; margin: 0;">[Tulis tips singkat di sini — misalnya: Luangkan 5 menit setelah trading untuk mencatat emosi dan alasan entry kamu. Data ini sangat berharga untuk review mingguan!]</p>
+    </td>
+  </tr>
+</table>
+<table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+  <tr>
+    <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px;">
+      <a href="https://luxtradee.web.id/dashboard" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Mulai Trading Sekarang →</a>
+    </td>
+  </tr>
+</table>
+
+<p style="color: #8b8da0; font-size: 13px; line-height: 1.6; margin: 24px 0 0 0; text-align: center;">Sampai jumpa di dashboard! 🚀</p>`,
+  },
+  {
+    value: 'milestone',
+    label: 'Milestone',
+    icon: Trophy,
+    subject: '🎉 Terima Kasih! LuxTrade Telah Menjangkau [Angka] Trader',
+    body: `<h2 style="color: #1a1a2e; font-size: 20px; margin: 0 0 8px 0; font-weight: 700;">🎉 Terima Kasih, {{name}}!</h2>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">LuxTrade telah mencapai <strong style="color: #1a1a2e;">milestone baru</strong>!</p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
+  <tr>
+    <td style="background-color: #f0f4ff; border-radius: 12px; padding: 24px 22px; text-align: center;">
+      <p style="color: #1e40af; font-size: 36px; font-weight: 800; margin: 0 0 4px 0;">[Angka]+</p>
+      <p style="color: #555770; font-size: 14px; margin: 0;">Trader yang sudah bergabung di LuxTrade</p>
+    </td>
+  </tr>
+</table>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Semua ini tidak akan terjadi tanpa <strong style="color: #1a1a2e;">dukungan kamu</strong> dan seluruh komunitas trader LuxTrade. Terima kasih sudah mempercayakan journal trading kamu bersama kami.</p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
+  <tr>
+    <td style="background-color: #ecfdf5; border-radius: 12px; padding: 20px 22px;">
+      <p style="color: #059669; font-size: 14px; font-weight: 700; margin: 0 0 10px 0;">Apa yang Akan Datang?</p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+          <td style="padding: 4px 0; color: #555770; font-size: 14px; line-height: 1.8;"><span style="color: #059669; margin-right: 8px;">✓</span> [Fitur/plan kedepan 1 — misalnya: Analisa AI lebih cerdas dengan pattern recognition]</td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0; color: #555770; font-size: 14px; line-height: 1.8;"><span style="color: #059669; margin-right: 8px;">✓</span> [Fitur/plan kedepan 2 — misalnya: Komunitas trader dengan fitur share & discuss]</td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0; color: #555770; font-size: 14px; line-height: 1.8;"><span style="color: #059669; margin-right: 8px;">✓</span> [Fitur/plan kedepan 3 — misalnya: Integration lebih banyak broker & platform]</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 24px 0;">Tetap semangat trading, catat setiap transaksi, dan terus belajar bersama LuxTrade!</p>
+<table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+  <tr>
+    <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px;">
+      <a href="https://luxtradee.web.id/dashboard" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Buka Dashboard →</a>
+    </td>
+  </tr>
+</table>
+
+<p style="color: #8b8da0; font-size: 13px; line-height: 1.6; margin: 24px 0 0 0; text-align: center;">Dari tim LuxTrade, dengan ❤️ untuk setiap trader Indonesia.</p>`,
   },
 ]
 
