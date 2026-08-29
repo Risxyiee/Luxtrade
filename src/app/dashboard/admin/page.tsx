@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { ManualUpdateUser } from '@/components/ManualUpdateUser'
 import ProPromoTab from './ProPromoTab'
+import AutoUpdateEmailTab from './AutoUpdateEmailTab'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -468,7 +469,7 @@ export default function AdminPanel() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [isAdminUser, setIsAdminUser] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
-  const [activeTab, setActiveTab] = useState<'users' | 'traffic' | 'manual-update' | 'pro-promo'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'traffic' | 'manual-update' | 'pro-promo' | 'auto-update'>('users')
   const router = useRouter()
 
   // Check auth and admin status
@@ -863,6 +864,18 @@ export default function AdminPanel() {
           >
             <Crown className="w-4 h-4 mr-2" />
             PRO & Promo
+            <span className="ml-2 w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          </Button>
+          <Button
+            onClick={() => setActiveTab('auto-update')}
+            variant={activeTab === 'auto-update' ? 'default' : 'outline'}
+            className={activeTab === 'auto-update'
+              ? 'bg-gradient-to-r from-blue-500 to-cyan-400 text-white'
+              : 'border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03]'
+            }
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            Auto Update
             <span className="ml-2 w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           </Button>
           <Link href="/dashboard/admin/affiliate">
@@ -1405,6 +1418,11 @@ export default function AdminPanel() {
           {activeTab === 'pro-promo' ? (
             <motion.div key="pro-promo" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
               <ProPromoTab />
+            </motion.div>
+          ) : null}
+          {activeTab === 'auto-update' ? (
+            <motion.div key="auto-update" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+              <AutoUpdateEmailTab />
             </motion.div>
           ) : null}
         </AnimatePresence>
