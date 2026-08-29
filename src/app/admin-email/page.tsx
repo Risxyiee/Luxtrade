@@ -8,7 +8,7 @@ import {
   CheckCircle, XCircle, Clock, AlertTriangle, Eye, EyeOff,
   ArrowLeft, BarChart3, FileText, Megaphone, Settings,
   Code, Paintbrush, Vibrate, FlaskConical, ChevronDown, DatabaseBackup,
-  Sparkles, GitBranch, RefreshCw,
+  Sparkles, GitBranch, Plus, X, RefreshCw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -49,13 +49,6 @@ interface BroadcastTemplate {
   icon: React.ComponentType<{ className?: string }>
   subject: string
   body: string
-}
-
-interface AutoUpdatePreview {
-  features: string[]
-  fixes: string[]
-  improvements: string[]
-  totalCommits: number
 }
 
 const AUTO_UPDATE_TARGET_OPTIONS = [
@@ -268,6 +261,65 @@ const TARGET_OPTIONS = [
   { value: 'all', label: 'Semua User', icon: Mail, color: 'text-blue-400', badge: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
 ]
 
+function ItemListInput({ title, color, items, onUpdate, onAdd, onRemove }: {
+  title: string
+  color: 'blue' | 'emerald' | 'amber'
+  items: string[]
+  onUpdate: (index: number, value: string) => void
+  onAdd: () => void
+  onRemove: (index: number) => void
+}) {
+  const colorMap = {
+    blue: { border: 'border-blue-500/20', bg: 'bg-blue-500/[0.04]', focus: 'focus:border-blue-500/40', text: 'text-blue-300/80', dot: 'text-blue-400' },
+    emerald: { border: 'border-emerald-500/20', bg: 'bg-emerald-500/[0.04]', focus: 'focus:border-emerald-500/40', text: 'text-emerald-300/80', dot: 'text-emerald-400' },
+    amber: { border: 'border-amber-500/20', bg: 'bg-amber-500/[0.04]', focus: 'focus:border-amber-500/40', text: 'text-amber-300/80', dot: 'text-amber-400' },
+  }
+  const c = colorMap[color]
+
+  return (
+    <div className={`rounded-xl border ${c.border} ${c.bg} p-3.5 space-y-2.5`}>
+      <div className="flex items-center justify-between">
+        <span className={`text-xs font-medium ${c.text}`}>{title}</span>
+        <span className="text-[10px] text-[#8892b0]">{items.filter(s => s.trim()).length} item</span>
+      </div>
+      <div className="space-y-2">
+        {items.map((item, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className={`${c.dot} text-xs shrink-0 w-4 text-center`}>{color === 'blue' ? '✦' : color === 'emerald' ? '✓' : '⚡'}</span>
+            <Input
+              value={item}
+              onChange={e => onUpdate(i, e.target.value)}
+              placeholder="Deskripsi..."
+              className="flex-1 bg-white/[0.03] border border-white/[0.06] text-[#f0f2ff] placeholder:text-[#8892b0]/40 text-sm h-8 rounded-lg ${c.focus} focus:ring-transparent"
+            />
+            {items.length > 1 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onRemove(i)}
+                className="text-[#8892b0]/50 hover:text-red-400 h-8 w-8 p-0 shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={onAdd}
+        className={`text-[#8892b0] hover:${color === 'blue' ? 'text-blue-400' : color === 'emerald' ? 'text-emerald-400' : 'text-amber-400'} text-xs h-7 px-2`}
+      >
+        <Plus className="w-3 h-3 mr-1" />
+        Tambah
+      </Button>
+    </div>
+  )
+}
+
 export default function AdminEmailPage() {
   const router = useRouter()
   const [isAdmin, setIsAdmin] = useState(false)
@@ -285,12 +337,13 @@ export default function AdminEmailPage() {
   const [sendingTest, setSendingTest] = useState(false)
   const [syncing, setSyncing] = useState(false)
 
-  // Auto Update state
-  const [autoDays, setAutoDays] = useState(7)
+  // Auto Update state (manual input — no git dependency)
   const [autoSubject, setAutoSubject] = useState(AUTO_UPDATE_DEFAULT_SUBJECT)
   const [autoTarget, setAutoTarget] = useState('verified')
-  const [autoPreview, setAutoPreview] = useState<AutoUpdatePreview | null>(null)
-  const [autoPreviewLoading, setAutoPreviewLoading] = useState(false)
+  const [autoFeatures, setAutoFeatures] = useState<string[]>([''])
+  const [autoFixes, setAutoFixes] = useState<string[]>([''])
+  const [autoImprovements, setAutoImprovements] = useState<string[]>([''])
+  const [autoRecipientCount, setAutoRecipientCount] = useState<number | null>(null)
   const [autoSending, setAutoSending] = useState(false)
 
   // Sync users from Auth → DB then refresh stats
@@ -379,42 +432,50 @@ export default function AdminEmailPage() {
     setResult(null)
   }, [selectedTarget, selectedTemplate])
 
-  // Fetch auto-update commit preview when days changes
-  const fetchAutoPreview = useCallback(async () => {
+  // Fetch auto-update recipient count when target changes
+  const fetchAutoRecipientCount = useCallback(async () => {
     if (selectedTemplate !== 'auto-update') return
-    setAutoPreviewLoading(true)
     try {
-      const res = await authFetch(`/api/admin/auto-update-email?days=${autoDays}`, {
+      const res = await authFetch(`/api/admin/auto-update-email?target=${autoTarget}`, {
         headers: { 'x-admin-email': ADMIN_EMAIL },
       })
       if (res.ok) {
-        setAutoPreview(await res.json())
-      } else {
-        setAutoPreview(null)
+        const data = await res.json()
+        setAutoRecipientCount(data.recipientCount ?? null)
       }
     } catch {
-      setAutoPreview(null)
-    } finally {
-      setAutoPreviewLoading(false)
+      // ignore
     }
-  }, [selectedTemplate, autoDays])
+  }, [selectedTemplate, autoTarget])
 
   useEffect(() => {
     if (selectedTemplate === 'auto-update') {
-      fetchAutoPreview()
+      fetchAutoRecipientCount()
     }
-  }, [selectedTemplate, fetchAutoPreview])
+  }, [selectedTemplate, fetchAutoRecipientCount])
 
   // Handle auto-update send
   const handleAutoUpdateSend = async () => {
     if (autoSending) return
     setAutoSending(true)
     setResult(null)
+
+    const features = autoFeatures.filter(s => s.trim())
+    const fixes = autoFixes.filter(s => s.trim())
+    const improvements = autoImprovements.filter(s => s.trim())
+    const totalItems = features.length + fixes.length + improvements.length
+
+    if (totalItems === 0) {
+      toast.error('Tambahkan minimal 1 item (fitur, perbaikan, atau peningkatan)')
+      setAutoSending(false)
+      return
+    }
+
     try {
       const res = await authFetch('/api/admin/auto-update-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-email': ADMIN_EMAIL },
-        body: JSON.stringify({ days: autoDays, target: autoTarget, subject: autoSubject }),
+        body: JSON.stringify({ features, fixes, improvements, target: autoTarget, subject: autoSubject }),
       })
       const data = await res.json()
       if (res.ok) {
@@ -432,6 +493,17 @@ export default function AdminEmailPage() {
     } finally {
       setAutoSending(false)
     }
+  }
+
+  // Helper: update item in a list, add/remove items
+  const updateListItem = (setter: React.Dispatch<React.SetStateAction<string[]>>, index: number, value: string) => {
+    setter(prev => prev.map((item, i) => i === index ? value : item))
+  }
+  const addListItem = (setter: React.Dispatch<React.SetStateAction<string[]>>) => {
+    setter(prev => [...prev, ''])
+  }
+  const removeListItem = (setter: React.Dispatch<React.SetStateAction<string[]>>, index: number) => {
+    setter(prev => prev.filter((_, i) => i !== index))
   }
 
   // Apply template
@@ -692,7 +764,7 @@ export default function AdminEmailPage() {
                   </div>
                 )}
 
-                {/* ─── Auto Update Form ─── */}
+                {/* ─── Auto Update Form (Manual Input) ─── */}
                 {selectedTemplate === 'auto-update' && selectedTarget !== 'unverified' && (
                   <motion.div
                     initial={{ opacity: 0, y: 12 }}
@@ -704,30 +776,13 @@ export default function AdminEmailPage() {
                     <div className="flex items-start gap-3 p-3.5 rounded-xl bg-blue-500/[0.06] border border-blue-500/20">
                       <GitBranch className="w-5 h-5 text-blue-400 mt-0.5 shrink-0" />
                       <div className="text-sm text-[#8892b0]">
-                        <p className="font-medium text-blue-300/80 mb-1">Auto Update Email</p>
-                        <p>Sistem akan membaca commit git terbaru dan menghasilkan email update secara otomatis. Kamu hanya perlu atur jangka waktu, target, dan subject.</p>
+                        <p className="font-medium text-blue-300/80 mb-1">Update Email</p>
+                        <p>Tulis manual fitur baru, perbaikan, dan peningkatan yang ingin dikirim ke user.</p>
                       </div>
                     </div>
 
-                    {/* Controls row */}
+                    {/* Controls row: target + recipient count */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {/* Days input */}
-                      <div className="space-y-1.5">
-                        <Label className="text-[#f0f2ff]/70 text-sm font-medium">Jumlah hari terakhir</Label>
-                        <div className="relative">
-                          <Input
-                            type="number"
-                            min={1}
-                            max={90}
-                            value={autoDays}
-                            onChange={e => setAutoDays(Math.max(1, Math.min(90, parseInt(e.target.value) || 7)))}
-                            className="bg-white/[0.03] border border-white/[0.06] text-[#f0f2ff] placeholder:text-[#8892b0]/50 focus:border-blue-500/40 focus:ring-blue-500/20 rounded-xl pr-16"
-                          />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#8892b0] pointer-events-none">hari</span>
-                        </div>
-                      </div>
-
-                      {/* Target select */}
                       <div className="space-y-1.5">
                         <Label className="text-[#f0f2ff]/70 text-sm font-medium">Target Penerima</Label>
                         <div className="relative">
@@ -745,6 +800,28 @@ export default function AdminEmailPage() {
                           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8892b0] pointer-events-none" />
                         </div>
                       </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[#f0f2ff]/70 text-sm font-medium">Estimasi Penerima</Label>
+                        <div className="flex items-center gap-2 h-[42px]">
+                          {autoRecipientCount !== null ? (
+                            <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-sm px-3 py-1.5">
+                              {autoRecipientCount} user
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-[#8892b0]">Menghitung...</span>
+                          )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={fetchAutoRecipientCount}
+                            className="text-blue-400 hover:text-blue-300 text-xs h-8 px-2"
+                          >
+                            <RefreshCw className="w-3 h-3 mr-1" />
+                            Refresh
+                          </Button>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Subject input */}
@@ -756,126 +833,60 @@ export default function AdminEmailPage() {
                       <Input
                         value={autoSubject}
                         onChange={e => setAutoSubject(e.target.value)}
-                        placeholder="Subject email auto update..."
+                        placeholder="Subject email update..."
                         className="bg-white/[0.03] border border-white/[0.06] text-[#f0f2ff] placeholder:text-[#8892b0]/50 focus:border-blue-500/40 focus:ring-blue-500/20 rounded-xl"
                       />
                     </div>
 
-                    {/* Commit Preview */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-[#f0f2ff]/70 text-sm font-medium">Preview Commit</Label>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={fetchAutoPreview}
-                          disabled={autoPreviewLoading}
-                          className="text-blue-400 hover:text-blue-300 text-xs h-7 px-2"
-                        >
-                          <RefreshCw className={`w-3 h-3 mr-1 ${autoPreviewLoading ? 'animate-spin' : ''}`} />
-                          Refresh
-                        </Button>
-                      </div>
+                    {/* Features */}
+                    <ItemListInput
+                      title="🆕 Fitur Baru"
+                      color="blue"
+                      items={autoFeatures}
+                      onUpdate={(i, v) => updateListItem(setAutoFeatures, i, v)}
+                      onAdd={() => addListItem(setAutoFeatures)}
+                      onRemove={(i) => removeListItem(setAutoFeatures, i)}
+                    />
 
-                      {autoPreviewLoading ? (
-                        <div className="flex items-center justify-center py-8 rounded-xl border border-white/[0.06] bg-white/[0.02]">
-                          <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
-                          <span className="ml-2 text-sm text-[#8892b0]">Membaca commit...</span>
-                        </div>
-                      ) : autoPreview && autoPreview.totalCommits > 0 ? (
-                        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] divide-y divide-white/[0.06] overflow-hidden">
-                          {/* Total */}
-                          <div className="px-4 py-2.5 flex items-center justify-between">
-                            <span className="text-xs text-[#8892b0]">Total commit ditemukan</span>
-                            <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-[10px] px-1.5 py-0">
-                              {autoPreview.totalCommits}
-                            </Badge>
-                          </div>
+                    {/* Fixes */}
+                    <ItemListInput
+                      title="🔧 Perbaikan"
+                      color="emerald"
+                      items={autoFixes}
+                      onUpdate={(i, v) => updateListItem(setAutoFixes, i, v)}
+                      onAdd={() => addListItem(setAutoFixes)}
+                      onRemove={(i) => removeListItem(setAutoFixes, i)}
+                    />
 
-                          {/* Features */}
-                          {autoPreview.features.length > 0 && (
-                            <div className="px-4 py-3">
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <span className="text-blue-400 text-xs">✦</span>
-                                <span className="text-xs font-medium text-blue-300/80">Fitur Baru ({autoPreview.features.length})</span>
-                              </div>
-                              <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                                {autoPreview.features.map((f, i) => (
-                                  <div key={i} className="flex items-start gap-2 text-xs text-[#8892b0]">
-                                    <span className="text-blue-400/60 mt-0.5 shrink-0">•</span>
-                                    <span className="break-words">{f}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Fixes */}
-                          {autoPreview.fixes.length > 0 && (
-                            <div className="px-4 py-3">
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <span className="text-emerald-400 text-xs">✓</span>
-                                <span className="text-xs font-medium text-emerald-300/80">Perbaikan ({autoPreview.fixes.length})</span>
-                              </div>
-                              <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                                {autoPreview.fixes.map((f, i) => (
-                                  <div key={i} className="flex items-start gap-2 text-xs text-[#8892b0]">
-                                    <span className="text-emerald-400/60 mt-0.5 shrink-0">•</span>
-                                    <span className="break-words">{f}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Improvements */}
-                          {autoPreview.improvements.length > 0 && (
-                            <div className="px-4 py-3">
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <span className="text-amber-400 text-xs">⚡</span>
-                                <span className="text-xs font-medium text-amber-300/80">Peningkatan & Optimasi ({autoPreview.improvements.length})</span>
-                              </div>
-                              <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                                {autoPreview.improvements.map((item, i) => (
-                                  <div key={i} className="flex items-start gap-2 text-xs text-[#8892b0]">
-                                    <span className="text-amber-400/60 mt-0.5 shrink-0">•</span>
-                                    <span className="break-words">{item}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ) : autoPreview && autoPreview.totalCommits === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-8 rounded-xl border border-white/[0.06] bg-white/[0.02]">
-                          <GitBranch className="w-8 h-8 text-[#8892b0]/20 mb-2" />
-                          <span className="text-sm text-[#8892b0]/50">Tidak ada commit dalam {autoDays} hari terakhir</span>
-                        </div>
-                      ) : null}
-                    </div>
+                    {/* Improvements */}
+                    <ItemListInput
+                      title="⚡ Peningkatan & Optimasi"
+                      color="amber"
+                      items={autoImprovements}
+                      onUpdate={(i, v) => updateListItem(setAutoImprovements, i, v)}
+                      onAdd={() => addListItem(setAutoImprovements)}
+                      onRemove={(i) => removeListItem(setAutoImprovements, i)}
+                    />
 
                     {/* Send Auto Update Button */}
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <Button
-                        type="button"
-                        onClick={handleAutoUpdateSend}
-                        disabled={autoSending || !autoPreview || autoPreview.totalCommits === 0 || !autoSubject.trim()}
-                        className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-400 hover:from-blue-600 hover:to-cyan-500 text-white font-medium py-6 text-base disabled:opacity-40 disabled:cursor-not-allowed rounded-xl"
-                      >
-                        {autoSending ? (
-                          <>
-                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                            Sedang Mengirim Auto Update...
-                          </>
-                        ) : (
-                          <>
-                            <Send className="w-5 h-5 mr-2" />
-                            Kirim Auto Update
-                          </>
-                        )}
-                      </Button>
-                    </div>
+                    <Button
+                      type="button"
+                      onClick={handleAutoUpdateSend}
+                      disabled={autoSending || (!autoFeatures.some(s => s.trim()) && !autoFixes.some(s => s.trim()) && !autoImprovements.some(s => s.trim())) || !autoSubject.trim()}
+                      className="w-full bg-gradient-to-r from-blue-500 to-cyan-400 hover:from-blue-600 hover:to-cyan-500 text-white font-medium py-6 text-base disabled:opacity-40 disabled:cursor-not-allowed rounded-xl"
+                    >
+                      {autoSending ? (
+                        <>
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                          Sedang Mengirim Update...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-5 h-5 mr-2" />
+                          Kirim Update Email
+                        </>
+                      )}
+                    </Button>
                   </motion.div>
                 )}
 
