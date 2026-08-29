@@ -506,3 +506,24 @@ Stage Summary:
 - Auto-update email now works on deployed servers (no git dependency)
 - New "Auto Update" tab in admin panel for sending changelog emails
 - Lint passes clean
+---
+Task ID: 2
+Agent: Main
+Task: Redesign admin panel — minimalis, hapus tab berlebihan
+
+Work Log:
+- Redesigned admin panel from 1433 lines to 953 lines
+- Removed tabs: Traffic Analytics, Manual Update, PRO & Promo, Auto Update
+- Removed imports: ManualUpdateUser, ProPromoTab, AutoUpdateEmailTab, 15+ unused icons
+- Removed: TrafficData interface, MiniBarChart component, entire TrafficTab component (~360 lines)
+- Removed: activeTab state, AnimatePresence wrapper, all tab buttons
+- Added: Quick Actions Bar with 4 compact link buttons (Email Broadcast, Affiliate, Promo Codes, Social Links)
+- Made header more compact: py-3, icon-only back button on mobile, hidden labels on small screens
+- Kept: All user management logic, stats cards, user table, pagination, info cards
+- Email Broadcast page (/admin-email) already has Auto Update template built-in
+
+Stage Summary:
+- 1 file modified: dashboard/admin/page.tsx (1433 → 953 lines)
+- Admin panel now minimalis: 1 page + 4 quick action links
+- No more horizontal overflow from too many tabs
+- Lint passes clean
