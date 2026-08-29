@@ -527,3 +527,31 @@ Stage Summary:
 - Admin panel now minimalis: 1 page + 4 quick action links
 - No more horizontal overflow from too many tabs
 - Lint passes clean
+
+---
+Task ID: 3
+Agent: Main
+Task: Fix auto-update email broadcast showing 0 recipients
+
+Work Log:
+- Identified root cause: TWO bugs
+  1. API bug: `auto-update-email` API queried `Profile.emailVerified = true` but never synced users from Supabase Auth first (unlike `email-broadcast` which does sync). Most users had their `emailVerified` field as `false` in the Profile table even though they verified through Supabase Auth.
+  2. Frontend bug: `admin-email/page.tsx` still sent `{ days: autoDays }` in POST body expecting git commit parsing, but API was rewritten to accept `{ features, fixes, improvements }` arrays directly.
+- Fixed API (`/api/admin/auto-update-email/route.ts`):
+  - Added `syncAuthUsersToProfiles()` function (same logic as email-broadcast): syncs from Supabase Auth, creates new profiles, updates stale `emailVerified` fields
+  - Called sync in both GET and POST handlers
+  - Added sync stats to response for debugging
+- Fixed frontend (`/admin-email/page.tsx`):
+  - Replaced git-based `autoDays`/`autoPreview`/`autoPreviewLoading`/`fetchAutoPreview` state
+  - Added manual input: `autoFeatures`, `autoFixes`, `autoImprovements` string arrays
+  - Added `autoRecipientCount` that fetches from GET API with `?target=` param
+  - Rewrote `handleAutoUpdateSend` to send `{ features, fixes, improvements, target, subject }`
+  - Created `ItemListInput` reusable component for adding/removing list items
+  - Added `Plus`, `X` icon imports
+  - Replaced entire auto-update form JSX (removed git commit preview, added manual input form)
+- Verified: `bun run lint` clean, `next build` successful
+
+Stage Summary:
+- Auto-update email broadcast should now correctly find recipients after sync
+- Frontend now properly sends features/fixes/improvements arrays matching API contract
+- No more git dependency for auto-update email

@@ -7,6 +7,73 @@ const EMAIL_DELAY_MS = 600
 const DEFAULT_SUBJECT = '✨ Pembaruan LuxTrade — Fitur Baru & Perbaikan Bug'
 
 /**
+ * Sync users from Supabase Auth → profiles DB before broadcast.
+ * This ensures emailVerified is up-to-date (same logic as email-broadcast).
+ */
+async function syncAuthUsersToProfiles(): Promise<{ totalAuth: number; existingDb: number; syncedNew: number; syncFailed: number }> {
+  const stats = { totalAuth: 0, existingDb: 0, syncedNew: 0, syncFailed: 0 }
+  try {
+    const { getAdminAuth } = await import('@/lib/supabase-admin-alt')
+    const authAdmin = getAdminAuth()
+    if (!authAdmin || !isDatabaseAvailable()) return stats
+
+    const { data: { users } } = await authAdmin.listUsers({ perPage: 500 })
+    if (!users || users.length === 0) return stats
+
+    stats.totalAuth = users.length
+    const existingIds = new Set(
+      (await db.profile.findMany({ select: { id: true } })).map((p: any) => p.id)
+    )
+    stats.existingDb = existingIds.size
+
+    for (const u of users) {
+      if (!existingIds.has(u.id)) {
+        try {
+          await db.profile.create({
+            data: {
+              id: u.id,
+              email: u.email,
+              full_name: u.user_metadata?.full_name || u.user_metadata?.name || null,
+              emailVerified: u.email_confirmed_at != null,
+            },
+          })
+          stats.syncedNew++
+        } catch {
+          stats.syncFailed++
+        }
+      }
+    }
+
+    // Also update emailVerified for existing profiles that might be stale
+    const existingProfiles = await db.profile.findMany({
+      where: { id: { in: users.map(u => u.id) } },
+      select: { id: true, emailVerified: true },
+    })
+    for (const profile of existingProfiles) {
+      const authUser = users.find(u => u.id === profile.id)
+      if (authUser) {
+        const shouldBeVerified = authUser.email_confirmed_at != null
+        if (profile.emailVerified !== shouldBeVerified) {
+          try {
+            await db.profile.update({
+              where: { id: profile.id },
+              data: { emailVerified: shouldBeVerified },
+            })
+          } catch {
+            // non-critical
+          }
+        }
+      }
+    }
+
+    console.log(`📊 [auto-update-email] Sync: ${stats.totalAuth} auth users, ${stats.existingDb} in DB, ${stats.syncedNew} newly synced, ${stats.syncFailed} failed`)
+  } catch (err) {
+    console.error('❌ [auto-update-email] Auth→profiles sync FAILED:', err)
+  }
+  return stats
+}
+
+/**
  * Generate the email HTML body using the same table layout style
  * as the existing "Update & Perbaikan" template.
  */
@@ -122,6 +189,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Database tidak tersedia' }, { status: 500 })
     }
 
+    // Sync Auth users first so emailVerified is accurate
+    const syncStats = await syncAuthUsersToProfiles()
+
     const target = request.nextUrl.searchParams.get('target') || 'verified'
     const validTargets = ['verified', 'all', 'pro']
     if (!validTargets.includes(target)) {
@@ -137,6 +207,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       target,
       recipientCount: count,
+      sync: syncStats,
       message: `Email akan dikirim ke ${count} user (${target})`,
     })
   } catch (error: unknown) {
@@ -194,6 +265,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Database tidak tersedia' }, { status: 500 })
     }
 
+    // Sync Auth users first so emailVerified is accurate
+    const syncStats = await syncAuthUsersToProfiles()
+    console.log(`📊 [auto-update-email POST] Sync done. Target: ${target}`)
+
     // Build query based on target
     const whereClause: Record<string, unknown> = { email: { not: null } }
     switch (target) {
@@ -219,8 +294,11 @@ export async function POST(request: NextRequest) {
         improvements,
         sent: 0,
         failed: 0,
+        sync: syncStats,
       })
     }
+
+    console.log(`📢 [auto-update-email] Target "${target}": ${profiles.length} users will receive.`)
 
     // Generate email HTML body
     const htmlBody = generateUpdateEmailHtml(features, fixes, improvements)
@@ -286,6 +364,7 @@ export async function POST(request: NextRequest) {
       improvements,
       sent,
       failed,
+      sync: syncStats,
     })
   } catch (error: unknown) {
     console.error('[API /admin/auto-update-email POST] Error:', error)
