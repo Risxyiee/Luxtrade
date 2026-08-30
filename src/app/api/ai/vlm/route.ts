@@ -1,20 +1,18 @@
+export const runtime = 'edge'
 import { NextRequest, NextResponse } from 'next/server'
-import { analyzeImageWithZAIVision } from '@/lib/zai-vision'
-import { analyzeImageWithOllama } from '@/lib/ollama-vision'
+import { analyzeImageBase64WithAiml } from '@/lib/aiml-vision'
 import { createClientForApi } from '@/lib/supabase/server'
 import { isUserPro } from '@/lib/pro-check'
 import { rateLimitByUser } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
-    // Auth check
     const { supabase } = createClientForApi(request)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Rate limit: 10 requests per minute per user
     const rl = rateLimitByUser('vlm', user.id, {
       maxRequests: 10,
       windowMs: 60 * 1000,
@@ -22,7 +20,6 @@ export async function POST(request: NextRequest) {
     })
     if (rl) return rl
 
-    // PRO check - VLM analysis is a PRO feature
     const pro = await isUserPro(user.id)
     if (!pro) {
       return NextResponse.json({
@@ -37,43 +34,21 @@ export async function POST(request: NextRequest) {
     const question = formData.get('question') as string || 'Describe this image in detail'
 
     if (!image) {
-      return NextResponse.json(
-        { error: 'Image is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Image is required' }, { status: 400 })
     }
 
-    // Convert image to base64
     const bytes = await image.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    const base64Image = buffer.toString('base64')
+    const base64Image = btoa(String.fromCharCode(...new Uint8Array(bytes)))
 
-    // Try Ollama first (FREE), then fallback to Z.ai Vision (FREE)
-    let analysis: string
-
-    try {
-      // Ollama returns object, we'll get notes as text
-      const ollamaResult = await analyzeImageWithOllama(
-        base64Image,
-        image.type,
-        question
-      )
-      analysis = JSON.stringify(ollamaResult)
-    } catch (ollamaError) {
-      // Ollama failed, trying Z.ai Vision fallback
-      const zaiResult = await analyzeImageWithZAIVision(base64Image, question, {})
-      analysis = zaiResult.text
-    }
+    const result = await analyzeImageBase64WithAiml(base64Image, question)
 
     return NextResponse.json({
       success: true,
-      response: analysis
+      response: result.text,
+      provider: result.provider,
     })
   } catch (error: any) {
     console.error('[AI /vlm] Error:', error)
-    return NextResponse.json(
-      { error: 'Failed to analyze image' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to analyze image' }, { status: 500 })
   }
 }
