@@ -1,6 +1,6 @@
 {
   "name": "luxtrade",
-  "pages_build_output_dir": ".open-next/assets",
+  "pages_build_output_dir": ".open-next",
   "compatibility_date": "2026-08-30",
   "compatibility_flags": ["nodejs_compat"]
 }
