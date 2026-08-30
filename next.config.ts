@@ -1,10 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Cloudflare Pages compatibility
-  // Do NOT use "standalone" — @cloudflare/next-on-pages handles the build
-  // Do NOT set output — let the adapter decide
-
   compiler: {
     removeConsole: false,
   },
@@ -16,7 +12,9 @@ const nextConfig: NextConfig = {
 
   allowedDevOrigins: ['http://127.0.0.1:8080', 'http://localhost:8080', 'http://localhost:3000', 'http://127.0.0.1:3000'],
 
-  // No serverExternalPackages needed — all edge-compatible now
+  // These packages use conditional imports (WebSocket vs TCP) that confuse Turbopack.
+  // Marking them external prevents bundling their Node.js code paths into Edge chunks.
+  serverExternalPackages: ['@neondatabase/serverless', '@prisma/adapter-neon'],
 
   experimental: {
     optimizePackageImports: ['lucide-react', 'framer-motion'],
