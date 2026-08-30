@@ -48,14 +48,14 @@ export interface ExtractionResult {
 // ==============================================================================
 
 import { createClient } from "@supabase/supabase-js";
-// sharp removed from top-level import — lazy-loaded in uploadScreenshot only
 import { analyzeImageWithAiml, TRADE_EXTRACTION_PROMPT } from "./aiml-vision";
 
 /**
  * Extract trade data using AI Vision (Gemini 2.5 Flash → OpenRouter fallback)
+ * Edge-safe: accepts Uint8Array (no Buffer/sharp).
  */
-async function extractWithVision(imageBuffer: Buffer): Promise<RawTradeData> {
-  const result = await analyzeImageWithAiml(imageBuffer, TRADE_EXTRACTION_PROMPT)
+async function extractWithVision(imageBytes: Uint8Array): Promise<RawTradeData> {
+  const result = await analyzeImageWithAiml(imageBytes, TRADE_EXTRACTION_PROMPT)
 
   const jsonMatch = result.text.match(/\{[\s\S]*\}/)
   if (!jsonMatch) {
@@ -192,16 +192,17 @@ function validateTradeData(rawData: RawTradeData): {
 
 /**
  * Main function to extract trade data from screenshot
- * Uses AIML API (GLM-4V-OCR) as primary
+ * Uses AI Vision (Gemini 2.5 Flash, fallback to OpenRouter)
+ * Edge-safe: accepts Uint8Array.
  */
-export async function extractTradeData(imageBuffer: Buffer): Promise<ExtractionResult> {
+export async function extractTradeData(imageBytes: Uint8Array): Promise<ExtractionResult> {
   const errors: string[] = [];
   let rawData: RawTradeData | undefined;
 
   // Primary: AI Vision (Gemini 2.5 Flash, fallback to OpenRouter)
   try {
     console.log('🤖 Extracting trade data with AI Vision...')
-    rawData = await extractWithVision(imageBuffer)
+    rawData = await extractWithVision(imageBytes)
     console.log('✅ Vision extraction successful')
     console.log('📦 Raw data:', JSON.stringify(rawData, null, 2))
   } catch (error: any) {
@@ -289,11 +290,10 @@ export async function saveTrade(entry: any) {
 
 /**
  * Upload screenshot to Supabase Storage.
- * Accepts a pre-optimized buffer (already resized/compressed by caller).
- * No sharp dependency — uploads the buffer as-is (JPEG from caller's canvas optimization).
+ * Edge-safe: accepts Uint8Array (no Buffer/sharp).
  */
 export async function uploadScreenshot(
-  imageBuffer: Buffer,
+  imageBytes: Uint8Array,
   userId: string
 ): Promise<string> {
   const path = `${userId}/${Date.now()}.jpg`;
@@ -301,7 +301,7 @@ export async function uploadScreenshot(
   try {
     const { error: uploadError } = await supabase.storage
       .from("trade-screenshots")
-      .upload(path, imageBuffer, {
+      .upload(path, imageBytes, {
         upsert: true,
         contentType: "image/jpeg",
       });
