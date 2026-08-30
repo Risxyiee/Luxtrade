@@ -20,6 +20,14 @@ const nextConfig: NextConfig = {
 
   experimental: {
     optimizePackageImports: ['lucide-react', 'framer-motion'],
+    // Include the full @opentelemetry/api build output in the standalone trace.
+    // OpenNext's edge middleware bundler uses `conditions: ["module"]` which resolves
+    // to build/esm/index.js, but Next.js standalone trace only copies build/src/ by default.
+    // Without this, Cloudflare Pages builds fail with:
+    //   Could not resolve "@opentelemetry/api" (or the resolved ESM path doesn't exist)
+    outputFileTracingIncludes: {
+      "*": ["./node_modules/@opentelemetry/api/build/**/*"],
+    },
   },
 };
 
