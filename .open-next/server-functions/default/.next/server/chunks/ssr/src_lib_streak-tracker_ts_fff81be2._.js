@@ -1,3 +1,0 @@
-module.exports=[1914,a=>{"use strict";async function b(a){try{let a=await fetch("/api/profile/me",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"update-streak"})});if(a.ok)return(await a.json()).streakCount||0;return 0}catch(a){return console.error("[Streak Tracker] Error updating login streak:",a),0}}async function c(a,b){try{await fetch("/api/achievements/onboarding",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId:a,streak:b,type:"login_streak"})})}catch(a){console.error("[Streak Tracker] Error checking streak achievements:",a)}}a.s(["checkStreakAchievements",()=>c,"updateLoginStreak",()=>b])}];
-
-//# sourceMappingURL=src_lib_streak-tracker_ts_fff81be2._.js.map
