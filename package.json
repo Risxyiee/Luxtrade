@@ -5,7 +5,7 @@
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "next dev -p 3000",
-    "build": "npx @cloudflare/next-on-pages",
+    "build": "prisma generate && next build",
     "pages:build": "npx @cloudflare/next-on-pages",
     "preview": "npx @cloudflare/next-on-pages && npx wrangler pages dev .vercel/output/static",
     "deploy": "npx @cloudflare/next-on-pages && npx wrangler pages deploy .vercel/output/static",
