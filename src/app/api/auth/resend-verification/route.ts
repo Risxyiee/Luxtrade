@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sendEmailFromTemplate, getConfirmationEmailHtml } from '@/lib/email'
 import { rateLimitByEmail } from '@/lib/rate-limit'
-import crypto from 'crypto'
+import { edgeCrypto } from '@/lib/edge-crypto'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate new verification token
-    const newToken = crypto.randomBytes(32).toString('hex')
+    const newToken = edgeCrypto.randomBytesHex(32)
     const newExpAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
     // Save token to Prisma profile

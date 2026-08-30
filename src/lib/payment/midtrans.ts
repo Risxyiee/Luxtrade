@@ -1,16 +1,13 @@
-import crypto from 'node:crypto'
+import { edgeCrypto } from '@/lib/edge-crypto'
 
 /**
- * Midtrans Configuration & Helpers
+ * Midtrans Configuration & Helpers (Edge-compatible)
  *
- * Add these to your .env.local (or Vercel environment variables):
+ * Add these to your .env (or Cloudflare environment variables):
  *
  * MIDTRANS_SERVER_KEY=SB-Mid-server-XXXXX
  * MIDTRANS_CLIENT_KEY=SB-Mid-client-XXXXX
  * MIDTRANS_IS_PRODUCTION=false
- *
- * Sandbox keys: https://dashboard.sandbox.midtrans.com/settings/config
- * Production keys: https://dashboard.midtrans.com/settings/config
  */
 
 export interface MidtransConfig {
@@ -41,19 +38,16 @@ export function getMidtransSnapUrl(): string {
 }
 
 /**
- * Validate Midtrans webhook signature
+ * Validate Midtrans webhook signature (async — uses Web Crypto API)
  * Uses SHA512(order_id + status_code + gross_amount + ServerKey)
  */
-export function verifyMidtransSignature(
+export async function verifyMidtransSignature(
   orderId: string,
   statusCode: string,
   grossAmount: string,
   serverKey: string,
   providedSignature: string
-): boolean {
-  const hash = crypto
-    .createHash('sha512')
-    .update(orderId + statusCode + grossAmount + serverKey)
-    .digest('hex')
+): Promise<boolean> {
+  const hash = await edgeCrypto.sha512(orderId + statusCode + grossAmount + serverKey)
   return hash === providedSignature
 }

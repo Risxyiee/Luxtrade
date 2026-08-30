@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
 import { checkRateLimit } from '@/lib/rate-limit'
-import crypto from 'crypto'
 
 // ============================================
 // Auto-migrate: same as signup route

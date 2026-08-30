@@ -1,4 +1,4 @@
-import crypto from 'crypto'
+import { edgeCrypto } from '@/lib/edge-crypto'
 
 // SakuraPay Configuration
 const SAKURA_API_ID = process.env.SAKURA_API_ID || ''
@@ -119,7 +119,7 @@ function validateCredentials(): void {
  * Generate SakuraPay Signature
  * Format: HMAC-SHA256(api_id + method + merchant_ref + amount, api_key)
  */
-export function generateSignature({
+export async function generateSignature({
   apiId,
   method,
   merchantRef,
@@ -131,26 +131,22 @@ export function generateSignature({
   merchantRef: string
   amount: string
   apiKey: string
-}): string {
+}): Promise<string> {
   const payload = apiId + method + merchantRef + amount
-  return crypto.createHmac('sha256', apiKey).update(payload).digest('hex')
+  return edgeCrypto.hmacSha256(apiKey, payload)
 }
 
 /**
  * Verify SakuraPay callback signature
  * Signature = HMAC-SHA256(raw_json_body, api_key)
  */
-export function verifyCallbackSignature(
+export async function verifyCallbackSignature(
   body: string,
   callbackSignature: string,
-): boolean {
+): Promise<boolean> {
   if (!SAKURA_API_KEY || !callbackSignature) return false
 
-  const expectedSignature = crypto
-    .createHmac('sha256', SAKURA_API_KEY)
-    .update(body)
-    .digest('hex')
-
+  const expectedSignature = await edgeCrypto.hmacSha256(SAKURA_API_KEY, body)
   return expectedSignature === callbackSignature
 }
 
@@ -221,7 +217,7 @@ export async function createSakuraOrder(params: SakuraOrderParams): Promise<Saku
     : `LuxTrade ${plan} Plan`
 
   // Generate signature: HMAC-SHA256(api_id + method + merchant_ref + amount, api_key)
-  const signature = generateSignature({
+  const signature = await generateSignature({
     apiId: SAKURA_API_ID,
     method: paymentMethod,
     merchantRef: invoiceId,

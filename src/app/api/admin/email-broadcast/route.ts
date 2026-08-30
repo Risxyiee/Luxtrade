@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, isDatabaseAvailable } from '@/lib/db'
 import { sendEmail, getUnverifiedBulkReminderHtml, getVerificationPromoEmailHtml, getPromotionalEmailHtml } from '@/lib/email'
 import { requireAdmin } from '@/lib/admin-auth'
-import crypto from 'crypto'
+import { edgeCrypto } from '@/lib/edge-crypto'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 const BATCH_SIZE = 50
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
       try {
         if (target === 'unverified') {
           // Generate new verification token for each unverified user
-          const newToken = crypto.randomBytes(32).toString('hex')
+          const newToken = edgeCrypto.randomBytesHex(32)
           const newExpAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
           await db.profile.update({

@@ -3,7 +3,7 @@ import { createClientForApi } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { isUserPro } from '@/lib/pro-check'
 import { checkAchievementsAfterTrade } from '@/lib/achievement-checker'
-import { randomUUID } from 'crypto'
+import { edgeCrypto } from '@/lib/edge-crypto'
 
 // Free user trade limit - 10 trades per month
 const FREE_TRADE_LIMIT = 10
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
 
     // Create trade via Supabase
     const tradeData = {
-      id: randomUUID(),
+      id: edgeCrypto.randomUUID(),
       user_id: userId,
       account_id: body.account_id ? String(body.account_id) : null,
       symbol: String(body.symbol).toUpperCase(),

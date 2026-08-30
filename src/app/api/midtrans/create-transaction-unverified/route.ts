@@ -1,11 +1,11 @@
+export const runtime = "edge"
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getMidtransConfig } from '@/lib/payment/midtrans'
 import { getPlanPrice, type PricingPlan } from '@/lib/pricing'
 import { checkRateLimit } from '@/lib/rate-limit'
-import crypto from 'crypto'
+import { edgeCrypto } from '@/lib/edge-crypto'
 
-export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /**
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     let durationMonths = plan === 'PRO_LIFETIME' ? 60 : plan === 'PRO_ANNUAL' ? 12 : plan === 'PRO_180_DAYS' ? 6 : 1
     if (grossAmount < 1) grossAmount = 1
 
-    const orderId = `LUX-${plan}-${Date.now()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
+    const orderId = `LUX-${plan}-${Date.now()}-${edgeCrypto.randomBytesHex(4).toUpperCase()}`
     const customerName = fullName || profile.full_name || email.split('@')[0] || 'Customer'
 
     const planLabel: Record<string, string> = {

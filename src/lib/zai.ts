@@ -1,7 +1,4 @@
 import ZAI, { type CreateChatCompletionVisionBody } from 'z-ai-web-dev-sdk'
-import fs from 'fs'
-import path from 'path'
-import os from 'os'
 
 interface ZAIConfig {
   baseUrl: string
@@ -9,42 +6,6 @@ interface ZAIConfig {
   chatId: string
   token: string
   userId: string
-}
-
-function isValidZAIConfig(config: unknown): config is ZAIConfig {
-  if (typeof config !== 'object' || config === null) return false
-  const c = config as Record<string, unknown>
-  return (
-    typeof c.baseUrl === 'string' &&
-    typeof c.apiKey === 'string' &&
-    typeof c.chatId === 'string' &&
-    typeof c.token === 'string' &&
-    typeof c.userId === 'string'
-  )
-}
-
-function loadConfigFromFile(): ZAIConfig | null {
-  const configPaths = [
-    path.join(process.cwd(), '.z-ai-config'),
-    path.join(os.homedir(), '.z-ai-config'),
-    '/etc/.z-ai-config'
-  ]
-
-  for (const filePath of configPaths) {
-    try {
-      if (fs.existsSync(filePath)) {
-        const configStr = fs.readFileSync(filePath, 'utf-8')
-        const config = JSON.parse(configStr)
-        if (isValidZAIConfig(config)) {
-          return config
-        }
-      }
-    } catch {
-      // Skip unreadable files
-    }
-  }
-
-  return null
 }
 
 function loadConfigFromEnv(): ZAIConfig | null {
@@ -64,8 +25,8 @@ function loadConfigFromEnv(): ZAIConfig | null {
 let cachedConfig: ZAIConfig | null = null
 let zaiInstance: ZAI | null = null
 
-// Map to track timeout IDs for AbortControllers
-const controllerTimeouts = new Map<AbortController, NodeJS.Timeout>()
+// Map to track timeout IDs
+const controllerTimeouts = new Map<AbortController, ReturnType<typeof setTimeout>>()
 
 // Create AbortController with timeout
 function createTimeoutController(timeoutMs: number): AbortController {
@@ -95,16 +56,16 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}
 
 export async function createZAI(): Promise<ZAI> {
   if (!cachedConfig) {
-    // Priority: env var > file config
-    cachedConfig = loadConfigFromEnv() || loadConfigFromFile()
+    // Edge-compatible: env-only config (no fs/path/os file reading)
+    cachedConfig = loadConfigFromEnv()
 
     if (!cachedConfig) {
       throw new Error(
-        'ZAI config not found. Set env vars (ZAI_BASE_URL, ZAI_API_KEY, ZAI_CHAT_ID, ZAI_TOKEN, ZAI_USER_ID) or create .z-ai-config file.'
+        'ZAI config not found. Set env vars: ZAI_BASE_URL, ZAI_API_KEY, ZAI_CHAT_ID, ZAI_TOKEN, ZAI_USER_ID'
       )
     }
 
-    console.log('✅ [ZAI] Configuration loaded:', {
+    console.log('✅ [ZAI] Configuration loaded from env:', {
       baseUrl: cachedConfig.baseUrl,
       hasApiKey: !!cachedConfig.apiKey,
       hasChatId: !!cachedConfig.chatId
