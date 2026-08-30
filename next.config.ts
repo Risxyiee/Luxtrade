@@ -12,9 +12,11 @@ const nextConfig: NextConfig = {
 
   allowedDevOrigins: ['http://127.0.0.1:8080', 'http://localhost:8080', 'http://localhost:3000', 'http://127.0.0.1:3000'],
 
-  // These packages use conditional imports (WebSocket vs TCP) that confuse Turbopack.
-  // Marking them external prevents bundling their Node.js code paths into Edge chunks.
-  serverExternalPackages: ['@neondatabase/serverless', '@prisma/adapter-neon'],
+  // NOTE: Do NOT use serverExternalPackages for Cloudflare Pages.
+  // @cloudflare/next-on-pages needs to bundle everything into Workers-compatible chunks.
+  // serverExternalPackages prevents bundling, causing Module not found errors for
+  // Node.js natives like 'dns', 'net', 'tls', 'fs'.
+  // Neon serverless uses conditional WebSocket/HTTP — it bundles fine without this flag.
 
   experimental: {
     optimizePackageImports: ['lucide-react', 'framer-motion'],
