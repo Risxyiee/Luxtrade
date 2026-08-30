@@ -1,4 +1,3 @@
-export const runtime = 'edge'
 import { NextRequest, NextResponse } from 'next/server'
 import { analyzeImageBase64WithAiml } from '@/lib/aiml-vision'
 import { createClientForApi } from '@/lib/supabase/server'

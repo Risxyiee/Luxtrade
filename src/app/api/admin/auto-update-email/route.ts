@@ -1,4 +1,3 @@
-export const runtime = 'edge'
 import { NextRequest, NextResponse } from 'next/server'
 import { db, isDatabaseAvailable } from '@/lib/db'
 import { sendEmail, getPromotionalEmailHtml } from '@/lib/email'

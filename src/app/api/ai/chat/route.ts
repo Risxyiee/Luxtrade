@@ -1,4 +1,3 @@
-export const runtime = 'edge'
 import { NextRequest, NextResponse } from 'next/server'
 import { createZAI } from '@/lib/zai'
 import { createClientForApi } from '@/lib/supabase/server'
