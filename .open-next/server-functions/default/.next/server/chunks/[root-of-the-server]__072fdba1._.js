@@ -1,0 +1,58 @@
+module.exports=[18622,(e,t,r)=>{t.exports=e.x("next/dist/compiled/next-server/app-page-turbo.runtime.prod.js",()=>require("next/dist/compiled/next-server/app-page-turbo.runtime.prod.js"))},56704,(e,t,r)=>{t.exports=e.x("next/dist/server/app-render/work-async-storage.external.js",()=>require("next/dist/server/app-render/work-async-storage.external.js"))},32319,(e,t,r)=>{t.exports=e.x("next/dist/server/app-render/work-unit-async-storage.external.js",()=>require("next/dist/server/app-render/work-unit-async-storage.external.js"))},24725,(e,t,r)=>{t.exports=e.x("next/dist/server/app-render/after-task-async-storage.external.js",()=>require("next/dist/server/app-render/after-task-async-storage.external.js"))},70406,(e,t,r)=>{t.exports=e.x("next/dist/compiled/@opentelemetry/api",()=>require("next/dist/compiled/@opentelemetry/api"))},93695,(e,t,r)=>{t.exports=e.x("next/dist/shared/lib/no-fallback-error.external.js",()=>require("next/dist/shared/lib/no-fallback-error.external.js"))},39048,e=>{"use strict";var t=e.i(89171),r=e.i(26500),a=e.i(24389);async function n(e){try{let{supabase:t}=(0,r.createClientForApi)(e),{data:{user:a},error:n}=await t.auth.getUser();if(!n&&a?.id)return{id:a.id,email:a.email||""}}catch{}let t=e.headers.get("Authorization");if(t?.startsWith("Bearer ")){let e=t.slice(7);if(e)try{let t=(0,a.createClient)("https://klxkdrfsfcoankbaoejn.supabase.co","your_anon_key_here"),{data:{user:r},error:n}=await t.auth.getUser(e);if(!n&&r?.id)return{id:r.id,email:r.email||""}}catch{}}return null}async function s(e){let r=await n(e);return r?{error:null,user:r}:{error:t.NextResponse.json({error:"Unauthorized"},{status:401}),user:null}}e.s(["getAuthUser",()=>n,"requireAuth",()=>s])},68351,e=>{"use strict";var t=e.i(47909),r=e.i(74017),a=e.i(96250),n=e.i(59756),s=e.i(61916),i=e.i(74677),o=e.i(69741),l=e.i(16795),d=e.i(87718),u=e.i(95169),c=e.i(47587),p=e.i(66012),E=e.i(70101),h=e.i(26937),R=e.i(10372),m=e.i(93695);e.i(52474);var f=e.i(5232),_=e.i(89171),N=e.i(39048),x=e.i(43793);let T=new Map;function w(){T.clear()}async function A(){try{await x.db.$executeRawUnsafe(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'profiles' AND column_name = 'public_profile'
+        ) THEN
+          ALTER TABLE profiles ADD COLUMN public_profile BOOLEAN NOT NULL DEFAULT false;
+        END IF;
+      END $$;
+    `)}catch{}}async function C(){try{await x.db.$executeRawUnsafe(`
+      DO $$
+      BEGIN
+        -- Check if table exists with wrong trade_id type (uuid instead of text)
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'shared_trades' AND column_name = 'trade_id' AND data_type = 'uuid'
+        ) THEN
+          -- Drop and recreate with correct types
+          DROP TABLE IF EXISTS shared_trades CASCADE;
+        END IF;
+        
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.tables 
+          WHERE table_name = 'shared_trades'
+        ) THEN
+          CREATE TABLE shared_trades (
+            id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+            trade_id TEXT NOT NULL UNIQUE REFERENCES trades(id) ON DELETE CASCADE,
+            user_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+            share_code TEXT NOT NULL UNIQUE,
+            include_analytics BOOLEAN NOT NULL DEFAULT true,
+            created_at TIMESTAMP NOT NULL DEFAULT now()
+          );
+          CREATE INDEX idx_shared_trades_user_id ON shared_trades(user_id);
+          CREATE INDEX idx_shared_trades_share_code ON shared_trades(share_code);
+        END IF;
+      END $$;
+    `)}catch{}}async function y(e,t){let r=function(e){let t=new Date;switch(e){case"week":{let e=new Date(t);return e.setDate(e.getDate()-7),e}case"month":{let e=new Date(t);return e.setDate(e.getDate()-30),e}default:return new Date(0)}}(e),a=function(e){switch(e){case"winRate":return"win_rate DESC";case"totalPL":default:return"total_pl DESC";case"totalTrades":return"total_trades DESC"}}(t);return(await x.db.$queryRawUnsafe(`
+    SELECT 
+      p.id as user_id,
+      p.full_name as display_name,
+      p.is_pro,
+      p.streak_count,
+      COUNT(t.id) as total_trades,
+      COUNT(CASE WHEN t.profit_loss > 0 THEN 1 END) as wins,
+      COALESCE(SUM(t.profit_loss), 0) as total_pl
+    FROM profiles p
+    INNER JOIN trades t ON t.user_id = p.id
+    WHERE p.public_profile = true
+      AND t.close_time >= $1::timestamp
+    GROUP BY p.id, p.full_name, p.is_pro, p.streak_count
+    HAVING COUNT(t.id) >= 1
+    ORDER BY ${a}
+    LIMIT 20
+  `,r.toISOString())).map((e,t)=>({rank:t+1,userId:e.user_id,displayName:e.display_name,winRate:e.total_trades>0n?Math.round(Number(e.wins)/Number(e.total_trades)*1e3)/10:0,totalPL:Math.round(100*e.total_pl)/100,totalTrades:Number(e.total_trades),streak:e.streak_count,isPro:e.is_pro,avatarUrl:null}))}async function g(e){let{error:t,user:r}=await (0,N.requireAuth)(e);if(t)return t;if(!(0,x.isDatabaseAvailable)())return _.NextResponse.json({leaderboard:[]});try{await A(),await C();let{searchParams:t}=new URL(e.url),r=t.get("period")||"month",a=t.get("sortBy")||"totalPL",n="1"===t.get("refresh"),s=`${r}|${a}`,i=T.get(s),o=Date.now();if(!n&&i&&o-i.timestamp<3e4)return _.NextResponse.json({leaderboard:i.data});let l=await y(r,a);return T.set(s,{data:l,timestamp:o}),_.NextResponse.json({leaderboard:l})}catch(e){return console.error("[Leaderboard API] Error:",e),_.NextResponse.json({error:"Failed to fetch leaderboard"},{status:500})}}e.s(["GET",()=>g,"invalidateLeaderboardCache",()=>w],53991);var v=e.i(53991);let b=new t.AppRouteRouteModule({definition:{kind:r.RouteKind.APP_ROUTE,page:"/api/community/leaderboard/route",pathname:"/api/community/leaderboard",filename:"route",bundlePath:""},distDir:".next",relativeProjectDir:"",resolvedPagePath:"[project]/src/app/api/community/leaderboard/route.ts",nextConfigOutput:"standalone",userland:v}),{workAsyncStorage:D,workUnitAsyncStorage:O,serverHooks:S}=b;function U(){return(0,a.patchFetch)({workAsyncStorage:D,workUnitAsyncStorage:O})}async function I(e,t,a){b.isDev&&(0,n.addRequestMeta)(e,"devRequestTimingInternalsEnd",process.hrtime.bigint());let _="/api/community/leaderboard/route";_=_.replace(/\/index$/,"")||"/";let N=await b.prepare(e,t,{srcPage:_,multiZoneDraftMode:!1});if(!N)return t.statusCode=400,t.end("Bad Request"),null==a.waitUntil||a.waitUntil.call(a,Promise.resolve()),null;let{buildId:x,params:T,nextConfig:w,parsedUrl:A,isDraftMode:C,prerenderManifest:y,routerServerContext:g,isOnDemandRevalidate:v,revalidateOnlyGenerated:D,resolvedPathname:O,clientReferenceManifest:S,serverActionsManifest:U}=N,I=(0,o.normalizeAppPath)(_),L=!!(y.dynamicRoutes[I]||y.routes[O]),k=async()=>((null==g?void 0:g.render404)?await g.render404(e,t,A,!1):t.end("This page could not be found"),null);if(L&&!C){let e=!!y.routes[O],t=y.dynamicRoutes[I];if(t&&!1===t.fallback&&!e){if(w.experimental.adapterPath)return await k();throw new m.NoFallbackError}}let P=null;!L||b.isDev||C||(P="/index"===(P=O)?"/":P);let F=!0===b.isDev||!L,H=L&&!F;U&&S&&(0,i.setManifestsSingleton)({page:_,clientReferenceManifest:S,serverActionsManifest:U});let M=e.method||"GET",$=(0,s.getTracer)(),j=$.getActiveScopeSpan(),q={params:T,prerenderManifest:y,renderOpts:{experimental:{authInterrupts:!!w.experimental.authInterrupts},cacheComponents:!!w.cacheComponents,supportsDynamicResponse:F,incrementalCache:(0,n.getRequestMeta)(e,"incrementalCache"),cacheLifeProfiles:w.cacheLife,waitUntil:a.waitUntil,onClose:e=>{t.on("close",e)},onAfterTaskError:void 0,onInstrumentationRequestError:(t,r,a,n)=>b.onRequestError(e,t,a,n,g)},sharedContext:{buildId:x}},B=new l.NodeNextRequest(e),X=new l.NodeNextResponse(t),K=d.NextRequestAdapter.fromNodeNextRequest(B,(0,d.signalFromNodeResponse)(t));try{let i=async e=>b.handle(K,q).finally(()=>{if(!e)return;e.setAttributes({"http.status_code":t.statusCode,"next.rsc":!1});let r=$.getRootSpanAttributes();if(!r)return;if(r.get("next.span_type")!==u.BaseServerSpan.handleRequest)return void console.warn(`Unexpected root span type '${r.get("next.span_type")}'. Please report this Next.js issue https://github.com/vercel/next.js`);let a=r.get("next.route");if(a){let t=`${M} ${a}`;e.setAttributes({"next.route":a,"http.route":a,"next.span_name":t}),e.updateName(t)}else e.updateName(`${M} ${_}`)}),o=!!(0,n.getRequestMeta)(e,"minimalMode"),l=async n=>{var s,l;let d=async({previousCacheEntry:r})=>{try{if(!o&&v&&D&&!r)return t.statusCode=404,t.setHeader("x-nextjs-cache","REVALIDATED"),t.end("This page could not be found"),null;let s=await i(n);e.fetchMetrics=q.renderOpts.fetchMetrics;let l=q.renderOpts.pendingWaitUntil;l&&a.waitUntil&&(a.waitUntil(l),l=void 0);let d=q.renderOpts.collectedTags;if(!L)return await (0,p.sendResponse)(B,X,s,q.renderOpts.pendingWaitUntil),null;{let e=await s.blob(),t=(0,E.toNodeOutgoingHttpHeaders)(s.headers);d&&(t[R.NEXT_CACHE_TAGS_HEADER]=d),!t["content-type"]&&e.type&&(t["content-type"]=e.type);let r=void 0!==q.renderOpts.collectedRevalidate&&!(q.renderOpts.collectedRevalidate>=R.INFINITE_CACHE)&&q.renderOpts.collectedRevalidate,a=void 0===q.renderOpts.collectedExpire||q.renderOpts.collectedExpire>=R.INFINITE_CACHE?void 0:q.renderOpts.collectedExpire;return{value:{kind:f.CachedRouteKind.APP_ROUTE,status:s.status,body:Buffer.from(await e.arrayBuffer()),headers:t},cacheControl:{revalidate:r,expire:a}}}}catch(t){throw(null==r?void 0:r.isStale)&&await b.onRequestError(e,t,{routerKind:"App Router",routePath:_,routeType:"route",revalidateReason:(0,c.getRevalidateReason)({isStaticGeneration:H,isOnDemandRevalidate:v})},!1,g),t}},u=await b.handleResponse({req:e,nextConfig:w,cacheKey:P,routeKind:r.RouteKind.APP_ROUTE,isFallback:!1,prerenderManifest:y,isRoutePPREnabled:!1,isOnDemandRevalidate:v,revalidateOnlyGenerated:D,responseGenerator:d,waitUntil:a.waitUntil,isMinimalMode:o});if(!L)return null;if((null==u||null==(s=u.value)?void 0:s.kind)!==f.CachedRouteKind.APP_ROUTE)throw Object.defineProperty(Error(`Invariant: app-route received invalid cache entry ${null==u||null==(l=u.value)?void 0:l.kind}`),"__NEXT_ERROR_CODE",{value:"E701",enumerable:!1,configurable:!0});o||t.setHeader("x-nextjs-cache",v?"REVALIDATED":u.isMiss?"MISS":u.isStale?"STALE":"HIT"),C&&t.setHeader("Cache-Control","private, no-cache, no-store, max-age=0, must-revalidate");let m=(0,E.fromNodeOutgoingHttpHeaders)(u.value.headers);return o&&L||m.delete(R.NEXT_CACHE_TAGS_HEADER),!u.cacheControl||t.getHeader("Cache-Control")||m.get("Cache-Control")||m.set("Cache-Control",(0,h.getCacheControlHeader)(u.cacheControl)),await (0,p.sendResponse)(B,X,new Response(u.value.body,{headers:m,status:u.value.status||200})),null};j?await l(j):await $.withPropagatedContext(e.headers,()=>$.trace(u.BaseServerSpan.handleRequest,{spanName:`${M} ${_}`,kind:s.SpanKind.SERVER,attributes:{"http.method":M,"http.target":e.url}},l))}catch(t){if(t instanceof m.NoFallbackError||await b.onRequestError(e,t,{routerKind:"App Router",routePath:I,routeType:"route",revalidateReason:(0,c.getRevalidateReason)({isStaticGeneration:H,isOnDemandRevalidate:v})},!1,g),L)throw t;return await (0,p.sendResponse)(B,X,new Response(null,{status:500})),null}}e.s(["handler",()=>I,"patchFetch",()=>U,"routeModule",()=>b,"serverHooks",()=>S,"workAsyncStorage",()=>D,"workUnitAsyncStorage",()=>O],68351)}];
+
+//# sourceMappingURL=%5Broot-of-the-server%5D__072fdba1._.js.map

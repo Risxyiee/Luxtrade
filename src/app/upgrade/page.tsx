@@ -4,7 +4,7 @@ import UpgradeFormClient from './UpgradeFormClient'
 
 /**
  * Server Component — auth guard + renders client form
- * Runs as Node.js server component (NO edge runtime).
+ * Runs on Cloudflare Edge runtime via OpenNext (no Node.js needed).
  */
 export default async function UpgradePage() {
   // In local dev without Supabase, bypass auth and use dev user
@@ -21,6 +21,3 @@ export default async function UpgradePage() {
 
   return <UpgradeFormClient user={user} />
 }
-
-// Explicitly use Node.js runtime — NEVER edge runtime
-export const runtime = 'nodejs'

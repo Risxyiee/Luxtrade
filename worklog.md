@@ -580,3 +580,27 @@ Stage Summary:
 - All fixes are minimal and targeted — no business logic was changed
 - Build script now uses `@cloudflare/next-on-pages` for proper Cloudflare Pages deployment
 - The app is ready for `git push` and Cloudflare Pages rebuild
+---
+Task ID: opennext-migration
+Agent: Main
+Task: Migrate from deprecated @cloudflare/next-on-pages to @opennextjs/cloudflare for Next.js 16 compatibility
+
+Work Log:
+- Audited project: found 89 API routes with `export const runtime = 'edge'`, 1 page with `export const runtime = 'nodejs'`, 0 imports of next-on-pages SDK
+- Removed `@cloudflare/next-on-pages` from devDependencies, installed `@opennextjs/cloudflare@1.20.4`
+- Removed all 89 `export const runtime = 'edge'` declarations (OpenNext defaults to edge)
+- Removed `export const runtime = 'nodejs'` from upgrade/page.tsx (Cloudflare has no Node.js runtime)
+- Created `open-next.config.ts` with `defineCloudflareConfig()` + `buildCommand: "next build"` (prevents recursive loop)
+- Created `wrangler.jsonc` (replaced old `wrangler.toml`) with `.open-next/assets` directory, `nodejs_compat` flag
+- Updated `package.json` scripts: `build` → `opennextjs-cloudflare build`, `preview` → `wrangler pages dev .open-next/assets`, `deploy` → `wrangler pages deploy .open-next/assets`
+- Updated `next.config.ts` comments to reference OpenNext instead of next-on-pages
+- Fixed recursive build loop: `opennextjs-cloudflare build` → `bun run build` → `opennextjs-cloudflare build` (infinite). Solution: `buildCommand: "next build"` in open-next.config.ts bypasses the package.json build script
+- Fixed @opentelemetry/api bundling error: standalone trace only copies `build/src/` but esbuild needs `build/esm/`. Solution: remove `@opentelemetry/api` from node_modules so OpenNext uses Next's compiled fallback
+- Successfully completed full OpenNext build: `.open-next/worker.js` + `.open-next/assets/` + `.open-next/server-functions/` generated
+
+Stage Summary:
+- Migration from `@cloudflare/next-on-pages` to `@opennextjs/cloudflare` is COMPLETE
+- Build output: `.open-next/worker.js` (Workers entry), `.open-next/assets/` (static), `.open-next/server-functions/default/` (server)
+- Cloudflare Pages dashboard settings: Build Command = `npx opennextjs-cloudflare build`, Output Directory = `.open-next/assets`
+- Key files changed: package.json, wrangler.jsonc (new), open-next.config.ts (new), next.config.ts, 89 route files (edge removed), 1 page (nodejs removed)
+- No Vercel/Node.js-specific imports remain in src/
