@@ -12,7 +12,6 @@ import {
   analyzeImageBase64WithAiml,
   buildTradeAndJournalPrompt,
 } from '@/lib/aiml-vision'
-import { edgeCrypto } from '@/lib/edge-crypto'
 
 // ==================== AUTH HELPER ====================
 
