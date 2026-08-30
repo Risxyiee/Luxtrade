@@ -16,17 +16,10 @@ const nextConfig: NextConfig = {
   // @opennextjs/cloudflare needs to bundle everything into Workers-compatible chunks.
   // serverExternalPackages prevents bundling, causing Module not found errors for
   // Node.js natives like 'dns', 'net', 'tls', 'fs'.
-  // Neon serverless uses conditional WebSocket/HTTP — it bundles fine without this flag.
 
-  // Force Webpack instead of Turbopack for OpenNext Cloudflare compatibility.
-  // Next.js 16 defaults to Turbopack, but OpenNext does not support it.
-  // Without this, the Worker crashes at runtime:
-  //   "Failed to load external module next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:
-  //    TypeError: Cannot read properties of undefined (reading 'require')"
-  webpack: (config) => {
-    return config;
-  },
-
+  // Include the full @opentelemetry/api build output in the standalone trace.
+  // OpenNext's edge middleware bundler uses `conditions: ["module"]` which resolves
+  // to build/esm/index.js, but Next.js standalone trace only copies build/src/ by default.
   outputFileTracingIncludes: {
     "*": ["./node_modules/@opentelemetry/api/build/**/*"],
   },
