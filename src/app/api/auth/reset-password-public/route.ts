@@ -1,3 +1,4 @@
+export const runtime = 'edge'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdminAuthFromClient } from '@/lib/supabase'
 import { rateLimitByEmail } from '@/lib/rate-limit'

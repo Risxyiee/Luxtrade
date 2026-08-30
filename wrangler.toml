@@ -1,0 +1,12 @@
+name = "luxtrade-nextjs"
+compatibility_date = "2025-07-18"
+compatibility_flags = ["nodejs_compat"]
+
+# Uncomment and configure for production:
+# [vars]
+# NEXT_PUBLIC_APP_URL = "https://luxtradee.web.id"
+
+# Secrets (set via `wrangler secret put`):
+# DATABASE_URL, DATABASE_POOLER_URL, SUPABASE_SERVICE_ROLE_KEY,
+# NEXT_PUBLIC_SUPABASE_URL, MIDTRANS_SERVER_KEY, MIDTRANS_CLIENT_KEY,
+# GEMINI_API_KEY, RESEND_API_KEY, etc.

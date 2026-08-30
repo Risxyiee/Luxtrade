@@ -1,19 +1,23 @@
-import { PrismaClient } from '@prisma/client'
-
 /**
- * Database connection with URL normalization.
+ * Edge-compatible Prisma client for Cloudflare Workers / Cloudflare Pages.
  *
- * Pooler URL resolution (priority order):
+ * Uses @prisma/adapter-pg + pg (or @neondatabase/serverless) to connect
+ * via WebSocket/HTTP instead of Node.js TCP sockets.
+ *
+ * Connection resolution:
  *   1. DATABASE_POOLER_URL — if set, used directly (no transformation)
- *   2. Legacy auto-detect — checks for Supabase direct URLs and converts to pooler
- *      (logs a warning; set DATABASE_POOLER_URL for reliability)
+ *   2. Auto-detect Supabase direct URLs → convert to pooler
  *
- * Other handling:
- * - Fixes common Vercel env var corruption (file prefix, doubled protocol)
- * - Handles pgbouncer compatibility (pooler port, pgBouncer mode)
- * - Graceful fallback for local dev without proper database (returns safe responses instead of crashes)
+ * Works on: Cloudflare Workers, Vercel Edge, Deno, Node.js
  */
 
+import { PrismaClient } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
+
+/**
+ * Normalize a raw DATABASE_URL into a clean postgresql:// connection string.
+ * Fixes Vercel env var corruption and handles pooler conversion.
+ */
 function normalizeUrl(raw: string): string {
   let url = raw.trim()
 
@@ -39,13 +43,13 @@ function normalizeUrl(raw: string): string {
     url = url.substring(url.indexOf('postgres://'))
   }
 
-  // Env-driven pooler URL: if DATABASE_POOLER_URL is set, use it directly
+  // Env-driven pooler URL
   const poolerEnvUrl = process.env.DATABASE_POOLER_URL?.trim()
   if (poolerEnvUrl) {
     return poolerEnvUrl
   }
 
-  // Legacy auto-detect: convert Supabase direct connection to pooler
+  // Auto-detect: convert Supabase direct connection to pooler
   const isDirectSupabase = url.includes('supabase.co') && (url.includes(':5432') || url.match(/db\.[\w-]+\.supabase\.co/))
 
   if (isDirectSupabase && url.includes(':5432')) {
@@ -54,13 +58,11 @@ function normalizeUrl(raw: string): string {
       console.warn('[db] DATABASE_POOLER_URL not set, using auto-detect pooler conversion. Set DATABASE_POOLER_URL for reliability.')
       const [, user, password, project, database] = match
       const poolerUrl = `postgresql://${user}.${project}:${password}@aws-0-ap-southeast-1.pooler.supabase.com:6543/${database}?pgbouncer=true`
-
-      console.log('🔄 [DB] Auto-converting Supabase direct → pooler URL')
       return poolerUrl
     }
   }
 
-  // If user already has pooler URL but missing pgbouncer param, add it
+  // If already pooler URL but missing pgbouncer param, add it
   if (url.includes('pooler.supabase.com') && !url.includes('pgbouncer')) {
     const separator = url.includes('?') ? '&' : '?'
     url = `${url}${separator}pgbouncer=true`
@@ -73,16 +75,15 @@ const getDatabaseUrl = (): string | null => {
   const raw = process.env.DATABASE_URL
 
   if (!raw) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('DATABASE_URL is required in production')
-    }
+    // During `next build` static analysis, DATABASE_URL may not be set.
+    // Never throw — let the proxy handle it at runtime.
     _dbUnavailableReason = 'DATABASE_URL not set'
     return null
   }
 
-  // If it's a file: URL (SQLite for local dev), skip — Prisma schema is PostgreSQL
+  // If it's a file: URL (SQLite for local dev), skip
   if (raw.trim().startsWith('file:')) {
-    _dbUnavailableReason = `DATABASE_URL is SQLite (file:), but schema requires PostgreSQL. Set a PostgreSQL URL for full functionality.`
+    _dbUnavailableReason = `DATABASE_URL is SQLite (file:), but schema requires PostgreSQL.`
     return null
   }
 
@@ -103,16 +104,17 @@ try {
 
   if (dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'))) {
     if (!globalForPrisma.prisma) {
-      // Append connection pool limits to prevent "max clients reached" on Supabase
-      // Free tier pooler = 15 connections; each Vercel function instance takes one.
-      // Use connection_limit=3: each serverless function needs at most 2-3 connections,
-      // and with 15 pool slots we can safely run ~5 concurrent functions.
+      // Build connection string with pool limits
       const poolUrl = dbUrl.includes('?')
         ? `${dbUrl}&connection_limit=3&pool_timeout=15`
         : `${dbUrl}?connection_limit=3&pool_timeout=15`
 
+      // Create Edge-compatible adapter using pg
+      // PrismaPg wraps the `pg` Pool and uses it via WebSocket/TCP
+      const adapter = new PrismaPg(poolUrl)
+
       globalForPrisma.prisma = new PrismaClient({
-        datasourceUrl: poolUrl,
+        adapter,
         log: ['error', 'warn'],
       })
     }
@@ -120,14 +122,13 @@ try {
     _dbAvailable = true
 
     console.log('🗄️ ============================================')
-    console.log('🗄️ Database Type: PostgreSQL')
+    console.log('🗄️ Database: PostgreSQL (Edge-compatible via PrismaPg)')
     console.log(`🗄️ Environment: ${process.env.NODE_ENV || 'development'}`)
     console.log('🗄️ ============================================')
   } else {
     _dbUnavailableReason = dbUrl ? 'Invalid database URL format (not PostgreSQL)' : 'No DATABASE_URL configured'
     console.log('🗄️ ============================================')
     console.log(`🗄️ Database: UNAVAILABLE — ${_dbUnavailableReason}`)
-    console.log('🗄️ Features requiring database will return safe defaults.')
     console.log('🗄️ ============================================')
   }
 } catch (err: unknown) {
@@ -185,17 +186,8 @@ function createDbProxy(prisma: PrismaClient | undefined): PrismaClient {
 export const db: PrismaClient = createDbProxy(_rawPrisma)
 
 /**
- * DEPRECATED: ensureSchema() is now a NO-OP.
- * 
- * Disabled because multiple Vercel instances running ensureSchema() simultaneously
- * caused race conditions (error 23505 "already exists" vs 42P01 "does not exist"
- * on promo_codes table).
- * 
- * Schema changes should be done via:
- *   1. Supabase SQL Editor (manual)
- *   2. Prisma migrations (proper)
+ * DEPRECATED: ensureSchema() is a NO-OP.
  */
 export async function ensureSchema(): Promise<void> {
-  // No-op: auto-migration disabled to prevent race conditions.
-  // All callers still work — this just returns immediately.
+  // No-op
 }

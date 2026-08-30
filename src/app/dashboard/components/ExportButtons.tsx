@@ -22,7 +22,7 @@ import {
   exportAllDataAsJSON,
   exportTaxReportPDF,
 } from '@/lib/export-utils'
-import { printJournal } from '@/lib/pdf-export'
+// printJournal removed — not available on Edge runtime
 
 interface ExportButtonsProps {
   journalEntries?: JournalEntry[]
@@ -127,8 +127,9 @@ export function ExportButtons({
               <span>{t.downloadCsv}</span>
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => printJournal(journalEntries)}
-              className="cursor-pointer text-lux-text-primary dark:text-gray-300 hover:text-lux-text-primary dark:hover:text-white"
+              disabled
+              title="Print is not available on this platform"
+              className="cursor-pointer text-lux-text-primary dark:text-gray-300 hover:text-lux-text-primary dark:hover:text-white opacity-50"
             >
               <Printer className="w-4 h-4 mr-2 text-blue-400" />
               <span>{t.print}</span>

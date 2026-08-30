@@ -1,6 +1,8 @@
+export const runtime = 'edge'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { isUserPro } from '@/lib/pro-check'
+import { edgeCrypto } from '@/lib/edge-crypto'
 
 export async function POST(request: NextRequest) {
   try {
@@ -86,10 +88,9 @@ export async function POST(request: NextRequest) {
 
       // Get array buffer from Response object
       const arrayBuffer = await response.arrayBuffer()
-      const buffer = Buffer.from(new Uint8Array(arrayBuffer))
 
       // Convert to base64 for JSON response
-      const base64Audio = buffer.toString('base64')
+      const base64Audio = edgeCrypto.base64EncodeBytes(arrayBuffer)
       const audioDataUrl = `data:audio/${format};base64,${base64Audio}`
 
       return NextResponse.json({

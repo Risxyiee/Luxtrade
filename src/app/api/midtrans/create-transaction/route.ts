@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
       ? 'https://app.midtrans.com/snap/v1/transactions'
       : 'https://app.sandbox.midtrans.com/snap/v1/transactions'
 
-    const authString = Buffer.from(process.env.MIDTRANS_SERVER_KEY! + ':').toString('base64')
+    const authString = edgeCrypto.base64Encode(process.env.MIDTRANS_SERVER_KEY! + ':')
 
     const snapRes = await fetch(snapBaseUrl, {
       method: 'POST',
