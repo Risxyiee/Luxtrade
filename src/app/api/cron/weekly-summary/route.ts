@@ -1,3 +1,4 @@
+export const runtime = "edge"
 import { NextRequest, NextResponse } from 'next/server'
 import { db, isDatabaseAvailable } from '@/lib/db'
 import { sendEmail, getWeeklySummaryHtml } from '@/lib/email'
@@ -21,7 +22,6 @@ import { sendEmail, getWeeklySummaryHtml } from '@/lib/email'
  *
  * Vercel Cron: runs every Monday at 10:00 AM WIB (03:00 UTC)
  */
-export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'

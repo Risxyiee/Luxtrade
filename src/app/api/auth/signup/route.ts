@@ -3,7 +3,7 @@ import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
 import { db } from '@/lib/db'
 import { sendEmailFromTemplate, getConfirmationEmailHtml } from '@/lib/email'
 import { checkRateLimit } from '@/lib/rate-limit'
-import crypto from 'crypto'
+import { edgeCrypto } from '@/lib/edge-crypto'
 
 function generateReferralCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -15,7 +15,7 @@ function generateReferralCode(): string {
 }
 
 function generateVerifyToken(): string {
-  return crypto.randomBytes(32).toString('hex')
+  return edgeCrypto.randomBytesHex(32)
 }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'

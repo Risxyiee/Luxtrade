@@ -1,3 +1,4 @@
+export const runtime = "edge"
 import { NextRequest, NextResponse } from 'next/server'
 import { after } from 'next/server'
 import { getAuthUser } from '@/lib/api-auth'
@@ -10,7 +11,7 @@ import {
   analyzeImageBase64WithAiml,
   buildTradeAndJournalPrompt,
 } from '@/lib/aiml-vision'
-import { randomUUID } from 'crypto'
+import { edgeCrypto } from '@/lib/edge-crypto'
 
 // ==================== AUTH HELPER ====================
 
@@ -90,7 +91,6 @@ async function optimizeImage(buffer: Buffer): Promise<{ optimizedBase64: string;
 
 // ==================== MAIN API ====================
 
-export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
@@ -315,8 +315,8 @@ export async function POST(request: NextRequest) {
     log('📝', 'Saving journal entry (parent first)...')
     const t4 = performance.now()
 
-    const tradeId = randomUUID()
-    const journalId = randomUUID()
+    const tradeId = edgeCrypto.randomUUID()
+    const journalId = edgeCrypto.randomUUID()
     const userId = user.id
 
     const { data: journalRecord, error: journalErr } = await client

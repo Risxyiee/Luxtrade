@@ -1,10 +1,10 @@
+export const runtime = "edge"
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
 import { createSakuraOrder, getSakuraConfig } from '@/lib/payment/sakura'
-import crypto from 'crypto'
+import { edgeCrypto } from '@/lib/edge-crypto'
 
-export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /**
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     // Generate unique invoice number
     const timestamp = Date.now()
-    const random = crypto.randomBytes(4).toString('hex').toUpperCase()
+    const random = edgeCrypto.randomBytesHex(4).toUpperCase()
     const invoiceId = `LUX-${plan}-${timestamp}-${random}`
 
     // Get customer info from profile
