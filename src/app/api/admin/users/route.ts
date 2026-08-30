@@ -1,3 +1,4 @@
+export const runtime = 'edge'
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminAuth, getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { requireAdmin } from '@/lib/admin-auth'

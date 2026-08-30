@@ -1,6 +1,8 @@
+export const runtime = 'edge'
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/api-auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { edgeCrypto } from '@/lib/edge-crypto'
 
 // Maximum file size: 10MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -59,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     // Step 5: Convert file to buffer
     const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
+    const buffer = new Uint8Array(bytes)
 
     // Step 6: Generate unique filename with user folder structure
     const fileExtension = file.name.split('.').pop() || 'jpg'

@@ -6,6 +6,7 @@ import { createClientForApi } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { isUserPro } from '@/lib/pro-check'
 import { uploadScreenshot } from '@/lib/extractTradeData'
+import { edgeCrypto } from '@/lib/edge-crypto'
 import { checkAchievementsAfterTrade } from '@/lib/achievement-checker'
 import {
   analyzeImageBase64WithAiml,
@@ -81,11 +82,11 @@ interface CombinedAIResponse {
  * Convert image to JPEG and resize using Canvas API (built-in, no native deps).
  * Falls back to raw base64 if canvas is unavailable.
  */
-async function optimizeImage(buffer: Buffer): Promise<{ optimizedBase64: string; optimizedBuffer: Buffer }> {
+async function optimizeImage(bytes: ArrayBuffer): Promise<{ optimizedBase64: string; optimizedBuffer: Uint8Array }> {
   // canvas package not available in serverless/edge — return raw base64 directly
   return {
-    optimizedBase64: buffer.toString('base64'),
-    optimizedBuffer: buffer,
+    optimizedBase64: edgeCrypto.base64EncodeBytes(bytes),
+    optimizedBuffer: new Uint8Array(bytes),
   }
 }
 
@@ -201,8 +202,7 @@ export async function POST(request: NextRequest) {
     log('🔧', 'Optimizing image...')
     const t1 = performance.now()
     const bytes = await imageFile.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    const { optimizedBase64: base64Image, optimizedBuffer } = await optimizeImage(buffer)
+    const { optimizedBase64: base64Image, optimizedBuffer } = await optimizeImage(bytes)
     log('✅', `Image optimized in ${(performance.now() - t1).toFixed(0)}ms, base64=${base64Image.length} chars`)
 
     // ── STEP 6: Fetch trading account for broker_gmt_offset ──

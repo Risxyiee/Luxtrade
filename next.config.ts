@@ -1,47 +1,26 @@
 import type { NextConfig } from "next";
-import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Cloudflare Pages compatibility
+  // Do NOT use "standalone" — @cloudflare/next-on-pages handles the build
+  // Do NOT set output — let the adapter decide
 
   compiler: {
     removeConsole: false,
   },
 
   typescript: {
-    ignoreBuildErrors: true, // Keep true for now — fixing all TS errors would be a separate task
+    ignoreBuildErrors: true,
   },
-  reactStrictMode: false, // TODO: Enable after fixing double-render side effects
+  reactStrictMode: false,
 
-  // Allow dev requests from 127.0.0.1 (fixes CORS chunk loading issue)
   allowedDevOrigins: ['http://127.0.0.1:8080', 'http://localhost:8080', 'http://localhost:3000', 'http://127.0.0.1:3000'],
 
-  // Don't bundle sharp — it's a native module with platform-specific binaries.
-  // Vercel serverless can't load it. We don't use it on Vercel (dynamic import with fallback).
-  serverExternalPackages: ['sharp'],
+  // No serverExternalPackages needed — all edge-compatible now
 
-  // Experimental settings to help with large files
   experimental: {
     optimizePackageImports: ['lucide-react', 'framer-motion'],
   },
 };
 
-export default withSentryConfig(nextConfig, {
-  // For all available options, see:
-  // https://github.com/getsentry/sentry-webpack-plugin#options
-
-  // Suppresses source map uploading logs during build
-  silent: true,
-
-  // Upload source maps for better stack traces
-  hideSourceMaps: true,
-
-  // Keep automatic instrumentation enabled (our sentry.*.config.ts files handle init)
-  disableAutomaticInstrumentation: false,
-
-  // Expands the build scope for better coverage
-  widenClientFileUpload: true,
-
-  // Enables automatic release annotation via Vercel
-  automaticVercelMonitorsIntegration: true,
-});
+export default nextConfig;

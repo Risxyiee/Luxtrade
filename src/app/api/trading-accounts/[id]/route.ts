@@ -1,3 +1,4 @@
+export const runtime = 'edge'
 /**
  * API Route: Trading Account by ID
  * GET - Get a specific trading account
