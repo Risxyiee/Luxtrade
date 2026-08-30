@@ -604,3 +604,24 @@ Stage Summary:
 - Cloudflare Pages dashboard settings: Build Command = `npx opennextjs-cloudflare build`, Output Directory = `.open-next/assets`
 - Key files changed: package.json, wrangler.jsonc (new), open-next.config.ts (new), next.config.ts, 89 route files (edge removed), 1 page (nodejs removed)
 - No Vercel/Node.js-specific imports remain in src/
+---
+Task ID: opentelemetry-fix
+Agent: Main
+Task: Fix @opentelemetry/api Cloudflare Pages build error and remove oversized video
+
+Work Log:
+- Removed public/demo-tutorial.mp4 (56MB, exceeds CF Pages 25 MiB limit), pushed: 3c49cca
+- Deep-dived into OpenNext Cloudflare source code to find root cause of @opentelemetry/api error
+- Found the edge middleware bundler (createEdgeBundle.js) uses conditions: ["module"] which resolves @opentelemetry/api to build/esm/index.js
+- Next.js standalone trace only copies build/src/ (the "main" field), not build/esm/
+- The node middleware bundler (bundle-node-middleware.js) has an alias workaround, but the edge bundler does NOT
+- The fix: added outputFileTracingIncludes in next.config.ts to include build/esm/ in the standalone trace
+- This is the approach explicitly suggested in OpenNext's own source comments (require.js)
+- Verified: local build succeeds, @opentelemetry/api code is inlined into middleware/handler.mjs (629KB)
+- Pushed: 52bb648
+
+Stage Summary:
+- demo-tutorial.mp4 removed (saved 56MB)
+- @opentelemetry/api error fixed via outputFileTracingIncludes in next.config.ts
+- Build now succeeds locally with full OpenNext pipeline
+- Two commits pushed: 3c49cca (video removal), 52bb648 (opentelemetry fix)
