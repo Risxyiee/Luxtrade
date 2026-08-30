@@ -2,11 +2,16 @@ name = "luxtrade-nextjs"
 compatibility_date = "2025-07-18"
 compatibility_flags = ["nodejs_compat"]
 
+# Cloudflare Pages: point wrangler to the static output from @cloudflare/next-on-pages
+# This ensures `wrangler deploy` (or `wrangler pages deploy`) deploys the correct assets.
+[assets]
+directory = ".vercel/output/static"
+
 # Uncomment and configure for production:
 # [vars]
 # NEXT_PUBLIC_APP_URL = "https://luxtradee.web.id"
 
-# Secrets (set via `wrangler secret put`):
+# Secrets (set via Cloudflare dashboard, not wrangler.toml):
 # DATABASE_URL, DATABASE_POOLER_URL, SUPABASE_SERVICE_ROLE_KEY,
 # NEXT_PUBLIC_SUPABASE_URL, MIDTRANS_SERVER_KEY, MIDTRANS_CLIENT_KEY,
 # GEMINI_API_KEY, RESEND_API_KEY, etc.
