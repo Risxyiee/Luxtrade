@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/api-auth'
 import { db } from '@/lib/db'
-import { randomUUID } from 'crypto'
+import { edgeCrypto } from '@/lib/edge-crypto'
 
 /**
  * Create new promo code (Admin only)
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     await db.$executeRawUnsafe(`
       INSERT INTO promo_codes (id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, end_date, is_active, created_at, updated_at)
       VALUES ($1, $2, $3, $4, $5, 0, $6, $7, $8, true, NOW(), NOW());
-    `, randomUUID(), normalizedCode, description || null, parseFloat(discountPercent), parseInt(maxQuota), parseInt(durationMonths), startDate ? new Date(startDate) : new Date(), endDate ? new Date(endDate) : null)
+    `, edgeCrypto.randomUUID(), normalizedCode, description || null, parseFloat(discountPercent), parseInt(maxQuota), parseInt(durationMonths), startDate ? new Date(startDate) : new Date(), endDate ? new Date(endDate) : null)
 
     return NextResponse.json({
       success: true,

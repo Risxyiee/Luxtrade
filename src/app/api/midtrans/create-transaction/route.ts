@@ -1,12 +1,12 @@
+export const runtime = "edge"
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
 import { getMidtransConfig } from '@/lib/payment/midtrans'
 import { PRICING, getPlanPrice, type PricingPlan } from '@/lib/pricing'
 import { rateLimitByUser } from '@/lib/rate-limit'
-import crypto from 'crypto'
+import { edgeCrypto } from '@/lib/edge-crypto'
 
-export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /**
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     if (grossAmount < 1) grossAmount = 1
 
     // ── 7. Build Midtrans parameter ────────────────────────────
-    const orderId = `LUX-${plan}-${Date.now()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`
+    const orderId = `LUX-${plan}-${Date.now()}-${edgeCrypto.randomBytesHex(4).toUpperCase()}`
     const customerName = profile?.full_name || user.email?.split('@')[0] || 'Customer'
     const customerEmail = user.email || 'unknown@luxtradee.web.id'
     const customerPhone = profile?.phone || '08123456789'

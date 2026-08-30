@@ -1,8 +1,8 @@
+export const runtime = "edge"
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { verifyCallbackSignature } from '@/lib/payment/sakura'
 
-export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /**
@@ -66,13 +66,13 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      if (!verifyCallbackSignature(rawBody, callbackSignature)) {
+      if (!await verifyCallbackSignature(rawBody, callbackSignature)) {
         console.error('🚨 [Callback] REJECTED: Signature mismatch')
-        // Log expected vs received for debugging (server-side only, not in response)
-        const crypto = await import('crypto')
+        // Log expected vs received for debugging
         const apiKey = process.env.SAKURA_API_KEY || ''
         if (apiKey) {
-          const expected = crypto.createHmac('sha256', apiKey).update(rawBody).digest('hex')
+          const { edgeCrypto } = await import('@/lib/edge-crypto')
+          const expected = await edgeCrypto.hmacSha256(apiKey, rawBody)
           console.error('   Expected:', expected.substring(0, 16) + '...')
           console.error('   Received:', callbackSignature.substring(0, 16) + '...')
         } else {

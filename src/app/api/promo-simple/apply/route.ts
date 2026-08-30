@@ -1,9 +1,9 @@
+export const runtime = "edge"
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
 
 // Simple promo apply - no middleware, no edge runtime
-export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 // ensurePromoTables REMOVED — tables are created via POST /api/admin/db-sync.

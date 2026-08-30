@@ -1,8 +1,8 @@
+export const runtime = "edge"
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
 
-export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /**

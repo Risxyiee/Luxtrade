@@ -1,3 +1,4 @@
+export const runtime = "edge"
 import { NextRequest, NextResponse } from 'next/server'
 import { db, isDatabaseAvailable } from '@/lib/db'
 
@@ -6,7 +7,6 @@ import { db, isDatabaseAvailable } from '@/lib/db'
  * Unsubscribe page: marks user as unsubscribed from weekly summary emails.
  * Shows a simple HTML confirmation page.
  */
-export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'

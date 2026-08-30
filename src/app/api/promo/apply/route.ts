@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { db, isDatabaseAvailable } from '@/lib/db'
-import { randomUUID } from 'crypto'
+import { edgeCrypto } from '@/lib/edge-crypto'
 
 /**
  * POST /api/promo/apply
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     const startDate = new Date()
     const months = promo.duration_months || 3
     const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + months, startDate.getDate(), 23, 59, 59, 999)
-    const subscriptionId = randomUUID()
+    const subscriptionId = edgeCrypto.randomUUID()
 
     try {
       await db.$executeRawUnsafe(`

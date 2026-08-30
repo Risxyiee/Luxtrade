@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 import { isDatabaseAvailable } from '@/lib/db'
-import crypto from 'crypto'
+import { edgeCrypto } from '@/lib/edge-crypto'
 
 async function ensureSharedTradesTable() {
   try {
@@ -42,7 +42,7 @@ async function ensureSharedTradesTable() {
 }
 
 function generateShareCode(): string {
-  return crypto.randomBytes(6).toString('hex').toUpperCase()
+  return edgeCrypto.randomBytesHex(6).toUpperCase()
 }
 
 // POST: Generate a shareable trade card

@@ -1,9 +1,9 @@
+export const runtime = "edge"
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { verifyMidtransSignature } from '@/lib/payment/midtrans'
 import { getAdminAuth } from '@/lib/supabase-admin-alt'
 
-export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /**
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const isValid = verifyMidtransSignature(orderId, statusCode, grossAmount, serverKey, signatureKey)
+    const isValid = await verifyMidtransSignature(orderId, statusCode, grossAmount, serverKey, signatureKey)
 
     if (!isValid) {
       console.error('❌ [Midtrans Webhook] Invalid signature for order:', orderId)

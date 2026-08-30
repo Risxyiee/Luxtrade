@@ -1,3 +1,4 @@
+export const runtime = "edge"
 import { NextRequest, NextResponse } from 'next/server'
 import { db, isDatabaseAvailable } from '@/lib/db'
 import { getAuthUser } from '@/lib/api-auth'
@@ -10,7 +11,6 @@ import { getSupabaseAdminAuthFromClient, supabaseAdmin } from '@/lib/supabase'
  *
  * Called from the client after a trade is successfully created.
  */
-export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {

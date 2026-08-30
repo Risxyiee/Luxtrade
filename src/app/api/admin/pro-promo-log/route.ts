@@ -1,3 +1,4 @@
+export const runtime = "edge"
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
@@ -14,7 +15,6 @@ import { requireAdmin } from '@/lib/admin-auth'
  * returns clear error telling admin to run db-sync. This prevents silent
  * failures where auto-created empty tables hide the real data.
  */
-export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 // Short cache for burst requests (5s)

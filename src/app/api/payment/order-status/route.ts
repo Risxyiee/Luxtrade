@@ -1,9 +1,9 @@
+export const runtime = "edge"
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { createClientForApi } from '@/lib/supabase/server'
 import { checkTransactionStatus, getTransactionHistory } from '@/lib/payment/sakura'
 
-export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /**

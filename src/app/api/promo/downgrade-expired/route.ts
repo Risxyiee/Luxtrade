@@ -1,3 +1,4 @@
+export const runtime = "edge"
 import { NextResponse } from 'next/server'
 import { db, isDatabaseAvailable } from '@/lib/db'
 
@@ -6,7 +7,6 @@ import { db, isDatabaseAvailable } from '@/lib/db'
  * Downgrades users whose promo subscription has expired back to FREE.
  * Called by cron job or admin action.
  */
-export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST() {

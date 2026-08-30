@@ -1,3 +1,4 @@
+export const runtime = "edge"
 import { NextRequest, NextResponse } from 'next/server'
 import { db, isDatabaseAvailable } from '@/lib/db'
 
@@ -14,7 +15,6 @@ import { db, isDatabaseAvailable } from '@/lib/db'
  * - Syncs Supabase Auth metadata
  * - Protected by CRON_SECRET (consistent with other cron endpoints)
  */
-export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 async function handleRequest(request: NextRequest) {
