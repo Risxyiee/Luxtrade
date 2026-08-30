@@ -5,7 +5,19 @@ const PUBLIC_PATHS = ['/', '/about', '/blog', '/contact', '/faq', '/terms', '/pr
 
 const ADMIN_EMAILS = ['luxtradee@gmail.com', 'riskiakbarp123@gmail.com']
 
-export async function proxy(request: NextRequest) {
+export const config = {
+  matcher: [
+    '/dashboard/:path*',
+    '/settings',
+    '/auth/:path*',
+    '/admin-secret',
+    '/admin-email',
+    '/admin-subscriptions',
+    '/admin-subscriptions/:path*',
+  ],
+}
+
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Allow auth pages
@@ -43,37 +55,29 @@ export async function proxy(request: NextRequest) {
       }
     )
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/auth/login'
-      url.searchParams.set('redirect', pathname)
-      return NextResponse.redirect(url)
-    }
-
-    // Admin paths: check if user is admin
-    if (isAdminPath) {
-      const userEmail = user.email?.toLowerCase() || ''
-      if (!ADMIN_EMAILS.includes(userEmail)) {
-        // Not admin — redirect to dashboard
+    // Use then/catch pattern instead of async to keep it synchronous-return
+    // compatible with Edge runtime middleware
+    return supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
         const url = request.nextUrl.clone()
-        url.pathname = '/dashboard'
+        url.pathname = '/auth/login'
+        url.searchParams.set('redirect', pathname)
         return NextResponse.redirect(url)
       }
-    }
+
+      // Admin paths: check if user is admin
+      if (isAdminPath) {
+        const userEmail = user.email?.toLowerCase() || ''
+        if (!ADMIN_EMAILS.includes(userEmail)) {
+          const url = request.nextUrl.clone()
+          url.pathname = '/dashboard'
+          return NextResponse.redirect(url)
+        }
+      }
+
+      return response
+    })
   }
 
   return NextResponse.next()
-}
-
-export const config = {
-  matcher: [
-    '/dashboard/:path*',
-    '/settings',
-    '/auth/:path*',
-    '/admin-secret',
-    '/admin-email',
-    '/admin-subscriptions',
-    '/admin-subscriptions/:path*',
-  ],
 }
