@@ -655,3 +655,29 @@ Stage Summary:
 - 3 important env vars: NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_SITE_URL, RESEND_API_KEY
 - 2 payment env vars: MIDTRANS_SERVER_KEY, MIDTRANS_CLIENT_KEY
 - 7 optional env vars for AI features
+
+---
+Task ID: 2
+Agent: Main
+Task: Fix ALL broken dashboard features on Cloudflare Pages/Workers
+
+Work Log:
+- Identified ROOT CAUSE: Module-level `process.env` reads + module-level DB init run at import time, before CF Workers env vars are available
+- Fixed `src/lib/db.ts`: Changed from module-level try/catch DB init to lazy init via proxy (tries to connect on every first real DB access)
+- Fixed `src/lib/supabase-admin-alt.ts`: Removed module-level `export const supabaseAdmin = getSupabaseAdmin()` (cached null permanently). Changed to pure lazy function
+- Fixed `src/app/api/admin/sync-users/route.ts`: Updated import from removed `supabaseAdmin` constant to `getSupabaseAdmin` function
+- Fixed `src/app/api/news/route.ts`: (a) Lazy-read RAPIDAPI_TRADING_ECONOMICS_KEY, (b) Fixed cache bug where ticker format skipped cache return, (c) Added Reuters RSS as additional fallback before Bloomberg
+- Fixed `src/app/api/admin/email-broadcast/route.ts`: Changed `SITE_URL` from module-level const to lazy `getSiteUrl()` function
+- Fixed `src/app/api/auth/resend-verification/route.ts`: Same SITE_URL lazy fix
+- Fixed `src/app/api/auth/send-confirmation/route.ts`: Same SITE_URL lazy fix (via subagent)
+- Fixed `src/app/api/auth/send-reset-password/route.ts`: Same SITE_URL lazy fix (via subagent)
+- Fixed `src/app/api/auth/signup/route.ts`: Same SITE_URL lazy fix (via subagent)
+- Previously fixed: @prisma/adapter-neon version mismatch (7.10.0 → 6.19.2 to match @prisma/client 6.19.2)
+- Previously fixed: wrangler.json for Workers with Assets format, deploy scripts for opennextjs-cloudflare
+
+Stage Summary:
+- CORE BUG: On CF Workers, `process.env` is NOT available at module load time. All module-level env reads + DB init were getting `undefined` permanently.
+- This single root cause affected: DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RAPIDAPI_TRADING_ECONOMICS_KEY, NEXT_PUBLIC_SITE_URL, and all downstream features.
+- 8 files modified, 0 new files created (except CF_PAGES_ENV.md guide)
+- TypeScript compiles clean (no new errors in src/)
+- User MUST set env vars in CF Pages Dashboard and redeploy
