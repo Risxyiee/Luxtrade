@@ -4,7 +4,7 @@ import { sendEmailFromTemplate, getConfirmationEmailHtml } from '@/lib/email'
 import { rateLimitByEmail } from '@/lib/rate-limit'
 import { edgeCrypto } from '@/lib/edge-crypto'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
+const getSiteUrl = () => process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     console.log('✅ New verification token generated')
 
     // Build verification URL (points to our custom verify page)
-    const confirmationUrl = `${SITE_URL}/auth/verify?token=${newToken}`
+    const confirmationUrl = `${getSiteUrl()}/auth/verify?token=${newToken}`
     const name = profile.full_name || email.split('@')[0]
 
     // Send email via Resend (template or inline fallback)

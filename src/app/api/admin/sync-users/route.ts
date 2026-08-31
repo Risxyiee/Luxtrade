@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin, getAdminStatus, getAdminAuth } from '@/lib/supabase-admin-alt'
+import { getSupabaseAdmin, getAdminAuth } from '@/lib/supabase-admin-alt'
 import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
 import { createClient } from '@supabase/supabase-js'

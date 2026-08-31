@@ -61,70 +61,90 @@ function normalizeUrl(raw: string): string {
   return url
 }
 
-const getDatabaseUrl = (): string | null => {
-  const raw = process.env.DATABASE_URL
-
-  if (!raw) {
-    _dbUnavailableReason = 'DATABASE_URL not set'
-    return null
-  }
-
-  if (raw.trim().startsWith('file:')) {
-    _dbUnavailableReason = 'DATABASE_URL is SQLite (file:), but schema requires PostgreSQL.'
-    return null
-  }
-
-  return normalizeUrl(raw)
-}
-
+/**
+ * Lazy-initialize the Prisma client.
+ * CRITICAL: On Cloudflare Workers, process.env is only available at request time,
+ * NOT at module load time. This function must be called inside a request handler.
+ */
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
+let _initAttempted = false
 let _dbAvailable = false
 let _dbUnavailableReason: string | null = null
-let _rawPrisma: PrismaClient | undefined = undefined
 
-try {
-  const dbUrl = getDatabaseUrl()
+function _tryInitDb(): void {
+  // Only attempt once per isolate — if it fails, don't retry
+  // (env vars don't change within a single isolate's lifetime)
+  if (_initAttempted) return
+  _initAttempted = true
 
-  if (dbUrl && (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://'))) {
-    if (!globalForPrisma.prisma) {
-      const poolUrl = dbUrl.includes('?')
-        ? `${dbUrl}&connection_limit=3&pool_timeout=15`
-        : `${dbUrl}?connection_limit=3&pool_timeout=15`
+  try {
+    const raw = process.env.DATABASE_URL
 
-      // @neondatabase/serverless uses pure WebSocket/HTTP — no fs, net, tls, dns
-      const sql = neon(poolUrl)
-      const adapter = new PrismaNeon(sql)
-
-      globalForPrisma.prisma = new PrismaClient({
-        adapter,
-        log: ['error', 'warn'],
-      })
+    if (!raw) {
+      _dbUnavailableReason = 'DATABASE_URL not set'
+      console.error('[DB] DATABASE_URL not set in environment variables')
+      return
     }
-    _rawPrisma = globalForPrisma.prisma
+
+    if (raw.trim().startsWith('file:')) {
+      _dbUnavailableReason = 'DATABASE_URL is SQLite (file:), but schema requires PostgreSQL.'
+      console.error('[DB] SQLite URL detected, PostgreSQL required')
+      return
+    }
+
+    const dbUrl = normalizeUrl(raw)
+
+    if (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://')) {
+      _dbUnavailableReason = 'Invalid database URL format (not PostgreSQL)'
+      console.error('[DB] Invalid URL format:', dbUrl)
+      return
+    }
+
+    const poolUrl = dbUrl.includes('?')
+      ? `${dbUrl}&connection_limit=3&pool_timeout=15`
+      : `${dbUrl}?connection_limit=3&pool_timeout=15`
+
+    const sql = neon(poolUrl)
+    const adapter = new PrismaNeon(sql)
+
+    globalForPrisma.prisma = new PrismaClient({
+      adapter,
+      log: ['error', 'warn'],
+    })
+
     _dbAvailable = true
-  } else {
-    _dbUnavailableReason = dbUrl ? 'Invalid database URL format (not PostgreSQL)' : 'No DATABASE_URL configured'
+    _dbUnavailableReason = null
+    console.log('[DB] ✅ Prisma client initialized successfully')
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    _dbUnavailableReason = message
+    console.error('[DB] Failed to initialize database client:', err)
   }
-} catch (err: unknown) {
-  const message = err instanceof Error ? err.message : 'Unknown error'
-  _dbUnavailableReason = message
-  console.error('[DB] Failed to initialize database client:', err)
 }
 
 export function isDatabaseAvailable(): boolean {
+  _tryInitDb()
   return _dbAvailable
 }
 
 export function getDatabaseUnavailableReason(): string {
+  _tryInitDb()
   return _dbUnavailableReason || 'Database not configured'
 }
 
-function createDbProxy(prisma: PrismaClient | undefined): PrismaClient {
-  if (prisma) return prisma
+/**
+ * Get the real Prisma client (or null if unavailable).
+ * Always call _tryInitDb() first to ensure lazy init.
+ */
+function getDb(): PrismaClient | null {
+  _tryInitDb()
+  return _dbAvailable ? globalForPrisma.prisma! : null
+}
 
+function createDbProxy(): PrismaClient {
   return new Proxy({} as PrismaClient, {
     get(_target, prop) {
       if (prop === Symbol.toPrimitive || prop === Symbol.toStringTag) {
@@ -137,6 +157,14 @@ function createDbProxy(prisma: PrismaClient | undefined): PrismaClient {
       return new Proxy({}, {
         get(_, methodProp) {
           return (...args: unknown[]) => {
+            _tryInitDb() // Try init on every access (in case first attempt was before env was ready)
+            if (_dbAvailable && globalForPrisma.prisma) {
+              // Forward to real Prisma client
+              const model = (globalForPrisma.prisma as any)[String(prop)]
+              if (model && typeof model[String(methodProp)] === 'function') {
+                return model[String(methodProp)](...args)
+              }
+            }
             throw new Error(
               `Database is not available (${_dbUnavailableReason || 'no DATABASE_URL'}). ` +
               `Cannot execute db.${String(prop)}.${String(methodProp)}().`
@@ -148,7 +176,8 @@ function createDbProxy(prisma: PrismaClient | undefined): PrismaClient {
   })
 }
 
-export const db: PrismaClient = createDbProxy(_rawPrisma)
+/** Lazy-initialized database proxy — always tries to connect on first real use */
+export const db: PrismaClient = createDbProxy()
 
 export async function ensureSchema(): Promise<void> {
   // No-op

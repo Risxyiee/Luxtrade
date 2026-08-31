@@ -4,7 +4,9 @@ import { sendEmail, getUnverifiedBulkReminderHtml, getVerificationPromoEmailHtml
 import { requireAdmin } from '@/lib/admin-auth'
 import { edgeCrypto } from '@/lib/edge-crypto'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
+function getSiteUrl(): string {
+  return process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
+}
 const BATCH_SIZE = 50
 // Resend free tier: max 2 requests/second.
 // Sending sequentially with 600ms delay = ~1.67 req/s — safely under the limit.
@@ -195,7 +197,7 @@ export async function POST(request: NextRequest) {
             },
           })
 
-          const confirmationUrl = `${SITE_URL}/auth/verify?token=${newToken}`
+          const confirmationUrl = `${getSiteUrl()}/auth/verify?token=${newToken}`
           const reminderSubject = subject || `${name}, akun LuxTrade kamu belum diverifikasi nih ⏳`
 
           // Use promo template if promoCode is provided, otherwise use default reminder

@@ -18,7 +18,7 @@ function generateVerifyToken(): string {
   return edgeCrypto.randomBytesHex(32)
 }
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
+const getSiteUrl = () => process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 const VERIFY_EXPIRY_MS = 24 * 60 * 60 * 1000 // 24 hours
 
 // ============================================
@@ -317,7 +317,7 @@ export async function POST(request: NextRequest) {
             console.warn('[signup] Failed to update verify token for existing profile:', tokenUpdateErr)
           }
 
-          const confirmationUrl = `${SITE_URL}/auth/verify?token=${newToken}`
+          const confirmationUrl = `${getSiteUrl()}/auth/verify?token=${newToken}`
           const name = ep.full_name || fullName || emailLower.split('@')[0]
 
           try {
@@ -422,7 +422,7 @@ export async function POST(request: NextRequest) {
     // Step 3: Send confirmation email
     // ============================================
     let emailSent = false
-    const confirmationUrl = `${SITE_URL}/auth/verify?token=${savedToken}`
+    const confirmationUrl = `${getSiteUrl()}/auth/verify?token=${savedToken}`
     const name = fullName || emailLower.split('@')[0]
 
     try {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
 import { sendEmailFromTemplate, getConfirmationEmailHtml } from '@/lib/email'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
+const getSiteUrl = () => process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       type: 'signup',
       email,
       options: {
-        emailRedirectTo: `${SITE_URL}/auth/callback`,
+        emailRedirectTo: `${getSiteUrl()}/auth/callback`,
       },
     })
 

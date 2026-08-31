@@ -3,7 +3,7 @@ import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
 import { sendEmailFromTemplate, getResetPasswordEmailHtml } from '@/lib/email'
 import { rateLimitByEmail } from '@/lib/rate-limit'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
+const getSiteUrl = () => process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       type: 'recovery',
       email,
       options: {
-        redirectTo: `${SITE_URL}/auth/reset-password?email=${emailEncoded}`,
+        redirectTo: `${getSiteUrl()}/auth/reset-password?email=${emailEncoded}`,
       },
     })
 
