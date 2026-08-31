@@ -625,3 +625,33 @@ Stage Summary:
 - @opentelemetry/api error fixed via outputFileTracingIncludes in next.config.ts
 - Build now succeeds locally with full OpenNext pipeline
 - Two commits pushed: 3c49cca (video removal), 52bb648 (opentelemetry fix)
+
+---
+Task ID: 2
+Agent: Main
+Task: Investigate ALL dashboard issues on Cloudflare Pages deployment
+
+Work Log:
+- Scanned all 67 API route files (~115 HTTP handlers) for Cloudflare Workers compatibility
+- Checked all environment variable usage across the entire codebase (27 unique env vars found)
+- Verified Prisma/db.ts uses @prisma/adapter-neon (Edge-compatible, no Node.js native deps)
+- Verified no `fs`, `path`, `crypto`, `Buffer`, `net`, `tls` imports in API routes
+- Verified all crypto operations use edge-crypto.ts (Web Crypto API)
+- Verified middleware.ts uses @supabase/ssr createServerClient (Edge-compatible)
+- Verified email.ts uses dynamic import for Resend (no build-time error)
+- Confirmed midtrans-client is in dependencies but NOT imported in src/ (safe to keep)
+- Found wrangler.json had wrong format (pages_build_output_dir instead of Workers with Assets)
+- Found package.json deploy script used old `wrangler pages deploy` instead of `opennextjs-cloudflare deploy`
+
+Stage Summary:
+- **ROOT CAUSE**: DATABASE_URL not set in Cloudflare environment variables
+- All API routes are Edge-compatible (no Node.js native modules)
+- Prisma client already uses Neon adapter for Edge runtime
+- Updated wrangler.json to Workers with Assets format (.open-next/worker.js + .open-next/assets)
+- Updated deploy script to use `opennextjs-cloudflare deploy`
+- Created CF_PAGES_ENV.md with complete env var setup guide for user
+- User MUST set env vars in Cloudflare Dashboard → Settings → Environment Variables
+- 4 required env vars: DATABASE_URL, NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
+- 3 important env vars: NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_SITE_URL, RESEND_API_KEY
+- 2 payment env vars: MIDTRANS_SERVER_KEY, MIDTRANS_CLIENT_KEY
+- 7 optional env vars for AI features
