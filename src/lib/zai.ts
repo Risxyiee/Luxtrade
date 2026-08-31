@@ -74,15 +74,15 @@ export async function createZAI(): Promise<ZAI> {
 
   // Reuse existing instance or create new one
   if (!zaiInstance) {
-    // Override global fetch with extended timeout
+    // Create ZAI instance using create() method with timeout-wrapped fetch
+    // Pass timeout fetch via global override during init only (restored immediately after)
     const originalFetch = globalThis.fetch
-    globalThis.fetch = fetchWithTimeout
-
-    // Create ZAI instance using create() method
-    zaiInstance = await ZAI.create()
-
-    // Restore original fetch after SDK initialization
-    globalThis.fetch = originalFetch
+    globalThis.fetch = fetchWithTimeout as typeof globalThis.fetch
+    try {
+      zaiInstance = await ZAI.create()
+    } finally {
+      globalThis.fetch = originalFetch
+    }
 
     // Patch createVision method to use timeout
     const originalCreateVision = zaiInstance.chat.completions.createVision

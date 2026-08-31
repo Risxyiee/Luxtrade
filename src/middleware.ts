@@ -17,7 +17,7 @@ export const config = {
   ],
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Allow auth pages
@@ -55,28 +55,26 @@ export function middleware(request: NextRequest) {
       }
     )
 
-    // Use then/catch pattern instead of async to keep it synchronous-return
-    // compatible with Edge runtime middleware
-    return supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/auth/login'
+      url.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(url)
+    }
+
+    // Admin paths: check if user is admin
+    if (isAdminPath) {
+      const userEmail = user.email?.toLowerCase() || ''
+      if (!ADMIN_EMAILS.includes(userEmail)) {
         const url = request.nextUrl.clone()
-        url.pathname = '/auth/login'
-        url.searchParams.set('redirect', pathname)
+        url.pathname = '/dashboard'
         return NextResponse.redirect(url)
       }
+    }
 
-      // Admin paths: check if user is admin
-      if (isAdminPath) {
-        const userEmail = user.email?.toLowerCase() || ''
-        if (!ADMIN_EMAILS.includes(userEmail)) {
-          const url = request.nextUrl.clone()
-          url.pathname = '/dashboard'
-          return NextResponse.redirect(url)
-        }
-      }
-
-      return response
-    })
+    return response
   }
 
   return NextResponse.next()
