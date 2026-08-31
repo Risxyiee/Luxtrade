@@ -6,8 +6,12 @@ const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
 // TradingEconomics RapidAPI config
 const TE_API_HOST = 'trading-econmics-scraper.p.rapidapi.com';
-const TE_API_KEY = process.env.RAPIDAPI_TRADING_ECONOMICS_KEY || '';
 const TE_ENDPOINT = 'https://trading-econmics-scraper.p.rapidapi.com/get_trading_economics_news';
+
+// Lazy-read API key at request time (CF Workers env vars not available at module load)
+function getTeApiKey(): string {
+  return process.env.RAPIDAPI_TRADING_ECONOMICS_KEY || '';
+}
 
 // Bloomberg RSS (free fallback, no key needed)
 const BLOOMBERG_RSS = 'https://feeds.bloomberg.com/markets/news.rss';
@@ -95,7 +99,8 @@ interface TEResponse {
  * Returns forex-relevant news sorted by importance (high first)
  */
 async function fetchTradingEconomicsNews(): Promise<FullNewsItem[]> {
-  if (!TE_API_KEY) {
+  const apiKey = getTeApiKey();
+  if (!apiKey) {
     throw new Error('RAPIDAPI_TRADING_ECONOMICS_KEY not configured');
   }
 
@@ -110,7 +115,7 @@ async function fetchTradingEconomicsNews(): Promise<FullNewsItem[]> {
     headers: {
       'Content-Type': 'application/json',
       'x-rapidapi-host': TE_API_HOST,
-      'x-rapidapi-key': TE_API_KEY,
+      'x-rapidapi-key': apiKey,
     },
     signal: AbortSignal.timeout(15000),
   });
@@ -215,6 +220,8 @@ function parseBloombergRss(xml: string): FullNewsItem[] {
  * Fetch news from Bloomberg Markets RSS feed
  * Free, no API key needed, no quota limit
  */
+const REUTERS_RSS = 'https://feeds.reuters.com/reuters/businessNews';
+
 async function fetchBloombergNews(): Promise<FullNewsItem[]> {
   const response = await fetch(BLOOMBERG_RSS, {
     headers: {
@@ -232,14 +239,36 @@ async function fetchBloombergNews(): Promise<FullNewsItem[]> {
   return parseBloombergRss(xml);
 }
 
+/**
+ * Fetch from Reuters RSS (more CF Workers friendly than Bloomberg)
+ */
+async function fetchReutersNews(): Promise<FullNewsItem[]> {
+  const response = await fetch(REUTERS_RSS, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
+      'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Reuters RSS returned ${response.status}`);
+  }
+
+  const xml = await response.text();
+  return parseBloombergRss(xml); // Same XML structure
+}
+
 // ==================== MAIN FETCH LOGIC ====================
 
 /**
  * Fetch news with cascade: TradingEconomics → Bloomberg RSS → unavailable
  */
 async function fetchFullNews(): Promise<FullNewsItem[]> {
+  const apiKey = getTeApiKey();
+
   // PRIMARY: TradingEconomics RapidAPI (forex-focused, with importance)
-  if (TE_API_KEY) {
+  if (apiKey) {
     try {
       console.log('[News] Fetching from TradingEconomics RapidAPI...');
       const items = await fetchTradingEconomicsNews();
@@ -251,7 +280,16 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
     console.log('[News] RAPIDAPI_TRADING_ECONOMICS_KEY not set, using Bloomberg RSS');
   }
 
-  // FALLBACK: Bloomberg RSS (free, unlimited, general markets)
+  // FALLBACK: Reuters RSS (free, more reliable than Bloomberg on CF Workers)
+  try {
+    console.log('[News] Fetching from Reuters Markets RSS...');
+    const items = await fetchReutersNews();
+    if (items.length > 0) return items;
+  } catch (err: any) {
+    console.warn(`[News] Reuters RSS failed: ${err.message}, trying Bloomberg...`);
+  }
+
+  // FALLBACK 2: Bloomberg RSS
   try {
     console.log('[News] Fetching from Bloomberg Markets RSS...');
     const items = await fetchBloombergNews();
@@ -273,15 +311,48 @@ export async function GET(request: NextRequest) {
     // Check cache
     if (fullNewsCache && Date.now() - fullNewsCache.timestamp < CACHE_DURATION) {
       console.log('[News] Returning cached news');
+      const cachedItems = fullNewsCache.items;
+
       if (format === 'full') {
         return NextResponse.json({
           success: true,
           cached: true,
-          news: fullNewsCache.items.slice(0, 30),
+          news: cachedItems.slice(0, 30),
           fetchedAt: new Date(fullNewsCache.timestamp).toISOString(),
-          totalSources: fullNewsCache.items.length,
+          totalSources: cachedItems.length,
         });
       }
+
+      // Ticker format — also return from cache
+      const newsItems = cachedItems.slice(0, 12);
+      const tips = [
+        { title: '💡 TIP: Selalu gunakan Stop Loss untuk mengelola risiko', type: 'low' as const },
+        { title: '💡 TIP: Jangan overtrade — kualitas lebih penting dari kuantitas', type: 'low' as const },
+        { title: '💡 TIP: Perhatikan economic calendar sebelum open posisi', type: 'low' as const },
+        { title: '💡 TIP: Risk-to-reward ratio minimal 1:2 untuk entry yang baik', type: 'low' as const },
+      ];
+      const randomTip = tips[Math.floor(Math.random() * tips.length)];
+      const impactEmoji = (type: string) => {
+        switch (type) {
+          case 'high': return '🔴';
+          case 'medium': return '🟡';
+          default: return '🟢';
+        }
+      };
+      const tickerItems = newsItems.map(item => ({
+        text: `${impactEmoji(item.type)} ${item.title} — ${item.source.split('·')[0].trim()}`,
+        type: item.type,
+        url: item.url,
+      }));
+      tickerItems.push({ text: randomTip.title, type: 'tip', url: '' });
+
+      return NextResponse.json({
+        success: true,
+        cached: true,
+        news: tickerItems,
+        fetchedAt: new Date(fullNewsCache.timestamp).toISOString(),
+        totalSources: cachedItems.length,
+      });
     }
 
     // Fetch fresh data
