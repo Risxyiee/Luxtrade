@@ -65,22 +65,33 @@ export async function POST(request: NextRequest) {
     let discountPercent = 0
 
     // ── 6. Validate promo code (TRADERCEPAT etc.) ──────────────
+    // Inlined validation to avoid self-referencing fetch on CF Pages
     if (promoCode) {
       try {
-        const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'https://luxtradee.web.id'
-        const promoRes = await fetch(`${origin}/api/promo/validate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: promoCode }),
-        })
-        const promoData = await promoRes.json()
+        const normalizedCode = promoCode.trim().toUpperCase()
+        const results: any[] = await db.$queryRawUnsafe(`
+          SELECT code, discount_percent, duration_months, max_quota, used_quota,
+                 is_active, start_date, end_date
+          FROM promo_codes
+          WHERE code = $1
+          LIMIT 1;
+        `, normalizedCode)
 
-        if (promoData.valid) {
-          discountPercent = promoData.promoCode.discountPercent
-          if (promoData.promoCode.durationMonths) {
-            durationMonths = promoData.promoCode.durationMonths
+        if (results && results.length > 0) {
+          const promo = results[0]
+          const now = new Date()
+          const isActive = promo.is_active
+          const notExpired = !promo.end_date || now <= new Date(promo.end_date)
+          const hasStarted = !promo.start_date || new Date(promo.start_date) <= now
+          const hasQuota = Number(promo.used_quota) < Number(promo.max_quota)
+
+          if (isActive && notExpired && hasStarted && hasQuota) {
+            discountPercent = Number(promo.discount_percent)
+            if (promo.duration_months) {
+              durationMonths = Number(promo.duration_months)
+            }
+            grossAmount = Math.round(grossAmount * (1 - discountPercent / 100))
           }
-          grossAmount = Math.round(grossAmount * (1 - discountPercent / 100))
         }
       } catch (promoErr) {
         console.warn('[Midtrans create-transaction] Promo validation failed, proceeding without discount:', promoErr)
