@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/api-auth'
-import { db } from '@/lib/db'
+import { createClient } from '@supabase/supabase-js'
 
 const MAX_POINTS = 80
 const DEFAULT_BALANCE = 10000
@@ -10,26 +10,26 @@ interface EquityPoint {
   equity: number
 }
 
-function buildPeriodFilter(period: string): { gte?: Date } {
+function buildPeriodFilter(period: string): string | null {
   const now = new Date()
   switch (period) {
     case 'week': {
       const d = new Date(now)
       d.setDate(d.getDate() - 7)
-      return { gte: d }
+      return d.toISOString()
     }
     case 'month': {
       const d = new Date(now)
       d.setMonth(d.getMonth() - 1)
-      return { gte: d }
+      return d.toISOString()
     }
     case 'year': {
       const d = new Date(now)
       d.setFullYear(d.getFullYear() - 1)
-      return { gte: d }
+      return d.toISOString()
     }
     default:
-      return {}
+      return null
   }
 }
 
@@ -83,35 +83,58 @@ export async function GET(request: NextRequest) {
   const period = searchParams.get('period') || 'all'
 
   try {
-    // Get initial balance from default trading account
-    const account = await db.tradingAccount.findFirst({
-      where: { user_id: user.id, is_default: true, is_active: true },
-      select: { initial_balance: true },
-    })
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-    const initialBalance = account?.initial_balance ?? DEFAULT_BALANCE
+    // Get initial balance from default trading account
+    const { data: accounts } = await supabase
+      .from('trading_accounts')
+      .select('initial_balance')
+      .eq('user_id', user.id)
+      .eq('is_default', true)
+      .eq('is_active', true)
+      .limit(1)
+
+    const initialBalance = accounts && accounts.length > 0
+      ? (accounts[0].initial_balance || DEFAULT_BALANCE)
+      : DEFAULT_BALANCE
 
     // Build date filter
     const dateFilter = buildPeriodFilter(period)
 
     // Fetch trades — only what we need
-    const trades = await db.trade.findMany({
-      where: { user_id: user.id, close_time: dateFilter },
-      select: { profit_loss: true, close_time: true },
-      orderBy: { close_time: 'asc' },
-    })
+    let query = supabase
+      .from('trades')
+      .select('profit_loss, close_time')
+      .eq('user_id', user.id)
+      .order('close_time', { ascending: true })
+
+    if (dateFilter) {
+      query = query.gte('close_time', dateFilter)
+    }
+
+    const { data: trades, error: tradesError } = await query
+
+    if (tradesError) {
+      console.error('[equity-curve] Supabase query error:', tradesError.message)
+      return NextResponse.json({ error: 'Failed to fetch trades' }, { status: 500 })
+    }
+
+    const tradeList = trades || []
 
     // Build full equity curve
     let running = initialBalance
     let peak = initialBalance
     let trough = initialBalance
 
-    const fullCurve: EquityPoint[] = trades.map((t) => {
-      running += t.profit_loss
+    const fullCurve: EquityPoint[] = tradeList.map((t: any) => {
+      running += (t.profit_loss || 0)
       if (running > peak) peak = running
       if (running < trough) trough = running
+      const closeDate = t.close_time ? new Date(t.close_time) : new Date()
       return {
-        date: t.close_time.toISOString().split('T')[0],
+        date: closeDate.toISOString().split('T')[0],
         equity: Math.round(running * 100) / 100,
       }
     })
@@ -149,7 +172,7 @@ export async function GET(request: NextRequest) {
       troughEquity: Math.round(finalTrough * 100) / 100,
       maxDrawdown,
       totalReturnPct,
-      tradeCount: trades.length,
+      tradeCount: tradeList.length,
     })
   } catch (error) {
     console.error('[equity-curve] Error:', error)
