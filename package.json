@@ -5,7 +5,7 @@
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "next dev -p 3000",
-    "build": "npx opennextjs-cloudflare build",
+    "build": "npx opennextjs-cloudflare build && node scripts/cf-pages-build.js",
     "build:next": "next build",
     "preview": "npx opennextjs-cloudflare build && wrangler pages dev .open-next/assets",
     "deploy": "npx opennextjs-cloudflare build && wrangler pages deploy .open-next/assets",
