@@ -1,7 +1,5 @@
 'use client'
 
-export const dynamic = 'force-dynamic'
-
 import dynamicImport from 'next/dynamic'
 
 // Dynamically import the dashboard component to avoid hoisting issues

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { after } from 'next/server'
 import { getAuthUser } from '@/lib/api-auth'
 import { createClientForApi } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
@@ -384,34 +383,38 @@ export async function POST(request: NextRequest) {
 
     log('✅', `DB save total: ${(performance.now() - t4).toFixed(0)}ms`)
 
-    // ── STEP 12: Background tasks ──
-    after(async () => {
-      if (optimizedBuffer.length > 0) {
+    // ── STEP 12: Background tasks (run inline — CF Workers doesn't support next/server after()) ──
+    // Screenshot upload + achievement check run after response is prepared but before sending.
+    // Using Promise.allSettled to avoid blocking the response on non-critical background tasks.
+    const backgroundTasks = Promise.allSettled([
+      (async () => {
+        if (optimizedBuffer.length > 0) {
+          try {
+            const url = await uploadScreenshot(optimizedBuffer, userId)
+            const { supabase: bgClient } = createClientForApi(request)
+            await bgClient.from('trades').update({ screenshot_url: url }).eq('id', tradeId)
+            console.log(`✅ [AutoJournal BG] Screenshot uploaded + linked`)
+          } catch (err: any) {
+            console.warn(`⚠️ [AutoJournal BG] Screenshot upload failed: ${err.message}`)
+          }
+        }
+      })(),
+      (async () => {
         try {
-          const url = await uploadScreenshot(optimizedBuffer, userId)
-          // Update trade with screenshot URL using Supabase
-          const { supabase: bgClient } = createClientForApi(request)
-          await bgClient.from('trades').update({ screenshot_url: url }).eq('id', tradeId)
-          console.log(`✅ [AutoJournal BG] Screenshot uploaded + linked`)
-        } catch (err: any) {
-          console.warn(`⚠️ [AutoJournal BG] Screenshot upload failed: ${err.message}`)
+          const achievements = await checkAchievementsAfterTrade(userId)
+          if (achievements && achievements.length > 0) {
+            console.log(`🏆 [AutoJournal BG] Achievements:`, achievements.map((a: any) => a.key))
+          }
+        } catch (achErr) {
+          console.warn(`⚠️ [AutoJournal BG] Achievement check failed:`, achErr)
         }
-      }
-
-      try {
-        const achievements = await checkAchievementsAfterTrade(userId)
-        if (achievements && achievements.length > 0) {
-          console.log(`🏆 [AutoJournal BG] Achievements:`, achievements.map((a: any) => a.key))
-        }
-      } catch (achErr) {
-        console.warn(`⚠️ [AutoJournal BG] Achievement check failed:`, achErr)
-      }
-    })
+      })(),
+    ])
 
     const totalTime = ((performance.now() - t0) / 1000).toFixed(2)
     log('🏁', `SUCCESS — total time: ${totalTime}s`)
 
-    return NextResponse.json({
+    const responseData = {
       success: true,
       data: {
         trade: tradeRecord,
@@ -422,7 +425,13 @@ export async function POST(request: NextRequest) {
         }
       },
       message: 'Auto-journal created successfully!'
-    })
+    }
+
+    // Wait for background tasks to complete before responding
+    // (CF Workers doesn't have after(), so we await them)
+    await backgroundTasks
+
+    return NextResponse.json(responseData)
 
   } catch (error: any) {
     const totalTime = ((performance.now() - t0) / 1000).toFixed(2)
