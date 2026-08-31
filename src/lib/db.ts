@@ -73,19 +73,29 @@ const globalForPrisma = globalThis as unknown as {
 let _initAttempted = false
 let _dbAvailable = false
 let _dbUnavailableReason: string | null = null
+let _lastInitEnvHash: string | null = null
 
-function _tryInitDb(): void {
-  // Only attempt once per isolate — if it fails, don't retry
-  // (env vars don't change within a single isolate's lifetime)
-  if (_initAttempted) return
+function _envHash(): string {
+  return (process.env.DATABASE_URL || '') + '|' + (process.env.DATABASE_POOLER_URL || '')
+}
+
+function _tryInitDb(force = false): void {
+  // On Cloudflare Workers, process.env is populated at request time.
+  // The first call during an edge cold start may have empty env.
+  // We allow re-init if env vars have changed (or force=true).
+  const currentHash = _envHash()
+  if (!force && _initAttempted && currentHash === _lastInitEnvHash) return
   _initAttempted = true
+  _lastInitEnvHash = currentHash
 
   try {
     const raw = process.env.DATABASE_URL
 
     if (!raw) {
+      // Don't mark as permanent failure — env may populate on next request
       _dbUnavailableReason = 'DATABASE_URL not set'
-      console.error('[DB] DATABASE_URL not set in environment variables')
+      console.warn('[DB] DATABASE_URL not set yet (may populate on next request)')
+      _initAttempted = false // Allow retry
       return
     }
 
@@ -110,6 +120,11 @@ function _tryInitDb(): void {
     const sql = neon(poolUrl)
     const adapter = new PrismaNeon(sql)
 
+    // Dispose old client if re-initializing
+    if (globalForPrisma.prisma) {
+      try { (globalForPrisma.prisma as any).$disconnect().catch(() => {}) } catch {}
+    }
+
     globalForPrisma.prisma = new PrismaClient({
       adapter,
       log: ['error', 'warn'],
@@ -121,7 +136,9 @@ function _tryInitDb(): void {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     _dbUnavailableReason = message
-    console.error('[DB] Failed to initialize database client:', err)
+    // Allow retry on transient failures
+    _initAttempted = false
+    console.error('[DB] Failed to initialize database client (will retry next call):', err)
   }
 }
 
@@ -157,7 +174,7 @@ function createDbProxy(): PrismaClient {
       return new Proxy({}, {
         get(_, methodProp) {
           return (...args: unknown[]) => {
-            _tryInitDb() // Try init on every access (in case first attempt was before env was ready)
+            _tryInitDb(true) // Always try init on every access — env vars may not be ready on cold start
             if (_dbAvailable && globalForPrisma.prisma) {
               // Forward to real Prisma client
               const model = (globalForPrisma.prisma as any)[String(prop)]

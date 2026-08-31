@@ -13,9 +13,6 @@ function getTeApiKey(): string {
   return process.env.RAPIDAPI_TRADING_ECONOMICS_KEY || '';
 }
 
-// Bloomberg RSS (free fallback, no key needed)
-const BLOOMBERG_RSS = 'https://feeds.bloomberg.com/markets/news.rss';
-
 interface FullNewsItem {
   title: string;
   source: string;
@@ -23,6 +20,13 @@ interface FullNewsItem {
   snippet: string;
   date: string;
   type: 'high' | 'medium' | 'low';
+}
+
+// Wider type for ticker items (includes tips)
+interface TickerItem {
+  text: string;
+  type: 'high' | 'medium' | 'low' | 'tip';
+  url: string;
 }
 
 /**
@@ -37,7 +41,7 @@ function mapTeImportance(importance: string): 'high' | 'medium' | 'low' {
 }
 
 /**
- * Classify impact level based on title and snippet keywords (for Bloomberg fallback)
+ * Classify impact level based on title and snippet keywords (for RSS fallback)
  */
 function classifyImpact(title: string, snippet: string): 'high' | 'medium' | 'low' {
   const text = `${title} ${snippet}`.toLowerCase();
@@ -96,7 +100,6 @@ interface TEResponse {
 
 /**
  * Fetch today's news from TradingEconomics via RapidAPI
- * Returns forex-relevant news sorted by importance (high first)
  */
 async function fetchTradingEconomicsNews(): Promise<FullNewsItem[]> {
   const apiKey = getTeApiKey();
@@ -121,7 +124,6 @@ async function fetchTradingEconomicsNews(): Promise<FullNewsItem[]> {
   });
 
   if (!response.ok) {
-    // 429 = rate limit, don't retry immediately
     if (response.status === 429) {
       throw new Error('TradingEconomics rate limit (429)');
     }
@@ -132,13 +134,6 @@ async function fetchTradingEconomicsNews(): Promise<FullNewsItem[]> {
   if (!Array.isArray(data) || data.length === 0) {
     throw new Error('TradingEconomics returned empty data');
   }
-
-  // Map to FullNewsItem, prioritize forex-relevant categories
-  const FOREX_RELEVANT_CATEGORIES = new Set([
-    'Currency', 'Interest Rate', 'Inflation Rate', 'Central Bank',
-    'Balance of Trade', 'Consumer Confidence', 'Employment',
-    'Producer Prices Change', 'Retail Sales', 'GDP Growth Rate',
-  ]);
 
   const items: FullNewsItem[] = data
     .filter((item) => item.title && item.url)
@@ -151,21 +146,12 @@ async function fetchTradingEconomicsNews(): Promise<FullNewsItem[]> {
       type: mapTeImportance(item.importance),
     }));
 
-  // Sort: forex-relevant categories first, then by importance (high→low), then by date (newest)
+  // Sort by importance (high→low), then by date (newest)
   const importanceOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
   items.sort((a, b) => {
-    const aForex = a.source.toLowerCase().includes('currency') ||
-      a.source.toLowerCase().includes('interest rate') ||
-      a.source.toLowerCase().includes('inflation');
-    const bForex = b.source.toLowerCase().includes('currency') ||
-      b.source.toLowerCase().includes('interest rate') ||
-      b.source.toLowerCase().includes('inflation');
-    if (aForex !== bForex) return aForex ? -1 : 1;
-
     const aImp = importanceOrder[a.type] ?? 99;
     const bImp = importanceOrder[b.type] ?? 99;
     if (aImp !== bImp) return aImp - bImp;
-
     return b.date.localeCompare(a.date);
   });
 
@@ -173,12 +159,13 @@ async function fetchTradingEconomicsNews(): Promise<FullNewsItem[]> {
   return items;
 }
 
-// ==================== FALLBACK: Bloomberg RSS ====================
+// ==================== RSS FALLBACKS ====================
 
 /**
- * Parse Bloomberg RSS XML and convert to FullNewsItem[]
+ * Parse RSS XML and convert to FullNewsItem[]
+ * Handles both CDATA and plain text, multiple RSS formats
  */
-function parseBloombergRss(xml: string): FullNewsItem[] {
+function parseRssXml(xml: string, sourceName: string): FullNewsItem[] {
   const items: FullNewsItem[] = [];
   const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
   let match;
@@ -186,6 +173,7 @@ function parseBloombergRss(xml: string): FullNewsItem[] {
   while ((match = itemRegex.exec(xml)) !== null) {
     const itemXml = match[1];
 
+    // Try CDATA first, then plain text
     const titleMatch = itemXml.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i)
       || itemXml.match(/<title>([\s\S]*?)<\/title>/i);
     const linkMatch = itemXml.match(/<link><!\[CDATA\[([\s\S]*?)\]\]><\/link>/i)
@@ -204,66 +192,61 @@ function parseBloombergRss(xml: string): FullNewsItem[] {
     if (url.includes('/news/audio/')) continue;
 
     let snippet = descMatch?.[1]?.trim() || '';
-    snippet = snippet.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+    snippet = snippet.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').trim();
     if (snippet.length > 200) snippet = snippet.substring(0, 200) + '...';
 
     const date = dateMatch?.[1] || new Date().toISOString();
     const type = classifyImpact(title, snippet);
 
-    items.push({ title, source: 'Bloomberg', url, snippet, date, type });
+    items.push({ title, source: sourceName, url, snippet, date, type });
   }
 
   return items;
 }
 
-/**
- * Fetch news from Bloomberg Markets RSS feed
- * Free, no API key needed, no quota limit
- */
-const REUTERS_RSS = 'https://feeds.reuters.com/reuters/businessNews';
+// RSS source list — try multiple, return first that works
+const RSS_SOURCES = [
+  {
+    name: 'CNBC Markets',
+    url: 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114',
+  },
+  {
+    name: 'Reuters Business',
+    url: 'https://feeds.reuters.com/reuters/businessNews',
+  },
+  {
+    name: 'MarketWatch Top Stories',
+    url: 'https://feeds.marketwatch.com/marketwatch/topstories/',
+  },
+  {
+    name: 'Bloomberg Markets',
+    url: 'https://feeds.bloomberg.com/markets/news.rss',
+  },
+];
 
-async function fetchBloombergNews(): Promise<FullNewsItem[]> {
-  const response = await fetch(BLOOMBERG_RSS, {
+async function fetchRssNews(source: { name: string; url: string }): Promise<FullNewsItem[]> {
+  const response = await fetch(source.url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
       'Accept': 'application/rss+xml, application/xml, text/xml, */*',
     },
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!response.ok) {
-    throw new Error(`Bloomberg RSS returned ${response.status}`);
+    throw new Error(`${source.name} RSS returned ${response.status}`);
   }
 
   const xml = await response.text();
-  return parseBloombergRss(xml);
-}
-
-/**
- * Fetch from Reuters RSS (more CF Workers friendly than Bloomberg)
- */
-async function fetchReutersNews(): Promise<FullNewsItem[]> {
-  const response = await fetch(REUTERS_RSS, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
-      'Accept': 'application/rss+xml, application/xml, text/xml, */*',
-    },
-    signal: AbortSignal.timeout(15000),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Reuters RSS returned ${response.status}`);
+  if (xml.length < 100) {
+    throw new Error(`${source.name} RSS returned empty content`);
   }
 
-  const xml = await response.text();
-  return parseBloombergRss(xml); // Same XML structure
+  return parseRssXml(xml, source.name);
 }
 
 // ==================== MAIN FETCH LOGIC ====================
 
-/**
- * Fetch news with cascade: TradingEconomics → Bloomberg RSS → unavailable
- */
 async function fetchFullNews(): Promise<FullNewsItem[]> {
   const apiKey = getTeApiKey();
 
@@ -274,28 +257,24 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
       const items = await fetchTradingEconomicsNews();
       if (items.length > 0) return items;
     } catch (err: any) {
-      console.warn(`[News] TradingEconomics failed: ${err.message}, falling back to Bloomberg...`);
+      console.warn(`[News] TradingEconomics failed: ${err.message}, falling back to RSS...`);
     }
   } else {
-    console.log('[News] RAPIDAPI_TRADING_ECONOMICS_KEY not set, using Bloomberg RSS');
+    console.log('[News] RAPIDAPI_TRADING_ECONOMICS_KEY not set, using RSS feeds');
   }
 
-  // FALLBACK: Reuters RSS (free, more reliable than Bloomberg on CF Workers)
-  try {
-    console.log('[News] Fetching from Reuters Markets RSS...');
-    const items = await fetchReutersNews();
-    if (items.length > 0) return items;
-  } catch (err: any) {
-    console.warn(`[News] Reuters RSS failed: ${err.message}, trying Bloomberg...`);
-  }
-
-  // FALLBACK 2: Bloomberg RSS
-  try {
-    console.log('[News] Fetching from Bloomberg Markets RSS...');
-    const items = await fetchBloombergNews();
-    if (items.length > 0) return items;
-  } catch (err: any) {
-    console.error(`[News] Bloomberg RSS also failed: ${err.message}`);
+  // FALLBACK: Try multiple RSS sources sequentially until one works
+  for (const source of RSS_SOURCES) {
+    try {
+      console.log(`[News] Fetching from ${source.name} RSS...`);
+      const items = await fetchRssNews(source);
+      if (items.length > 0) {
+        console.log(`[News] ${source.name} returned ${items.length} articles`);
+        return items;
+      }
+    } catch (err: any) {
+      console.warn(`[News] ${source.name} RSS failed: ${err.message}`);
+    }
   }
 
   throw new Error('All news sources failed');
@@ -323,7 +302,7 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      // Ticker format — also return from cache
+      // Ticker format
       const newsItems = cachedItems.slice(0, 12);
       const tips = [
         { title: '💡 TIP: Selalu gunakan Stop Loss untuk mengelola risiko', type: 'low' as const },
@@ -339,7 +318,7 @@ export async function GET(request: NextRequest) {
           default: return '🟢';
         }
       };
-      const tickerItems = newsItems.map(item => ({
+      const tickerItems: TickerItem[] = newsItems.map(item => ({
         text: `${impactEmoji(item.type)} ${item.title} — ${item.source.split('·')[0].trim()}`,
         type: item.type,
         url: item.url,
@@ -394,7 +373,7 @@ export async function GET(request: NextRequest) {
       }
     };
 
-    const tickerItems = newsItems.map(item => ({
+    const tickerItems: TickerItem[] = newsItems.map(item => ({
       text: `${impactEmoji(item.type)} ${item.title} — ${item.source.split('·')[0].trim()}`,
       type: item.type,
       url: item.url,

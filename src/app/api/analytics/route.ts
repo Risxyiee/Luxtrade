@@ -35,6 +35,66 @@ function getCacheKey(userId: string, period: string, accountId: string | null) {
   return `${userId}:${period}:${accountId || 'all'}`
 }
 
+// Compute basic analytics for free users (no advanced PRO features)
+async function computeBasicAnalytics(client: any, userId: string, period: string, accountId: string | null) {
+  let dateFilter: string | null = null
+  const now = new Date()
+
+  if (period === 'week') {
+    dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  } else if (period === 'month') {
+    dateFilter = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()).toISOString()
+  } else if (period === 'year') {
+    dateFilter = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()).toISOString()
+  }
+
+  let tradesQuery = client
+    .from('trades')
+    .select('profit_loss, close_time, session, symbol')
+    .eq('user_id', userId)
+
+  if (period !== 'all' && dateFilter) {
+    tradesQuery = tradesQuery.gte('close_time', dateFilter)
+  }
+  if (accountId) {
+    tradesQuery = tradesQuery.eq('account_id', accountId)
+  }
+
+  const { data: trades } = await tradesQuery
+
+  const totalTrades = trades?.length || 0
+  const totalPL = trades?.reduce((sum: number, t: any) => sum + (t.profit_loss || 0), 0) || 0
+  const winTrades = trades?.filter((t: any) => t.profit_loss > 0) || []
+ const lossTrades = trades?.filter((t: any) => t.profit_loss < 0) || []
+  const winRate = totalTrades > 0 ? (winTrades.length / totalTrades) * 100 : 0
+  const grossProfit = winTrades.reduce((sum: number, t: any) => sum + t.profit_loss, 0)
+  const grossLoss = Math.abs(lossTrades.reduce((sum: number, t: any) => sum + t.profit_loss, 0))
+  const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0
+
+  return {
+    totalTrades,
+    winningTrades: winTrades.length,
+    losingTrades: lossTrades.length,
+    winRate,
+    totalPL,
+    avgProfit: winTrades.length > 0 ? grossProfit / winTrades.length : 0,
+    avgLoss: lossTrades.length > 0 ? -grossLoss / lossTrades.length : 0,
+    profitFactor,
+    maxDrawdown: 0,
+    sharpeRatio: 0,
+    equityCurve: [],
+    sessionPerformance: [],
+    monthlyPerformance: [],
+    symbolPerformance: [],
+    dayOfWeekPerformance: [],
+    avgTradeDuration: 0,
+    avgRRRatio: 0,
+    setupTypePerformance: [],
+    today: { trades: 0, pl: 0, winRate: 0 },
+    activeStreak: { type: null as string | null, count: 0 },
+  }
+}
+
 // GET - Fetch comprehensive analytics using optimized queries
 export async function GET(request: NextRequest) {
   try {
@@ -44,18 +104,17 @@ export async function GET(request: NextRequest) {
     }
 
     const pro = await isUserPro(user.id)
-    if (!pro) {
-      return NextResponse.json({
-        error: 'Fitur ini hanya untuk pengguna PRO. Upgrade ke PRO untuk akses!',
-        code: 'PRO_REQUIRED',
-        requiresUpgrade: true
-      }, { status: 403 })
-    }
 
     const userId = user.id
     const searchParams = request.nextUrl.searchParams
     const period = searchParams.get('period') || 'all'
     const accountId = searchParams.get('account_id') || null
+
+    // Free users get basic stats (no advanced analytics)
+    if (!pro) {
+      const basicData = await computeBasicAnalytics(client, userId, period, accountId)
+      return NextResponse.json({ ...basicData, isFreeUser: true })
+    }
 
     // Check cache first
     const cacheKey = getCacheKey(userId, period, accountId)
