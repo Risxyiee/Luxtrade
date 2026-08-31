@@ -242,4 +242,4 @@ export function ContextGuide({
 }
 
 // Re-export for backward compatibility
-export { ContextGuideProvider as default, guideData }
+export { ContextGuideProvider as default };
