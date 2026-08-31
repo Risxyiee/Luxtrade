@@ -57,6 +57,17 @@ export async function POST(request: NextRequest) {
 
     const adminEmail = user!.email || 'admin'
 
+    // Check Resend API key is available BEFORE doing anything else
+    const resendKey = process.env.RESEND_API_KEY
+    if (!resendKey) {
+      return NextResponse.json({
+        sent: 0,
+        failed: 0,
+        errors: ['RESEND_API_KEY tidak ditemukan di environment variables'],
+        targetUserCount: 0,
+      }, { status: 500 })
+    }
+
     // Auto-sync users from Supabase Auth → profiles DB before broadcast
     // This ensures all Auth users exist in the DB for targeting
     let syncStats = { totalAuth: 0, existingDb: 0, syncedNew: 0, syncFailed: 0, error: '' as string }
@@ -216,7 +227,8 @@ export async function POST(request: NextRequest) {
             sent++
           } else {
             failed++
-            errors.push(`[${idx}] ${userEmail}: Gagal mengirim`)
+            const errDetail = result.error ? (typeof result.error === 'string' ? result.error : JSON.stringify(result.error)) : 'Unknown'
+            errors.push(`[${idx}] ${userEmail}: ${errDetail.substring(0, 150)}`)
           }
         } else {
           // Use custom HTML body (replace {{name}} placeholder if present)
@@ -237,7 +249,8 @@ export async function POST(request: NextRequest) {
             sent++
           } else {
             failed++
-            errors.push(`[${idx}] ${userEmail}: Gagal mengirim`)
+            const errDetail = result.error ? (typeof result.error === 'string' ? result.error : JSON.stringify(result.error)) : 'Unknown'
+            errors.push(`[${idx}] ${userEmail}: ${errDetail.substring(0, 150)}`)
           }
         }
       } catch (err: unknown) {

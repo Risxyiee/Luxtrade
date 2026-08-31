@@ -38,12 +38,15 @@ export async function sendEmail({ to, subject, html, replyTo }: EmailOptions) {
     const { data, error } = await resend.emails.send(payload as any)
 
     if (error) {
-      // Silently return failure — no error logs to avoid Vercel log spam
+      // Log error details for debugging (essential on CF Workers where logs are the only diagnostics)
+      console.error(`[sendEmail] Resend error for ${to}:`, JSON.stringify(error))
       return { success: false, error }
     }
 
     return { success: true, data }
   } catch (_error) {
+    const msg = _error instanceof Error ? _error.message : String(_error)
+    console.error(`[sendEmail] Exception for ${to}:`, msg)
     return { success: false, error: _error }
   }
 }
