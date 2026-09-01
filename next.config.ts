@@ -12,18 +12,6 @@ const nextConfig: NextConfig = {
 
   allowedDevOrigins: ['http://127.0.0.1:8080', 'http://localhost:8080', 'http://localhost:3000', 'http://127.0.0.1:3000'],
 
-  // NOTE: Do NOT use serverExternalPackages for Cloudflare Pages.
-  // @opennextjs/cloudflare needs to bundle everything into Workers-compatible chunks.
-  // serverExternalPackages prevents bundling, causing Module not found errors for
-  // Node.js natives like 'dns', 'net', 'tls', 'fs'.
-
-  // Include the full @opentelemetry/api build output in the standalone trace.
-  // OpenNext's edge middleware bundler uses `conditions: ["module"]` which resolves
-  // to build/esm/index.js, but Next.js standalone trace only copies build/src/ by default.
-  outputFileTracingIncludes: {
-    "*": ["./node_modules/@opentelemetry/api/build/**/*"],
-  },
-
   experimental: {
     optimizePackageImports: ['lucide-react', 'framer-motion'],
   },
