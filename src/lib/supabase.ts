@@ -58,3 +58,33 @@ export const getBaseUrl = () => {
   if (typeof window !== 'undefined') return window.location.origin
   return process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 }
+
+/**
+ * Convenience exports for backward compatibility.
+ * - `supabase`  → anon client using createClient (works in both server & browser)
+ * - `supabaseAdmin` → admin client singleton (for server API routes)
+ *
+ * Note: `createBrowserClient` from @supabase/ssr is intentionally NOT used here
+ * because this module is also imported by server-side API routes.
+ * Client components that need SSR cookie handling should use `getClientBrowser()`.
+ */
+export const supabase: SupabaseClient = createClient(
+  readEnv('NEXT_PUBLIC_SUPABASE_URL') || 'https://klxkdrfsfcoankbaoejn.supabase.co',
+  readEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY') || '',
+  {
+    auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
+    global: { headers: { 'X-Client-Info': 'luxtrade-web' } }
+  }
+)
+
+let _adminSingleton: SupabaseClient | null = null
+export const supabaseAdmin: SupabaseClient | null = (() => {
+  if (_adminSingleton) return _adminSingleton
+  const url = getSupabaseUrl()
+  const key = getSupabaseServiceRoleKey()
+  if (!key) return null
+  _adminSingleton = createClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  })
+  return _adminSingleton
+})()
