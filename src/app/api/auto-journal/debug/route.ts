@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/api-auth'
 import { isUserPro } from '@/lib/pro-check'
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 
 /**
  * GET /api/auto-journal/debug
@@ -57,9 +57,11 @@ export async function GET(request: NextRequest) {
     }, { status: 403 })
   }
 
-  // ── 3. Database (Prisma/PostgreSQL) ──
+  // ── 3. Database (Supabase) ──
+  const admin = getSupabaseAdmin()
   const dbOk = await check('3_database', async () => {
-    const count = await db.profile.count()
+    if (!admin) throw new Error('Supabase admin client not available')
+    const { count } = await admin.from('profiles').select('*', { count: 'exact', head: true })
     return `DB connected. Total profiles: ${count}`
   })
   if (!dbOk) {
@@ -67,17 +69,17 @@ export async function GET(request: NextRequest) {
       ok: false,
       blockedAt: 'database',
       results,
-      fix: 'DATABASE_URL mungkin salah atau DB down.',
+      fix: 'Supabase URL or Service Role Key mungkin salah atau DB down.',
     }, { status: 500 })
   }
 
-  // ── 4. User profile in trade DB ──
+  // ── 4. User profile in DB ──
   await check('4_profile_in_db', async () => {
-    const profile = await db.profile.findUnique({
-      where: { id: authUser!.id },
-      select: { id: true, plan: true, role: true }
-    })
-    if (!profile) throw new Error(`Profile tidak ada di trade DB untuk user ${authUser!.id}`)
+    const { data: profile } = await admin!.from('profiles')
+      .select('id, plan, role')
+      .eq('id', authUser!.id)
+      .maybeSingle()
+    if (!profile) throw new Error(`Profile tidak ada di DB untuk user ${authUser!.id}`)
     return `plan=${profile.plan}, role=${profile.role}`
   })
 
@@ -112,36 +114,32 @@ export async function GET(request: NextRequest) {
 
   // ── 7. Trade CRUD test ──
   await check('7_trade_crud', async () => {
-    const t = await db.trade.create({
-      data: {
-        user_id: authUser!.id,
-        symbol: '__TEST__',
-        type: 'BUY',
-        open_price: 0,
-        close_price: 0,
-        profit_loss: 0,
-        lot_size: 0,
-        open_time: new Date(),
-        close_time: new Date(),
-      }
-    })
-    await db.trade.delete({ where: { id: t.id } })
+    const { data: t } = await admin!.from('trades').insert({
+      user_id: authUser!.id,
+      symbol: '__TEST__',
+      type: 'BUY',
+      open_price: 0,
+      close_price: 0,
+      profit_loss: 0,
+      lot_size: 0,
+      open_time: new Date().toISOString(),
+      close_time: new Date().toISOString(),
+    }).select().single()
+    await admin!.from('trades').delete().eq('id', t.id)
     return 'Trade create + delete OK'
   })
 
   // ── 8. Journal CRUD test ──
   await check('8_journal_crud', async () => {
-    const j = await db.journalEntry.create({
-      data: {
-        user_id: authUser!.id,
-        title: '__TEST__',
-        content: 'test',
-        mood: 'neutral',
-        market_condition: 'ranging',
-        tags: 'test',
-      }
-    })
-    await db.journalEntry.delete({ where: { id: j.id } })
+    const { data: j } = await admin!.from('journal_entries').insert({
+      user_id: authUser!.id,
+      title: '__TEST__',
+      content: 'test',
+      mood: 'neutral',
+      market_condition: 'ranging',
+      tags: 'test',
+    }).select().single()
+    await admin!.from('journal_entries').delete().eq('id', j.id)
     return 'Journal create + delete OK'
   })
 

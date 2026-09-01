@@ -1,28 +1,38 @@
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { supabase, supabaseAdmin } from '@/lib/supabase'
 
 /**
- * Sync Supabase Auth user to Prisma User table
+ * Sync Supabase Auth user to the users table
  * Call this on login/register to ensure user exists in database
  */
 export async function syncUserToDatabase(authUserId: string, email: string, displayName?: string | null) {
   try {
     console.log('🔄 Syncing user to database:', email)
 
-    // Check if user already exists in Prisma
-    const existingUser = await db.user.findUnique({
-      where: { id: authUserId }
-    })
+    // Check if user already exists
+    const admin = getSupabaseAdmin()
+    if (admin) {
+      const { data: existingUser } = await admin
+        .from('users')
+        .select('*')
+        .eq('id', authUserId)
+        .single()
 
-    if (existingUser) {
-      console.log('✅ User already exists in database:', email)
-      return { success: true, user: existingUser, action: 'skipped' }
+      if (existingUser) {
+        console.log('✅ User already exists in database:', email)
+        return { success: true, user: existingUser, action: 'skipped' }
+      }
     }
 
     // Get user from Supabase Auth to get fresh metadata
     // MUST use supabaseAdmin (service_role) for auth.admin API — anon client will fail
     const adminClient = supabaseAdmin || supabase
-    const { data: authUser } = await adminClient.auth.admin.getUser(authUserId)
+    if (!adminClient) {
+      console.error('❌ No Supabase client available for auth lookup')
+      return { success: false, error: 'No Supabase client available' }
+    }
+
+    const { data: authUser } = await (adminClient.auth as any).admin.getUserById(authUserId)
 
     if (!authUser?.user) {
       console.error('❌ User not found in Supabase Auth:', authUserId)
@@ -36,14 +46,26 @@ export async function syncUserToDatabase(authUserId: string, email: string, disp
                             authUser.user.user_metadata?.full_name ||
                             null
 
-    // Create new user in Prisma with same UUID as Supabase Auth
-    const newUser = await db.user.create({
-      data: {
-        id: authUserId, // Use same UUID as Supabase Auth
+    // Create new user in database with same UUID as Supabase Auth
+    if (!admin) {
+      console.error('❌ Admin client not available for user creation')
+      return { success: false, error: 'Admin client not available' }
+    }
+
+    const { data: newUser, error: insertError } = await admin
+      .from('users')
+      .insert({
+        id: authUserId,
         email,
-        name: finalDisplayName
-      }
-    })
+        name: finalDisplayName,
+      })
+      .select('*')
+      .single()
+
+    if (insertError || !newUser) {
+      console.error('❌ Error creating user:', insertError)
+      return { success: false, error: insertError?.message || 'Failed to create user' }
+    }
 
     console.log('✅ User synced to database:', email)
     return { success: true, user: newUser, action: 'created' }
@@ -59,6 +81,10 @@ export async function syncUserToDatabase(authUserId: string, email: string, disp
  */
 export async function syncCurrentUser() {
   try {
+    if (!supabase) {
+      return { success: false, error: 'Supabase client not available' }
+    }
+
     // Get current session from Supabase
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 

@@ -1,28 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { getSupabaseAdmin, getAdminAuth } from '@/lib/supabase-admin-alt'
 import { sendAdminNotification } from '@/lib/admin-notify'
 import { requireAdmin } from '@/lib/admin-auth'
 import { PRICING } from '@/lib/pricing'
-import { createClient } from '@supabase/supabase-js'
 
 // Commission rates — calculated dynamically from PRICING
 const AFFILIATE_COMMISSION_RATE = 0.20 // 20% for recurring PRO
 const AFFILIATE_LIFETIME_RATE = 0.15  // 15% one-time for Lifetime
 
-/** Get Supabase admin client (service role, bypasses RLS) */
-function getSupabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) return null
-  return createClient(url, key)
-}
-
 /**
  * Resolve a userId to a user profile via Supabase.
  * Tries the profiles table first, then falls back to Supabase Auth.
  */
-async function resolveUser(supabaseAdmin: ReturnType<typeof createClient>, userId: string) {
-  const { data: profile } = await supabaseAdmin
+async function resolveUser(admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>, userId: string) {
+  const { data: profile } = await admin
     .from('profiles')
     .select('id, email, full_name, my_referral_code, referred_by_code')
     .eq('id', userId)
@@ -40,14 +31,13 @@ async function resolveUser(supabaseAdmin: ReturnType<typeof createClient>, userI
 
   // Fallback: Auth API
   try {
-    const { getAdminAuth } = await import('@/lib/supabase-admin-alt')
     const authAdmin = getAdminAuth()
     if (!authAdmin) return null
     const { data: { user: authUser }, error: authErr } = await authAdmin.getUserById(userId)
     if (authErr || !authUser) return null
 
     // Auto-create profile
-    await supabaseAdmin.from('profiles').upsert({
+    await admin.from('profiles').upsert({
       id: userId,
       email: authUser.email || '',
       full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || '',
@@ -71,7 +61,7 @@ async function resolveUser(supabaseAdmin: ReturnType<typeof createClient>, userI
   }
 }
 
-// POST activate a subscription by subscription id (from UserSubscription table)
+// POST activate a subscription by subscription id (from user_subscriptions table)
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -87,8 +77,8 @@ export async function POST(
 
     console.log('🚀 Admin activating subscription via [id]/activate:', { subscriptionId })
 
-    const supabaseAdmin = getSupabaseAdmin()
-    if (!supabaseAdmin) {
+    const admin = getSupabaseAdmin()
+    if (!admin) {
       return NextResponse.json(
         { error: 'Server not configured — missing Supabase service role key' },
         { status: 500 }
@@ -96,27 +86,34 @@ export async function POST(
     }
 
     // ============================================
-    // STEP 1: Look up the subscription from UserSubscription to get userId & plan
+    // STEP 1: Look up the subscription from user_subscriptions to get userId & plan
     // ============================================
     let userId: string | null = null
     let plan: string | null = null
 
     try {
-      const subscription = await db.userSubscription.findUnique({
-        where: { id: subscriptionId },
-        select: { userId: true, plan: true },
-      })
-      if (!subscription) {
-        return NextResponse.json(
-          { error: 'Subscription not found' },
-          { status: 404 }
-        )
+      const { data: subscription, error: subErr } = await admin
+        .from('user_subscriptions')
+        .select('user_id, plan')
+        .eq('id', subscriptionId)
+        .single()
+
+      if (subErr || !subscription) {
+        // If not found, the caller must provide userId and planType in body
+        if (!body.userId || !body.planType) {
+          return NextResponse.json(
+            { error: 'Subscription not found in database. Provide userId and planType in request body.' },
+            { status: 400 }
+          )
+        }
+        userId = body.userId
+        plan = body.planType
+      } else {
+        userId = subscription.user_id
+        plan = overridePlanType || subscription.plan
       }
-      userId = subscription.userId
-      plan = overridePlanType || subscription.plan
-    } catch (prismaSubErr) {
-      console.warn('[admin/subscription/activate] Prisma subscription lookup failed:', prismaSubErr)
-      // If Prisma is unavailable, the caller must provide userId and planType in body
+    } catch (subLookupErr) {
+      console.warn('[admin/subscription/activate] subscription lookup failed:', subLookupErr)
       if (!body.userId || !body.planType) {
         return NextResponse.json(
           { error: 'Subscription not found in database. Provide userId and planType in request body.' },
@@ -130,6 +127,13 @@ export async function POST(
     // ============================================
     // STEP 2: Resolve plan config from PRICING
     // ============================================
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
+    }
+    if (!plan) {
+      return NextResponse.json({ error: 'Plan is required' }, { status: 400 })
+    }
+
     const planConfig = resolvePlanConfig(plan)
     if (!planConfig) {
       return NextResponse.json(
@@ -141,7 +145,7 @@ export async function POST(
     // ============================================
     // STEP 3: Resolve user profile
     // ============================================
-    const userProfile = await resolveUser(supabaseAdmin, userId)
+    const userProfile = await resolveUser(admin, userId)
     if (!userProfile) {
       return NextResponse.json(
         { error: 'User not found in profiles or Auth' },
@@ -166,7 +170,7 @@ export async function POST(
     // ============================================
     // STEP 5: Update Supabase profile to PRO
     // ============================================
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await admin
       .from('profiles')
       .update({
         subscription_status: 'PRO',
@@ -194,7 +198,6 @@ export async function POST(
     // STEP 5b: Also update Auth metadata so GET /api/admin/users reflects the change
     // ============================================
     try {
-      const { getAdminAuth } = await import('@/lib/supabase-admin-alt')
       const authAdmin = getAdminAuth()
       if (authAdmin) {
         await authAdmin.updateUserById(userId, {
@@ -213,61 +216,57 @@ export async function POST(
     }
 
     // ============================================
-    // STEP 6: Commission — affiliate lookup via db.affiliate
+    // STEP 6: Commission — affiliate lookup via affiliates table
     // ============================================
     const commissionAmount = Math.round(planConfig.price * planConfig.commissionRate)
 
     try {
-      // Re-fetch profile to get referred_by_code (might have been set before upsert above)
-      const { data: profileForReferral } = await supabaseAdmin
+      // Re-fetch profile to get referred_by_code
+      const { data: profileForReferral } = await admin
         .from('profiles')
         .select('referred_by_code')
         .eq('id', userId)
         .single()
 
       if (profileForReferral?.referred_by_code) {
-        // Look up referrer in db.affiliate by referralCode
-        const referrer = await db.affiliate.findUnique({
-          where: { referralCode: profileForReferral.referred_by_code },
-          select: {
-            id: true,
-            userId: true,
-            referralCode: true,
-            currentBalance: true,
-            totalEarned: true,
-          },
-        })
+        // Look up referrer in affiliates table by referral_code
+        const { data: referrer } = await admin
+          .from('affiliates')
+          .select('id, user_id, referral_code, current_balance, total_earned')
+          .eq('referral_code', profileForReferral.referred_by_code)
+          .single()
 
         if (referrer) {
-          // Update affiliate balance in Prisma
-          await db.affiliate.update({
-            where: { id: referrer.id },
-            data: {
-              currentBalance: { increment: commissionAmount },
-              totalEarned: { increment: commissionAmount },
-            },
-          })
+          // Update affiliate balance in Supabase
+          const newBalance = (referrer.current_balance || 0) + commissionAmount
+          const newTotalEarned = (referrer.total_earned || 0) + commissionAmount
 
-          const newBalance = referrer.currentBalance + commissionAmount
-          console.log(`✅ Commission Rp${commissionAmount.toLocaleString('id-ID')} added to affiliate: ${referrer.referralCode} (new balance: Rp${newBalance.toLocaleString('id-ID')})`)
+          await admin
+            .from('affiliates')
+            .update({
+              current_balance: newBalance,
+              total_earned: newTotalEarned,
+            })
+            .eq('id', referrer.id)
+
+          console.log(`✅ Commission Rp${commissionAmount.toLocaleString('id-ID')} added to affiliate: ${referrer.referral_code} (new balance: Rp${newBalance.toLocaleString('id-ID')})`)
 
           // Also update Supabase profiles.affiliate_balance for the referrer
-          // Find referrer's profile by userId
-          const { data: referrerProfile } = await supabaseAdmin
+          const { data: referrerProfile } = await admin
             .from('profiles')
             .select('id, affiliate_balance, referral_count')
-            .eq('id', referrer.userId)
+            .eq('id', referrer.user_id)
             .single()
 
           if (referrerProfile) {
-            await supabaseAdmin
+            await admin
               .from('profiles')
               .update({
                 affiliate_balance: (referrerProfile.affiliate_balance || 0) + commissionAmount,
                 referral_count: (referrerProfile.referral_count || 0) + 1,
                 updated_at: new Date().toISOString(),
               })
-              .eq('id', referrer.userId)
+              .eq('id', referrer.user_id)
           }
 
           // Send admin notification

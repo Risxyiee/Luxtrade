@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { getSupabaseAdminAuth } from '@/lib/supabase/admin'
 
 /**
  * POST /api/auth/force-confirm
@@ -12,9 +12,8 @@ import { db } from '@/lib/db'
  * failed in Supabase Auth (or was never called).
  *
  * Lookup strategy (fast → slow):
- * 1. Query Prisma profiles table by email to get user ID
- * 2. Query Supabase profiles table by email as fallback
- * 3. Then call updateUserById to confirm
+ * 1. Query Supabase profiles table by email to get user ID
+ * 2. Then call updateUserById to confirm
  *
  * Returns { confirmed: boolean }
  */
@@ -25,11 +24,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ confirmed: false }, { status: 400 })
     }
 
-    if (!supabaseAdmin) {
+    const admin = getSupabaseAdmin()
+    if (!admin) {
       return NextResponse.json({ confirmed: false }, { status: 500 })
     }
 
-    const authAdmin = getSupabaseAdminAuthFromClient()
+    const authAdmin = getSupabaseAdminAuth(admin as any)
     if (!authAdmin) {
       return NextResponse.json({ confirmed: false }, { status: 500 })
     }
@@ -37,32 +37,18 @@ export async function POST(request: NextRequest) {
     const emailLower = email.toLowerCase()
     let userId: string | null = null
 
-    // Strategy 1: Get user ID from Prisma (fast, indexed)
+    // Strategy 1: Get user ID from Supabase profiles table
     try {
-      const profile = await db.profile.findFirst({
-        where: { email: emailLower },
-        select: { id: true, emailVerified: true }
-      })
-      if (profile) {
-        userId = profile.id
-        // If Prisma says already verified, try to confirm in Auth too
-      }
-    } catch { /* Prisma not available */ }
+      const { data } = await admin
+        .from('profiles')
+        .select('id')
+        .eq('email', emailLower)
+        .limit(1)
+        .single()
+      if (data?.id) userId = data.id
+    } catch { /* ignore */ }
 
-    // Strategy 2: Get user ID from Supabase profiles table
-    if (!userId && supabaseAdmin) {
-      try {
-        const { data } = await supabaseAdmin
-          .from('profiles')
-          .select('id')
-          .eq('email', emailLower)
-          .limit(1)
-          .single()
-        if (data?.id) userId = data.id
-      } catch { /* ignore */ }
-    }
-
-    // Strategy 3: Last resort — listUsers (slow)
+    // Strategy 2: Last resort — listUsers (slow)
     if (!userId) {
       try {
         const { data: { users }, error: listErr } = await authAdmin.listUsers({

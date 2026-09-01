@@ -1,25 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
-import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
+import { getSupabaseAdmin, getAdminAuth } from '@/lib/supabase-admin-alt'
 import { requireAdmin } from '@/lib/admin-auth'
 
 // Sync logic - shared by GET and POST
 async function performSync() {
   try {
-    // Check if supabaseAdmin is available
-    if (!supabaseAdmin) {
+    const admin = getSupabaseAdmin()
+    if (!admin) {
       return {
         error: 'SUPABASE_SERVICE_ROLE_KEY not configured',
         message: 'Please set SUPABASE_SERVICE_ROLE_KEY in Vercel Environment Variables',
       }
     }
 
-    // Ensure all Supabase-only columns exist in profiles table
-    if (isDatabaseAvailable()) {
-      await ensureSchema()
-    }
-
-    const authAdmin = getSupabaseAdminAuthFromClient()
+    const authAdmin = getAdminAuth()
     if (!authAdmin) {
       return {
         error: 'SUPABASE_SERVICE_ROLE_KEY not configured',
@@ -46,8 +40,7 @@ async function performSync() {
       }
     }
 
-    // Sync each user to Prisma AND Supabase profiles
-    let syncedCount = 0
+    // Sync each user to Supabase profiles
     let skippedCount = 0
     let errorCount = 0
     let profileSyncedCount = 0
@@ -55,32 +48,8 @@ async function performSync() {
     const syncResults = await Promise.all(
       authUsers.users.map(async (authUser) => {
         try {
-          // Check if user already exists in Prisma by UUID
-          const existingUser = await db.user.findUnique({
-            where: { id: authUser.id }
-          })
-
-          if (existingUser) {
-            // User already exists, skip
-          } else {
-            const displayName = authUser.user_metadata?.display_name ||
-                              authUser.user_metadata?.name ||
-                              authUser.user_metadata?.full_name ||
-                              null
-
-            await db.user.create({
-              data: {
-                id: authUser.id,
-                email: authUser.email!,
-                name: displayName
-              }
-            })
-
-            syncedCount++
-          }
-
           // SYNC TO SUPABASE PROFILES TABLE
-          const { data: existingProfile, error: profileCheckError } = await supabaseAdmin
+          const { data: existingProfile, error: profileCheckError } = await admin
             .from('profiles')
             .select('id')
             .eq('id', authUser.id)
@@ -91,14 +60,20 @@ async function performSync() {
           }
 
           if (existingProfile) {
-            // Profile already exists, skip
+            skippedCount++
+            return {
+              email: authUser.email,
+              action: 'skipped',
+              userId: authUser.id,
+              profileCreated: false
+            }
           } else {
             const fullName = authUser.user_metadata?.display_name ||
                            authUser.user_metadata?.name ||
                            authUser.user_metadata?.full_name ||
                            null
 
-            const { error: profileCreateError } = await supabaseAdmin
+            const { error: profileCreateError } = await admin
               .from('profiles')
               .insert({
                 id: authUser.id,
@@ -124,21 +99,27 @@ async function performSync() {
 
             if (profileCreateError) {
               console.error(`   ❌ Error creating profile:`, profileCreateError)
+              errorCount++
+              return {
+                email: authUser.email,
+                action: 'error',
+                error: JSON.stringify(profileCreateError, null, 2)
+              }
             } else {
               profileSyncedCount++
+              return {
+                email: authUser.email,
+                action: 'created',
+                userId: authUser.id,
+                profileCreated: true
+              }
             }
-          }
-
-          return {
-            email: authUser.email,
-            action: existingUser ? 'skipped' : 'created',
-            userId: authUser.id,
-            profileCreated: !existingProfile
           }
         } catch (err) {
           console.error(`   ❌ Error syncing user ${authUser.email}:`, err)
 
-          if ((err as any)?.code === 'P2002' || (err as any)?.code === 'P2003') {
+          if ((err as any)?.code === '23505') {
+            // unique violation = duplicate
             skippedCount++
             return {
               email: authUser.email,
@@ -158,19 +139,17 @@ async function performSync() {
     )
 
     // Get final counts
-    const allPrismaUsers = await db.user.findMany()
-    const { count: profileCount } = await supabaseAdmin
+    const { count: profileCount } = await admin
       .from('profiles')
       .select('*', { count: 'exact', head: true })
 
     return {
       success: true,
       message: 'Sync completed',
-      syncedCount,
+      syncedCount: profileSyncedCount,
       profileSyncedCount,
       skippedCount,
       errorCount,
-      totalPrismaUsers: allPrismaUsers.length,
       totalSupabaseProfiles: profileCount || 0,
       results: syncResults
     }
@@ -186,7 +165,7 @@ async function performSync() {
   }
 }
 
-// GET to sync all Supabase Auth users to Prisma
+// GET to sync all Supabase Auth users to profiles
 export async function GET(request: NextRequest) {
   const authResult = await requireAdmin(request)
   if (authResult.error) return authResult.error
@@ -198,7 +177,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(result)
 }
 
-// POST to sync all Supabase Auth users to Prisma (for Admin Panel)
+// POST to sync all Supabase Auth users to profiles (for Admin Panel)
 export async function POST(request: NextRequest) {
   const authResult = await requireAdmin(request)
   if (authResult.error) return authResult.error

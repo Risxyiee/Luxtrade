@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { getAuthUser } from '@/lib/api-auth'
 
 const MIN_WITHDRAWAL = 100000 // Rp100.000
@@ -7,6 +7,11 @@ const MIN_WITHDRAWAL = 100000 // Rp100.000
 // POST /api/affiliate/withdraw - Request a withdrawal
 export async function POST(request: NextRequest) {
   try {
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+
     const authUser = await getAuthUser(request)
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -34,9 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find the affiliate record
-    const affiliate = await db.affiliate.findUnique({
-      where: { userId: authUser.id },
-    })
+    const { data: affiliate } = await admin.from('affiliates').select('*').eq('user_id', authUser.id).single()
 
     if (!affiliate) {
       return NextResponse.json(
@@ -54,33 +57,30 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate sufficient balance
-    if (amount > affiliate.currentBalance) {
+    if (amount > affiliate.balance) {
       return NextResponse.json(
-        { error: `Insufficient balance. Current balance: Rp${affiliate.currentBalance.toLocaleString('id-ID')}` },
+        { error: `Insufficient balance. Current balance: Rp${affiliate.balance.toLocaleString('id-ID')}` },
         { status: 400 }
       )
     }
 
-    // Create withdrawal and deduct balance in a transaction
-    const withdrawal = await db.$transaction(async (tx) => {
-      // Create the withdrawal request
-      const newWithdrawal = await tx.affiliateWithdrawal.create({
-        data: {
-          affiliateId: affiliate.id,
-          amount,
-          bankAccountInfo: bankAccountInfo.trim(),
-          status: 'REQUESTED',
-        },
-      })
+    // Create withdrawal and deduct balance
+    // Supabase doesn't support transactions natively in JS client, so we do sequential operations
+    const { data: withdrawal, error: withdrawError } = await admin.from('affiliate_withdrawals').insert({
+      affiliate_id: affiliate.id,
+      amount,
+      bank_account_info: bankAccountInfo.trim(),
+      status: 'REQUESTED',
+    }).select().single()
 
-      // Deduct from current balance
-      await tx.affiliate.update({
-        where: { id: affiliate.id },
-        data: { currentBalance: { decrement: amount } },
-      })
+    if (withdrawError) {
+      console.error('Failed to create withdrawal:', withdrawError)
+      return NextResponse.json({ error: 'Failed to create withdrawal' }, { status: 500 })
+    }
 
-      return newWithdrawal
-    })
+    // Deduct from current balance
+    const newBalance = (affiliate.balance ?? 0) - amount
+    await admin.from('affiliates').update({ balance: newBalance }).eq('id', affiliate.id)
 
     return NextResponse.json({
       success: true,
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
         id: withdrawal.id,
         amount: withdrawal.amount,
         status: withdrawal.status,
-        requestedAt: withdrawal.requestedAt,
+        requestedAt: withdrawal.created_at,
       },
     })
   } catch (error) {
@@ -100,15 +100,18 @@ export async function POST(request: NextRequest) {
 // GET /api/affiliate/withdraw - Get user's withdrawal history
 export async function GET(request: NextRequest) {
   try {
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+
     const authUser = await getAuthUser(request)
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Find the affiliate record
-    const affiliate = await db.affiliate.findUnique({
-      where: { userId: authUser.id },
-    })
+    const { data: affiliate } = await admin.from('affiliates').select('id').eq('user_id', authUser.id).maybeSingle()
 
     if (!affiliate) {
       return NextResponse.json({ withdrawals: [] })
@@ -118,20 +121,20 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200)
 
-    const withdrawals = await db.affiliateWithdrawal.findMany({
-      where: { affiliateId: affiliate.id },
-      orderBy: { requestedAt: 'desc' },
-      take: limit,
-    })
+    const { data: withdrawals } = await admin.from('affiliate_withdrawals')
+      .select('*')
+      .eq('affiliate_id', affiliate.id)
+      .order('created_at', { ascending: false })
+      .limit(limit)
 
     return NextResponse.json({
-      withdrawals: withdrawals.map((w) => ({
+      withdrawals: (withdrawals || []).map((w) => ({
         id: w.id,
         amount: w.amount,
         status: w.status,
-        bankAccountInfo: w.bankAccountInfo,
-        requestedAt: w.requestedAt,
-        paidAt: w.paidAt,
+        bankAccountInfo: w.bank_account_info,
+        requestedAt: w.created_at,
+        paidAt: w.paid_at,
       })),
     })
   } catch (error) {

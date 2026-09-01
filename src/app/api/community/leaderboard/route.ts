@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
-import { db } from '@/lib/db'
-import { isDatabaseAvailable } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 
 // ==================== IN-MEMORY CACHE ====================
 // Key: "period|sortBy" → { data, timestamp }
@@ -25,149 +24,114 @@ interface LeaderboardEntry {
   avatarUrl: string | null
 }
 
-function getDateFilter(period: string): Date {
+function getDateFilter(period: string): string {
   const now = new Date()
   switch (period) {
     case 'week': {
       const d = new Date(now)
       d.setDate(d.getDate() - 7)
-      return d
+      return d.toISOString()
     }
     case 'month': {
       const d = new Date(now)
       d.setDate(d.getDate() - 30)
-      return d
+      return d.toISOString()
     }
     case 'all':
     default:
-      return new Date(0)
+      return new Date(0).toISOString()
   }
 }
 
-function getSortClause(sortBy: string): string {
-  switch (sortBy) {
-    case 'winRate': return 'win_rate DESC'
-    case 'totalPL': return 'total_pl DESC'
-    case 'totalTrades': return 'total_trades DESC'
-    default: return 'total_pl DESC'
-  }
-}
-
-async function ensurePublicProfileColumn() {
-  try {
-    await db.$executeRawUnsafe(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.columns 
-          WHERE table_name = 'profiles' AND column_name = 'public_profile'
-        ) THEN
-          ALTER TABLE profiles ADD COLUMN public_profile BOOLEAN NOT NULL DEFAULT false;
-        END IF;
-      END $$;
-    `)
-  } catch {
-    // Column may already exist or table doesn't exist — safe to ignore
-  }
-}
-
-async function ensureSharedTradesTable() {
-  try {
-    // Fix existing table if it was created with wrong UUID type for trade_id
-    await db.$executeRawUnsafe(`
-      DO $$
-      BEGIN
-        -- Check if table exists with wrong trade_id type (uuid instead of text)
-        IF EXISTS (
-          SELECT 1 FROM information_schema.columns 
-          WHERE table_name = 'shared_trades' AND column_name = 'trade_id' AND data_type = 'uuid'
-        ) THEN
-          -- Drop and recreate with correct types
-          DROP TABLE IF EXISTS shared_trades CASCADE;
-        END IF;
-        
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.tables 
-          WHERE table_name = 'shared_trades'
-        ) THEN
-          CREATE TABLE shared_trades (
-            id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-            trade_id TEXT NOT NULL UNIQUE REFERENCES trades(id) ON DELETE CASCADE,
-            user_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-            share_code TEXT NOT NULL UNIQUE,
-            include_analytics BOOLEAN NOT NULL DEFAULT true,
-            created_at TIMESTAMP NOT NULL DEFAULT now()
-          );
-          CREATE INDEX idx_shared_trades_user_id ON shared_trades(user_id);
-          CREATE INDEX idx_shared_trades_share_code ON shared_trades(share_code);
-        END IF;
-      END $$;
-    `)
-  } catch {
-    // Table may already exist — safe to ignore
-  }
-}
-
-async function fetchLeaderboardFromDB(period: string, sortBy: string): Promise<LeaderboardEntry[]> {
+async function fetchLeaderboardFromDB(
+  admin: ReturnType<typeof getSupabaseAdmin> & NonNullable<ReturnType<typeof getSupabaseAdmin>>,
+  period: string,
+  sortBy: string
+): Promise<LeaderboardEntry[]> {
   const dateFilter = getDateFilter(period)
-  const sortClause = getSortClause(sortBy)
 
-  // Use raw SQL for complex aggregation across trades + profiles
-  const results = await db.$queryRawUnsafe<{
-    user_id: string
-    display_name: string | null
-    is_pro: boolean
-    streak_count: number
-    total_trades: bigint
-    wins: bigint
-    total_pl: number
-  }[]>(`
-    SELECT 
-      p.id as user_id,
-      p.full_name as display_name,
-      p.is_pro,
-      p.streak_count,
-      COUNT(t.id) as total_trades,
-      COUNT(CASE WHEN t.profit_loss > 0 THEN 1 END) as wins,
-      COALESCE(SUM(t.profit_loss), 0) as total_pl
-    FROM profiles p
-    INNER JOIN trades t ON t.user_id = p.id
-    WHERE p.public_profile = true
-      AND t.close_time >= $1::timestamp
-    GROUP BY p.id, p.full_name, p.is_pro, p.streak_count
-    HAVING COUNT(t.id) >= 1
-    ORDER BY ${sortClause}
-    LIMIT 20
-  `, dateFilter.toISOString())
+  // Fetch all public profiles
+  const { data: publicProfiles } = await admin.from('profiles')
+    .select('id, full_name, is_pro, streak_count')
+    .eq('public_profile', true)
 
-  return results.map((row, index) => ({
-    rank: index + 1,
-    userId: row.user_id,
-    displayName: row.display_name,
-    winRate: row.total_trades > 0n 
-      ? Math.round((Number(row.wins) / Number(row.total_trades)) * 1000) / 10 
-      : 0,
-    totalPL: Math.round(row.total_pl * 100) / 100,
-    totalTrades: Number(row.total_trades),
-    streak: row.streak_count,
-    isPro: row.is_pro,
-    avatarUrl: null,
-  }))
+  if (!publicProfiles || publicProfiles.length === 0) {
+    return []
+  }
+
+  const userIds = publicProfiles.map((p: any) => p.id)
+
+  // Fetch trades for these users within the date range
+  const { data: trades } = await admin.from('trades')
+    .select('user_id, id, profit_loss')
+    .in('user_id', userIds)
+    .gte('close_time', dateFilter)
+
+  // Aggregate per user
+  const userStats = new Map<string, { totalTrades: number; wins: number; totalPL: number }>()
+
+  if (trades) {
+    for (const t of trades) {
+      const existing = userStats.get(t.user_id) || { totalTrades: 0, wins: 0, totalPL: 0 }
+      userStats.set(t.user_id, {
+        totalTrades: existing.totalTrades + 1,
+        wins: existing.wins + (Number(t.profit_loss) > 0 ? 1 : 0),
+        totalPL: existing.totalPL + Number(t.profit_loss || 0),
+      })
+    }
+  }
+
+  // Build entries for users with at least 1 trade
+  let entries: LeaderboardEntry[] = publicProfiles
+    .map((p: any) => {
+      const stats = userStats.get(p.id)
+      if (!stats || stats.totalTrades < 1) return null
+      return {
+        rank: 0,
+        userId: p.id,
+        displayName: p.full_name,
+        winRate: stats.totalTrades > 0
+          ? Math.round((stats.wins / stats.totalTrades) * 1000) / 10
+          : 0,
+        totalPL: Math.round(stats.totalPL * 100) / 100,
+        totalTrades: stats.totalTrades,
+        streak: p.streak_count || 0,
+        isPro: p.is_pro || false,
+        avatarUrl: null,
+      }
+    })
+    .filter((e): e is LeaderboardEntry => e !== null)
+
+  // Sort by the requested field
+  switch (sortBy) {
+    case 'winRate':
+      entries.sort((a, b) => b.winRate - a.winRate)
+      break
+    case 'totalTrades':
+      entries.sort((a, b) => b.totalTrades - a.totalTrades)
+      break
+    case 'totalPL':
+    default:
+      entries.sort((a, b) => b.totalPL - a.totalPL)
+      break
+  }
+
+  // Assign ranks and limit to 20
+  entries = entries.slice(0, 20).map((e, i) => ({ ...e, rank: i + 1 }))
+
+  return entries
 }
 
 export async function GET(request: NextRequest) {
   const { error, user } = await requireAuth(request)
   if (error) return error
 
-  if (!isDatabaseAvailable()) {
+  const admin = getSupabaseAdmin()
+  if (!admin) {
     return NextResponse.json({ leaderboard: [] })
   }
 
   try {
-    // Ensure columns/tables exist
-    await ensurePublicProfileColumn()
-    await ensureSharedTradesTable()
-
     const { searchParams } = new URL(request.url)
     const period = searchParams.get('period') || 'month'
     const sortBy = searchParams.get('sortBy') || 'totalPL'
@@ -181,7 +145,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ leaderboard: cached.data })
     }
 
-    const data = await fetchLeaderboardFromDB(period, sortBy)
+    const data = await fetchLeaderboardFromDB(admin, period, sortBy)
     leaderboardCache.set(cacheKey, { data, timestamp: now })
 
     return NextResponse.json({ leaderboard: data })

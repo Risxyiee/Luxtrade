@@ -1,16 +1,20 @@
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { NextResponse } from 'next/server'
 
 /**
  * Check if a user has an active PRO subscription.
- * Uses Prisma (same as trades API) for consistency.
+ * Uses Supabase (same as trades API) for consistency.
  */
 export async function isUserPro(userId: string): Promise<boolean> {
   try {
-    const profile = await db.profile.findUnique({
-      where: { id: userId },
-      select: { is_pro: true, subscription_until: true }
-    })
+    const admin = getSupabaseAdmin()
+    if (!admin) return false
+
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('is_pro, subscription_until')
+      .eq('id', userId)
+      .single()
 
     if (!profile) return false
 
