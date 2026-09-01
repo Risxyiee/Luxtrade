@@ -1,14 +1,14 @@
 'use client'
 
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
-import { toast } from 'sonner'
 import { useLanguage } from '@/contexts/LanguageContext'
 import LegalPagesModal, { type LegalPageTab } from '@/components/LegalPagesModal'
 import LandingNavbar from '@/components/landing/LandingNavbar'
 import LandingSidebar from '@/components/landing/LandingSidebar'
 import HeroSection from '@/components/landing/HeroSection'
 import ScrollToTopButton from '@/components/landing/ScrollToTopButton'
+import LandingCheckoutModal from '@/components/landing/LandingCheckoutModal'
 
 const loadingDiv = <div className="h-32" />
 
@@ -28,8 +28,8 @@ interface LandingStats {
 export default function LuxTradeLanding() {
   const { language, t } = useLanguage()
   const [showLegalModal, setShowLegalModal] = useState(false)
-  const [payLoading, setPayLoading] = useState<string | null>(null)
   const [legalModalTab, setLegalModalTab] = useState<LegalPageTab>('terms')
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false)
 
   const openLegalPage = (tab: LegalPageTab) => {
     setLegalModalTab(tab)
@@ -42,6 +42,11 @@ export default function LuxTradeLanding() {
   const [promoActive, setPromoActive] = useState<boolean | null>(null)
 
   const [landingStats, setLandingStats] = useState<LandingStats | null>(null)
+
+  const handleProUpgrade = () => {
+    if (language === 'en') window.open('https://skrill.me/rq/RIZQI%20AKBAR/3/USD?key=vXcr_5kNitZJFVBnkmK0sakLnjB', '_blank')
+    else setShowCheckoutModal(true)
+  }
 
   // Mobile Sticky CTA
   const mobileCtaRef = useRef<HTMLDivElement>(null)
@@ -82,70 +87,7 @@ export default function LuxTradeLanding() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  const ensureSnapLoaded = useCallback(async (): Promise<boolean> => {
-    if ((window as any).snap) return true
 
-    const loadingToast = toast.loading('Memuat payment gateway...')
-    try {
-      const res = await fetch('/api/midtrans/create-transaction')
-      const config = await res.json()
-      if (!config.configured || !config.snapUrl) {
-        toast.dismiss(loadingToast)
-        toast.error('Payment gateway tidak tersedia')
-        return false
-      }
-
-      return await new Promise<boolean>((resolve) => {
-        const script = document.createElement('script')
-        script.id = 'midtrans-snap-landing'
-        script.src = config.snapUrl
-        script.setAttribute('data-client-key', config.clientKey)
-        script.async = true
-        script.onload = () => { toast.dismiss(loadingToast); resolve(true) }
-        script.onerror = () => { toast.dismiss(loadingToast); toast.error('Gagal memuat payment gateway'); resolve(false) }
-        document.body.appendChild(script)
-      })
-    } catch {
-      toast.dismiss(loadingToast)
-      toast.error('Gagal terhubung ke payment gateway')
-      return false
-    }
-  }, [])
-
-  const handleMidtransPay = async (plan: 'PRO_30_DAYS' | 'PRO_LIFETIME') => {
-    const ready = await ensureSnapLoaded()
-    if (!ready) return
-
-    setPayLoading(plan)
-    try {
-      const res = await fetch('/api/midtrans/create-transaction', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan }),
-      })
-      const data = await res.json()
-
-      if (res.status === 401) {
-        setPayLoading(null)
-        window.location.href = `/auth/checkout?plan=${plan}`
-        return
-      }
-
-      if (!res.ok) { toast.error(data.error || 'Gagal membuat transaksi'); setPayLoading(null); return }
-
-      ;(window as any).snap.pay(data.token, {
-        onSuccess: () => { toast.success('Pembayaran berhasil! Akun PRO sedang diaktivasi...'); setTimeout(() => window.location.href = '/dashboard', 2000) },
-        onPending: () => { toast.info('Menunggu pembayaran. Selesaikan untuk mengaktifkan PRO otomatis.') },
-        onError: () => { toast.error('Pembayaran gagal atau dibatalkan.') },
-        onClose: () => { setPayLoading(null) },
-      })
-    } catch { toast.error('Gagal terhubung ke payment gateway'); setPayLoading(null) }
-  }
-
-  const handleProUpgrade = () => {
-    if (language === 'en') window.open('https://skrill.me/rq/RIZQI%20AKBAR/3/USD?key=vXcr_5kNitZJFVBnkmK0sakLnjB', '_blank')
-    else handleMidtransPay('PRO_30_DAYS')
-  }
 
   return (
     <div className="min-h-screen bg-[#050507] text-white overflow-x-hidden flex flex-col relative landing-blueprint-grid landing-noise">
@@ -166,7 +108,6 @@ export default function LuxTradeLanding() {
             promoRemaining={promoRemaining}
             promoMax={promoMax}
             handleProUpgrade={handleProUpgrade}
-            payLoading={payLoading}
             language={language}
           />
           <FAQSection language={language} />
@@ -185,6 +126,13 @@ export default function LuxTradeLanding() {
         </div>
 
         <LegalPagesModal isOpen={showLegalModal} onClose={() => setShowLegalModal(false)} initialTab={legalModalTab} />
+        <LandingCheckoutModal
+          isOpen={showCheckoutModal}
+          onClose={() => setShowCheckoutModal(false)}
+          promoCode={promoCode}
+          promoActive={promoActive}
+          language={language}
+        />
       </div>
     </div>
   )
