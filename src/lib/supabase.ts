@@ -2,184 +2,59 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { createBrowserClient } from '@supabase/ssr'
 import { getSupabaseAdminAuth } from '@/lib/supabase/admin'
 
-// Supabase configuration
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://klxkdrfsfcoankbaoejn.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+function readEnv(name: string): string | undefined {
+  const v = process.env[name]
+  if (!v || v === 'undefined') return undefined
+  return v
+}
 
-// Get base URL dynamically (works for both custom domain and Vercel domain)
+export function getSupabaseUrl(): string {
+  return readEnv('NEXT_PUBLIC_SUPABASE_URL') || 'https://klxkdrfsfcoankbaoejn.supabase.co'
+}
+export function getSupabaseAnonKey(): string | undefined {
+  return readEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+}
+export function getSupabaseServiceRoleKey(): string | undefined {
+  return readEnv('SUPABASE_SERVICE_ROLE_KEY')
+}
+
+/** Browser-only client (call only from client code) */
+export function getClientBrowser(): SupabaseClient | null {
+  const url = getSupabaseUrl()
+  const anon = getSupabaseAnonKey()
+  if (!anon) return null
+  if (typeof window === 'undefined') return null
+  return createBrowserClient(url, anon) as any
+}
+
+/** Server-side non-admin client (safe to call at request time) */
+export function getServerClient(): SupabaseClient | null {
+  const url = getSupabaseUrl()
+  const anon = getSupabaseAnonKey()
+  if (!anon) return null
+  return createClient(url, anon, {
+    auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
+    global: { headers: { 'X-Client-Info': 'luxtrade-web' } }
+  })
+}
+
+/** Admin client (service role); returns null if service key missing */
+export function getSupabaseAdmin(): SupabaseClient | null {
+  const url = getSupabaseUrl()
+  const key = getSupabaseServiceRoleKey()
+  if (!key) return null
+  return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
+}
+
+/** Admin auth helper */
+export function getSupabaseAdminAuthFromClient(client?: SupabaseClient) {
+  const c = client || getSupabaseAdmin()
+  if (!c) return null
+  return getSupabaseAdminAuth(c as any)
+}
+
+/** Helper: base URL detection */
 export const getBaseUrl = () => {
-  if (typeof window !== 'undefined') {
-    // Client-side: use window.location.origin
-    return window.location.origin
-  }
-  // Server-side: use NEXT_PUBLIC_APP_URL or fallback
+  if (typeof window !== 'undefined') return window.location.origin
   return process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
-}
-
-// Validate configuration
-if (!supabaseUrl || supabaseUrl === 'undefined' || supabaseUrl.trim() === '') {
-  console.warn('⚠️ NEXT_PUBLIC_SUPABASE_URL is not configured')
-  console.warn('   Set NEXT_PUBLIC_SUPABASE_URL in Vercel Environment Variables')
-}
-
-if (!supabaseAnonKey || supabaseAnonKey === 'undefined' || supabaseAnonKey.trim() === '') {
-  console.warn('⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY is not configured')
-  console.warn('   Set NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel Environment Variables')
-}
-
-// Ensure supabaseUrl is valid (fallback to prevent build errors)
-const validSupabaseUrl = supabaseUrl.startsWith('http://') || supabaseUrl.startsWith('https://')
-  ? supabaseUrl
-  : 'https://klxkdrfsfcoankbaoejn.supabase.co'
-
-// Check if we have valid credentials
-const hasValidCredentials = supabaseAnonKey && supabaseAnonKey !== 'undefined' && supabaseAnonKey.trim() !== ''
-
-// Create Supabase client (for client-side & regular operations)
-// Using @supabase/ssr createBrowserClient to ensure session is stored in cookies
-// This makes the session accessible to API routes in production
-export const supabase: SupabaseClient | null = (() => {
-  if (!hasValidCredentials) {
-    return null
-  }
-
-  // Only use createBrowserClient on client-side
-  if (typeof window !== 'undefined') {
-    return createBrowserClient(validSupabaseUrl, supabaseAnonKey, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true
-      }
-    }) as any
-  }
-
-  // Server-side fallback (should not be used for auth operations)
-  return createClient(validSupabaseUrl, supabaseAnonKey, {
-    auth: {
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: true
-    },
-    global: {
-      headers: {
-        'X-Client-Info': 'luxtrade-web'
-      }
-    }
-  })
-})()
-
-// Create Supabase ADMIN client (for server-side admin operations like listUsers)
-// Uses SERVICE_ROLE_KEY which has full admin privileges
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-export const supabaseAdmin = (() => {
-  if (!supabaseServiceRoleKey) {
-    console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY not configured. Admin operations will not work.')
-    return null
-  }
-
-  return createClient(validSupabaseUrl, supabaseServiceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  })
-})()
-
-/**
- * Get the admin Auth API from the supabaseAdmin client.
- * Returns null if supabaseAdmin is not configured.
- */
-export function getSupabaseAdminAuthFromClient() {
-  if (!supabaseAdmin) return null
-  return getSupabaseAdminAuth(supabaseAdmin as any)
-}
-
-// Database types
-export interface Trade {
-  id: string
-  symbol: string
-  type: 'LONG' | 'SHORT' | 'BUY' | 'SELL'
-  entry_price: number
-  exit_price: number | null
-  quantity: number
-  lot_size?: number
-  entry_date: string
-  exit_date: string | null
-  open_time?: string
-  close_time?: string
-  status: 'OPEN' | 'CLOSED'
-  profit_loss: number | null
-  profit_loss_percent: number | null
-  strategy: string | null
-  notes: string | null
-  session?: string | null
-  tags: string[] | null
-  screenshot_url: string | null
-  created_at: string
-  updated_at: string
-  user_id?: string
-}
-
-export interface JournalEntry {
-  id: string
-  title: string
-  content: string
-  mood: 'CONFIDENT' | 'NEUTRAL' | 'ANXIOUS' | 'FRUSTRATED' | null
-  market_condition: 'BULLISH' | 'BEARISH' | 'SIDEWAYS' | null
-  created_at: string
-  updated_at: string
-  user_id?: string
-}
-
-export interface WatchlistItem {
-  id: string
-  symbol: string
-  name: string
-  target_price: number | null
-  notes: string | null
-  created_at: string
-  user_id?: string
-}
-
-export interface PerformanceMetric {
-  id: string
-  date: string
-  total_trades: number
-  winning_trades: number
-  losing_trades: number
-  total_profit: number
-  win_rate: number
-  avg_profit: number
-  avg_loss: number
-  sharpe_ratio: number | null
-}
-
-// Helper functions
-export function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)
-}
-
-export function formatDate(date: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(new Date(date))
-}
-
-export function formatDateTime(date: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(date))
 }
