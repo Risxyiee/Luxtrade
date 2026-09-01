@@ -681,3 +681,26 @@ Stage Summary:
 - 8 files modified, 0 new files created (except CF_PAGES_ENV.md guide)
 - TypeScript compiles clean (no new errors in src/)
 - User MUST set env vars in CF Pages Dashboard and redeploy
+---
+Task ID: 1
+Agent: main
+Task: Fix Midtrans fallback on landing page - add step-by-step checkout flow with auth
+
+Work Log:
+- Analyzed existing payment flow: landing page had direct Midtrans call (no steps)
+- Read /auth/checkout page for reference auth+payment flow
+- Created LandingCheckoutModal.tsx with 4-step flow: Auth → Plan → Confirm → Success
+- Updated page.tsx: removed handleMidtransPay/ensureSnapLoaded, replaced with modal open
+- Updated PricingSectionNew.tsx: removed payLoading prop (payment now in modal)
+- Step 1 (Auth): Login or Signup with full validation, password strength bars
+- Step 2 (Plan): Select Elite Pro/Annual/Lifetime with promo code input
+- Step 3 (Confirm): Order summary with features, pricing, Midtrans Snap pay button
+- Step 4 (Success): Redirect to dashboard (login button for unverified users)
+- Handles: already-logged-in users skip to plan step, unverified users use /api/midtrans/create-transaction-unverified
+- Fixed TypeScript errors (supabase possibly null, removed unused imports)
+
+Stage Summary:
+- Landing page now has full step-by-step checkout modal instead of direct Midtrans popup
+- Flow: Click Upgrade → Login/Daftar → Pilih Paket → Konfirmasi & Bayar → Sukses → Dashboard
+- Files modified: page.tsx, PricingSectionNew.tsx, new LandingCheckoutModal.tsx
+- Zero TypeScript errors in modified files
