@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
 import { requireAdmin } from '@/lib/admin-auth'
 
 // SQL to add missing columns to profiles table

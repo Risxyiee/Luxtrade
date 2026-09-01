@@ -21,18 +21,19 @@ async function performSync() {
       }
     }
 
-    // Get all users from Supabase Auth using admin client
-    const { data: authUsers, error: authError } = await authAdmin.listUsers()
-
-    if (authError) {
-      console.error('❌ Error fetching Supabase Auth users:', authError)
-      return {
-        error: 'Failed to fetch Supabase Auth users',
-        details: JSON.stringify(authError, null, 2)
-      }
+    // Get all users from Supabase Auth using admin client (paginated)
+    let allAuthUsers: any[] = []
+    let page = 1
+    const perPage = 500
+    while (true) {
+      const { data: pageData, error: listErr } = await authAdmin.listUsers({ page, perPage })
+      if (listErr || !pageData?.users?.length) break
+      allAuthUsers.push(...pageData.users)
+      if (pageData.users.length < perPage) break
+      page++
     }
 
-    if (!authUsers?.users || authUsers.users.length === 0) {
+    if (allAuthUsers.length === 0) {
       return {
         success: true,
         message: 'No users in Supabase Auth to sync',
@@ -46,7 +47,7 @@ async function performSync() {
     let profileSyncedCount = 0
 
     const syncResults = await Promise.all(
-      authUsers.users.map(async (authUser) => {
+      allAuthUsers.map(async (authUser: any) => {
         try {
           // SYNC TO SUPABASE PROFILES TABLE
           const { data: existingProfile, error: profileCheckError } = await admin
