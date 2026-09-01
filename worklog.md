@@ -3,31 +3,27 @@
 ---
 Task ID: 1
 Agent: Main
-Task: Hapus file Telegram bot dan fitur tidak terpakai, filter koneksi lalu hapus
+Task: Hapus file Telegram bot dan fitur tidak terpakai, restore HANDOFF.md, update README, push
 
 Work Log:
-- Scan 86+ file yang mengandung 'telegram'/'bot', audit import setiap file
-- Temukan `TelegramFloatingWidget.tsx` = 0 import (dead code)
-- Temukan `admin-notify.ts` = hanya dipakai 2 API route (subscriptions activate + withdrawals)
-- Temukan 6 lib utilities tidak terpakai: error-handler, indonesia-timezone, require-pro, simple-parser, supabase-db, tradeCalculations
-- Temukan 2 dead mini-services: ollama-service, zai-vision-service
-- Temukan 50+ root .md report files
-- Temukan prisma/, db/, _archive/, scripts/, e2e/ folder tidak terpakai
-- Hapus import `admin-notify` dari 2 API route, ganti dengan console.log
-- Hapus TelegramFloatingWidget.tsx dan admin-notify.ts
-- Hapus 6 unused lib files
-- Hapus dead mini-services + examples/
-- Hapus 50+ root .md files (keep README.md)
-- Hapus root junk: screenshots, test scripts, legacy configs
-- Hapus prisma/, db/, _archive/, scripts/, e2e/ folder + src/lib/db.ts
+- Scan 86+ file, audit import, temukan file dead code
+- Hapus TelegramFloatingWidget.tsx, admin-notify.ts (plus cleanup 2 API route consumers)
+- Hapus 6 unused lib utilities (error-handler, indonesia-timezone, require-pro, simple-parser, supabase-db, tradeCalculations, db.ts)
+- Hapus dead mini-services (ollama-service, zai-vision-service) dan examples/
+- Hapus 50+ root .md report files (keep README.md + HANDOFF.md)
+- Hapus prisma/, db/, _archive/, scripts/, e2e/ folders
+- Hapus root junk: screenshots, test scripts, legacy configs (Caddyfile, wrangler.json, vercel.json, etc)
 - Fix eslint.config.mjs import path (.js extension)
-- Dev server start sukses tanpa error (✓ Ready in 1.7s)
-- TypeScript check: 0 broken import errors (pre-existing TS errors unchanged)
+- Restore HANDOFF.md dari git history, rewrite to reflect current stack
+- Update README.md: Supabase (no Prisma), Gemini (no ZAI), Midtrans (no SakuraPay/DOKU)
+- Push ke GitHub (resolve rebase conflict on scripts/cf-pages-build.js)
 
 Stage Summary:
-- **~80+ file/folder dihapus** total
-- **0 broken imports** — semua penghapusan aman
-- Telegram bot sepenuhnya dihapus (widget + notification)
-- Prisma/SQLite legacy sepenuhnya dihapus (project sudah pindah ke Supabase)
+- ~80+ file/folder dihapus total
+- 0 broken imports
+- Telegram bot sepenuhnya dihapus
+- Prisma/SQLite legacy sepenuhnya dihapus
 - Ollama/Vision mini-service dead code dihapus
-- Website compile dan start tanpa error
+- HANDOFF.md restored & updated untuk stack terbaru
+- README.md updated untuk stack terbaru
+- Git push successful: main -> main (5112e91)
