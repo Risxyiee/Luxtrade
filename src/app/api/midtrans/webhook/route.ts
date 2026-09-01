@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
 import { verifyMidtransSignature } from '@/lib/payment/midtrans'
-import { getAdminAuth } from '@/lib/supabase-admin-alt'
+import { getAdminAuth, getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,10 +8,7 @@ export const dynamic = 'force-dynamic'
  * POST /api/midtrans/webhook
  *
  * Midtrans HTTP Notification (Webhook)
- * Docs: https://docs.midtrans.com/en/after-payment/notification-url
- *
- * This endpoint is called by Midtrans when payment status changes.
- * It verifies the SHA512 signature, then auto-upgrades user to PRO on success.
+ * Uses Supabase only — no Prisma (CF Workers compatible).
  */
 export async function POST(request: NextRequest) {
   try {
@@ -43,28 +39,17 @@ export async function POST(request: NextRequest) {
     const serverKey = process.env.MIDTRANS_SERVER_KEY
     if (!serverKey) {
       console.error('❌ [Midtrans Webhook] MIDTRANS_SERVER_KEY not set')
-      return NextResponse.json(
-        { error: 'Server key not configured' },
-        { status: 500 }
-      )
+      return NextResponse.json({ status: 'ok', error: 'Server key not configured' })
     }
 
     const isValid = await verifyMidtransSignature(orderId, statusCode, grossAmount, serverKey, signatureKey)
 
     if (!isValid) {
       console.error('❌ [Midtrans Webhook] Invalid signature for order:', orderId)
-      return NextResponse.json(
-        { error: 'Invalid signature' },
-        { status: 403 }
-      )
+      return NextResponse.json({ status: 'ok', error: 'Invalid signature' })
     }
 
     // ── 3. Determine final status ──────────────────────────────
-    // Midtrans status mapping:
-    // capture   + accept → SUCCESS
-    // settlement → SUCCESS
-    // pending → PENDING
-    // deny / cancel / expire / failure → FAILED / EXPIRED
     let finalStatus: string
     let shouldUpgrade = false
 
@@ -94,13 +79,20 @@ export async function POST(request: NextRequest) {
       finalStatus = transactionStatus?.toUpperCase() || 'UNKNOWN'
     }
 
-    // ── 4. Find the payment order in DB ────────────────────────
-    const paymentOrder = await db.paymentOrder.findUnique({
-      where: { invoiceNumber: orderId },
-    })
+    // ── 4. Find the payment order in Supabase ──────────────────
+    const svc = getSupabaseAdmin()
+    if (!svc) {
+      console.error('❌ [Midtrans Webhook] Supabase admin client not available')
+      return NextResponse.json({ status: 'ok', error: 'DB not configured' })
+    }
+
+    const { data: paymentOrder } = await svc
+      .from('payment_orders')
+      .select('*')
+      .eq('invoice_number', orderId)
+      .single()
 
     if (!paymentOrder) {
-      // Still return 200 to prevent Midtrans retries
       return NextResponse.json({ status: 'ok', message: 'Order not found, acknowledged' })
     }
 
@@ -110,64 +102,68 @@ export async function POST(request: NextRequest) {
     }
 
     // ── 6. Update payment order status ─────────────────────────
-    await db.paymentOrder.update({
-      where: { invoiceNumber: orderId },
-      data: {
-        status: finalStatus,
-        paymentChannel: paymentType || paymentOrder.paymentChannel,
-        ...(shouldUpgrade && transactionTime ? { paidAt: new Date(transactionTime) } : {}),
-      },
-    })
+    await svc.from('payment_orders').update({
+      status: finalStatus,
+      payment_channel: paymentType || paymentOrder.payment_channel,
+      ...(shouldUpgrade && transactionTime ? { paid_at: transactionTime } : {}),
+      updated_at: new Date().toISOString(),
+    }).eq('invoice_number', orderId)
 
     // ── 7. Upgrade user to PRO on successful payment ───────────
     if (shouldUpgrade) {
-      const userId = paymentOrder.userId
-      const durationMonths = paymentOrder.durationMonths || 1
+      const userId = paymentOrder.user_id
+      const durationMonths = paymentOrder.duration_months || 1
 
       // Calculate subscription end date
       const now = new Date()
       const subscriptionUntil = new Date(now)
 
       // If user already has active subscription, extend from current expiry
-      const existingProfile = await db.profile.findUnique({
-        where: { id: userId },
-        select: { subscription_until: true, is_pro: true },
-      })
+      const { data: existingProfile } = await svc
+        .from('profiles')
+        .select('subscription_until, is_pro')
+        .eq('id', userId)
+        .single()
 
       if (existingProfile?.is_pro && existingProfile?.subscription_until && new Date(existingProfile.subscription_until) > now) {
-        // Extend from current expiry
         subscriptionUntil.setTime(new Date(existingProfile.subscription_until).getTime())
       }
 
       if (paymentOrder.plan === 'LIFETIME') {
-        // 50 years = effectively lifetime
         subscriptionUntil.setFullYear(subscriptionUntil.getFullYear() + 50)
       } else {
         subscriptionUntil.setMonth(subscriptionUntil.getMonth() + durationMonths)
       }
 
-      // Update profile
-      await db.profile.update({
-        where: { id: userId },
-        data: {
-          is_pro: true,
-          subscription_until: subscriptionUntil,
-          plan: paymentOrder.plan === 'LIFETIME' ? 'LIFETIME' : 'PRO',
-          hasEverBeenPro: true,
-          emailVerified: true,
-        },
-      })
+      const subUntilIso = subscriptionUntil.toISOString()
 
-      // Also update UserSubscription for tracking
-      await db.userSubscription.create({
-        data: {
-          userId,
+      // Update profile
+      await svc.from('profiles').update({
+        is_pro: true,
+        subscription_until: subUntilIso,
+        pro_expiry: subUntilIso,
+        plan: paymentOrder.plan === 'LIFETIME' ? 'LIFETIME' : 'PRO',
+        subscription_status: 'active',
+        pro_status: 'active',
+        has_ever_been_pro: true,
+        email_verified: true,
+        updated_at: new Date().toISOString(),
+      }).eq('id', userId)
+
+      // Also create UserSubscription record for tracking
+      try {
+        await svc.from('user_subscriptions').insert({
+          user_id: userId,
           plan: paymentOrder.plan === 'LIFETIME' ? 'LIFETIME' : 'PRO',
           status: 'active',
-          startDate: now,
-          endDate: subscriptionUntil,
-        },
-      })
+          start_date: now.toISOString(),
+          end_date: subUntilIso,
+          created_at: now.toISOString(),
+        })
+      } catch (subErr) {
+        // Duplicate or missing table — non-critical
+        console.warn('⚠️ [Midtrans Webhook] user_subscriptions insert failed (non-critical):', subErr)
+      }
 
       // Auto-verify email in Supabase Auth so user can login
       try {
@@ -179,7 +175,7 @@ export async function POST(request: NextRequest) {
               email_verified: true,
               is_pro: true,
               subscription_status: 'active',
-              subscription_until: subscriptionUntil.toISOString(),
+              subscription_until: subUntilIso,
               has_ever_been_pro: true,
               updated_at: new Date().toISOString(),
             }
@@ -188,14 +184,12 @@ export async function POST(request: NextRequest) {
       } catch (verifyErr) {
         console.error('⚠️ [Midtrans Webhook] Failed to auto-verify email (non-critical):', verifyErr)
       }
-
     }
 
     // ── 8. Return 200 to acknowledge ───────────────────────────
     return NextResponse.json({ status: 'ok' })
   } catch (error: any) {
     console.error('❌ [Midtrans Webhook] Error:', error)
-    // Return 200 to prevent Midtrans from retrying on server errors
     return NextResponse.json({ status: 'ok', error: 'Internal error' })
   }
 }

@@ -1,34 +1,33 @@
 /**
  * Lazy-initialized Supabase Admin client for Cloudflare Workers.
  * 
- * CRITICAL: On CF Workers, process.env is only available at request time.
- * Module-level singletons like `export const x = ...` run at load time
- * when env vars may not be available yet. We use lazy init instead.
+ * CRITICAL FIX: On CF Workers, process.env is only available at request time.
+ * The previous implementation cached `_adminInitFailed = true` which meant
+ * if the first call happened before env vars were available, ALL subsequent
+ * calls returned null forever (for the entire isolate lifetime).
+ * 
+ * Fixed: Now retries on every call until success, caching only the SUCCESS.
  */
 import { createAdminClient, getSupabaseAdminAuth } from '@/lib/supabase/admin'
 
 let _adminClient: ReturnType<typeof createAdminClient> | null = null
-let _adminInitAttempted = false
-let _adminInitFailed = false
 
 /**
  * Get the Supabase admin client (lazy-initialized).
- * Safe to call multiple times — only creates client once per isolate.
+ * Retries on every call until success — caches only the successful client.
+ * This is safe because env vars become available at request time on CF Workers.
  */
 export function getSupabaseAdmin() {
   // Return cached client if available
   if (_adminClient) return _adminClient
 
-  // Don't retry if we already failed (env vars don't change per isolate)
-  if (_adminInitFailed) return null
-
-  _adminInitAttempted = true
+  // Always try to create — env vars may now be available
   try {
     _adminClient = createAdminClient()
     return _adminClient
   } catch (error: any) {
+    // Don't cache failure — try again on next request
     console.error('❌ [Supabase Admin] Failed to create admin client:', error.message)
-    _adminInitFailed = true
     return null
   }
 }
