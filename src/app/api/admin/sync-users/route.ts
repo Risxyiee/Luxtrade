@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, getAdminAuth } from '@/lib/supabase-admin-alt'
-import { db, isDatabaseAvailable, ensureSchema } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
 import { createClient } from '@supabase/supabase-js'
 
@@ -13,10 +12,8 @@ function getSupabaseSvc() {
 
 /**
  * POST /api/admin/sync-users
- * Sync all users from Supabase Auth → Prisma profiles table.
- * - Creates missing profiles (users in Auth but not in DB)
- * - Updates email & full_name for existing profiles
- * - Returns stats about what was synced
+ * Sync all users from Supabase Auth → Supabase profiles table.
+ * No Prisma — fully Supabase for CF Workers compatibility.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -30,16 +27,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
-
-    if (!isDatabaseAvailable()) {
-      return NextResponse.json(
-        { error: 'Database tidak tersedia', hint: 'DATABASE_URL belum di-set atau salah format.' },
-        { status: 500 }
-      )
-    }
-
-    // Ensure schema is up to date before writing
-    await ensureSchema()
 
     // ── Step 1: Fetch ALL users from Supabase Auth (paginated) ──
     const allAuthUsers: any[] = []
@@ -60,7 +47,7 @@ export async function POST(request: NextRequest) {
       const users = data.users || []
       allAuthUsers.push(...users)
 
-      if (users.length < perPage) break // last page
+      if (users.length < perPage) break
       page++
     }
 
@@ -70,13 +57,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ synced: 0, created: 0, updated: 0, auth_total: 0, message: 'Tidak ada user di Supabase Auth' })
     }
 
-    // ── Step 2: Get existing profile IDs from DB ──
-    const existingProfiles = await db.profile.findMany({
-      select: { id: true, email: true, full_name: true, emailVerified: true },
-    })
+    // ── Step 2: Get existing profile IDs from Supabase profiles table ──
+    const svc = getSupabaseSvc()
+    if (!svc) {
+      return NextResponse.json({ error: 'Supabase client tidak tersedia' }, { status: 500 })
+    }
 
-    const existingMap = new Map(existingProfiles.map((p: any) => [p.id, p]))
-    console.log(`✅ [SYNC] Found ${existingProfiles.length} existing profiles in DB`)
+    const { data: existingProfiles } = await svc
+      .from('profiles')
+      .select('id, email, full_name, email_verified')
+
+    const existingMap = new Map<string, any>()
+    if (existingProfiles) {
+      for (const p of existingProfiles) {
+        existingMap.set(p.id, p)
+      }
+    }
+    console.log(`✅ [SYNC] Found ${existingMap.size} existing profiles in Supabase`)
 
     // ── Step 3: Upsert — create missing, update email/name for existing ──
     let created = 0
@@ -94,34 +91,29 @@ export async function POST(request: NextRequest) {
 
       try {
         if (existing) {
-          // Check if update is needed
           const needsUpdate =
             existing.email !== authEmail ||
             existing.full_name !== authName ||
-            existing.emailVerified !== emailVerified
+            existing.email_verified !== emailVerified
 
           if (needsUpdate) {
-            await db.profile.update({
-              where: { id: userId },
-              data: {
-                ...(authEmail !== existing.email ? { email: authEmail } : {}),
-                ...(authName !== existing.full_name ? { full_name: authName } : {}),
-                ...(emailVerified !== existing.emailVerified ? { emailVerified } : {}),
-              },
-            })
+            await svc.from('profiles').update({
+              email: authEmail,
+              full_name: authName,
+              email_verified: emailVerified,
+              updated_at: new Date().toISOString(),
+            }).eq('id', userId)
             updated++
           } else {
             skipped++
           }
         } else {
-          // Create new profile for user that exists in Auth but not in DB
-          await db.profile.create({
-            data: {
-              id: userId,
-              email: authEmail,
-              full_name: authName,
-              emailVerified,
-            },
+          await svc.from('profiles').insert({
+            id: userId,
+            email: authEmail,
+            full_name: authName,
+            email_verified: emailVerified,
+            updated_at: new Date().toISOString(),
           })
           created++
         }
@@ -133,35 +125,13 @@ export async function POST(request: NextRequest) {
     }
 
     const synced = created + updated
-    console.log(`✅ [SYNC] Prisma done! Created: ${created}, Updated: ${updated}, Skipped: ${skipped}, Errors: ${errors.length}`)
-
-    // ── Step 4: Also sync to Supabase profiles table (ensure all Auth users have a row) ──
-    let supabaseSynced = 0
-    const svc = getSupabaseSvc()
-    if (svc) {
-      for (const authUser of allAuthUsers) {
-        const metadata = authUser.user_metadata || {}
-        try {
-          await svc.from('profiles').upsert({
-            id: authUser.id,
-            email: authUser.email || null,
-            full_name: metadata.full_name || metadata.name || null,
-            email_verified: authUser.email_confirmed_at != null,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'id' })
-          supabaseSynced++
-        } catch (err: any) {
-          console.warn(`⚠️ [SYNC] Supabase upsert failed for ${authUser.email}:`, err?.message?.substring(0, 80))
-        }
-      }
-      console.log(`✅ [SYNC] Supabase profiles synced: ${supabaseSynced}`)
-    }
+    console.log(`✅ [SYNC] Done! Created: ${created}, Updated: ${updated}, Skipped: ${skipped}, Errors: ${errors.length}`)
 
     return NextResponse.json({
       success: true,
-      message: `Sinkronisasi selesai! ${created} user baru (Prisma), ${updated} diperbarui. Supabase profiles: ${supabaseSynced} synced.`,
+      message: `Sinkronisasi selesai! ${created} user baru, ${updated} diperbarui.`,
       auth_total: allAuthUsers.length,
-      db_total: existingProfiles.length + created,
+      db_total: existingMap.size + created,
       created,
       updated,
       skipped,
