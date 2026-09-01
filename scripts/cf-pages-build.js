@@ -1,16 +1,15 @@
 // Post-build script: prepare .open-next/assets for Cloudflare Pages deployment.
 //
 // OpenNext generates .open-next/worker.js (for Workers), but Cloudflare Pages
-// expects _worker.js in the output directory (pages_build_output_dir).
+// expects _worker.js inside the output directory (pages_build_output_dir).
 //
 // This script:
-// 1. Copies worker.js → _worker.js (CF Pages Advanced Mode entrypoint)
-// 2. Creates a _worker.js that serves static assets via env.ASSETS
+// 1. Copies worker.js and all its dependencies into .open-next/assets/
+// 2. Creates a _worker.js wrapper that serves static assets via env.ASSETS
 //    before delegating to the OpenNext worker for SSR
-// 3. Copies supporting directories (middleware, server-functions, cloudflare,
-//    cloudflare-templates, .build) into assets/ so the worker can resolve imports
 //
-// IMPORTANT: The Cloudflare Pages dashboard build command MUST be: npm run build
+// The Cloudflare Pages dashboard build command MUST be: npm run build
+// (which calls: npx opennextjs-cloudflare build && node scripts/cf-pages-build.js)
 
 const fs = require('fs');
 const path = require('path');
@@ -19,7 +18,6 @@ const root = path.resolve(__dirname, '..');
 const openNext = path.join(root, '.open-next');
 const assets = path.join(openNext, 'assets');
 
-// Copy file or directory recursively
 function copySync(src, dest) {
   const stat = fs.statSync(src);
   if (stat.isDirectory()) {
@@ -33,83 +31,23 @@ function copySync(src, dest) {
   }
 }
 
-// Verify .open-next exists
 if (!fs.existsSync(openNext)) {
   console.error('❌ .open-next/ directory not found! Did opennextjs-cloudflare build run?');
   process.exit(1);
 }
 
-// 1. Copy the original worker.js as opennext-worker.mjs (the actual SSR worker)
 const workerSrc = path.join(openNext, 'worker.js');
-const originalWorkerDest = path.join(assets, 'opennext-worker.mjs');
-if (fs.existsSync(workerSrc)) {
-  copySync(workerSrc, originalWorkerDest);
-  console.log('✅ Copied worker.js → assets/opennext-worker.mjs');
-} else {
+if (!fs.existsSync(workerSrc)) {
   console.error('❌ .open-next/worker.js not found!');
   process.exit(1);
 }
 
-// 2. Create a custom _worker.js that serves static assets via env.ASSETS
-//    and delegates to the OpenNext worker for SSR
-const pagesWorkerJs = `// Cloudflare Pages _worker.js — serves static assets then delegates to OpenNext
-import originalWorker from "./opennext-worker.mjs";
+// 1. Copy the original worker.js as opennext-worker.mjs
+const originalWorkerDest = path.join(assets, 'opennext-worker.mjs');
+copySync(workerSrc, originalWorkerDest);
+console.log('✅ Copied worker.js → assets/opennext-worker.mjs');
 
-// Re-export Durable Objects from the original worker
-export { DOQueueHandler } from "./.build/durable-objects/queue.js";
-export { DOShardedTagCache } from "./.build/durable-objects/sharded-tag-cache.js";
-export { BucketCachePurge } from "./.build/durable-objects/bucket-cache-purge.js";
-
-// Paths that should be served as static assets
-const STATIC_EXTENSIONS = new Set([
-  ".js", ".mjs", ".cjs", ".css", ".woff", ".woff2", ".ttf", ".otf",
-  ".eot", ".ico", ".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp",
-  ".avif", ".mp4", ".webm", ".mp3", ".ogg", ".wav", ".json", ".xml",
-  ".txt", ".webmanifest", ".html", ".htm", ".map",
-]);
-
-function isStaticAsset(pathname) {
-  // _next/static/ is always static
-  if (pathname.startsWith("/_next/static/")) return true;
-  // _next/image needs to go through the worker (image optimization)
-  if (pathname.startsWith("/_next/image")) return false;
-  // Check file extension
-  const dotIndex = pathname.lastIndexOf(".");
-  if (dotIndex !== -1) {
-    const ext = pathname.slice(dotIndex).toLowerCase();
-    return STATIC_EXTENSIONS.has(ext);
-  }
-  return false;
-}
-
-export default {
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-
-    // Try serving static assets via ASSETS binding first
-    if (env.ASSETS && isStaticAsset(url.pathname)) {
-      try {
-        const response = await env.ASSETS.fetch(request);
-        if (response.status !== 404) {
-          return response;
-        }
-        // If ASSETS returns 404, fall through to the worker
-        await response.body?.cancel();
-      } catch (e) {
-        // Fall through to the worker on error
-      }
-    }
-
-    // Delegate to the original OpenNext worker for SSR and other dynamic routes
-    return originalWorker.fetch(request, env, ctx);
-  },
-};
-`;
-
-fs.writeFileSync(path.join(assets, '_worker.js'), pagesWorkerJs);
-console.log('✅ Created assets/_worker.js (Pages wrapper with ASSETS support)');
-
-// 3. Copy supporting directories that the worker imports via relative paths
+// 2. Copy all supporting directories the worker needs for imports
 const dirsToCopy = [
   'middleware',
   'server-functions',
@@ -128,9 +66,70 @@ for (const dir of dirsToCopy) {
   }
 }
 
-// 4. Verify critical files exist
+// 3. Create _worker.js — the Cloudflare Pages Advanced Mode entrypoint
+//    It tries env.ASSETS first for static files, then delegates to the OpenNext worker
+const pagesWorkerJs = `// Cloudflare Pages _worker.js — static assets via ASSETS, SSR via OpenNext
+import originalWorker from "./opennext-worker.mjs";
+
+const STATIC_EXTENSIONS = new Set([
+  ".js", ".mjs", ".cjs", ".css", ".woff", ".woff2", ".ttf", ".otf",
+  ".eot", ".ico", ".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp",
+  ".avif", ".mp4", ".webm", ".mp3", ".ogg", ".wav", ".json", ".xml",
+  ".txt", ".webmanifest", ".map",
+]);
+
+function isStaticAsset(pathname) {
+  if (pathname.startsWith("/_next/static/")) return true;
+  if (pathname.startsWith("/_next/image")) return false;
+  const dotIndex = pathname.lastIndexOf(".");
+  if (dotIndex !== -1) {
+    return STATIC_EXTENSIONS.has(pathname.slice(dotIndex).toLowerCase());
+  }
+  return false;
+}
+
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+
+    // Try serving static assets via the ASSETS binding first
+    if (env.ASSETS && isStaticAsset(url.pathname)) {
+      try {
+        const response = await env.ASSETS.fetch(request);
+        if (response.status !== 404) {
+          return response;
+        }
+        await response.body?.cancel();
+      } catch (e) {
+        // Fall through to the worker
+      }
+    }
+
+    // Also try ASSETS for HTML pages (prefetched routes) before SSR
+    if (env.ASSETS) {
+      try {
+        const response = await env.ASSETS.fetch(request);
+        if (response.status !== 404) {
+          return response;
+        }
+        await response.body?.cancel();
+      } catch (e) {
+        // Fall through to SSR
+      }
+    }
+
+    // Delegate to the original OpenNext worker for SSR
+    return originalWorker.fetch(request, env, ctx);
+  },
+};
+`;
+
+fs.writeFileSync(path.join(assets, '_worker.js'), pagesWorkerJs);
+console.log('✅ Created assets/_worker.js (Pages Advanced Mode entrypoint)');
+
+// 4. Verify critical files
 const criticalPaths = [
-  [path.join(assets, '_worker.js'), 'Pages worker wrapper'],
+  [path.join(assets, '_worker.js'), 'Pages _worker.js wrapper'],
   [path.join(assets, 'opennext-worker.mjs'), 'Original OpenNext worker'],
   [path.join(assets, 'cloudflare', 'init.js'), 'Cloudflare init'],
   [path.join(assets, 'middleware', 'handler.mjs'), 'Middleware handler'],
@@ -150,16 +149,12 @@ if (hasErrors) {
   process.exit(1);
 }
 
-// 5. Verify static assets exist
-const staticAssetsDir = path.join(assets, '_next', 'static');
-if (!fs.existsSync(staticAssetsDir)) {
-  console.warn('⚠️  No _next/static/ directory found in assets/');
-} else {
-  const chunkCount = fs.readdirSync(path.join(staticAssetsDir, 'chunks')).length;
+const staticChunksDir = path.join(assets, '_next', 'static', 'chunks');
+if (fs.existsSync(staticChunksDir)) {
+  const chunkCount = fs.readdirSync(staticChunksDir).length;
   console.log(`✅ Static assets: ${chunkCount} JS chunks in _next/static/chunks/`);
 }
 
-console.log('\n🚀 Cloudflare Pages build ready in .open-next/assets/');
+console.log('\n🚀 Cloudflare Pages build ready!');
 console.log('   pages_build_output_dir: .open-next/assets');
-console.log('   _worker.js: Pages wrapper (serves static via ASSETS, delegates SSR)');
-console.log('   opennext-worker.mjs: Original OpenNext SSR worker');
+console.log('   _worker.js: Pages wrapper (ASSETS → OpenNext SSR fallback)');
