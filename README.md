@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://luxtrade.vercel.app">Live Demo</a> &middot;
+  <a href="https://luxtrade.id">Live Site</a> &middot;
   <a href="#fitur">Fitur</a> &middot;
   <a href="HANDOFF.md">Handoff Doc</a> &middot;
   <a href="#tech-stack">Tech Stack</a>
@@ -25,9 +25,9 @@ LuxTrade adalah platform **trading journal** yang dirancang khusus untuk trader 
 ### Kenapa LuxTrade?
 
 - **Journal Trading** — Catat setiap trade dengan detail lengkap (pair, lot, entry/exit, S/L, T/P, emosi, screenshot)
-- **AI Assistant** — Analisis performa, insight pasar, dan chat AI berbasis data trading kamu
+- **AI Assistant** — Analisis performa, insight pasar, dan chat AI berbasis Gemini & data trading kamu
 - **Analytics Mendalam** — Win rate, profit factor, max drawdown, equity curve, heatmap sesi, analisis per pair
-- **Payment Terintegrasi** — SakuraPay, Midtrans, DOKU — semua dalam Rupiah
+- **Payment Terintegrasi** — Midtrans — semua dalam Rupiah
 - **Bahasa Indonesia** — Default Bahasa Indonesia, dengan opsi English
 
 ---
@@ -61,6 +61,7 @@ LuxTrade adalah platform **trading journal** yang dirancang khusus untuk trader 
 - **Trade Analysis** — Deep dive analisis trade spesifik dengan konteks
 - **Chart Analysis** — Upload chart screenshot, AI analisis trend, S/R, pattern
 - **AI Chat** — Chat bebas tentang trading dengan konteks data kamu
+- **Auto Journal** — Scan screenshot trade, AI otomatis ekstrak data + buat journal
 
 ### Pricing (IDR)
 
@@ -76,18 +77,17 @@ LuxTrade adalah platform **trading journal** yang dirancang khusus untuk trader 
 
 | Teknologi | Fungsi |
 |-----------|--------|
-| **Next.js 16** (App Router) | Framework utama |
+| **Next.js 15** (App Router) | Framework utama |
 | **React 19** + TypeScript 5 | UI & type safety |
 | **Tailwind CSS 4** + shadcn/ui | Styling & komponen |
-| **Prisma 6** + PostgreSQL | Database ORM |
-| **Supabase Auth** | Autentikasi |
+| **Supabase** (Auth + PostgreSQL) | Database & autentikasi |
 | **Zustand** | Client state management |
-| **z-ai-web-dev-sdk** (GLM-4.6) | AI assistant |
-| **SakuraPay / Midtrans / DOKU** | Payment gateway |
+| **Gemini 2.5 Flash** | AI (chat, vision, auto-journal) |
+| **Midtrans Snap** | Payment gateway |
 | **Recharts** | Charts & visualisasi |
 | **Framer Motion** | Animasi |
 | **Resend** | Email service |
-| **Sentry** | Error monitoring |
+| **Socket.IO** | Real-time affiliate updates |
 
 ---
 
@@ -96,43 +96,45 @@ LuxTrade adalah platform **trading journal** yang dirancang khusus untuk trader 
 ```
 src/
 ├── app/
-│   ├── page.tsx                 # Landing page
-│   ├── proxy.ts                 # Auth guard (pengganti middleware.ts)
-│   ├── auth/                    # Login, signup, verify
+│   ├── page.tsx                    # Landing page
+│   ├── LuxTradeLanding.tsx          # Komponen utama landing
+│   ├── auth/                        # Login, signup, verify
 │   ├── dashboard/
-│   │   ├── LuxTradeDashboard.tsx  # Komponen utama dashboard
-│   │   ├── tabs/                   # 16 tab dashboard
-│   │   ├── components/             # Komponen pendukung
-│   │   └── handlers/               # Handler logic terpisah
-│   └── api/                     # ~120+ API routes
-│       ├── ai/route.ts            # AI endpoint utama (5 tipe)
-│       ├── trades/                # CRUD trades
-│       ├── payment/               # SakuraPay
-│       ├── midtrans/              # Midtrans
-│       ├── promo/                 # Promo codes
-│       ├── admin/                 # Admin panel
-│       └── cron/                  # Scheduled jobs
+│   │   ├── LuxTradeDashboard.tsx    # Komponen utama dashboard
+│   │   ├── tabs/                    # 16 tab dashboard
+│   │   ├── components/              # Komponen pendukung
+│   │   ├── admin/                   # Admin panel pages
+│   │   └── connections/             # Social links page
+│   └── api/                         # 100+ API routes
+│       ├── ai/                      # AI endpoints (chat, vision, auto-journal, recommendations)
+│       ├── trades/                  # CRUD trades
+│       ├── journal/                 # Journal CRUD
+│       ├── midtrans/                # Midtrans payment
+│       ├── promo/                   # Promo codes
+│       ├── affiliate/               # Affiliate system
+│       ├── admin/                   # Admin panel APIs
+│       ├── news/                    # Market news
+│       └── auth/                    # Auth APIs
 ├── components/
-│   ├── ui/                      # shadcn/ui (jangan edit manual)
-│   └── landing/                 # Landing page components
+│   ├── ui/                          # shadcn/ui (jangan edit manual)
+│   └── landing/                     # Landing page components
 ├── lib/
-│   ├── api-auth.ts             # requireAuth()
-│   ├── pro-check.ts            # isUserPro()
-│   ├── zai.ts                   # ZAI SDK wrapper
-│   ├── db.ts                    # Prisma client
-│   ├── auth-context.tsx         # AuthProvider
-│   └── payment/                 # Gateway helpers
-├── store/                       # Zustand stores
-├── contexts/                    # React contexts (i18n)
-└── types/                       # TypeScript types
-
-prisma/
-├── schema.prisma                # 16 database models
+│   ├── supabase-admin-alt.ts        # Supabase admin client
+│   ├── supabase/server.ts           # Supabase SSR client
+│   ├── gemini.ts                    # Gemini AI wrapper
+│   ├── aiml-vision.ts               # Vision AI (Gemini + OpenRouter fallback)
+│   ├── auth-context.tsx             # AuthProvider
+│   ├── pro-check.ts                 # isUserPro() helper
+│   ├── pricing.ts                   # Pricing plans
+│   └── email.ts                     # Resend email helper
+├── store/                           # Zustand stores
+├── contexts/                        # React contexts (i18n)
+└── types/                           # TypeScript types
 
 mini-services/
-├── ollama-service/              # Vision AI (port 3031)
-├── zai-vision-service/          # ZAI Vision (port 3010)
-└── affiliate-ws/                # WebSocket affiliate (port 3004)
+└── affiliate-ws/                    # WebSocket affiliate real-time (port 3004)
+
+resend-templates/                    # Email HTML templates
 ```
 
 ---
@@ -142,23 +144,27 @@ mini-services/
 ### Prerequisites
 
 - [Bun](https://bun.sh/) (recommended) atau Node.js 18+
-- PostgreSQL database (Supabase recommended)
+- Supabase project (Auth + PostgreSQL)
 
 ### Setup
 
 ```bash
 # 1. Clone repo
+git clone https://github.com/Risxyiee/Luxtrade.git
+cd Luxtrade
 
 # 2. Install dependencies
 bun install
 
 # 3. Setup environment variables
+cp .env.example .env
+# Edit .env dengan kredensial Supabase, Gemini, Midtrans, dll.
 
-# 4. Push database schema
-bun run db:push
-
-# 5. Start dev server
+# 4. Start dev server
 bun run dev
+
+# 5. Start affiliate WebSocket service (opsional)
+cd mini-services/affiliate-ws && bun run dev
 ```
 
 ### Environment Variables
@@ -168,29 +174,27 @@ bun run dev
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-DATABASE_URL=
 
 # Email (WAJIB)
 RESEND_API_KEY=
-RESEND_TEMPLATE_CONFIRM=
-RESEND_TEMPLATE_RESET=
 
-# AI (untuk fitur AI)
-ZAI_BASE_URL=
-ZAI_API_KEY=
-ZAI_CHAT_ID=
-ZAI_TOKEN=
-ZAI_USER_ID=
+# AI — Gemini (untuk fitur PRO AI)
+GEMINI_API_KEY=
 
-# App URL
-NEXT_PUBLIC_APP_URL=
-NEXT_PUBLIC_SITE_URL=
+# AI — OpenRouter fallback (opsional)
+OPENROUTER_API_KEY=
 
-# Payment (opsional, sesuai gateway)
-SAKURA_API_ID=
-SAKURA_API_KEY=
+# Payment — Midtrans
 MIDTRANS_SERVER_KEY=
 MIDTRANS_CLIENT_KEY=
+NEXT_PUBLIC_MIDTRANS_CLIENT_KEY=
+
+# App URL
+NEXT_PUBLIC_APP_URL=https://luxtrade.id
+NEXT_PUBLIC_SITE_URL=https://luxtrade.id
+
+# Admin
+ADMIN_EMAILS=
 ```
 
 ### Useful Commands
@@ -198,9 +202,6 @@ MIDTRANS_CLIENT_KEY=
 ```bash
 bun run dev              # Start dev server (port 3000)
 bun run lint             # Cek code quality
-bun run db:push           # Push schema ke database
-bun run db:migrate        # Migration (production)
-bun run db:generate       # Generate Prisma client
 ```
 
 ---
