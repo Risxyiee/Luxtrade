@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ACHIEVEMENTS, getAchievementById } from '@/lib/achievements-data'
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { getAuthUser } from '@/lib/api-auth'
 
 export async function POST(request: NextRequest) {
@@ -37,10 +37,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+
     // Ensure profile exists
-    let profile = await db.profile.findUnique({
-      where: { id: userId }
-    })
+    const { data: profile } = await admin.from('profiles').select('*').eq('id', userId).maybeSingle()
 
     if (!profile) {
       return NextResponse.json(
@@ -50,12 +53,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's submissions and achievements
-    const submissions = await db.userSubmission.findMany({
-      where: { userId }
-    })
+    const { data: submissions } = await admin.from('user_submissions').select('*').eq('user_id', userId)
 
-    const existingClaim = submissions.find(
-      s => s.achievementKey === missionId && s.status === 'APPROVED'
+    const existingClaim = (submissions || []).find(
+      s => s.achievement_key === missionId && s.status === 'APPROVED'
     )
 
     if (existingClaim) {
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
     let validationMessage = ''
 
     if (achievement.type === 'automatic') {
-      isValid = await validateAutomaticAchievement(userId, achievement, profile)
+      isValid = await validateAutomaticAchievement(admin, userId, achievement, profile)
       validationMessage = isValid ? 'Criteria met!' : 'Criteria not met yet'
     } else {
       if (!proofUrl) {
@@ -93,17 +94,15 @@ export async function POST(request: NextRequest) {
 
     // Create submission
     console.log(`[missions/claim] Creating submission for userId="${userId}" (type: ${typeof userId}, len: ${userId?.length})`)
-    const submission = await db.userSubmission.create({
-      data: {
-        userId: String(userId),
-        achievementKey: missionId,
-        proofUrl: proofUrl || null,
-        status,
-        reviewedBy: achievement.type === 'automatic' ? 'SYSTEM' : null,
-      }
-    })
+    const { data: submission, error: subError } = await admin.from('user_submissions').insert({
+      user_id: String(userId),
+      achievement_key: missionId,
+      proof_url: proofUrl || null,
+      status,
+      reviewed_by: achievement.type === 'automatic' ? 'SYSTEM' : null,
+    }).select().single()
 
-    if (!submission) {
+    if (subError || !submission) {
       return NextResponse.json(
         { error: 'Failed to create submission' },
         { status: 500 }
@@ -113,44 +112,33 @@ export async function POST(request: NextRequest) {
     // Add achievement to profile and apply reward if approved
     if (achievement.type === 'automatic' && status === 'APPROVED') {
       const achievements = (profile.achievements as string[]) || []
-      await db.profile.update({
-        where: { id: userId },
-        data: {
-          achievements: [...achievements, missionId]
-        }
-      })
-      await applyReward(userId, achievement)
+      await admin.from('profiles').update({
+        achievements: [...achievements, missionId]
+      }).eq('id', userId)
+      await applyReward(admin, userId, achievement)
     }
 
     // Update or create mission progress
-    const missionProgress = await db.missionProgress.findUnique({
-      where: {
-        userId_missionKey: {
-          userId,
-          missionKey: missionId
-        }
-      }
-    })
+    const { data: missionProgress } = await admin.from('mission_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('mission_key', missionId)
+      .maybeSingle()
 
     if (missionProgress) {
-      await db.missionProgress.update({
-        where: { id: missionProgress.id },
-        data: {
-          progress: missionProgress.target,
-          completed: true,
-          claimed: true,
-        }
-      })
+      await admin.from('mission_progress').update({
+        progress: missionProgress.target,
+        completed: true,
+        claimed: true,
+      }).eq('id', missionProgress.id)
     } else {
-      await db.missionProgress.create({
-        data: {
-          userId,
-          missionKey: missionId,
-          progress: 1,
-          target: 1,
-          completed: true,
-          claimed: true,
-        }
+      await admin.from('mission_progress').insert({
+        user_id: userId,
+        mission_key: missionId,
+        progress: 1,
+        target: 1,
+        completed: true,
+        claimed: true,
       })
     }
 
@@ -174,43 +162,40 @@ export async function POST(request: NextRequest) {
 }
 
 async function validateAutomaticAchievement(
+  admin: ReturnType<typeof getSupabaseAdmin> & NonNullable<ReturnType<typeof getSupabaseAdmin>>,
   userId: string,
   achievement: any,
   profile: any
 ): Promise<boolean> {
   try {
     switch (achievement.criteria.type) {
-      case 'trade_count':
-        const tradesCount = await db.trade.count({
-          where: { user_id: userId }
-        })
+      case 'trade_count': {
+        const { count } = await admin.from('trades')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
 
-        const totalTrades = tradesCount || 0
+        const totalTrades = count || 0
         console.log(`[Achievement Validator] Trade count: ${totalTrades}, Target: ${achievement.criteria.target}`)
         return totalTrades >= achievement.criteria.target
+      }
 
-      case 'profit':
-        const trades = await db.trade.findMany({
-          where: {
-            user_id: userId,
-            profit_loss: { gt: 0 }
-          },
-          select: { profit_loss: true }
-        })
+      case 'profit': {
+        const { data: trades } = await admin.from('trades')
+          .select('profit_loss')
+          .eq('user_id', userId)
+          .gt('profit_loss', 0)
 
-        const totalProfit = trades.reduce((sum, t) => sum + (t.profit_loss || 0), 0)
+        const totalProfit = (trades || []).reduce((sum: number, t: any) => sum + (Number(t.profit_loss) || 0), 0)
         console.log(`[Achievement Validator] Total profit: $${totalProfit}, Target: $${achievement.criteria.target}`)
         return totalProfit >= achievement.criteria.target
+      }
 
-      case 'win_streak':
-        const winTrades = await db.trade.findMany({
-          where: {
-            user_id: userId,
-            profit_loss: { gt: 0 }
-          },
-          orderBy: { close_time: 'desc' },
-          select: { profit_loss: true, close_time: true }
-        })
+      case 'win_streak': {
+        const { data: winTrades } = await admin.from('trades')
+          .select('profit_loss, close_time')
+          .eq('user_id', userId)
+          .gt('profit_loss', 0)
+          .order('close_time', { ascending: false })
 
         let currentStreak = 0
         if (winTrades && winTrades.length > 0) {
@@ -218,11 +203,13 @@ async function validateAutomaticAchievement(
         }
         console.log(`[Achievement Validator] Win streak: ${currentStreak}, Target: ${achievement.criteria.target}`)
         return currentStreak >= achievement.criteria.target
+      }
 
-      case 'login_streak':
-        const streakCount = profile.streakCount || 0
+      case 'login_streak': {
+        const streakCount = profile.streak_count || 0
         console.log(`[Achievement Validator] Login streak: ${streakCount}, Target: ${achievement.criteria.target}`)
         return streakCount >= achievement.criteria.target
+      }
 
       default:
         return false
@@ -233,14 +220,16 @@ async function validateAutomaticAchievement(
   }
 }
 
-async function applyReward(userId: string, achievement: any) {
+async function applyReward(
+  admin: ReturnType<typeof getSupabaseAdmin> & NonNullable<ReturnType<typeof getSupabaseAdmin>>,
+  userId: string,
+  achievement: any
+) {
   try {
     switch (achievement.reward.type) {
-      case 'pro_days':
+      case 'pro_days': {
         const daysToAdd = achievement.reward.value as number
-        const profile = await db.profile.findUnique({
-          where: { id: userId }
-        })
+        const { data: profile } = await admin.from('profiles').select('*').eq('id', userId).maybeSingle()
 
         if (!profile) {
           console.error('[Achievement Reward] Profile not found when applying reward')
@@ -259,17 +248,15 @@ async function applyReward(userId: string, achievement: any) {
 
         newExpiry.setDate(newExpiry.getDate() + daysToAdd)
 
-        await db.profile.update({
-          where: { id: userId },
-          data: {
-            subscription_until: newExpiry.toISOString(),
-            plan: 'PRO',
-            is_pro: true,
-          }
-        })
+        await admin.from('profiles').update({
+          subscription_until: newExpiry.toISOString(),
+          plan: 'PRO',
+          is_pro: true,
+        }).eq('id', userId)
 
         console.log(`[Achievement Reward] Applied ${daysToAdd} days PRO to user ${userId}`)
         break
+      }
 
       case 'special_feature':
       case 'badge':
@@ -291,9 +278,12 @@ export async function GET(request: NextRequest) {
 
     const userId = authUser.id
 
-    const profile = await db.profile.findUnique({
-      where: { id: userId }
-    })
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+
+    const { data: profile } = await admin.from('profiles').select('*').eq('id', userId).maybeSingle()
 
     if (!profile) {
       return NextResponse.json(
@@ -302,14 +292,12 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const submissions = await db.userSubmission.findMany({
-      where: { userId }
-    })
+    const { data: submissions } = await admin.from('user_submissions').select('*').eq('user_id', userId)
 
     const achievements = (profile.achievements as string[]) || []
-    const claimedAchievements = submissions
-      .filter(s => s.status === 'APPROVED')
-      .map(s => s.achievementKey)
+    const claimedAchievements = (submissions || [])
+      .filter((s: any) => s.status === 'APPROVED')
+      .map((s: any) => s.achievement_key)
 
     const progressData = await Promise.all(
       ACHIEVEMENTS.map(async (achievement) => {
@@ -319,46 +307,40 @@ export async function GET(request: NextRequest) {
         const isClaimed = claimedAchievements.includes(achievement.id)
 
         switch (achievement.criteria.type) {
-          case 'trade_count':
-            const tradesCount = await db.trade.count({
-              where: { user_id: userId }
-            })
-
-            currentProgress = tradesCount || 0
+          case 'trade_count': {
+            const { count } = await admin.from('trades')
+              .select('*', { count: 'exact', head: true })
+              .eq('user_id', userId)
+            currentProgress = count || 0
             break
+          }
 
-          case 'profit':
-            const trades = await db.trade.findMany({
-              where: {
-                user_id: userId,
-                profit_loss: { gt: 0 }
-              },
-              select: { profit_loss: true }
-            })
-
-            currentProgress = trades.reduce((sum, t) => sum + (t.profit_loss || 0), 0)
+          case 'profit': {
+            const { data: trades } = await admin.from('trades')
+              .select('profit_loss')
+              .eq('user_id', userId)
+              .gt('profit_loss', 0)
+            currentProgress = (trades || []).reduce((sum: number, t: any) => sum + (Number(t.profit_loss) || 0), 0)
             break
+          }
 
           case 'login_streak':
-            currentProgress = profile.streakCount || 0
+            currentProgress = profile.streak_count || 0
             break
 
-          case 'win_streak':
-            const winTrades = await db.trade.findMany({
-              where: {
-                user_id: userId,
-                profit_loss: { gt: 0 }
-              },
-              orderBy: { close_time: 'desc' },
-              select: { profit_loss: true, close_time: true }
-            })
-
+          case 'win_streak': {
+            const { data: winTrades } = await admin.from('trades')
+              .select('profit_loss, close_time')
+              .eq('user_id', userId)
+              .gt('profit_loss', 0)
+              .order('close_time', { ascending: false })
             let currentStreak = 0
             if (winTrades && winTrades.length > 0) {
               currentStreak = winTrades.length
             }
             currentProgress = currentStreak
             break
+          }
 
           default:
             currentProgress = isCompleted ? target : 0
@@ -380,8 +362,8 @@ export async function GET(request: NextRequest) {
       achievements: progressData,
       totalCompleted: achievements.length,
       totalClaimed: claimedAchievements.length,
-      streakCount: profile.streakCount || 0,
-      bestStreak: profile.bestStreak || 0
+      streakCount: profile.streak_count || 0,
+      bestStreak: profile.best_streak || 0
     })
 
   } catch (error) {

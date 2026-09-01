@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { getAuthUser } from '@/lib/api-auth'
 
 // DELETE /api/social-links/[id] - Delete a social link (user's own only)
@@ -9,10 +9,15 @@ export async function DELETE(
 ) {
   try {
     const params = await context.params
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+
     const authUser = await getAuthUser(request)
 
     if (!authUser) {
-      console.log('❌ [API] Unauthorized - no valid user')
+      console.log('[API] Unauthorized - no valid user')
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -20,9 +25,10 @@ export async function DELETE(
     }
 
     // Check if social link exists and belongs to user
-    const socialLink = await db.socialLink.findUnique({
-      where: { id: params.id }
-    })
+    const { data: socialLink } = await admin.from('social_links')
+      .select('*')
+      .eq('id', params.id)
+      .maybeSingle()
 
     if (!socialLink) {
       return NextResponse.json(
@@ -31,7 +37,7 @@ export async function DELETE(
       )
     }
 
-    if (socialLink.userId !== authUser.id) {
+    if (socialLink.user_id !== authUser.id) {
       return NextResponse.json(
         { error: 'Forbidden. You can only delete your own links.' },
         { status: 403 }
@@ -39,9 +45,7 @@ export async function DELETE(
     }
 
     // Delete social link
-    await db.socialLink.delete({
-      where: { id: params.id }
-    })
+    await admin.from('social_links').delete().eq('id', params.id)
 
     return NextResponse.json({
       success: true,

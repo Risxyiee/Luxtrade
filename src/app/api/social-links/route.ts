@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { getAuthUser } from '@/lib/api-auth'
 
 // POST /api/social-links - Submit a new social link for approval
 export async function POST(request: NextRequest) {
   try {
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+
     const authUser = await getAuthUser(request)
 
     if (!authUser) {
-      console.log('❌ [API] Unauthorized - no valid user')
+      console.log('[API] Unauthorized - no valid user')
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -39,16 +44,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already has a PENDING or APPROVED link for this platform
-    const existingLink = await db.socialLink.findFirst({
-      where: {
-        userId: userId,
-        platform: platform.toLowerCase(),
-        status: { in: ['PENDING', 'APPROVED'] }
-      }
-    })
+    const { data: existingLinks } = await admin.from('social_links')
+      .select('id, status')
+      .eq('user_id', userId)
+      .eq('platform', platform.toLowerCase())
+      .in('status', ['PENDING', 'APPROVED'])
+      .limit(1)
 
-    if (existingLink) {
-      if (existingLink.status === 'PENDING') {
+    if (existingLinks && existingLinks.length > 0) {
+      if (existingLinks[0].status === 'PENDING') {
         return NextResponse.json(
           { error: 'You already have a pending link for this platform. Wait for approval.' },
           { status: 400 }
@@ -62,15 +66,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Create social link with PENDING status
-    const socialLink = await db.socialLink.create({
-      data: {
-        userId: userId,
-        platform: platform.toLowerCase(),
-        url,
-        username: username || null,
-        status: 'PENDING'
-      }
-    })
+    const { data: socialLink, error: createError } = await admin.from('social_links').insert({
+      user_id: userId,
+      platform: platform.toLowerCase(),
+      url,
+      username: username || null,
+      status: 'PENDING'
+    }).select().single()
+
+    if (createError) {
+      console.error('Error creating social link:', createError)
+      return NextResponse.json({ error: 'Failed to submit social link' }, { status: 500 })
+    }
 
     return NextResponse.json({
       success: true,
@@ -90,24 +97,29 @@ export async function POST(request: NextRequest) {
 // GET /api/social-links - Get user's social links
 export async function GET(request: NextRequest) {
   try {
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+
     const authUser = await getAuthUser(request)
 
     if (!authUser) {
-      console.log('❌ [API] Unauthorized - no valid user')
+      console.log('[API] Unauthorized - no valid user')
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
-    const socialLinks = await db.socialLink.findMany({
-      where: { userId: authUser.id },
-      orderBy: { createdAt: 'desc' }
-    })
+    const { data: socialLinks } = await admin.from('social_links')
+      .select('*')
+      .eq('user_id', authUser.id)
+      .order('created_at', { ascending: false })
 
     return NextResponse.json({
       success: true,
-      data: socialLinks
+      data: socialLinks || []
     })
 
   } catch (error) {

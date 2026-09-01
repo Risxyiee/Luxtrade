@@ -1,55 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, isDatabaseAvailable } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { sendAdminNotification } from '@/lib/admin-notify'
 import { requireAdmin } from '@/lib/admin-auth'
-import { createClient } from '@supabase/supabase-js'
-
-/** Get Supabase admin client (service role, bypasses RLS) */
-function getSupabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) return null
-  return createClient(url, key)
-}
 
 export async function GET(request: NextRequest) {
   try {
     const { error } = await requireAdmin(request)
     if (error) return error
 
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Supabase admin not configured' }, { status: 500 })
+    }
+
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
 
-    // Try Prisma first, fall back to Supabase direct query
-    if (isDatabaseAvailable()) {
-      try {
-        const where: any = {}
-        if (status) where.status = status
+    let query = admin
+      .from('withdrawals')
+      .select('*')
+      .order('created_at', { ascending: false })
 
-        const withdrawals = await db.withdrawal.findMany({
-          where,
-          orderBy: { createdAt: 'desc' },
-        })
-        return NextResponse.json({ success: true, withdrawals })
-      } catch (prismaErr: any) {
-        // Prisma failed (e.g. missing column) — fall through to Supabase
-        console.warn('⚠️ Prisma withdrawal query failed, falling back to Supabase:', prismaErr?.message?.substring(0, 100))
-      }
+    if (status) {
+      query = query.eq('status', status)
     }
 
-    // Fallback: query Supabase directly
-    const supabaseAdmin = getSupabaseAdmin()
-    if (supabaseAdmin) {
-      let query = supabaseAdmin.from('withdrawals').select('*').order('created_at', { ascending: false })
-      if (status) query = query.eq('status', status)
-      const { data, error } = await query
-      if (!error && data) {
-        return NextResponse.json({ success: true, withdrawals: data })
-      }
+    const { data, error: dbError } = await query
+
+    if (dbError) {
+      console.error('Admin withdrawals GET error:', dbError.message)
+      return NextResponse.json({ success: true, withdrawals: [], notice: 'Withdrawal data unavailable' })
     }
 
-    // No data available
-    return NextResponse.json({ success: true, withdrawals: [], notice: 'Withdrawal data unavailable' })
+    return NextResponse.json({ success: true, withdrawals: data || [] })
   } catch (error) {
     console.error('Admin withdrawals GET error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -68,62 +51,54 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 })
     }
 
-    // Try Prisma first
-    let withdrawal: any = null
-    if (isDatabaseAvailable()) {
-      try {
-        withdrawal = await db.withdrawal.findUnique({ where: { id: withdrawalId } })
-      } catch (prismaWErr) {
-        console.warn('[admin/withdrawals] Prisma lookup failed, falling through to Supabase:', prismaWErr)
-      }
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Supabase admin not configured' }, { status: 500 })
     }
 
-    // Fallback: fetch from Supabase
-    if (!withdrawal) {
-      const supabaseAdmin = getSupabaseAdmin()
-      if (supabaseAdmin) {
-        const { data } = await supabaseAdmin.from('withdrawals').select('*').eq('id', withdrawalId).single()
-        withdrawal = data
-      }
-    }
+    // Fetch withdrawal
+    const { data: withdrawal, error: fetchErr } = await admin
+      .from('withdrawals')
+      .select('*')
+      .eq('id', withdrawalId)
+      .single()
 
-    if (!withdrawal) {
+    if (fetchErr || !withdrawal) {
       return NextResponse.json({ error: 'Withdrawal not found' }, { status: 404 })
     }
 
-    // Update via Supabase (more reliable)
-    const supabaseAdmin = getSupabaseAdmin()
-    if (supabaseAdmin) {
-      const { error: updateError } = await supabaseAdmin
-        .from('withdrawals')
-        .update({ status, admin_note: adminNote || null, updated_at: new Date().toISOString() })
-        .eq('id', withdrawalId)
+    // Update withdrawal
+    const { error: updateError } = await admin
+      .from('withdrawals')
+      .update({
+        status,
+        admin_note: adminNote || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', withdrawalId)
 
-      if (updateError) {
-        console.error('Failed to update withdrawal in Supabase:', updateError.message)
-      }
+    if (updateError) {
+      console.error('Failed to update withdrawal:', updateError.message)
+      return NextResponse.json({ error: 'Failed to update withdrawal' }, { status: 500 })
     }
 
     // If rejected, try to refund balance
     if (status === 'rejected' && withdrawal.user_id) {
-      const supabaseAdmin2 = getSupabaseAdmin()
-      if (supabaseAdmin2) {
-        try {
-          const { data: affData } = await supabaseAdmin2
-            .from('affiliates')
-            .select('current_balance')
-            .eq('user_id', withdrawal.user_id)
-            .single()
+      try {
+        const { data: affData } = await admin
+          .from('affiliates')
+          .select('current_balance')
+          .eq('user_id', withdrawal.user_id)
+          .single()
 
-          if (affData) {
-            await supabaseAdmin2
-              .from('affiliates')
-              .update({ current_balance: (affData.current_balance || 0) + withdrawal.amount })
-              .eq('user_id', withdrawal.user_id)
-          }
-        } catch (error) {
-          console.warn('[admin/withdrawals] Non-critical: failed to refund affiliate balance on rejection:', error)
+        if (affData) {
+          await admin
+            .from('affiliates')
+            .update({ current_balance: (affData.current_balance || 0) + withdrawal.amount })
+            .eq('user_id', withdrawal.user_id)
         }
+      } catch (error) {
+        console.warn('[admin/withdrawals] Non-critical: failed to refund affiliate balance on rejection:', error)
       }
     }
 

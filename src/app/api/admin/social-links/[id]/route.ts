@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { getAuthUser } from '@/lib/api-auth'
 
 // Helper function to check if user is admin
 async function isAdmin(userId: string): Promise<boolean> {
   try {
-    const profile = await db.profile.findUnique({
-      where: { id: userId },
-      select: { role: true }
-    })
+    const admin = getSupabaseAdmin()
+    if (!admin) return false
+
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single()
 
     return profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN'
   } catch (error) {
@@ -43,6 +47,11 @@ export async function PATCH(
       )
     }
 
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Supabase admin not configured' }, { status: 500 })
+    }
+
     const body = await request.json()
     const { action, rejectionReason } = body
 
@@ -54,21 +63,21 @@ export async function PATCH(
       )
     }
 
-    // Check if social link exists
-    const socialLink = await db.socialLink.findUnique({
-      where: { id: params.id },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            full_name: true
-          }
-        }
-      }
-    })
+    // Check if social link exists (with user info)
+    const { data: socialLink, error: fetchError } = await admin
+      .from('social_links')
+      .select(`
+        *,
+        user:profiles (
+          id,
+          email,
+          full_name
+        )
+      `)
+      .eq('id', params.id)
+      .single()
 
-    if (!socialLink) {
+    if (fetchError || !socialLink) {
       return NextResponse.json(
         { error: 'Social link not found' },
         { status: 404 }
@@ -76,20 +85,30 @@ export async function PATCH(
     }
 
     // Update social link status
-    const updateData: any = {
+    const updateData: Record<string, any> = {
       status: action === 'approve' ? 'APPROVED' : 'REJECTED',
-      reviewedBy: authUser.email,
-      reviewedAt: new Date()
+      reviewed_by: authUser.email,
+      reviewed_at: new Date().toISOString(),
     }
 
     if (action === 'reject' && rejectionReason) {
-      updateData.rejectionReason = rejectionReason
+      updateData.rejection_reason = rejectionReason
     }
 
-    const updatedLink = await db.socialLink.update({
-      where: { id: params.id },
-      data: updateData
-    })
+    const { data: updatedLink, error: updateError } = await admin
+      .from('social_links')
+      .update(updateData)
+      .eq('id', params.id)
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error('Error updating social link (admin):', updateError)
+      return NextResponse.json(
+        { error: 'Failed to update social link' },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({
       success: true,
@@ -134,12 +153,19 @@ export async function DELETE(
       )
     }
 
-    // Check if social link exists
-    const socialLink = await db.socialLink.findUnique({
-      where: { id: params.id }
-    })
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Supabase admin not configured' }, { status: 500 })
+    }
 
-    if (!socialLink) {
+    // Check if social link exists
+    const { data: socialLink, error: fetchError } = await admin
+      .from('social_links')
+      .select('id')
+      .eq('id', params.id)
+      .single()
+
+    if (fetchError || !socialLink) {
       return NextResponse.json(
         { error: 'Social link not found' },
         { status: 404 }
@@ -147,9 +173,18 @@ export async function DELETE(
     }
 
     // Delete social link
-    await db.socialLink.delete({
-      where: { id: params.id }
-    })
+    const { error: deleteError } = await admin
+      .from('social_links')
+      .delete()
+      .eq('id', params.id)
+
+    if (deleteError) {
+      console.error('Error deleting social link (admin):', deleteError)
+      return NextResponse.json(
+        { error: 'Failed to delete social link' },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({
       success: true,

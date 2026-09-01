@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { requireAdmin } from '@/lib/admin-auth'
 
 /**
  * Validate promo code
  * POST /api/promo/validate
  * Body: { code: string }
- *
- * Uses raw SQL to read real-time quota values directly from DB.
- * Avoids Prisma ORM caching which could return stale used_quota.
  */
 export async function POST(request: NextRequest) {
   try {
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+
     const { code } = await request.json()
 
     if (!code) {
@@ -24,23 +26,18 @@ export async function POST(request: NextRequest) {
     // Normalize code to uppercase
     const normalizedCode = code.trim().toUpperCase()
 
-    // Query promo code directly from DB (no ORM caching)
-    const results: any[] = await db.$queryRawUnsafe(`
-      SELECT code, description, discount_percent, max_quota, used_quota, duration_months,
-             start_date, end_date, is_active
-      FROM promo_codes
-      WHERE code = $1
-      LIMIT 1;
-    `, normalizedCode)
+    // Query promo code
+    const { data: promo, error } = await admin.from('promo_codes')
+      .select('code, description, discount_percent, max_quota, used_quota, duration_months, start_date, end_date, is_active')
+      .eq('code', normalizedCode)
+      .maybeSingle()
 
-    if (!results || results.length === 0) {
+    if (error || !promo) {
       return NextResponse.json({
         valid: false,
         message: 'Kode promo tidak valid'
       })
     }
-
-    const promo = results[0]
 
     // Check if active
     if (!promo.is_active) {
@@ -106,18 +103,24 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    // SECURITY: Require admin authentication — promo codes list is sensitive
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+
+    // SECURITY: Require admin authentication
     const { error: authError } = await requireAdmin(request)
     if (authError) return authError
 
-    const results: any[] = await db.$queryRawUnsafe(`
-      SELECT id, code, description, discount_percent, max_quota, used_quota,
-             duration_months, start_date, end_date, is_active, created_at
-      FROM promo_codes
-      ORDER BY created_at DESC;
-    `)
+    const { data: promoCodes, error } = await admin.from('promo_codes')
+      .select('id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, end_date, is_active, created_at')
+      .order('created_at', { ascending: false })
 
-    const promoCodes = (results || []).map((pc: any) => ({
+    if (error) {
+      return NextResponse.json({ error: 'Gagal mengambil daftar kode promo' }, { status: 500 })
+    }
+
+    const formatted = (promoCodes || []).map((pc: any) => ({
       id: pc.id,
       code: pc.code,
       description: pc.description,
@@ -131,7 +134,7 @@ export async function GET(request: NextRequest) {
       endDate: pc.end_date
     }))
 
-    return NextResponse.json({ promoCodes })
+    return NextResponse.json({ promoCodes: formatted })
   } catch (error) {
     return NextResponse.json(
       { error: 'Gagal mengambil daftar kode promo' },

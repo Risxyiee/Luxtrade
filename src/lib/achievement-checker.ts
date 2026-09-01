@@ -1,5 +1,5 @@
 import { ACHIEVEMENTS } from './achievements-data'
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 
 export interface AchievementResult {
   id: string
@@ -21,10 +21,18 @@ export async function checkAchievementsAfterTrade(userId: string | undefined | n
       return []
     }
 
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      console.warn('[Achievement Checker] Supabase admin client not available')
+      return []
+    }
+
     // Verify profile exists before any DB writes
-    const profile = await db.profile.findUnique({
-      where: { id: userId }
-    })
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
 
     if (!profile) {
       console.log(`[Achievement Checker] No profile found for userId=${userId}`)
@@ -49,74 +57,83 @@ export async function checkAchievementsAfterTrade(userId: string | undefined | n
       }
 
       // Check if achievement criteria is met
-      const isMet = await checkAchievementCriteria(userId, achievement, profile)
+      const isMet = await checkAchievementCriteria(userId, achievement, profile, admin)
 
       if (isMet) {
         console.log(`[Achievement Checker] Achievement "${achievement.title}" is now complete! userId=${userId}`)
 
-        // Add achievement to profile — use upsert for atomicity (race-safe)
-        const freshProfile = await db.profile.findUnique({
-          where: { id: userId },
-          select: { achievements: true }
-        })
+        // Add achievement to profile — re-fetch for race safety
+        const { data: freshProfile } = await admin
+          .from('profiles')
+          .select('achievements')
+          .eq('id', userId)
+          .single()
         const currentAchievements: string[] = Array.isArray(freshProfile?.achievements) ? freshProfile.achievements : []
         if (currentAchievements.includes(achievement.id)) {
           console.log(`[Achievement Checker] Achievement "${achievement.title}" already claimed (race), skipping`)
           continue
         }
 
-        await db.profile.update({
-          where: { id: userId },
-          data: {
+        await admin
+          .from('profiles')
+          .update({
             achievements: [...currentAchievements, achievement.id]
-          }
-        })
+          })
+          .eq('id', userId)
 
         // Create submission record for tracking — userId is guaranteed non-null here
         try {
-          await db.userSubmission.create({
-            data: {
-              userId: String(userId),
-              achievementKey: achievement.id,
-              proofUrl: null,
+          await admin
+            .from('user_submissions')
+            .insert({
+              user_id: String(userId),
+              achievement_key: achievement.id,
+              proof_url: null,
               status: 'APPROVED',
-              reviewedBy: 'SYSTEM',
-            }
-          })
+              reviewed_by: 'SYSTEM',
+            })
         } catch (submissionErr: any) {
-          console.error(`[Achievement Checker] userSubmission.create failed for userId="${userId}":`, submissionErr.message)
+          console.error(`[Achievement Checker] user_submissions insert failed for userId="${userId}":`, submissionErr.message)
           // Don't fail the whole achievement — the profile already has the badge
         }
 
-        // Create or update mission progress
+        // Create or update mission progress (emulate upsert)
         try {
-          await db.missionProgress.upsert({
-            where: {
-              userId_missionKey: {
-                userId: userId,
-                missionKey: achievement.id
-              }
-            },
-            create: {
-              userId: userId,
-              missionKey: achievement.id,
-              progress: achievement.criteria.target,
-              target: achievement.criteria.target,
-              completed: true,
-              claimed: true,
-            },
-            update: {
-              progress: achievement.criteria.target,
-              completed: true,
-              claimed: true,
-            }
-          })
+          // Check if mission_progress row exists
+          const { data: existingMission } = await admin
+            .from('mission_progress')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('mission_key', achievement.id)
+            .maybeSingle()
+
+          if (existingMission) {
+            await admin
+              .from('mission_progress')
+              .update({
+                progress: achievement.criteria.target,
+                completed: true,
+                claimed: true,
+              })
+              .eq('id', existingMission.id)
+          } else {
+            await admin
+              .from('mission_progress')
+              .insert({
+                user_id: userId,
+                mission_key: achievement.id,
+                progress: achievement.criteria.target,
+                target: achievement.criteria.target,
+                completed: true,
+                claimed: true,
+              })
+          }
         } catch (missionErr: any) {
-          console.error(`[Achievement Checker] missionProgress upsert failed:`, missionErr.message)
+          console.error(`[Achievement Checker] mission_progress upsert failed:`, missionErr.message)
         }
 
         // Apply reward immediately
-        await applyReward(userId, achievement)
+        await applyReward(userId, achievement, admin)
 
         unlockedAchievements.push({
           id: achievement.id,
@@ -141,41 +158,41 @@ export async function checkAchievementsAfterTrade(userId: string | undefined | n
 async function checkAchievementCriteria(
   userId: string,
   achievement: any,
-  profile: any
+  profile: any,
+  admin: ReturnType<typeof getSupabaseAdmin> & NonNullable<ReturnType<typeof getSupabaseAdmin>>
 ): Promise<boolean> {
   try {
     switch (achievement.criteria.type) {
-      case 'trade_count':
-        const tradesCount = await db.trade.count({
-          where: { user_id: userId }
-        })
+      case 'trade_count': {
+        const { count } = await admin
+          .from('trades')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
 
-        const totalTrades = tradesCount || 0
+        const totalTrades = count || 0
         console.log(`[Achievement Checker] Trade count: ${totalTrades}, Target: ${achievement.criteria.target}`)
         return totalTrades >= achievement.criteria.target
+      }
 
-      case 'profit':
-        const trades = await db.trade.findMany({
-          where: {
-            user_id: userId,
-            profit_loss: { gt: 0 }
-          },
-          select: { profit_loss: true }
-        })
+      case 'profit': {
+        const { data: trades } = await admin
+          .from('trades')
+          .select('profit_loss')
+          .eq('user_id', userId)
+          .gt('profit_loss', 0)
 
-        const totalProfit = trades.reduce((sum, t) => sum + (t.profit_loss || 0), 0)
+        const totalProfit = (trades || []).reduce((sum: number, t: any) => sum + (t.profit_loss || 0), 0)
         console.log(`[Achievement Checker] Total profit: $${totalProfit}, Target: $${achievement.criteria.target}`)
         return totalProfit >= achievement.criteria.target
+      }
 
-      case 'win_streak':
-        const winTrades = await db.trade.findMany({
-          where: {
-            user_id: userId,
-            profit_loss: { gt: 0 }
-          },
-          orderBy: { close_time: 'desc' },
-          select: { profit_loss: true }
-        })
+      case 'win_streak': {
+        const { data: winTrades } = await admin
+          .from('trades')
+          .select('profit_loss')
+          .eq('user_id', userId)
+          .gt('profit_loss', 0)
+          .order('close_time', { ascending: false })
 
         let currentStreak = 0
         if (winTrades && winTrades.length > 0) {
@@ -183,11 +200,13 @@ async function checkAchievementCriteria(
         }
         console.log(`[Achievement Checker] Win streak: ${currentStreak}, Target: ${achievement.criteria.target}`)
         return currentStreak >= achievement.criteria.target
+      }
 
-      case 'login_streak':
-        const streakCount = profile.streakCount || 0
+      case 'login_streak': {
+        const streakCount = profile.streak_count ?? profile.streakCount ?? 0
         console.log(`[Achievement Checker] Login streak: ${streakCount}, Target: ${achievement.criteria.target}`)
         return streakCount >= achievement.criteria.target
+      }
 
       default:
         return false
@@ -201,14 +220,20 @@ async function checkAchievementCriteria(
 /**
  * Apply achievement reward to user
  */
-async function applyReward(userId: string, achievement: any): Promise<void> {
+async function applyReward(
+  userId: string,
+  achievement: any,
+  admin: ReturnType<typeof getSupabaseAdmin> & NonNullable<ReturnType<typeof getSupabaseAdmin>>
+): Promise<void> {
   try {
     switch (achievement.reward.type) {
-      case 'pro_days':
+      case 'pro_days': {
         const daysToAdd = achievement.reward.value as number
-        const profile = await db.profile.findUnique({
-          where: { id: userId }
-        })
+        const { data: profile } = await admin
+          .from('profiles')
+          .select('subscription_until')
+          .eq('id', userId)
+          .single()
 
         if (!profile) {
           console.error('[Achievement Checker] Profile not found when applying reward')
@@ -227,17 +252,18 @@ async function applyReward(userId: string, achievement: any): Promise<void> {
 
         newExpiry.setDate(newExpiry.getDate() + daysToAdd)
 
-        await db.profile.update({
-          where: { id: userId },
-          data: {
+        await admin
+          .from('profiles')
+          .update({
             subscription_until: newExpiry.toISOString(),
             plan: 'PRO',
             is_pro: true,
-          }
-        })
+          })
+          .eq('id', userId)
 
         console.log(`[Achievement Checker] Applied ${daysToAdd} days PRO to user ${userId}`)
         break
+      }
 
       case 'special_feature':
       case 'badge':

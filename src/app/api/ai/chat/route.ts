@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createZAI } from '@/lib/zai'
+import { geminiChat } from '@/lib/gemini'
 import { createClientForApi } from '@/lib/supabase/server'
 import { isUserPro } from '@/lib/pro-check'
 
@@ -54,32 +54,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Build messages array with system prompt
-    const messages = [
-      {
-        role: 'system' as const,
-        content: 'You are a helpful and friendly AI assistant. Respond clearly and concisely.'
-      },
+    // Build messages array for Gemini (no system role in contents)
+    const geminiMessages = [
       ...(history || []).map((msg: any) => ({
-        role: (msg.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-        content: msg.content
+        role: (msg.role === 'user' ? 'user' : 'model') as 'user' | 'model',
+        parts: [{ text: msg.content }]
       })),
       {
         role: 'user' as const,
-        content: message
+        parts: [{ text: message }]
       }
     ]
 
-    // Use ZAI (FREE SDK)
-    const zai = await createZAI()
-    const response = await zai.chat.completions.create({
-      model: 'glm-4.6',
-      messages: messages
+    // Use Gemini
+    const result = await geminiChat(geminiMessages, {
+      systemInstruction: 'You are a helpful and friendly AI assistant. Respond clearly and concisely.',
+      maxTokens: 4096,
     })
 
     return NextResponse.json({
       success: true,
-      response: response.choices?.[0]?.message?.content || ''
+      response: result.text
     })
   } catch (error: any) {
     console.error('[AI /chat] Error:', error)

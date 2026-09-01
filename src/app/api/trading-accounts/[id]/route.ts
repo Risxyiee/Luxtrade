@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { getAuthUser } from '@/lib/api-auth'
 
 // GET: Fetch a specific trading account
@@ -16,19 +16,23 @@ export async function GET(
 ) {
   try {
     const params = await context.params
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+
     const authUser = await getAuthUser(req)
 
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const account = await db.tradingAccount.findFirst({
-      where: {
-        id: params.id,
-        user_id: authUser.id,
-        is_active: true
-      }
-    })
+    const { data: account } = await admin.from('trading_accounts')
+      .select('*')
+      .eq('id', params.id)
+      .eq('user_id', authUser.id)
+      .eq('is_active', true)
+      .maybeSingle()
 
     if (!account) {
       return NextResponse.json({ error: 'Trading account not found' }, { status: 404 })
@@ -51,6 +55,11 @@ export async function PATCH(
 ) {
   try {
     const params = await context.params
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+
     const authUser = await getAuthUser(req)
 
     if (!authUser) {
@@ -60,53 +69,34 @@ export async function PATCH(
     const body = await req.json()
     const updates: Record<string, any> = {}
 
-    if (body.name !== undefined) {
-      updates.name = body.name
-    }
-    if (body.broker !== undefined) {
-      updates.broker = body.broker
-    }
-    if (body.account_type !== undefined) {
-      updates.account_type = body.account_type
-    }
-    if (body.account_number !== undefined) {
-      updates.account_number = body.account_number
-    }
-    if (body.initial_balance !== undefined) {
-      updates.initial_balance = Number(body.initial_balance)
-    }
-    if (body.current_balance !== undefined) {
-      updates.current_balance = Number(body.current_balance)
-    }
-    if (body.leverage !== undefined) {
-      updates.leverage = Number(body.leverage)
-    }
-    if (body.currency !== undefined) {
-      updates.currency = body.currency
-    }
-    if (body.is_default !== undefined) {
-      updates.is_default = body.is_default
-    }
-    if (body.is_active !== undefined) {
-      updates.is_active = body.is_active
-    }
+    if (body.name !== undefined) updates.name = body.name
+    if (body.broker !== undefined) updates.broker = body.broker
+    if (body.account_type !== undefined) updates.account_type = body.account_type
+    if (body.account_number !== undefined) updates.account_number = body.account_number
+    if (body.initial_balance !== undefined) updates.initial_balance = Number(body.initial_balance)
+    if (body.current_balance !== undefined) updates.current_balance = Number(body.current_balance)
+    if (body.leverage !== undefined) updates.leverage = Number(body.leverage)
+    if (body.currency !== undefined) updates.currency = body.currency
+    if (body.is_default !== undefined) updates.is_default = body.is_default
+    if (body.is_active !== undefined) updates.is_active = body.is_active
 
-    const account = await db.tradingAccount.updateMany({
-      where: {
-        id: params.id,
-        user_id: authUser.id
-      },
-      data: updates
-    })
+    // First verify the account belongs to the user
+    const { data: existing } = await admin.from('trading_accounts')
+      .select('id')
+      .eq('id', params.id)
+      .eq('user_id', authUser.id)
+      .maybeSingle()
 
-    if (account.count === 0) {
+    if (!existing) {
       return NextResponse.json({ error: 'Trading account not found' }, { status: 404 })
     }
 
-    // Fetch updated account
-    const updatedAccount = await db.tradingAccount.findUnique({
-      where: { id: params.id }
-    })
+    const { data: updatedAccount } = await admin.from('trading_accounts')
+      .update(updates)
+      .eq('id', params.id)
+      .eq('user_id', authUser.id)
+      .select()
+      .single()
 
     return NextResponse.json({ success: true, data: updatedAccount })
   } catch (error) {
@@ -125,6 +115,11 @@ export async function DELETE(
 ) {
   try {
     const params = await context.params
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+
     const authUser = await getAuthUser(req)
 
     if (!authUser) {
@@ -132,52 +127,40 @@ export async function DELETE(
     }
 
     // Get the account to be deleted first (to check if it's default)
-    const accountToDelete = await db.tradingAccount.findFirst({
-      where: {
-        id: params.id,
-        user_id: authUser.id,
-        is_active: true
-      }
-    })
+    const { data: accountToDelete } = await admin.from('trading_accounts')
+      .select('*')
+      .eq('id', params.id)
+      .eq('user_id', authUser.id)
+      .eq('is_active', true)
+      .maybeSingle()
 
     if (!accountToDelete) {
       return NextResponse.json({ error: 'Trading account not found' }, { status: 404 })
     }
 
     // Check if this is the last account - prevent deletion
-    const allAccounts = await db.tradingAccount.findMany({
-      where: {
-        user_id: authUser.id,
-        is_active: true
-      }
-    })
+    const { data: allAccounts } = await admin.from('trading_accounts')
+      .select('id')
+      .eq('user_id', authUser.id)
+      .eq('is_active', true)
 
-    if (allAccounts.length <= 1) {
+    if (!allAccounts || allAccounts.length <= 1) {
       return NextResponse.json({ error: 'Cannot delete the last account. At least 1 account is required.' }, { status: 400 })
     }
 
     // Delete the account
-    await db.tradingAccount.delete({
-      where: { id: params.id }
-    })
+    await admin.from('trading_accounts').delete().eq('id', params.id)
 
     // If we deleted the default account, set another account as default
     if (accountToDelete.is_default) {
-      // Get the first remaining account
-      const remainingAccounts = await db.tradingAccount.findMany({
-        where: {
-          user_id: authUser.id,
-          is_active: true
-        },
-        take: 1
-      })
+      const { data: remainingAccounts } = await admin.from('trading_accounts')
+        .select('id')
+        .eq('user_id', authUser.id)
+        .eq('is_active', true)
+        .limit(1)
 
-      if (remainingAccounts.length > 0) {
-        // Set it as default
-        await db.tradingAccount.update({
-          where: { id: remainingAccounts[0].id },
-          data: { is_default: true }
-        })
+      if (remainingAccounts && remainingAccounts.length > 0) {
+        await admin.from('trading_accounts').update({ is_default: true }).eq('id', remainingAccounts[0].id)
       }
     }
 

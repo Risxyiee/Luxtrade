@@ -1,45 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
-import { db } from '@/lib/db'
-import { isDatabaseAvailable } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { edgeCrypto } from '@/lib/edge-crypto'
-
-async function ensureSharedTradesTable() {
-  try {
-    // Fix existing table if it was created with wrong UUID type for trade_id
-    await db.$executeRawUnsafe(`
-      DO $$
-      BEGIN
-        -- Check if table exists with wrong trade_id type (uuid instead of text)
-        IF EXISTS (
-          SELECT 1 FROM information_schema.columns 
-          WHERE table_name = 'shared_trades' AND column_name = 'trade_id' AND data_type = 'uuid'
-        ) THEN
-          -- Drop and recreate with correct types
-          DROP TABLE IF EXISTS shared_trades CASCADE;
-        END IF;
-        
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.tables 
-          WHERE table_name = 'shared_trades'
-        ) THEN
-          CREATE TABLE shared_trades (
-            id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-            trade_id TEXT NOT NULL UNIQUE REFERENCES trades(id) ON DELETE CASCADE,
-            user_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-            share_code TEXT NOT NULL UNIQUE,
-            include_analytics BOOLEAN NOT NULL DEFAULT true,
-            created_at TIMESTAMP NOT NULL DEFAULT now()
-          );
-          CREATE INDEX idx_shared_trades_user_id ON shared_trades(user_id);
-          CREATE INDEX idx_shared_trades_share_code ON shared_trades(share_code);
-        END IF;
-      END $$;
-    `)
-  } catch {
-    // Table may already exist
-  }
-}
 
 function generateShareCode(): string {
   return edgeCrypto.randomBytesHex(6).toUpperCase()
@@ -50,7 +12,8 @@ export async function POST(request: NextRequest) {
   const { error, user } = await requireAuth(request)
   if (error) return error
 
-  if (!isDatabaseAvailable()) {
+  const admin = getSupabaseAdmin()
+  if (!admin) {
     return NextResponse.json({ error: 'Database not available' }, { status: 503 })
   }
 
@@ -62,26 +25,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'tradeId is required' }, { status: 400 })
     }
 
-    await ensureSharedTradesTable()
-
     // Verify the trade belongs to the user
-    const trade = await db.trade.findFirst({
-      where: { id: tradeId, user_id: user.id },
-    })
+    const { data: trade } = await admin.from('trades')
+      .select('id')
+      .eq('id', tradeId)
+      .eq('user_id', user.id)
+      .maybeSingle()
 
     if (!trade) {
       return NextResponse.json({ error: 'Trade not found' }, { status: 404 })
     }
 
     // Check if already shared
-    const existing = await db.$queryRawUnsafe<{ id: string; share_code: string }[]>(
-      `SELECT id, share_code FROM shared_trades WHERE trade_id = $1`,
-      tradeId
-    )
+    const { data: existing } = await admin.from('community_trades')
+      .select('id, share_code')
+      .eq('trade_id', tradeId)
+      .maybeSingle()
 
-    if (existing.length > 0) {
+    if (existing) {
       return NextResponse.json({
-        shareCode: existing[0].share_code,
+        shareCode: existing.share_code,
         message: 'Trade already shared',
       })
     }
@@ -90,22 +53,21 @@ export async function POST(request: NextRequest) {
     let shareCode = generateShareCode()
     let attempts = 0
     while (attempts < 5) {
-      const collision = await db.$queryRawUnsafe<{ id: string }[]>(
-        `SELECT id FROM shared_trades WHERE share_code = $1`,
-        shareCode
-      )
-      if (collision.length === 0) break
+      const { data: collision } = await admin.from('community_trades')
+        .select('id')
+        .eq('share_code', shareCode)
+        .maybeSingle()
+      if (!collision) break
       shareCode = generateShareCode()
       attempts++
     }
 
-    await db.$executeRawUnsafe(
-      `INSERT INTO shared_trades (trade_id, user_id, share_code, include_analytics, created_at) VALUES ($1, $2, $3, $4, now())`,
-      tradeId,
-      user.id,
-      shareCode,
-      includeAnalytics
-    )
+    await admin.from('community_trades').insert({
+      trade_id: tradeId,
+      user_id: user.id,
+      share_code: shareCode,
+      include_analytics: includeAnalytics,
+    })
 
     return NextResponse.json({ shareCode })
   } catch (err: any) {
@@ -116,7 +78,8 @@ export async function POST(request: NextRequest) {
 
 // GET: Retrieve a shared trade by shareCode (no auth required for viewing)
 export async function GET(request: NextRequest) {
-  if (!isDatabaseAvailable()) {
+  const admin = getSupabaseAdmin()
+  if (!admin) {
     return NextResponse.json({ error: 'Database not available' }, { status: 503 })
   }
 
@@ -128,50 +91,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'share code is required' }, { status: 400 })
     }
 
-    await ensureSharedTradesTable()
+    const { data: shared } = await admin.from('community_trades')
+      .select('trade_id, share_code, include_analytics, created_at, user_id')
+      .eq('share_code', shareCode)
+      .maybeSingle()
 
-    const rows = await db.$queryRawUnsafe<{
-      trade_id: string
-      share_code: string
-      include_analytics: boolean
-      created_at: string
-      user_id: string
-    }[]>(
-      `SELECT trade_id, share_code, include_analytics, created_at, user_id FROM shared_trades WHERE share_code = $1`,
-      shareCode
-    )
-
-    if (rows.length === 0) {
+    if (!shared) {
       return NextResponse.json({ error: 'Shared trade not found' }, { status: 404 })
     }
 
-    const shared = rows[0]
-
     // Fetch trade data (only public-safe fields)
-    const trades = await db.$queryRawUnsafe<{
-      id: string
-      symbol: string
-      type: string
-      profit_loss: number
-      open_price: number
-      close_price: number
-      session: string | null
-      setup_type: string | null
-      close_time: string
-      lot_size: number
-    }[]>(
-      `SELECT 
-        id, symbol, type, profit_loss, open_price, close_price, 
-        session, setup_type, close_time, lot_size 
-       FROM trades WHERE id = $1`,
-      shared.trade_id
-    )
+    const { data: tradeRows } = await admin.from('trades')
+      .select('id, symbol, type, profit_loss, open_price, close_price, session, setup_type, close_time, lot_size')
+      .eq('id', shared.trade_id)
+      .maybeSingle()
 
-    if (trades.length === 0) {
+    if (!tradeRows) {
       return NextResponse.json({ error: 'Trade not found' }, { status: 404 })
     }
 
-    const trade = trades[0]
+    const trade = tradeRows
 
     // Calculate P/L percentage from prices
     const plPercent = trade.open_price !== 0
@@ -179,41 +118,28 @@ export async function GET(request: NextRequest) {
       : 0
 
     // Fetch owner's public stats
-    const profiles = await db.$queryRawUnsafe<{
-      full_name: string | null
-      is_pro: boolean
-      streak_count: number
-      best_streak: number
-    }[]>(
-      `SELECT full_name, is_pro, streak_count, best_streak FROM profiles WHERE id = $1`,
-      shared.user_id
-    )
-
-    const profile = profiles[0] || null
+    const { data: profile } = await admin.from('profiles')
+      .select('full_name, is_pro, streak_count, best_streak')
+      .eq('id', shared.user_id)
+      .maybeSingle()
 
     // Fetch owner's aggregate stats if analytics included
     let ownerStats: { totalTrades: number; winRate: number; totalPL: number } | null = null
     if (shared.include_analytics && profile) {
-      const stats = await db.$queryRawUnsafe<{
-        total_trades: bigint
-        wins: bigint
-        total_pl: number
-      }[]>(
-        `SELECT 
-          COUNT(id) as total_trades,
-          COUNT(CASE WHEN profit_loss > 0 THEN 1 END) as wins,
-          COALESCE(SUM(profit_loss), 0) as total_pl
-         FROM trades WHERE user_id = $1`,
-        shared.user_id
-      )
-      if (stats.length > 0) {
-        const s = stats[0]
+      const { data: trades } = await admin.from('trades')
+        .select('id, profit_loss')
+        .eq('user_id', shared.user_id)
+
+      if (trades && trades.length > 0) {
+        const totalTrades = trades.length
+        const wins = trades.filter((t: any) => Number(t.profit_loss) > 0).length
+        const totalPL = trades.reduce((sum: number, t: any) => sum + Number(t.profit_loss || 0), 0)
         ownerStats = {
-          totalTrades: Number(s.total_trades),
-          winRate: Number(s.total_trades) > 0
-            ? Math.round((Number(s.wins) / Number(s.total_trades)) * 1000) / 100
+          totalTrades,
+          winRate: totalTrades > 0
+            ? Math.round((wins / totalTrades) * 1000) / 100
             : 0,
-          totalPL: Math.round(s.total_pl * 100) / 100,
+          totalPL: Math.round(totalPL * 100) / 100,
         }
       }
     }
@@ -223,7 +149,7 @@ export async function GET(request: NextRequest) {
         symbol: trade.symbol,
         type: trade.type,
         plPercent,
-        plAmount: Math.round(trade.profit_loss * 100) / 100,
+        plAmount: Math.round(Number(trade.profit_loss) * 100) / 100,
         session: trade.session,
         setupType: trade.setup_type,
         closeTime: trade.close_time,

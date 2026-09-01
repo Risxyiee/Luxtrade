@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { requireAdmin } from '@/lib/admin-auth'
 
 /**
@@ -32,41 +32,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(cache.data)
     }
 
-    // ── 0. Verify tables exist (fail fast with clear message) ──
-    let tablesExist = false
-    try {
-      const tableCheck: any[] = await db.$queryRawUnsafe(`
-        SELECT tablename FROM pg_tables 
-        WHERE schemaname = 'public' 
-          AND tablename IN ('promo_codes', 'user_subscriptions')
-        ORDER BY tablename
-      `)
-      const foundTables = (tableCheck || []).map((r: any) => r.tablename)
-      tablesExist = foundTables.includes('promo_codes') && foundTables.includes('user_subscriptions')
-
-      if (!tablesExist) {
-        const missing = []
-        if (!foundTables.includes('promo_codes')) missing.push('promo_codes')
-        if (!foundTables.includes('user_subscriptions')) missing.push('user_subscriptions')
-        console.error(`[pro-promo-log] MISSING TABLES: ${missing.join(', ')}`)
-        return NextResponse.json({
-          error: `Tabel ${missing.join(', ')} tidak ada di database. Jalankan /api/admin/db-sync terlebih dahulu, atau buat tabel manual di Supabase SQL Editor.`,
-          missingTables: missing,
-          hint: 'POST /api/admin/db-sync untuk auto-create tabel.'
-        }, { status: 500 })
-      }
-    } catch (checkErr: any) {
-      console.error('[pro-promo-log] Table existence check failed:', checkErr.message)
-      // If we can't even check tables, try the queries anyway (might be SQLite local)
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Supabase admin not configured' }, { status: 500 })
     }
 
     // ── 1. Fetch all promo codes with quota ──
-    const promoRows: any[] = await db.$queryRawUnsafe(`
-      SELECT id, code, description, discount_percent, max_quota, used_quota,
-             duration_months, is_active, start_date, end_date, created_at
-      FROM promo_codes
-      ORDER BY created_at DESC
-    `)
+    const { data: promoRows, error: promoErr } = await admin
+      .from('promo_codes')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (promoErr) {
+      console.error('[pro-promo-log] promo_codes query failed:', promoErr.message)
+    }
 
     const promoList = (promoRows || []).map((p: any) => ({
       id: p.id,
@@ -86,15 +65,22 @@ export async function GET(request: NextRequest) {
     // ── 2. Fetch promo-based subscriptions (users who used promo codes) ──
     let subRows: any[] = []
     try {
-      subRows = await db.$queryRawUnsafe(`
-        SELECT us.id, us.user_id, us.plan, us.status, us.start_date, us.end_date,
-               us.discount_percent, us.promo_code_id, us.created_at,
-               pc.code AS promo_code
-        FROM user_subscriptions us
-        LEFT JOIN promo_codes pc ON pc.id = us.promo_code_id
-        WHERE us.promo_code_id IS NOT NULL
-        ORDER BY us.created_at DESC
-      `)
+      const { data: subData, error: subErr } = await admin
+        .from('user_subscriptions')
+        .select(`
+          id, user_id, plan, status, start_date, end_date,
+          discount_percent, promo_code_id, created_at,
+          promo_code:promo_codes ( code )
+        `)
+        .not('promo_code_id', 'is', null)
+        .order('created_at', { ascending: false })
+
+      if (!subErr && subData) {
+        subRows = subData.map((s: any) => ({
+          ...s,
+          promo_code: s.promo_code?.code || 'Unknown',
+        }))
+      }
     } catch (subErr: any) {
       console.error('[pro-promo-log] user_subscriptions query failed:', subErr.message?.substring(0, 120))
     }
@@ -104,15 +90,18 @@ export async function GET(request: NextRequest) {
     let profileMap = new Map<string, any>()
 
     if (userIds.length > 0) {
-      const placeholders = userIds.map((_, i) => `$${i + 1}`).join(',')
-      const profileRows: any[] = await db.$queryRawUnsafe(`
-        SELECT id, email, full_name, is_pro, plan, subscription_until
-        FROM profiles
-        WHERE id IN (${placeholders})
-      `, ...userIds)
+      // Supabase has a limit on `in` filter, so batch in groups of 100
+      const batchSize = 100
+      for (let i = 0; i < userIds.length; i += batchSize) {
+        const batch = userIds.slice(i, i + batchSize)
+        const { data: profileRows } = await admin
+          .from('profiles')
+          .select('id, email, full_name, is_pro, plan, subscription_until')
+          .in('id', batch)
 
-      if (profileRows) {
-        profileMap = new Map(profileRows.map((p: any) => [p.id, p]))
+        if (profileRows) {
+          profileRows.forEach((p: any) => profileMap.set(p.id, p))
+        }
       }
     }
 
@@ -142,14 +131,14 @@ export async function GET(request: NextRequest) {
     // ── 3. Count all active PRO users ──
     let totalProUsers = 0
     try {
-      const proCountResult: any[] = await db.$queryRawUnsafe(`
-        SELECT COUNT(*)::int AS total
-        FROM profiles
-        WHERE is_pro = true
-          AND subscription_until IS NOT NULL
-          AND subscription_until > NOW()
-      `)
-      totalProUsers = proCountResult?.[0]?.total || 0
+      const { count } = await admin
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_pro', true)
+        .not('subscription_until', 'is', null)
+        .gt('subscription_until', new Date().toISOString())
+
+      totalProUsers = count || 0
     } catch {}
 
     // ── 4. Count promo-based active vs expired ──
@@ -157,16 +146,18 @@ export async function GET(request: NextRequest) {
     const promoExpiredUsers = promoUsage.filter(u => u.isExpired && u.status === 'active')
 
     // ── 5. Also count from profiles table (cross-check for PRO users from promo) ──
-    // This catches users who are PRO but don't have user_subscriptions record
     let proUsersFromProfiles: any[] = []
     try {
-      proUsersFromProfiles = await db.$queryRawUnsafe(`
-        SELECT id, email, full_name, is_pro, plan, subscription_until, pro_expiry, created_at
-        FROM profiles
-        WHERE is_pro = true
-        ORDER BY subscription_until DESC
-        LIMIT 50
-      `)
+      const { data: proData } = await admin
+        .from('profiles')
+        .select('id, email, full_name, is_pro, plan, subscription_until, pro_expiry, created_at')
+        .eq('is_pro', true)
+        .order('subscription_until', { ascending: false })
+        .limit(50)
+
+      if (proData) {
+        proUsersFromProfiles = proData
+      }
     } catch {}
 
     const data = {
@@ -188,7 +179,7 @@ export async function GET(request: NextRequest) {
       })),
       summary: {
         totalPromoCodes: promoList.length,
-        activePromoCodes: promoList.filter(p => p.isActive).length,
+        activePromoCodes: promoList.filter((p: any) => p.isActive).length,
         totalQuotaUsed: promoList.reduce((s: number, p: any) => s + p.usedQuota, 0),
         totalQuotaRemaining: promoList.reduce((s: number, p: any) => s + p.remainingQuota, 0),
       },
@@ -217,24 +208,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: authError }, { status: 401 })
     }
 
-    // Ensure tables exist
-    try {
-      await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS promo_codes (
-        id TEXT PRIMARY KEY, code TEXT NOT NULL, description TEXT,
-        discount_percent DOUBLE PRECISION NOT NULL, max_quota INTEGER NOT NULL,
-        used_quota INTEGER NOT NULL DEFAULT 0, duration_months INTEGER NOT NULL,
-        start_date TIMESTAMPTZ NOT NULL DEFAULT NOW(), end_date TIMESTAMPTZ,
-        is_active BOOLEAN NOT NULL DEFAULT true,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )`)
-      await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS user_subscriptions (
-        id TEXT PRIMARY KEY, user_id TEXT NOT NULL, plan TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'active',
-        start_date TIMESTAMPTZ NOT NULL DEFAULT NOW(), end_date TIMESTAMPTZ,
-        promo_code_id TEXT, discount_percent DOUBLE PRECISION NOT NULL DEFAULT 0,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )`)
-    } catch {}
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Supabase admin not configured' }, { status: 500 })
+    }
 
     const body = await request.json()
     const code = (body.code || '').trim().toUpperCase()
@@ -249,18 +226,40 @@ export async function POST(request: NextRequest) {
     }
 
     // Check duplicate
-    const existing: any[] = await db.$queryRawUnsafe(`
-      SELECT id FROM promo_codes WHERE code = $1 LIMIT 1
-    `, code)
+    const { data: existing, error: dupErr } = await admin
+      .from('promo_codes')
+      .select('id')
+      .eq('code', code)
+      .limit(1)
+
+    if (dupErr) {
+      console.error('[pro-promo-log] Duplicate check error:', dupErr.message)
+    }
 
     if (existing && existing.length > 0) {
       return NextResponse.json({ error: `Kode promo "${code}" sudah ada` }, { status: 409 })
     }
 
-    await db.$executeRawUnsafe(`
-      INSERT INTO promo_codes (id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, end_date, is_active, created_at, updated_at)
-      VALUES (gen_random_uuid()::text, $1, $2, $3, $4, 0, $5, NOW(), $6, true, NOW(), NOW())
-    `, code, description, discountPercent, maxQuota, durationMonths, endDate || null)
+    const { error: insertError } = await admin
+      .from('promo_codes')
+      .insert({
+        code,
+        description,
+        discount_percent: discountPercent,
+        max_quota: maxQuota,
+        used_quota: 0,
+        duration_months: durationMonths,
+        start_date: new Date().toISOString(),
+        end_date: endDate ? endDate.toISOString() : null,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+
+    if (insertError) {
+      console.error('[pro-promo-log] Insert error:', insertError.message)
+      return NextResponse.json({ error: 'Gagal membuat promo code', details: insertError.message }, { status: 500 })
+    }
 
     // Invalidate cache
     cache = null
@@ -288,6 +287,11 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: authError }, { status: 401 })
     }
 
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Supabase admin not configured' }, { status: 500 })
+    }
+
     const body = await request.json()
     const { id, action } = body
 
@@ -296,22 +300,30 @@ export async function PUT(request: NextRequest) {
     }
 
     // Verify promo exists
-    const existing: any[] = await db.$queryRawUnsafe(`
-      SELECT id, code, is_active, used_quota, max_quota FROM promo_codes WHERE id = $1 LIMIT 1
-    `, id)
+    const { data: existingRows, error: fetchErr } = await admin
+      .from('promo_codes')
+      .select('id, code, is_active, used_quota, max_quota')
+      .eq('id', id)
+      .limit(1)
 
-    if (!existing || existing.length === 0) {
+    if (fetchErr || !existingRows || existingRows.length === 0) {
       return NextResponse.json({ error: 'Promo code tidak ditemukan' }, { status: 404 })
     }
 
-    const promo = existing[0]
+    const promo = existingRows[0]
 
     if (action === 'toggle') {
       // Toggle active/inactive
       const newActive = !promo.is_active
-      await db.$executeRawUnsafe(`
-        UPDATE promo_codes SET is_active = $1, updated_at = NOW() WHERE id = $2
-      `, newActive, id)
+      const { error: updateErr } = await admin
+        .from('promo_codes')
+        .update({ is_active: newActive, updated_at: new Date().toISOString() })
+        .eq('id', id)
+
+      if (updateErr) {
+        return NextResponse.json({ error: 'Gagal update promo code', details: updateErr.message }, { status: 500 })
+      }
+
       cache = null
       return NextResponse.json({
         success: true,
@@ -325,9 +337,15 @@ export async function PUT(request: NextRequest) {
       if (!newMaxQuota || newMaxQuota < 1) {
         return NextResponse.json({ error: 'Max quota minimal 1' }, { status: 400 })
       }
-      await db.$executeRawUnsafe(`
-        UPDATE promo_codes SET max_quota = $1, updated_at = NOW() WHERE id = $2
-      `, newMaxQuota, id)
+      const { error: updateErr } = await admin
+        .from('promo_codes')
+        .update({ max_quota: newMaxQuota, updated_at: new Date().toISOString() })
+        .eq('id', id)
+
+      if (updateErr) {
+        return NextResponse.json({ error: 'Gagal update promo code', details: updateErr.message }, { status: 500 })
+      }
+
       cache = null
       return NextResponse.json({
         success: true,
@@ -337,9 +355,15 @@ export async function PUT(request: NextRequest) {
 
     if (action === 'resetQuota') {
       // Reset used_quota to 0, reactivate
-      await db.$executeRawUnsafe(`
-        UPDATE promo_codes SET used_quota = 0, is_active = true, updated_at = NOW() WHERE id = $1
-      `, id)
+      const { error: updateErr } = await admin
+        .from('promo_codes')
+        .update({ used_quota: 0, is_active: true, updated_at: new Date().toISOString() })
+        .eq('id', id)
+
+      if (updateErr) {
+        return NextResponse.json({ error: 'Gagal update promo code', details: updateErr.message }, { status: 500 })
+      }
+
       cache = null
       return NextResponse.json({
         success: true,
@@ -349,31 +373,31 @@ export async function PUT(request: NextRequest) {
 
     if (action === 'edit') {
       // Edit multiple fields
-      const updates: string[] = []
-      const values: any[] = []
-      let paramIdx = 2 // $1 = id
+      const updates: Record<string, any> = { updated_at: new Date().toISOString() }
 
       if (body.description !== undefined) {
-        updates.push(`description = $${paramIdx++}`)
-        values.push(body.description || null)
+        updates.description = body.description || null
       }
       if (body.durationMonths !== undefined && body.durationMonths >= 1) {
-        updates.push(`duration_months = $${paramIdx++}`)
-        values.push(body.durationMonths)
+        updates.duration_months = body.durationMonths
       }
       if (body.endDate !== undefined) {
-        updates.push(`end_date = $${paramIdx++}`)
-        values.push(body.endDate ? new Date(body.endDate) : null)
+        updates.end_date = body.endDate ? new Date(body.endDate).toISOString() : null
       }
 
-      if (updates.length === 0) {
+      if (Object.keys(updates).length <= 1) { // only updated_at
         return NextResponse.json({ error: 'Tidak ada field yang diubah' }, { status: 400 })
       }
 
-      updates.push(`updated_at = NOW()`)
-      await db.$executeRawUnsafe(`
-        UPDATE promo_codes SET ${updates.join(', ')} WHERE id = $1
-      `, id, ...values)
+      const { error: updateErr } = await admin
+        .from('promo_codes')
+        .update(updates)
+        .eq('id', id)
+
+      if (updateErr) {
+        return NextResponse.json({ error: 'Gagal update promo code', details: updateErr.message }, { status: 500 })
+      }
+
       cache = null
       return NextResponse.json({
         success: true,
@@ -403,6 +427,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: authError }, { status: 401 })
     }
 
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Supabase admin not configured' }, { status: 500 })
+    }
+
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
@@ -411,18 +440,28 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get promo info before deleting
-    const existing: any[] = await db.$queryRawUnsafe(`
-      SELECT id, code, used_quota FROM promo_codes WHERE id = $1 LIMIT 1
-    `, id)
+    const { data: existingRows, error: fetchErr } = await admin
+      .from('promo_codes')
+      .select('id, code, used_quota')
+      .eq('id', id)
+      .limit(1)
 
-    if (!existing || existing.length === 0) {
+    if (fetchErr || !existingRows || existingRows.length === 0) {
       return NextResponse.json({ error: 'Promo code tidak ditemukan' }, { status: 404 })
     }
 
-    const promo = existing[0]
+    const promo = existingRows[0]
 
     // Delete promo code (user_subscriptions records are kept for history)
-    await db.$executeRawUnsafe(`DELETE FROM promo_codes WHERE id = $1`, id)
+    const { error: deleteErr } = await admin
+      .from('promo_codes')
+      .delete()
+      .eq('id', id)
+
+    if (deleteErr) {
+      return NextResponse.json({ error: 'Gagal menghapus promo code', details: deleteErr.message }, { status: 500 })
+    }
+
     cache = null
 
     return NextResponse.json({

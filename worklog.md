@@ -704,3 +704,28 @@ Stage Summary:
 - Flow: Click Upgrade → Login/Daftar → Pilih Paket → Konfirmasi & Bayar → Sukses → Dashboard
 - Files modified: page.tsx, PricingSectionNew.tsx, new LandingCheckoutModal.tsx
 - Zero TypeScript errors in modified files
+
+---
+Task ID: 2
+Agent: main + 3 subagents
+Task: Fix all Prisma fs.readdir errors on Cloudflare, add Gemini API, fix News API
+
+Work Log:
+- Searched codebase: 47 files importing from @/lib/db (Prisma)
+- Converted /api/admin/email-broadcast from Prisma to Supabase (agent 1)
+- Converted 9 admin API routes (users, search-user, social-links, pro-promo-log, withdrawals, sync-auth-users, auto-update-email, subscriptions) (agent 2)
+- Converted 8 auth API routes (signup, force-confirm, verify-email, ensure-profile, check-verified, sync-profile, check-verify-status, resend-verification) (agent 3)
+- Converted 21 remaining routes (affiliate/*, trading-accounts/*, promo/*, social-links/*, reward/*, delete-account, missions/*, community/*, onboarding, bugs, auto-journal/debug) (agent 4)
+- Converted 3 lib files (require-pro.ts, sync-user.ts, achievement-checker.ts) (agent 5)
+- Created /src/lib/gemini.ts with geminiPrompt, geminiChat, geminiVision, isGeminiAvailable
+- Updated 5 AI API routes to use Gemini (auto-journal, ai/recommendations, ai/route, ai/chat, ai/vlm)
+- Fixed News API to check RAPIDAPI_KEY env var (in addition to RAPIDAPI_TRADING_ECONOMICS_KEY)
+- Verified: ZERO `from '@/lib/db'` imports remain in src/app/api/ or src/lib/
+
+Stage Summary:
+- All 38+ route files and 3 lib files converted from Prisma to Supabase
+- Prisma fs.readdir error on Cloudflare Workers is FIXED
+- Gemini API library created at src/lib/gemini.ts
+- 5 AI routes now use Gemini instead of Ollama/zai
+- News API now reads RAPIDAPI_KEY env var
+- generate-image route kept zai-image (Gemini can't generate images)
