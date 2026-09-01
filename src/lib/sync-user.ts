@@ -1,5 +1,5 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
-import { supabase, supabaseAdmin } from '@/lib/supabase'
+import { getServerClient } from '@/lib/supabase'
 
 /**
  * Sync Supabase Auth user to the users table
@@ -9,7 +9,7 @@ export async function syncUserToDatabase(authUserId: string, email: string, disp
   try {
     console.log('🔄 Syncing user to database:', email)
 
-    // Check if user already exists
+    // Check if user already exists (use admin client)
     const admin = getSupabaseAdmin()
     if (admin) {
       const { data: existingUser } = await admin
@@ -25,17 +25,17 @@ export async function syncUserToDatabase(authUserId: string, email: string, disp
     }
 
     // Get user from Supabase Auth to get fresh metadata
-    // MUST use supabaseAdmin (service_role) for auth.admin API — anon client will fail
-    const adminClient = supabaseAdmin || supabase
+    // MUST use admin client (service_role) for auth.admin API — anon client will fail
+    const adminClient = getSupabaseAdmin()
     if (!adminClient) {
-      console.error('❌ No Supabase client available for auth lookup')
-      return { success: false, error: 'No Supabase client available' }
+      console.error('❌ No Supabase admin client available for auth lookup')
+      return { success: false, error: 'No Supabase admin client available' }
     }
 
-    const { data: authUser } = await (adminClient.auth as any).admin.getUserById(authUserId)
+    const { data: authUser, error: authErr } = await (adminClient.auth as any).admin.getUserById(authUserId).catch((e: any) => ({ data: null, error: e }))
 
-    if (!authUser?.user) {
-      console.error('❌ User not found in Supabase Auth:', authUserId)
+    if (authErr || !authUser?.user) {
+      console.error('❌ User not found in Supabase Auth:', authUserId, authErr)
       return { success: false, error: 'User not found in Supabase Auth' }
     }
 
@@ -81,6 +81,7 @@ export async function syncUserToDatabase(authUserId: string, email: string, disp
  */
 export async function syncCurrentUser() {
   try {
+    const supabase = getServerClient()
     if (!supabase) {
       return { success: false, error: 'Supabase client not available' }
     }
