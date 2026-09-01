@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
-import { db } from '@/lib/db'
 import { getMidtransConfig } from '@/lib/payment/midtrans'
 import { PRICING, getPlanPrice, type PricingPlan } from '@/lib/pricing'
 import { rateLimitByUser } from '@/lib/rate-limit'
 import { edgeCrypto } from '@/lib/edge-crypto'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,7 +54,16 @@ export async function POST(request: NextRequest) {
     }
 
     // ── 4. Check if user already PRO ───────────────────────────
-    const profile = await db.profile.findUnique({ where: { id: user.id } })
+    let profile: any = null
+    const adminClient = getSupabaseAdmin()
+    if (adminClient) {
+      const { data } = await adminClient
+        .from('profiles')
+        .select('is_pro, subscription_until, full_name, phone')
+        .eq('id', user.id)
+        .single()
+      profile = data
+    }
     if (profile?.is_pro && profile?.subscription_until && new Date(profile.subscription_until) > new Date()) {
       return NextResponse.json({ error: 'Akun kamu sudah PRO aktif.' }, { status: 400 })
     }
@@ -65,20 +74,22 @@ export async function POST(request: NextRequest) {
     let discountPercent = 0
 
     // ── 6. Validate promo code (TRADERCEPAT etc.) ──────────────
-    // Inlined validation to avoid self-referencing fetch on CF Pages
+    // Uses Supabase directly — no Prisma (avoids fs.readdir on CF Workers)
     if (promoCode) {
       try {
         const normalizedCode = promoCode.trim().toUpperCase()
-        const results: any[] = await db.$queryRawUnsafe(`
-          SELECT code, discount_percent, duration_months, max_quota, used_quota,
-                 is_active, start_date, end_date
-          FROM promo_codes
-          WHERE code = $1
-          LIMIT 1;
-        `, normalizedCode)
+        let promoResults: any[] = []
+        if (adminClient) {
+          const { data } = await adminClient
+            .from('promo_codes')
+            .select('code, discount_percent, duration_months, max_quota, used_quota, is_active, start_date, end_date')
+            .eq('code', normalizedCode)
+            .limit(1)
+          promoResults = data || []
+        }
 
-        if (results && results.length > 0) {
-          const promo = results[0]
+        if (promoResults && promoResults.length > 0) {
+          const promo = promoResults[0]
           const now = new Date()
           const isActive = promo.is_active
           const notExpired = !promo.end_date || now <= new Date(promo.end_date)
@@ -103,9 +114,9 @@ export async function POST(request: NextRequest) {
 
     // ── 7. Build Midtrans parameter ────────────────────────────
     const orderId = `LUX-${plan}-${Date.now()}-${edgeCrypto.randomBytesHex(4).toUpperCase()}`
-    const customerName = profile?.full_name || user.email?.split('@')[0] || 'Customer'
+    const customerName = profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Customer'
     const customerEmail = user.email || 'unknown@luxtradee.web.id'
-    const customerPhone = profile?.phone || '08123456789'
+    const customerPhone = profile?.phone || user.user_metadata?.phone || '08123456789'
 
     const planLabel: Record<string, string> = {
       PRO_30_DAYS: 'LuxTrade PRO 30 Hari',
@@ -203,22 +214,22 @@ export async function POST(request: NextRequest) {
 
     const snapData = await snapRes.json()
 
-    // ── 9. Save order to DB ────────────────────────────────────
+    // ── 9. Save order to DB (Supabase, not Prisma) ─────────────
     try {
-      await db.paymentOrder.create({
-        data: {
-          userId: user.id,
-          invoiceNumber: orderId,
+      if (adminClient) {
+        await adminClient.from('payment_orders').insert({
+          user_id: user.id,
+          invoice_number: orderId,
           amount: grossAmount,
           plan: plan === 'PRO_LIFETIME' ? 'LIFETIME' : 'PRO',
-          durationMonths,
+          duration_months: durationMonths,
           status: 'PENDING',
-          customerName,
-          customerEmail,
-          paymentMethod: 'MIDTRANS',
-          expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        },
-      })
+          customer_name: customerName,
+          customer_email: customerEmail,
+          payment_method: 'MIDTRANS',
+          expired_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        })
+      }
     } catch (dbErr) {
       console.warn('[Midtrans create-transaction] Failed to save payment order to DB:', dbErr)
     }

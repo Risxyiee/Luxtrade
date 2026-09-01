@@ -105,7 +105,13 @@ export default {
       }
     }
 
-    // Also try ASSETS for HTML pages (prefetched routes) before SSR
+    // For non-static paths (API routes, RSC, etc.), go directly to the worker.
+    // Skip ASSETS for /api/ and /_rsc to avoid serving HTML for JSON endpoints.
+    if (url.pathname.startsWith("/api/") || url.searchParams.has("_rsc")) {
+      return originalWorker.fetch(request, env, ctx);
+    }
+
+    // For HTML pages, try ASSETS first (serves pre-rendered static pages faster)
     if (env.ASSETS) {
       try {
         const response = await env.ASSETS.fetch(request);

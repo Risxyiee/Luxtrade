@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
 import { getMidtransConfig } from '@/lib/payment/midtrans'
 import { getPlanPrice, type PricingPlan } from '@/lib/pricing'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { edgeCrypto } from '@/lib/edge-crypto'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,12 +12,10 @@ export const dynamic = 'force-dynamic'
  *
  * Allows creating a Midtrans transaction for a user who just signed up
  * but hasn't verified their email yet (no active session).
- *
- * Security: Validates that the user exists and was created recently (< 30 min ago).
+ * Uses Supabase only — no Prisma (CF Workers compatible).
  */
 export async function POST(request: NextRequest) {
   try {
-    // Rate limit: 5 transaction creation attempts per 5 minutes per IP
     const rl = checkRateLimit(request, 'create-transaction-unverified', {
       maxRequests: 5,
       windowMs: 5 * 60 * 1000,
@@ -41,11 +39,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
     }
 
-    // Verify user exists in DB and was created recently
-    const profile = await db.profile.findUnique({
-      where: { id: userId },
-      select: { id: true, email: true, full_name: true, createdAt: true, is_pro: true, subscription_until: true }
-    })
+    // Verify user exists in Supabase profiles
+    const adminClient = getSupabaseAdmin()
+    if (!adminClient) {
+      return NextResponse.json({ error: 'Server not configured' }, { status: 503 })
+    }
+
+    const { data: profile } = await adminClient
+      .from('profiles')
+      .select('id, email, full_name, created_at, is_pro, subscription_until')
+      .eq('id', userId)
+      .single()
 
     if (!profile) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
@@ -56,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Only allow if user was created within the last 30 minutes
-    const createdAt = profile.createdAt instanceof Date ? profile.createdAt : new Date(profile.createdAt as any)
+    const createdAt = new Date(profile.created_at)
     const minutesAgo = (Date.now() - createdAt.getTime()) / (1000 * 60)
     if (minutesAgo > 30) {
       return NextResponse.json({ error: 'Session expired. Please login and try again.' }, { status: 410 })
@@ -144,19 +148,17 @@ export async function POST(request: NextRequest) {
     const snapData = await snapRes.json()
 
     try {
-      await db.paymentOrder.create({
-        data: {
-          userId,
-          invoiceNumber: orderId,
-          amount: grossAmount,
-          plan: plan === 'PRO_LIFETIME' ? 'LIFETIME' : 'PRO',
-          durationMonths,
-          status: 'PENDING',
-          customerName,
-          customerEmail: email,
-          paymentMethod: 'MIDTRANS',
-          expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        },
+      await adminClient.from('payment_orders').insert({
+        user_id: userId,
+        invoice_number: orderId,
+        amount: grossAmount,
+        plan: plan === 'PRO_LIFETIME' ? 'LIFETIME' : 'PRO',
+        duration_months: durationMonths,
+        status: 'PENDING',
+        customer_name: customerName,
+        customer_email: email,
+        payment_method: 'MIDTRANS',
+        expired_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       })
     } catch { /* non-critical */ }
 
