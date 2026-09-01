@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
-import { getSupabaseAdminAuthFromClient, supabaseAdmin } from '@/lib/supabase'
+import { getSupabaseAdminAuthFromClient, getSupabaseAdmin } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,12 +27,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!supabaseAdmin) {
+    const adminClient = getSupabaseAdmin()
+    if (!adminClient) {
       console.error('[sync-user] Supabase admin not available')
       return NextResponse.json({ success: true, action: 'skipped' })
     }
 
-    const authAdmin = getSupabaseAdminAuthFromClient()
+    const authAdmin = getSupabaseAdminAuthFromClient(adminClient)
     if (!authAdmin) {
       console.error('[sync-user] getSupabaseAdminAuthFromClient() returned null')
       return NextResponse.json({ success: true, action: 'skipped' })
