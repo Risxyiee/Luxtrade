@@ -11,7 +11,6 @@ interface PricingSectionNewProps {
   promoRemaining: number | null
   promoMax: number
   handleProUpgrade: () => void
-  payLoading: string | null
   language?: 'id' | 'en'
 }
 
@@ -21,7 +20,6 @@ export default function PricingSectionNew({
   promoRemaining,
   promoMax,
   handleProUpgrade,
-  payLoading,
   language = 'id',
 }: PricingSectionNewProps) {
   const [localPromo, setLocalPromo] = useState('')
@@ -157,10 +155,9 @@ export default function PricingSectionNew({
 
             <button
               onClick={handleProUpgrade}
-              disabled={!!payLoading}
-              className="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-xl hover:opacity-90 transition-all text-sm font-medium text-white glow-bg-luxury flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-xl hover:opacity-90 transition-all text-sm font-medium text-white glow-bg-luxury flex items-center justify-center gap-2 cursor-pointer"
             >
-              {payLoading ? (language === 'en' ? 'Processing...' : 'Memproses...') : (language === 'en' ? 'Upgrade to PRO' : 'Upgrade ke PRO')}
+              {language === 'en' ? 'Upgrade to PRO' : 'Upgrade ke PRO'}
               <ArrowRight className="w-4 h-4" />
             </button>
             <p className="mt-4 text-center text-xs text-gray-500 flex items-center justify-center gap-2">
