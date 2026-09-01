@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
-import { sendAdminNotification } from '@/lib/admin-notify'
 import { requireAdmin } from '@/lib/admin-auth'
 
 export async function GET(request: NextRequest) {
@@ -102,10 +101,7 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // Send admin notification
-    const statusEmoji = status === 'approved' ? '✅' : '❌'
-    const msg = `${statusEmoji} <b>PENARIKAN SALDO ${status === 'approved' ? 'APPROVED' : 'DITOLAK'}</b>\n\n📧 ${withdrawal.email || withdrawal.user_id || 'Unknown'}\n💵 Rp${(withdrawal.amount || 0).toLocaleString('id-ID')}\n${adminNote ? `📝 Catatan: ${adminNote}\n\n` : ''}⏰ ${new Date().toLocaleString('id-ID')}`
-    await sendAdminNotification(msg)
+    console.log(`Admin withdrawal ${status}: ${(withdrawal.amount || 0).toLocaleString('id-ID')} for ${withdrawal.email || withdrawal.user_id}`)
 
     return NextResponse.json({ success: true, withdrawal: { ...withdrawal, status, adminNote } })
   } catch (error) {
