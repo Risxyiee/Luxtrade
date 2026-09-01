@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin, getAdminAuth } from '@/lib/supabase-admin-alt'
-import { sendAdminNotification } from '@/lib/admin-notify'
 import { requireAdmin } from '@/lib/admin-auth'
 import { PRICING } from '@/lib/pricing'
 
@@ -269,13 +268,7 @@ export async function POST(
               .eq('id', referrer.user_id)
           }
 
-          // Send admin notification
-          try {
-            const msg = `💰 <b>KOMISI DITERIMA!</b>\n\n🎯 Referal: ${userProfile.fullName || userProfile.email}\n💎 Upgrade ke: ${planConfig.name}\n💰 Komisi: Rp${commissionAmount.toLocaleString('id-ID')}\n\nSaldo total: Rp${newBalance.toLocaleString('id-ID')}`
-            await sendAdminNotification(msg)
-          } catch (notifyErr) {
-            console.error('Failed to send admin notification:', notifyErr)
-          }
+          console.log(`✅ Commission Rp${commissionAmount.toLocaleString('id-ID')} added, total balance: Rp${newBalance.toLocaleString('id-ID')}`)
         } else {
           console.log(`⚠️ No affiliate found with referral code: ${profileForReferral.referred_by_code}`)
         }
