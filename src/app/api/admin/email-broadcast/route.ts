@@ -80,13 +80,22 @@ export async function POST(request: NextRequest) {
       const { getAdminAuth } = await import('@/lib/supabase-admin-alt')
       const authAdmin = getAdminAuth()
       if (authAdmin) {
-        const { data: { users } } = await authAdmin.listUsers({ perPage: 500 })
-        if (users && users.length > 0) {
-          syncStats.totalAuth = users.length
+        let allAuthUsers: any[] = []
+        let page = 1
+        const perPage = 500
+        while (true) {
+          const { data: pageData } = await authAdmin.listUsers({ page, perPage })
+          if (!pageData?.users?.length) break
+          allAuthUsers.push(...pageData.users)
+          if (pageData.users.length < perPage) break
+          page++
+        }
+        if (allAuthUsers.length > 0) {
+          syncStats.totalAuth = allAuthUsers.length
           const { data: existingProfiles } = await admin.from('profiles').select('id')
           const existingIds = new Set((existingProfiles || []).map((p: any) => p.id))
           syncStats.existingDb = existingIds.size
-          for (const u of users) {
+          for (const u of allAuthUsers) {
             if (!existingIds.has(u.id)) {
               try {
                 await admin.from('profiles').insert({

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/api-auth'
-import { createClient } from '@supabase/supabase-js'
+import { createClientForApi } from '@/lib/supabase/server'
 
 const MAX_POINTS = 80
 const DEFAULT_BALANCE = 10000
@@ -25,7 +25,7 @@ function buildPeriodFilter(period: string): string | null {
     }
     case 'year': {
       const d = new Date(now)
-      d.setFullYear(d.getFullYear() - 1)
+      d.setFullYear(now.getFullYear() - 1)
       return d.toISOString()
     }
     default:
@@ -33,15 +33,11 @@ function buildPeriodFilter(period: string): string | null {
   }
 }
 
-/**
- * LTTB-inspired downsampling: keeps first/last, and within each bucket
- * picks the min and max equity points to preserve peaks and valleys.
- */
 function downsample(points: EquityPoint[], maxPoints: number): EquityPoint[] {
   if (points.length <= maxPoints) return points
 
   const result: EquityPoint[] = [points[0]]
-  const bucketCount = maxPoints - 2 // reserve first + last
+  const bucketCount = maxPoints - 2
   const bucketSize = (points.length - 2) / bucketCount
 
   for (let i = 0; i < bucketCount; i++) {
@@ -53,7 +49,6 @@ function downsample(points: EquityPoint[], maxPoints: number): EquityPoint[] {
       continue
     }
 
-    // Find min and max equity points in this bucket
     let minIdx = start
     let maxIdx = start
     for (let j = start + 1; j < end; j++) {
@@ -61,7 +56,6 @@ function downsample(points: EquityPoint[], maxPoints: number): EquityPoint[] {
       if (points[j].equity > points[maxIdx].equity) maxIdx = j
     }
 
-    // Add in chronological order, deduplicate if min === max
     const indices = [minIdx, maxIdx].sort((a, b) => a - b)
     const unique = indices.filter((v, i, arr) => arr.indexOf(v) === i)
     for (const idx of unique) {
@@ -83,11 +77,8 @@ export async function GET(request: NextRequest) {
   const period = searchParams.get('period') || 'all'
 
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+    const { supabase } = createClientForApi(request)
 
-    // Get initial balance from default trading account
     const { data: accounts } = await supabase
       .from('trading_accounts')
       .select('initial_balance')
@@ -100,10 +91,8 @@ export async function GET(request: NextRequest) {
       ? (accounts[0].initial_balance || DEFAULT_BALANCE)
       : DEFAULT_BALANCE
 
-    // Build date filter
     const dateFilter = buildPeriodFilter(period)
 
-    // Fetch trades — only what we need
     let query = supabase
       .from('trades')
       .select('profit_loss, close_time')
@@ -123,7 +112,6 @@ export async function GET(request: NextRequest) {
 
     const tradeList = trades || []
 
-    // Build full equity curve
     let running = initialBalance
     let peak = initialBalance
     let trough = initialBalance
@@ -139,10 +127,8 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Smart downsampling
     const equityCurve = downsample(fullCurve, MAX_POINTS)
 
-    // Recalculate peak/trough from final curve for accuracy after downsampling
     let finalPeak = initialBalance
     let finalTrough = initialBalance
     for (const p of equityCurve) {

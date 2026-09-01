@@ -14,10 +14,16 @@ export async function GET(request: NextRequest) {
 
     if (authAdmin) {
       try {
-        const { data: { users }, error: listError } = await authAdmin.listUsers()
-        if (!listError && users) {
-          authUsers = users
+        let page = 1
+        const perPage = 500
+        while (true) {
+          const { data: pageData, error: listError } = await authAdmin.listUsers({ page, perPage })
+          if (listError || !pageData?.users?.length) break
+          authUsers.push(...pageData.users)
+          if (pageData.users.length < perPage) break
+          page++
         }
+        console.log(`📊 [ADMIN GET] Fetched ${authUsers.length} auth users`)
       } catch (err) {
         console.error('⚠️ Auth listUsers failed:', err)
       }
