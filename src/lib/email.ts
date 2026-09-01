@@ -1,5 +1,3 @@
-// Lazy-load Resend to avoid build-time errors when API key is missing
-
 export interface EmailOptions {
   to: string
   subject: string
@@ -7,21 +5,15 @@ export interface EmailOptions {
   replyTo?: string
 }
 
-// Get Resend client only when needed
-async function getResendClient() {
+/**
+ * Send email via Resend REST API using raw fetch.
+ * The Resend SDK uses node-fetch/undici internally which can fail on
+ * Cloudflare Workers with "Unable to fetch data. The request could not be resolved."
+ * Raw fetch to api.resend.com works reliably on CF Workers.
+ */
+export async function sendEmail({ to, subject, html, replyTo }: EmailOptions) {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) {
-    return null
-  }
-  // Dynamic import to avoid build-time evaluation
-  const { Resend } = await import('resend')
-  return new Resend(apiKey)
-}
-
-export async function sendEmail({ to, subject, html, replyTo }: EmailOptions) {
-  const resend = await getResendClient()
-
-  if (!resend) {
     return { success: false, error: 'Email service not configured' }
   }
 
@@ -35,12 +27,25 @@ export async function sendEmail({ to, subject, html, replyTo }: EmailOptions) {
     if (replyTo) {
       payload.replyTo = replyTo
     }
-    const { data, error } = await resend.emails.send(payload as any)
 
-    if (error) {
-      // Log error details for debugging (essential on CF Workers where logs are the only diagnostics)
-      console.error(`[sendEmail] Resend error for ${to}:`, JSON.stringify(error))
-      return { success: false, error }
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(15000),
+    })
+
+    const data = await res.json().catch(() => null)
+
+    if (!res.ok) {
+      const errMsg = data?.name === 'validation_error'
+        ? (data?.message || `Resend ${res.status}`)
+        : `Resend API returned ${res.status}`
+      console.error(`[sendEmail] Resend error for ${to}: ${res.status}`, JSON.stringify(data))
+      return { success: false, error: errMsg }
     }
 
     return { success: true, data }
@@ -74,27 +79,36 @@ export async function sendEmailFromTemplate({
   templateParams: Record<string, string>
   fallbackHtml: string
 }) {
-  const resend = await getResendClient()
-
-  if (!resend) {
-    return { success: false, error: 'Email service not configured' }
-  }
-
   // Jika template ID belum diset, fallback ke inline HTML
   if (!templateId || templateId.startsWith('your_')) {
     return sendEmail({ to, subject, html: fallbackHtml })
   }
 
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) {
+    return { success: false, error: 'Email service not configured' }
+  }
+
   try {
-    const { data, error } = await resend.emails.send({
-      from: 'LuxTrade <noreply@luxtradee.web.id>',
-      to,
-      subject,
-      templateId,
-      templateParams,
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'LuxTrade <noreply@luxtradee.web.id>',
+        to,
+        subject,
+        template_id: templateId,
+        template_params: templateParams,
+      }),
+      signal: AbortSignal.timeout(15000),
     })
 
-    if (error) {
+    const data = await res.json().catch(() => null)
+
+    if (!res.ok) {
       // Fallback ke inline HTML jika template gagal
       return sendEmail({ to, subject, html: fallbackHtml })
     }
