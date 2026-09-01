@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { analyzeImageBase64WithAiml } from '@/lib/aiml-vision'
+import { geminiVision } from '@/lib/gemini'
 import { createClientForApi } from '@/lib/supabase/server'
 import { isUserPro } from '@/lib/pro-check'
 import { rateLimitByUser } from '@/lib/rate-limit'
@@ -38,13 +38,16 @@ export async function POST(request: NextRequest) {
 
     const bytes = await image.arrayBuffer()
     const base64Image = btoa(String.fromCharCode(...new Uint8Array(bytes)))
+    const mimeType = image.type || 'image/jpeg'
 
-    const result = await analyzeImageBase64WithAiml(base64Image, question)
+    const text = await geminiVision(question, base64Image, mimeType, {
+      maxTokens: 4096,
+    })
 
     return NextResponse.json({
       success: true,
-      response: result.text,
-      provider: result.provider,
+      response: text,
+      provider: 'gemini',
     })
   } catch (error: any) {
     console.error('[AI /vlm] Error:', error)

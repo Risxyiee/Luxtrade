@@ -10,7 +10,7 @@ const TE_ENDPOINT = 'https://trading-econmics-scraper.p.rapidapi.com/get_trading
 
 // Lazy-read API key at request time (CF Workers env vars not available at module load)
 function getTeApiKey(): string {
-  return process.env.RAPIDAPI_TRADING_ECONOMICS_KEY || '';
+  return process.env.RAPIDAPI_KEY || process.env.RAPIDAPI_TRADING_ECONOMICS_KEY || '';
 }
 
 // Bloomberg RSS (free fallback, no key needed)

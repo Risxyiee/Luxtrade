@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
-import { createZAI } from '@/lib/zai'
+import { geminiPrompt, geminiVision } from '@/lib/gemini'
 import { isUserPro } from '@/lib/pro-check'
 
 // In-memory rate limiter
@@ -20,43 +20,30 @@ function checkAIRateLimit(userId: string): boolean {
   return true
 }
 
-// ==================== ZAI HELPER ====================
+// ==================== GEMINI HELPERS ====================
 
-async function askZAI(systemPrompt: string, userPrompt: string): Promise<string | null> {
+async function askGemini(systemPrompt: string, userPrompt: string): Promise<string | null> {
   try {
-    const zai = await createZAI()
-    const result = await zai.chat.completions.create({
-      model: 'glm-4.6',
-      messages: [
-        { role: 'assistant', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      thinking: { type: 'disabled' }
+    return await geminiPrompt(userPrompt, {
+      systemInstruction: systemPrompt,
+      maxTokens: 4096,
     })
-    return result.choices?.[0]?.message?.content || ''
   } catch (error: any) {
-    console.warn('[AI] ZAI failed, using fallback:', error.message)
+    console.warn('[AI] Gemini failed, using fallback:', error.message)
     return null
   }
 }
 
-async function askZAIVision(systemPrompt: string, imageBase64: string): Promise<string | null> {
+async function askGeminiVision(systemPrompt: string, imageBase64: string): Promise<string | null> {
   try {
-    const zai = await createZAI()
-    const result = await zai.chat.completions.createVision({
-      model: 'glm-4.6',
-      messages: [
-        { role: 'assistant', content: systemPrompt },
-        { role: 'user', content: [
-          { type: 'text', text: 'Analyze this trading chart screenshot:' },
-          { type: 'image_url', image_url: { url: imageBase64 } }
-        ] }
-      ],
-      thinking: { type: 'disabled' }
-    })
-    return result.choices?.[0]?.message?.content || ''
+    return await geminiVision(
+      'Analyze this trading chart screenshot: ' + systemPrompt,
+      imageBase64,
+      'image/jpeg',
+      { systemInstruction: systemPrompt, maxTokens: 4096 }
+    )
   } catch (error: any) {
-    console.warn('[AI] ZAI Vision failed:', error.message)
+    console.warn('[AI] Gemini Vision failed:', error.message)
     return null
   }
 }
@@ -853,26 +840,26 @@ export async function POST(request: NextRequest) {
     const { type, data, language } = body
     const lang: 'id' | 'en' = (language === 'en') ? 'en' : 'id'
 
-    let zaiResponse: string | null = null
+    let geminiResponse: string | null = null
 
     switch (type) {
       case 'trade_analysis': {
         const trade = data || {}
-        zaiResponse = await askZAI(getSystemPrompt(lang), buildTradeAnalysisPrompt(lang, trade))
-        if (!zaiResponse) zaiResponse = buildSmartTradeFallback(trade, lang)
-        return NextResponse.json({ insight: zaiResponse })
+        geminiResponse = await askGemini(getSystemPrompt(lang), buildTradeAnalysisPrompt(lang, trade))
+        if (!geminiResponse) geminiResponse = buildSmartTradeFallback(trade, lang)
+        return NextResponse.json({ insight: geminiResponse })
       }
 
       case 'performance_tips': {
-        zaiResponse = await askZAI(getSystemPrompt(lang), buildPerformancePrompt(lang, data))
-        if (!zaiResponse) zaiResponse = buildSmartPerformanceFallback(data, lang)
-        return NextResponse.json({ insight: zaiResponse })
+        geminiResponse = await askGemini(getSystemPrompt(lang), buildPerformancePrompt(lang, data))
+        if (!geminiResponse) geminiResponse = buildSmartPerformanceFallback(data, lang)
+        return NextResponse.json({ insight: geminiResponse })
       }
 
       case 'market_insight': {
-        zaiResponse = await askZAI(getSystemPrompt(lang), getMarketInsightPrompt(lang))
-        if (!zaiResponse) zaiResponse = buildSmartMarketFallback(lang)
-        return NextResponse.json({ insight: zaiResponse })
+        geminiResponse = await askGemini(getSystemPrompt(lang), getMarketInsightPrompt(lang))
+        if (!geminiResponse) geminiResponse = buildSmartMarketFallback(lang)
+        return NextResponse.json({ insight: geminiResponse })
       }
 
       case 'chart_analysis': {
@@ -882,19 +869,19 @@ export async function POST(request: NextRequest) {
         const chartSystemPrompt = lang === 'id'
           ? 'Kamu adalah analis teknikal forex. Analisis chart trading yang diberikan. Jawab dalam Bahasa Indonesia. Identifikasi: 1) Trend yang sedang terjadi 2) Level support dan resistance yang terlihat 3) Pola chart (double top, head & shoulders, dll) 4) Indikator teknikal yang terlihat 5) Setup potensial dengan entry, SL, dan TP. JANGAN berikan rekomendasi untuk buy/sell spesifik. Jelaskan APA yang kamu lihat, bukan apa yang HARUS dilakukan.'
           : 'You are a forex technical analyst. Analyze the provided trading chart. Respond in English. Identify: 1) Current trend 2) Visible support and resistance levels 3) Chart patterns (double top, head & shoulders, etc.) 4) Visible technical indicators 5) Potential setups with entry, SL, and TP. Do NOT give specific buy/sell recommendations. Explain WHAT you see, not what to do.'
-        zaiResponse = await askZAIVision(chartSystemPrompt, data.imageData)
-        if (!zaiResponse) {
-          zaiResponse = lang === 'id'
+        geminiResponse = await askGeminiVision(chartSystemPrompt, data.imageData)
+        if (!geminiResponse) {
+          geminiResponse = lang === 'id'
             ? '❌ Analisis chart memerlukan koneksi AI yang sedang tidak tersedia. Coba lagi dalam beberapa saat.'
             : '❌ Chart analysis requires AI connection that is currently unavailable. Try again in a moment.'
         }
-        return NextResponse.json({ insight: zaiResponse })
+        return NextResponse.json({ insight: geminiResponse })
       }
 
       case 'chat': {
-        zaiResponse = await askZAI(getSystemPrompt(lang), buildChatPrompt(lang, data.message, data.context))
-        if (!zaiResponse) zaiResponse = buildSmartChatFallback(data.message, data.context, lang)
-        return NextResponse.json({ insight: zaiResponse })
+        geminiResponse = await askGemini(getSystemPrompt(lang), buildChatPrompt(lang, data.message, data.context))
+        if (!geminiResponse) geminiResponse = buildSmartChatFallback(data.message, data.context, lang)
+        return NextResponse.json({ insight: geminiResponse })
       }
 
       default:

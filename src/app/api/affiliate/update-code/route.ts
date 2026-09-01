@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { getAuthUser } from '@/lib/api-auth'
 
 // Rate limit: 1 change per 30 days per user
@@ -10,6 +10,11 @@ const CODE_REGEX = /^[A-Z0-9]{4,20}$/
 
 export async function PATCH(request: NextRequest) {
   try {
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+
     const authUser = await getAuthUser(request)
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -33,17 +38,15 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Find affiliate for this user
-    const affiliate = await db.affiliate.findUnique({
-      where: { userId: authUser.id },
-    })
+    const { data: affiliate } = await admin.from('affiliates').select('*').eq('user_id', authUser.id).single()
 
     if (!affiliate) {
       return NextResponse.json({ error: 'Affiliate record tidak ditemukan' }, { status: 404 })
     }
 
     // Rate limit check: 1 change per 30 days
-    if (affiliate.codeChangedAt) {
-      const elapsed = Date.now() - new Date(affiliate.codeChangedAt).getTime()
+    if (affiliate.code_changed_at) {
+      const elapsed = Date.now() - new Date(affiliate.code_changed_at).getTime()
       if (elapsed < COOLDOWN_MS) {
         const daysLeft = Math.ceil((COOLDOWN_MS - elapsed) / (24 * 60 * 60 * 1000))
         return NextResponse.json(
@@ -54,26 +57,21 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Can't set the same code
-    if (code === affiliate.referralCode) {
+    if (code === affiliate.referral_code) {
       return NextResponse.json({ error: 'Kode baru tidak boleh sama dengan kode saat ini' }, { status: 400 })
     }
 
     // Uniqueness check
-    const existing = await db.affiliate.findUnique({
-      where: { referralCode: code },
-    })
+    const { data: existing } = await admin.from('affiliates').select('id').eq('referral_code', code).maybeSingle()
     if (existing) {
       return NextResponse.json({ error: 'Kode ini sudah dipakai, coba yang lain' }, { status: 409 })
     }
 
     // Update the code — referrals are linked via affiliate_id, not the code, so existing referrals are safe
-    await db.affiliate.update({
-      where: { id: affiliate.id },
-      data: {
-        referralCode: code,
-        codeChangedAt: new Date(),
-      },
-    })
+    await admin.from('affiliates').update({
+      referral_code: code,
+      code_changed_at: new Date().toISOString(),
+    }).eq('id', affiliate.id)
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
     const newReferralLink = `${baseUrl}?ref=${code}`

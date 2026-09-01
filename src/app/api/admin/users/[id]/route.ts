@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-auth'
 import { getAdminAuth, getSupabaseAdmin } from '@/lib/supabase-admin-alt'
-import { db } from '@/lib/db'
 
 // DELETE a user
 export async function DELETE(
@@ -28,32 +27,23 @@ export async function DELETE(
       }
     }
 
-    // Also clean up Prisma profile (non-blocking)
-    try {
-      // Check if user has subscriptions
-      const subscriptionCount = await db.userSubscription.count({
-        where: { userId: id }
-      })
-
-      if (subscriptionCount > 0) {
-        // Delete subscriptions first
-        await db.userSubscription.deleteMany({ where: { userId: id } })
-      }
-
-      // Try delete profile (may fail if doesn't exist)
-      await db.profile.delete({ where: { id } }).catch(() => {})
-    } catch (prismaErr) {
-      console.error('⚠️ Prisma cleanup error (non-blocking):', prismaErr)
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Supabase admin not configured' }, { status: 500 })
     }
 
-    // Clean up Supabase profiles table (non-blocking)
+    // Delete subscriptions first (user_subscriptions table)
     try {
-      const svc = getSupabaseAdmin()
-      if (svc) {
-        await svc.from('profiles').delete().eq('id', id)
-      }
-    } catch (supabaseErr) {
-      console.error('⚠️ Supabase profiles cleanup error (non-blocking):', supabaseErr)
+      await admin.from('user_subscriptions').delete().eq('user_id', id)
+    } catch (subErr) {
+      console.error('⚠️ user_subscriptions cleanup error (non-blocking):', subErr)
+    }
+
+    // Delete profile (non-blocking)
+    try {
+      await admin.from('profiles').delete().eq('id', id)
+    } catch (profileErr) {
+      console.error('⚠️ profiles cleanup error (non-blocking):', profileErr)
     }
 
     return NextResponse.json({ success: true, message: 'User deleted successfully' })

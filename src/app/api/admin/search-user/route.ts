@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { requireAdmin } from '@/lib/admin-auth'
 
 export async function GET(req: NextRequest) {
@@ -12,12 +12,19 @@ export async function GET(req: NextRequest) {
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 })
     }
+
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Supabase admin not configured' }, { status: 500 })
+    }
     
-    const user = await db.profile.findUnique({
-      where: { email }
-    })
-    
-    if (!user) {
+    const { data: user, error: dbError } = await admin
+      .from('profiles')
+      .select('*')
+      .eq('email', email)
+      .single()
+
+    if (dbError || !user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
     

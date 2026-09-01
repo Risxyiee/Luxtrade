@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, isDatabaseAvailable } from '@/lib/db'
+import { getSupabaseAdmin, getAdminAuth } from '@/lib/supabase-admin-alt'
 import { sendEmail, getPromotionalEmailHtml } from '@/lib/email'
 import { requireAdmin } from '@/lib/admin-auth'
 
@@ -13,54 +13,81 @@ const DEFAULT_SUBJECT = '✨ Pembaruan LuxTrade — Fitur Baru & Perbaikan Bug'
 async function syncAuthUsersToProfiles(): Promise<{ totalAuth: number; existingDb: number; syncedNew: number; syncFailed: number }> {
   const stats = { totalAuth: 0, existingDb: 0, syncedNew: 0, syncFailed: 0 }
   try {
-    const { getAdminAuth } = await import('@/lib/supabase-admin-alt')
+    const admin = getSupabaseAdmin()
     const authAdmin = getAdminAuth()
-    if (!authAdmin || !isDatabaseAvailable()) return stats
+    if (!admin || !authAdmin) return stats
 
     const { data: { users } } = await authAdmin.listUsers({ perPage: 500 })
     if (!users || users.length === 0) return stats
 
     stats.totalAuth = users.length
-    const existingIds = new Set(
-      (await db.profile.findMany({ select: { id: true } })).map((p: any) => p.id)
-    )
+
+    // Get all existing profile IDs
+    const { data: existingProfiles } = await admin
+      .from('profiles')
+      .select('id')
+
+    const existingIds = new Set((existingProfiles || []).map((p: any) => p.id))
     stats.existingDb = existingIds.size
 
-    for (const u of users) {
-      if (!existingIds.has(u.id)) {
-        try {
-          await db.profile.create({
-            data: {
-              id: u.id,
-              email: u.email,
-              full_name: u.user_metadata?.full_name || u.user_metadata?.name || null,
-              emailVerified: u.email_confirmed_at != null,
-            },
-          })
-          stats.syncedNew++
-        } catch {
-          stats.syncFailed++
-        }
+    // Batch insert new users (max 100 at a time for Supabase)
+    const newUsers = users.filter(u => !existingIds.has(u.id))
+    for (let i = 0; i < newUsers.length; i += 100) {
+      const batch = newUsers.slice(i, i + 100)
+      const inserts = batch.map(u => ({
+        id: u.id,
+        email: u.email,
+        full_name: u.user_metadata?.full_name || u.user_metadata?.name || null,
+        email_verified: u.email_confirmed_at != null,
+      }))
+
+      const { error: insertErr } = await admin
+        .from('profiles')
+        .upsert(inserts, { onConflict: 'id' })
+
+      if (insertErr) {
+        stats.syncFailed += batch.length
+      } else {
+        stats.syncedNew += batch.length
       }
     }
 
     // Also update emailVerified for existing profiles that might be stale
-    const existingProfiles = await db.profile.findMany({
-      where: { id: { in: users.map(u => u.id) } },
-      select: { id: true, emailVerified: true },
-    })
-    for (const profile of existingProfiles) {
-      const authUser = users.find(u => u.id === profile.id)
-      if (authUser) {
-        const shouldBeVerified = authUser.email_confirmed_at != null
-        if (profile.emailVerified !== shouldBeVerified) {
-          try {
-            await db.profile.update({
-              where: { id: profile.id },
-              data: { emailVerified: shouldBeVerified },
-            })
-          } catch {
-            // non-critical
+    const usersToCheck = users.filter(u => existingIds.has(u.id))
+    if (usersToCheck.length > 0) {
+      // Fetch current email_verified for these users
+      const batchSize = 100
+      for (let i = 0; i < usersToCheck.length; i += batchSize) {
+        const batch = usersToCheck.slice(i, i + batchSize)
+        const batchIds = batch.map(u => u.id)
+
+        const { data: currentProfiles } = await admin
+          .from('profiles')
+          .select('id, email_verified')
+          .in('id', batchIds)
+
+        if (currentProfiles) {
+          const updates: { id: string; email_verified: boolean }[] = []
+          for (const profile of currentProfiles) {
+            const authUser = batch.find(u => u.id === profile.id)
+            if (authUser) {
+              const shouldBeVerified = authUser.email_confirmed_at != null
+              if (profile.email_verified !== shouldBeVerified) {
+                updates.push({ id: profile.id, email_verified: shouldBeVerified })
+              }
+            }
+          }
+
+          // Update in batch
+          for (const upd of updates) {
+            try {
+              await admin
+                .from('profiles')
+                .update({ email_verified: upd.email_verified })
+                .eq('id', upd.id)
+            } catch {
+              // non-critical
+            }
           }
         }
       }
@@ -185,8 +212,9 @@ export async function GET(request: NextRequest) {
     const { error } = await requireAdmin(request)
     if (error) return error
 
-    if (!isDatabaseAvailable()) {
-      return NextResponse.json({ error: 'Database tidak tersedia' }, { status: 500 })
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Supabase admin not configured' }, { status: 500 })
     }
 
     // Sync Auth users first so emailVerified is accurate
@@ -198,17 +226,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: `Target tidak valid. Gunakan: ${validTargets.join(', ')}` }, { status: 400 })
     }
 
-    const whereClause: Record<string, unknown> = { email: { not: null } }
-    if (target === 'verified') whereClause.emailVerified = true
-    if (target === 'pro') whereClause.is_pro = true
+    // Build query
+    let query = admin
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .not('email', 'is', null)
 
-    const count = await db.profile.count({ where: whereClause })
+    if (target === 'verified') {
+      query = query.eq('email_verified', true)
+    }
+    if (target === 'pro') {
+      query = query.eq('is_pro', true)
+    }
+
+    const { count } = await query
 
     return NextResponse.json({
       target,
-      recipientCount: count,
+      recipientCount: count || 0,
       sync: syncStats,
-      message: `Email akan dikirim ke ${count} user (${target})`,
+      message: `Email akan dikirim ke ${count || 0} user (${target})`,
     })
   } catch (error: unknown) {
     console.error('[API /admin/auto-update-email GET] Error:', error)
@@ -261,8 +298,9 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    if (!isDatabaseAvailable()) {
-      return NextResponse.json({ error: 'Database tidak tersedia' }, { status: 500 })
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Supabase admin not configured' }, { status: 500 })
     }
 
     // Sync Auth users first so emailVerified is accurate
@@ -270,22 +308,23 @@ export async function POST(request: NextRequest) {
     console.log(`📊 [auto-update-email POST] Sync done. Target: ${target}`)
 
     // Build query based on target
-    const whereClause: Record<string, unknown> = { email: { not: null } }
+    let query = admin
+      .from('profiles')
+      .select('id, email, full_name')
+      .not('email', 'is', null)
+
     switch (target) {
       case 'verified':
-        whereClause.emailVerified = true
+        query = query.eq('email_verified', true)
         break
       case 'pro':
-        whereClause.is_pro = true
+        query = query.eq('is_pro', true)
         break
     }
 
-    const profiles = await db.profile.findMany({
-      where: whereClause,
-      select: { id: true, email: true, full_name: true },
-    })
+    const { data: profiles, error: queryError } = await query
 
-    if (profiles.length === 0) {
+    if (queryError || !profiles || profiles.length === 0) {
       return NextResponse.json({
         success: false,
         error: 'Tidak ada user yang cocok dengan target ini',
@@ -344,15 +383,16 @@ export async function POST(request: NextRequest) {
 
     // Save broadcast record
     try {
-      await db.emailBroadcast.create({
-        data: {
+      await admin
+        .from('email_broadcasts')
+        .insert({
           target,
           subject,
-          sentCount: sent,
-          failedCount: failed,
-          sentBy: adminEmail,
-        },
-      })
+          sent_count: sent,
+          failed_count: failed,
+          sent_by: adminEmail,
+          created_at: new Date().toISOString(),
+        })
     } catch {
       // Non-critical
     }

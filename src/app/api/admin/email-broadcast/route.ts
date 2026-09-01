@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, isDatabaseAvailable } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { sendEmail, getUnverifiedBulkReminderHtml, getVerificationPromoEmailHtml, getPromotionalEmailHtml } from '@/lib/email'
 import { requireAdmin } from '@/lib/admin-auth'
 import { edgeCrypto } from '@/lib/edge-crypto'
@@ -49,6 +49,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
+    }
+
     const { error, user } = await requireAdmin(request)
     if (error) return error
 
@@ -74,25 +79,22 @@ export async function POST(request: NextRequest) {
     try {
       const { getAdminAuth } = await import('@/lib/supabase-admin-alt')
       const authAdmin = getAdminAuth()
-      if (authAdmin && isDatabaseAvailable()) {
+      if (authAdmin) {
         const { data: { users } } = await authAdmin.listUsers({ perPage: 500 })
         if (users && users.length > 0) {
           syncStats.totalAuth = users.length
-          const existingIds = new Set(
-            (await db.profile.findMany({ select: { id: true } })).map((p: any) => p.id)
-          )
+          const { data: existingProfiles } = await admin.from('profiles').select('id')
+          const existingIds = new Set((existingProfiles || []).map((p: any) => p.id))
           syncStats.existingDb = existingIds.size
           for (const u of users) {
             if (!existingIds.has(u.id)) {
               try {
-                await db.profile.create({
-                  data: {
-                    id: u.id,
-                    email: u.email,
-                    full_name: u.user_metadata?.full_name || u.user_metadata?.name || null,
-                    emailVerified: u.email_confirmed_at != null,
-                  },
-                })
+                await admin.from('profiles').insert({
+                  id: u.id,
+                  email: u.email,
+                  full_name: u.user_metadata?.full_name || u.user_metadata?.name || null,
+                  email_verified: u.email_confirmed_at != null,
+                }).single()
                 syncStats.syncedNew++
               } catch (_e) {
                 syncStats.syncFailed++
@@ -132,42 +134,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Build query based on target
-    const whereClause: Record<string, unknown> = {}
+    // Build Supabase query based on target
+    let query = admin.from('profiles').select('id, email, full_name').not('email', 'is', null)
     switch (target) {
       case 'unverified':
-        whereClause.emailVerified = false
-        whereClause.email = { not: null }
+        query = query.eq('email_verified', false)
         break
       case 'verified':
-        whereClause.emailVerified = true
-        whereClause.email = { not: null }
+        query = query.eq('email_verified', true)
         break
       case 'pro':
-        whereClause.is_pro = true
-        whereClause.email = { not: null }
+        query = query.eq('is_pro', true)
         break
       case 'free':
-        whereClause.is_pro = false
-        whereClause.emailVerified = true
-        whereClause.email = { not: null }
+        query = query.eq('is_pro', false).eq('email_verified', true)
         break
       case 'all':
-        whereClause.email = { not: null }
+        // no additional filters — already has .not('email', 'is', null)
         break
     }
 
     // Fetch ALL matching profiles (no limit — broadcast to everyone)
-    const profiles = await db.profile.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        email: true,
-        full_name: true,
-      },
-    })
+    const { data: profiles } = await query
+    const profileList = profiles || []
 
-    if (profiles.length === 0) {
+    if (profileList.length === 0) {
       return NextResponse.json({
         sent: 0,
         failed: 0,
@@ -178,7 +169,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Log recipient count BEFORE sending, so admin can see it
-    console.log(`📢 [email-broadcast] Target "${target}": ${profiles.length} users will receive. Sync stats: auth=${syncStats.totalAuth}, db=${syncStats.existingDb}, new=${syncStats.syncedNew}${syncStats.error ? `, ERROR: ${syncStats.error}` : ''}`)
+    console.log(`📢 [email-broadcast] Target "${target}": ${profileList.length} users will receive. Sync stats: auth=${syncStats.totalAuth}, db=${syncStats.existingDb}, new=${syncStats.syncedNew}${syncStats.error ? `, ERROR: ${syncStats.error}` : ''}`)
 
     // Send emails in parallel with concurrency limit
     let sent = 0
@@ -200,13 +191,10 @@ export async function POST(request: NextRequest) {
           const newToken = edgeCrypto.randomBytesHex(32)
           const newExpAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
-          await db.profile.update({
-            where: { id: profile.id },
-            data: {
-              emailVerifyToken: newToken,
-              emailVerifyExpAt: newExpAt,
-            },
-          })
+          await admin.from('profiles').update({
+            email_verify_token: newToken,
+            email_verify_exp_at: newExpAt.toISOString(),
+          }).eq('id', profile.id)
 
           const confirmationUrl = `${getSiteUrl()}/auth/verify?token=${newToken}`
           const reminderSubject = subject || `${name}, akun LuxTrade kamu belum diverifikasi nih ⏳`
@@ -261,24 +249,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Process sequentially with delay to respect Resend rate limit (2 req/s)
-    for (let i = 0; i < profiles.length; i++) {
-      await sendBatch(profiles[i], i + 1)
-      if (i < profiles.length - 1) {
+    for (let i = 0; i < profileList.length; i++) {
+      await sendBatch(profileList[i], i + 1)
+      if (i < profileList.length - 1) {
         await new Promise(r => setTimeout(r, EMAIL_DELAY_MS))
       }
     }
 
     // Save broadcast record (non-critical — don't fail the whole broadcast if table missing)
     try {
-      await db.emailBroadcast.create({
-        data: {
-          target,
-          subject,
-          sentCount: sent,
-          failedCount: failed,
-          sentBy: adminEmail,
-        },
-      })
+      await admin.from('email_broadcasts').insert({
+        target,
+        subject,
+        sent_count: sent,
+        failed_count: failed,
+        sent_by: adminEmail,
+      }).single()
     } catch (_saveErr: any) {
       // Could not save broadcast record — non-critical
     }
@@ -288,7 +274,7 @@ export async function POST(request: NextRequest) {
       failed,
       errors,
       sync: syncStats,
-      targetUserCount: profiles.length,
+      targetUserCount: profileList.length,
     })
   } catch (error: unknown) {
     console.error('[API /admin/email-broadcast POST] Error:', error)

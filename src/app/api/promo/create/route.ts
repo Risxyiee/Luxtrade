@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/api-auth'
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { edgeCrypto } from '@/lib/edge-crypto'
 
 /**
@@ -10,11 +10,16 @@ import { edgeCrypto } from '@/lib/edge-crypto'
  */
 export async function POST(request: NextRequest) {
   try {
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+
     const authUser = await getAuthUser(request)
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    const profile = await db.profile.findUnique({ where: { id: authUser.id }, select: { role: true } })
+    const { data: profile } = await admin.from('profiles').select('role').eq('id', authUser.id).maybeSingle()
     if (profile?.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 })
     }
@@ -42,11 +47,9 @@ export async function POST(request: NextRequest) {
     const normalizedCode = code.trim().toUpperCase()
 
     // Check if promo code already exists
-    const existing: any[] = await db.$queryRawUnsafe(`
-      SELECT id FROM promo_codes WHERE code = $1 LIMIT 1;
-    `, normalizedCode)
+    const { data: existing } = await admin.from('promo_codes').select('id').eq('code', normalizedCode).maybeSingle()
 
-    if (existing && existing.length > 0) {
+    if (existing) {
       return NextResponse.json({
         success: false,
         message: 'Kode promo sudah ada'
@@ -54,10 +57,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Create promo code
-    await db.$executeRawUnsafe(`
-      INSERT INTO promo_codes (id, code, description, discount_percent, max_quota, used_quota, duration_months, start_date, end_date, is_active, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, 0, $6, $7, $8, true, NOW(), NOW());
-    `, edgeCrypto.randomUUID(), normalizedCode, description || null, parseFloat(discountPercent), parseInt(maxQuota), parseInt(durationMonths), startDate ? new Date(startDate) : new Date(), endDate ? new Date(endDate) : null)
+    const { error: insertError } = await admin.from('promo_codes').insert({
+      id: edgeCrypto.randomUUID(),
+      code: normalizedCode,
+      description: description || null,
+      discount_percent: parseFloat(discountPercent),
+      max_quota: parseInt(maxQuota),
+      used_quota: 0,
+      duration_months: parseInt(durationMonths),
+      start_date: startDate ? new Date(startDate).toISOString() : new Date().toISOString(),
+      end_date: endDate ? new Date(endDate).toISOString() : null,
+      is_active: true,
+    })
+
+    if (insertError) {
+      return NextResponse.json({ error: 'Gagal membuat kode promo' }, { status: 500 })
+    }
 
     return NextResponse.json({
       success: true,

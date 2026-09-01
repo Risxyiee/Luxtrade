@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,31 +26,52 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if profile already exists in Prisma/SQLite
-    const existingProfile = await db.profile.findUnique({
-      where: { id: userId }
-    })
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json(
+        { error: 'Server not configured' },
+        { status: 500 }
+      )
+    }
 
-    if (existingProfile) {
+    // Check if profile already exists
+    const { data: existingProfile, error: findErr } = await admin
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+
+    if (!findErr && existingProfile) {
       return NextResponse.json({ profile: existingProfile, created: false })
     }
 
-    // Create new profile using Prisma
-    const profile = await db.profile.create({
-      data: {
-        id: userId,
-        email: email || user.email || null,
-        full_name: fullName || null,
-        plan: 'FREE',
-        is_pro: false,
-        role: 'USER',
-        streakCount: 0,
-        bestStreak: 0,
-        achievements: '[]',
-      }
-    })
+    // Create new profile using Supabase
+    const profileData = {
+      id: userId,
+      email: email || user.email || null,
+      full_name: fullName || null,
+      plan: 'FREE',
+      is_pro: false,
+      role: 'USER',
+      streak_count: 0,
+      best_streak: 0,
+      achievements: '[]',
+    }
 
-    return NextResponse.json({ profile, created: true })
+    const { data: newProfile, error: createErr } = await admin
+      .from('profiles')
+      .insert(profileData)
+      .single()
+
+    if (createErr) {
+      console.error('❌ Failed to create profile:', createErr.message)
+      return NextResponse.json(
+        { error: 'Failed to create profile' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({ profile: newProfile, created: true })
   } catch (error: any) {
     console.error('❌ Ensure profile error:', error)
     return NextResponse.json(

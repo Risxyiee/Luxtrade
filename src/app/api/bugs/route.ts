@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -7,6 +7,11 @@ import { supabase } from '@/lib/supabase';
  */
 export async function POST(request: NextRequest) {
   try {
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+
     // Check authentication
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -20,10 +25,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Get profile to get the correct user ID
-    const profile = await db.profile.findUnique({
-      where: { id: user.id }
-    });
+    // Get profile to verify user exists
+    const { data: profile } = await admin.from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .maybeSingle();
 
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
@@ -48,23 +54,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Create bug report
-    const bugReport = await db.bugReport.create({
-      data: {
-        userId: profile.id,
-        description: description.trim(),
-        screenshotUrl: screenshotUrl || null,
-        status: 'PENDING'
-      }
-    });
+    const { data: bugReport, error: createError } = await admin.from('bug_reports').insert({
+      user_id: profile.id,
+      description: description.trim(),
+      screenshot_url: screenshotUrl || null,
+      status: 'PENDING'
+    }).select().single();
+
+    if (createError) {
+      console.error('Error creating bug report:', createError);
+      return NextResponse.json({ error: 'Failed to submit bug report' }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,
       bugReport: {
         id: bugReport.id,
         description: bugReport.description,
-        screenshotUrl: bugReport.screenshotUrl,
+        screenshotUrl: bugReport.screenshot_url,
         status: bugReport.status,
-        createdAt: bugReport.createdAt
+        createdAt: bugReport.created_at
       }
     });
 
@@ -82,6 +91,11 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+
     // Check authentication
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -96,22 +110,24 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user is admin
-    const profile = await db.profile.findUnique({
-      where: { id: user.id },
-      select: { role: true }
-    });
+    const { data: profile } = await admin.from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
 
     if (!profile || (profile.role !== 'ADMIN' && profile.role !== 'SUPER_ADMIN')) {
       return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 });
     }
 
-    // Get all bug reports with user info
-    const bugReports = await db.bugReport.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        _count: true
-      }
-    });
+    // Get all bug reports
+    const { data: bugReports, error: fetchError } = await admin.from('bug_reports')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (fetchError) {
+      console.error('Error fetching bug reports:', fetchError);
+      return NextResponse.json({ error: 'Failed to fetch bug reports' }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,

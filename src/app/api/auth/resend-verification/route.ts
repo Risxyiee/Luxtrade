@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { sendEmailFromTemplate, getConfirmationEmailHtml } from '@/lib/email'
 import { rateLimitByEmail } from '@/lib/rate-limit'
 import { edgeCrypto } from '@/lib/edge-crypto'
@@ -22,19 +22,27 @@ export async function POST(request: NextRequest) {
     })
     if (rl) return rl
 
-    // Find profile by email in Prisma
-    const profile = await db.profile.findFirst({
-      where: { email: email.toLowerCase() }
-    })
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Server tidak dikonfigurasi dengan benar.' }, { status: 500 })
+    }
 
-    if (!profile) {
+    // Find profile by email in Supabase
+    const { data: profile, error: findErr } = await admin
+      .from('profiles')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .limit(1)
+      .single()
+
+    if (findErr || !profile) {
       return NextResponse.json(
         { error: 'Email nggak ketemu. Belum daftar ya?' },
         { status: 404 }
       )
     }
 
-    if (profile.emailVerified) {
+    if (profile.email_verified) {
       return NextResponse.json(
         { error: 'Email kamu sudah terverifikasi. Langsung login aja!' },
         { status: 400 }
@@ -43,16 +51,25 @@ export async function POST(request: NextRequest) {
 
     // Generate new verification token
     const newToken = edgeCrypto.randomBytesHex(32)
-    const newExpAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+    const newExpAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
 
-    // Save token to Prisma profile
-    await db.profile.update({
-      where: { id: profile.id },
-      data: {
-        emailVerifyToken: newToken,
-        emailVerifyExpAt: newExpAt,
-      }
-    })
+    // Save token to profile
+    const { error: updateErr } = await admin
+      .from('profiles')
+      .update({
+        email_verify_token: newToken,
+        email_verify_exp_at: newExpAt,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', profile.id)
+
+    if (updateErr) {
+      console.error('❌ Failed to update verify token:', updateErr.message)
+      return NextResponse.json(
+        { error: 'Gagal mengupdate token. Coba lagi nanti.' },
+        { status: 500 }
+      )
+    }
 
     console.log('✅ New verification token generated')
 

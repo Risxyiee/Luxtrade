@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, isDatabaseAvailable } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { getAuthUser } from '@/lib/api-auth'
 import { getSupabaseAdminAuthFromClient, supabaseAdmin } from '@/lib/supabase'
 
@@ -14,24 +14,25 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ rewarded: false, reason: 'DB unavailable' })
+    }
+
     const authUser = await getAuthUser(request)
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (!isDatabaseAvailable()) {
-      return NextResponse.json({ rewarded: false, reason: 'DB unavailable' })
-    }
-
     const userId = authUser.id
 
     // Check if already rewarded
-    const profile: any = await db.$queryRawUnsafe(`
-      SELECT plan, is_pro, subscription_until, pro_expiry
-      FROM profiles WHERE id = $1
-    `, userId)
+    const { data: profileRows } = await admin.from('profiles')
+      .select('plan, is_pro, subscription_until, pro_expiry, first_trade_reward_claimed')
+      .eq('id', userId)
+      .maybeSingle()
 
-    const p = Array.isArray(profile) ? profile[0] : null
+    const p = profileRows
     if (!p) {
       return NextResponse.json({ rewarded: false, reason: 'Profile not found' })
     }
@@ -42,21 +43,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Check trade count
-    const tradeCount: any[] = await db.$queryRawUnsafe(`
-      SELECT count(*)::int AS cnt FROM trades WHERE user_id = $1
-    `, userId)
+    const { count: tradeCount } = await admin.from('trades')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
 
-    const count = tradeCount?.[0]?.cnt || 0
-    if (count === 0) {
+    if (!tradeCount || tradeCount === 0) {
       return NextResponse.json({ rewarded: false, reason: 'No trades yet' })
     }
 
     // Check if already claimed this reward
-    const rewarded: any[] = await db.$queryRawUnsafe(`
-      SELECT first_trade_reward_claimed FROM profiles WHERE id = $1
-    `, userId)
-
-    if (rewarded?.[0]?.first_trade_reward_claimed) {
+    if (p.first_trade_reward_claimed) {
       return NextResponse.json({ rewarded: false, reason: 'Already claimed' })
     }
 
@@ -64,32 +60,18 @@ export async function POST(request: NextRequest) {
     const now = new Date()
     const rewardEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 23, 59, 59, 999)
 
-    await db.$executeRawUnsafe(`
-      UPDATE profiles SET
-        plan = 'PRO',
-        is_pro = true,
-        subscription_until = $1,
-        pro_expiry = $1,
-        has_ever_been_pro = true,
-        first_trade_reward_claimed = true,
-        updated_at = NOW()
-      WHERE id = $2
-        AND plan = 'FREE'
-    `, rewardEnd, userId)
+    const { error: updateError } = await admin.from('profiles').update({
+      plan: 'PRO',
+      is_pro: true,
+      subscription_until: rewardEnd.toISOString(),
+      pro_expiry: rewardEnd.toISOString(),
+      has_ever_been_pro: true,
+      first_trade_reward_claimed: true,
+      updated_at: now.toISOString(),
+    }).eq('id', userId).eq('plan', 'FREE')
 
-    // Also mark in Supabase profiles table
-    try {
-      if (supabaseAdmin) {
-        await supabaseAdmin.from('profiles').update({
-          plan: 'PRO',
-          is_pro: true,
-          subscription_until: rewardEnd.toISOString(),
-          pro_expiry: rewardEnd.toISOString(),
-          has_ever_been_pro: true,
-        }).eq('id', userId)
-      }
-    } catch (err: any) {
-      console.warn('[reward/first-trade] Supabase sync failed:', err.message?.slice(0, 80))
+    if (updateError) {
+      console.warn('[reward/first-trade] Profile update failed:', updateError.message)
     }
 
     // Update auth metadata
@@ -112,7 +94,7 @@ export async function POST(request: NextRequest) {
       console.warn('[reward/first-trade] Auth meta update failed:', err.message?.slice(0, 80))
     }
 
-    console.log(`🎁 [reward/first-trade] user=${userId} awarded 1-day PRO (until ${rewardEnd.toISOString()})`)
+    console.log(`[reward/first-trade] user=${userId} awarded 1-day PRO (until ${rewardEnd.toISOString()})`)
 
     return NextResponse.json({
       rewarded: true,

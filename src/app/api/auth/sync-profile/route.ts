@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
 import { createClientForApi } from '@/lib/supabase/server'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 
 // GET - Sync current user profile (ensure profile exists)
 export async function GET(request: NextRequest) {
@@ -12,44 +12,74 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
+    }
+
     const userId = user.id
     const email = user.email
 
     // Check or create profile
-    let profile = await db.profile.findUnique({
-      where: { id: userId }
-    })
+    const { data: existingProfile, error: findErr } = await admin
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
 
-    if (!profile) {
+    let profile = existingProfile
+
+    if (findErr || !existingProfile) {
       console.log('📝 Creating profile for user:', userId)
-      profile = await db.profile.create({
-        data: {
+      const now = new Date().toISOString()
+      const { data: newProfile, error: createErr } = await admin
+        .from('profiles')
+        .insert({
           id: userId,
           email: email || null,
           plan: 'FREE',
           is_pro: false,
           role: 'USER',
-          streakCount: 0,
-          bestStreak: 0,
-          achievements: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }
-      })
+          streak_count: 0,
+          best_streak: 0,
+          achievements: '[]',
+          created_at: now,
+          updated_at: now,
+        })
+        .single()
+
+      if (createErr) {
+        console.error('❌ Failed to create profile:', createErr.message)
+        return NextResponse.json({ error: 'Failed to create profile' }, { status: 500 })
+      }
+      profile = newProfile
       console.log('✅ Profile created for user:', userId)
     } else if (email && profile.email !== email) {
       // Update email if changed
-      profile = await db.profile.update({
-        where: { id: userId },
-        data: { email, updatedAt: new Date() }
-      })
-      console.log('✅ Profile email updated for user:', userId)
+      const { data: updatedProfile, error: updateErr } = await admin
+        .from('profiles')
+        .update({ email, updated_at: new Date().toISOString() })
+        .eq('id', userId)
+        .select('*')
+        .single()
+
+      if (!updateErr && updatedProfile) {
+        profile = updatedProfile
+        console.log('✅ Profile email updated for user:', userId)
+      }
     }
 
     // Count user trades
-    const tradeCount = await db.trade.count({
-      where: { user_id: userId }
-    })
+    let tradeCount = 0
+    try {
+      const { count } = await admin
+        .from('trades')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+      tradeCount = count || 0
+    } catch {
+      // trade count failure is non-critical
+    }
 
     return NextResponse.json({
       success: true,

@@ -6,10 +6,8 @@ import { isUserPro } from '@/lib/pro-check'
 import { uploadScreenshot } from '@/lib/extractTradeData'
 import { edgeCrypto } from '@/lib/edge-crypto'
 import { checkAchievementsAfterTrade } from '@/lib/achievement-checker'
-import {
-  analyzeImageBase64WithAiml,
-  buildTradeAndJournalPrompt,
-} from '@/lib/aiml-vision'
+import { geminiVision, isGeminiAvailable } from '@/lib/gemini'
+import { buildTradeAndJournalPrompt } from '@/lib/aiml-vision'
 
 // ==================== AUTH HELPER ====================
 
@@ -213,14 +211,23 @@ export async function POST(request: NextRequest) {
     log('✅', `broker_gmt_offset: ${gmtOffset}`)
 
     // ── STEP 7: AI call ──
-    log('🤖', 'Starting AI vision call (Gemini → OpenRouter fallback)...')
+    log('🤖', 'Starting AI vision call (Gemini)...')
     const t2 = performance.now()
-    let aiResult: Awaited<ReturnType<typeof analyzeImageBase64WithAiml>>
+    let aiResultText: string
     try {
-      aiResult = await analyzeImageBase64WithAiml(
+      if (!isGeminiAvailable()) {
+        log('⛔', 'GEMINI_API_KEY not configured')
+        return NextResponse.json(
+          { error: 'API key AI belum dikonfigurasi (GEMINI_API_KEY). Hubungi admin.', step: 'ai_call' },
+          { status: 500 }
+        )
+      }
+      const prompt = buildTradeAndJournalPrompt(lang)
+      aiResultText = await geminiVision(
+        prompt,
         base64Image,
-        buildTradeAndJournalPrompt(lang),
-        { timeout: 20000, maxRetries: 1 }
+        imageFile.type || 'image/jpeg',
+        { temperature: 0.1, maxTokens: 2048 }
       )
     } catch (err: any) {
       log('⛔', `AI call FAILED after ${(performance.now() - t2).toFixed(0)}ms: ${err.message}`)
@@ -229,15 +236,15 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
-    log('✅', `AI responded in ${(performance.now() - t2).toFixed(0)}ms via ${aiResult.provider}, ${aiResult.text.length} chars`)
+    log('✅', `AI responded in ${(performance.now() - t2).toFixed(0)}ms via gemini, ${aiResultText.length} chars`)
 
     // ── STEP 8: Parse AI JSON response ──
     log('📋', 'Parsing AI JSON response...')
-    const jsonMatch = aiResult.text.match(/\{[\s\S]*\}/)
+    const jsonMatch = aiResultText.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
-      log('⛔', `AI did not return valid JSON. Raw (first 200): ${aiResult.text.slice(0, 200)}`)
+      log('⛔', `AI did not return valid JSON. Raw (first 200): ${aiResultText.slice(0, 200)}`)
       return NextResponse.json(
-        { error: 'AI gagal mengembalikan JSON yang valid dari screenshot.', step: 'json_parse', rawPreview: aiResult.text.slice(0, 300) },
+        { error: 'AI gagal mengembalikan JSON yang valid dari screenshot.', step: 'json_parse', rawPreview: aiResultText.slice(0, 300) },
         { status: 400 }
       )
     }
@@ -421,7 +428,7 @@ export async function POST(request: NextRequest) {
         journal: journalRecord,
         timing: {
           totalMs: Math.round(performance.now() - t0),
-          aiProvider: aiResult.provider,
+          aiProvider: 'gemini',
         }
       },
       message: 'Auto-journal created successfully!'

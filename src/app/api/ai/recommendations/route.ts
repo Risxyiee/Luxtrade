@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
-import { createZAI } from '@/lib/zai'
+import { geminiPrompt } from '@/lib/gemini'
 import { isUserPro } from '@/lib/pro-check'
 
 // In-memory rate limiter (same pattern as /api/ai/route.ts)
@@ -20,22 +20,16 @@ function checkRateLimit(userId: string): boolean {
   return true
 }
 
-// ==================== ZAI HELPER ====================
+// ==================== GEMINI HELPER ====================
 
-async function askZAI(systemPrompt: string, userPrompt: string): Promise<string | null> {
+async function askGemini(systemPrompt: string, userPrompt: string): Promise<string | null> {
   try {
-    const zai = await createZAI()
-    const result = await zai.chat.completions.create({
-      model: 'glm-4.6',
-      messages: [
-        { role: 'assistant', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      thinking: { type: 'disabled' }
+    return await geminiPrompt(userPrompt, {
+      systemInstruction: systemPrompt,
+      maxTokens: 4096,
     })
-    return result.choices?.[0]?.message?.content || ''
   } catch (error: any) {
-    console.warn('[AI Recommendations] ZAI failed, using fallback:', error.message)
+    console.warn('[AI Recommendations] Gemini failed, using fallback:', error.message)
     return null
   }
 }
@@ -458,9 +452,9 @@ export async function POST(request: NextRequest) {
   // 6. Call ZAI with stats
   const systemPrompt = getSystemPrompt(language)
   const userPrompt = buildUserPrompt(language, stats, analytics)
-  const aiResult = await askZAI(systemPrompt, userPrompt)
+  const aiResult = await askGemini(systemPrompt, userPrompt)
 
-  // 7. Fallback if ZAI fails
+  // 7. Fallback if Gemini fails
   const recommendations = aiResult || generateFallbackRecommendations(language, stats, analytics)
 
   return NextResponse.json({
