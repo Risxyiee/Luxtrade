@@ -17,10 +17,19 @@ async function syncAuthUsersToProfiles(): Promise<{ totalAuth: number; existingD
     const authAdmin = getAdminAuth()
     if (!admin || !authAdmin) return stats
 
-    const { data: { users } } = await authAdmin.listUsers({ perPage: 500 })
-    if (!users || users.length === 0) return stats
+    let allUsers: any[] = []
+    let page = 1
+    const perPage = 500
+    while (true) {
+      const { data: pageData } = await authAdmin.listUsers({ page, perPage })
+      if (!pageData?.users?.length) break
+      allUsers.push(...pageData.users)
+      if (pageData.users.length < perPage) break
+      page++
+    }
+    if (allUsers.length === 0) return stats
 
-    stats.totalAuth = users.length
+    stats.totalAuth = allUsers.length
 
     // Get all existing profile IDs
     const { data: existingProfiles } = await admin
@@ -31,7 +40,7 @@ async function syncAuthUsersToProfiles(): Promise<{ totalAuth: number; existingD
     stats.existingDb = existingIds.size
 
     // Batch insert new users (max 100 at a time for Supabase)
-    const newUsers = users.filter(u => !existingIds.has(u.id))
+    const newUsers = allUsers.filter((u: any) => !existingIds.has(u.id))
     for (let i = 0; i < newUsers.length; i += 100) {
       const batch = newUsers.slice(i, i + 100)
       const inserts = batch.map(u => ({

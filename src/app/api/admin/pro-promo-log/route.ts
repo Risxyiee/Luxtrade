@@ -24,9 +24,7 @@ export async function GET(request: NextRequest) {
   try {
     // Admin auth check — consistent with all other /api/admin/* endpoints
     const { error: authError } = await requireAdmin(request)
-    if (authError) {
-      return NextResponse.json({ error: authError }, { status: 401 })
-    }
+    if (authError) return authError
     // Return cache if fresh
     if (cache && Date.now() < cache.expiry) {
       return NextResponse.json(cache.data)
@@ -204,9 +202,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const { error: authError } = await requireAdmin(request)
-    if (authError) {
-      return NextResponse.json({ error: authError }, { status: 401 })
-    }
+    if (authError) return authError
 
     const admin = getSupabaseAdmin()
     if (!admin) {
@@ -283,9 +279,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const { error: authError } = await requireAdmin(request)
-    if (authError) {
-      return NextResponse.json({ error: authError }, { status: 401 })
-    }
+    if (authError) return authError
 
     const admin = getSupabaseAdmin()
     if (!admin) {
@@ -423,9 +417,7 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const { error: authError } = await requireAdmin(request)
-    if (authError) {
-      return NextResponse.json({ error: authError }, { status: 401 })
-    }
+    if (authError) return authError
 
     const admin = getSupabaseAdmin()
     if (!admin) {
