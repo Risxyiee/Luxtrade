@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "npx opennextjs-cloudflare build && node scripts/cf-pages-build.js",
+    "build": "npx opennextjs-cloudflare build",
     "lint": "eslint ."
   },
   "dependencies": {
@@ -88,6 +88,7 @@
   },
   "devDependencies": {
     "@opennextjs/cloudflare": "^1.20.4",
+    "wrangler": "^4.127.1",
     "@tailwindcss/postcss": "^4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
