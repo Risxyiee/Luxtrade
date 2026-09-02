@@ -53,6 +53,16 @@ export function getSupabaseAdminAuthFromClient(client?: SupabaseClient) {
   return getSupabaseAdminAuth(c as any)
 }
 
+/** Format a number as USD currency string */
+export function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(value)
+}
+
 /** Helper: base URL detection */
 export const getBaseUrl = () => {
   if (typeof window !== 'undefined') return window.location.origin
