@@ -1,3 +1,4 @@
 name = "luxtrade"
-compatibility_date = "2024-09-23"
-pages_build_output_dir = ".next"
+pages_build_output_dir = ".open-next"
+compatibility_date = "2026-08-30"
+compatibility_flags = ["nodejs_compat"]
