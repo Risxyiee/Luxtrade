@@ -1,3 +1,4 @@
 name = "luxtrade"
-compatibility_date = "2024-09-23"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat", "streams_enable_constructors"]
 pages_build_output_dir = ".open-next/assets"
