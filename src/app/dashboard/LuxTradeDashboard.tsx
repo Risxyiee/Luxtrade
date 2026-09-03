@@ -103,9 +103,9 @@ function LuxTradeDashboardContent() {
   const [shareCardOpen, setShareCardOpen] = useState(false)
   const [paywallModalOpen, setPaywallModalOpen] = useState(false)
 
-  // PRO trial counter - 3x for Free users
-  const [proTrialCount, setProTrialCount] = useState(3)
-  const MAX_PRO_TRIALS = 3
+  // PRO trial - 7 days trial (extends on each use)
+  const [trialUntil, setTrialUntil] = useState<string | null>(null)
+  const TRIAL_DAYS = 7
 
   const { user, profile, session, signOut, loading: authLoading, isPro: authIsPro, isAdmin, refreshProfile } = useAuth()
   const router = useRouter()
@@ -176,46 +176,49 @@ function LuxTradeDashboardContent() {
   
   // Helper: Check if user can access PRO features
   const checkProAccess = useCallback((featureName: string = 'Fitur Premium'): boolean => {
-    // PRO users have unlimited access - NO trial counting
+    // PRO users have unlimited access
     if (isPro) return true
 
-    // Free users with remaining trials
-    if (proTrialCount > 0) {
-      return true // Allow access, will decrement counter
+    // Free users with active trial
+    if (trialUntil) {
+      const trialDate = new Date(trialUntil)
+      if (trialDate > new Date()) {
+        return true // Still within trial period
+      }
     }
 
-    // No trials left - show paywall (DISABLED for now)
-    // setPaywallModalOpen(true)
+    // No trial or trial expired
     return false
-  }, [isPro, proTrialCount, setPaywallModalOpen])
+  }, [isPro, trialUntil])
 
-  // Helper: Decrement trial counter after using PRO feature
+  // Helper: Use PRO trial (extends trial by 7 days)
   const useProTrial = useCallback(() => {
-    // Only decrement for free users
-    if (!isPro && proTrialCount > 0) {
-      const newCount = proTrialCount - 1
-      setProTrialCount(newCount)
+    // Only extend trial for free users
+    if (!isPro) {
+      const now = new Date()
+      const newTrialUntil = new Date()
+      newTrialUntil.setDate(now.getDate() + TRIAL_DAYS)
+
+      setTrialUntil(newTrialUntil.toISOString())
 
       // Save to localStorage for persistence
-      localStorage.setItem('luxtrade_pro_trial_count', newCount.toString())
+      localStorage.setItem('luxtrade_pro_trial_until', newTrialUntil.toISOString())
 
-      // Show warning if running low (DISABLED for now)
-      // if (newCount === 1) {
-      //   toast.warning(`⚠️ Sisa 1 kali uji coba fitur PRO! Upgrade untuk akses unlimited.`)
-      // } else if (newCount === 0) {
-      //   toast.error(`🔒 Kuota uji coba habis! Upgrade ke PRO untuk akses penuh.`)
-      //   setTimeout(() => setPaywallModalOpen(true), 1000)
-      // }
+      toast.success(`🎉 Trial diperpanjang ${TRIAL_DAYS} hari! Berlaku sampai ${newTrialUntil.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`)
     }
-  }, [isPro, proTrialCount, setPaywallModalOpen])
+  }, [isPro, TRIAL_DAYS])
 
-  // Load trial count from localStorage on mount
+  // Load trial until date from localStorage on mount
   useEffect(() => {
-    const savedTrialCount = localStorage.getItem('luxtrade_pro_trial_count')
-    if (savedTrialCount) {
-      const count = parseInt(savedTrialCount, 10)
-      if (!isNaN(count) && count >= 0) {
-        setProTrialCount(Math.min(count, MAX_PRO_TRIALS))
+    const savedTrialUntil = localStorage.getItem('luxtrade_pro_trial_until')
+    if (savedTrialUntil) {
+      const trialDate = new Date(savedTrialUntil)
+      // Only set if the trial hasn't expired
+      if (trialDate > new Date()) {
+        setTrialUntil(savedTrialUntil)
+      } else {
+        // Clean up expired trial
+        localStorage.removeItem('luxtrade_pro_trial_until')
       }
     }
 
