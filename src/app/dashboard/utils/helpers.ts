@@ -96,6 +96,54 @@ export function calculateConsecutiveStreaks(trades: { profit_loss: number }[]) {
   return { currentWinStreak, currentLoseStreak, maxWinStreak, maxLoseStreak }
 }
 
+// Helper: Calculate active streak (current ongoing streak)
+export function calculateActiveStreak(trades: { profit_loss: number }[]) {
+  if (!trades.length) return { type: 'none' as const, count: 0 }
+  const last = trades[trades.length - 1]
+  if (last.profit_loss > 0) {
+    let count = 0
+    for (let i = trades.length - 1; i >= 0; i--) {
+      if (trades[i].profit_loss > 0) count++
+      else break
+    }
+    return { type: 'win' as const, count }
+  }
+  if (last.profit_loss < 0) {
+    let count = 0
+    for (let i = trades.length - 1; i >= 0; i--) {
+      if (trades[i].profit_loss < 0) count++
+      else break
+    }
+    return { type: 'loss' as const, count }
+  }
+  return { type: 'none' as const, count: 0 }
+}
+
+// Helper: Get today's performance metrics
+export function getTodayPerformance(trades: { profit_loss: number; close_time: string }[]) {
+  const now = new Date()
+  const todayStr = now.toISOString().slice(0, 10)
+  const todayTrades = trades.filter(t => {
+    const d = new Date(t.close_time).toISOString().slice(0, 10)
+    return d === todayStr
+  })
+  const totalPL = todayTrades.reduce((sum, t) => sum + t.profit_loss, 0)
+  const wins = todayTrades.filter(t => t.profit_loss > 0).length
+  return { trades: todayTrades.length, totalPL, wins, winRate: todayTrades.length > 0 ? (wins / todayTrades.length) * 100 : 0 }
+}
+
+// Helper: Get this week's performance metrics
+export function getWeeklyPerformance(trades: { profit_loss: number; close_time: string }[]) {
+  const now = new Date()
+  const startOfWeek = new Date(now)
+  startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1))
+  startOfWeek.setHours(0, 0, 0, 0)
+  const weekTrades = trades.filter(t => new Date(t.close_time) >= startOfWeek)
+  const totalPL = weekTrades.reduce((sum, t) => sum + t.profit_loss, 0)
+  const wins = weekTrades.filter(t => t.profit_loss > 0).length
+  return { trades: weekTrades.length, totalPL, wins, winRate: weekTrades.length > 0 ? (wins / weekTrades.length) * 100 : 0 }
+}
+
 // Helper: Get pip value and contract size for different instruments
 // Based on global forex industry standards
 type InstrumentType = 'JPY_PAIR' | 'GOLD' | 'INDICES' | 'CRYPTO' | 'STANDARD'

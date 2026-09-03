@@ -27,13 +27,12 @@ const EquityCurveCard = dynamic(() => import('../components/EquityCurveCard'), {
   loading: () => <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border border-lux-border dark:border-blue-500/20"><CardContent className="py-16 flex items-center justify-center"><Loader2 className="w-6 h-6 text-blue-400 animate-spin" /></CardContent></Card>
 })
 
-// Helpers extracted to dashboard/helpers.ts
 import {
   calculateConsecutiveStreaks,
   calculateActiveStreak,
   getTodayPerformance,
   getWeeklyPerformance,
-} from './dashboard/helpers'
+} from '../utils/helpers'
 
 // ==================== NUMBER FORMAT STANDARD ====================
 
