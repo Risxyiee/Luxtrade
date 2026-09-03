@@ -103,8 +103,8 @@ function LuxTradeDashboardContent() {
   const [shareCardOpen, setShareCardOpen] = useState(false)
   const [paywallModalOpen, setPaywallModalOpen] = useState(false)
 
-  // PRO trial - 7 days trial (extends on each use)
-  const [trialUntil, setTrialUntil] = useState<string | null>(null)
+  // PRO trial - 7 days trial (one-time, from first use)
+  const [trialStartedAt, setTrialStartedAt] = useState<string | null>(null)
   const TRIAL_DAYS = 7
 
   const { user, profile, session, signOut, loading: authLoading, isPro: authIsPro, isAdmin, refreshProfile } = useAuth()
@@ -180,45 +180,69 @@ function LuxTradeDashboardContent() {
     if (isPro) return true
 
     // Free users with active trial
-    if (trialUntil) {
-      const trialDate = new Date(trialUntil)
-      if (trialDate > new Date()) {
+    if (trialStartedAt) {
+      const trialStart = new Date(trialStartedAt)
+      const trialEnd = new Date(trialStart)
+      trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS)
+
+      if (trialEnd > new Date()) {
         return true // Still within trial period
       }
     }
 
     // No trial or trial expired
     return false
-  }, [isPro, trialUntil])
+  }, [isPro, trialStartedAt, TRIAL_DAYS])
 
-  // Helper: Use PRO trial (extends trial by 7 days)
+  // Helper: Start PRO trial (one-time, 7 days from first use)
   const useProTrial = useCallback(() => {
-    // Only extend trial for free users
-    if (!isPro) {
+    // Only start trial for free users who haven't started trial yet
+    if (!isPro && !trialStartedAt) {
       const now = new Date()
-      const newTrialUntil = new Date()
-      newTrialUntil.setDate(now.getDate() + TRIAL_DAYS)
 
-      setTrialUntil(newTrialUntil.toISOString())
+      setTrialStartedAt(now.toISOString())
 
       // Save to localStorage for persistence
-      localStorage.setItem('luxtrade_pro_trial_until', newTrialUntil.toISOString())
+      localStorage.setItem('luxtrade_pro_trial_started_at', now.toISOString())
 
-      toast.success(`🎉 Trial diperpanjang ${TRIAL_DAYS} hari! Berlaku sampai ${newTrialUntil.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`)
+      const trialEnd = new Date(now)
+      trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS)
+
+      toast.success(`🎉 Trial ${TRIAL_DAYS} hari dimulai! Berlaku sampai ${trialEnd.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`)
     }
-  }, [isPro, TRIAL_DAYS])
+  }, [isPro, trialStartedAt, TRIAL_DAYS])
 
-  // Load trial until date from localStorage on mount
+  // Load trial start date from localStorage on mount
   useEffect(() => {
-    const savedTrialUntil = localStorage.getItem('luxtrade_pro_trial_until')
-    if (savedTrialUntil) {
-      const trialDate = new Date(savedTrialUntil)
-      // Only set if the trial hasn't expired
-      if (trialDate > new Date()) {
-        setTrialUntil(savedTrialUntil)
+    // Migrate from old trial system (trialUntil) to new system (trialStartedAt)
+    const oldTrialUntil = localStorage.getItem('luxtrade_pro_trial_until')
+    const savedTrialStartedAt = localStorage.getItem('luxtrade_pro_trial_started_at')
+
+    if (oldTrialUntil && !savedTrialStartedAt) {
+      // Migrate: calculate trial start date from trial end date
+      const trialEnd = new Date(oldTrialUntil)
+      const trialStart = new Date(trialEnd)
+      trialStart.setDate(trialStart.getDate() - TRIAL_DAYS)
+
+      // Only migrate if trial is still valid
+      if (trialEnd > new Date()) {
+        setTrialStartedAt(trialStart.toISOString())
+        localStorage.setItem('luxtrade_pro_trial_started_at', trialStart.toISOString())
+      }
+
+      // Clean up old key
+      localStorage.removeItem('luxtrade_pro_trial_until')
+    } else if (savedTrialStartedAt) {
+      // Check if existing trial is still valid
+      const trialStart = new Date(savedTrialStartedAt)
+      const trialEnd = new Date(trialStart)
+      trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS)
+
+      if (trialEnd > new Date()) {
+        setTrialStartedAt(savedTrialStartedAt)
       } else {
         // Clean up expired trial
-        localStorage.removeItem('luxtrade_pro_trial_until')
+        localStorage.removeItem('luxtrade_pro_trial_started_at')
       }
     }
 
@@ -230,7 +254,7 @@ function LuxTradeDashboardContent() {
     //     localStorage.setItem('luxtrade_seen_payment_guide', 'true')
     //   }, 2000)
     // }
-  }, [isPro])
+  }, [isPro, TRIAL_DAYS])
 
   
   // Stable journal handlers to prevent TabContent re-renders
