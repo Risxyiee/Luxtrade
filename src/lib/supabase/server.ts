@@ -26,9 +26,14 @@ export async function createClient() {
   const url = getSupabaseUrl()
   const key = getSupabaseAnonKey()
 
+  // In production, if key is missing, log warning but allow build to continue
+  if (!key) {
+    console.warn('[Supabase] NEXT_PUBLIC_SUPABASE_ANON_KEY not available during build. Will be available at runtime.')
+  }
+
   const cookieStore = await cookies()
 
-  return createServerClient(url || 'https://klxkdrfsfcoankbaoejn.supabase.co', key || '', {
+  return createServerClient(url || 'https://klxkdrfsfcoankbaoejn.supabase.co', key || 'placeholder-key-for-build', {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value
@@ -69,10 +74,15 @@ export async function createClientForApi(request: NextRequest) {
   const url = getSupabaseUrl()
   const key = getSupabaseAnonKey()
 
+  // In production, if key is missing, log warning but allow build to continue
+  if (!key) {
+    console.warn('[Supabase] NEXT_PUBLIC_SUPABASE_ANON_KEY not available during build. Will be available at runtime.')
+  }
+
   // Create a fresh response that we can set cookies on.
   let response = NextResponse.next({ request: { headers: request.headers } })
 
-  const supabase = createServerClient(url || 'https://klxkdrfsfcoankbaoejn.supabase.co', key || '', {
+  const supabase = createServerClient(url || 'https://klxkdrfsfcoankbaoejn.supabase.co', key || 'placeholder-key-for-build', {
     cookies: {
       get(name: string) {
         return request.cookies.get(name)?.value

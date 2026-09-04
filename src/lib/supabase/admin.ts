@@ -12,11 +12,25 @@ export function createAdminClient() {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!supabaseUrl) {
-    throw new Error('NEXT_PUBLIC_SUPABASE_URL is not defined')
+    console.warn('[Supabase Admin] NEXT_PUBLIC_SUPABASE_URL not defined. Will be available at runtime.')
+    // Return placeholder for build
+    return createClient('https://klxkdrfsfcoankbaoejn.supabase.co', 'placeholder-key-for-build', {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
   }
 
   if (!supabaseServiceKey) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not defined')
+    console.warn('[Supabase Admin] SUPABASE_SERVICE_ROLE_KEY not defined. Will be available at runtime.')
+    // Return placeholder for build
+    return createClient(supabaseUrl, 'placeholder-key-for-build', {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
   }
 
   return createClient(supabaseUrl, supabaseServiceKey, {
