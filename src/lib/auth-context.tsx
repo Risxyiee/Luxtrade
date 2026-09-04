@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase } from './supabase';
-import { User, Session } from '@supabase/supabase-js';
+import { getClientBrowser } from './supabase';
+import { User, Session, SupabaseClient } from '@supabase/supabase-js';
 
 // Admin credentials
 const ADMIN_IDS = ['8f7fe295-2df0-412d-ba91-8e6060f3ab08'];
@@ -66,7 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string): Promise<Profile | null> => {
-    if (!supabase) return null;
+    const supabaseClient = getClientBrowser()
+    if (!supabaseClient) return null;
 
     try {
       // Use API route with Prisma to bypass RLS (profiles.id is text type, auth.uid() is uuid)
@@ -79,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Fallback to direct Supabase query
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('profiles')
         .select('*')
         .eq('id', userId)
@@ -128,13 +129,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Auto-lock expired subscriptions
   const checkAndLockExpired = async (profileData: Profile | null) => {
-    if (!supabase || !profileData || !profileData.subscription_until) return profileData;
+    const supabaseClient = getClientBrowser()
+    if (!supabaseClient || !profileData || !profileData.subscription_until) return profileData;
 
     const isValid = isSubscriptionValid(profileData.subscription_until);
 
     // If marked as PRO but subscription expired, update to FREE
     if (profileData.is_pro && !isValid) {
-      const { error } = await supabase
+      const { error } = await supabaseClient
         .from('profiles')
         .update({
           is_pro: false,
@@ -156,8 +158,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    const supabaseClient = getClientBrowser()
+
     // If Supabase is not configured, just set loading to false
-    if (!supabase) {
+    if (!supabaseClient) {
       // Use setTimeout to avoid synchronous setState in effect
       setTimeout(() => {
         setLoading(false);
@@ -166,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Get initial session quickly - don't wait for profile
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabaseClient.auth.getSession().then(({ data: { session } }) => {
 
       setSession(session);
       setUser(session?.user ?? null);
@@ -183,7 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
       (event, session) => {
         // Handle sign out - clear everything immediately
         if (event === 'SIGNED_OUT') {
@@ -225,12 +229,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    if (!supabase) {
+    const supabaseClient = getClientBrowser()
+    if (!supabaseClient) {
       return { error: new Error('Supabase not configured') };
     }
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabaseClient.auth.signInWithPassword({
         email,
         password,
       });
@@ -241,12 +246,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, fullName?: string) => {
-    if (!supabase) {
+    const supabaseClient = getClientBrowser()
+    if (!supabaseClient) {
       return { error: new Error('Supabase not configured') };
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { error } = await supabaseClient.auth.signUp({
         email,
         password,
         options: {
@@ -262,8 +268,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    if (supabase) {
-      await supabase.auth.signOut();
+    const supabaseClient = getClientBrowser()
+    if (supabaseClient) {
+      await supabaseClient.auth.signOut();
     }
     setUser(null);
     setProfile(null);
