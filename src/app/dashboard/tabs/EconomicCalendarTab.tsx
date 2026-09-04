@@ -14,6 +14,7 @@ interface CalendarEvent {
   currency: string
   impact: 'high' | 'medium' | 'low'
   event: string
+  actual?: string
   forecast: string
   previous: string
   flag?: string
