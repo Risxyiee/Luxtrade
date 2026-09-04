@@ -6,7 +6,7 @@ import { NextResponse } from 'next/server'
  */
 export async function GET() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://klxkdrfsfcoankbaoejn.supabase.co'
-  const anonKey = process.env.NEXT_PUBLIC_ANON_KEY
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!anonKey) {
     return NextResponse.json(
