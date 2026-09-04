@@ -90,6 +90,7 @@ interface DashboardModalsProps {
   language: 'id' | 'en'
   tradingAccounts?: any[]
   fetchData?: () => void
+  handleSignOut?: () => void
 }
 
 const DashboardModals = memo(function DashboardModals({
@@ -180,10 +181,10 @@ const DashboardModals = memo(function DashboardModals({
           <div className="overflow-y-auto flex-1 -mx-1 px-1">
             <TradeWizardForm
               formData={formData}
-              onFormChange={handleFormChange}
+              onFormChange={handleFormChange as any}
               onTypeChange={handleFormTypeChange}
               onSessionChange={handleFormSessionChange}
-              onNumberInput={handleNumberInput}
+              onNumberInput={handleNumberInput as any}
               onSave={handleEditTrade}
               onCancel={() => { setEditTradeOpen(false); setSelectedTrade(null); setFormData(emptyFormData) }}
               isEdit
@@ -554,10 +555,10 @@ const DashboardModals = memo(function DashboardModals({
           <div className="overflow-y-auto flex-1 -mx-1 px-1">
             <TradeWizardForm
               formData={formData}
-              onFormChange={handleFormChange}
+              onFormChange={handleFormChange as any}
               onTypeChange={handleFormTypeChange}
               onSessionChange={handleFormSessionChange}
-              onNumberInput={handleNumberInput}
+              onNumberInput={handleNumberInput as any}
               onSave={handleAddTrade}
               onCancel={() => { setAddTradeOpen(false); setFormData(emptyFormData) }}
               onAutoJournalSuccess={() => { setAddTradeOpen(false); setFormData(emptyFormData); fetchData() }}

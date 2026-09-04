@@ -224,8 +224,8 @@ function DashboardTab({
   const bestTradeSymbol = trades.length > 0 ? trades.find(t => t.profit_loss === bestTrade)?.symbol : ''
   const worstTrade = trades.length > 0 ? Math.min(...trades.map(t => t.profit_loss)) : 0
   const worstTradeSymbol = trades.length > 0 ? trades.find(t => t.profit_loss === worstTrade)?.symbol : ''
-  const winStreak = calculateConsecutiveStreaks(trades, 'win')
-  const loseStreak = calculateConsecutiveStreaks(trades, 'lose')
+  const winStreak = calculateConsecutiveStreaks(trades)
+  const loseStreak = calculateActiveStreak(trades)
 
   const chartTooltipStyle = { background: '#0a0c12', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8 }
 

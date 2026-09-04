@@ -113,7 +113,7 @@ function CalendarView({ entries, currentMonth, setCurrentMonth, onView }: Calend
 
   const { startDayOfWeek, totalDays } = getDaysInMonth(currentMonth)
   const monthName = currentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
-  const days = []
+  const days: any[] = []
 
   // Empty cells for days before the first day of the month
   for (let i = 0; i < startDayOfWeek; i++) {
@@ -825,7 +825,7 @@ function JournalTab({
 
       {/* Advanced Search/Filter Panel */}
       {entries.length > 0 && (
-        <JournalFilterPanel entries={entries} onFilterChange={setFilteredEntries} />
+        <JournalFilterPanel entries={entries} onFilterChange={(filtered) => setFilteredEntries(filtered as any)} />
       )}
 
       {/* Filtered entries count */}

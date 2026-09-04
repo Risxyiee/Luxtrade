@@ -20,6 +20,7 @@ interface Plan {
   features: string[]
   popular?: boolean
   highlight?: boolean
+  savings?: string
 }
 
 interface PlanSelectionModalProps {

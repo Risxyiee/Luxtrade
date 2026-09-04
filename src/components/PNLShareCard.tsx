@@ -163,7 +163,7 @@ const PNLShareCard = forwardRef<HTMLDivElement, PNLShareCardProps>(function PNLS
       const blob = await response.blob()
       
       // Check if Web Share API is available
-      if (navigator.share && navigator.canShare) {
+      if (navigator.share) {
         const file = new File([blob], `pnl-${symbol}.png`, { type: 'image/png' })
         await navigator.share({
           title: 'My Trade Result',

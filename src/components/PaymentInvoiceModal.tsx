@@ -11,6 +11,8 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { formatRupiah } from '@/lib/pricing'
 
+const TG_ADMIN_LINK = process.env.NEXT_PUBLIC_TG_ADMIN_LINK || 'https://t.me/your_telegram_username'
+
 // ============================================
 // Payment method categories mapped to SakuraPay codes
 // ============================================

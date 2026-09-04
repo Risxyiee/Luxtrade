@@ -266,7 +266,7 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
         )}
 
         <CandlestickChart
-          data={chartData}
+          data={chartData as any}
           containerClassName="w-full"
         />
       </div>

@@ -27,10 +27,10 @@ export async function generateImageWithZAI(
 
     console.log('✅ [Z.ai Image] Image generated successfully')
 
-    const imageUrl = response.data?.[0]?.url
+    const imageUrl = (response as any).data?.[0]?.url || (response as any).data?.[0]?.base64
 
     if (!imageUrl) {
-      throw new Error('No image URL returned from Z.ai Image API')
+      throw new Error('No image returned from Z.ai Image API')
     }
 
     return imageUrl

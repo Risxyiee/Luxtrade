@@ -6,11 +6,15 @@ export interface JournalEntry {
   id: string
   title: string
   content: string
-  mood?: string
-  market_condition?: string
-  tags?: string
+  mood?: string | null
+  market_condition?: string | null
+  tags?: string | null
   created_at: string
-  linked_journal_id?: string
+  linked_journal_id?: string | null
+  user_id?: string
+  image_url?: string | null
+  linked_trades_count?: number
+  updated_at?: string
 }
 
 export interface JournalFilters {

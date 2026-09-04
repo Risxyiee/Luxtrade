@@ -14,7 +14,7 @@ interface WelcomeModalProps {
 
 export default function WelcomeModal({ isOpen, onClose, onStartTour, language = 'id' }: WelcomeModalProps) {
   const { user, profile } = useAuth()
-  const username = profile?.username || (user?.email ? user.email.split('@')[0].charAt(0).toUpperCase() + user.email.split('@')[0].slice(1) : '')
+  const username = (profile as any)?.username || (user?.email ? user.email.split('@')[0].charAt(0).toUpperCase() + user.email.split('@')[0].slice(1) : '')
 
   if (!isOpen) return null
 

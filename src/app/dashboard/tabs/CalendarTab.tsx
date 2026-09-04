@@ -44,7 +44,7 @@ interface Trade {
   open_time: string
   close_time: string
   session: string | null
-  notes?: string
+  notes?: string | null
   image_url?: string | null
 }
 
@@ -154,7 +154,7 @@ const panelVariants = {
     opacity: 0,
     height: 0,
     marginTop: 0,
-    transition: { duration: 0.2, ease: 'easeIn' },
+    transition: { duration: 0.2, ease: 'easeIn' as const },
   },
 }
 
