@@ -457,15 +457,15 @@ function LifetimeUltraCard({ onButtonClick, language, t }: { onButtonClick: () =
             ))}
           </ul>
           <Button
-            disabled={isSoldOut}
+            disabled={slotsInfo.isSoldOut}
             onClick={onButtonClick}
             className={`w-full font-extrabold h-12 text-base ${
-              isSoldOut
+              slotsInfo.isSoldOut
                 ? 'bg-white/10 text-white/50 cursor-not-allowed'
                 : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-lg shadow-amber-500/30 hover:shadow-[0_0_30px_rgba(251,191,36,0.4)] transition-all duration-300'
             }`}
           >
-            {isSoldOut ? 'SOLD OUT' : (language === 'id' ? 'Ambil Promo Lifetime' : 'Get Lifetime Promo')}
+            {slotsInfo.isSoldOut ? 'SOLD OUT' : (language === 'id' ? 'Ambil Promo Lifetime' : 'Get Lifetime Promo')}
           </Button>
         </CardContent>
       </Card>

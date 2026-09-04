@@ -110,7 +110,7 @@ const fadeUp = {
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: i * 0.1, duration: 0.45, ease: 'easeOut' },
+    transition: { delay: i * 0.1, duration: 0.45, ease: [0.25, 0.1, 0.25, 1] as any },
   }),
 }
 
@@ -237,7 +237,7 @@ export default function AffiliatePage() {
 
     socket.on('affiliate:new_referral', (data) => {
       const name = data?.referredName || data?.referredEmail || 'Seseorang'
-      const activity = {
+      const activity: ActivityEvent = {
         id: `evt-${Date.now()}`,
         type: 'new_referral',
         message: `${name} mendaftar menggunakan kode referral kamu!`,
@@ -250,7 +250,7 @@ export default function AffiliatePage() {
     })
 
     socket.on('affiliate:commission', (data) => {
-      const activity = {
+      const activity: ActivityEvent = {
         id: `evt-${Date.now()}`,
         type: 'commission',
         message: `Komisi ${fmt(data.amount)} diterima dari referral ${data?.referredName || 'baru'}!`,
@@ -262,7 +262,7 @@ export default function AffiliatePage() {
     })
 
     socket.on('affiliate:subscription', (data) => {
-      const activity = {
+      const activity: ActivityEvent = {
         id: `evt-${Date.now()}`,
         type: 'subscription',
         message: `Referral ${data?.referredName || 'kamu'} berlangganan ${data?.plan || 'PRO'}!`,
@@ -274,7 +274,7 @@ export default function AffiliatePage() {
     })
 
     socket.on('affiliate:withdrawal_update', (data) => {
-      const activity = {
+      const activity: ActivityEvent = {
         id: `evt-${Date.now()}`,
         type: 'withdrawal',
         message: `Penarikan ${fmt(data.amount)} status: ${data.status}`,
