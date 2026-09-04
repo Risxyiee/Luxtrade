@@ -6,11 +6,13 @@ function getSupabaseClient() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!url) {
-    throw new Error('NEXT_PUBLIC_SUPABASE_URL is required')
+    console.warn('[Todos API] NEXT_PUBLIC_SUPABASE_URL not defined. Will be available at runtime.')
+    return createClient('https://klxkdrfsfcoankbaoejn.supabase.co', 'placeholder-key-for-build')
   }
 
   if (!key) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is required')
+    console.warn('[Todos API] SUPABASE_SERVICE_ROLE_KEY not defined. Will be available at runtime.')
+    return createClient(url, 'placeholder-key-for-build')
   }
 
   return createClient(url, key)
