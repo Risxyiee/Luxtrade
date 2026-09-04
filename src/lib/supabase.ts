@@ -90,18 +90,32 @@ export const supabase: SupabaseClient = new Proxy({} as any, {
       const url = readEnv('NEXT_PUBLIC_SUPABASE_URL') || 'https://klxkdrfsfcoankbaoejn.supabase.co'
       const anon = readEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
 
-      // In all cases, try to use the key. If missing, use placeholder and warn.
-      // This allows build to succeed and runtime to work if env vars are injected later.
-      const key = anon || 'placeholder-key-for-build'
+      // Check if this is a build-time or missing env situation
+      const isProduction = process.env.NODE_ENV === 'production'
 
       if (!anon) {
-        console.warn('[Supabase] NEXT_PUBLIC_SUPABASE_ANON_KEY not set. Using placeholder. Supabase features will be limited.')
-      }
+        const errorMsg = isProduction
+          ? 'CRITICAL: NEXT_PUBLIC_SUPABASE_ANON_KEY is required in production. Please set this environment variable in Cloudflare Pages settings.'
+          : '⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY not set. Supabase features will not work in development.'
 
-      _cachedClient = createClient(url, key, {
-        auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
-        global: { headers: { 'X-Client-Info': 'luxtrade-web' } }
-      })
+        console.error(errorMsg)
+
+        if (isProduction) {
+          throw new Error(errorMsg)
+        }
+
+        // In development, create a mock client that won't crash
+        _cachedClient = createClient(url, 'dev-placeholder-key', {
+          auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+          global: { headers: { 'X-Client-Info': 'luxtrade-web-dev' } }
+        })
+      } else {
+        // Valid key provided, create real client
+        _cachedClient = createClient(url, anon, {
+          auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
+          global: { headers: { 'X-Client-Info': 'luxtrade-web' } }
+        })
+      }
     }
 
     return _cachedClient[prop]
