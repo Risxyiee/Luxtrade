@@ -139,7 +139,7 @@ function PerformanceSection({ trades, language }: { trades: Trade[]; language: '
           <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">{language === 'id' ? 'Transaksi' : 'Trades'}</p><p className="text-lg font-bold text-blue-300">{perf.trades}</p></div>
           <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">P/L</p><p className={`text-lg font-bold ${perf.totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtPL(perf.totalPL)}</p></div>
           <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">Win Rate</p><p className="text-lg font-bold text-blue-300">{fmtPct(perf.winRate)}</p></div>
-          <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">W/L</p><p className="text-lg font-bold text-blue-300">{perf.wins}/{perf.losses}</p></div>
+          <div><p className="text-xs text-lux-text-secondary dark:text-gray-400 mb-1">W/L</p><p className="text-lg font-bold text-blue-300">{perf.wins}/{perf.trades - perf.wins}</p></div>
         </div>
         {tab === 'weekly' && (
           <div className="mt-4 pt-4 border-t border-white/10">
