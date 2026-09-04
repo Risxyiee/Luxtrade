@@ -5,9 +5,10 @@ import { isUserPro } from '@/lib/pro-check'
 // GET - Fetch a single target by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { supabase } = createClientForApi(request)
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -18,7 +19,7 @@ export async function GET(
     const { data, error } = await supabase
       .from('targets')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', user.id)
       .single()
 
@@ -40,9 +41,10 @@ export async function GET(
 // PATCH - Update a target
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { supabase } = createClientForApi(request)
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -73,7 +75,7 @@ export async function PATCH(
     const { data, error } = await supabase
       .from('targets')
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', user.id)
       .select()
       .single()
@@ -93,9 +95,10 @@ export async function PATCH(
 // DELETE - Delete a target
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { supabase } = createClientForApi(request)
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -111,7 +114,7 @@ export async function DELETE(
     const { error } = await supabase
       .from('targets')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', user.id)
 
     if (error) {
