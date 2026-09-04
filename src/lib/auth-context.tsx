@@ -158,78 +158,107 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const supabaseClient = getClientBrowser()
+    let mounted = true
 
-    // If Supabase is not configured, just set loading to false
-    if (!supabaseClient) {
-      // Use setTimeout to avoid synchronous setState in effect
-      setTimeout(() => {
-        setLoading(false);
-      }, 0);
-      return;
+    const initializeSupabase = async () => {
+      try {
+        const { getClientBrowserAsync } = await import('./supabase')
+        const supabaseClient = await getClientBrowserAsync()
+
+        if (!mounted) return
+
+        // If Supabase is not configured, just set loading to false
+        if (!supabaseClient) {
+          console.error('[AuthContext] Failed to initialize Supabase client')
+          setTimeout(() => {
+            if (mounted) setLoading(false)
+          }, 0)
+          return
+        }
+
+        // Get initial session quickly - don't wait for profile
+        supabaseClient.auth.getSession().then(({ data: { session } }) => {
+          if (!mounted) return
+
+          setSession(session)
+          setUser(session?.user ?? null)
+          // Set loading to false immediately so auth doesn't block
+          setLoading(false)
+
+          // Fetch profile in background (non-blocking)
+          if (session?.user) {
+            fetchProfile(session.user.id).then(async (profileData) => {
+              if (mounted) {
+                const checkedProfile = await checkAndLockExpired(profileData)
+                setProfile(checkedProfile)
+              }
+            })
+          }
+        })
+
+        // Listen for auth state changes
+        const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
+          (event, session) => {
+            if (!mounted) return
+
+            // Handle sign out - clear everything immediately
+            if (event === 'SIGNED_OUT') {
+              setSession(null)
+              setUser(null)
+              setProfile(null)
+              setLoading(false)
+              return
+            }
+
+            setSession(session)
+            setUser(session?.user ?? null)
+            setLoading(false)
+
+            // Fetch profile in background for sign in
+            if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+              fetchProfile(session.user.id).then(async (profileData) => {
+                if (mounted) {
+                  const checkedProfile = await checkAndLockExpired(profileData)
+                  setProfile(checkedProfile)
+
+                  // Update login streak when user signs in
+                  if (event === 'SIGNED_IN') {
+                    try {
+                      const { updateLoginStreak, checkStreakAchievements } = await import('./streak-tracker')
+                      const newStreak = await updateLoginStreak(session.user.id)
+                      await checkStreakAchievements(session.user.id, newStreak)
+                    } catch (error) {
+                      console.error('[AuthContext] Error updating streak:', error)
+                    }
+                  }
+                }
+              })
+            }
+          }
+        )
+
+        return () => {
+          subscription.unsubscribe()
+        }
+      } catch (error) {
+        console.error('[AuthContext] Error initializing Supabase:', error)
+        if (mounted) {
+          setTimeout(() => setLoading(false), 0)
+        }
+      }
     }
 
-    // Get initial session quickly - don't wait for profile
-    supabaseClient.auth.getSession().then(({ data: { session } }) => {
-
-      setSession(session);
-      setUser(session?.user ?? null);
-      // Set loading to false immediately so auth doesn't block
-      setLoading(false);
-
-      // Fetch profile in background (non-blocking)
-      if (session?.user) {
-        fetchProfile(session.user.id).then(async (profileData) => {
-          const checkedProfile = await checkAndLockExpired(profileData);
-          setProfile(checkedProfile);
-        });
-      }
-    });
-
-    // Listen for auth state changes
-    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
-      (event, session) => {
-        // Handle sign out - clear everything immediately
-        if (event === 'SIGNED_OUT') {
-          setSession(null);
-          setUser(null);
-          setProfile(null);
-          setLoading(false);
-          return;
-        }
-
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-
-        // Fetch profile in background for sign in
-        if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-          fetchProfile(session.user.id).then(async (profileData) => {
-            const checkedProfile = await checkAndLockExpired(profileData);
-            setProfile(checkedProfile);
-
-            // Update login streak when user signs in
-            if (event === 'SIGNED_IN') {
-              try {
-                const { updateLoginStreak, checkStreakAchievements } = await import('./streak-tracker')
-                const newStreak = await updateLoginStreak(session.user.id)
-                await checkStreakAchievements(session.user.id, newStreak)
-              } catch (error) {
-                console.error('[AuthContext] Error updating streak:', error)
-              }
-            }
-          });
-        }
-      }
-    );
+    initializeSupabase()
 
     return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+      mounted = false
+    }
+  }, [])
 
   const signIn = async (email: string, password: string) => {
-    const supabaseClient = getClientBrowser()
+    const { getClientBrowserAsync } = await import('./supabase')
+    const supabaseClient = await getClientBrowserAsync()
+
     if (!supabaseClient) {
       return { error: new Error('Supabase not configured') };
     }
@@ -246,7 +275,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, fullName?: string) => {
-    const supabaseClient = getClientBrowser()
+    const { getClientBrowserAsync } = await import('./supabase')
+    const supabaseClient = await getClientBrowserAsync()
+
     if (!supabaseClient) {
       return { error: new Error('Supabase not configured') };
     }

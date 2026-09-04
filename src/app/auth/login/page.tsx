@@ -5,7 +5,6 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2, RefreshCw, ShieldCheck, Send, User, Tag, Sparkles, CheckCircle } from 'lucide-react'
-import { getClientBrowser } from '@/lib/supabase'
 
 // ============================================
 // Device fingerprint
@@ -162,10 +161,11 @@ function AuthPage() {
     if (Object.keys(errs).length) { setLoginFieldErrors(errs); setLoginError('Email dan password harus diisi ya'); return }
     setLoginLoading(true)
 
-    // Get Supabase client for browser
-    const supabaseClient = getClientBrowser()
+    // Get Supabase client for browser (async version)
+    const { getClientBrowserAsync } = await import('@/lib/supabase')
+    const supabaseClient = await getClientBrowserAsync()
     if (!supabaseClient) {
-      setLoginError('Supabase client not initialized. Please refresh the page.')
+      setLoginError('Gagal memuat Supabase. Silakan refresh halaman.')
       setLoginLoading(false)
       return
     }
