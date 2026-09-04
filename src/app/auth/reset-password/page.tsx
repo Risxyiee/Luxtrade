@@ -9,7 +9,7 @@ import { Lock, Eye, EyeOff, Loader2, CheckCircle, AlertCircle, ArrowRight, Shiel
 // ============================================
 // Input field (matches login page .auth-input)
 // ============================================
-function LuxInput({ icon: Icon, placeholder, value, onChange, type = 'text', required, rightElement, error: hasError, onClearError, disabled }: {
+function LuxInput({ icon: Icon, placeholder, value, onChange, type = 'text', required, rightElement, error: hasError, onClearError, disabled, mono }: {
   icon?: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
   placeholder?: string
   value: string
@@ -20,6 +20,7 @@ function LuxInput({ icon: Icon, placeholder, value, onChange, type = 'text', req
   error?: boolean
   onClearError?: () => void
   disabled?: boolean
+  mono?: boolean
 }) {
   const [focused, setFocused] = React.useState(false)
 

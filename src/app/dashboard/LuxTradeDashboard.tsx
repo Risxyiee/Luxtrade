@@ -31,7 +31,7 @@ import TabContent from './components/TabContent'
 // Extracted Utils & Hooks
 import type { Trade, JournalEntry, WatchlistItem, Analytics } from '@/types'
 import { TradeFormData, emptyFormData } from './utils/types'
-import { formatLocalDateTime, datetimeLocalToFormat } from './utils/helpers'
+import { formatLocalDateTime, datetimeLocalToISO } from './utils/helpers'
 
 // Extracted Handlers
 import { createTradeHandlers } from './handlers/tradeHandlers'
@@ -105,6 +105,7 @@ function LuxTradeDashboardContent() {
 
   // PRO trial - 7 days trial (one-time, from first use)
   const [trialStartedAt, setTrialStartedAt] = useState<string | null>(null)
+  const [proTrialCount, setProTrialCount] = useState(0)
   const TRIAL_DAYS = 7
 
   const { user, profile, session, signOut, loading: authLoading, isPro: authIsPro, isAdmin, refreshProfile } = useAuth()

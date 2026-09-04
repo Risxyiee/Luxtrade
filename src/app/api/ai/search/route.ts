@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { isUserPro } from '@/lib/pro-check'
 
+interface SearchResult {
+  title: string
+  url: string
+  snippet: string
+  source: string
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Auth check
@@ -50,7 +57,7 @@ export async function POST(request: NextRequest) {
       const data = await ddgResponse.json()
 
       // Extract results from DuckDuckGo response
-      const results = []
+      const results: SearchResult[] = []
 
       // Add abstract if available
       if (data.Abstract) {

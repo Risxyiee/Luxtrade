@@ -385,7 +385,7 @@ export default function AdminPanel() {
             </div>
             <div className="flex items-center gap-2">
               <Button
-                onClick={fetchUsers}
+                onClick={() => fetchUsers()}
                 variant="outline"
                 size="sm"
                 className="border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03] h-8 px-2.5"

@@ -249,7 +249,7 @@ function calculateJournalAnalytics(entries: any[]) {
 
   // Weekly activity (entries per week in last 4 weeks)
   const now = new Date()
-  const weeklyActivity = []
+  const weeklyActivity: { week: string; count: number; start: string }[] = []
   for (let w = 3; w >= 0; w--) {
     const weekStart = new Date(now)
     weekStart.setDate(now.getDate() - (w * 7 + now.getDay()))

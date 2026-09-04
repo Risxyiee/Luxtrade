@@ -25,6 +25,12 @@ interface FullNewsItem {
   type: 'high' | 'medium' | 'low';
 }
 
+interface TickerNewsItem {
+  text: string;
+  type: 'high' | 'medium' | 'low' | 'tip';
+  url: string;
+}
+
 /**
  * Map TradingEconomics importance (1/2/3) to our type
  */
@@ -336,10 +342,12 @@ export async function GET(request: NextRequest) {
         switch (type) {
           case 'high': return '🔴';
           case 'medium': return '🟡';
-          default: return '🟢';
+          case 'low': return '🟢';
+          case 'tip': return '💡';
+          default: return '⚪';
         }
       };
-      const tickerItems = newsItems.map(item => ({
+      const tickerItems: TickerNewsItem[] = newsItems.map(item => ({
         text: `${impactEmoji(item.type)} ${item.title} — ${item.source.split('·')[0].trim()}`,
         type: item.type,
         url: item.url,
@@ -390,11 +398,13 @@ export async function GET(request: NextRequest) {
       switch (type) {
         case 'high': return '🔴';
         case 'medium': return '🟡';
-        default: return '🟢';
+        case 'low': return '🟢';
+        case 'tip': return '💡';
+        default: return '⚪';
       }
     };
 
-    const tickerItems = newsItems.map(item => ({
+    const tickerItems: TickerNewsItem[] = newsItems.map(item => ({
       text: `${impactEmoji(item.type)} ${item.title} — ${item.source.split('·')[0].trim()}`,
       type: item.type,
       url: item.url,
@@ -422,7 +432,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const fallbackNews = [
+    const fallbackNews: TickerNewsItem[] = [
       { text: '🔴 Berita forex sedang tidak tersedia — coba beberapa menit lagi', type: 'high' as const, url: '' },
       { text: '🟡 Kunjungi TradingEconomics.com untuk berita terkini', type: 'medium' as const, url: 'https://tradingeconomics.com' },
       { text: '💡 TIP: Gunakan Stop Loss di setiap trade untuk proteksi modal', type: 'low' as const, url: '' },
