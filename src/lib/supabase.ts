@@ -78,9 +78,18 @@ export const getBaseUrl = () => {
  * because this module is also imported by server-side API routes.
  * Client components that need SSR cookie handling should use `getClientBrowser()`.
  */
+const supabaseUrl = readEnv('NEXT_PUBLIC_SUPABASE_URL') || 'https://klxkdrfsfcoankbaoejn.supabase.co'
+const supabaseKey = readEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY') || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+// In development, allow missing key (will show warning). In production, crash if missing.
+if (!supabaseKey && process.env.NODE_ENV === 'production') {
+  console.error('CRITICAL: NEXT_PUBLIC_SUPABASE_ANON_KEY is required in production')
+  throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required in production')
+}
+
 export const supabase: SupabaseClient = createClient(
-  readEnv('NEXT_PUBLIC_SUPABASE_URL') || 'https://klxkdrfsfcoankbaoejn.supabase.co',
-  readEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY') || '',
+  supabaseUrl,
+  supabaseKey || 'dev-placeholder-key',
   {
     auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
     global: { headers: { 'X-Client-Info': 'luxtrade-web' } }
