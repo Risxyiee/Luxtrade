@@ -6,7 +6,7 @@ import {
   Brain, FileText, Flame, Heart, Lock, Users
 } from 'lucide-react'
 
-const menuCategories = {
+const menuCategories: Record<string, { label: string; proType?: string }> = {
   utama: { label: 'UTAMA' },
   pasar: { label: 'PASAR' },
   alat: { label: 'ALAT', proType: 'gold' },
