@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2, RefreshCw, ShieldCheck, Send, User, Tag, Sparkles, CheckCircle } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { getClientBrowser } from '@/lib/supabase'
 
 // ============================================
 // Device fingerprint
