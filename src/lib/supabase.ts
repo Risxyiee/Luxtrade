@@ -91,13 +91,23 @@ export const supabase: SupabaseClient = new Proxy({} as any, {
       const anon = readEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
 
       if (!anon) {
-        throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required')
+        // Log warning but don't crash - env vars will be available at runtime
+        if (typeof window !== 'undefined') {
+          console.error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required')
+          throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required')
+        } else {
+          console.warn('[Supabase] NEXT_PUBLIC_SUPABASE_ANON_KEY not available during build. Will be available at runtime.')
+          _cachedClient = createClient(url, 'placeholder-key-for-build', {
+            auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
+            global: { headers: { 'X-Client-Info': 'luxtrade-web' } }
+          })
+        }
+      } else {
+        _cachedClient = createClient(url, anon, {
+          auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
+          global: { headers: { 'X-Client-Info': 'luxtrade-web' } }
+        })
       }
-
-      _cachedClient = createClient(url, anon, {
-        auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
-        global: { headers: { 'X-Client-Info': 'luxtrade-web' } }
-      })
     }
 
     return _cachedClient[prop]
