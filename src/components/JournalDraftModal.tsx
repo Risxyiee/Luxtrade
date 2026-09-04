@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { CheckCircle2, AlertCircle, Edit3, Save, X, Calendar, Clock, TrendingUp, Info } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatWIBDate, convertToWIB, getTimezoneInfo } from '@/lib/timezone'
@@ -102,7 +103,7 @@ export default function JournalDraftModal({
   }
 
   const handleTradeFieldChange = (field: string, value: string | number) => {
-    setTradeFormData(prev => prev ? { ...prev, [field]: value } : null)
+    setTradeFormData(prev => prev === undefined ? undefined : { ...prev, [field]: value })
   }
 
   const handleSave = async () => {
@@ -352,7 +353,10 @@ export default function JournalDraftModal({
                   <Save className="w-4 h-4" />
                   Simpan data trade ke database
                 </label>
-                <Info className="w-4 h-4 text-gray-500" title="Data trade akan tersimpan di tab Trades dan bisa diedit nanti" />
+                <Tooltip>
+                  <TooltipTrigger asChild><Info className="w-4 h-4 text-gray-500" /></TooltipTrigger>
+                  <TooltipContent>Data trade akan tersimpan di tab Trades dan bisa diedit nanti</TooltipContent>
+                </Tooltip>
               </div>
             </div>
           )}

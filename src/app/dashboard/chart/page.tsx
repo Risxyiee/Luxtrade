@@ -199,7 +199,7 @@ export default function LuxtradeChart() {
 
       if (data.success && seriesRef.current) {
         // Set candlestick data
-        seriesRef.current.setData(data.klines)
+        seriesRef.current.setData(data.klines as any)
 
         // Set signals for markers
         setSignals(data.signals)

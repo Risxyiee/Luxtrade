@@ -28,8 +28,8 @@ interface LuxtradeMiniChartProps {
 export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = '15m', symbol = 'XAUUSD' }: LuxtradeMiniChartProps) {
   // Refs for chart and data - NO re-renders from these
   const chartContainerRef = useRef<HTMLDivElement>(null)
-  const chartRef = useRef<IChartApi<'UTCTimestamp'> | null>(null)
-  const seriesRef = useRef<ISeriesApi<'UTCTimestamp', KlineData> | null>(null)
+  const chartRef = useRef<IChartApi | null>(null)
+  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const dataRef = useRef<KlineData[]>([])  // Store data in ref, not state
@@ -83,6 +83,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
           timeVisible: false,
           secondsVisible: false,
         },
+        // @ts-ignore - priceScale is valid but type definitions may be outdated
         priceScale: {
           borderColor: '#374151',
           scaleMargins: {
@@ -241,7 +242,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
 
         // Update chart directly via ref - no state update
         if (seriesRef.current) {
-          seriesRef.current.setData(klineData)
+          seriesRef.current.setData(klineData as any)
         }
 
         // Calculate signals

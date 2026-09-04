@@ -19,7 +19,7 @@ import { useAuth } from '@/lib/auth-context'
 
 function YourComponent() {
   const { user, profile } = useAuth()
-  const userId = user?.id || profile?.id
+  const userId = user?.id || profile?.id || ''
 
   // ============================================
   // STEP 3A: Add Compact Progress Bar to Sidebar

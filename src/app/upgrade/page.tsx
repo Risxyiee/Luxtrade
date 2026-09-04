@@ -12,12 +12,12 @@ export default async function UpgradePage() {
     return <UpgradeFormClient user={{ id: 'dev-user', email: 'dev@test.com' }} />
   }
 
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
     redirect('/auth/login?redirect=/upgrade')
   }
 
-  return <UpgradeFormClient user={user} />
+  return <UpgradeFormClient user={{ id: user.id, email: user.email || '' }} />
 }

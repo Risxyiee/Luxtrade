@@ -35,7 +35,7 @@ interface Trade {
   open_time: string
   close_time: string
   session: string | null
-  notes?: string
+  notes?: string | null
   image_url?: string | null
 }
 

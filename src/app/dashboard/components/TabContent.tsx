@@ -194,7 +194,7 @@ export default function TabContent({
           )}
 
           {activeTab === 'report' && (
-            <AIWeeklyReport analytics={analytics} trades={trades} isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
+            <AIWeeklyReport analytics={analytics as any} trades={trades} isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} />
           )}
 
           {activeTab === 'streaks' && (

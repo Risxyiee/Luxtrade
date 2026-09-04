@@ -246,7 +246,7 @@ export default function AchievementCenter({ userId }: AchievementCenterProps) {
 
         <AchievementDetailDialog
           achievement={selectedAchievement}
-          progress={selectedAchievement ? achievements.find(a => a.id === selectedAchievement.id) : null}
+          progress={selectedAchievement ? (achievements.find(a => a.id === selectedAchievement.id) ?? null) : null}
           open={!!selectedAchievement}
           onClose={() => {
             setSelectedAchievement(null)

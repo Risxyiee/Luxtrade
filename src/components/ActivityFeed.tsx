@@ -12,6 +12,7 @@ interface Trade {
   open_time: string
   close_time: string
   session?: string | null
+  lot_size?: number
 }
 
 interface JournalEntry {

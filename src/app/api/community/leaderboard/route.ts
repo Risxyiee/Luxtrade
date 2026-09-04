@@ -97,10 +97,11 @@ async function fetchLeaderboardFromDB(
         totalTrades: stats.totalTrades,
         streak: p.streak_count || 0,
         isPro: p.is_pro || false,
-        avatarUrl: null,
+        avatarUrl: null as string | null,
       }
     })
-  let entries: LeaderboardEntry[] = mappedEntries.filter((e): e is LeaderboardEntry => e !== null)
+  const nonNullEntries = mappedEntries.filter((e): e is NonNullable<typeof e> => e !== null)
+  let entries: LeaderboardEntry[] = nonNullEntries
 
   // Sort by the requested field
   switch (sortBy) {
