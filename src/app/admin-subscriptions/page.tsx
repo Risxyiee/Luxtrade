@@ -393,7 +393,7 @@ export default function AdminSubscriptionsPanel() {
 
     try {
       // Calculate end date based on duration
-      let calculatedEndDate = null
+      let calculatedEndDate: string | null = null
       if (editDuration) {
         const duration = parseInt(editDuration)
         const startDate = new Date(selectedSubscription.startDate)

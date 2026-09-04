@@ -460,10 +460,20 @@ export default function AdminSecurePage() {
                                   <Crown className="w-3 h-3 mr-1" /> PRO
                                 </Badge>
                                 {isExpiringSoon(user.subscription_until) && (
-                                  <AlertTriangle className="w-4 h-4 text-yellow-500" title="Expiring soon" />
+                                  <span className="relative group">
+                                    <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-gray-900 text-white rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                                      Expiring soon
+                                    </span>
+                                  </span>
                                 )}
                                 {isExpired(user.subscription_until) && (
-                                  <XCircle className="w-4 h-4 text-red-500" title="Expired" />
+                                  <span className="relative group">
+                                    <XCircle className="w-4 h-4 text-red-500" />
+                                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-gray-900 text-white rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                                      Expired
+                                    </span>
+                                  </span>
                                 )}
                               </div>
                             ) : (

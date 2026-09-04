@@ -485,7 +485,12 @@ export default function AdminPanel() {
                                 <Crown className="w-3 h-3 mr-1" /> PRO
                               </Badge>
                               {isExpiringSoon(user.subscription_until) && (
-                                <AlertTriangle className="w-4 h-4 text-yellow-500" title="Expiring soon" />
+                                <span className="relative group">
+                                  <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 text-xs bg-gray-900 text-white rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                                    Expiring soon
+                                  </span>
+                                </span>
                               )}
                             </div>
                           ) : (
@@ -496,13 +501,16 @@ export default function AdminPanel() {
                         </td>
                         <td className="p-4">
                           <div className="text-sm">
-                            {getDaysRemaining(user.subscription_until) !== null && getDaysRemaining(user.subscription_until) >= 0 ? (
-                              <p className={isExpired(user.subscription_until) ? 'text-red-400' : 'text-gray-300'}>
-                                {getDaysRemaining(user.subscription_until)} hari
-                              </p>
-                            ) : (
-                              <span className="text-gray-500">-</span>
-                            )}
+                            {(() => {
+                              const days = getDaysRemaining(user.subscription_until)
+                              return days !== null && days >= 0 ? (
+                                <p className={isExpired(user.subscription_until) ? 'text-red-400' : 'text-gray-300'}>
+                                  {days} hari
+                                </p>
+                              ) : (
+                                <span className="text-gray-500">-</span>
+                              )
+                            })()}
                           </div>
                         </td>
                         <td className="p-4 text-sm text-gray-400">

@@ -27,3 +27,18 @@ Stage Summary:
 - HANDOFF.md restored & updated untuk stack terbaru
 - README.md updated untuk stack terbaru
 - Git push successful: main -> main (5112e91)
+
+---
+Task ID: 1-a
+Agent: General Purpose
+Task: Fix API route params for Next.js 16 compatibility
+
+Work Log:
+- Read /home/z/my-project/worklog.md to understand previous work
+- Fixed API route params in all 9 files
+- Changed params type from { id: string } to Promise<{ id: string }>
+- Added await params before using params values
+
+Stage Summary:
+- All API routes now use awaited params for Next.js 16 compatibility
+- Fixed files: social-links/[id], trading-accounts/[id], admin/social-links/[id], admin/subscriptions/[id]/activate, admin/plans/[id], admin/pro-promo-log, admin/auto-update-email, admin/users/[id], targets/[id]
