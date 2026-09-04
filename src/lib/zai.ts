@@ -91,6 +91,9 @@ export async function createZAI(): Promise<ZAI> {
       const startTime = Date.now()
 
       try {
+        if (!zaiInstance) {
+          throw new Error('ZAI instance not initialized')
+        }
         const result = await originalCreateVision.call(zaiInstance.chat.completions, body)
         const duration = ((Date.now() - startTime) / 1000).toFixed(2)
         console.log(`✅ [ZAI] createVision completed in ${duration}s`)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { createChart, ColorType, CrosshairMode, LineStyle, IChartApi, ISeriesApi, CandlestickSeries } from 'lightweight-charts'
+import { createChart, ColorType, CrosshairMode, LineStyle, IChartApi, ISeriesApi, CandlestickSeries, type CandlestickData } from 'lightweight-charts'
 
 interface CandlestickChartProps {
   data: CandlestickData[]
@@ -188,7 +188,11 @@ function CandlestickChartInner({
           typeof kline.close === 'number' && kline.close > 0 &&
           kline.high >= kline.low
         )
-      }).sort((a, b) => a.time - b.time)
+      }).sort((a, b) => {
+        const timeA = typeof a.time === 'number' ? a.time : typeof a.time === 'string' ? new Date(a.time).getTime() : 0
+        const timeB = typeof b.time === 'number' ? b.time : typeof b.time === 'string' ? new Date(b.time).getTime() : 0
+        return timeA - timeB
+      })
 
       if (validData.length === 0) {
         console.error('[CandlestickChart] No valid data after filtering')

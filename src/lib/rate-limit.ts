@@ -12,6 +12,9 @@
  * Auto-cleanup: entries yang sudah expired dihapus setiap 60 detik.
  */
 
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
+
 interface RateLimitEntry {
   count: number
   resetAt: number // epoch ms

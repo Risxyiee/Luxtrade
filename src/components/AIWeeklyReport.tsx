@@ -27,7 +27,7 @@ interface Trade {
   profit_loss: number
   close_time: string
   session: string | null
-  notes?: string
+  notes?: string | null
 }
 
 interface Analytics {

@@ -221,8 +221,8 @@ export default function TradingScore({
 
   // ─── Main Score Display ─────────────────────────────────────────────────
 
-  const scoreColor = result.gradeColor
-  const gradId = getGaugeGradientId(result.score)
+  const scoreColor = result?.gradeColor || '#3b82f6'
+  const gradId = result ? getGaugeGradientId(result.score) : 'gauge-mid'
 
   return (
     <motion.div
@@ -324,7 +324,7 @@ export default function TradingScore({
         {/* Center content */}
         <div className="absolute inset-0 flex flex-col items-center justify-center rotate-0">
           <motion.span
-            key={result.score}
+            key={result?.score || 0}
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.4 }}
@@ -340,7 +340,7 @@ export default function TradingScore({
             className="text-xs font-semibold mt-1 tracking-widest uppercase"
             style={{ color: scoreColor, opacity: 0.85 }}
           >
-            {result.grade}
+            {result?.grade || 'N/A'}
           </motion.span>
           <span className="text-[10px] text-white/25 mt-0.5">/ 100</span>
         </div>
@@ -348,7 +348,7 @@ export default function TradingScore({
 
       {/* ── Breakdown bars ── */}
       <div className="w-full mt-6 space-y-2.5 z-10">
-        {Object.entries(result.breakdown).map(([key, cat], i) => (
+        {result ? Object.entries(result.breakdown).map(([key, cat], i) => (
           <motion.div
             key={key}
             initial={{ opacity: 0, x: -12 }}
@@ -383,7 +383,7 @@ export default function TradingScore({
               {cat.score}/{cat.max}
             </span>
           </motion.div>
-        ))}
+        )) : null}
       </div>
 
       {/* ── PRO Blur Overlay ── */}

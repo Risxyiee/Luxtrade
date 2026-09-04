@@ -53,5 +53,5 @@ export function isAdminAvailable(): boolean {
 export function getAdminAuth() {
   const client = getSupabaseAdmin()
   if (!client) return null
-  return getSupabaseAdminAuth(client)
+  return getSupabaseAdminAuth(client as any)
 }

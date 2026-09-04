@@ -7,6 +7,7 @@ export interface UserSubscription {
   is_pro: boolean
   subscription_status: string
   subscription_until: string | null
+  has_ever_been_pro?: boolean
 }
 
 /**

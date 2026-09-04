@@ -8,7 +8,7 @@ import dynamic from 'next/dynamic'
  */
 
 export const PerformanceChart = dynamic(
-  () => import('@/app/dashboard/components/PerformanceChart'),
+  () => import('@/app/dashboard/components/PerformanceChart').then(m => ({ default: (m as any).default })),
   {
     loading: () => (
       <div className="h-64 bg-gray-800/50 rounded-xl animate-pulse flex items-center justify-center">

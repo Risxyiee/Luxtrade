@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
   TrendingUp, Activity, Calendar, BookOpen, Target, Grid3X3,
-  PieChart, Brain, Heart, Lock, Play, Zap, X, Menu, ShieldCheck
+  PieChart, Brain, Heart, Lock, Play, Zap, X, Menu, ShieldCheck,
+  Trophy, Eye
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'

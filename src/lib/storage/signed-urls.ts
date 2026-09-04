@@ -1,4 +1,4 @@
-import { createAdminClient } from '../admin'
+import { createAdminClient } from '../supabase/admin'
 
 /**
  * Generate a signed URL for a private storage file

@@ -8,8 +8,8 @@ import { NextRequest, NextResponse } from 'next/server'
  *
  * @returns Supabase client configured for server-side use
  */
-export function createClient() {
-  const cookieStore = cookies()
+export async function createClient() {
+  const cookieStore = await cookies()
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -64,7 +64,7 @@ export function createClientForApi(request: NextRequest) {
         get(name: string) {
           return request.cookies.get(name)?.value
         },
-        set(name: string, value: string, options: CookieOptions) {
+        async set(name: string, value: string, options: CookieOptions) {
           // DO NOT modify request.cookies (it's read-only in many runtimes)
           // Instead, set cookie on the response which will be returned by the API handler.
           try {
@@ -73,7 +73,7 @@ export function createClientForApi(request: NextRequest) {
             console.warn('[createClientForApi] Failed to set cookie on response:', error)
           }
         },
-        remove(name: string, options: CookieOptions) {
+        async remove(name: string, options: CookieOptions) {
           try {
             response.cookies.set({ name, value: '', ...options })
           } catch (error) {
