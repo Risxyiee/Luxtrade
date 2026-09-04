@@ -161,8 +161,17 @@ function AuthPage() {
     if (!password) errs.password = true
     if (Object.keys(errs).length) { setLoginFieldErrors(errs); setLoginError('Email dan password harus diisi ya'); return }
     setLoginLoading(true)
+
+    // Get Supabase client for browser
+    const supabaseClient = getClientBrowser()
+    if (!supabaseClient) {
+      setLoginError('Supabase client not initialized. Please refresh the page.')
+      setLoginLoading(false)
+      return
+    }
+
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+      const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({ email, password })
       if (signInError) {
         const msg = signInError.message?.toLowerCase() || ''
         if (msg.includes('too many requests') || msg.includes('rate limit')) { setLoginError('Terlalu banyak percobaan login. Tunggu beberapa menit ya.'); setLoginLoading(false); return }
