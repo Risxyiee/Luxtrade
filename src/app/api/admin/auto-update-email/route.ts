@@ -62,7 +62,7 @@ async function syncAuthUsersToProfiles(): Promise<{ totalAuth: number; existingD
     }
 
     // Also update emailVerified for existing profiles that might be stale
-    const usersToCheck = users.filter(u => existingIds.has(u.id))
+    const usersToCheck = allUsers.filter(u => existingIds.has(u.id))
     if (usersToCheck.length > 0) {
       // Fetch current email_verified for these users
       const batchSize = 100

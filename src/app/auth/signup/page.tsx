@@ -214,7 +214,7 @@ function LuxInput({
   value: string
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   required?: boolean
-  icon?: React.ComponentType<{ className?: string }>
+  icon?: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
   rightElement?: React.ReactNode
   error?: boolean
   mono?: boolean

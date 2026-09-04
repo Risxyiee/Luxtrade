@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     // Better approach: fetch and check in JS
     const { data: promoCandidates } = await admin.from('promo_codes')
-      .select('id, code, description, discount_percent, max_quota, used_quota, duration_months')
+      .select('id, code, description, discount_percent, max_quota, used_quota, duration_months, end_date')
       .eq('code', normalizedCode)
       .eq('is_active', true)
       .lte('start_date', now)

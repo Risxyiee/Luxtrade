@@ -125,7 +125,16 @@ export async function POST(request: NextRequest) {
       PRO_LIFETIME: 'LuxTrade Lifetime',
     }
 
-    const itemDetails = [
+    interface ItemDetail {
+      id: string
+      price: number
+      quantity: number
+      name: string
+      category: string
+      merchant_name: string
+    }
+
+    const itemDetails: ItemDetail[] = [
       {
         id: plan,
         price: grossAmount,
