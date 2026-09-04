@@ -97,6 +97,8 @@ export async function createClientForApi(request: NextRequest) {
   const url = getSupabaseUrl()
   const key = getSupabaseAnonKey()
 
+  console.log('[createClientForApi] URL:', url, 'Key length:', key?.length || 0)
+
   // Check if env vars are available
   if (!key) {
     const isProduction = process.env.NODE_ENV === 'production'
@@ -104,36 +106,12 @@ export async function createClientForApi(request: NextRequest) {
       ? 'CRITICAL: NEXT_PUBLIC_SUPABASE_ANON_KEY is required in production. Please set this environment variable in Cloudflare Pages settings.'
       : '⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY not set. Supabase features will not work in development.'
 
-    console.error(errorMsg)
+    console.error('[createClientForApi]', errorMsg)
+    console.error('[createClientForApi] NODE_ENV:', process.env.NODE_ENV)
+    console.error('[createClientForApi] Available env keys:', Object.keys(process.env).filter(k => k.includes('SUPABASE')))
 
-    if (isProduction) {
-      throw new Error(errorMsg)
-    }
-
-    // In development, create client with placeholder for build to succeed
-    let response = NextResponse.next({ request: { headers: request.headers } })
-    const supabase = createServerClient(url, 'dev-placeholder-key', {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
-        },
-        async set(name: string, value: string, options: CookieOptions) {
-          try {
-            response.cookies.set({ name, value, ...options })
-          } catch (error) {
-            console.warn('[createClientForApi] Failed to set cookie on response:', error)
-          }
-        },
-        async remove(name: string, options: CookieOptions) {
-          try {
-            response.cookies.set({ name, value: '', ...options })
-          } catch (error) {
-            console.warn('[createClientForApi] Failed to remove cookie on response:', error)
-          }
-        },
-      },
-    })
-    return { supabase, response }
+    // Return null instead of throwing to allow graceful error handling
+    return { supabase: null, response: NextResponse.next() }
   }
 
   // Create a fresh response that we can set cookies on.
