@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { CheckCircle2, AlertCircle, Upload, X, Info, Loader2, FileText, Sparkles } from 'lucide-react'
 import { TradeFormData } from '../utils/types'
-import { datetimeLocalToFormat } from '../utils/helpers'
+import { datetimeLocalToISO } from '../utils/helpers'
 import { toast } from 'sonner'
 
 interface TradeFormProps {
@@ -414,7 +414,7 @@ function TradeForm({
               type="datetime-local"
               className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1"
               value={formData.open_time ? formData.open_time.slice(0, 16) : ''}
-              onChange={(e) => onFormChange('open_time', e.target.value ? datetimeLocalToFormat(e.target.value) : '')}
+              onChange={(e) => onFormChange('open_time', e.target.value ? datetimeLocalToISO(e.target.value) : '')}
             />
           </div>
           <div>
@@ -424,7 +424,7 @@ function TradeForm({
               type="datetime-local"
               className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1"
               value={formData.close_time ? formData.close_time.slice(0, 16) : ''}
-              onChange={(e) => onFormChange('close_time', e.target.value ? datetimeLocalToFormat(e.target.value) : '')}
+              onChange={(e) => onFormChange('close_time', e.target.value ? datetimeLocalToISO(e.target.value) : '')}
             />
           </div>
         </div>

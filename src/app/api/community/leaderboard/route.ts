@@ -82,7 +82,7 @@ async function fetchLeaderboardFromDB(
   }
 
   // Build entries for users with at least 1 trade
-  let entries: LeaderboardEntry[] = publicProfiles
+  const mappedEntries = publicProfiles
     .map((p: any) => {
       const stats = userStats.get(p.id)
       if (!stats || stats.totalTrades < 1) return null
@@ -100,7 +100,7 @@ async function fetchLeaderboardFromDB(
         avatarUrl: null,
       }
     })
-    .filter((e): e is LeaderboardEntry => e !== null)
+  let entries: LeaderboardEntry[] = mappedEntries.filter((e): e is LeaderboardEntry => e !== null)
 
   // Sort by the requested field
   switch (sortBy) {
