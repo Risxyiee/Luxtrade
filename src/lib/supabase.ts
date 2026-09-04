@@ -26,11 +26,28 @@ export function getSupabaseServiceRoleKey(): string | undefined {
 
 /** Browser-only client (call only from client code) */
 export function getClientBrowser(): SupabaseClient | null {
-  const url = getSupabaseUrl()
-  const anon = getSupabaseAnonKey()
-  if (!anon) return null
-  if (typeof window === 'undefined') return null
-  return createBrowserClient(url, anon) as any
+  if (typeof window === 'undefined') {
+    console.warn('[Supabase getClientBrowser] Called on server side. Returning null.')
+    return null
+  }
+
+  // Import the config loader dynamically to avoid SSR issues
+  try {
+    const { getSupabaseConfig } = require('./config-loader')
+    const config = getSupabaseConfig()
+
+    if (!config.anonKey) {
+      console.error('[Supabase getClientBrowser] NEXT_PUBLIC_SUPABASE_ANON_KEY is not set. Client operations will fail.')
+      console.error('[Supabase] Please check Cloudflare Pages environment variables.')
+      return null
+    }
+
+    console.log(`[Supabase] Creating browser client with URL: ${config.url}`)
+    return createBrowserClient(config.url, config.anonKey) as any
+  } catch (error) {
+    console.error('[Supabase getClientBrowser] Error loading config:', error)
+    return null
+  }
 }
 
 /** Server-side non-admin client (safe to call at request time) */
