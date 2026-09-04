@@ -105,12 +105,6 @@ function t(key: string, lang: string) {
     dailyPL: { id: 'P/L Harian', en: 'Daily P/L' },
     daySummaryTrades: { id: 'transaksi', en: 'trades' },
     daySummaryWinRate: { id: 'Win Rate', en: 'Win Rate' },
-    dayHeader: {
-      id: (d: number, m: string, y: number) =>
-        `Transaksi — ${d} ${m} ${y}`,
-      en: (d: number, m: string, y: number) =>
-        `Trades — ${m} ${d}, ${y}`,
-    },
   }
   return dict[key]?.[lang] ?? dict[key]?.['en'] ?? key
 }
@@ -154,7 +148,7 @@ const panelVariants = {
     opacity: 1,
     height: 'auto',
     marginTop: 24,
-    transition: { duration: 0.3, ease: 'easeOut' },
+    transition: { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] as any },
   },
   exit: {
     opacity: 0,
@@ -169,7 +163,7 @@ const tradeItemVariants = {
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: i * 0.05, duration: 0.25, ease: 'easeOut' },
+    transition: { delay: i * 0.05, duration: 0.25, ease: [0.25, 0.1, 0.25, 1] as any },
   }),
   exit: { opacity: 0, y: -8, transition: { duration: 0.15 } },
 }
