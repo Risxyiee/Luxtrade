@@ -5,7 +5,13 @@ import { getSupabaseAdminAuth } from '@/lib/supabase/admin'
 function readEnv(name: string): string | undefined {
   const v = process.env[name]
   if (!v || v === 'undefined') return undefined
-  return v
+
+  // Debug: Log env var value (without showing full key)
+  if (name.includes('KEY') && process.env.NODE_ENV === 'production') {
+    console.log(`[Supabase] ${name}: ${v.substring(0, 10)}... (length: ${v.length})`)
+  }
+
+  return v.trim() // Remove any whitespace
 }
 
 export function getSupabaseUrl(): string {
@@ -93,6 +99,8 @@ export const supabase: SupabaseClient = new Proxy({} as any, {
       // Check if this is a build-time or missing env situation
       const isProduction = process.env.NODE_ENV === 'production'
 
+      console.log(`[Supabase] Initializing client - URL: ${url}, Env: ${process.env.NODE_ENV}, Anon Key: ${anon ? anon.substring(0, 10) + '...' : 'MISSING'}`)
+
       if (!anon) {
         const errorMsg = isProduction
           ? 'CRITICAL: NEXT_PUBLIC_SUPABASE_ANON_KEY is required in production. Please set this environment variable in Cloudflare Pages settings.'
@@ -111,6 +119,7 @@ export const supabase: SupabaseClient = new Proxy({} as any, {
         })
       } else {
         // Valid key provided, create real client
+        console.log(`[Supabase] Creating client with valid key (length: ${anon.length})`)
         _cachedClient = createClient(url, anon, {
           auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
           global: { headers: { 'X-Client-Info': 'luxtrade-web' } }
