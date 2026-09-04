@@ -1,47 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClientForApi } from '@/lib/supabase/server'
-import { createClient } from '@supabase/supabase-js'
-
-function getClientWithAuth(request: NextRequest) {
-  const { supabase: cookieClient } = createClientForApi(request)
-  const authHeader = request.headers.get('Authorization')
-  let bearerClient: ReturnType<typeof createClient> | null = null
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.slice(7)
-    bearerClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-    ;(bearerClient as any)._bearerToken = token
-  }
-  return { cookieClient, bearerClient }
-}
-
-async function getUserWithSession(request: NextRequest) {
-  const { cookieClient, bearerClient } = getClientWithAuth(request)
-  let { data: { user }, error } = await cookieClient.auth.getUser()
-  if (user) return { user, client: cookieClient }
-  if (bearerClient) {
-    const token = (bearerClient as any)._bearerToken
-    const result = await bearerClient.auth.getUser(token)
-    if (result.data.user) return { user: result.data.user, client: bearerClient }
-  }
-  return { user: null, client: cookieClient }
-}
+import { getAuthenticatedUser } from '@/lib/api-auth'
 
 // GET - Fetch all trading accounts for authenticated user
 export async function GET(request: NextRequest) {
   try {
     console.log('🟢 [API /api/trading-accounts GET] Fetching accounts...')
 
-    const { user, client } = await getUserWithSession(request)
+    const { user, client, error } = await getAuthenticatedUser(request)
 
-    if (!user) {
-      console.log('❌ [API] Unauthorized - no valid user')
+    if (!user || !client) {
+      console.log('❌ [API] Unauthorized - no valid user or client')
       return NextResponse.json(
-        { error: 'Unauthorized - Please login' },
+        { error: error || 'Unauthorized - Please login' },
         { status: 401 }
       )
     }
 
-    const { data: accounts, error } = await client
+    const { data: accounts, error: supabaseError } = await client
       .from('trading_accounts')
       .select('*')
       .eq('user_id', user.id)
@@ -49,8 +24,8 @@ export async function GET(request: NextRequest) {
       .order('is_default', { ascending: false })
       .order('created_at', { ascending: false })
 
-    if (error) {
-      console.error('❌ [API /api/trading-accounts GET] Supabase error:', error)
+    if (supabaseError) {
+      console.error('❌ [API /api/trading-accounts GET] Supabase error:', supabaseError)
       return NextResponse.json(
         { error: 'Failed to fetch accounts' },
         { status: 500 }
@@ -73,12 +48,12 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🟢 [API /api/trading-accounts POST] Creating trading account...')
 
-    const { user, client } = await getUserWithSession(request)
+    const { user, client, error } = await getAuthenticatedUser(request)
 
-    if (!user) {
-      console.log('❌ [API] Unauthorized - no valid user')
+    if (!user || !client) {
+      console.log('❌ [API] Unauthorized - no valid user or client')
       return NextResponse.json(
-        { error: 'Unauthorized - Please login' },
+        { error: error || 'Unauthorized - Please login' },
         { status: 401 }
       )
     }
@@ -118,7 +93,7 @@ export async function POST(request: NextRequest) {
       : (body.initial_balance ? parseFloat(String(body.initial_balance)) : 0)
 
     console.log('💾 [API] Creating trading account in database...')
-    const { data: account, error } = await client
+    const { data: account, error: insertError } = await client
       .from('trading_accounts')
       .insert([{
         user_id: userId,
@@ -141,10 +116,10 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
-    if (error) {
-      console.error('❌ [API /api/trading-accounts POST] Supabase error:', error)
+    if (insertError) {
+      console.error('❌ [API /api/trading-accounts POST] Supabase error:', insertError)
 
-      if (error.code === '23503') {
+      if (insertError.code === '23503') {
         console.error('❌ [API] Foreign key constraint violation - profile may not exist')
         return NextResponse.json(
           { error: 'User profile not found. Please try logging out and in again.' },
@@ -152,7 +127,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      if (error.code === '23505') {
+      if (insertError.code === '23505') {
         return NextResponse.json(
           { error: 'Account number already exists' },
           { status: 409 }
