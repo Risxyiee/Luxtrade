@@ -26,33 +26,56 @@ export async function createClient() {
   const url = getSupabaseUrl()
   const key = getSupabaseAnonKey()
 
-  // In production, if key is missing, log warning but allow build to continue
+  // Check if env vars are available
   if (!key) {
-    console.warn('[Supabase] NEXT_PUBLIC_SUPABASE_ANON_KEY not available during build. Will be available at runtime.')
+    const isProduction = process.env.NODE_ENV === 'production'
+    const errorMsg = isProduction
+      ? 'CRITICAL: NEXT_PUBLIC_SUPABASE_ANON_KEY is required in production. Please set this environment variable in Cloudflare Pages settings.'
+      : '⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY not set. Supabase features will not work in development.'
+
+    console.error(errorMsg)
+
+    if (isProduction) {
+      throw new Error(errorMsg)
+    }
+
+    // In development, create client with placeholder for build to succeed
+    const cookieStore = await cookies()
+    return createServerClient(url, 'dev-placeholder-key', {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          try {
+            cookieStore.set({ name, value, ...options })
+          } catch (error) {}
+        },
+        remove(name: string, options: CookieOptions) {
+          try {
+            cookieStore.set({ name, value: '', ...options })
+          } catch (error) {}
+        },
+      },
+    })
   }
 
   const cookieStore = await cookies()
 
-  return createServerClient(url || 'https://klxkdrfsfcoankbaoejn.supabase.co', key || 'placeholder-key-for-build', {
+  return createServerClient(url, key, {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value
       },
       set(name: string, value: string, options: CookieOptions) {
         try {
-          // In Server Components we cannot reliably mutate the incoming request's cookie store.
-          // Use the cookie store provided by next/headers which writes cookies for the current response.
           cookieStore.set({ name, value, ...options })
-        } catch (error) {
-          // Ignore - handled by middleware or calling code
-        }
+        } catch (error) {}
       },
       remove(name: string, options: CookieOptions) {
         try {
           cookieStore.set({ name, value: '', ...options })
-        } catch (error) {
-          // Ignore - handled by middleware or calling code
-        }
+        } catch (error) {}
       },
     },
   })
@@ -74,22 +97,54 @@ export async function createClientForApi(request: NextRequest) {
   const url = getSupabaseUrl()
   const key = getSupabaseAnonKey()
 
-  // In production, if key is missing, log warning but allow build to continue
+  // Check if env vars are available
   if (!key) {
-    console.warn('[Supabase] NEXT_PUBLIC_SUPABASE_ANON_KEY not available during build. Will be available at runtime.')
+    const isProduction = process.env.NODE_ENV === 'production'
+    const errorMsg = isProduction
+      ? 'CRITICAL: NEXT_PUBLIC_SUPABASE_ANON_KEY is required in production. Please set this environment variable in Cloudflare Pages settings.'
+      : '⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY not set. Supabase features will not work in development.'
+
+    console.error(errorMsg)
+
+    if (isProduction) {
+      throw new Error(errorMsg)
+    }
+
+    // In development, create client with placeholder for build to succeed
+    let response = NextResponse.next({ request: { headers: request.headers } })
+    const supabase = createServerClient(url, 'dev-placeholder-key', {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+        async set(name: string, value: string, options: CookieOptions) {
+          try {
+            response.cookies.set({ name, value, ...options })
+          } catch (error) {
+            console.warn('[createClientForApi] Failed to set cookie on response:', error)
+          }
+        },
+        async remove(name: string, options: CookieOptions) {
+          try {
+            response.cookies.set({ name, value: '', ...options })
+          } catch (error) {
+            console.warn('[createClientForApi] Failed to remove cookie on response:', error)
+          }
+        },
+      },
+    })
+    return { supabase, response }
   }
 
   // Create a fresh response that we can set cookies on.
   let response = NextResponse.next({ request: { headers: request.headers } })
 
-  const supabase = createServerClient(url || 'https://klxkdrfsfcoankbaoejn.supabase.co', key || 'placeholder-key-for-build', {
+  const supabase = createServerClient(url, key, {
     cookies: {
       get(name: string) {
         return request.cookies.get(name)?.value
       },
       async set(name: string, value: string, options: CookieOptions) {
-        // DO NOT modify request.cookies (it's read-only in many runtimes)
-        // Instead, set cookie on the response which will be returned by the API handler.
         try {
           response.cookies.set({ name, value, ...options })
         } catch (error) {

@@ -19,10 +19,22 @@ export function createClient() {
   const url = readEnv('NEXT_PUBLIC_SUPABASE_URL') || 'https://klxkdrfsfcoankbaoejn.supabase.co'
   const key = readEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
 
-  // In production, if key is missing, log warning but allow build to continue
+  // Check if env vars are available
   if (!key) {
-    console.warn('[Supabase Client] NEXT_PUBLIC_SUPABASE_ANON_KEY not available during build. Will be available at runtime.')
+    const isProduction = typeof process !== 'undefined' && process.env.NODE_ENV === 'production'
+    const errorMsg = isProduction
+      ? 'CRITICAL: NEXT_PUBLIC_SUPABASE_ANON_KEY is required in production. Please set this environment variable in Cloudflare Pages settings.'
+      : '⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY not set. Supabase features will not work in development.'
+
+    console.error(errorMsg)
+
+    if (isProduction) {
+      throw new Error(errorMsg)
+    }
+
+    // In development, create client with placeholder for build to succeed
+    return createBrowserClient(url, 'dev-placeholder-key')
   }
 
-  return createBrowserClient(url, key || 'placeholder-key-for-build')
+  return createBrowserClient(url, key)
 }
