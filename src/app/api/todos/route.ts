@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+function getSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!url) {
+    throw new Error('NEXT_PUBLIC_SUPABASE_URL is required')
+  }
+
+  if (!key) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is required')
+  }
+
+  return createClient(url, key)
+}
 
 export async function GET(req: NextRequest) {
   try {
+    const supabase = getSupabaseClient()
+
     const authHeader = req.headers.get('Authorization')
     const token = authHeader?.replace('Bearer ', '')
     if (!token) return NextResponse.json({ todos: [] })
@@ -34,6 +46,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const supabase = getSupabaseClient()
+
     const authHeader = req.headers.get('Authorization')
     const token = authHeader?.replace('Bearer ', '')
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

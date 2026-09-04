@@ -77,33 +77,60 @@ export const getBaseUrl = () => {
  * Note: `createBrowserClient` from @supabase/ssr is intentionally NOT used here
  * because this module is also imported by server-side API routes.
  * Client components that need SSR cookie handling should use `getClientBrowser()`.
+ *
+ * IMPORTANT: In production environments like Cloudflare Workers, env vars may not be
+ * available at module load time. We use a Proxy pattern to access env vars at runtime.
  */
-const supabaseUrl = readEnv('NEXT_PUBLIC_SUPABASE_URL') || 'https://klxkdrfsfcoankbaoejn.supabase.co'
-const supabaseKey = readEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY') || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+let _cachedClient: SupabaseClient | null = null
 
-// In development, allow missing key (will show warning). In production, crash if missing.
-if (!supabaseKey && process.env.NODE_ENV === 'production') {
-  console.error('CRITICAL: NEXT_PUBLIC_SUPABASE_ANON_KEY is required in production')
-  throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required in production')
-}
+export const supabase: SupabaseClient = new Proxy({} as any, {
+  get(_target, prop) {
+    // Initialize client on first access (runtime)
+    if (!_cachedClient) {
+      const url = readEnv('NEXT_PUBLIC_SUPABASE_URL') || 'https://klxkdrfsfcoankbaoejn.supabase.co'
+      const anon = readEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
 
-export const supabase: SupabaseClient = createClient(
-  supabaseUrl,
-  supabaseKey || 'dev-placeholder-key',
-  {
-    auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
-    global: { headers: { 'X-Client-Info': 'luxtrade-web' } }
+      if (!anon) {
+        throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required')
+      }
+
+      _cachedClient = createClient(url, anon, {
+        auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
+        global: { headers: { 'X-Client-Info': 'luxtrade-web' } }
+      })
+    }
+
+    return _cachedClient[prop]
+  },
+  has(_target, prop) {
+    return prop in SupabaseClient.prototype || prop === 'then'
   }
-)
+})
 
 let _adminSingleton: SupabaseClient | null = null
-export const supabaseAdmin: SupabaseClient | null = (() => {
+
+/**
+ * Lazy-initialized admin client singleton.
+ * Retries on every call until success — safe for Cloudflare Workers where env vars
+ * may not be available at module load time.
+ */
+export function getSupabaseAdminSingleton(): SupabaseClient | null {
   if (_adminSingleton) return _adminSingleton
+
   const url = getSupabaseUrl()
   const key = getSupabaseServiceRoleKey()
   if (!key) return null
+
   _adminSingleton = createClient(url, key, {
     auth: { autoRefreshToken: false, persistSession: false }
   })
   return _adminSingleton
-})()
+}
+
+/**
+ * Legacy export for backward compatibility.
+ * Returns null if admin client cannot be created (e.g., missing env vars).
+ * Note: In Cloudflare Workers, may return null on first module load before env vars are available.
+ * Use getSupabaseAdminSingleton() for reliable runtime access.
+ */
+export const supabaseAdmin: SupabaseClient | null = getSupabaseAdminSingleton()

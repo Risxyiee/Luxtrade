@@ -249,15 +249,35 @@ export async function extractTradeData(imageBytes: Uint8Array): Promise<Extracti
 // 3. SUPABASE DATABASE OPERATIONS
 // ==============================================================================
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!url) {
+    throw new Error('NEXT_PUBLIC_SUPABASE_URL is required')
+  }
+
+  if (!key) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is required')
+  }
+
+  return createClient(url, key)
+}
+
+let _supabaseClient: ReturnType<typeof createClient> | null = null
+
+function getSupabase() {
+  if (!_supabaseClient) {
+    _supabaseClient = getSupabaseClient()
+  }
+  return _supabaseClient
+}
 
 /**
  * Save trade data to database
  */
 export async function saveTrade(entry: any) {
+  const supabase = getSupabase()
   const { data, error } = await supabase
     .from("trades")
     .insert({
@@ -296,6 +316,7 @@ export async function uploadScreenshot(
   imageBytes: Uint8Array,
   userId: string
 ): Promise<string> {
+  const supabase = getSupabase()
   const path = `${userId}/${Date.now()}.jpg`;
 
   try {
