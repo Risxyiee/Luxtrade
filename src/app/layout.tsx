@@ -7,6 +7,7 @@ import { Providers } from "@/components/providers";
 import CookieConsent from '@/components/CookieConsent';
 import GlobalErrorBoundary from "@/components/GlobalErrorBoundary";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { SupabaseConfigLoader } from "@/components/supabase-config-loader";
 
 const lexend = Lexend({
   variable: "--font-lexend",
@@ -79,6 +80,7 @@ export default function RootLayout({
         </a>
         <GlobalErrorBoundary>
           <LanguageProvider>
+            <SupabaseConfigLoader />
             <Providers>
               <CookieConsent />
               {children}

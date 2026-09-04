@@ -4,60 +4,96 @@
 // Client-side Supabase configuration loader
 // ============================================
 
-/**
- * Load Supabase configuration from multiple sources:
- * 1. Build-time env vars (process.env.NEXT_PUBLIC_*)
- * 2. Runtime config from __NEXT_DATA__
- * 3. Fallback to defaults
- */
-export function loadSupabaseConfig(): {
+interface SupabaseConfig {
   url: string
   anonKey: string | null
   isConfigured: boolean
-} {
-  // Default URL
-  const defaultUrl = 'https://klxkdrfsfcoankbaoejn.supabase.co'
+}
 
-  // Try to get from build-time env vars (Next.js standard)
-  let url = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_URL
-    ? process.env.NEXT_PUBLIC_SUPABASE_URL
-    : defaultUrl
+let cachedConfig: SupabaseConfig | null = null
+let fetchPromise: Promise<SupabaseConfig> | null = null
 
-  let anonKey = null
+/**
+ * Fetch Supabase configuration from the API endpoint.
+ * This allows the config to be set at runtime in Cloudflare Pages.
+ */
+async function fetchSupabaseConfig(): Promise<SupabaseConfig> {
+  try {
+    const response = await fetch('/api/supabase/config', {
+      cache: 'no-store' // Always fetch fresh config
+    })
 
-  // Try build-time env vars
-  if (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  }
-
-  // In Cloudflare Pages, try to get from window object
-  if (typeof window !== 'undefined') {
-    // Try to get from a global config object (we'll inject this via next.config)
-    const globalConfig = (window as any).__NEXT_PUBLIC_SUPABASE_CONFIG__
-    if (globalConfig) {
-      url = globalConfig.url || url
-      anonKey = globalConfig.anonKey || anonKey
+    if (!response.ok) {
+      const errorData = await response.json()
+      console.error('[Supabase Config] API error:', errorData.error)
+      return {
+        url: 'https://klxkdrfsfcoankbaoejn.supabase.co',
+        anonKey: null,
+        isConfigured: false
+      }
     }
 
-    // Debug logging in browser console
-    console.log('[Supabase Config] URL:', url)
-    console.log('[Supabase Config] Anon Key:', anonKey ? `${anonKey.substring(0, 10)}...` : 'MISSING')
-    console.log('[Supabase Config] Environment:', process.env?.NODE_ENV || 'unknown')
-  }
+    const data = await response.json()
+    console.log('[Supabase Config] Loaded from API:', {
+      url: data.url,
+      hasAnonKey: !!data.anonKey,
+      isConfigured: data.isConfigured
+    })
 
-  return {
-    url,
-    anonKey,
-    isConfigured: !!anonKey
+    return {
+      url: data.url,
+      anonKey: data.anonKey,
+      isConfigured: data.isConfigured
+    }
+  } catch (error) {
+    console.error('[Supabase Config] Failed to fetch config:', error)
+    return {
+      url: 'https://klxkdrfsfcoankbaoejn.supabase.co',
+      anonKey: null,
+      isConfigured: false
+    }
   }
 }
 
-// Export singleton config
-let cachedConfig: ReturnType<typeof loadSupabaseConfig> | null = null
-
-export function getSupabaseConfig() {
-  if (!cachedConfig) {
-    cachedConfig = loadSupabaseConfig()
+/**
+ * Load Supabase configuration from multiple sources:
+ * 1. Build-time env vars (process.env.NEXT_PUBLIC_*) - fallback
+ * 2. API endpoint - primary source for Cloudflare Pages
+ */
+export async function loadSupabaseConfig(): Promise<SupabaseConfig> {
+  // Return cached config if available
+  if (cachedConfig && cachedConfig.isConfigured) {
+    return cachedConfig
   }
+
+  // If there's an ongoing fetch, return that promise
+  if (fetchPromise) {
+    return await fetchPromise
+  }
+
+  // Start fetching config from API
+  fetchPromise = fetchSupabaseConfig()
+
+  const config = await fetchPromise
+  fetchPromise = null
+
+  // Cache the config
+  cachedConfig = config
+  return config
+}
+
+/**
+ * Get Supabase config synchronously from cache.
+ * Returns null if config hasn't been loaded yet.
+ */
+export function getSupabaseConfigSync(): SupabaseConfig | null {
   return cachedConfig
+}
+
+/**
+ * Clear cached config (useful for testing or re-initializing)
+ */
+export function clearSupabaseConfigCache(): void {
+  cachedConfig = null
+  fetchPromise = null
 }
