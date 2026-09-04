@@ -47,7 +47,7 @@ export const createTradeHandlers = ({
     console.log('📊 [handleAddTrade] Form data:', formData)
 
     // Validate required fields with specific error messages
-    const errors = []
+    const errors: string[] = []
 
     if (!formData.symbol || formData.symbol.length < 3) {
       errors.push('Symbol must be at least 3 characters')
@@ -294,8 +294,8 @@ export const createTradeHandlers = ({
       emotion: trade.emotion || '',
       account_id: (trade as any).account_id || '',
       account_type: (trade as any).account_type || 'STANDARD',
-      stop_loss: (trade as any).stop_loss ? trade.stop_loss.toString() : '',
-      take_profit: (trade as any).take_profit ? trade.take_profit.toString() : '',
+      stop_loss: (trade as any).stop_loss ? (trade as any).stop_loss.toString() : '',
+      take_profit: (trade as any).take_profit ? (trade as any).take_profit.toString() : '',
       ticket_number: (trade as any).ticket_number || '',
     })
     setEditTradeOpen(true)
@@ -329,8 +329,8 @@ export const createTradeHandlers = ({
       emotion: (trade as any).emotion || '',
       account_id: (trade as any).account_id || '',
       account_type: (trade as any).account_type || 'STANDARD',
-      stop_loss: (trade as any).stop_loss ? trade.stop_loss.toString() : '',
-      take_profit: (trade as any).take_profit ? trade.take_profit.toString() : '',
+      stop_loss: (trade as any).stop_loss ? (trade as any).stop_loss.toString() : '',
+      take_profit: (trade as any).take_profit ? (trade as any).take_profit.toString() : '',
       ticket_number: (trade as any).ticket_number || '',
     })
     setAddTradeOpen(true)
