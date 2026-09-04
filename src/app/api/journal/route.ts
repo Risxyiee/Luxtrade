@@ -1,44 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClientForApi } from '@/lib/supabase/server'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 import { isUserPro, countUserJournalsThisMonth, FREE_JOURNAL_LIMIT } from '@/lib/pro-check'
-import { createClient } from '@supabase/supabase-js'
-
-/** Get a Supabase client with user session (cookie or Bearer token) */
-function getClientWithAuth(request: NextRequest) {
-  // Try cookie-based first
-  const { supabase: cookieClient } = createClientForApi(request)
-  // Also create a Bearer-based client as fallback
-  const authHeader = request.headers.get('Authorization')
-  let bearerClient: ReturnType<typeof createClient> | null = null
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.slice(7)
-    bearerClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-    // Store token for later use
-    ;(bearerClient as any)._bearerToken = token
-  }
-  return { cookieClient, bearerClient }
-}
-
-async function getUserWithSession(request: NextRequest) {
-  const { cookieClient, bearerClient } = getClientWithAuth(request)
-
-  // Try cookie-based
-  let { data: { user }, error } = await cookieClient.auth.getUser()
-  if (user) return { user, client: cookieClient }
-
-  // Try Bearer token
-  if (bearerClient) {
-    const token = (bearerClient as any)._bearerToken
-    const result = await bearerClient.auth.getUser(token)
-    if (result.data.user) return { user: result.data.user, client: bearerClient }
-  }
-
-  return { user: null, client: cookieClient }
-}
 
 // In-memory rate limiter for POST
 const journalRateLimitMap = new Map<string, { count: number; resetAt: number }>()
@@ -59,24 +21,24 @@ function checkJournalRateLimit(userId: string): boolean {
 // GET - Fetch journal entries with optional analytics
 export async function GET(request: NextRequest) {
   try {
-    const { user, client } = await getUserWithSession(request)
+    const { user, client, error } = await getAuthenticatedUser(request)
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!user || !client) {
+      return NextResponse.json({ error: error || 'Unauthorized' }, { status: 401 })
     }
 
     const searchParams = request.nextUrl.searchParams
     const limit = parseInt(searchParams.get('limit') || '50')
     const includeAnalytics = searchParams.get('analytics') === 'true'
 
-    const { data, error } = await client
+    const { data, error: supabaseError } = await client
       .from('journal_entries')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(limit)
 
-    if (error) {
+    if (supabaseError) {
       // Table doesn't exist or RLS issue — return empty instead of 500
       return NextResponse.json({ entries: [] })
     }
@@ -98,10 +60,10 @@ export async function GET(request: NextRequest) {
 // POST - Create journal entry
 export async function POST(request: NextRequest) {
   try {
-    const { user, client } = await getUserWithSession(request)
+    const { user, client, error: authError } = await getAuthenticatedUser(request)
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!user || !client) {
+      return NextResponse.json({ error: authError || 'Unauthorized' }, { status: 401 })
     }
 
     // Rate limit
@@ -188,10 +150,10 @@ export async function POST(request: NextRequest) {
 // DELETE - Delete journal entry
 export async function DELETE(request: NextRequest) {
   try {
-    const { user, client } = await getUserWithSession(request)
+    const { user, client, error: authError } = await getAuthenticatedUser(request)
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!user || !client) {
+      return NextResponse.json({ error: authError || 'Unauthorized' }, { status: 401 })
     }
 
     const searchParams = request.nextUrl.searchParams
