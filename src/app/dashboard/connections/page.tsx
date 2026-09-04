@@ -327,7 +327,7 @@ export default function ConnectionsPage() {
       if (!data.quota.canAddMore) {
         // DISABLED: Show paywall modal
         // setShowPaywall(true)
-        toast.error(content.quotaReachedMessage || 'Quota exceeded')
+        toast.error(content.quotaReachedMessagePro || 'Quota exceeded')
         return false
       }
 
@@ -391,7 +391,7 @@ export default function ConnectionsPage() {
           // Quota exceeded
           setIsConnecting(false)
           // DISABLED: setShowPaywall(true)
-          toast.error(content.quotaReachedMessage)
+          toast.error(content.quotaReachedMessagePro)
           return
         }
         if (createResponse.status === 409) {
@@ -471,8 +471,8 @@ export default function ConnectionsPage() {
       // Show success toast with details
       toast.success(content.successMessage, {
         description: language === 'id'
-          ? `Akun ${accountNumber} berhasil terhubung!`
-          : `Account ${accountNumber} successfully connected!`,
+          ? `Akun ${formData.accountNumber} berhasil terhubung!`
+          : `Account ${formData.accountNumber} successfully connected!`,
         duration: 5000
       })
 
