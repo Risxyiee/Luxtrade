@@ -35,8 +35,8 @@ interface IndicatorResponse {
 
 export default function LuxtradeChart() {
   const chartContainerRef = useRef<HTMLDivElement>(null)
-  const chartRef = useRef<IChartApi<'UTCTimestamp'> | null>(null)
-  const seriesRef = useRef<ISeriesApi<'UTCTimestamp', CandlestickData> | null>(null)
+  const chartRef = useRef<IChartApi | null>(null)
+  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
   const [mounted, setMounted] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingData, setIsLoadingData] = useState(false)
@@ -84,8 +84,9 @@ export default function LuxtradeChart() {
       return
     }
 
-    let chart: IChartApi<'UTCTimestamp'> | null = null
-    let series: ISeriesApi<'UTCTimestamp', CandlestickData> | null = null
+    let chart: IChartApi | null = null
+    let series: ISeriesApi<'Candlestick'> | null = null
+    let resizeObserver: ResizeObserver | null = null
 
     try {
       const container = chartContainerRef.current
@@ -152,7 +153,7 @@ export default function LuxtradeChart() {
       seriesRef.current = candlestickSeries
 
       // Handle resize with ResizeObserver (auto-cleans on disconnect)
-      const resizeObserver = new ResizeObserver(() => {
+      resizeObserver = new ResizeObserver(() => {
         if (chartRef.current && container) {
           chartRef.current.applyOptions({ width: container.clientWidth, height: 500 })
         }
@@ -166,7 +167,7 @@ export default function LuxtradeChart() {
     }
 
     return () => {
-      resizeObserver.disconnect()
+      resizeObserver?.disconnect()
       if (chart) {
         chart.remove()
         chart = null

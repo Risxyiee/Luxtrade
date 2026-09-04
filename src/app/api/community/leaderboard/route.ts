@@ -89,7 +89,7 @@ async function fetchLeaderboardFromDB(
       return {
         rank: 0,
         userId: p.id,
-        displayName: p.full_name,
+        displayName: p.full_name || null,
         winRate: stats.totalTrades > 0
           ? Math.round((stats.wins / stats.totalTrades) * 1000) / 10
           : 0,

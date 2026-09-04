@@ -8,7 +8,7 @@ import { Mail, ArrowLeft, Loader2, CheckCircle, AlertCircle, ArrowRight, ShieldC
 // ============================================
 // Input field (matches login page .auth-input)
 // ============================================
-function LuxInput({ icon: Icon, placeholder, value, onChange, type = 'text', required, error: hasError, onClearError }: {
+function LuxInput({ icon: Icon, placeholder, value, onChange, type = 'text', required, error: hasError, onClearError, mono }: {
   icon?: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
   placeholder?: string
   value: string
@@ -17,6 +17,7 @@ function LuxInput({ icon: Icon, placeholder, value, onChange, type = 'text', req
   required?: boolean
   error?: boolean
   onClearError?: () => void
+  mono?: boolean
 }) {
   const [focused, setFocused] = React.useState(false)
 
