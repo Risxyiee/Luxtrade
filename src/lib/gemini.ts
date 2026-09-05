@@ -9,7 +9,7 @@ function getApiKey(): string {
   return process.env.GEMINI_API_KEY || ''
 }
 
-function getEndpoint(modelId: string = 'gemini-2.5-flash-exp'): string {
+function getEndpoint(modelId: string = 'gemini-2.0-flash-exp'): string {
   const key = getApiKey()
   if (!key) throw new Error('GEMINI_API_KEY not configured')
   return `${GEMINI_API_URL}/${modelId}:generateContent?key=${key}`
@@ -49,7 +49,7 @@ export async function geminiChat(
     systemInstruction?: string
   }
 ): Promise<GeminiResponse> {
-  const model = options?.model || 'gemini-2.5-flash-exp'
+  const model = options?.model || 'gemini-2.0-flash-exp'
   const url = getEndpoint(model)
 
   const body: any = {
@@ -120,7 +120,7 @@ export async function geminiVision(
     systemInstruction?: string
   }
 ): Promise<string> {
-  const model = options?.model || 'gemini-2.5-flash-exp'
+  const model = options?.model || 'gemini-2.0-flash-exp'
   const url = getEndpoint(model)
 
   const body: any = {
