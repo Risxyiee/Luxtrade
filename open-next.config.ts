@@ -1,11 +1,15 @@
 import { defineCloudflareConfig } from "@opennextjs/cloudflare";
 
-export default defineCloudflareConfig({
+const config = defineCloudflareConfig({
   edge: {
-    // Skip edge bundling for routes that use node:stream
     excludeRoutePatterns: [
       "/api/ai/*",
       "/api/generate-image/*"
     ]
   }
 });
+
+// Add buildCommand at the top level
+config.buildCommand = "next build";
+
+export default config;
