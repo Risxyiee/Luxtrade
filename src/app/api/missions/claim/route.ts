@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ACHIEVEMENTS, getAchievementById } from '@/lib/achievements-data'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 
 export async function POST(request: NextRequest) {
   try {
     // Auth: get the REAL user from session, NOT from request body
-    const authUser = await getAuthUser(request)
+    const authResult = await getAuthenticatedUser(request)
+    const authUser = authResult.user
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -271,7 +272,8 @@ async function applyReward(
 export async function GET(request: NextRequest) {
   try {
     // Auth: require login to view own missions
-    const authUser = await getAuthUser(request)
+    const authResult = await getAuthenticatedUser(request)
+    const authUser = authResult.user
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

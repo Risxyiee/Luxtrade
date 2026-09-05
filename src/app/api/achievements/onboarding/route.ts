@@ -19,8 +19,14 @@ const ONBOARDING_ACHIEVEMENT_ID = 'newcomer_achievement'
 export async function POST(request: NextRequest) {
   try {
     // SECURITY: Require authentication
-    const { error, user } = await requireAuth(request)
-    if (error) return error
+    const authResult = await requireAuth(request)
+    const response = authResult.response
+    const user = authResult.user
+    if (response) return response
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     const { userId, username } = await request.json()
 

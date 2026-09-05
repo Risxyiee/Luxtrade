@@ -25,11 +25,12 @@ function checkRateLimit(ip: string): boolean {
 }
 
 /** Auth helper: cookie + Bearer token fallback (same pattern as journal) */
-function getClientWithAuth(request: NextRequest) {
-  const { supabase: cookieClient } = createClientForApi(request)
+async function getClientWithAuth(request: NextRequest) {
+  const result = await createClientForApi(request)
+  const cookieClient = result.supabase
   const authHeader = request.headers.get('Authorization')
   let bearerClient: ReturnType<typeof createClient> | null = null
-  if (authHeader?.startsWith('Bearer ')) {
+  if (authHeader?.startsWith('Bearer ') && cookieClient) {
     const token = authHeader.slice(7)
     bearerClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -41,7 +42,10 @@ function getClientWithAuth(request: NextRequest) {
 }
 
 async function getUserWithSession(request: NextRequest) {
-  const { cookieClient, bearerClient } = getClientWithAuth(request)
+  const { cookieClient, bearerClient } = await getClientWithAuth(request)
+  if (!cookieClient) {
+    return { user: null, client: null }
+  }
   let { data: { user }, error } = await cookieClient.auth.getUser()
   if (user) return { user, client: cookieClient }
   if (bearerClient) {

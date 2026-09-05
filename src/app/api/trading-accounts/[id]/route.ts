@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 
 // GET: Fetch a specific trading account
 export async function GET(
@@ -21,7 +21,8 @@ export async function GET(
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 
-    const authUser = await getAuthUser(req)
+    const authResult = await getAuthenticatedUser(req)
+    const authUser = authResult.user
 
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -60,7 +61,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 
-    const authUser = await getAuthUser(req)
+    const authResult = await getAuthenticatedUser(req)
+    const authUser = authResult.user
 
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -120,7 +122,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 
-    const authUser = await getAuthUser(req)
+    const authResult = await getAuthenticatedUser(req)
+    const authUser = authResult.user
 
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

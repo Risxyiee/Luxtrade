@@ -4,13 +4,14 @@ import { createClient } from '@supabase/supabase-js'
 import { isUserPro } from '@/lib/pro-check'
 
 /** Get a Supabase client with user session (cookie or Bearer token) */
-function getClientWithAuth(request: NextRequest) {
+async function getClientWithAuth(request: NextRequest) {
   // Try cookie-based first
-  const { supabase: cookieClient } = createClientForApi(request)
+  const result = await createClientForApi(request)
+  const cookieClient = result.supabase
   // Also create a Bearer-based client as fallback
   const authHeader = request.headers.get('Authorization')
   let bearerClient: ReturnType<typeof createClient> | null = null
-  if (authHeader?.startsWith('Bearer ')) {
+  if (authHeader?.startsWith('Bearer ') && cookieClient) {
     const token = authHeader.slice(7)
     bearerClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,7 +24,11 @@ function getClientWithAuth(request: NextRequest) {
 }
 
 async function getUserWithSession(request: NextRequest) {
-  const { cookieClient, bearerClient } = getClientWithAuth(request)
+  const { cookieClient, bearerClient } = await getClientWithAuth(request)
+
+  if (!cookieClient) {
+    return { user: null, client: null }
+  }
 
   // Try cookie-based
   let { data: { user }, error } = await cookieClient.auth.getUser()

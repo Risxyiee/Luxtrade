@@ -124,8 +124,10 @@ async function fetchLeaderboardFromDB(
 }
 
 export async function GET(request: NextRequest) {
-  const { error, user } = await requireAuth(request)
-  if (error) return error
+  const authResult = await requireAuth(request)
+  const response = authResult.response
+  const user = authResult.user
+  if (response) return response
 
   const admin = getSupabaseAdmin()
   if (!admin) {

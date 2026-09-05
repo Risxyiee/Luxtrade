@@ -1,29 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isUserPro } from '@/lib/pro-check'
 import { createClientForApi } from '@/lib/supabase/server'
-import { createClient } from '@supabase/supabase-js'
 
-function getClientWithAuth(request: NextRequest) {
-  const { supabase: cookieClient } = createClientForApi(request)
-  const authHeader = request.headers.get('Authorization')
-  let bearerClient: ReturnType<typeof createClient> | null = null
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.slice(7)
-    bearerClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-    ;(bearerClient as any)._bearerToken = token
-  }
-  return { cookieClient, bearerClient }
+async function getClientWithAuth(request: NextRequest) {
+  return await createClientForApi(request)
 }
 
 async function getUserWithSession(request: NextRequest) {
-  const { cookieClient, bearerClient } = getClientWithAuth(request)
+  const clientResult = await getClientWithAuth(request)
+  const cookieClient = clientResult.supabase
+
+  if (!cookieClient) {
+    return { user: null, client: null }
+  }
+
   let { data: { user }, error } = await cookieClient.auth.getUser()
   if (user) return { user, client: cookieClient }
-  if (bearerClient) {
-    const token = (bearerClient as any)._bearerToken
-    const result = await bearerClient.auth.getUser(token)
-    if (result.data.user) return { user: result.data.user, client: bearerClient }
-  }
   return { user: null, client: cookieClient }
 }
 
@@ -99,7 +91,7 @@ async function computeBasicAnalytics(client: any, userId: string, period: string
 export async function GET(request: NextRequest) {
   try {
     const { user, client } = await getUserWithSession(request)
-    if (!user) {
+    if (!user || !client) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

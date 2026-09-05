@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 import { isUserPro } from '@/lib/pro-check'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 
@@ -29,9 +29,10 @@ export async function GET(request: NextRequest) {
   // ── 1. Auth ──
   let authUser: { id: string; email: string } | null = null
   const authOk = await check('1_auth', async () => {
-    authUser = await getAuthUser(request)
-    if (!authUser) throw new Error('Tidak ada session login. Cookie/Bearer token expired atau tidak ada.')
-    return `Login OK: ${authUser.email}`
+    const authResult = await getAuthenticatedUser(request)
+    const user = authResult.user
+    if (!user) throw new Error('Tidak ada session login. Cookie/Bearer token expired atau tidak ada.')
+    return `Login OK: ${user.email}`
   })
   if (!authOk) {
     return NextResponse.json({
@@ -44,7 +45,9 @@ export async function GET(request: NextRequest) {
 
   // ── 2. PRO check ──
   const proOk = await check('2_pro_check', async () => {
-    const pro = await isUserPro(authUser!.id)
+    const authResult = await getAuthenticatedUser(request)
+    const user = authResult.user
+    const pro = await isUserPro(user?.id || '')
     if (!pro) throw new Error('User BUKAN PRO. isUserPro() returned false. Auto-journal butuh PRO.')
     return 'User is PRO'
   })

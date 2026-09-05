@@ -26,7 +26,11 @@ export async function POST(request: NextRequest) {
     const { promoCode: code, plan } = body
     console.log(`[promo/apply:${logId}] code=${code?.trim()?.toUpperCase()}, plan=${plan}`)
 
-    const { supabase } = createClientForApi(request)
+    const result = await createClientForApi(request)
+    const supabase = result.supabase
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {

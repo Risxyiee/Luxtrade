@@ -6,7 +6,11 @@ import { rateLimitByUser } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
-    const { supabase } = createClientForApi(request)
+    const result = await createClientForApi(request)
+    const supabase = result.supabase
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

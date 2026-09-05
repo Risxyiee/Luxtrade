@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 import { getSupabaseAdminAuthFromClient, supabaseAdmin } from '@/lib/supabase'
 
 /**
@@ -19,7 +19,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ rewarded: false, reason: 'DB unavailable' })
     }
 
-    const authUser = await getAuthUser(request)
+    const authResult = await getAuthenticatedUser(request)
+    const authUser = authResult.user
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
