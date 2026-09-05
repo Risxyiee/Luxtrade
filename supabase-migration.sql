@@ -31,7 +31,7 @@ CREATE TABLE public.achievements (
 CREATE TABLE public.user_achievements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  achievement_key VARCHAR(100) NOT NULL REFERENCES public.achievements(key) ON DELETE CASCADE,
+  achievement_key TEXT NOT NULL REFERENCES public.achievements(key) ON DELETE CASCADE,
   achieved_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   metadata JSONB DEFAULT '{}',
   UNIQUE(user_id, achievement_key)
@@ -41,7 +41,7 @@ CREATE TABLE public.user_achievements (
 CREATE TABLE public.user_submissions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  achievement_key VARCHAR(100) NOT NULL,
+  achievement_key TEXT NOT NULL,
   proof_url TEXT,
   status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
   reviewed_by VARCHAR(100),
@@ -54,7 +54,7 @@ CREATE TABLE public.user_submissions (
 CREATE TABLE public.mission_progress (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  mission_key VARCHAR(100) NOT NULL,
+  mission_key TEXT NOT NULL,
   progress INTEGER DEFAULT 0,
   target INTEGER DEFAULT 1,
   completed BOOLEAN DEFAULT false,
@@ -100,7 +100,7 @@ CREATE POLICY "Only admins can update achievements"
 -- Step 9: Create RLS policies for user_achievements
 CREATE POLICY "Users can view own achievements"
   ON public.user_achievements FOR SELECT
-  USING (auth.uid() = user_id);
+  USING (auth.uid()::text = user_id::text);
 
 CREATE POLICY "System can insert user achievements"
   ON public.user_achievements FOR INSERT
@@ -109,18 +109,18 @@ CREATE POLICY "System can insert user achievements"
 -- Step 10: Create RLS policies for user_submissions
 CREATE POLICY "Users can view own submissions"
   ON public.user_submissions FOR SELECT
-  USING (auth.uid() = user_id);
+  USING (auth.uid()::text = user_id::text);
 
 CREATE POLICY "Users can insert own submissions"
   ON public.user_submissions FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (auth.uid()::text = user_id::text);
 
 CREATE POLICY "Admins can view all submissions"
   ON public.user_submissions FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM public.profiles
-      WHERE profiles.id = auth.uid()
+      WHERE profiles.id::text = auth.uid()::text
       AND profiles.role = 'admin'
     )
   );
@@ -130,7 +130,7 @@ CREATE POLICY "Admins can update submissions"
   USING (
     EXISTS (
       SELECT 1 FROM public.profiles
-      WHERE profiles.id = auth.uid()
+      WHERE profiles.id::text = auth.uid()::text
       AND profiles.role = 'admin'
     )
   );
@@ -138,7 +138,7 @@ CREATE POLICY "Admins can update submissions"
 -- Step 11: Create RLS policies for mission_progress
 CREATE POLICY "Users can view own progress"
   ON public.mission_progress FOR SELECT
-  USING (auth.uid() = user_id);
+  USING (auth.uid()::text = user_id::text);
 
 CREATE POLICY "System can insert progress"
   ON public.mission_progress FOR INSERT
