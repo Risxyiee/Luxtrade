@@ -9,7 +9,11 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const { supabase } = createClientForApi(request)
+    const result = await createClientForApi(request)
+    const supabase = result.supabase
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
@@ -45,7 +49,11 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
-    const { supabase } = createClientForApi(request)
+    const result = await createClientForApi(request)
+    const supabase = result.supabase
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
@@ -99,7 +107,11 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const { supabase } = createClientForApi(request)
+    const result = await createClientForApi(request)
+    const supabase = result.supabase
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {

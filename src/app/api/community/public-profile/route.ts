@@ -4,8 +4,14 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 
 // GET: Get current user's public profile status
 export async function GET(request: NextRequest) {
-  const { error, user } = await requireAuth(request)
-  if (error) return error
+  const authResult = await requireAuth(request)
+  const response = authResult.response
+  const user = authResult.user
+  if (response) return response
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
 
   const admin = getSupabaseAdmin()
   if (!admin) {
@@ -28,8 +34,14 @@ export async function GET(request: NextRequest) {
 
 // PUT: Toggle public profile on/off
 export async function PUT(request: NextRequest) {
-  const { error, user } = await requireAuth(request)
-  if (error) return error
+  const authResult = await requireAuth(request)
+  const response = authResult.response
+  const user = authResult.user
+  if (response) return response
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
 
   const admin = getSupabaseAdmin()
   if (!admin) {

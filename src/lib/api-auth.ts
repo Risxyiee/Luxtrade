@@ -18,7 +18,8 @@ interface AuthResult {
  */
 export async function getAuthenticatedUser(request: NextRequest): Promise<AuthResult> {
   try {
-    const { supabase: cookieClient } = createClientForApi(request)
+    const result = await createClientForApi(request)
+    const cookieClient = result.supabase
 
     // Check if Supabase client was created successfully
     if (!cookieClient) {

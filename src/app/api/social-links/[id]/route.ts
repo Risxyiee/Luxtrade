@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 
 // DELETE /api/social-links/[id] - Delete a social link (user's own only)
 export async function DELETE(
@@ -14,7 +14,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 
-    const authUser = await getAuthUser(request)
+    const authResult = await getAuthenticatedUser(request)
+    const authUser = authResult.user
 
     if (!authUser) {
       console.log('[API] Unauthorized - no valid user')

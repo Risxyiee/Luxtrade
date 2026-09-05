@@ -9,8 +9,14 @@ function generateShareCode(): string {
 
 // POST: Generate a shareable trade card
 export async function POST(request: NextRequest) {
-  const { error, user } = await requireAuth(request)
-  if (error) return error
+  const authResult = await requireAuth(request)
+  const response = authResult.response
+  const user = authResult.user
+  if (response) return response
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
 
   const admin = getSupabaseAdmin()
   if (!admin) {
@@ -29,7 +35,7 @@ export async function POST(request: NextRequest) {
     const { data: trade } = await admin.from('trades')
       .select('id')
       .eq('id', tradeId)
-      .eq('user_id', user.id)
+      .eq('user_id', user!.id)
       .maybeSingle()
 
     if (!trade) {
@@ -64,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     await admin.from('community_trades').insert({
       trade_id: tradeId,
-      user_id: user.id,
+      user_id: user!.id,
       share_code: shareCode,
       include_analytics: includeAnalytics,
     })

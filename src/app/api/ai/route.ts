@@ -817,10 +817,16 @@ function buildSmartChatFallback(message: string, context: Record<string, any>, l
 
 export async function POST(request: NextRequest) {
   try {
-    const { error: authError, user } = await requireAuth(request)
-    if (authError) return authError
+    const authResult = await requireAuth(request)
+    const response = authResult.response
+    const user = authResult.user
+    if (response) return response
 
-    const pro = await isUserPro(user!.id)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const pro = await isUserPro(user.id)
     if (!pro) {
       return NextResponse.json({
         error: 'AI Insights adalah fitur PRO. Upgrade ke PRO untuk menggunakan AI trading assistant!',
@@ -829,7 +835,7 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    if (!checkAIRateLimit(user!.id)) {
+    if (!checkAIRateLimit(user.id)) {
       return NextResponse.json(
         { error: 'Rate limit exceeded. Coba lagi dalam 1 menit.' },
         { status: 429 }

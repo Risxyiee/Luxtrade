@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { edgeCrypto } from '@/lib/edge-crypto'
 
@@ -14,7 +14,8 @@ export async function POST(request: NextRequest) {
     console.log('🟢 [API /api/trade-upload] Starting image upload to Supabase Storage...')
 
     // Step 1: Authenticate user
-    const authUser = await getAuthUser(request)
+    const authResult = await getAuthenticatedUser(request)
+    const authUser = authResult.user
 
     if (!authUser) {
       console.log('❌ [API] Unauthorized - no valid user')

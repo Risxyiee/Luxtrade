@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 import { isUserPro, countUserJournalsThisMonth, FREE_JOURNAL_LIMIT } from '@/lib/pro-check'
 import { rateLimitByUser } from '@/lib/rate-limit'
 
 // GET - Fetch journal entries
 export async function GET(request: NextRequest) {
   try {
-    const authUser = await getAuthUser(request)
+    const authResult = await getAuthenticatedUser(request)
+    const authUser = authResult.user
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { supabase } = createClientForApi(request)
+    const result = await createClientForApi(request)
+    const supabase = result.supabase
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    }
+
     const searchParams = request.nextUrl.searchParams
     const limit = parseInt(searchParams.get('limit') || '50')
 
@@ -38,7 +44,8 @@ export async function GET(request: NextRequest) {
 // POST - Create journal entry
 export async function POST(request: NextRequest) {
   try {
-    const authUser = await getAuthUser(request)
+    const authResult = await getAuthenticatedUser(request)
+    const authUser = authResult.user
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -73,7 +80,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { supabase } = createClientForApi(request)
+    const result = await createClientForApi(request)
+    const supabase = result.supabase
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    }
+
     const { data, error } = await supabase
       .from('journal_entries')
       .insert([{
@@ -103,7 +115,8 @@ export async function POST(request: NextRequest) {
 // PUT - Update journal entry
 export async function PUT(request: NextRequest) {
   try {
-    const authUser = await getAuthUser(request)
+    const authResult = await getAuthenticatedUser(request)
+    const authUser = authResult.user
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -128,7 +141,12 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
     }
 
-    const { supabase } = createClientForApi(request)
+    const result = await createClientForApi(request)
+    const supabase = result.supabase
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    }
+
     const { data, error } = await supabase
       .from('journal_entries')
       .update(updates)
@@ -152,12 +170,18 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete journal entry
 export async function DELETE(request: NextRequest) {
   try {
-    const authUser = await getAuthUser(request)
+    const authResult = await getAuthenticatedUser(request)
+    const authUser = authResult.user
     if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { supabase } = createClientForApi(request)
+    const result = await createClientForApi(request)
+    const supabase = result.supabase
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    }
+
     const searchParams = request.nextUrl.searchParams
     const id = searchParams.get('id')
 

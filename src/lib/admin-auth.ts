@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 import { createClient } from '@supabase/supabase-js'
 
 // Hardcoded admin identifiers (used as ultimate fallback)
@@ -32,7 +32,8 @@ function getSupabaseServiceClient() {
  * Returns { error, user } — if error is non-null, return it immediately.
  */
 export async function requireAdmin(request: NextRequest) {
-  const user = await getAuthUser(request)
+  const authResult = await getAuthenticatedUser(request)
+  const user = authResult.user
 
   if (!user) {
     return {
@@ -42,7 +43,7 @@ export async function requireAdmin(request: NextRequest) {
   }
 
   // Check 1: Hardcoded admin list (fastest, no DB call)
-  if (ADMIN_EMAILS.includes(user.email.toLowerCase()) || ADMIN_IDS.includes(user.id)) {
+  if (user.email && (ADMIN_EMAILS.includes(user.email.toLowerCase()) || ADMIN_IDS.includes(user.id))) {
     return { error: null, user }
   }
 

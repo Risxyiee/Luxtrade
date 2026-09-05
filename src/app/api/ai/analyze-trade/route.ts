@@ -10,7 +10,11 @@ import { isUserPro } from '@/lib/pro-check'
 export async function POST(req: Request) {
   try {
     // Auth check
-    const { supabase } = createClientForApi(req as NextRequest)
+    const result = await createClientForApi(req as NextRequest)
+    const supabase = result.supabase
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

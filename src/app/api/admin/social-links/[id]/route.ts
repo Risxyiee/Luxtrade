@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 
 // Helper function to check if user is admin
 async function isAdmin(userId: string): Promise<boolean> {
@@ -28,7 +28,8 @@ export async function PATCH(
 ) {
   try {
     const params = await context.params
-    const authUser = await getAuthUser(request)
+    const authResult = await getAuthenticatedUser(request)
+    const authUser = authResult.user
 
     if (!authUser) {
       console.log('❌ [API] Unauthorized - no valid user')
@@ -134,7 +135,8 @@ export async function DELETE(
 ) {
   try {
     const params = await context.params
-    const authUser = await getAuthUser(request)
+    const authResult = await getAuthenticatedUser(request)
+    const authUser = authResult.user
 
     if (!authUser) {
       console.log('❌ [API] Unauthorized - no valid user')

@@ -5,7 +5,12 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 // GET - Sync current user profile (ensure profile exists)
 export async function GET(request: NextRequest) {
   try {
-    const { supabase } = createClientForApi(request)
+    const result = await createClientForApi(request)
+    const supabase = result.supabase
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
+    }
+
     const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error || !user) {

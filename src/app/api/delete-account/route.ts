@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { createClientForApi } from '@/lib/supabase/server'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 
 // POST - Delete account and all user data
 export async function POST(request: NextRequest) {
@@ -14,7 +14,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 1: Authenticate user
-    const authUser = await getAuthUser(request)
+    const authResult = await getAuthenticatedUser(request)
+    const authUser = authResult.user
 
     if (!authUser) {
       console.log('[API] Unauthorized - no valid user')
@@ -25,6 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = authUser.id
+    const userEmail = authUser.email
     const body = await request.json()
     const { confirmation, email } = body
 
@@ -38,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 3: Validate email matches
-    if (!email || email !== authUser.email) {
+    if (!email || email !== userEmail) {
       return NextResponse.json(
         { error: 'Email does not match. Please enter your email address correctly.' },
         { status: 400 }
@@ -81,11 +83,14 @@ export async function POST(request: NextRequest) {
     await admin.from('profiles').delete().eq('id', userId)
     console.log('[API] Profile deleted')
 
-    // Step 10: Delete user's session in Supabase Auth
+    // Step 13: Delete user's session in Supabase Auth
     try {
-      const { supabase } = createClientForApi(request)
-      await (supabase.auth as any).admin.deleteUser(userId)
-      console.log('[API] Supabase Auth user deleted')
+      const result = await createClientForApi(request)
+      const supabase = result.supabase
+      if (supabase) {
+        await (supabase.auth as any).admin.deleteUser(userId)
+        console.log('[API] Supabase Auth user deleted')
+      }
     } catch (authError) {
       console.error('[API] Failed to delete Supabase Auth user:', authError)
       // Don't fail the entire operation if auth deletion fails

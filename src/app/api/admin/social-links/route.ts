@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 
 // Helper function to check if user is admin
 async function isAdmin(userId: string): Promise<boolean> {
@@ -24,7 +24,8 @@ async function isAdmin(userId: string): Promise<boolean> {
 // GET /api/admin/social-links - Get all social link submissions (admin only)
 export async function GET(request: NextRequest) {
   try {
-    const authUser = await getAuthUser(request)
+    const authResult = await getAuthenticatedUser(request)
+    const authUser = authResult.user
 
     if (!authUser) {
       return NextResponse.json(

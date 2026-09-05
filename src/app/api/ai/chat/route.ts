@@ -22,7 +22,11 @@ function checkRateLimit(identifier: string): boolean {
 export async function POST(request: NextRequest) {
   try {
     // Auth check
-    const { supabase } = createClientForApi(request)
+    const authResult = await createClientForApi(request)
+    const supabase = authResult.supabase
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -67,14 +71,14 @@ export async function POST(request: NextRequest) {
     ]
 
     // Use Gemini
-    const result = await geminiChat(geminiMessages, {
+    const geminiResult = await geminiChat(geminiMessages, {
       systemInstruction: 'You are a helpful and friendly AI assistant. Respond clearly and concisely.',
       maxTokens: 4096,
     })
 
     return NextResponse.json({
       success: true,
-      response: result.text
+      response: geminiResult.text
     })
   } catch (error: any) {
     console.error('[AI /chat] Error:', error)

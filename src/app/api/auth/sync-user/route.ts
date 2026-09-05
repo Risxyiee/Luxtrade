@@ -6,8 +6,13 @@ export async function POST(request: NextRequest) {
   try {
     // SECURITY: Require authentication
     const authResult = await requireAuth(request)
-    if (authResult.error) return authResult.error
-    const user = authResult.user!
+    const response = authResult.response
+    const user = authResult.user
+    if (response) return response
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     const body = await request.json()
     const { userId, email, fullName } = body
@@ -65,7 +70,7 @@ export async function POST(request: NextRequest) {
       action: 'synced',
       user: {
         id: updatedData.user.id,
-        name: updatedData.user.user_metadata?.full_name || email.split('@')[0]
+        name: updatedData.user.user_metadata?.full_name || email?.split('@')[0]
       }
     })
   } catch (error) {
