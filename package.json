@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "opennextjs-cloudflare",
+    "build": "bun run build:next && bun run build:opennext",
+    "build:next": "next build",
+    "build:opennext": "opennextjs-cloudflare build",
     "lint": "eslint ."
   },
   "dependencies": {
