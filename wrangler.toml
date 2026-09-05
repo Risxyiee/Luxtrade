@@ -5,3 +5,18 @@ compatibility_flags = ["nodejs_compat", "streams_enable_constructors"]
 # OpenNext Cloudflare configuration
 main = ".open-next/worker.js"
 assets = { directory = ".open-next/assets", binding = "ASSETS" }
+
+# Observability configuration
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
+
+[observability.traces]
+enabled = false
+head_sampling_rate = 1
+persist = true
