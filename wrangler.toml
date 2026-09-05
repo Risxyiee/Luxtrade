@@ -1,7 +1,3 @@
 name = "luxtrade"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat", "streams_enable_constructors"]
-main = ".open-next/index.mjs"
-assets = { directory = ".open-next/assets", binding = "ASSETS" }
-observability = { enabled = true }
-logpush = false
