@@ -4,7 +4,11 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 
 export async function GET(request: NextRequest) {
   try {
-    const { supabase } = createClientForApi(request)
+    const result = await createClientForApi(request)
+    const supabase = result.supabase
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {

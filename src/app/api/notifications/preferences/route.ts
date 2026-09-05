@@ -19,7 +19,11 @@ interface NotificationPreferences {
 // GET - Fetch notification preferences for a user
 export async function GET(request: NextRequest) {
   try {
-    const { supabase } = createClientForApi(request)
+    const result = await createClientForApi(request)
+    const supabase = result.supabase
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
@@ -66,7 +70,11 @@ export async function GET(request: NextRequest) {
 // POST - Create notification preferences for a user
 export async function POST(request: NextRequest) {
   try {
-    const { supabase } = createClientForApi(request)
+    const result = await createClientForApi(request)
+    const supabase = result.supabase
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
@@ -130,7 +138,11 @@ export async function POST(request: NextRequest) {
 // PATCH - Update notification preferences for a user
 export async function PATCH(request: NextRequest) {
   try {
-    const { supabase } = createClientForApi(request)
+    const result = await createClientForApi(request)
+    const supabase = result.supabase
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {

@@ -408,8 +408,10 @@ function generateFallbackRecommendations(lang: 'id' | 'en', stats: CalculatedSta
 
 export async function POST(request: NextRequest) {
   // 1. Auth check
-  const { error: authError, user } = await requireAuth(request)
-  if (authError) return authError
+  const authResult = await requireAuth(request)
+  const response = authResult.response
+  const user = authResult.user
+  if (response) return response
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // 2. PRO check

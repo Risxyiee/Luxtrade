@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 import { createClientForApi } from '@/lib/supabase/server'
 
 const MAX_POINTS = 80
@@ -68,7 +68,8 @@ function downsample(points: EquityPoint[], maxPoints: number): EquityPoint[] {
 }
 
 export async function GET(request: NextRequest) {
-  const user = await getAuthUser(request)
+  const authResult = await getAuthenticatedUser(request)
+  const user = authResult.user
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -77,7 +78,11 @@ export async function GET(request: NextRequest) {
   const period = searchParams.get('period') || 'all'
 
   try {
-    const { supabase } = createClientForApi(request)
+    const result = await createClientForApi(request)
+    const supabase = result.supabase
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    }
 
     const { data: accounts } = await supabase
       .from('trading_accounts')

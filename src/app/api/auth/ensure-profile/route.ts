@@ -5,8 +5,14 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 export async function POST(request: NextRequest) {
   try {
     // SECURITY: Require authentication
-    const { error, user } = await requireAuth(request)
-    if (error) return error
+    const authResult = await requireAuth(request)
+    const response = authResult.response
+    const user = authResult.user
+    if (response) return response
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     const body = await request.json()
     const { userId, email, fullName } = body
@@ -48,7 +54,7 @@ export async function POST(request: NextRequest) {
     // Create new profile using Supabase
     const profileData = {
       id: userId,
-      email: email || user.email || null,
+      email: email || (user?.email || null),
       full_name: fullName || null,
       plan: 'FREE',
       is_pro: false,

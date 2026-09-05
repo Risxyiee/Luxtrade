@@ -266,7 +266,7 @@ function getSupabaseClient() {
   return createClient(url, key)
 }
 
-let _supabaseClient: ReturnType<typeof createClient> | null = null
+let _supabaseClient: any = null
 
 function getSupabase() {
   if (!_supabaseClient) {
@@ -280,6 +280,9 @@ function getSupabase() {
  */
 export async function saveTrade(entry: any) {
   const supabase = getSupabase()
+  if (!supabase) {
+    throw new Error('Supabase client not available')
+  }
   const { data, error } = await supabase
     .from("trades")
     .insert({
@@ -306,7 +309,7 @@ export async function saveTrade(entry: any) {
     throw new Error(error.message);
   }
 
-  console.log("✅ Trade saved successfully:", data.id);
+  console.log("✅ Trade saved successfully:", data?.id);
   return data;
 }
 
@@ -319,6 +322,9 @@ export async function uploadScreenshot(
   userId: string
 ): Promise<string> {
   const supabase = getSupabase()
+  if (!supabase) {
+    throw new Error('Supabase client not available')
+  }
   const path = `${userId}/${Date.now()}.jpg`;
 
   try {

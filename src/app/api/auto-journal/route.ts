@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 import { createClientForApi } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { isUserPro } from '@/lib/pro-check'
@@ -11,8 +11,9 @@ import { buildTradeAndJournalPrompt } from '@/lib/aiml-vision'
 
 // ==================== AUTH HELPER ====================
 
-function getClientWithAuth(request: NextRequest) {
-  const { supabase: cookieClient } = createClientForApi(request)
+async function getClientWithAuth(request: NextRequest) {
+  const result = await createClientForApi(request)
+  const cookieClient = result.supabase
   const authHeader = request.headers.get('Authorization')
   let bearerClient: ReturnType<typeof createClient> | null = null
   if (authHeader?.startsWith('Bearer ')) {
@@ -27,7 +28,10 @@ function getClientWithAuth(request: NextRequest) {
 }
 
 async function getUserWithSession(request: NextRequest) {
-  const { cookieClient, bearerClient } = getClientWithAuth(request)
+  const { cookieClient, bearerClient } = await getClientWithAuth(request)
+  if (!cookieClient) {
+    return { user: null, client: null }
+  }
   let { data: { user }, error } = await cookieClient.auth.getUser()
   if (user) return { user, client: cookieClient }
   if (bearerClient) {
@@ -202,6 +206,9 @@ export async function POST(request: NextRequest) {
 
     // ── STEP 6: Fetch trading account for broker_gmt_offset ──
     log('🌐', 'Fetching trading account for broker_gmt_offset...')
+    if (!client) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
     const { data: tradingAccount } = await client
       .from('trading_accounts')
       .select('broker_gmt_offset')
@@ -398,9 +405,12 @@ export async function POST(request: NextRequest) {
         if (optimizedBuffer.length > 0) {
           try {
             const url = await uploadScreenshot(optimizedBuffer, userId)
-            const { supabase: bgClient } = createClientForApi(request)
-            await bgClient.from('trades').update({ screenshot_url: url }).eq('id', tradeId)
-            console.log(`✅ [AutoJournal BG] Screenshot uploaded + linked`)
+            const result = await createClientForApi(request)
+            const bgClient = result.supabase
+            if (bgClient) {
+              await bgClient.from('trades').update({ screenshot_url: url }).eq('id', tradeId)
+              console.log(`✅ [AutoJournal BG] Screenshot uploaded + linked`)
+            }
           } catch (err: any) {
             console.warn(`⚠️ [AutoJournal BG] Screenshot upload failed: ${err.message}`)
           }
