@@ -1,8 +1,8 @@
 -- ============================================================================
 -- COMPLETE MIGRATION: Achievements & Mission System Tables
 -- ============================================================================
+-- This script can be run multiple times without errors
 -- Run this entire script in Supabase SQL Editor
--- This creates all tables needed for the mission/achievement system
 -- ============================================================================
 
 -- ============================================================================
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS public.achievements (
 CREATE TABLE IF NOT EXISTS public.user_achievements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  achievement_key VARCHAR(100) NOT NULL REFERENCES public.achievements(key) ON DELETE CASCADE,
+  achievement_key VARCHAR(100) NOT NULL REFERENCES public.achievements(key) ON DROP CASCADE,
   achieved_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   metadata JSONB DEFAULT '{}',
   UNIQUE(user_id, achievement_key)
@@ -44,6 +44,13 @@ CREATE INDEX IF NOT EXISTS idx_achievements_active ON public.achievements(is_act
 -- Enable RLS for achievements tables
 ALTER TABLE public.achievements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_achievements ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies first (if they exist)
+DROP POLICY IF EXISTS "Achievements are viewable by everyone" ON public.achievements;
+DROP POLICY IF EXISTS "Only admins can insert achievements" ON public.achievements;
+DROP POLICY IF EXISTS "Only admins can update achievements" ON public.achievements;
+DROP POLICY IF EXISTS "Users can view own achievements" ON public.user_achievements;
+DROP POLICY IF EXISTS "System can insert user achievements" ON public.user_achievements;
 
 -- RLS policies for achievements (public read, admin write)
 CREATE POLICY "Achievements are viewable by everyone"
@@ -130,6 +137,15 @@ CREATE INDEX IF NOT EXISTS idx_mission_progress_completed ON public.mission_prog
 ALTER TABLE public.user_submissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.mission_progress ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies first (if they exist)
+DROP POLICY IF EXISTS "Users can view own submissions" ON public.user_submissions;
+DROP POLICY IF EXISTS "Users can insert own submissions" ON public.user_submissions;
+DROP POLICY IF EXISTS "Admins can view all submissions" ON public.user_submissions;
+DROP POLICY IF EXISTS "Admins can update submissions" ON public.user_submissions;
+DROP POLICY IF EXISTS "Users can view own progress" ON public.mission_progress;
+DROP POLICY IF EXISTS "System can insert progress" ON public.mission_progress;
+DROP POLICY IF EXISTS "System can update progress" ON public.mission_progress;
+
 -- RLS policies for user_submissions
 CREATE POLICY "Users can view own submissions"
   ON public.user_submissions FOR SELECT
@@ -205,16 +221,3 @@ CREATE TRIGGER update_achievements_updated_at
   BEFORE UPDATE ON public.achievements
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
-
--- ============================================================================
--- VERIFICATION QUERIES (Optional - run these to verify)
--- ============================================================================
-
--- Uncomment to verify tables were created:
--- SELECT 'achievements' as table_name, COUNT(*) as row_count FROM public.achievements
--- UNION ALL
--- SELECT 'user_achievements', COUNT(*) FROM public.user_achievements
--- UNION ALL
--- SELECT 'user_submissions', COUNT(*) FROM public.user_submissions
--- UNION ALL
--- SELECT 'mission_progress', COUNT(*) FROM public.mission_progress;
