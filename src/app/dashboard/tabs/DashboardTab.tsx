@@ -224,8 +224,7 @@ function DashboardTab({
   const bestTradeSymbol = trades.length > 0 ? trades.find(t => t.profit_loss === bestTrade)?.symbol : ''
   const worstTrade = trades.length > 0 ? Math.min(...trades.map(t => t.profit_loss)) : 0
   const worstTradeSymbol = trades.length > 0 ? trades.find(t => t.profit_loss === worstTrade)?.symbol : ''
-  const winStreak = calculateConsecutiveStreaks(trades)
-  const loseStreak = calculateActiveStreak(trades)
+  const streaks = calculateConsecutiveStreaks(trades)
 
   const chartTooltipStyle = { background: '#0a0c12', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8 }
 
@@ -433,14 +432,14 @@ function DashboardTab({
           {/* Win Streak — green */}
           <StatCard
             label={language === 'id' ? 'Win Streak' : 'Win Streak'}
-            value={String(winStreak)}
+            value={String(streaks.maxWinStreak)}
             icon={TrendingUp}
             color="green"
           />
           {/* Lose Streak — red */}
           <StatCard
             label={language === 'id' ? 'Lose Streak' : 'Lose Streak'}
-            value={String(loseStreak)}
+            value={String(streaks.maxLoseStreak)}
             icon={TrendingDown}
             color="red"
           />
