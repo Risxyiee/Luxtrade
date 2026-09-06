@@ -172,7 +172,7 @@ export default function AffiliateManagementPage() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
   // ─── Auth check ────────────────────────────────────────────────────────
-  const ADMIN_EMAILS = ['luxtradee@gmail.com', 'riskiakbarp123@gmail.com']
+  const ADMIN_EMAILS = ['luxtradee@gmail.com']
 
   useEffect(() => {
     const checkAuth = async () => {
