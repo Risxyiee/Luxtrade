@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 
+/**
+ * GET /api/profile/me - Fetch user profile
+ */
 export async function GET(request: NextRequest) {
   try {
     const result = await createClientForApi(request)
@@ -24,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     const { data: profile, error: profileError } = await admin
       .from('profiles')
-      .select('id, email, full_name, plan, is_pro, subscription_until, pro_expiry, pro_status, role, achievements, streak_count, best_streak, my_referral_code, display_name, subscription_status, device_id, has_ever_been_pro, referral_status, referred_by_code, commission_paid, affiliate_balance, referral_count, created_at, updated_at')
+      .select('id, email, full_name, plan, is_pro, subscription_until, pro_expiry, pro_status, role, achievements, streak_count, best_streak, my_referral_code, display_name, subscription_status, device_id, has_ever_been_pro, referral_status, referred_by_code, commission_paid, affiliate_balance, referral_count, total_xp, created_at, updated_at')
       .eq('id', user.id)
       .maybeSingle()
 
@@ -60,6 +63,7 @@ export async function GET(request: NextRequest) {
             referral_status: null,
             has_ever_been_pro: false,
             device_id: null,
+            total_xp: 0,
             created_at: user.created_at,
             _fallback: true, // Flag indicating we're using fallback data
           }
@@ -98,11 +102,80 @@ export async function GET(request: NextRequest) {
         referral_status: profile.referral_status || null,
         has_ever_been_pro: profile.has_ever_been_pro ?? false,
         device_id: profile.device_id || null,
+        total_xp: profile.total_xp ?? 0,
         created_at: profile.created_at || user.created_at,
       }
     })
   } catch (error: any) {
     console.error('❌ [profile/me] Error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+/**
+ * PATCH /api/profile/me - Update user profile
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const result = await createClientForApi(request)
+    const supabase = result.supabase
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
+
+    const body = await request.json()
+
+    // Use admin client to bypass RLS for profile updates
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      console.error('❌ [profile/me] Supabase admin client not available')
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
+
+    // Build update object with only allowed fields
+    const updateData: any = {
+      updated_at: new Date().toISOString()
+    }
+
+    const allowedFields = [
+      'full_name',
+      'display_name',
+      'my_referral_code',
+      'referred_by_code',
+      'device_id',
+      'total_xp'
+    ]
+
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        updateData[field] = body[field]
+      }
+    }
+
+    const { data: profile, error: updateError } = await admin
+      .from('profiles')
+      .update(updateData)
+      .eq('id', user.id)
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error('[profile/me] Update error:', updateError)
+      return NextResponse.json({ error: 'Failed to update profile', detail: updateError.message }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      profile
+    })
+  } catch (error: any) {
+    console.error('❌ [profile/me] PATCH Error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
