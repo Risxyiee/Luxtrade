@@ -161,8 +161,8 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; unavail
     console.log('[Calendar] RAPIDAPI_TRADING_ECONOMICS_KEY not set, using sample data');
   }
 
-  // Fallback: Return sample data
-  console.log('[Calendar] Using sample calendar data');
+  // Fallback: Return sample data when API is unavailable
+  console.log('[Calendar] Using sample calendar data as fallback');
   return { events: SAMPLE_EVENTS, unavailable: false };
 }
 
