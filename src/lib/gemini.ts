@@ -1,23 +1,24 @@
 /**
  * Gemini API client for LuxTrade PRO features
- * Uses Google's Gemini API (free tier: 15 RPM, 1M tokens/day)
+ * Uses Google's official @google/generative-ai SDK
+ * Free tier: 15 RPM, 1M tokens/day
  */
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
+import { GoogleGenerativeAI, GenerativeModel, GenerateContentResult, Part } from '@google/generative-ai'
 
 function getApiKey(): string {
   return process.env.GEMINI_API_KEY || ''
 }
 
-function getEndpoint(modelId: string = 'gemini-1.5-flash'): string {
+function getGenerativeAI(): GoogleGenerativeAI {
   const key = getApiKey()
   if (!key) throw new Error('GEMINI_API_KEY not configured')
-  return `${GEMINI_API_URL}/${modelId}:generateContent?key=${key}`
+  return new GoogleGenerativeAI(key)
 }
 
 export interface GeminiMessage {
   role: 'user' | 'model'
-  parts: { text: string }[]
+  parts: Part[]
 }
 
 export interface GeminiResponse {
@@ -49,41 +50,34 @@ export async function geminiChat(
     systemInstruction?: string
   }
 ): Promise<GeminiResponse> {
-  const model = options?.model || 'gemini-1.5-flash'
-  const url = getEndpoint(model)
+  const genAI = getGenerativeAI()
+  const modelName = options?.model || 'gemini-1.5-flash'
 
-  const body: any = {
-    contents: messages,
+  // Initialize the model with correct identifier (SDK handles "models/" prefix automatically)
+  const model: GenerativeModel = genAI.getGenerativeModel({
+    model: modelName,
+    systemInstruction: options?.systemInstruction,
+  })
+
+  // Build the content array from messages - using 'user' and 'model' role strings
+  const contents = messages.map(msg => ({
+    role: msg.role === 'user' ? ('user' as const) : ('model' as const),
+    parts: msg.parts,
+  }))
+
+  const result: GenerateContentResult = await model.generateContent({
+    contents,
     generationConfig: {
       temperature: options?.temperature ?? 0.7,
       maxOutputTokens: options?.maxTokens ?? 2048,
     },
-  }
-
-  if (options?.systemInstruction) {
-    body.systemInstruction = {
-      parts: [{ text: options.systemInstruction }]
-    }
-  }
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(30000),
   })
 
-  if (!res.ok) {
-    const err = await res.text().catch(() => 'Unknown error')
-    throw new Error(`Gemini API error ${res.status}: ${err}`)
-  }
-
-  const data = await res.json()
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+  const text = result.response.text() || ''
 
   return {
     text,
-    usageMetadata: data.usageMetadata,
+    usageMetadata: result.response.usageMetadata as any,
   }
 }
 
@@ -108,6 +102,7 @@ export async function geminiPrompt(
 
 /**
  * Gemini vision call — analyze an image with text prompt
+ * Uses correct inlineData structure for multimodal prompts
  */
 export async function geminiVision(
   prompt: string,
@@ -120,43 +115,35 @@ export async function geminiVision(
     systemInstruction?: string
   }
 ): Promise<string> {
-  const model = options?.model || 'gemini-1.5-flash'
-  const url = getEndpoint(model)
+  const genAI = getGenerativeAI()
+  const modelName = options?.model || 'gemini-1.5-flash'
 
-  const body: any = {
-    contents: [{
-      role: 'user',
-      parts: [
-        { text: prompt },
-        { inlineData: { mimeType, data: imageBase64 } }
-      ]
-    }],
+  // Initialize the model with correct identifier (SDK handles "models/" prefix automatically)
+  const model: GenerativeModel = genAI.getGenerativeModel({
+    model: modelName,
+    systemInstruction: options?.systemInstruction,
+  })
+
+  // Build content with text and image using correct inlineData structure
+  const parts: Part[] = [
+    { text: prompt },
+    {
+      inlineData: {
+        mimeType,
+        data: imageBase64,
+      }
+    }
+  ]
+
+  const result: GenerateContentResult = await model.generateContent({
+    contents: [{ role: 'user', parts }],
     generationConfig: {
       temperature: options?.temperature ?? 0.4,
       maxOutputTokens: options?.maxTokens ?? 4096,
     },
-  }
-
-  if (options?.systemInstruction) {
-    body.systemInstruction = {
-      parts: [{ text: options.systemInstruction }]
-    }
-  }
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(60000),
   })
 
-  if (!res.ok) {
-    const err = await res.text().catch(() => 'Unknown error')
-    throw new Error(`Gemini Vision API error ${res.status}: ${err}`)
-  }
-
-  const data = await res.json()
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+  return result.response.text() || ''
 }
 
 /**
