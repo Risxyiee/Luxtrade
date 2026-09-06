@@ -17,7 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 import { authFetch } from '@/lib/api-fetch'
 
-const ADMIN_EMAILS = ['luxtradee@gmail.com', 'riskiakbarp123@gmail.com']
+const ADMIN_EMAILS = ['luxtradee@gmail.com']
 
 // --- Types ---
 interface PromoCode {
