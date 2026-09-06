@@ -8,10 +8,12 @@ export async function GET() {
   // Try multiple ways to access env vars for Cloudflare Workers
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://klxkdrfsfcoankbaoejn.supabase.co'
 
-  // Cloudflare Workers: check both process.env and global env
+  // Cloudflare Workers: NEXT_PUBLIC vars get renamed without NEXT_PUBLIC_ prefix
+  // Try with and without NEXT_PUBLIC_ prefix
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+                   process.env.SUPABASE_ANON_KEY ||
                    (globalThis as any).env?.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-                   (typeof process !== 'undefined' && (process as any).env?.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+                   (globalThis as any).env?.SUPABASE_ANON_KEY
 
   if (!anonKey) {
     console.error('[Supabase Config] NEXT_PUBLIC_SUPABASE_ANON_KEY not found')
@@ -24,6 +26,8 @@ export async function GET() {
         debug: {
           hasProcessEnv: !!process.env,
           hasNextPublicSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+          hasNextPublicSupabaseAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+          hasSupabaseAnonKey: !!process.env.SUPABASE_ANON_KEY,
           envKeys: Object.keys(process.env || {}).filter(k => k.includes('SUPABASE'))
         }
       },
