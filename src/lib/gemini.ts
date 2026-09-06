@@ -51,7 +51,7 @@ export async function geminiChat(
   }
 ): Promise<GeminiResponse> {
   const genAI = getGenerativeAI()
-  const modelName = options?.model || 'gemini-1.5-flash'
+  const modelName = options?.model || 'gemini-2.5-flash'
 
   // Initialize the model with correct identifier (SDK handles "models/" prefix automatically)
   const model: GenerativeModel = genAI.getGenerativeModel({
@@ -116,7 +116,7 @@ export async function geminiVision(
   }
 ): Promise<string> {
   const genAI = getGenerativeAI()
-  const modelName = options?.model || 'gemini-1.5-flash'
+  const modelName = options?.model || 'gemini-2.5-flash'
 
   // Initialize the model with correct identifier (SDK handles "models/" prefix automatically)
   const model: GenerativeModel = genAI.getGenerativeModel({
