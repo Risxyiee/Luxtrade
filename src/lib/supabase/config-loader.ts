@@ -10,9 +10,6 @@ interface SupabaseConfig {
   isConfigured: boolean
 }
 
-// Fallback key hardcoded for production
-const FALLBACK_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtseGtkcmZzZmNvYW5rYmFvZWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzAwNTQwMjksImV4cCI6MjA0NTYzMDAyOX0.DkCkO4z3D9Yk_2VZQ_M4pC0eJ8xwJ-5D8x_7kK9F4w8'
-
 let cachedConfig: SupabaseConfig | null = null
 let fetchPromise: Promise<SupabaseConfig> | null = null
 
@@ -27,11 +24,12 @@ async function fetchSupabaseConfig(): Promise<SupabaseConfig> {
     })
 
     if (!response.ok) {
-      console.warn('[Supabase Config] API not available, using fallback')
+      const errorData = await response.json()
+      console.error('[Supabase Config] API error:', errorData.error)
       return {
         url: 'https://klxkdrfsfcoankbaoejn.supabase.co',
-        anonKey: FALLBACK_ANON_KEY,
-        isConfigured: true
+        anonKey: null,
+        isConfigured: false
       }
     }
 
@@ -48,19 +46,19 @@ async function fetchSupabaseConfig(): Promise<SupabaseConfig> {
       isConfigured: data.isConfigured
     }
   } catch (error) {
-    console.warn('[Supabase Config] Failed to fetch, using fallback:', error)
+    console.error('[Supabase Config] Failed to fetch config:', error)
     return {
       url: 'https://klxkdrfsfcoankbaoejn.supabase.co',
-      anonKey: FALLBACK_ANON_KEY,
-      isConfigured: true
+      anonKey: null,
+      isConfigured: false
     }
   }
 }
 
 /**
  * Load Supabase configuration from multiple sources:
- * 1. API endpoint - primary source
- * 2. Fallback hardcoded key - when API fails
+ * 1. Build-time env vars (process.env.NEXT_PUBLIC_*) - fallback
+ * 2. API endpoint - primary source for Cloudflare Pages
  */
 export async function loadSupabaseConfig(): Promise<SupabaseConfig> {
   // Return cached config if available
