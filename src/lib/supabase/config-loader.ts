@@ -10,9 +10,6 @@ interface SupabaseConfig {
   isConfigured: boolean
 }
 
-// Fallback key hardcoded for production
-const FALLBACK_ANON_KEY = 'REDACTED-DEAD-KEY'
-
 let cachedConfig: SupabaseConfig | null = null
 let fetchPromise: Promise<SupabaseConfig> | null = null
 
@@ -27,11 +24,12 @@ async function fetchSupabaseConfig(): Promise<SupabaseConfig> {
     })
 
     if (!response.ok) {
-      console.warn('[Supabase Config] API not available, using fallback')
+      const errorData = await response.json()
+      console.error('[Supabase Config] API error:', errorData.error)
       return {
         url: 'https://klxkdrfsfcoankbaoejn.supabase.co',
-        anonKey: FALLBACK_ANON_KEY,
-        isConfigured: true
+        anonKey: null,
+        isConfigured: false
       }
     }
 
@@ -48,19 +46,19 @@ async function fetchSupabaseConfig(): Promise<SupabaseConfig> {
       isConfigured: data.isConfigured
     }
   } catch (error) {
-    console.warn('[Supabase Config] Failed to fetch, using fallback:', error)
+    console.error('[Supabase Config] Failed to fetch config:', error)
     return {
       url: 'https://klxkdrfsfcoankbaoejn.supabase.co',
-      anonKey: FALLBACK_ANON_KEY,
-      isConfigured: true
+      anonKey: null,
+      isConfigured: false
     }
   }
 }
 
 /**
  * Load Supabase configuration from multiple sources:
- * 1. API endpoint - primary source
- * 2. Fallback hardcoded key - when API fails
+ * 1. Build-time env vars (process.env.NEXT_PUBLIC_*) - fallback
+ * 2. API endpoint - primary source for Cloudflare Pages
  */
 export async function loadSupabaseConfig(): Promise<SupabaseConfig> {
   // Return cached config if available
