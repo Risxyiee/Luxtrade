@@ -1,12 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 
 interface NotificationPreferences {
   id?: string
   user_id: string
+  email_digest?: 'daily' | 'weekly' | 'off'
+  trade_alerts?: {
+    bigWin: boolean
+    bigLoss: boolean
+    streak: boolean
+    dailyLimit: boolean
+  }
+  thresholds?: {
+    bigWinAmount: number
+    bigLossAmount: number
+    maxDailyLosses: number
+  }
+  in_app?: boolean
+  max_daily_loss?: number
   email_notifications: boolean
   push_notifications: boolean
-  trade_alerts: boolean
+  trade_alerts_legacy?: boolean
   target_reminders: boolean
   daily_summary: boolean
   weekly_summary: boolean
@@ -14,6 +29,22 @@ interface NotificationPreferences {
   achievement_notifications: boolean
   created_at?: string
   updated_at?: string
+}
+
+interface FrontendPreferences {
+  emailDigest?: 'daily' | 'weekly' | 'off'
+  tradeAlerts?: {
+    bigWin: boolean
+    bigLoss: boolean
+    streak: boolean
+    dailyLimit: boolean
+  }
+  thresholds?: {
+    bigWinAmount: number
+    bigLossAmount: number
+    maxDailyLosses: number
+  }
+  inApp?: boolean
 }
 
 // GET - Fetch notification preferences for a user
@@ -43,16 +74,20 @@ export async function GET(request: NextRequest) {
         error.message.includes('does not exist') ||
         error.code === 'PGRST116'
       ) {
-        const defaultPreferences: NotificationPreferences = {
-          user_id: user.id,
-          email_notifications: true,
-          push_notifications: false,
-          trade_alerts: true,
-          target_reminders: true,
-          daily_summary: false,
-          weekly_summary: true,
-          market_news: false,
-          achievement_notifications: true,
+        const defaultPreferences = {
+          emailDigest: 'daily' as const,
+          tradeAlerts: {
+            bigWin: true,
+            bigLoss: true,
+            streak: true,
+            dailyLimit: true,
+          },
+          thresholds: {
+            bigWinAmount: 100,
+            bigLossAmount: -100,
+            maxDailyLosses: 5,
+          },
+          inApp: true,
         }
         return NextResponse.json({ preferences: defaultPreferences })
       }
@@ -60,7 +95,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch preferences' }, { status: 500 })
     }
 
-    return NextResponse.json({ preferences: data })
+    // Convert DB format to frontend format
+    const frontendPreferences: FrontendPreferences = {
+      emailDigest: data.email_digest || 'daily',
+      tradeAlerts: data.trade_alerts || {
+        bigWin: true,
+        bigLoss: true,
+        streak: true,
+        dailyLimit: true,
+      },
+      thresholds: data.thresholds || {
+        bigWinAmount: 100,
+        bigLossAmount: -100,
+        maxDailyLosses: data.max_daily_loss || 5,
+      },
+      inApp: data.in_app ?? true,
+    }
+
+    return NextResponse.json({ preferences: frontendPreferences })
   } catch (err) {
     console.error('Notification preferences API error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -81,28 +133,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
-    const {
-      email_notifications,
-      push_notifications,
-      trade_alerts,
-      target_reminders,
-      daily_summary,
-      weekly_summary,
-      market_news,
-      achievement_notifications,
-    } = body
+    const body = await request.json() as FrontendPreferences
 
-    const preferencesData: NotificationPreferences = {
+    // Convert frontend format to DB format
+    const preferencesData = {
       user_id: user.id,
-      email_notifications: email_notifications ?? true,
-      push_notifications: push_notifications ?? false,
-      trade_alerts: trade_alerts ?? true,
-      target_reminders: target_reminders ?? true,
-      daily_summary: daily_summary ?? false,
-      weekly_summary: weekly_summary ?? true,
-      market_news: market_news ?? false,
-      achievement_notifications: achievement_notifications ?? true,
+      email_digest: body.emailDigest || 'daily',
+      trade_alerts: body.tradeAlerts || {
+        bigWin: true,
+        bigLoss: true,
+        streak: true,
+        dailyLimit: true,
+      },
+      thresholds: body.thresholds || {
+        bigWinAmount: 100,
+        bigLossAmount: -100,
+        maxDailyLosses: 5,
+      },
+      in_app: body.inApp ?? true,
+      max_daily_loss: body.thresholds?.maxDailyLosses || 5,
+      // Legacy fields for backward compatibility
+      email_notifications: true,
+      push_notifications: false,
+      trade_alerts_legacy: true,
+      target_reminders: true,
+      daily_summary: false,
+      weekly_summary: true,
+      market_news: false,
+      achievement_notifications: true,
     }
 
     const { data, error } = await supabase
@@ -117,21 +175,25 @@ export async function POST(request: NextRequest) {
       if (error.code === '42P01' || error.message.includes('does not exist')) {
         return NextResponse.json({
           success: true,
-          preferences: {
-            ...preferencesData,
-            id: crypto.randomUUID(),
-            created_at: new Date().toISOString(),
-          },
+          preferences: body,
           message: 'Preferences saved locally (table not available)',
         })
       }
-      return NextResponse.json({ error: 'Failed to create preferences' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to create preferences', detail: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, preferences: data })
+    // Return in frontend format
+    const frontendPreferences: FrontendPreferences = {
+      emailDigest: data.email_digest || 'daily',
+      tradeAlerts: data.trade_alerts,
+      thresholds: data.thresholds,
+      inApp: data.in_app ?? true,
+    }
+
+    return NextResponse.json({ success: true, preferences: frontendPreferences })
   } catch (err) {
     console.error('Notification preferences creation error:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error', detail: err instanceof Error ? err.message : 'Unknown error' }, { status: 500 })
   }
 }
 
@@ -149,28 +211,20 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
+    const body = await request.json() as FrontendPreferences
+
+    // Convert frontend format to DB format
     const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     }
 
-    // Only update fields that are provided
-    if (body.email_notifications !== undefined)
-      updateData.email_notifications = body.email_notifications
-    if (body.push_notifications !== undefined)
-      updateData.push_notifications = body.push_notifications
-    if (body.trade_alerts !== undefined)
-      updateData.trade_alerts = body.trade_alerts
-    if (body.target_reminders !== undefined)
-      updateData.target_reminders = body.target_reminders
-    if (body.daily_summary !== undefined)
-      updateData.daily_summary = body.daily_summary
-    if (body.weekly_summary !== undefined)
-      updateData.weekly_summary = body.weekly_summary
-    if (body.market_news !== undefined)
-      updateData.market_news = body.market_news
-    if (body.achievement_notifications !== undefined)
-      updateData.achievement_notifications = body.achievement_notifications
+    if (body.emailDigest !== undefined) updateData.email_digest = body.emailDigest
+    if (body.tradeAlerts !== undefined) updateData.trade_alerts = body.tradeAlerts
+    if (body.thresholds !== undefined) {
+      updateData.thresholds = body.thresholds
+      updateData.max_daily_loss = body.thresholds.maxDailyLosses ?? 5
+    }
+    if (body.inApp !== undefined) updateData.in_app = body.inApp
 
     // Try to update existing preferences
     const { data, error } = await supabase
@@ -187,16 +241,31 @@ export async function PATCH(request: NextRequest) {
         error.message.includes('no rows') ||
         error.message.includes('0 rows')
       ) {
-        const newPreferences: NotificationPreferences = {
+        const newPreferences = {
           user_id: user.id,
-          email_notifications: body.email_notifications ?? true,
-          push_notifications: body.push_notifications ?? false,
-          trade_alerts: body.trade_alerts ?? true,
-          target_reminders: body.target_reminders ?? true,
-          daily_summary: body.daily_summary ?? false,
-          weekly_summary: body.weekly_summary ?? true,
-          market_news: body.market_news ?? false,
-          achievement_notifications: body.achievement_notifications ?? true,
+          email_digest: body.emailDigest || 'daily',
+          trade_alerts: body.tradeAlerts || {
+            bigWin: true,
+            bigLoss: true,
+            streak: true,
+            dailyLimit: true,
+          },
+          thresholds: body.thresholds || {
+            bigWinAmount: 100,
+            bigLossAmount: -100,
+            maxDailyLosses: 5,
+          },
+          in_app: body.inApp ?? true,
+          max_daily_loss: body.thresholds?.maxDailyLosses || 5,
+          // Legacy fields
+          email_notifications: true,
+          push_notifications: false,
+          trade_alerts_legacy: true,
+          target_reminders: true,
+          daily_summary: false,
+          weekly_summary: true,
+          market_news: false,
+          achievement_notifications: true,
         }
 
         const { data: newData, error: newError } = await supabase
@@ -207,31 +276,47 @@ export async function PATCH(request: NextRequest) {
 
         if (newError) {
           console.error('Notification preferences creation error:', newError)
-          return NextResponse.json({ error: 'Failed to create preferences' }, { status: 500 })
+          return NextResponse.json({ error: 'Failed to create preferences', detail: newError.message }, { status: 500 })
         }
 
-        return NextResponse.json({ success: true, preferences: newData, created: true })
+        const frontendPreferences: FrontendPreferences = {
+          emailDigest: newData.email_digest || 'daily',
+          tradeAlerts: newData.trade_alerts,
+          thresholds: newData.thresholds,
+          inApp: newData.in_app ?? true,
+        }
+
+        return NextResponse.json({ success: true, preferences: frontendPreferences, created: true })
       }
 
       // If table doesn't exist
       if (error.code === '42P01' || error.message.includes('does not exist')) {
         return NextResponse.json({
           success: true,
-          preferences: {
-            ...updateData,
-            user_id: user.id,
-          },
+          preferences: body,
           message: 'Preferences saved locally (table not available)',
         })
       }
 
       console.error('Notification preferences update error:', error)
-      return NextResponse.json({ error: 'Failed to update preferences' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to update preferences', detail: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, preferences: data, created: false })
+    const frontendPreferences: FrontendPreferences = {
+      emailDigest: data.email_digest || 'daily',
+      tradeAlerts: data.trade_alerts,
+      thresholds: data.thresholds,
+      inApp: data.in_app ?? true,
+    }
+
+    return NextResponse.json({ success: true, preferences: frontendPreferences, created: false })
   } catch (err) {
     console.error('Notification preferences update error:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error', detail: err instanceof Error ? err.message : 'Unknown error' }, { status: 500 })
   }
+}
+
+// PUT - Update notification preferences (alias for PATCH, used by frontend)
+export async function PUT(request: NextRequest) {
+  return PATCH(request)
 }
