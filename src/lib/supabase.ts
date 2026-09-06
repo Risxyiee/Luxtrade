@@ -3,15 +3,20 @@ import { createBrowserClient } from '@supabase/ssr'
 import { getSupabaseAdminAuth } from '@/lib/supabase/admin'
 
 function readEnv(name: string): string | undefined {
-  let v = process.env[name]
-
-  // For NEXT_PUBLIC_SUPABASE_ANON_KEY, also check SUPABASE_ANON_KEY as fallback
-  if (!v || v === 'undefined') {
-    if (name === 'NEXT_PUBLIC_SUPABASE_ANON_KEY') {
-      v = process.env.SUPABASE_ANON_KEY
+  // For NEXT_PUBLIC_SUPABASE_ANON_KEY, always use SUPABASE_ANON_KEY
+  if (name === 'NEXT_PUBLIC_SUPABASE_ANON_KEY') {
+    const v = process.env.SUPABASE_ANON_KEY
+    if (v && v !== 'undefined') {
+      // Debug: Log env var value (without showing full key)
+      if (process.env.NODE_ENV === 'production') {
+        console.log(`[Supabase] ${name}: ${v.substring(0, 10)}... (length: ${v.length})`)
+      }
+      return v.trim()
     }
+    return undefined
   }
 
+  const v = process.env[name]
   if (!v || v === 'undefined') return undefined
 
   // Debug: Log env var value (without showing full key)
