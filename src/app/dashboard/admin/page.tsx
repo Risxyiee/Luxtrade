@@ -29,7 +29,7 @@ import { authFetch } from '@/lib/api-fetch'
 
 // Admin credentials - MUST match backend @/lib/admin-auth.ts
 const ADMIN_IDS: string[] = []
-const ADMIN_EMAILS = ['luxtradee@gmail.com', 'riskiakbarp123@gmail.com']
+const ADMIN_EMAILS = ['luxtradee@gmail.com', 'riskiakbarp123@gmail.com', 'admin@luxtradee.web.id']
 
 function checkIsAdmin(userId: string | undefined, email: string | undefined): boolean {
   if (userId && ADMIN_IDS.includes(userId)) return true
