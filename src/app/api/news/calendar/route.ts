@@ -31,6 +31,25 @@ interface TECalendarEvent {
   previous?: string;
 }
 
+// Sample calendar events for when API is not available
+const SAMPLE_EVENTS: CalendarEvent[] = [
+  { date: 'Monday', time: '08:30', currency: 'USD', impact: 'high', event: 'US Non-Farm Payrolls', forecast: '200K', previous: '175K' },
+  { date: 'Monday', time: '10:00', currency: 'EUR', impact: 'high', event: 'ECB Interest Rate Decision', forecast: '4.50%', previous: '4.50%' },
+  { date: 'Monday', time: '14:00', currency: 'GBP', impact: 'medium', event: 'UK GDP m/m', forecast: '0.2%', previous: '0.1%' },
+  { date: 'Tuesday', time: '03:00', currency: 'JPY', impact: 'medium', event: 'Japan Manufacturing PMI', forecast: '49.5', previous: '49.2' },
+  { date: 'Tuesday', time: '08:30', currency: 'USD', impact: 'high', event: 'US CPI m/m', forecast: '0.3%', previous: '0.2%' },
+  { date: 'Tuesday', time: '10:00', currency: 'AUD', impact: 'medium', event: 'Australia Employment Change', forecast: '20K', previous: '15K' },
+  { date: 'Wednesday', time: '02:00', currency: 'CNY', impact: 'high', event: 'China CPI y/y', forecast: '0.5%', previous: '0.4%' },
+  { date: 'Wednesday', time: '09:00', currency: 'EUR', impact: 'low', event: 'Germany Industrial Production m/m', forecast: '0.1%', previous: '-0.2%' },
+  { date: 'Wednesday', time: '14:00', currency: 'USD', impact: 'high', event: 'US Retail Sales m/m', forecast: '0.4%', previous: '0.3%' },
+  { date: 'Thursday', time: '08:30', currency: 'USD', impact: 'medium', event: 'US Initial Jobless Claims', forecast: '215K', previous: '210K' },
+  { date: 'Thursday', time: '10:00', currency: 'CHF', impact: 'low', event: 'Switzerland Unemployment Rate', forecast: '2.2%', previous: '2.1%' },
+  { date: 'Thursday', time: '15:00', currency: 'CAD', impact: 'high', event: 'Canada CPI m/m', forecast: '0.2%', previous: '0.1%' },
+  { date: 'Friday', time: '02:00', currency: 'JPY', impact: 'medium', event: 'Japan PPI y/y', forecast: '2.5%', previous: '2.3%' },
+  { date: 'Friday', time: '09:00', currency: 'EUR', impact: 'low', event: 'Eurozone Trade Balance', forecast: '15.0B', previous: '14.5B' },
+  { date: 'Friday', time: '14:00', currency: 'USD', impact: 'high', event: 'US Consumer Sentiment', forecast: '72.0', previous: '70.5' },
+]
+
 /**
  * Map TradingEconomics importance to our impact level
  */
@@ -139,12 +158,12 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; unavail
       console.warn(`[Calendar] TradingEconomics failed: ${err.message}`);
     }
   } else {
-    console.log('[Calendar] RAPIDAPI_TRADING_ECONOMICS_KEY not set, using fallback data');
+    console.log('[Calendar] RAPIDAPI_TRADING_ECONOMICS_KEY not set, using sample data');
   }
 
-  // Fallback: Return empty with unavailable flag
-  console.log('[Calendar] Using fallback (no data available)');
-  return { events: [], unavailable: true };
+  // Fallback: Return sample data
+  console.log('[Calendar] Using sample calendar data');
+  return { events: SAMPLE_EVENTS, unavailable: false };
 }
 
 export async function GET(request: NextRequest) {

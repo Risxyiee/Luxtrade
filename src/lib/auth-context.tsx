@@ -6,7 +6,7 @@ import { User, Session, SupabaseClient } from '@supabase/supabase-js';
 
 // Admin credentials
 const ADMIN_IDS = ['8f7fe295-2df0-412d-ba91-8e6060f3ab08'];
-const ADMIN_EMAILS = ['luxtradee@gmail.com'];
+const ADMIN_EMAILS = ['luxtradee@gmail.com', 'riskiakbarp123@gmail.com'];
 
 // ============================================
 // Updated Profile interface with affiliate fields
