@@ -283,7 +283,7 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
       console.warn(`[News] TradingEconomics failed: ${err.message}, falling back to Bloomberg...`);
     }
   } else {
-    console.log('[News] RAPIDAPI_TRADING_ECONOMICS_KEY not set, using Bloomberg RSS');
+    console.info('[News] RAPIDAPI_TRADING_ECONOMICS_KEY not set, using Bloomberg RSS');
   }
 
   // FALLBACK: Reuters RSS (free, more reliable than Bloomberg on CF Workers)
@@ -292,7 +292,8 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
     const items = await fetchReutersNews();
     if (items.length > 0) return items;
   } catch (err: any) {
-    console.warn(`[News] Reuters RSS failed: ${err.message}, trying Bloomberg...`);
+    // Silent warning for external API failures
+    console.info(`[News] Reuters RSS unavailable, trying Bloomberg...`);
   }
 
   // FALLBACK 2: Bloomberg RSS
@@ -301,7 +302,8 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
     const items = await fetchBloombergNews();
     if (items.length > 0) return items;
   } catch (err: any) {
-    console.error(`[News] Bloomberg RSS also failed: ${err.message}`);
+    // Silent info for fallback failures
+    console.info('[News] External news sources unavailable, using cached data if available');
   }
 
   throw new Error('All news sources failed');

@@ -155,14 +155,15 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; unavail
       console.log(`[Calendar] Fetched ${events.length} events from TradingEconomics`);
       return { events, unavailable: false };
     } catch (err: any) {
-      console.warn(`[Calendar] TradingEconomics failed: ${err.message}`);
+      // Silent info for external API failures
+      console.info(`[Calendar] TradingEconomics unavailable, using sample data`);
     }
   } else {
-    console.log('[Calendar] RAPIDAPI_TRADING_ECONOMICS_KEY not set, using sample data');
+    console.info('[Calendar] RAPIDAPI_TRADING_ECONOMICS_KEY not set, using sample data');
   }
 
   // Fallback: Return sample data when API is unavailable
-  console.log('[Calendar] Using sample calendar data as fallback');
+  console.info('[Calendar] Using sample calendar data as fallback');
   return { events: SAMPLE_EVENTS, unavailable: false };
 }
 
