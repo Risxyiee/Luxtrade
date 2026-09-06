@@ -5,15 +5,14 @@ import { createBrowserClient } from '@supabase/ssr'
 function readEnv(name: string): string | undefined {
   if (typeof process === 'undefined') return undefined
 
-  let v = process.env[name]
-
-  // For NEXT_PUBLIC_SUPABASE_ANON_KEY, also check SUPABASE_ANON_KEY as fallback
-  if (!v || v === 'undefined') {
-    if (name === 'NEXT_PUBLIC_SUPABASE_ANON_KEY') {
-      v = process.env.SUPABASE_ANON_KEY
-    }
+  // For NEXT_PUBLIC_SUPABASE_ANON_KEY, always use SUPABASE_ANON_KEY
+  if (name === 'NEXT_PUBLIC_SUPABASE_ANON_KEY') {
+    const v = process.env.SUPABASE_ANON_KEY
+    if (v && v !== 'undefined') return v
+    return undefined
   }
 
+  const v = process.env[name]
   if (!v || v === 'undefined') return undefined
   return v
 }
