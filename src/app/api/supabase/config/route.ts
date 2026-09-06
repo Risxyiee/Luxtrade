@@ -1,15 +1,46 @@
 import { NextResponse } from 'next/server'
 
-// TEMPORARY: Fallback anon key for production
-const FALLBACK_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtseGtkcmZzZmNvYW5rYmFvZWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzAwNTQwMjksImV4cCI6MjA0NTYzMDAyOX0.DkCkO4z3D9Yk_2VZQ_M4pC0eJ8xwJ-5D8x_7kK9F4w8'
+// Get Supabase anon key - try different ways for Cloudflare Workers
+function getSupabaseAnonKey(): string | undefined {
+  // Try standard way
+  if (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  }
+
+  // Try without NEXT_PUBLIC prefix
+  if (process.env.SUPABASE_ANON_KEY) {
+    return process.env.SUPABASE_ANON_KEY
+  }
+
+  // Cloudflare Workers binding
+  const env = (globalThis as any).env
+  if (env?.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  }
+  if (env?.SUPABASE_ANON_KEY) {
+    return env.SUPABASE_ANON_KEY
+  }
+
+  return undefined
+}
 
 export async function GET() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://klxkdrfsfcoankbaoejn.supabase.co'
+  const anonKey = getSupabaseAnonKey()
 
-  // Try to get anon key from env, fallback to hardcoded
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-                   process.env.SUPABASE_ANON_KEY ||
-                   FALLBACK_ANON_KEY
+  if (!anonKey) {
+    return NextResponse.json(
+      {
+        error: 'NEXT_PUBLIC_SUPABASE_ANON_KEY not configured',
+        url,
+        isConfigured: false,
+        debug: {
+          availableVars: Object.keys(process.env || {}).filter(k => k.includes('SUPABASE'))
+        }
+      },
+      { status: 500 }
+    )
+  }
 
   return NextResponse.json({
     url,
