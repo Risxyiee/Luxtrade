@@ -4,26 +4,12 @@ const FALLBACK_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 export async function GET() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://klxkdrfsfcoankbaoejn.supabase.co'
-
-  // Use SUPABASE_ANON_KEY directly
-  let anonKey = process.env.SUPABASE_ANON_KEY
-
-  if (!anonKey) {
-    console.warn('[Supabase Config] SUPABASE_ANON_KEY not found, using fallback')
-    anonKey = FALLBACK_ANON_KEY
-  } else {
-    console.log('[Supabase Config] Using SUPABASE_ANON_KEY (length:', anonKey.length, ')')
-  }
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || FALLBACK_ANON_KEY
 
   return NextResponse.json({
     url,
     anonKey: anonKey,
-    isConfigured: !!anonKey,
-    source: process.env.SUPABASE_ANON_KEY ? 'SUPABASE_ANON_KEY' : 'fallback',
-    debug: {
-      hasNEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-      hasSUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY,
-      nodeEnv: process.env.NODE_ENV,
-    }
+    isConfigured: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    source: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'NEXT_PUBLIC_SUPABASE_ANON_KEY' : 'fallback'
   })
 }
