@@ -24,7 +24,7 @@ import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 
 const ADMIN_IDS: string[] = []
-const ADMIN_EMAILS = ['luxtradee@gmail.com', 'riskiakbarp123@gmail.com']
+const ADMIN_EMAILS = ['luxtradee@gmail.com']
 
 function checkIsAdmin(userId: string | undefined, email: string | undefined): boolean {
   if (userId && ADMIN_IDS.includes(userId)) return true
