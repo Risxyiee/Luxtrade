@@ -6,7 +6,14 @@ compatibility_flags = ["nodejs_compat", "streams_enable_constructors"]
 main = ".open-next/worker.js"
 assets = { directory = ".open-next/assets", binding = "ASSETS" }
 
-# Observability configuration
+# Environment variables
+[vars]
+NEXT_PUBLIC_SUPABASE_URL = "https://klxkdrfsfcoankbaoejn.supabase.co"
+NEXT_PUBLIC_SITE_URL = "https://luxtradee.web.id"
+
+# NEXT_PUBLIC_SUPABASE_ANON_KEY harus di-set di Cloudflare Dashboard Settings → Environment Variables
+
+# Observability
 [observability]
 enabled = true
 
