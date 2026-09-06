@@ -26,9 +26,49 @@ export async function GET(request: NextRequest) {
       .from('profiles')
       .select('id, email, full_name, plan, is_pro, subscription_until, pro_expiry, pro_status, role, achievements, streak_count, best_streak, my_referral_code, display_name, subscription_status, device_id, has_ever_been_pro, referral_status, referred_by_code, commission_paid, affiliate_balance, referral_count, created_at, updated_at')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
-    if (profileError || !profile) {
+    if (profileError) {
+      // Handle table or column errors gracefully
+      console.warn(`[profile/me] Profile fetch error for ${user.id}:`, profileError)
+      if (
+        profileError.code === '42P01' || // Table doesn't exist
+        profileError.code === 'PGRST204' || // Column not found
+        profileError.code === 'PGRST205' || // Column not found in select
+        profileError.message?.includes('does not exist') ||
+        profileError.message?.includes('column')
+      ) {
+        // Return a basic profile from auth data only
+        return NextResponse.json({
+          profile: {
+            id: user.id,
+            email: user.email,
+            full_name: user.user_metadata?.full_name || null,
+            display_name: user.user_metadata?.display_name || null,
+            plan: 'FREE',
+            is_pro: false,
+            subscription_status: 'inactive',
+            subscription_until: null,
+            proExpiry: null,
+            pro_status: 'inactive',
+            role: user.user_metadata?.role || 'USER',
+            achievements: '[]',
+            streakCount: 0,
+            bestStreak: 0,
+            my_referral_code: null,
+            referred_by_code: null,
+            referral_status: null,
+            has_ever_been_pro: false,
+            device_id: null,
+            created_at: user.created_at,
+            _fallback: true, // Flag indicating we're using fallback data
+          }
+        })
+      }
+      return NextResponse.json({ error: 'Failed to fetch profile', detail: profileError.message }, { status: 500 })
+    }
+
+    if (!profile) {
       console.warn(`[profile/me] No profile found for ${user.id}, returning null profile`)
       return NextResponse.json({ profile: null })
     }

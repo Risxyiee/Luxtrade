@@ -30,16 +30,27 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const limit = parseInt(searchParams.get('limit') || '50')
     const includeAnalytics = searchParams.get('analytics') === 'true'
+    const tradingAccountId = searchParams.get('trading_account_id') || null
 
-    const { data, error: supabaseError } = await client
+    let query = client
       .from('journal_entries')
       .select('*')
       .eq('user_id', user.id)
+
+    // Enforce trading_account_id filtering via linked trades if provided
+    // This prevents data mixing between accounts
+    if (tradingAccountId) {
+      // Filter journal entries that have linked trades from the specified account
+      query = query.or(`linked_trades.account_id.eq.${tradingAccountId}`)
+    }
+
+    const { data, error: supabaseError } = await query
       .order('created_at', { ascending: false })
       .limit(limit)
 
     if (supabaseError) {
       // Table doesn't exist or RLS issue — return empty instead of 500
+      console.warn('[journal GET] Supabase error:', supabaseError)
       return NextResponse.json({ entries: [] })
     }
 
