@@ -9,10 +9,13 @@ keep_vars = true
 main = ".open-next/worker.js"
 assets = { directory = ".open-next/assets", binding = "ASSETS" }
 
-# Non-secret environment variables
+# secret environment variables
+[vars]
 [vars]
 NEXT_PUBLIC_SUPABASE_URL = "https://klxkdrfsfcoankbaoejn.supabase.co"
-PUBLIC_SITE_URL = "https://luxtradee.web.id"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtseGtkcmZzZmNvYW5rYmFvZWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzY0MTAsImV4cCI6MjA4NTk1MjQxMH0.4Yv9JesMXWEy4phu2D-Yw9rkbq0l8z9kz-sRwFZerQ0"
+NEXT_PUBLIC_SITE_URL = "https://luxtradee.web.id"
+MIDTRANS_IS_PRODUCTION = "true"
 
 # Observability
 [observability]
