@@ -88,6 +88,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 200)
     const cursor = searchParams.get('cursor') || null
     const accountId = searchParams.get('account_id') || null
+    const tradingAccountId = searchParams.get('trading_account_id') || null
 
     let query = client
       .from('trades')
@@ -97,6 +98,12 @@ export async function GET(request: NextRequest) {
     // Filter by account_id if provided (for multi-account isolation)
     if (accountId) {
       query = query.eq('account_id', accountId)
+    }
+
+    // Enforce trading_account_id filtering if provided
+    // This prevents data mixing between accounts
+    if (tradingAccountId) {
+      query = query.eq('account_id', tradingAccountId)
     }
 
     query = query.order('close_time', { ascending: false }).limit(limit + 1) // fetch extra to detect next page
