@@ -1,39 +1,15 @@
 import { NextResponse } from 'next/server'
 
-/**
- * API endpoint to retrieve Supabase configuration for client-side use.
- * This is safe because only the anon key (public) is exposed.
- */
+// TEMPORARY: Fallback anon key for production
+const FALLBACK_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtseGtkcmZzZmNvYW5rYmFvZWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzAwNTQwMjksImV4cCI6MjA0NTYzMDAyOX0.DkCkO4z3D9Yk_2VZQ_M4pC0eJ8xwJ-5D8x_7kK9F4w8'
+
 export async function GET() {
-  // Try multiple ways to access env vars for Cloudflare Workers
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://klxkdrfsfcoankbaoejn.supabase.co'
 
-  // Cloudflare Workers: NEXT_PUBLIC vars get renamed without NEXT_PUBLIC_ prefix
-  // Try with and without NEXT_PUBLIC_ prefix
+  // Try to get anon key from env, fallback to hardcoded
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
                    process.env.SUPABASE_ANON_KEY ||
-                   (globalThis as any).env?.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-                   (globalThis as any).env?.SUPABASE_ANON_KEY
-
-  if (!anonKey) {
-    console.error('[Supabase Config] NEXT_PUBLIC_SUPABASE_ANON_KEY not found')
-    console.error('[Supabase Config] Available env vars:', Object.keys(process.env || {}).filter(k => k.includes('SUPABASE')))
-    return NextResponse.json(
-      {
-        error: 'NEXT_PUBLIC_SUPABASE_ANON_KEY not configured',
-        url,
-        isConfigured: false,
-        debug: {
-          hasProcessEnv: !!process.env,
-          hasNextPublicSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-          hasNextPublicSupabaseAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-          hasSupabaseAnonKey: !!process.env.SUPABASE_ANON_KEY,
-          envKeys: Object.keys(process.env || {}).filter(k => k.includes('SUPABASE'))
-        }
-      },
-      { status: 500 }
-    )
-  }
+                   FALLBACK_ANON_KEY
 
   return NextResponse.json({
     url,
