@@ -9,17 +9,12 @@ keep_vars = true
 main = ".open-next/worker.js"
 assets = { directory = ".open-next/assets", binding = "ASSETS" }
 
-# Image optimization binding
-[[images]]
-binding = "IMAGES"
-
 # Non-secret environment variables
 [vars]
 NEXT_PUBLIC_SUPABASE_URL = "https://klxkdrfsfcoankbaoejn.supabase.co"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtseGtkcmZzZmNvYW5rYmFvZWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzAwNTQwMjksImV4cCI6MjA0NTYzMDAyOX0.DkCkO4z3D9Yk_2VZQ_M4pC0eJ8xwJ-5D8x_7kK9F4w8"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtseGtkcmZzZmNvYW5rYmFvZWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzAwNTQwMjksImV4cCI6MjA0NTYzMDAyOX0.DkCkO4z3D9Yk_2VZQ_M4pC0eJ8xwJ-5D8x_7kK9F4w8"
 NEXT_PUBLIC_SITE_URL = "https://luxtradee.web.id"
-
-# NEXT_PUBLIC_SUPABASE_ANON_KEY must be set via Cloudflare Dashboard or wrangler secret
-# Run: npx wrangler secret put NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 # Observability
 [observability]
