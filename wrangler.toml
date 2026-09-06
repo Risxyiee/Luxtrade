@@ -2,16 +2,20 @@ name = "luxtrade"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat", "streams_enable_constructors"]
 
+# Prevent wrangler from overriding dashboard environment variables
+keep_vars = true
+
 # OpenNext Cloudflare configuration
 main = ".open-next/worker.js"
 assets = { directory = ".open-next/assets", binding = "ASSETS" }
 
-# Environment variables
+# Non-secret environment variables
 [vars]
 NEXT_PUBLIC_SUPABASE_URL = "https://klxkdrfsfcoankbaoejn.supabase.co"
 NEXT_PUBLIC_SITE_URL = "https://luxtradee.web.id"
 
-# NEXT_PUBLIC_SUPABASE_ANON_KEY harus di-set di Cloudflare Dashboard Settings → Environment Variables
+# NEXT_PUBLIC_SUPABASE_ANON_KEY must be set via Cloudflare Dashboard or wrangler secret
+# Run: npx wrangler secret put NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 # Observability
 [observability]
