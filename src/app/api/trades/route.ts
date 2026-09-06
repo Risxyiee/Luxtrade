@@ -87,13 +87,19 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 200)
     const cursor = searchParams.get('cursor') || null
+    const accountId = searchParams.get('account_id') || null
 
     let query = client
       .from('trades')
       .select('*')
       .eq('user_id', user.id)
-      .order('close_time', { ascending: false })
-      .limit(limit + 1) // fetch extra to detect next page
+
+    // Filter by account_id if provided (for multi-account isolation)
+    if (accountId) {
+      query = query.eq('account_id', accountId)
+    }
+
+    query = query.order('close_time', { ascending: false }).limit(limit + 1) // fetch extra to detect next page
 
     if (cursor) {
       query = query.lt('close_time', cursor)
