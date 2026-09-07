@@ -19,14 +19,6 @@ interface NotificationPreferences {
   }
   in_app?: boolean
   max_daily_loss?: number
-  email_notifications: boolean
-  push_notifications: boolean
-  trade_alerts_legacy?: boolean
-  target_reminders: boolean
-  daily_summary: boolean
-  weekly_summary: boolean
-  market_news: boolean
-  achievement_notifications: boolean
   created_at?: string
   updated_at?: string
 }
@@ -152,15 +144,6 @@ export async function POST(request: NextRequest) {
       },
       in_app: body.inApp ?? true,
       max_daily_loss: body.thresholds?.maxDailyLosses || 5,
-      // Legacy fields for backward compatibility
-      email_notifications: true,
-      push_notifications: false,
-      trade_alerts_legacy: true,
-      target_reminders: true,
-      daily_summary: false,
-      weekly_summary: true,
-      market_news: false,
-      achievement_notifications: true,
     }
 
     const { data, error } = await supabase
@@ -257,15 +240,6 @@ export async function PATCH(request: NextRequest) {
           },
           in_app: body.inApp ?? true,
           max_daily_loss: body.thresholds?.maxDailyLosses || 5,
-          // Legacy fields
-          email_notifications: true,
-          push_notifications: false,
-          trade_alerts_legacy: true,
-          target_reminders: true,
-          daily_summary: false,
-          weekly_summary: true,
-          market_news: false,
-          achievement_notifications: true,
         }
 
         const { data: newData, error: newError } = await supabase
