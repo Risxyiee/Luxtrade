@@ -82,7 +82,7 @@ export default function TradingAccountList({ accounts, loading, onRefresh }: Tra
 
     setDeleting(true)
     try {
-      const response = await fetch(`/api/trading-accounts?id=${accountToDelete.id}`, {
+      const response = await fetch(`/api/trading-accounts/${accountToDelete.id}`, {
         method: 'DELETE',
         credentials: 'include'
       })
@@ -99,8 +99,8 @@ export default function TradingAccountList({ accounts, loading, onRefresh }: Tra
       onRefresh()
     } catch (error: any) {
       console.error('Error deleting account:', error)
-      if (error.message?.includes('Cannot delete default account')) {
-        toast.error('Tidak bisa menghapus akun default. Setel akun lain sebagai default terlebih dahulu.')
+      if (error.message?.includes('Cannot delete default account') || error.message?.includes('Cannot delete the last account')) {
+        toast.error(error.message || 'Tidak bisa menghapus akun ini.')
       } else {
         toast.error(error.message || 'Gagal menghapus akun trading')
       }
