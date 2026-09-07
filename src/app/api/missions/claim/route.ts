@@ -285,7 +285,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 
-    const { data: profile } = await admin.from('profiles').select('*').eq('id', userId).maybeSingle()
+    // Batch fetch all needed data in single queries
+    const [profileResult, submissionsResult, tradesResult] = await Promise.all([
+      admin.from('profiles').select('*').eq('id', userId).maybeSingle(),
+      admin.from('user_submissions').select('*').eq('user_id', userId),
+      admin.from('trades').select('profit_loss, close_time').eq('user_id', userId)
+    ])
+
+    const profile = profileResult.data
+    const submissions = submissionsResult.data || []
+    const trades = tradesResult.data || []
 
     if (!profile) {
       return NextResponse.json(
@@ -294,71 +303,54 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const { data: submissions } = await admin.from('user_submissions').select('*').eq('user_id', userId)
-
     const achievements = (profile.achievements as string[]) || []
-    const claimedAchievements = (submissions || [])
+    const claimedAchievements = submissions
       .filter((s: any) => s.status === 'APPROVED')
       .map((s: any) => s.achievement_key)
 
-    const progressData = await Promise.all(
-      ACHIEVEMENTS.map(async (achievement) => {
-        let currentProgress = 0
-        const target = achievement.criteria.target
-        const isCompleted = achievements.includes(achievement.id) || claimedAchievements.includes(achievement.id)
-        const isClaimed = claimedAchievements.includes(achievement.id)
+    // Pre-calculate common metrics to avoid repeated queries
+    const totalTrades = trades.length
+    const profitableTrades = trades.filter((t: any) => Number(t.profit_loss) > 0)
+    const totalProfit = profitableTrades.reduce((sum: number, t: any) => sum + Number(t.profit_loss), 0)
+    const winStreak = profitableTrades.length
 
-        switch (achievement.criteria.type) {
-          case 'trade_count': {
-            const { count } = await admin.from('trades')
-              .select('*', { count: 'exact', head: true })
-              .eq('user_id', userId)
-            currentProgress = count || 0
-            break
-          }
+    const progressData = ACHIEVEMENTS.map((achievement) => {
+      let currentProgress = 0
+      const target = achievement.criteria.target
+      const isCompleted = achievements.includes(achievement.id) || claimedAchievements.includes(achievement.id)
+      const isClaimed = claimedAchievements.includes(achievement.id)
 
-          case 'profit': {
-            const { data: trades } = await admin.from('trades')
-              .select('profit_loss')
-              .eq('user_id', userId)
-              .gt('profit_loss', 0)
-            currentProgress = (trades || []).reduce((sum: number, t: any) => sum + (Number(t.profit_loss) || 0), 0)
-            break
-          }
+      switch (achievement.criteria.type) {
+        case 'trade_count':
+          currentProgress = totalTrades
+          break
 
-          case 'login_streak':
-            currentProgress = profile.streak_count || 0
-            break
+        case 'profit':
+          currentProgress = totalProfit
+          break
 
-          case 'win_streak': {
-            const { data: winTrades } = await admin.from('trades')
-              .select('profit_loss, close_time')
-              .eq('user_id', userId)
-              .gt('profit_loss', 0)
-              .order('close_time', { ascending: false })
-            let currentStreak = 0
-            if (winTrades && winTrades.length > 0) {
-              currentStreak = winTrades.length
-            }
-            currentProgress = currentStreak
-            break
-          }
+        case 'login_streak':
+          currentProgress = profile.streak_count || 0
+          break
 
-          default:
-            currentProgress = isCompleted ? target : 0
-        }
+        case 'win_streak':
+          currentProgress = winStreak
+          break
 
-        return {
-          id: achievement.id,
-          title: achievement.title,
-          progress: Math.min(currentProgress, target),
-          target,
-          isCompleted,
-          isClaimed,
-          canClaim: !isClaimed && currentProgress >= target
-        }
-      })
-    )
+        default:
+          currentProgress = isCompleted ? target : 0
+      }
+
+      return {
+        id: achievement.id,
+        title: achievement.title,
+        progress: Math.min(currentProgress, target),
+        target,
+        isCompleted,
+        isClaimed,
+        canClaim: !isClaimed && currentProgress >= target
+      }
+    })
 
     return NextResponse.json({
       achievements: progressData,
