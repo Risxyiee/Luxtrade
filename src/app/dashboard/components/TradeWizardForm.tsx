@@ -8,8 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { ArrowRight, ArrowLeft, Upload, CheckCircle, Sparkles, Loader2, X, Info, FileText, HelpCircle } from 'lucide-react'
-import Wallet from 'lucide-react/dist/esm/icons/wallet'
+import { ArrowRight, ArrowLeft, Upload, CheckCircle, Sparkles, Loader2, X, Info, FileText, HelpCircle, CreditCard } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { calculateForexProfitLoss, getPipInfo, formatTradingInput, AccountType } from '@/lib/trading-helpers'
@@ -853,7 +852,7 @@ export default function TradeWizardForm({
 
               <div>
                 <Label className="text-white font-semibold flex items-center gap-2">
-                  <Wallet className="w-4 h-4" />
+                  <CreditCard className="w-4 h-4" />
                   {L ? 'Akun Trading *' : 'Trading Account *'}
                 </Label>
                 <Select value={formData.account_id} onValueChange={(value) => {

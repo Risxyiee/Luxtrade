@@ -3,9 +3,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Plus, ChevronDown, Trash2, Grid3X3, X,
+  Plus, ChevronDown, Trash2, Grid3X3, X, CreditCard,
 } from 'lucide-react'
-import Wallet from 'lucide-react/dist/esm/icons/wallet'
 import { toast } from 'sonner'
 import DeleteAccountDialog from './sidebar/DeleteAccountDialog'
 
@@ -131,7 +130,7 @@ export default function DashboardFAB({
                     onClick={() => setAccountDropdownOpen(!accountDropdownOpen)}
                     className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-all hover:bg-white/5 border border-transparent"
                   >
-                    <Wallet className="w-4 h-4 text-blue-400" />
+                    <CreditCard className="w-4 h-4 text-blue-400" />
                     <span className="flex-1 text-left text-gray-300 truncate">
                       {selectedAccountName || t('Semua Akun', 'All Accounts')}
                     </span>
@@ -190,7 +189,7 @@ export default function DashboardFAB({
                 onClick={() => { setAddAccountOpen(true); setOpen(false) }}
                 className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm transition-all text-gray-300 hover:text-white hover:bg-white/5 border border-white/5 hover:border-blue-500/20"
               >
-                <Wallet className="w-5 h-5" />
+                <CreditCard className="w-5 h-5" />
                 <span>{t('Tambah Akun Trading', 'Add Trading Account')}</span>
               </button>
             </div>

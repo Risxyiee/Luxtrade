@@ -6,8 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
-import { Loader2, Trash2, AlertTriangle, CheckCircle, Star } from 'lucide-react'
-import Wallet from 'lucide-react/dist/esm/icons/wallet'
+import { Loader2, Trash2, AlertTriangle, CheckCircle, Star, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import { useState } from 'react'
 
@@ -131,7 +130,7 @@ export default function TradingAccountList({ accounts, loading, onRefresh }: Tra
   if (accounts.length === 0) {
     return (
       <div className="text-center py-12 text-white/40">
-        <Wallet className="w-12 h-12 mx-auto mb-4 opacity-30" />
+        <CreditCard className="w-12 h-12 mx-auto mb-4 opacity-30" />
         <p>Belum ada akun trading</p>
       </div>
     )

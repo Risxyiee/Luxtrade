@@ -6,8 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
-import Wallet from 'lucide-react/dist/esm/icons/wallet'
+import { Loader2, CheckCircle, AlertCircle, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface AddAccountFormProps {
@@ -175,7 +174,7 @@ export default function AddAccountForm({ open, onOpenChange, onSuccess }: AddAcc
       <DialogContent className="bg-gradient-to-br from-lux-bg-card dark:from-[#080b12] to-[#0a0e18] border-lux-input-border dark:border-blue-900/30 text-white max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
-            <Wallet className="w-6 h-6 text-cyan-400" />
+            <CreditCard className="w-6 h-6 text-cyan-400" />
             Add Trading Account
           </DialogTitle>
           <p className="text-sm text-gray-400 mt-1">
