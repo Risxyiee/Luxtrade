@@ -6,7 +6,7 @@ import {
   Users, Clock, CheckCircle2, ChevronDown, ChevronUp,
   Loader2, ShieldX, RefreshCw, Banknote, ArrowLeft,
 } from 'lucide-react'
-import { Wallet } from 'lucide-react'
+import Wallet from 'lucide-react/dist/esm/icons/wallet'
 import { Button } from '@/components/ui/button'
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
