@@ -16,6 +16,7 @@ const menuCategories: Record<string, { label: string; proType?: string }> = {
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', labelId: 'Dasbor', icon: BarChart3, category: 'utama', proOnly: false },
   { id: 'trades', label: 'Trades', labelId: 'Transaksi', icon: Activity, category: 'utama', proOnly: false },
+  { id: 'accounts', label: 'Accounts', labelId: 'Akun', icon: Wallet, category: 'utama', proOnly: false },
   { id: 'calendar', label: 'Calendar', labelId: 'Kalender', icon: Calendar, category: 'utama', proOnly: false },
   { id: 'journal', label: 'Journal', labelId: 'Jurnal', icon: BookOpen, category: 'utama', proOnly: false },
 
