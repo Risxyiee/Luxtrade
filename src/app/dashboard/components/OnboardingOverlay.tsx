@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  X, ChevronRight, ChevronLeft, BarChart3, Plus, Wallet,
+  X, ChevronRight, ChevronLeft, BarChart3, Plus, CreditCard,
   TrendingUp, BookOpen, Brain, Users, Trophy, Target,
   Eye, Flame, Zap, Sparkles, Menu, Bell, Keyboard, Globe,
   CheckCircle2
@@ -48,7 +48,7 @@ const steps: Step[] = [
 
   },
   {
-    icon: Wallet,
+    icon: CreditCard,
     titleId: 'Kelola Akun Trading',
     titleEn: 'Manage Trading Accounts',
     descId: 'Tambahkan beberapa akun trading dari broker berbeda. Pantau saldo dan performa masing-masing akun secara terpisah.',
