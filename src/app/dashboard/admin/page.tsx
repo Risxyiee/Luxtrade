@@ -6,7 +6,7 @@ import Link from 'next/link'
 import {
   Shield, ArrowLeft, Users, Crown, Mail, Calendar,
   Loader2, Check, X, RefreshCw, Search, AlertCircle,
-  Clock, Ban, CheckCircle, XCircle, Share2, Wallet,
+  Clock, Ban, CheckCircle, XCircle, Share2, CreditCard,
   AlertTriangle, Bug, Info, DatabaseBackup,
   Tag, Send, UserPen, ChevronDown, ChevronLeft, ChevronRight,
   Link2,
