@@ -71,12 +71,39 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if this is the first account (make it default)
+    // Get user profile to check PRO status
+    const { data: profile } = await client
+      .from('profiles')
+      .select('is_pro, subscription_status')
+      .eq('id', userId)
+      .single()
+
+    const isPro = profile?.is_pro || profile?.subscription_status === 'PRO' || profile?.subscription_status === 'active'
+
+    // Count existing accounts
     const { count: existingAccounts } = await client
       .from('trading_accounts')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
 
+    const maxAccounts = isPro ? 999 : 1 // FREE users limited to 1 account
+
+    // Check if user reached account limit
+    if ((existingAccounts ?? 0) >= maxAccounts) {
+      console.log(`❌ [API] Account limit reached. User has ${existingAccounts}, max is ${maxAccounts}`)
+      return NextResponse.json(
+        {
+          error: 'Account limit reached',
+          requiresPro: true,
+          message: isPro
+            ? 'You have reached the maximum number of accounts'
+            : 'FREE users can only have 1 trading account. Upgrade to PRO for unlimited accounts.'
+        },
+        { status: 403 }
+      )
+    }
+
+    // Check if this is the first account (make it default)
     const isDefault = (existingAccounts ?? 0) === 0 || body.is_default === true
 
     // If setting this as default, unset other defaults

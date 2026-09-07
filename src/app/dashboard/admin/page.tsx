@@ -32,8 +32,16 @@ const ADMIN_IDS: string[] = []
 const ADMIN_EMAILS = ['luxtradee@gmail.com']
 
 function checkIsAdmin(userId: string | undefined, email: string | undefined): boolean {
-  if (userId && ADMIN_IDS.includes(userId)) return true
-  if (email && ADMIN_EMAILS.includes(email.toLowerCase())) return true
+  console.log('[checkIsAdmin] Input:', { userId, email })
+  if (userId && ADMIN_IDS.includes(userId)) {
+    console.log('[checkIsAdmin] User ID match found')
+    return true
+  }
+  if (email && ADMIN_EMAILS.includes(email.toLowerCase().trim())) {
+    console.log('[checkIsAdmin] Email match found:', email.toLowerCase().trim())
+    return true
+  }
+  console.log('[checkIsAdmin] No match found')
   return false
 }
 
@@ -96,12 +104,15 @@ export default function AdminPanel() {
         }
 
         // Admin check
-        const isAdmin = checkIsAdmin(user.id, user.email)
+        const userEmail = user.email?.toLowerCase().trim()
+        const isAdmin = checkIsAdmin(user.id, userEmail)
         console.log('[AdminPanel] Admin check:', {
           userId: user.id,
           userEmail: user.email,
+          userEmailNormalized: userEmail,
           isAdmin,
-          adminEmails: ADMIN_EMAILS
+          adminEmails: ADMIN_EMAILS,
+          emailInList: userEmail && ADMIN_EMAILS.includes(userEmail),
         })
 
         if (!isAdmin) {

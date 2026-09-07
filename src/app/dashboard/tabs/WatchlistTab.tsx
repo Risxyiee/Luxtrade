@@ -58,12 +58,12 @@ export default function WatchlistTab({
   if (!loading && !isPro) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mb-4">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center mb-4">
           <Crown className="w-8 h-8 text-white" />
         </div>
         <h3 className="text-xl font-bold text-white mb-2">Premium Feature</h3>
         <p className="text-lux-text-secondary dark:text-gray-400 text-center max-w-sm mb-6">Watchlist is only available for PRO users</p>
-        <button onClick={onUpgrade} className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity">
+        <button onClick={onUpgrade} className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity">
           Upgrade to PRO
         </button>
       </div>
@@ -85,7 +85,7 @@ export default function WatchlistTab({
           <h3 className="text-xl font-bold">Watchlist</h3>
           <p className="text-sm text-lux-text-secondary dark:text-gray-400">Track potential opportunities</p>
         </div>
-        <Button onClick={onAdd} className="bg-gradient-to-r from-emerald-500 to-teal-600">
+        <Button onClick={onAdd} className="bg-gradient-to-r from-blue-500 to-cyan-600">
           <Plus className="w-4 h-4 mr-2" />Add Symbol
         </Button>
       </div>
@@ -96,7 +96,7 @@ export default function WatchlistTab({
             <Eye className="w-12 h-12 mx-auto mb-4 text-lux-text-muted dark:text-gray-500" />
             <h3 className="text-lg font-semibold mb-2">No Watchlist Items</h3>
             <p className="text-lux-text-secondary dark:text-gray-400 mb-4">Add symbols to track potential setups!</p>
-            <Button onClick={onAdd} variant="outline" className="border-emerald-500/30 text-emerald-400">
+            <Button onClick={onAdd} variant="outline" className="border-blue-500/30 text-blue-400">
               <Plus className="w-4 h-4 mr-2" /> Add First Symbol
             </Button>
           </CardContent>
@@ -107,12 +107,12 @@ export default function WatchlistTab({
             {items.map((item) => {
               const isAlertOn = alertItems.has(item.id)
               return (
-                <Card key={item.id} className={`bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30 hover:border-emerald-500/30 transition-colors group ${isAlertOn ? 'ring-1 ring-amber-500/30' : ''}`}>
+                <Card key={item.id} className={`bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30 hover:border-blue-500/30 transition-colors group ${isAlertOn ? 'ring-1 ring-amber-500/30' : ''}`}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                          <TrendingUpIcon className="w-5 h-5 text-emerald-400" />
+                        <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                          <TrendingUpIcon className="w-5 h-5 text-blue-400" />
                         </div>
                         <div>
                           <h4 className="font-bold">{item.symbol}</h4>
