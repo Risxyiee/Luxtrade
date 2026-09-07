@@ -3,6 +3,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { requireAuth } from '@/lib/api-auth'
 
 let _supabase: SupabaseClient | null = null
+let _supabaseAdmin: SupabaseClient | null = null
+
 function getSupabase(): SupabaseClient {
   if (!_supabase) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -11,6 +13,21 @@ function getSupabase(): SupabaseClient {
     _supabase = createClient(url, key)
   }
   return _supabase
+}
+
+function getSupabaseAdmin(): SupabaseClient | null {
+  if (!_supabaseAdmin) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !key) {
+      console.warn('[onboarding achievement] Service role key not configured')
+      return null
+    }
+    _supabaseAdmin = createClient(url, key, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
+  }
+  return _supabaseAdmin
 }
 
 // Achievement IDs
@@ -64,6 +81,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabase()
+    const supabaseAdmin = getSupabaseAdmin()
 
     // Step 1: Check if achievements table exists
     const achievementsTableExists = await tableExists(supabase, 'achievements')
@@ -122,9 +140,10 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Step 3: Create the onboarding achievement if it doesn't exist
+    // Step 3: Create the onboarding achievement if it doesn't exist (use admin to bypass RLS)
     try {
-      const { data: achievementData, error: achievementError } = await supabase
+      const clientToUse = supabaseAdmin || supabase
+      const { data: achievementData, error: achievementError } = await clientToUse
         .from('achievements')
         .upsert(
           {
@@ -152,9 +171,10 @@ export async function POST(request: NextRequest) {
       console.warn('[onboarding achievement] Exception creating achievement:', err)
     }
 
-    // Step 4: Award the achievement to the user
+    // Step 4: Award the achievement to the user (use admin to bypass RLS)
     let userAchievement = null
     try {
+      const clientToUse = supabaseAdmin || supabase
       const insertData: any = {
         user_id: userId,
         achievement_id: ONBOARDING_ACHIEVEMENT_ID,
@@ -162,7 +182,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Add achievement_key field if column exists
-      const { error: columnCheckError } = await supabase
+      const { error: columnCheckError } = await clientToUse
         .from('user_achievements')
         .select('achievement_key')
         .limit(1)
@@ -172,7 +192,7 @@ export async function POST(request: NextRequest) {
         insertData.achievement_key = ONBOARDING_ACHIEVEMENT_ID
       }
 
-      const { data: userData, error: awardError } = await supabase
+      const { data: userData, error: awardError } = await clientToUse
         .from('user_achievements')
         .insert(insertData)
         .select(`
@@ -206,10 +226,11 @@ export async function POST(request: NextRequest) {
       userAchievement = null
     }
 
-    // Step 5: Update user XP (non-critical - won't block success response)
+    // Step 5: Update user XP (use admin to bypass RLS, non-critical)
     let newXP = null
     try {
-      const { data: profile, error: profileError } = await supabase
+      const clientToUse = supabaseAdmin || supabase
+      const { data: profile, error: profileError } = await clientToUse
         .from('profiles')
         .select('total_xp')
         .eq('id', userId)
@@ -223,7 +244,7 @@ export async function POST(request: NextRequest) {
         }
       } else if (profile) {
         newXP = (profile?.total_xp || 0) + 10
-        const { error: updateError } = await supabase
+        const { error: updateError } = await clientToUse
           .from('profiles')
           .update({ total_xp: newXP })
           .eq('id', userId)
