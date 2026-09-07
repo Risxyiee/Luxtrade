@@ -3,8 +3,9 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react'
 import {
   ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown,
-  Gem, Wallet, Loader2
+  Gem, Loader2
 } from 'lucide-react'
+import { Wallet } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
