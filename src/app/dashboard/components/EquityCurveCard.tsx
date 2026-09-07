@@ -3,9 +3,8 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react'
 import {
   ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown,
-  Gem, Loader2
+  Gem, Loader2, CreditCard
 } from 'lucide-react'
-import Wallet from 'lucide-react/dist/esm/icons/wallet'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
@@ -314,7 +313,7 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, className }: E
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/20 flex items-center justify-center">
-                  <Wallet className="w-3.5 h-3.5 text-blue-400" />
+                  <CreditCard className="w-3.5 h-3.5 text-blue-400" />
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">

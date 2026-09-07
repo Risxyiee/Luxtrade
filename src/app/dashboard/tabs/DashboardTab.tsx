@@ -5,9 +5,8 @@ import dynamic from 'next/dynamic'
 import {
   DollarSign, Target, Activity, TrendingUp, TrendingDown,
   Sparkles, AlertTriangle, Clock, BarChart3, Plus,
-  Trophy, Flame, Loader2
+  Trophy, Flame, Loader2, CreditCard
 } from 'lucide-react'
-import Wallet from 'lucide-react/dist/esm/icons/wallet'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -334,7 +333,7 @@ function DashboardTab({
               size="sm"
               className="border-blue-500/30 text-blue-300 hover:bg-blue-500/10 hover:text-blue-200 hover:border-blue-500/50 transition-all"
             >
-              <Wallet className="w-4 h-4 mr-2" />
+              <CreditCard className="w-4 h-4 mr-2" />
               {language === 'id' ? 'Tambah Akun Trading' : 'Add Trading Account'}
             </Button>
           )}

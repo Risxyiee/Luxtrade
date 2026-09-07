@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Plus, ChevronDown, Trash2, Grid3X3, Check } from 'lucide-react'
-import Wallet from 'lucide-react/dist/esm/icons/wallet'
+import { Loader2, Plus, ChevronDown, Trash2, Grid3X3, Check, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import AddAccountForm from '../components/AddAccountForm'
 import TradingAccountList from '../components/TradingAccountList'
@@ -159,7 +158,7 @@ export default function AccountsTab() {
                 onClick={() => setAccountDropdownOpen(!accountDropdownOpen)}
                 className="bg-lux-bg-card dark:bg-[#0a0c12] border-white/10 hover:border-blue-500/30 hover:bg-white/5 text-white"
               >
-                <Wallet className="w-4 h-4 mr-2 text-blue-400" />
+                <CreditCard className="w-4 h-4 mr-2 text-blue-400" />
                 <span className="truncate max-w-[150px]">
                   {selectedAccountName || 'Semua Akun'}
                 </span>
@@ -260,7 +259,7 @@ export default function AccountsTab() {
       <Card className="bg-lux-bg-card dark:bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-lux-border dark:border-blue-900/30">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-blue-400" />
+            <CreditCard className="w-5 h-5 text-blue-400" />
             Daftar Akun Trading
           </CardTitle>
         </CardHeader>
