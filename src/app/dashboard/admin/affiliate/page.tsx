@@ -4,9 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Users, Clock, CheckCircle2, ChevronDown, ChevronUp,
-  Loader2, ShieldX, RefreshCw, Banknote, ArrowLeft,
+  Loader2, ShieldX, RefreshCw, Banknote, ArrowLeft, CreditCard,
 } from 'lucide-react'
-import Wallet from 'lucide-react/dist/esm/icons/wallet'
 import { Button } from '@/components/ui/button'
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
@@ -388,7 +387,7 @@ export default function AffiliateManagementPage() {
         <Card className="bg-[#0e1117]/80 backdrop-blur-xl border-white/[0.06]">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-amber-400" />
+              <CreditCard className="w-5 h-5 text-amber-400" />
               <CardTitle className="text-white text-lg">Permintaan Withdrawal Pending</CardTitle>
               {!loadingData && pendingCount > 0 && (
                 <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/25 ml-2">
