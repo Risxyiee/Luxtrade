@@ -44,9 +44,12 @@ export async function getAuthenticatedUser(request: NextRequest): Promise<AuthRe
         return { user: null, client: null, error: 'Server configuration error' }
       }
 
-      const bearerClient = createClient(supabaseUrl, supabaseKey)
+      const bearerClient = createClient(supabaseUrl, supabaseKey, {
+        auth: { persistSession: false, autoRefreshToken: false }
+      })
       const result = await bearerClient.auth.getUser(token)
       if (result.data.user) {
+        console.log('[getAuthenticatedUser] User authenticated via Bearer token:', result.data.user.email)
         return { user: result.data.user, client: bearerClient }
       }
     }
