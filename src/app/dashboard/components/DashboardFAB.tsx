@@ -3,8 +3,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Plus, ChevronDown, Trash2, Grid3X3, X, Wallet,
+  Plus, ChevronDown, Trash2, Grid3X3, X,
 } from 'lucide-react'
+import Wallet from 'lucide-react/dist/esm/icons/wallet'
 import { toast } from 'sonner'
 import DeleteAccountDialog from './sidebar/DeleteAccountDialog'
 
