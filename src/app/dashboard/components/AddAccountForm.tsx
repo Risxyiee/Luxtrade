@@ -116,6 +116,17 @@ export default function AddAccountForm({ open, onOpenChange, onSuccess }: AddAcc
       const result = await response.json()
 
       if (!response.ok) {
+        // Handle account limit error
+        if (response.status === 403 && result.requiresPro) {
+          toast.error(result.message || 'Account limit reached. Upgrade to PRO for more accounts.', {
+            duration: 5000,
+            action: {
+              label: 'Upgrade',
+              onClick: () => window.location.href = '/upgrade'
+            }
+          })
+          return
+        }
         throw new Error(result.error || result.message || 'Failed to add trading account')
       }
 
