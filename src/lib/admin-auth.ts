@@ -43,7 +43,12 @@ export async function requireAdmin(request: NextRequest) {
   }
 
   // Check 1: Hardcoded admin list (fastest, no DB call)
-  if (user.email && (ADMIN_EMAILS.includes(user.email.toLowerCase()) || ADMIN_IDS.includes(user.id))) {
+  const userEmail = user.email?.toLowerCase().trim() || ''
+  const isAuthorized = ADMIN_EMAILS.some(adminEmail =>
+    adminEmail.toLowerCase().trim() === userEmail
+  )
+
+  if (isAuthorized || ADMIN_IDS.includes(user.id)) {
     return { error: null, user }
   }
 

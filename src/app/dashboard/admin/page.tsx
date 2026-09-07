@@ -37,11 +37,15 @@ function checkIsAdmin(userId: string | undefined, email: string | undefined): bo
     console.log('[checkIsAdmin] User ID match found')
     return true
   }
-  if (email && ADMIN_EMAILS.includes(email.toLowerCase().trim())) {
-    console.log('[checkIsAdmin] Email match found:', email.toLowerCase().trim())
+  const userEmail = email?.toLowerCase().trim() || ''
+  const isAuthorized = ADMIN_EMAILS.some(adminEmail =>
+    adminEmail.toLowerCase().trim() === userEmail
+  )
+  if (isAuthorized) {
+    console.log('[checkIsAdmin] Email match found:', userEmail)
     return true
   }
-  console.log('[checkIsAdmin] No match found')
+  console.log('[checkIsAdmin] No match found', { userEmail, ADMIN_EMAILS })
   return false
 }
 
@@ -104,7 +108,7 @@ export default function AdminPanel() {
         }
 
         // Admin check
-        const userEmail = user.email?.toLowerCase().trim()
+        const userEmail = user.email?.toLowerCase().trim() || ''
         const isAdmin = checkIsAdmin(user.id, userEmail)
         console.log('[AdminPanel] Admin check:', {
           userId: user.id,
@@ -112,7 +116,7 @@ export default function AdminPanel() {
           userEmailNormalized: userEmail,
           isAdmin,
           adminEmails: ADMIN_EMAILS,
-          emailInList: userEmail && ADMIN_EMAILS.includes(userEmail),
+          emailInList: ADMIN_EMAILS.some(e => e.toLowerCase().trim() === userEmail),
         })
 
         if (!isAdmin) {
