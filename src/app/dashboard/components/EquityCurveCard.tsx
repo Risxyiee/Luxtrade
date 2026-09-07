@@ -5,7 +5,7 @@ import {
   ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown,
   Gem, Loader2
 } from 'lucide-react'
-import { Wallet } from 'lucide-react'
+import Wallet from 'lucide-react/dist/esm/icons/wallet'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
