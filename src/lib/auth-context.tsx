@@ -310,20 +310,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Computed values
   const isAdmin = checkIsAdmin(user?.id, user?.email);
-  
+
+  // Debug: Log admin status in development
+  if (process.env.NODE_ENV === 'development' && user) {
+    console.log('[AuthContext] Admin check:', {
+      userId: user.id,
+      userEmail: user.email,
+      isAdmin,
+      adminEmails: ADMIN_EMAILS,
+      emailMatch: ADMIN_EMAILS.includes(user.email?.toLowerCase() || '')
+    });
+  }
+
   // isPro logic: check subscription_until validity
   const isPro = (() => {
     // Admin always has PRO access
     if (isAdmin) return true;
-    
+
     // Check profile
     if (!profile) return false;
-    
+
     // If is_pro is true, check if subscription is still valid
     if (profile.is_pro) {
       return isSubscriptionValid(profile.subscription_until);
     }
-    
+
     return false;
   })();
 
