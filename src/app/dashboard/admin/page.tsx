@@ -80,23 +80,46 @@ export default function AdminPanel() {
   // Check auth and admin status
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      try {
+        console.log('[AdminPanel] Checking auth...')
 
-      if (!user) {
-        toast.error('Please login first')
-        router.push('/auth/login')
-        return
-      }
+        // Get session from Supabase
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-      // Admin check — must match ADMIN_EMAILS in @/lib/admin-auth.ts
-      if (!checkIsAdmin(user.id, user.email)) {
-        toast.error('Access denied. Admin only.')
+        console.log('[AdminPanel] User data:', { user, error: userError })
+
+        if (!user || userError) {
+          console.log('[AdminPanel] No user found, redirecting to login')
+          toast.error('Please login first')
+          router.push('/auth/login')
+          return
+        }
+
+        // Admin check
+        const isAdmin = checkIsAdmin(user.id, user.email)
+        console.log('[AdminPanel] Admin check:', {
+          userId: user.id,
+          userEmail: user.email,
+          isAdmin,
+          adminEmails: ADMIN_EMAILS
+        })
+
+        if (!isAdmin) {
+          console.log('[AdminPanel] Access denied, redirecting to dashboard')
+          toast.error('Access denied. Admin only.')
+          router.push('/dashboard')
+          return
+        }
+
+        console.log('[AdminPanel] Admin access granted')
+        setIsAdminUser(true)
+        setCheckingAuth(false)
+      } catch (error) {
+        console.error('[AdminPanel] Auth check error:', error)
+        toast.error('Authentication error')
         router.push('/dashboard')
-        return
+        setCheckingAuth(false)
       }
-
-      setIsAdminUser(true)
-      setCheckingAuth(false)
     }
 
     checkAuth()

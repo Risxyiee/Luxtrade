@@ -7,6 +7,7 @@ import { Trade, JournalEntry, WatchlistItem, Analytics } from '../utils/types'
 // Lazy-loaded tab components — each chunk is only fetched when the tab is first visited
 const DashboardTab = dynamic(() => import('../tabs/DashboardTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const TradesTab = dynamic(() => import('../tabs/TradesTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const AccountsTab = dynamic(() => import('../tabs/AccountsTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const JournalTab = dynamic(() => import('../tabs/JournalTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const WatchlistTab = dynamic(() => import('../tabs/WatchlistTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const AnalyticsTab = dynamic(() => import('../tabs/AnalyticsTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
@@ -137,6 +138,10 @@ export default function TabContent({
               onDuplicate={onDuplicate}
               language={language}
             />
+          )}
+
+          {activeTab === 'accounts' && (
+            <AccountsTab />
           )}
 
           {activeTab === 'journal' && (
