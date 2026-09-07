@@ -107,7 +107,7 @@ export default function AccountsTab() {
 
     setDeleting(true)
     try {
-      const response = await fetch(`/api/trading-accounts?id=${accountToDelete.id}`, {
+      const response = await fetch(`/api/trading-accounts/${accountToDelete.id}`, {
         method: 'DELETE',
         credentials: 'include'
       })
