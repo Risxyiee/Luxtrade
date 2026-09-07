@@ -1,5 +1,6 @@
 'use client'
 
+// Force rebuild hash v3 - Wallet icon tree-shaking fix
 import dynamicImport from 'next/dynamic'
 
 // Dynamically import the dashboard component to avoid hoisting issues
