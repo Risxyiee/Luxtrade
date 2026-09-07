@@ -5,8 +5,9 @@ import dynamic from 'next/dynamic'
 import {
   DollarSign, Target, Activity, TrendingUp, TrendingDown,
   Sparkles, AlertTriangle, Clock, BarChart3, Plus,
-  Trophy, Flame, Loader2, Wallet
+  Trophy, Flame, Loader2
 } from 'lucide-react'
+import { Wallet } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'

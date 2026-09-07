@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Users, Wallet, Clock, CheckCircle2, ChevronDown, ChevronUp,
+  Users, Clock, CheckCircle2, ChevronDown, ChevronUp,
   Loader2, ShieldX, RefreshCw, Banknote, ArrowLeft,
 } from 'lucide-react'
+import { Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
