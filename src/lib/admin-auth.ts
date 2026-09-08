@@ -54,18 +54,7 @@ export async function requireAdmin(request: NextRequest) {
     adminEmail.toLowerCase().trim() === userEmail
   )
 
-  console.log('[requireAdmin] Admin check:', {
-    userEmail,
-    isAuthorized,
-    matches: ADMIN_EMAILS.map(adminEmail => ({
-      adminEmail,
-      normalized: adminEmail.toLowerCase().trim(),
-      match: adminEmail.toLowerCase().trim() === userEmail
-    }))
-  })
-
   if (isAuthorized || ADMIN_IDS.includes(user.id)) {
-    console.log('[requireAdmin] ✓ Admin access granted')
     return { error: null, user }
   }
 
