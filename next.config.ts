@@ -15,10 +15,17 @@ const nextConfig: NextConfig = {
   experimental: {
     // Disabled to prevent tree-shaking issues with Lucide icons
     // optimizePackageImports: ['lucide-react', 'framer-motion'],
+    // Force fresh build for middleware
+    serverComponentsExternalPackages: [],
   },
 
   images: {
     unoptimized: true,
+  },
+
+  // Force Cloudflare Pages to invalidate cache on new builds
+  generateBuildId: () => {
+    return `build-${Date.now()}`;
   },
 };
 
