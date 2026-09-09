@@ -18,8 +18,7 @@ import { toast } from 'sonner'
 
 
 // CRITICAL: Force dynamic rendering untuk Cloudflare Workers
-export const dynamic = "force-dynamic"
-export const runtime = "edge"
+export const dynamic = 'force-dynamic'
 
 export default function SettingsPage() {
   const { user, profile, signOut } = useAuth()
