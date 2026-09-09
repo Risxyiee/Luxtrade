@@ -5,23 +5,19 @@ import { getAuthenticatedUser } from '@/lib/api-auth'
 
 export async function POST(request: NextRequest) {
   try {
-    // Auth: get the REAL user from session, NOT from request body
-    const authResult = await getAuthenticatedUser(request)
-    const authUser = authResult.user
-    if (!authUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Parse body FIRST before auth (to avoid consuming stream)
+    let body: any = {}
+    try {
+      body = await request.json()
+    } catch (err) {
+      console.error('[missions/claim] Failed to parse body:', err)
+      return NextResponse.json(
+        { error: 'Invalid request body' },
+        { status: 400 }
+      )
     }
 
-    // Use authenticated user's ID — ignore any userId from body
-    const userId = authUser.id
-
-    // Safety: ensure userId is not null/undefined before any DB operation
-    if (!userId) {
-      console.error('[missions/claim] authUser.id is falsy:', JSON.stringify(authUser))
-      return NextResponse.json({ error: 'User ID not found in session' }, { status: 401 })
-    }
-
-    const { missionId, proofUrl } = await request.json()
+    const { missionId, proofUrl } = body
 
     if (!missionId) {
       return NextResponse.json(
@@ -36,6 +32,29 @@ export async function POST(request: NextRequest) {
         { error: 'Achievement not found' },
         { status: 404 }
       )
+    }
+
+    // Auth: get the REAL user from session, NOT from request body
+    const authResult = await getAuthenticatedUser(request)
+    const authUser = authResult.user
+    console.log('[missions/claim] Auth result:', {
+      hasUser: !!authUser,
+      userId: authUser?.id,
+      userEmail: authUser?.email,
+      authError: authResult.error,
+    })
+
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Use authenticated user's ID — ignore any userId from body
+    const userId = authUser.id
+
+    // Safety: ensure userId is not null/undefined before any DB operation
+    if (!userId) {
+      console.error('[missions/claim] authUser.id is falsy:', JSON.stringify(authUser))
+      return NextResponse.json({ error: 'User ID not found in session' }, { status: 401 })
     }
 
     const admin = getSupabaseAdmin()
