@@ -8,14 +8,29 @@ export async function POST(request: NextRequest) {
   try {
     console.log('[API /api/delete-account] Starting account deletion...')
 
-    const admin = getSupabaseAdmin()
-    if (!admin) {
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    // Step 1: Parse body FIRST before auth (to avoid consuming stream)
+    let body: any = {}
+    try {
+      body = await request.json()
+      console.log('[API /api/delete-account] Body parsed:', { hasConfirmation: !!body.confirmation, hasEmail: !!body.email })
+    } catch (err) {
+      console.error('[API /api/delete-account] Failed to parse body:', err)
+      return NextResponse.json(
+        { error: 'Invalid request body' },
+        { status: 400 }
+      )
     }
 
-    // Step 1: Authenticate user
+    // Step 2: Authenticate user
     const authResult = await getAuthenticatedUser(request)
     const authUser = authResult.user
+
+    console.log('[API /api/delete-account] Auth result:', {
+      hasUser: !!authUser,
+      userId: authUser?.id,
+      userEmail: authUser?.email,
+      authError: authResult.error,
+    })
 
     if (!authUser) {
       console.log('[API] Unauthorized - no valid user')
@@ -27,10 +42,9 @@ export async function POST(request: NextRequest) {
 
     const userId = authUser.id
     const userEmail = authUser.email
-    const body = await request.json()
     const { confirmation, email } = body
 
-    // Step 2: Validate confirmation
+    // Step 3: Validate confirmation
     if (!confirmation || confirmation !== 'DELETE') {
       console.log('[API] Invalid confirmation')
       return NextResponse.json(
@@ -39,12 +53,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Step 3: Validate email matches
+    // Step 4: Validate email matches
     if (!email || email !== userEmail) {
+      console.log('[API] Email mismatch', { providedEmail: email, userEmail })
       return NextResponse.json(
         { error: 'Email does not match. Please enter your email address correctly.' },
         { status: 400 }
       )
+    }
+
+    console.log('[API] Validation passed, starting deletion for user:', userId)
+
+    // Step 5: Initialize admin client
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      console.error('[API] Failed to initialize admin client')
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 
     // Step 4: Delete user's trades
