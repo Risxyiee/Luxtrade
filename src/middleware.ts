@@ -2,7 +2,6 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const PUBLIC_PATHS = ['/', '/about', '/blog', '/contact', '/faq', '/terms', '/privacy', '/disclaimer', '/refund-policy', '/not-found', '/upgrade']
-
 const ADMIN_EMAILS = ['luxtradee@gmail.com']
 
 export const config = {
@@ -16,6 +15,9 @@ export const config = {
     '/admin-subscriptions/:path*',
   ],
 }
+
+// Force dynamic untuk middleware
+export const dynamic = 'force-dynamic'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
