@@ -52,9 +52,6 @@ interface HealthCheckResponse {
 }
 
 
-// CRITICAL: Force dynamic rendering untuk Cloudflare Workers
-export const dynamic = "force-dynamic"
-export const runtime = "edge"
 
 export default function SystemHealthPage() {
   const [healthData, setHealthData] = useState<HealthCheckResponse | null>(null)
