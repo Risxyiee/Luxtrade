@@ -29,8 +29,11 @@ export async function getAuthenticatedUser(request: NextRequest): Promise<AuthRe
 
     let { data: { user }, error } = await cookieClient.auth.getUser()
     if (user) {
+      console.log('[getAuthenticatedUser] User authenticated via cookies:', user.email)
       return { user, client: cookieClient }
     }
+
+    console.warn('[getAuthenticatedUser] No user from cookies, trying Bearer token...')
 
     // Try Bearer token authentication
     const authHeader = request.headers.get('Authorization')
@@ -44,10 +47,15 @@ export async function getAuthenticatedUser(request: NextRequest): Promise<AuthRe
         return { user: null, client: null, error: 'Server configuration error' }
       }
 
-      const bearerClient = createClient(supabaseUrl, supabaseKey)
+      const bearerClient = createClient(supabaseUrl, supabaseKey, {
+        auth: { persistSession: false, autoRefreshToken: false }
+      })
       const result = await bearerClient.auth.getUser(token)
       if (result.data.user) {
+        console.log('[getAuthenticatedUser] User authenticated via Bearer token:', result.data.user.email)
         return { user: result.data.user, client: bearerClient }
+      } else {
+        console.warn('[getAuthenticatedUser] Bearer token invalid or expired')
       }
     }
 
