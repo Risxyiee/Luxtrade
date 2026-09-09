@@ -71,15 +71,17 @@ export async function middleware(request: NextRequest) {
         adminEmail.toLowerCase().trim() === userEmail
       )
 
-      console.log('[Middleware] Admin check:', {
-        pathname,
-        userEmail,
-        ADMIN_EMAILS,
-        isAuthorized,
-      })
+      // Debug logging (only in non-production or if needed)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[Middleware Admin Check]', {
+          path: pathname,
+          userEmail,
+          ADMIN_EMAILS,
+          isAuthorized
+        })
+      }
 
       if (!isAuthorized) {
-        console.log('[Middleware] Admin access denied, redirecting to dashboard')
         const url = request.nextUrl.clone()
         url.pathname = '/dashboard'
         return NextResponse.redirect(url)

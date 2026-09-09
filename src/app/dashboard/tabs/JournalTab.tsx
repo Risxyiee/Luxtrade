@@ -622,19 +622,19 @@ function JournalTab({
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
-          className="relative overflow-hidden rounded-2xl border border-amber-500/30"
+          className="relative overflow-hidden rounded-2xl border border-blue-500/30"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-orange-500/15" />
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/15 via-blue-500/10 to-blue-500/15" />
           <div className="relative flex items-center justify-between gap-4 p-4">
             <div className="flex items-center gap-3 flex-1">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0">
                 <PenLine className="w-5 h-5 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-amber-200">
+                <p className="text-sm font-medium text-blue-200">
                   📝 Belum menulis jurnal hari ini. Catat trading kamu sekarang!
                 </p>
-                <p className="text-xs text-amber-300/60 mt-0.5">
+                <p className="text-xs text-blue-300/60 mt-0.5">
                   Haven't written a journal entry today. Log your trades now!
                 </p>
               </div>
@@ -643,14 +643,14 @@ function JournalTab({
               <Button
                 size="sm"
                 onClick={onAdd}
-                className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
               >
                 <PenLine className="w-4 h-4 mr-1.5" />
                 Write Now
               </Button>
               <button
                 onClick={dismissReminder}
-                className="p-1.5 rounded-lg text-amber-300/50 hover:text-amber-200 hover:bg-amber-500/15 transition-colors"
+                className="p-1.5 rounded-lg text-blue-300/50 hover:text-blue-200 hover:bg-blue-500/15 transition-colors"
                 aria-label="Dismiss reminder"
               >
                 <X className="w-4 h-4" />
@@ -680,8 +680,8 @@ function JournalTab({
               </div>
             </div>
             {quickStreak >= 7 && (
-              <div className="mt-3 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                <p className="text-xs text-amber-300 font-medium">🏆 {quickStreak} hari streak! Konsisten adalah kunci trader sukses.</p>
+              <div className="mt-3 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                <p className="text-xs text-blue-300 font-medium">🏆 {quickStreak} hari streak! Konsisten adalah kunci trader sukses.</p>
               </div>
             )}
           </CardContent>
@@ -813,7 +813,7 @@ function JournalTab({
                       </div>
                       <p className="text-xs text-lux-text-secondary dark:text-gray-400 leading-relaxed mb-2">{journalAnalytics.weeklySummary.moodAssessment}</p>
                       <p className="text-xs text-lux-text-muted dark:text-gray-500 leading-relaxed">{journalAnalytics.weeklySummary.recommendation}</p>
-                      <p className="text-xs text-amber-400/70 mt-2">{journalAnalytics.weeklySummary.streakMessage}</p>
+                      <p className="text-xs text-blue-400/70 mt-2">{journalAnalytics.weeklySummary.streakMessage}</p>
                     </div>
                   )}
                 </CardContent>
