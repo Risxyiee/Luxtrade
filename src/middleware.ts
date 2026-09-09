@@ -66,12 +66,26 @@ export async function middleware(request: NextRequest) {
 
     // Admin paths: check if user is admin
     if (isAdminPath) {
-      const userEmail = user.email?.toLowerCase() || ''
-      if (!ADMIN_EMAILS.includes(userEmail)) {
+      const userEmail = user.email?.toLowerCase().trim() || ''
+      const isAuthorized = ADMIN_EMAILS.some(adminEmail =>
+        adminEmail.toLowerCase().trim() === userEmail
+      )
+
+      console.log('[Middleware] Admin check:', {
+        pathname,
+        userEmail,
+        ADMIN_EMAILS,
+        isAuthorized,
+      })
+
+      if (!isAuthorized) {
+        console.log('[Middleware] Admin access denied, redirecting to dashboard')
         const url = request.nextUrl.clone()
         url.pathname = '/dashboard'
         return NextResponse.redirect(url)
       }
+
+      console.log('[Middleware] Admin access granted')
     }
 
     return response
