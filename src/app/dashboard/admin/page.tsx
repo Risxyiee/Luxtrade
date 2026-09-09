@@ -120,9 +120,10 @@ export default function AdminPanel() {
         })
 
         if (!isAdmin) {
-          console.log('[AdminPanel] Access denied, redirecting to dashboard')
+          console.log('[AdminPanel] Access denied, showing error (NO REDIRECT)')
           toast.error('Access denied. Admin only.')
-          router.push('/dashboard')
+          // DO NOT REDIRECT - let middleware handle it
+          setCheckingAuth(false)
           return
         }
 
