@@ -20,14 +20,25 @@ export const config = {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  console.log('[Middleware] Processing request:', { pathname })
+
   // Allow auth pages
-  if (pathname.startsWith('/auth/')) return NextResponse.next()
+  if (pathname.startsWith('/auth/')) {
+    console.log('[Middleware] Auth path - allowing')
+    return NextResponse.next()
+  }
 
   // Allow API routes (they handle their own auth)
-  if (pathname.startsWith('/api/')) return NextResponse.next()
+  if (pathname.startsWith('/api/')) {
+    console.log('[Middleware] API path - allowing')
+    return NextResponse.next()
+  }
 
   // Allow public static pages
-  if (PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) return NextResponse.next()
+  if (PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
+    console.log('[Middleware] Public path - allowing')
+    return NextResponse.next()
+  }
 
   // Admin-only paths — require login + admin email
   const adminPaths = ['/dashboard/admin', '/admin-email', '/admin-secret', '/admin-subscriptions']
@@ -38,13 +49,35 @@ export async function middleware(request: NextRequest) {
   const isProtectedPath = protectedPaths.some(p => pathname === p || pathname.startsWith(p + '/'))
 
   if (isAdminPath || isProtectedPath) {
+    console.log('[Middleware] Protected/Admin path - checking auth')
+
     const response = NextResponse.next()
+
+    // Check environment variables
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('[Middleware] Missing Supabase environment variables:', {
+        hasUrl: !!supabaseUrl,
+        hasKey: !!supabaseKey,
+      })
+      const url = request.nextUrl.clone()
+      url.pathname = '/auth/login'
+      url.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(url)
+    }
+
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabaseUrl,
+      supabaseKey,
       {
         cookies: {
-          getAll() { return request.cookies.getAll() },
+          getAll() {
+            const cookies = request.cookies.getAll()
+            console.log('[Middleware] Cookies:', cookies.map(c => ({ name: c.name, hasValue: !!c.value, len: c.value?.length })))
+            return cookies
+          },
           setAll(cookiesToSet) {
             cookiesToSet.forEach(({ name: ckName, value: ckValue }) => {
               request.cookies.set(ckName, ckValue)
@@ -55,9 +88,17 @@ export async function middleware(request: NextRequest) {
       }
     )
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user }, error } = await supabase.auth.getUser()
+
+    console.log('[Middleware] Auth result:', {
+      hasUser: !!user,
+      userId: user?.id,
+      userEmail: user?.email,
+      error: error?.message,
+    })
 
     if (!user) {
+      console.log('[Middleware] No user - redirecting to login')
       const url = request.nextUrl.clone()
       url.pathname = '/auth/login'
       url.searchParams.set('redirect', pathname)
@@ -71,17 +112,16 @@ export async function middleware(request: NextRequest) {
         adminEmail.toLowerCase().trim() === userEmail
       )
 
-      // Debug logging (only in non-production or if needed)
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[Middleware Admin Check]', {
-          path: pathname,
-          userEmail,
-          ADMIN_EMAILS,
-          isAuthorized
-        })
-      }
+      console.log('[Middleware Admin Check]', {
+        path: pathname,
+        userEmail,
+        ADMIN_EMAILS,
+        isAuthorized,
+        emailMatch: ADMIN_EMAILS.map(e => e.toLowerCase().trim() === userEmail)
+      })
 
       if (!isAuthorized) {
+        console.log('[Middleware] Admin access denied - redirecting to dashboard')
         const url = request.nextUrl.clone()
         url.pathname = '/dashboard'
         return NextResponse.redirect(url)
@@ -93,5 +133,6 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
+  console.log('[Middleware] Default - allowing')
   return NextResponse.next()
 }
