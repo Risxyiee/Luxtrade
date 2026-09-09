@@ -16,9 +16,4 @@ const LuxTradeDashboard = dynamicImport(() => import('./LuxTradeDashboard'), {
   )
 })
 
-
-// CRITICAL: Force dynamic rendering untuk Cloudflare Workers
-export const dynamic = "force-dynamic"
-export const runtime = "edge"
-
 export default LuxTradeDashboard
