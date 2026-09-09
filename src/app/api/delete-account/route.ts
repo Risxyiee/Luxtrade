@@ -3,6 +3,10 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { createClientForApi } from '@/lib/supabase/server'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 
+// CRITICAL: Force dynamic untuk Cloudflare Workers
+export const dynamic = 'force-dynamic'
+export const runtime = 'edge'
+
 // POST - Delete account and all user data
 export async function POST(request: NextRequest) {
   try {

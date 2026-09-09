@@ -3,8 +3,8 @@ import { getAuthenticatedUser } from '@/lib/api-auth'
 import { createClient } from '@supabase/supabase-js'
 
 // Hardcoded admin identifiers (used as ultimate fallback)
-const ADMIN_EMAILS = ['luxtradee@gmail.com']
-const ADMIN_IDS: string[] = []
+export const ADMIN_EMAILS = ['luxtradee@gmail.com']
+export const ADMIN_IDS: string[] = []
 
 /**
  * Get Supabase admin client (service role, bypasses RLS).

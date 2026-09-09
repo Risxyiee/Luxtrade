@@ -16,6 +16,11 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth-context'
 import { toast } from 'sonner'
 
+
+// CRITICAL: Force dynamic rendering untuk Cloudflare Workers
+export const dynamic = "force-dynamic"
+export const runtime = "edge"
+
 export default function SettingsPage() {
   const { user, profile, signOut } = useAuth()
   const router = useRouter()
