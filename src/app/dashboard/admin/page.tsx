@@ -3,6 +3,11 @@ import { getServerClient } from '@/lib/supabase'
 import { ADMIN_EMAILS } from '@/lib/admin-auth'
 import AdminPanelClient from './AdminPanelClient'
 
+// CRITICAL: Force dynamic rendering untuk Cloudflare Workers
+// Mencegah static pre-rendering pada build time
+export const dynamic = 'force-dynamic'
+export const runtime = 'edge'
+
 export default async function AdminPanel() {
   console.log('[AdminPanel Server] Starting server component...')
 

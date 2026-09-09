@@ -285,6 +285,11 @@ function UsageTable({ usage }: { usage: PromoUsage[] }) {
 }
 
 // --- Main Page ---
+
+// CRITICAL: Force dynamic rendering untuk Cloudflare Workers
+export const dynamic = "force-dynamic"
+export const runtime = "edge"
+
 export default function PromoCodesPage() {
   const router = useRouter()
   const [isAdminUser, setIsAdminUser] = useState(false)

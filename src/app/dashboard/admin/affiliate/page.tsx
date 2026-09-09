@@ -152,6 +152,11 @@ function TableSkeleton({ rows = 5 }: { rows?: number }) {
 
 // ─── Main Page ──────────────────────────────────────────────────────────────
 
+
+// CRITICAL: Force dynamic rendering untuk Cloudflare Workers
+export const dynamic = "force-dynamic"
+export const runtime = "edge"
+
 export default function AffiliateManagementPage() {
   const router = useRouter()
 

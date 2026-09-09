@@ -3,12 +3,20 @@ import { ACHIEVEMENTS, getAchievementById } from '@/lib/achievements-data'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 
+// CRITICAL: Force dynamic untuk Cloudflare Workers
+export const dynamic = 'force-dynamic'
+export const runtime = 'edge'
+
 export async function POST(request: NextRequest) {
   try {
     // Parse body FIRST before auth (to avoid consuming stream)
+    // CRITICAL: Use text() then parse JSON to handle stream safely in Workers
     let body: any = {}
     try {
-      body = await request.json()
+      const rawBody = await request.text()
+      console.log('[missions/claim] Raw body length:', rawBody.length)
+      body = JSON.parse(rawBody)
+      console.log('[missions/claim] Body parsed:', { missionId: body.missionId, hasProofUrl: !!body.proofUrl })
     } catch (err) {
       console.error('[missions/claim] Failed to parse body:', err)
       return NextResponse.json(

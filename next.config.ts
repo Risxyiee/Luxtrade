@@ -12,12 +12,8 @@ const nextConfig: NextConfig = {
 
   allowedDevOrigins: ['http://127.0.0.1:8080', 'http://localhost:8080', 'http://localhost:3000', 'http://127.0.0.1:3000'],
 
-  experimental: {
-    // Disabled to prevent tree-shaking issues with Lucide icons
-    // optimizePackageImports: ['lucide-react', 'framer-motion'],
-    // Force fresh build for middleware
-    serverComponentsExternalPackages: [],
-  },
+  // Fix: Use top-level property for Next.js 15
+  serverExternalPackages: [],
 
   images: {
     unoptimized: true,
