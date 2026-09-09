@@ -35,6 +35,12 @@ export async function requireAdmin(request: NextRequest) {
   const authResult = await getAuthenticatedUser(request)
   const user = authResult.user
 
+  console.log('[requireAdmin] Auth result:', {
+    hasUser: !!user,
+    userEmail: user?.email,
+    ADMIN_EMAILS,
+  })
+
   if (!user) {
     return {
       error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
@@ -43,7 +49,23 @@ export async function requireAdmin(request: NextRequest) {
   }
 
   // Check 1: Hardcoded admin list (fastest, no DB call)
-  if (user.email && (ADMIN_EMAILS.includes(user.email.toLowerCase()) || ADMIN_IDS.includes(user.id))) {
+  const userEmail = user.email?.toLowerCase().trim() || ''
+  const isAuthorized = ADMIN_EMAILS.some(adminEmail =>
+    adminEmail.toLowerCase().trim() === userEmail
+  )
+
+  console.log('[requireAdmin] Admin check:', {
+    userEmail,
+    isAuthorized,
+    matches: ADMIN_EMAILS.map(adminEmail => ({
+      adminEmail,
+      normalized: adminEmail.toLowerCase().trim(),
+      match: adminEmail.toLowerCase().trim() === userEmail
+    }))
+  })
+
+  if (isAuthorized || ADMIN_IDS.includes(user.id)) {
+    console.log('[requireAdmin] ✓ Admin access granted')
     return { error: null, user }
   }
 
@@ -58,13 +80,15 @@ export async function requireAdmin(request: NextRequest) {
         .single()
 
       if (profile && (profile.role === 'ADMIN' || profile.role === 'SUPER_ADMIN')) {
+        console.log('[requireAdmin] ✓ Admin access granted via profile role')
         return { error: null, user }
       }
     }
-  } catch {
-    // Supabase check failed
+  } catch (err) {
+    console.error('[requireAdmin] Supabase check failed:', err)
   }
 
+  console.log('[requireAdmin] ✗ Admin access denied')
   return {
     error: NextResponse.json({ error: 'Forbidden. Admin access required.' }, { status: 403 }),
     user: null,
