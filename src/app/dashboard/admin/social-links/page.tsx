@@ -1,5 +1,8 @@
 'use client'
 
+// CRITICAL: Force dynamic rendering untuk Cloudflare Workers
+export const dynamic = 'force-dynamic'
+
 import { useState, useEffect } from 'react'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
