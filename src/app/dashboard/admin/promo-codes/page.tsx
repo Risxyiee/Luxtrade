@@ -1,5 +1,8 @@
 'use client'
 
+// CRITICAL: Force dynamic rendering untuk Cloudflare Workers
+export const dynamic = 'force-dynamic'
+
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
