@@ -50,6 +50,8 @@ export async function middleware(request: NextRequest) {
   const protectedPaths = ['/dashboard', '/settings']
   const isProtectedPath = protectedPaths.some(p => pathname === p || pathname.startsWith(p + '/'))
 
+  console.log('[Middleware] Path classification:', { isAdminPath, isProtectedPath })
+
   if (isAdminPath || isProtectedPath) {
     console.log('[Middleware] Protected/Admin path - checking auth')
 
@@ -92,15 +94,10 @@ export async function middleware(request: NextRequest) {
 
     const { data: { user }, error } = await supabase.auth.getUser()
 
-    console.log('[Middleware] Auth result:', {
-      hasUser: !!user,
-      userId: user?.id,
-      userEmail: user?.email,
-      error: error?.message,
-    })
+    console.log('[Middleware] User from session:', { userId: user?.id, email: user?.email, hasUser: !!user })
 
     if (!user) {
-      console.log('[Middleware] No user - redirecting to login')
+      console.log('[Middleware] No user found, redirecting to login')
       const url = request.nextUrl.clone()
       url.pathname = '/auth/login'
       url.searchParams.set('redirect', pathname)
@@ -113,23 +110,16 @@ export async function middleware(request: NextRequest) {
       const isAuthorized = ADMIN_EMAILS.some(adminEmail =>
         adminEmail.toLowerCase().trim() === userEmail
       )
-
-      console.log('[Middleware Admin Check]', {
-        path: pathname,
-        userEmail,
-        ADMIN_EMAILS,
-        isAuthorized,
-        emailMatch: ADMIN_EMAILS.map(e => e.toLowerCase().trim() === userEmail)
-      })
+      console.log('[Middleware] Admin check:', { userEmail, isAuthorized, adminEmails: ADMIN_EMAILS })
 
       if (!isAuthorized) {
-        console.log('[Middleware] Admin access denied - redirecting to dashboard')
+        console.log('[Middleware] User is not admin, redirecting to dashboard')
         const url = request.nextUrl.clone()
         url.pathname = '/dashboard'
         return NextResponse.redirect(url)
       }
 
-      console.log('[Middleware] Admin access granted')
+      console.log('[Middleware] User is admin, allowing access')
     }
 
     return response
