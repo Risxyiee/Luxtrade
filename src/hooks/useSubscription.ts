@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { getClientBrowserAsync } from '@/lib/supabase-browser'
 import {
   isProUser,
   getProDaysRemaining,
@@ -33,8 +33,16 @@ export function useSubscription() {
   })
 
   useEffect(() => {
+    let authSubscription: { unsubscribe: () => void } | null = null
+
     async function checkSubscription() {
       try {
+        const supabase = await getClientBrowserAsync()
+        if (!supabase) {
+          setState(prev => ({ ...prev, isLoading: false, statusText: 'FREE' }))
+          return
+        }
+
         const { data: { user } } = await supabase.auth.getUser()
 
         if (!user) {
@@ -63,39 +71,47 @@ export function useSubscription() {
       }
     }
 
-    checkSubscription()
+    async function setupAuthListener() {
+      const supabase = await getClientBrowserAsync()
+      if (!supabase) return
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        if (session?.user) {
-          const userSubscription = validateSubscriptionFromMetadata(session.user.user_metadata)
+      // Listen for auth changes
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          if (session?.user) {
+            const userSubscription = validateSubscriptionFromMetadata(session.user.user_metadata)
 
+            setState({
+              isPro: isProUser(userSubscription),
+              daysRemaining: getProDaysRemaining(userSubscription),
+              expiryDate: getProExpiryDate(userSubscription),
+              statusText: getSubscriptionStatusText(userSubscription),
+              canAccessFeatures: isProUser(userSubscription),
+              isLoading: false,
+              error: null
+            })
+          }
+        } else if (event === 'SIGNED_OUT') {
           setState({
-            isPro: isProUser(userSubscription),
-            daysRemaining: getProDaysRemaining(userSubscription),
-            expiryDate: getProExpiryDate(userSubscription),
-            statusText: getSubscriptionStatusText(userSubscription),
-            canAccessFeatures: isProUser(userSubscription),
+            isPro: false,
+            daysRemaining: 0,
+            expiryDate: null,
+            statusText: 'FREE',
+            canAccessFeatures: false,
             isLoading: false,
             error: null
           })
         }
-      } else if (event === 'SIGNED_OUT') {
-        setState({
-          isPro: false,
-          daysRemaining: 0,
-          expiryDate: null,
-          statusText: 'FREE',
-          canAccessFeatures: false,
-          isLoading: false,
-          error: null
-        })
-      }
-    })
+      })
+
+      authSubscription = subscription
+    }
+
+    checkSubscription()
+    setupAuthListener()
 
     return () => {
-      subscription.unsubscribe()
+      authSubscription?.unsubscribe()
     }
   }, [])
 

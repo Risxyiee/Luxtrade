@@ -8,7 +8,7 @@ import {
   Lock, ChevronRight, Mail, Eye, EyeOff, AlertCircle, User
 } from 'lucide-react'
 import { formatRupiah, type PricingPlan } from '@/lib/pricing'
-import { supabase } from '@/lib/supabase'
+import { getClientBrowserAsync } from '@/lib/supabase-browser'
 import { toast } from 'sonner'
 
 interface LandingCheckoutModalProps {
@@ -111,14 +111,16 @@ export default function LandingCheckoutModal({
     setLocalPromo(''); setPromoApplied(false); setPromoError(false)
 
     // Check if already logged in
-    if (supabase) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user) {
-          setIsLoggedIn(true)
-          setStep('plan')
-        }
-      })
-    }
+    getClientBrowserAsync().then(supabase => {
+      if (supabase) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user) {
+            setIsLoggedIn(true)
+            setStep('plan')
+          }
+        })
+      }
+    })
   }, [isOpen])
 
   // ── Prevent body scroll ─────────────────────────
@@ -167,6 +169,7 @@ export default function LandingCheckoutModal({
     if (!email || !password) { setAuthError(isEn ? 'Email and password are required' : 'Email dan password harus diisi'); return }
     setAuthLoading(true)
     try {
+      const supabase = await getClientBrowserAsync()
       if (!supabase) { setAuthError(isEn ? 'Service unavailable' : 'Layanan tidak tersedia'); setAuthLoading(false); return }
       const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
       if (signInError) {

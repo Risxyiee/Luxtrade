@@ -24,7 +24,7 @@ import {
   AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
-import { supabase } from '@/lib/supabase'
+import { getClientBrowserAsync } from '@/lib/supabase-browser'
 import Link from 'next/link'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -182,6 +182,8 @@ export default function AffiliateManagementPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        const supabase = await getClientBrowserAsync()
+        if (!supabase) return
         const { data: { user } } = await supabase.auth.getUser()
 
         if (!user) {

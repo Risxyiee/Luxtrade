@@ -21,7 +21,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Gift, Loader2, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
-import { supabase } from '@/lib/supabase'
+import { getClientBrowserAsync } from '@/lib/supabase-browser'
 import { authFetch } from '@/lib/api-fetch'
 
 interface RewardBugButtonProps {
