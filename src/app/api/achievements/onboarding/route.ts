@@ -101,10 +101,11 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Step 2: Check if user already has this achievement (use maybeSingle to handle missing data gracefully)
+    // Step 2: Check if user already has this achievement (use admin client to bypass RLS)
     let alreadyEarned = false
     try {
-      const { data: existingAchievement, error: checkError } = await supabase
+      const clientToUse = supabaseAdmin || supabase
+      const { data: existingAchievement, error: checkError } = await clientToUse
         .from('user_achievements')
         .select('*')
         .eq('user_id', userId)
