@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { Loader2, Upload, X, Bug, Gift } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { getClientBrowserAsync } from '@/lib/supabase-browser'
 
 interface BugReportFormProps {
   open: boolean
@@ -69,6 +69,8 @@ export function BugReportForm({ open, onClose }: BugReportFormProps) {
 
     try {
       // Get auth token
+      const supabase = await getClientBrowserAsync()
+      if (!supabase) return
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
         toast.error('Anda harus login untuk mengirim laporan bug')

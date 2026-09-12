@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { getClientBrowser } from './supabase';
+import { getClientBrowser } from './supabase-browser';
 import { User, Session, SupabaseClient } from '@supabase/supabase-js';
 
 // Admin credentials
@@ -162,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const initializeSupabase = async () => {
       try {
-        const { getClientBrowserAsync } = await import('./supabase')
+        const { getClientBrowserAsync } = await import('./supabase-browser')
         const supabaseClient = await getClientBrowserAsync()
 
         if (!mounted) return
@@ -256,7 +256,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    const { getClientBrowserAsync } = await import('./supabase')
+    const { getClientBrowserAsync } = await import('./supabase-browser')
     const supabaseClient = await getClientBrowserAsync()
 
     if (!supabaseClient) {
@@ -275,7 +275,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, fullName?: string) => {
-    const { getClientBrowserAsync } = await import('./supabase')
+    const { getClientBrowserAsync } = await import('./supabase-browser')
     const supabaseClient = await getClientBrowserAsync()
 
     if (!supabaseClient) {

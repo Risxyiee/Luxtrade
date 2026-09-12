@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Share2, Edit, Trash2, Calendar, Clock, Plus, CreditCard } from 'lucide-react'
 import PaymentConfirmationModal from '@/components/PaymentConfirmationModal'
-import { formatCurrency } from '@/lib/supabase'
+import { formatCurrency } from '@/lib/utils-currency'
 import { Trade, TradeFormData, emptyFormData } from '../utils/types'
 import { moodOptions, marketConditions } from '../utils/helpers'
 

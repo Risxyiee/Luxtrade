@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { formatCurrency } from '@/lib/supabase'
+import { formatCurrency } from '@/lib/utils-currency'
 import { Pencil } from 'lucide-react'
 
 interface Trade {

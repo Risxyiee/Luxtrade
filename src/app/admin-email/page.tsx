@@ -545,7 +545,7 @@ export default function AdminEmailPage() {
   useEffect(() => {
     async function checkAdmin() {
       try {
-        const { supabase } = await import('@/lib/supabase')
+        const supabase = await (await import('@/lib/supabase-browser')).getClientBrowserAsync()
         if (!supabase) {
           router.push('/')
           return

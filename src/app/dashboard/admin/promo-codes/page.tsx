@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
-import { supabase } from '@/lib/supabase'
+import { getClientBrowserAsync } from '@/lib/supabase-browser'
 import { authFetch } from '@/lib/api-fetch'
 
 const ADMIN_EMAILS = ['luxtradee@gmail.com']
@@ -310,6 +310,8 @@ export default function PromoCodesPage() {
   // Auth check
   useEffect(() => {
     const checkAuth = async () => {
+      const supabase = await getClientBrowserAsync()
+      if (!supabase) return
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         toast.error('Silakan login terlebih dahulu')

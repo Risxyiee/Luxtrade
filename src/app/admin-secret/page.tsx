@@ -117,7 +117,6 @@ export default function AdminPanel() {
     setIsLoading(true)
     try {
       // Get session token for admin API auth
-      const { supabase } = await import('@/lib/supabase')
       const usersRes = await authFetch('/api/admin/users')
 
       const usersData = await usersRes.json()

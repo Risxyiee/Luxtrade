@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { getClientBrowserAsync } from '@/lib/supabase-browser'
 
 /**
  * Authenticated fetch for API routes.
@@ -12,7 +12,9 @@ import { supabase } from '@/lib/supabase'
  *   const res = await authFetch('/api/admin/users', { method: 'PATCH', body: JSON.stringify(...) })
  */
 export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  const { data: { session } } = await supabase.auth.getSession()
+  // Use browser client for client-side auth
+  const supabase = await getClientBrowserAsync()
+  const { data: { session } } = supabase ? await supabase.auth.getSession() : { data: { session: null } }
   const headers = new Headers(options.headers || {})
 
   if (session?.access_token) {
