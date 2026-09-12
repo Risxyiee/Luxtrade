@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { formatCurrency } from '@/lib/supabase'
+import { formatCurrency } from '@/lib/utils-currency'
 
 interface PerformanceChartProps {
   analytics?: {

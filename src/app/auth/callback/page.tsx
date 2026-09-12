@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { Crown, Check, Loader2, AlertCircle } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { getClientBrowserAsync } from '@/lib/supabase-browser'
 
 export default function AuthCallbackPage() {
   const router = useRouter()
@@ -30,6 +30,8 @@ export default function AuthCallbackPage() {
 
         // Exchange code for session
         if (code) {
+          const supabase = await getClientBrowserAsync()
+          if (!supabase) return
           const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
 
           if (exchangeError) {

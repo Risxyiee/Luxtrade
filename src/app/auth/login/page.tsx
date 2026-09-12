@@ -162,7 +162,7 @@ function AuthPage() {
     setLoginLoading(true)
 
     // Get Supabase client for browser (async version)
-    const { getClientBrowserAsync } = await import('@/lib/supabase')
+    const { getClientBrowserAsync } = await import('@/lib/supabase-browser')
     const supabaseClient = await getClientBrowserAsync()
     if (!supabaseClient) {
       setLoginError('Gagal memuat Supabase. Silakan refresh halaman.')

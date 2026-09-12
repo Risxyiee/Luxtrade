@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { supabase } from '@/lib/supabase'
+import { getClientBrowserAsync } from '@/lib/supabase-browser'
 import { useAuth } from '@/lib/auth-context'
 import { toast } from 'sonner'
 
@@ -73,6 +73,8 @@ export default function SettingsPage() {
     e.preventDefault()
     setLoading(true)
     try {
+      const supabase = await getClientBrowserAsync()
+      if (!supabase) return
       const { error: updateError } = await supabase.auth.updateUser({ data: { full_name: fullName } })
       if (updateError) toast.error(updateError.message)
       else toast.success('Profil berhasil diperbarui!')
@@ -87,6 +89,8 @@ export default function SettingsPage() {
     if (newPassword !== confirmPassword) { toast.error('Password baru tidak cocok'); return }
     setPasswordLoading(true)
     try {
+      const supabase = await getClientBrowserAsync()
+      if (!supabase) return
       const { error: verifyError } = await supabase.auth.signInWithPassword({ email: user?.email || '', password: currentPassword })
       if (verifyError) { toast.error('Password saat ini salah'); setPasswordLoading(false); return }
       const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })

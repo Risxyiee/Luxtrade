@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { supabase } from '@/lib/supabase'
+import { getClientBrowserAsync } from '@/lib/supabase-browser'
 import { PRICING, getPlanPrice, formatRupiah, type PricingPlan } from '@/lib/pricing'
 import { toast } from 'sonner'
 
@@ -82,7 +82,9 @@ function CheckoutContent() {
 
   // Check if already logged in
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    getClientBrowserAsync().then(async (supabase) => {
+      if (!supabase) return
+      const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
         setStep('payment')
       }
@@ -104,6 +106,8 @@ function CheckoutContent() {
     setAuthLoading(true)
 
     try {
+      const supabase = await getClientBrowserAsync()
+      if (!supabase) return
       const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
 
       if (signInError) {

@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
-import { formatCurrency } from '@/lib/supabase'
+import { formatCurrency } from '@/lib/utils-currency'
 import { safeParseTags } from '@/lib/parseUtils'
 import type { Trade } from '@/types'
 

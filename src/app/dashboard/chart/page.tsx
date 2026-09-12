@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Lock, RefreshCw, TrendingUp, Crown } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { getClientBrowserAsync } from '@/lib/supabase-browser'
 
 interface IndicatorSignal {
   time: number | string
@@ -56,6 +56,8 @@ export default function LuxtradeChart() {
 
     const fetchSubscription = async () => {
       try {
+        const supabase = await getClientBrowserAsync()
+        if (!supabase) return
         const { data: { user } } = await supabase.auth.getUser()
 
         if (user) {

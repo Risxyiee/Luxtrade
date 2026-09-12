@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { supabase } from '@/lib/supabase'
+import { getClientBrowserAsync } from '@/lib/supabase-browser'
 
 // Admin email whitelist
 const ADMIN_EMAILS = ['luxtradee@gmail.com']
@@ -55,19 +55,21 @@ export default function AdminDashboard() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        const supabase = await getClientBrowserAsync()
+        if (!supabase) return
         const { data: { session } } = await supabase.auth.getSession()
-        
+
         if (!session?.user) {
           router.push('/auth/login')
           return
         }
-        
+
         if (!ADMIN_EMAILS.includes(session.user.email || '')) {
           toast.error('Access denied. Admin only.')
           router.push('/dashboard')
           return
         }
-        
+
         setCurrentUser({ email: session.user.email! })
         setIsAdmin(true)
         fetchUsers(session.access_token)
@@ -76,7 +78,7 @@ export default function AdminDashboard() {
         router.push('/auth/login')
       }
     }
-    
+
     checkAuth()
   }, [router])
 
@@ -94,7 +96,7 @@ export default function AdminDashboard() {
   // Fetch users
   const fetchUsers = async (token?: string) => {
     if (!token) {
-      const { data: { session } } = await supabase.auth.getSession()
+      const supabase = await getClientBrowserAsync(); if (!supabase) return; const { data: { session } } = await supabase.auth.getSession()
       token = session?.access_token
     }
     
@@ -126,9 +128,11 @@ export default function AdminDashboard() {
 
   // Toggle PRO status
   const toggleProStatus = async (user: UserProfile, makePro: boolean) => {
+    const supabase = await getClientBrowserAsync()
+    if (!supabase) return
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
-    
+
     setUpdatingUserId(user.id)
     try {
       const res = await fetch('/api/admin/users', {
@@ -168,6 +172,8 @@ export default function AdminDashboard() {
 
   // Handle sign out
   const handleSignOut = async () => {
+    const supabase = await getClientBrowserAsync()
+    if (!supabase) return
     await supabase.auth.signOut()
     router.push('/')
   }

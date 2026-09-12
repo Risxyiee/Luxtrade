@@ -24,7 +24,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
-import { supabase } from '@/lib/supabase'
+import { getClientBrowserAsync } from '@/lib/supabase-browser'
 
 const ADMIN_IDS: string[] = []
 const ADMIN_EMAILS = ['luxtradee@gmail.com']
@@ -66,6 +66,8 @@ export default function SystemHealthPage() {
 
   useEffect(() => {
     const checkAuth = async () => {
+      const supabase = await getClientBrowserAsync()
+      if (!supabase) return
       const { data: { user } } = await supabase.auth.getUser()
 
       if (!user) {
