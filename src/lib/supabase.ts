@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
-import { createBrowserClient } from '@supabase/ssr'
+import { createBrowserClient, createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import { getSupabaseAdminAuth } from '@/lib/supabase/admin'
 
 function readEnv(name: string): string | undefined {
@@ -103,15 +104,54 @@ export function getClientBrowser(): SupabaseClient | null {
   return null
 }
 
-/** Server-side non-admin client (safe to call at request time) */
+/** Server-side non-admin client with cookie support (for server components) */
 export function getServerClient(): SupabaseClient | null {
   const url = getSupabaseUrl()
   const anon = getSupabaseAnonKey()
-  if (!anon) return null
-  return createClient(url, anon, {
-    auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
-    global: { headers: { 'X-Client-Info': 'luxtrade-web' } }
-  })
+  
+  console.log('[getServerClient] Creating server client with cookie support')
+  console.log('[getServerClient] URL:', url ? `${url.substring(0, 20)}...` : 'MISSING')
+  console.log('[getServerClient] Anon Key:', anon ? `${anon.substring(0, 10)}...` : 'MISSING')
+  
+  if (!url || !anon) {
+    console.error('[getServerClient] Missing URL or anon key')
+    return null
+  }
+
+  try {
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      url,
+      anon,
+      {
+        cookies: {
+          getAll() {
+            const allCookies = cookieStore.getAll()
+            console.log('[getServerClient] Cookies from request:', allCookies.map(c => ({ name: c.name, hasValue: !!c.value, len: c.value?.length })))
+            return allCookies
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) => {
+                cookieStore.set(name, value, options)
+              })
+            } catch {
+              // Ignore in static generation
+            }
+          },
+        },
+      }
+    )
+    console.log('[getServerClient] Server client created successfully')
+    return supabase
+  } catch (error) {
+    console.error('[getServerClient] Error creating server client:', error)
+    // Fallback to client without cookies (won't work for auth but won't crash)
+    return createClient(url, anon, {
+      auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
+      global: { headers: { 'X-Client-Info': 'luxtrade-web' } }
+    })
+  }
 }
 
 /** Admin client (service role); returns null if service key missing */
