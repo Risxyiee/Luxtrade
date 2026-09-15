@@ -187,10 +187,14 @@ export async function POST(request: NextRequest) {
 
     const sendBatch = async (
       profile: { id: string; email: string | null; full_name: string | null },
-      idx: number
+      idx: number,
+      retryCount: number = 0
     ) => {
       const userEmail = profile.email
-      if (!userEmail) return
+      if (!userEmail) {
+        console.log(`[email-broadcast] [${idx}] Skipping - no email for user ${profile.id}`)
+        return
+      }
 
       const name = profile.full_name || userEmail.split('@')[0]
 
@@ -222,10 +226,24 @@ export async function POST(request: NextRequest) {
 
           if (result.success) {
             sent++
+            console.log(`[email-broadcast] [${idx}] ✅ Sent to ${userEmail}`)
           } else {
             failed++
-            const errDetail = result.error ? (typeof result.error === 'string' ? result.error : JSON.stringify(result.error)) : 'Unknown'
-            errors.push(`[${idx}] ${userEmail}: ${errDetail.substring(0, 150)}`)
+            // Better error handling: log full error, show summary to user
+            const errDetail = result.error
+              ? typeof result.error === 'string'
+                ? result.error
+                : JSON.stringify(result.error, null, 2)
+              : 'Unknown error'
+            console.error(`[email-broadcast] [${idx}] ❌ Failed to send to ${userEmail}:`, errDetail)
+            errors.push(`[${idx}] ${userEmail}: ${errDetail.substring(0, 200)}`)
+
+            // Retry once on failure
+            if (retryCount === 0) {
+              console.log(`[email-broadcast] [${idx}] 🔄 Retrying ${userEmail}...`)
+              await new Promise(r => setTimeout(r, 1000))
+              await sendBatch(profile, idx, 1)
+            }
           }
         } else {
           // Use custom HTML body (replace {{name}} placeholder if present)
@@ -244,16 +262,38 @@ export async function POST(request: NextRequest) {
 
           if (result.success) {
             sent++
+            console.log(`[email-broadcast] [${idx}] ✅ Sent to ${userEmail}`)
           } else {
             failed++
-            const errDetail = result.error ? (typeof result.error === 'string' ? result.error : JSON.stringify(result.error)) : 'Unknown'
-            errors.push(`[${idx}] ${userEmail}: ${errDetail.substring(0, 150)}`)
+            // Better error handling: log full error, show summary to user
+            const errDetail = result.error
+              ? typeof result.error === 'string'
+                ? result.error
+                : JSON.stringify(result.error, null, 2)
+              : 'Unknown error'
+            console.error(`[email-broadcast] [${idx}] ❌ Failed to send to ${userEmail}:`, errDetail)
+            errors.push(`[${idx}] ${userEmail}: ${errDetail.substring(0, 200)}`)
+
+            // Retry once on failure
+            if (retryCount === 0) {
+              console.log(`[email-broadcast] [${idx}] 🔄 Retrying ${userEmail}...`)
+              await new Promise(r => setTimeout(r, 1000))
+              await sendBatch(profile, idx, 1)
+            }
           }
         }
       } catch (err: unknown) {
         failed++
         const msg = err instanceof Error ? err.message : 'Unknown error'
+        console.error(`[email-broadcast] [${idx}] ❌ Exception for ${userEmail}:`, err)
         errors.push(`[${idx}] ${userEmail}: ${msg}`)
+
+        // Retry once on exception
+        if (retryCount === 0) {
+          console.log(`[email-broadcast] [${idx}] 🔄 Retrying ${userEmail} after exception...`)
+          await new Promise(r => setTimeout(r, 2000))
+          await sendBatch(profile, idx, 1)
+        }
       }
     }
 
