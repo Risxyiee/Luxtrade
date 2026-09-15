@@ -48,10 +48,12 @@ export async function geminiChat(
     temperature?: number
     maxTokens?: number
     systemInstruction?: string
+    timeoutMs?: number
   }
 ): Promise<GeminiResponse> {
   const genAI = getGenerativeAI()
   const modelName = options?.model || 'gemini-2.5-flash'
+  const timeoutMs = options?.timeoutMs || 45000 // Default 45s timeout
 
   // Initialize the model with correct identifier (SDK handles "models/" prefix automatically)
   const model: GenerativeModel = genAI.getGenerativeModel({
@@ -65,19 +67,36 @@ export async function geminiChat(
     parts: msg.parts,
   }))
 
-  const result: GenerateContentResult = await model.generateContent({
-    contents,
-    generationConfig: {
-      temperature: options?.temperature ?? 0.7,
-      maxOutputTokens: options?.maxTokens ?? 2048,
-    },
-  })
+  // Add timeout wrapper
+  const timeoutPromise = new Promise<GeminiResponse>((_, reject) =>
+    setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+  )
 
-  const text = result.response.text() || ''
+  const resultPromise = (async () => {
+    const result: GenerateContentResult = await model.generateContent({
+      contents,
+      generationConfig: {
+        temperature: options?.temperature ?? 0.7,
+        maxOutputTokens: options?.maxTokens ?? 2048,
+      },
+    })
 
-  return {
-    text,
-    usageMetadata: result.response.usageMetadata as any,
+    const text = result.response.text() || ''
+
+    return {
+      text,
+      usageMetadata: result.response.usageMetadata as any,
+    }
+  })()
+
+  try {
+    return await Promise.race([resultPromise, timeoutPromise])
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Request timeout') {
+      console.error(`[geminiChat] Timeout after ${timeoutMs}ms`)
+      throw new Error(`AI request timed out after ${timeoutMs}ms. Please try again.`)
+    }
+    throw error
   }
 }
 
@@ -91,11 +110,12 @@ export async function geminiPrompt(
     temperature?: number
     maxTokens?: number
     systemInstruction?: string
+    timeoutMs?: number
   }
 ): Promise<string> {
   const result = await geminiChat(
     [{ role: 'user', parts: [{ text: prompt }] }],
-    options
+    { ...options }
   )
   return result.text
 }
@@ -113,10 +133,12 @@ export async function geminiVision(
     temperature?: number
     maxTokens?: number
     systemInstruction?: string
+    timeoutMs?: number
   }
 ): Promise<string> {
   const genAI = getGenerativeAI()
   const modelName = options?.model || 'gemini-2.5-flash'
+  const timeoutMs = options?.timeoutMs || 60000 // Default 60s timeout for vision
 
   // Initialize the model with correct identifier (SDK handles "models/" prefix automatically)
   const model: GenerativeModel = genAI.getGenerativeModel({
@@ -135,15 +157,32 @@ export async function geminiVision(
     }
   ]
 
-  const result: GenerateContentResult = await model.generateContent({
-    contents: [{ role: 'user', parts }],
-    generationConfig: {
-      temperature: options?.temperature ?? 0.4,
-      maxOutputTokens: options?.maxTokens ?? 4096,
-    },
-  })
+  // Add timeout wrapper
+  const timeoutPromise = new Promise<string>((_, reject) =>
+    setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+  )
 
-  return result.response.text() || ''
+  const resultPromise = (async () => {
+    const result: GenerateContentResult = await model.generateContent({
+      contents: [{ role: 'user', parts }],
+      generationConfig: {
+        temperature: options?.temperature ?? 0.4,
+        maxOutputTokens: options?.maxTokens ?? 4096,
+      },
+    })
+
+    return result.response.text() || ''
+  })()
+
+  try {
+    return await Promise.race([resultPromise, timeoutPromise])
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Request timeout') {
+      console.error(`[geminiVision] Timeout after ${timeoutMs}ms`)
+      throw new Error(`AI vision request timed out after ${timeoutMs}ms. Please try again.`)
+    }
+    throw error
+  }
 }
 
 /**
