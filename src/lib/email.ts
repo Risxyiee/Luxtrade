@@ -41,18 +41,43 @@ export async function sendEmail({ to, subject, html, replyTo }: EmailOptions) {
     const data = await res.json().catch(() => null)
 
     if (!res.ok) {
-      const errMsg = data?.name === 'validation_error'
-        ? (data?.message || `Resend ${res.status}`)
-        : `Resend API returned ${res.status}`
-      console.error(`[sendEmail] Resend error for ${to}: ${res.status}`, JSON.stringify(data))
-      return { success: false, error: errMsg }
+      // Extract detailed error message from Resend API
+      let errMsg = `Resend API returned ${res.status}`
+
+      if (data) {
+        if (data.name === 'validation_error' && data.message) {
+          errMsg = `Validation error: ${data.message}`
+        } else if (data.message) {
+          errMsg = data.message
+        } else if (data.errors && Array.isArray(data.errors)) {
+          // Resend returns errors array for validation issues
+          errMsg = data.errors.map((e: any) => e.message || e).join('; ')
+        }
+      }
+
+      console.error(`[sendEmail] Resend error for ${to}:`, {
+        status: res.status,
+        statusText: res.statusText,
+        data: data,
+        errorMessage: errMsg
+      })
+
+      return {
+        success: false,
+        error: errMsg,
+        status: res.status,
+        data
+      }
     }
 
     return { success: true, data }
   } catch (_error) {
     const msg = _error instanceof Error ? _error.message : String(_error)
-    console.error(`[sendEmail] Exception for ${to}:`, msg)
-    return { success: false, error: _error }
+    console.error(`[sendEmail] Exception for ${to}:`, {
+      error: _error,
+      message: msg
+    })
+    return { success: false, error: msg }
   }
 }
 
