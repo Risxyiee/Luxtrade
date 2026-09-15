@@ -45,15 +45,17 @@ export async function POST(request: NextRequest) {
     // Auth: get the REAL user from session, NOT from request body
     const authResult = await getAuthenticatedUser(request)
     const authUser = authResult.user
+    const authError = authResult.error
     console.log('[missions/claim] Auth result:', {
       hasUser: !!authUser,
       userId: authUser?.id,
       userEmail: authUser?.email,
-      authError: authResult.error,
+      authError,
     })
 
     if (!authUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      const errorMsg = authError || 'Unauthorized'
+      return NextResponse.json({ error: errorMsg }, { status: 401 })
     }
 
     // Use authenticated user's ID — ignore any userId from body
@@ -182,8 +184,10 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('[missions/claim] Error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Failed to claim achievement'
+    console.error('[missions/claim] Error message:', errorMessage)
     return NextResponse.json(
-      { error: 'Failed to claim achievement' },
+      { error: errorMessage, details: errorMessage },
       { status: 500 }
     )
   }
