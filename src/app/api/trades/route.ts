@@ -5,8 +5,8 @@ import { isUserPro } from '@/lib/pro-check'
 import { checkAchievementsAfterTrade } from '@/lib/achievement-checker'
 import { edgeCrypto } from '@/lib/edge-crypto'
 
-// Free user trade limit - 10 trades per month
-const FREE_TRADE_LIMIT = 10
+// Free user trade limit - 5 trades per month (reduced from 10 to drive upgrades)
+const FREE_TRADE_LIMIT = 5
 
 // In-memory rate limiter for POST
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()

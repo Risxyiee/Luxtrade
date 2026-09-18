@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { geminiChat } from '@/lib/gemini'
 import { createClientForApi } from '@/lib/supabase/server'
 import { isUserPro } from '@/lib/pro-check'
+import { checkAIQuota, incrementAIQuota, getAIQuotaInfo } from '@/lib/ai-quota'
 
 // In-memory rate limiter
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
@@ -32,12 +33,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const pro = await isUserPro(user.id)
-    if (!pro) {
+    // Check AI quota (PRO users have unlimited, free users have 3 trials)
+    const quotaCheck = await checkAIQuota(user.id)
+    if (quotaCheck.requiresUpgrade) {
+      const quotaInfo = await getAIQuotaInfo(user.id)
       return NextResponse.json({
-        error: 'Fitur ini hanya untuk pengguna PRO. Upgrade ke PRO untuk akses!',
-        code: 'PRO_REQUIRED',
-        requiresUpgrade: true
+        error: 'Kamu sudah memakai 3 free trial AI. Upgrade ke PRO untuk akses unlimited AI!',
+        code: 'QUOTA_EXCEEDED',
+        requiresUpgrade: true,
+        quotaInfo
       }, { status: 403 })
     }
 
@@ -76,9 +80,15 @@ export async function POST(request: NextRequest) {
       maxTokens: 4096,
     })
 
+    // Increment AI quota after successful response
+    await incrementAIQuota(user.id)
+
+    const quotaInfo = await getAIQuotaInfo(user.id)
+
     return NextResponse.json({
       success: true,
-      response: geminiResult.text
+      response: geminiResult.text,
+      quotaInfo
     })
   } catch (error: any) {
     console.error('[AI /chat] Error:', error)
