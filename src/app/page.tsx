@@ -14,12 +14,13 @@ const loadingDiv = <div className="h-32" />
 
 const SocialProofBar = dynamic(() => import('@/components/landing/SocialProofBar').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const AIVisionSimulator = dynamic(() => import('@/components/landing/AIVisionSimulator').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const InteractiveTutorial = dynamic(() => import('@/components/landing/InteractiveTutorial').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const TestimonialsSection = dynamic(() => import('@/components/landing/TestimonialsSection').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const ContentArticles = dynamic(() => import('@/components/landing/ContentArticles').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const CaraKerjaSection = dynamic(() => import('@/components/landing/CaraKerjaSection').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const PricingSectionNew = dynamic(() => import('@/components/landing/PricingSectionNew').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const FAQSection = dynamic(() => import('@/components/landing/FAQSection').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const FinalCTA = dynamic(() => import('@/components/landing/FinalCTA').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
-const TestimonialsSection = dynamic(() => import('@/components/landing/TestimonialsSection').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
-const RealTimeStats = dynamic(() => import('@/components/landing/RealTimeStats').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 
 interface LandingStats {
   totalUsers: number
@@ -101,11 +102,12 @@ export default function LuxTradeLanding() {
 
         <main id="main-content" className="flex-1 pb-20 md:pb-0">
           <HeroSection language={language} />
-          <RealTimeStats language={language} />
           <SocialProofBar language={language} />
           <AIVisionSimulator language={language} />
+          <InteractiveTutorial language={language} onGetStarted={handleProUpgrade} />
           <CaraKerjaSection language={language} />
           <TestimonialsSection language={language} />
+          <ContentArticles language={language} />
           <PricingSectionNew
             promoCode={promoCode}
             promoActive={promoActive}
