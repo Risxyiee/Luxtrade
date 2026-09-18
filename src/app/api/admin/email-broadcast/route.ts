@@ -8,9 +8,11 @@ function getSiteUrl(): string {
   return process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 }
 
-// Resend free tier: max 2 requests/second.
-// Sending sequentially with 600ms delay = ~1.67 req/s — safely under the limit.
-const EMAIL_DELAY_MS = 600
+// Cloudflare Workers free tier limit: 50 subrequests per invocation
+// We'll process emails in batches of 25 to stay safely under limit
+const BATCH_SIZE = 25
+// Delay between batches to avoid hitting rate limits
+const BATCH_DELAY_MS = 2000
 
 // GET handler: Send test email to admin
 export async function GET(request: NextRequest) {
@@ -58,7 +60,7 @@ export async function POST(request: NextRequest) {
     if (error) return error
 
     const body = await request.json()
-    const { target, subject, htmlBody, customText, promoCode } = body
+    const { target, subject, htmlBody, promoCode } = body
 
     const adminEmail = user!.email || 'admin'
 
@@ -178,136 +180,131 @@ export async function POST(request: NextRequest) {
     }
 
     // Log recipient count BEFORE sending, so admin can see it
-    console.log(`📢 [email-broadcast] Target "${target}": ${profileList.length} users will receive. Sync stats: auth=${syncStats.totalAuth}, db=${syncStats.existingDb}, new=${syncStats.syncedNew}${syncStats.error ? `, ERROR: ${syncStats.error}` : ''}`)
+    console.log(`📢 [email-broadcast] Target "${target}": ${profileList.length} users will receive in ${Math.ceil(profileList.length / BATCH_SIZE)} batches. Sync stats: auth=${syncStats.totalAuth}, db=${syncStats.existingDb}, new=${syncStats.syncedNew}${syncStats.error ? `, ERROR: ${syncStats.error}` : ''}`)
 
     // Track results with detailed errors for failed emails
     let sent = 0
     let failed = 0
     const errors: Map<string, string> = new Map() // Use Map to avoid duplicate error messages
 
-    const sendBatch = async (
-      profile: { id: string; email: string | null; full_name: string | null },
-      idx: number,
-      retryCount: number = 0
-    ): Promise<void> => {
-      const userEmail = profile.email
-      if (!userEmail) {
-        console.log(`[email-broadcast] [${idx}] Skipping - no email for user ${profile.id}`)
-        return
-      }
+    // Process profiles in batches to avoid Cloudflare Workers subrequest limit
+    for (let batchStart = 0; batchStart < profileList.length; batchStart += BATCH_SIZE) {
+      const batch = profileList.slice(batchStart, batchStart + BATCH_SIZE)
+      const batchNumber = Math.floor(batchStart / BATCH_SIZE) + 1
+      const totalBatches = Math.ceil(profileList.length / BATCH_SIZE)
 
-      const name = profile.full_name || userEmail.split('@')[0]
+      console.log(`📧 [email-broadcast] Processing batch ${batchNumber}/${totalBatches} (${batch.length} emails)`)
 
-      try {
-        if (target === 'unverified') {
-          // Generate new verification token for each unverified user
-          const newToken = edgeCrypto.randomBytesHex(32)
-          const newExpAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+      // Process all emails in this batch sequentially
+      for (let i = 0; i < batch.length; i++) {
+        const profile = batch[i]
+        const globalIdx = batchStart + i + 1
 
-          await admin.from('profiles').update({
-            email_verify_token: newToken,
-            email_verify_exp_at: newExpAt.toISOString(),
-          }).eq('id', profile.id)
-
-          const confirmationUrl = `${getSiteUrl()}/auth/verify?token=${newToken}`
-          const reminderSubject = subject || `${name}, akun LuxTrade kamu belum diverifikasi nih ⏳`
-
-          // Use promo template if promoCode is provided, otherwise use default reminder
-          const html = promoCode
-            ? getVerificationPromoEmailHtml(name, confirmationUrl, promoCode)
-            : getUnverifiedBulkReminderHtml(name, confirmationUrl)
-
-          const result = await sendEmail({
-            to: userEmail,
-            subject: reminderSubject,
-            html,
-            replyTo: 'luxtradee@gmail.com',
-          })
-
-          if (result.success) {
-            sent++
-            console.log(`[email-broadcast] [${idx}] ✅ Sent to ${userEmail}`)
-          } else {
-            const errDetail = result.error
-              ? typeof result.error === 'string'
-                ? result.error
-                : JSON.stringify(result.error, null, 2)
-              : 'Unknown error'
-            console.error(`[email-broadcast] [${idx}] ❌ Failed to send to ${userEmail}:`, errDetail)
-
-            // Store error only if not retrying
-            if (retryCount === 0) {
-              errors.set(userEmail, errDetail)
-            }
-
-            // Retry once on failure
-            console.log(`[email-broadcast] [${idx}] 🔄 Retrying ${userEmail}...`)
-            await new Promise(r => setTimeout(r, 1000))
-            await sendBatch(profile, idx, 1)
-          }
-        } else {
-          // Use custom HTML body (replace {{name}} placeholder if present)
-          const personalizedBody = htmlBody.replace(/\{\{name\}\}/g, name).replace(/\{\{email\}\}/g, userEmail)
-          const personalizedSubject = subject.replace(/\{\{name\}\}/g, name).replace(/\{\{email\}\}/g, userEmail)
-
-          // Wrap with professional email template (full HTML with header, footer, branding)
-          const fullHtml = getPromotionalEmailHtml(name, personalizedSubject, personalizedBody)
-
-          const result = await sendEmail({
-            to: userEmail,
-            subject: personalizedSubject,
-            html: fullHtml,
-            replyTo: 'luxtradee@gmail.com',
-          })
-
-          if (result.success) {
-            sent++
-            console.log(`[email-broadcast] [${idx}] ✅ Sent to ${userEmail}`)
-          } else {
-            const errDetail = result.error
-              ? typeof result.error === 'string'
-                ? result.error
-                : JSON.stringify(result.error, null, 2)
-              : 'Unknown error'
-            console.error(`[email-broadcast] [${idx}] ❌ Failed to send to ${userEmail}:`, errDetail)
-
-            // Store error only if not retrying
-            if (retryCount === 0) {
-              errors.set(userEmail, errDetail)
-            }
-
-            // Retry once on failure
-            console.log(`[email-broadcast] [${idx}] 🔄 Retrying ${userEmail}...`)
-            await new Promise(r => setTimeout(r, 1000))
-            await sendBatch(profile, idx, 1)
-          }
+        const userEmail = profile.email
+        if (!userEmail) {
+          console.log(`[email-broadcast] [${globalIdx}] Skipping - no email for user ${profile.id}`)
+          continue
         }
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Unknown error'
-        console.error(`[email-broadcast] [${idx}] ❌ Exception for ${userEmail}:`, err)
 
-        // Store error only if not retrying
-        if (retryCount === 0) {
+        const name = profile.full_name || userEmail.split('@')[0]
+
+        try {
+          if (target === 'unverified') {
+            // Generate new verification token for each unverified user
+            const newToken = edgeCrypto.randomBytesHex(32)
+            const newExpAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+
+            await admin.from('profiles').update({
+              email_verify_token: newToken,
+              email_verify_exp_at: newExpAt.toISOString(),
+            }).eq('id', profile.id)
+
+            const confirmationUrl = `${getSiteUrl()}/auth/verify?token=${newToken}`
+            const reminderSubject = subject || `${name}, akun LuxTrade kamu belum diverifikasi nih ⏳`
+
+            // Use promo template if promoCode is provided, otherwise use default reminder
+            const html = promoCode
+              ? getVerificationPromoEmailHtml(name, confirmationUrl, promoCode)
+              : getUnverifiedBulkReminderHtml(name, confirmationUrl)
+
+            const result = await sendEmail({
+              to: userEmail,
+              subject: reminderSubject,
+              html,
+              replyTo: 'luxtradee@gmail.com',
+            })
+
+            if (result.success) {
+              sent++
+              console.log(`[email-broadcast] [${globalIdx}] ✅ Sent to ${userEmail}`)
+            } else {
+              const errDetail = result.error
+                ? typeof result.error === 'string'
+                  ? result.error
+                  : JSON.stringify(result.error, null, 2)
+                : 'Unknown error'
+              console.error(`[email-broadcast] [${globalIdx}] ❌ Failed to send to ${userEmail}:`, errDetail)
+
+              // Store error
+              errors.set(userEmail, errDetail)
+              failed++
+
+              // No retry - batch processing already reduces subrequests
+            }
+          } else {
+            // Use custom HTML body (replace {{name}} placeholder if present)
+            const personalizedBody = htmlBody.replace(/\{\{name\}\}/g, name).replace(/\{\{email\}\}/g, userEmail)
+            const personalizedSubject = subject.replace(/\{\{name\}\}/g, name).replace(/\{\{email\}\}/g, userEmail)
+
+            // Wrap with professional email template (full HTML with header, footer, branding)
+            const fullHtml = getPromotionalEmailHtml(name, personalizedSubject, personalizedBody)
+
+            const result = await sendEmail({
+              to: userEmail,
+              subject: personalizedSubject,
+              html: fullHtml,
+              replyTo: 'luxtradee@gmail.com',
+            })
+
+            if (result.success) {
+              sent++
+              console.log(`[email-broadcast] [${globalIdx}] ✅ Sent to ${userEmail}`)
+            } else {
+              const errDetail = result.error
+                ? typeof result.error === 'string'
+                  ? result.error
+                  : JSON.stringify(result.error, null, 2)
+                : 'Unknown error'
+              console.error(`[email-broadcast] [${globalIdx}] ❌ Failed to send to ${userEmail}:`, errDetail)
+
+              // Store error
+              errors.set(userEmail, errDetail)
+              failed++
+
+              // No retry - batch processing already reduces subrequests
+            }
+          }
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : 'Unknown error'
+          console.error(`[email-broadcast] [${globalIdx}] ❌ Exception for ${userEmail}:`, err)
+
+          // Store error
           errors.set(userEmail, msg)
+          failed++
+
+          // No retry - batch processing already reduces subrequests
         }
 
-        // Retry once on exception
-        console.log(`[email-broadcast] [${idx}] 🔄 Retrying ${userEmail} after exception...`)
-        await new Promise(r => setTimeout(r, 2000))
-        await sendBatch(profile, idx, 1)
+        // Small delay between emails within batch to avoid hitting rate limits
+        if (i < batch.length - 1) {
+          await new Promise(r => setTimeout(r, 600))
+        }
       }
 
-      // Increment failed count only on final retry (not on initial failure)
-      if (retryCount === 1) {
-        failed++
-      }
-    }
-
-    // Process sequentially with delay to respect Resend rate limit (2 req/s)
-    for (let i = 0; i < profileList.length; i++) {
-      await sendBatch(profileList[i], i + 1)
-      if (i < profileList.length - 1) {
-        await new Promise(r => setTimeout(r, EMAIL_DELAY_MS))
+      // Delay between batches to avoid Cloudflare Workers limits
+      if (batchStart + BATCH_SIZE < profileList.length) {
+        console.log(`📧 [email-broadcast] Batch ${batchNumber}/${totalBatches} completed. Waiting ${BATCH_DELAY_MS}ms before next batch...`)
+        await new Promise(r => setTimeout(r, BATCH_DELAY_MS))
       }
     }
 
@@ -333,6 +330,7 @@ export async function POST(request: NextRequest) {
       errors: errorsArray,
       sync: syncStats,
       targetUserCount: profileList.length,
+      batchesProcessed: Math.ceil(profileList.length / BATCH_SIZE),
     })
   } catch (error: unknown) {
     console.error('[API /admin/email-broadcast POST] Error:', error)
