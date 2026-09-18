@@ -18,6 +18,8 @@ const CaraKerjaSection = dynamic(() => import('@/components/landing/CaraKerjaSec
 const PricingSectionNew = dynamic(() => import('@/components/landing/PricingSectionNew').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const FAQSection = dynamic(() => import('@/components/landing/FAQSection').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const FinalCTA = dynamic(() => import('@/components/landing/FinalCTA').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const TestimonialsSection = dynamic(() => import('@/components/landing/TestimonialsSection').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const RealTimeStats = dynamic(() => import('@/components/landing/RealTimeStats').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 
 interface LandingStats {
   totalUsers: number
@@ -99,9 +101,11 @@ export default function LuxTradeLanding() {
 
         <main id="main-content" className="flex-1 pb-20 md:pb-0">
           <HeroSection language={language} />
+          <RealTimeStats language={language} />
           <SocialProofBar language={language} />
           <AIVisionSimulator language={language} />
           <CaraKerjaSection language={language} />
+          <TestimonialsSection language={language} />
           <PricingSectionNew
             promoCode={promoCode}
             promoActive={promoActive}

@@ -142,7 +142,7 @@ export default function HeroSection({ language = 'id' }: HeroSectionProps) {
             transition={{ duration: 0.5 }}
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm text-xs font-mono tracking-wider text-cyan-300"
           >
-            <Sparkles className="w-3 h-3" /> {language === 'en' ? 'TRADING JOURNAL' : 'TRADING JOURNAL INDONESIA'}
+            <Sparkles className="w-3 h-3" /> {language === 'en' ? 'PROP FIRM TRADING JOURNAL' : 'JURNAL TRADING PROP FIRM'}
           </motion.div>
 
           <motion.h1
@@ -151,7 +151,9 @@ export default function HeroSection({ language = 'id' }: HeroSectionProps) {
             transition={{ duration: 0.6, delay: 0.08 }}
             className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter max-w-2xl bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-gray-600"
           >
-            {language === 'en' ? 'Stop Trading Blind. Build Your Edge.' : 'Berhenti Trading Asal-Asalan. Bangun Edge Anda.'}
+            {language === 'en'
+              ? 'Stop Breaching. Pass Your Prop Firm Challenge.'
+              : 'Stop Breach. Lewati Challenge Prop Firm Kamu.'}
           </motion.h1>
 
           <motion.p
@@ -161,8 +163,8 @@ export default function HeroSection({ language = 'id' }: HeroSectionProps) {
             className="max-w-xl text-lg text-gray-400"
           >
             {language === 'en'
-              ? 'A trading journal for traders — just upload your MT5 history, the system automatically creates your journal, detects error patterns with AI, and watch your equity curve grow.'
-              : 'Trading journal buat trader Indonesia — cukup upload history MT5, sistem otomatis jadikan jurnal, deteksi pola kesalahan lewat AI, dan lihat equity curve kamu naik.'}
+              ? 'Track trades, monitor drawdowns, and AI detects your losing patterns. 8 traders passed prop firm challenges using LuxTradee. Be next.'
+              : 'Catat trade, pantau drawdown, dan AI deteksi pola loss kamu. 8 trader sudah lewat challenge prop firm dengan LuxTradee. Kamu berikutnya.'}
           </motion.p>
 
           <motion.div
