@@ -82,7 +82,18 @@ export default function AITab({
   const [selectedTradeForAnalysis, setSelectedTradeForAnalysis] = useState<Trade | null>(null)
   const [isRecording, setIsRecording] = useState(false)
   const [chartImage, setChartImage] = useState<string | null>(null)
+  const [aiQuota, setAiQuota] = useState<{ total: number; used: number; remaining: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Fetch AI quota for free users
+  useEffect(() => {
+    if (!isPro) {
+      fetch('/api/user/ai-quota')
+        .then(res => res.json())
+        .then(data => setAiQuota(data))
+        .catch(err => console.error('Failed to fetch AI quota:', err))
+    }
+  }, [isPro])
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -93,27 +104,75 @@ export default function AITab({
 
   return (
     <div className="space-y-6">
-      {/* PRO Paywall */}
+      {/* Free Trial Info or PRO Paywall */}
       {!isPro && (
-        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-400/10 border-blue-500/30">
-          <CardContent className="py-8 text-center">
-            <motion.div
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-              <Lock className="w-12 h-12 mx-auto mb-4 text-blue-400" />
-            </motion.div>
-            <h3 className="text-lg font-bold text-blue-400 mb-2">AI Insights - PRO Feature</h3>
-            <p className="text-lux-text-secondary dark:text-gray-400 mb-4">Unlock AI-powered trading insights and recommendations</p>
-            <Button onClick={onUpgrade} className="bg-gradient-to-r from-blue-500 to-blue-600">
-              <Sparkles className="w-4 h-4 mr-2" /> Upgrade to PRO
-            </Button>
+        <Card className={`border ${
+          aiQuota?.remaining === 0
+            ? 'bg-gradient-to-br from-red-500/10 to-red-400/10 border-red-500/30'
+            : aiQuota?.remaining === 1
+            ? 'bg-gradient-to-br from-amber-500/10 to-orange-400/10 border-amber-500/30'
+            : 'bg-gradient-to-br from-blue-500/10 to-blue-400/10 border-blue-500/30'
+        }`}>
+          <CardContent className="py-6 text-center">
+            {aiQuota?.remaining === 0 ? (
+              <>
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <Lock className="w-12 h-12 mx-auto mb-4 text-red-400" />
+                </motion.div>
+                <h3 className="text-lg font-bold text-red-400 mb-2">
+                  {language === 'id' ? 'AI Trial Habis' : 'AI Trial Used Up'}
+                </h3>
+                <p className="text-gray-400 dark:text-gray-500 mb-4">
+                  {language === 'id'
+                    ? 'Kamu sudah memakai 3x AI free trial. Upgrade ke PRO untuk akses unlimited!'
+                    : 'You\'ve used all 3 AI free trials. Upgrade to PRO for unlimited access!'}
+                </p>
+                <Button onClick={onUpgrade} className="bg-gradient-to-r from-red-500 to-red-600">
+                  <Sparkles className="w-4 h-4 mr-2" /> {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
+                </Button>
+              </>
+            ) : (
+              <>
+                <motion.div
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                >
+                  <Brain className="w-12 h-12 mx-auto mb-4 text-blue-400" />
+                </motion.div>
+                <h3 className="text-lg font-bold text-blue-400 mb-2">
+                  {language === 'id' ? 'AI Free Trial' : 'AI Free Trial'}
+                </h3>
+                <p className="text-gray-400 dark:text-gray-500 mb-4">
+                  {language === 'id'
+                    ? `Kamu punya ${aiQuota?.remaining || 3}x AI trial gratis tersedia!`
+                    : `You have ${aiQuota?.remaining || 3} free AI trials available!`}
+                </p>
+                <div className="flex items-center justify-center gap-2 text-sm text-gray-400 dark:text-gray-500 mb-4">
+                  <span>{aiQuota?.used || 0}</span>
+                  <div className="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all"
+                      style={{ width: `${((aiQuota?.used || 0) / 3) * 100}%` }}
+                    />
+                  </div>
+                  <span>3</span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-600">
+                  {language === 'id'
+                    ? '🎁 Coba fitur AI sekarang dan rasakan bedanya!'
+                    : '🎁 Try AI features now and experience the difference!'}
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
 
-      {/* AI Content - Only render for PRO users */}
-      {isPro && (<>
+      {/* AI Content - Available for PRO users and free users with quota */}
+      {(isPro || (aiQuota && aiQuota.remaining > 0)) && (<>
       <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
         <CardHeader>
           <CardTitle className="flex items-center gap-3 text-xl">
