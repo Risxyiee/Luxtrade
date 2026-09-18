@@ -142,6 +142,34 @@ function LuxTradeLogo3D() {
 }
 
 export default function FinalCTA({ language = 'id' }: FinalCTAProps) {
+  // Calculate urgency countdown (ends at midnight)
+  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 })
+
+  useEffect(() => {
+    const now = new Date()
+    const endOfDay = new Date(now)
+    endOfDay.setHours(23, 59, 59, 999)
+
+    const updateTime = () => {
+      const current = new Date()
+      const diff = endOfDay.getTime() - current.getTime()
+
+      if (diff <= 0) {
+        setTimeLeft({ hours: 0, minutes: 0, seconds: 0 })
+        return
+      }
+
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+
+      setTimeLeft({ hours, minutes, seconds })
+    }
+
+    updateTime()
+    const interval = setInterval(updateTime, 1000)
+    return () => clearInterval(interval)
+  }, [])
   return (
     <section className="py-40 relative z-10 overflow-hidden">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100%] h-[100%] bg-blue-600/10 blur-[180px] rounded-full pointer-events-none" />
@@ -160,6 +188,25 @@ export default function FinalCTA({ language = 'id' }: FinalCTAProps) {
         <h2 className="text-5xl md:text-7xl font-bold tracking-tighter max-w-3xl bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-gray-600">
           {language === 'en' ? 'Ready to Build Your Trading Edge?' : 'Siap Bangun Edge Trading Anda?'}
         </h2>
+
+        {/* Countdown Timer */}
+        <div className="mt-4 mb-2">
+          <div className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-orange-500/10 border border-orange-500/30">
+            <span className="text-orange-400 font-semibold text-sm">{language === 'en' ? 'Offer ends in:' : 'Penawaran berakhir dalam:'}</span>
+            <span className="flex gap-1 ml-2">
+              <span className="px-2 py-1 rounded bg-orange-500/20 text-orange-300 font-mono font-bold text-xs">
+                {String(timeLeft.hours).padStart(2, '0')}h
+              </span>
+              <span className="px-2 py-1 rounded bg-orange-500/20 text-orange-300 font-mono font-bold text-xs">
+                {String(timeLeft.minutes).padStart(2, '0')}m
+              </span>
+              <span className="px-2 py-1 rounded bg-orange-500/20 text-orange-300 font-mono font-bold text-xs">
+                {String(timeLeft.seconds).padStart(2, '0')}s
+              </span>
+            </span>
+          </div>
+        </div>
+
         <p className="max-w-2xl text-lg text-gray-400">
           {language === 'en'
             ? 'Join Indonesian traders who are controlling risk, disciplining psychology, and finding their best setups through LuxTradee.'
