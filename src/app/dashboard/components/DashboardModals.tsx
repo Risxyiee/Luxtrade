@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Share2, Edit, Trash2, Calendar, Clock, Plus, CreditCard } from 'lucide-react'
 import PaymentConfirmationModal from '@/components/PaymentConfirmationModal'
+import OnboardingModal from '@/components/landing/OnboardingModal'
 import { formatCurrency } from '@/lib/utils-currency'
 import { Trade, TradeFormData, emptyFormData } from '../utils/types'
 import { moodOptions, marketConditions } from '../utils/helpers'
@@ -591,10 +592,22 @@ const DashboardModals = memo(function DashboardModals({
         remainingTrials={proTrialCount}
       /> */}
 
+      {/* Prop Firm Trader Onboarding Modal */}
       {showOnboarding && (
-        <OnboardingOverlay
-          language={language}
+        <OnboardingModal
+          isOpen={showOnboarding}
+          onClose={onOnboardingComplete}
           onComplete={onOnboardingComplete}
+          language={language}
+          onStepAction={(stepId) => {
+            if (stepId === 2) { // First trade step
+              onAddFirstTrade()
+              onOnboardingComplete()
+            } else if (stepId === 3) { // Prop guard step
+              // Could open watchlist or settings for prop firm setup
+              onOnboardingComplete()
+            }
+          }}
         />
       )}
     </>

@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { Profile } from '@prisma/client'
 
-const FREE_AI_QUOTA = 3
+const FREE_AI_QUOTA = 10
 
 /**
  * Check if user has free AI quota remaining

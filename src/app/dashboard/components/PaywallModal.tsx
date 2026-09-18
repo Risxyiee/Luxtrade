@@ -47,7 +47,7 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
       title: "Buka Potensi Trading Terbaikmu!",
       subtitle: feature
         ? `Fitur "${feature}" hanya tersedia untuk pengguna PRO`
-        : "Kamu telah mencapai batas 5 trade/bulan. Upgrade ke PRO untuk unlimited trades dan semua fitur premium.",
+        : "Kamu telah mencapai batas 10 trade/bulan. Upgrade ke PRO untuk unlimited trades dan semua fitur premium.",
       description: "Upgrade ke PRO untuk unlimited trades, analitik mendalam, AI auto-journal, deteksi pola kerugian, dan watchlist prop firm.",
       features: [
         { icon: Infinity, title: "Unlimited Trade Entries", desc: "Tidak ada batas jurnal trading per bulan" },
@@ -76,7 +76,7 @@ export default function PaywallModal({ isOpen, onClose, feature }: PaywallModalP
       title: "Unlock Your Ultimate Trading Potential!",
       subtitle: feature
         ? `The "${feature}" feature is only available for PRO users`
-        : "You've hit the 5 trades/month limit. Upgrade to PRO for unlimited trades and all premium features.",
+        : "You've hit the 10 trades/month limit. Upgrade to PRO for unlimited trades and all premium features.",
       description: "Upgrade to PRO for unlimited trades, deep analytics, AI auto-journal, loss pattern detection, and prop firm watchlist.",
       features: [
         { icon: Infinity, title: "Unlimited Trade Entries", desc: "No limit on trading journals per month" },
