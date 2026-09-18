@@ -338,8 +338,8 @@ function LuxTradeDashboardContent() {
     return headers
   }, [])
 
-  // Free user trade limit
-  const FREE_TRADE_LIMIT = 10
+  // Free user trade limit - 5 trades per month (reduced from 10 to drive upgrades)
+  const FREE_TRADE_LIMIT = 5
   const isFreeUser = !isPro
   const tradeCount = filteredTrades.length
   const canAddTrade = isPro || tradeCount < FREE_TRADE_LIMIT
