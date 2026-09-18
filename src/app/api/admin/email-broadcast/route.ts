@@ -9,10 +9,13 @@ function getSiteUrl(): string {
 }
 
 // Cloudflare Workers free tier limit: 50 subrequests per invocation
-// We'll process emails in batches of 25 to stay safely under limit
-const BATCH_SIZE = 25
+// Auth→DB sync uses subrequests for each new user (INSERT to DB)
+// Each email send is 1 subrequest to Resend
+// Each profile UPDATE (for unverified tokens) is 1 subrequest
+// We'll use batch size of 15 to stay safely under limit
+const BATCH_SIZE = 15
 // Delay between batches to avoid hitting rate limits
-const BATCH_DELAY_MS = 2000
+const BATCH_DELAY_MS = 3000
 
 // GET handler: Send test email to admin
 export async function GET(request: NextRequest) {
@@ -75,50 +78,54 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    // Auto-sync users from Supabase Auth → profiles DB before broadcast
-    // This ensures all Auth users exist in the DB for targeting
+    // Sync stats tracking
     let syncStats = { totalAuth: 0, existingDb: 0, syncedNew: 0, syncFailed: 0, error: '' as string }
-    try {
-      const { getAdminAuth } = await import('@/lib/supabase-admin-alt')
-      const authAdmin = getAdminAuth()
-      if (authAdmin) {
-        let allAuthUsers: any[] = []
-        let page = 1
-        const perPage = 500
-        while (true) {
-          const { data: pageData } = await authAdmin.listUsers({ page, perPage })
-          if (!pageData?.users?.length) break
-          allAuthUsers.push(...pageData.users)
-          if (pageData.users.length < perPage) break
-          page++
-        }
-        if (allAuthUsers.length > 0) {
-          syncStats.totalAuth = allAuthUsers.length
-          const { data: existingProfiles } = await admin.from('profiles').select('id')
-          const existingIds = new Set((existingProfiles || []).map((p: any) => p.id))
-          syncStats.existingDb = existingIds.size
-          for (const u of allAuthUsers) {
-            if (!existingIds.has(u.id)) {
-              try {
-                await admin.from('profiles').insert({
-                  id: u.id,
-                  email: u.email,
-                  full_name: u.user_metadata?.full_name || u.user_metadata?.name || null,
-                  email_verified: u.email_confirmed_at != null,
-                }).single()
-                syncStats.syncedNew++
-              } catch (_e) {
-                syncStats.syncFailed++
+
+    // Auto-sync users from Supabase Auth → profiles DB before broadcast
+    // Skip sync if targeting 'unverified' to save subrequests (they already exist in DB)
+    if (target !== 'unverified') {
+      try {
+        const { getAdminAuth } = await import('@/lib/supabase-admin-alt')
+        const authAdmin = getAdminAuth()
+        if (authAdmin) {
+          let allAuthUsers: any[] = []
+          let page = 1
+          const perPage = 500
+          while (true) {
+            const { data: pageData } = await authAdmin.listUsers({ page, perPage })
+            if (!pageData?.users?.length) break
+            allAuthUsers.push(...pageData.users)
+            if (pageData.users.length < perPage) break
+            page++
+          }
+          if (allAuthUsers.length > 0) {
+            syncStats.totalAuth = allAuthUsers.length
+            const { data: existingProfiles } = await admin.from('profiles').select('id')
+            const existingIds = new Set((existingProfiles || []).map((p: any) => p.id))
+            syncStats.existingDb = existingIds.size
+            for (const u of allAuthUsers) {
+              if (!existingIds.has(u.id)) {
+                try {
+                  await admin.from('profiles').insert({
+                    id: u.id,
+                    email: u.email,
+                    full_name: u.user_metadata?.full_name || u.user_metadata?.name || null,
+                    email_verified: u.email_confirmed_at != null,
+                  }).single()
+                  syncStats.syncedNew++
+                } catch (_e) {
+                  syncStats.syncFailed++
+                }
               }
             }
+            console.log(`📊 [email-broadcast] Sync: ${syncStats.totalAuth} auth users, ${syncStats.existingDb} in DB, ${syncStats.syncedNew} newly synced, ${syncStats.syncFailed} failed`)
           }
-          console.log(`📊 [email-broadcast] Sync: ${syncStats.totalAuth} auth users, ${syncStats.existingDb} in DB, ${syncStats.syncedNew} newly synced, ${syncStats.syncFailed} failed`)
         }
+      } catch (_syncErr: any) {
+        const errMsg = _syncErr instanceof Error ? _syncErr.message : String(_syncErr)
+        syncStats.error = errMsg
+        console.error(`❌ [email-broadcast] Auth→profiles sync FAILED: ${errMsg}`)
       }
-    } catch (_syncErr: any) {
-      const errMsg = _syncErr instanceof Error ? _syncErr.message : String(_syncErr)
-      syncStats.error = errMsg
-      console.error(`❌ [email-broadcast] Auth→profiles sync FAILED: ${errMsg}`)
     }
 
     // Validate required fields
@@ -179,8 +186,24 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // HARD LIMIT: Cloudflare Workers has ~50 subrequests per invocation
+    // We process in batches of 15, but sync and other operations also consume subrequests
+    // To be safe, limit each broadcast to 40 users maximum
+    const MAX_BROADCAST_SIZE = 40
+    if (profileList.length > MAX_BROADCAST_SIZE) {
+      return NextResponse.json({
+        sent: 0,
+        failed: 0,
+        errors: [
+          `Too many recipients (${profileList.length} users). Cloudflare Workers limit is ${MAX_BROADCAST_SIZE} users per broadcast. Please broadcast to a smaller segment or split into multiple broadcasts.`
+        ],
+        sync: syncStats,
+        targetUserCount: profileList.length,
+      }, { status: 400 })
+    }
+
     // Log recipient count BEFORE sending, so admin can see it
-    console.log(`📢 [email-broadcast] Target "${target}": ${profileList.length} users will receive in ${Math.ceil(profileList.length / BATCH_SIZE)} batches. Sync stats: auth=${syncStats.totalAuth}, db=${syncStats.existingDb}, new=${syncStats.syncedNew}${syncStats.error ? `, ERROR: ${syncStats.error}` : ''}`)
+    console.log(`📢 [email-broadcast] Target "${target}": ${profileList.length} users will receive. Sync stats: auth=${syncStats.totalAuth}, db=${syncStats.existingDb}, new=${syncStats.syncedNew}${syncStats.error ? `, ERROR: ${syncStats.error}` : ''}`)
 
     // Track results with detailed errors for failed emails
     let sent = 0
@@ -330,7 +353,6 @@ export async function POST(request: NextRequest) {
       errors: errorsArray,
       sync: syncStats,
       targetUserCount: profileList.length,
-      batchesProcessed: Math.ceil(profileList.length / BATCH_SIZE),
     })
   } catch (error: unknown) {
     console.error('[API /admin/email-broadcast POST] Error:', error)
