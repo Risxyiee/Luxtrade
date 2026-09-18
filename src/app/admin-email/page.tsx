@@ -497,10 +497,11 @@ export default function AdminEmailPage() {
   const [subject, setSubject] = useState('')
   const [htmlBody, setHtmlBody] = useState('')
   const [sending, setSending] = useState(false)
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0, totalSent: 0, totalFailed: 0 })
   const [showPreview, setShowPreview] = useState(false)
   const [editorMode, setEditorMode] = useState<'visual' | 'html'>('visual')
   const [selectedTemplate, setSelectedTemplate] = useState('custom')
-  const [result, setResult] = useState<{ sent: number; failed: number; errors: string[] } | null>(null)
+  const [result, setResult] = useState<{ sent: number; failed: number; errors: string[]; targetUserCount: number; totalBatches: number; currentBatch: number; batchSize: number } | null>(null)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [sendingTest, setSendingTest] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -739,9 +740,13 @@ export default function AdminEmailPage() {
     setShowConfirmDialog(false)
     setSending(true)
     setResult(null)
+    setBatchProgress({ current: 0, total: 0, totalSent: 0, totalFailed: 0 })
+
+    const batchSize = 40 // Max 40 emails per batch (Cloudflare limit)
 
     try {
-      const res = await authFetch('/api/admin/email-broadcast', {
+      // Get total user count first
+      const initialRes = await authFetch('/api/admin/email-broadcast', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -751,27 +756,114 @@ export default function AdminEmailPage() {
           target: selectedTarget,
           subject,
           htmlBody,
+          promoCode: selectedTarget === 'unverified' ? '' : undefined,
+          offset: 0,
+          limit: batchSize,
         }),
       })
 
-      const data = await res.json()
+      const initialData = await initialRes.json()
 
-      if (res.ok) {
-        setResult(data)
-        toast.success(`Email terkirim! ${data.sent} berhasil, ${data.failed} gagal`)
+      if (!initialRes.ok) {
+        toast.error(initialData.error || 'Gagal mengirim email')
+        setSending(false)
+        return
+      }
+
+      // Set initial result and batch info
+      const totalBatches = initialData.totalBatches || 1
+      const targetUserCount = initialData.targetUserCount || 0
+
+      setBatchProgress({
+        current: 1,
+        total: totalBatches,
+        totalSent: initialData.sent || 0,
+        totalFailed: initialData.failed || 0,
+      })
+
+      // If only one batch, we're done
+      if (totalBatches <= 1) {
+        setResult(initialData)
+        setSending(false)
+        toast.success(`Email terkirim! ${initialData.sent} berhasil, ${initialData.failed} gagal`)
         const statsRes = await authFetch('/api/admin/email-stats', {
           headers: { 'x-admin-email': ADMIN_EMAIL },
         })
         if (statsRes.ok) {
           setStats(await statsRes.json())
         }
-      } else {
-        toast.error(data.error || 'Gagal mengirim email')
+        return
+      }
+
+      // Process remaining batches
+      let allErrors = [...(initialData.errors || [])]
+      let totalSent = initialData.sent || 0
+      let totalFailed = initialData.failed || 0
+
+      for (let batch = 1; batch < totalBatches; batch++) {
+        const offset = batch * batchSize
+
+        const batchRes = await authFetch('/api/admin/email-broadcast', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-email': ADMIN_EMAIL,
+          },
+          body: JSON.stringify({
+            target: selectedTarget,
+            subject,
+            htmlBody,
+            promoCode: selectedTarget === 'unverified' ? '' : undefined,
+            offset,
+            limit: batchSize,
+          }),
+        })
+
+        const batchData = await batchRes.json()
+
+        if (batchRes.ok) {
+          totalSent += batchData.sent || 0
+          totalFailed += batchData.failed || 0
+          allErrors = [...allErrors, ...(batchData.errors || [])]
+
+          setBatchProgress({
+            current: batch + 1,
+            total: totalBatches,
+            totalSent,
+            totalFailed,
+          })
+        } else {
+          allErrors.push(`Batch ${batch + 1} error: ${batchData.error || 'Unknown error'}`)
+          totalFailed += batchSize
+        }
+
+        // Small delay between batches to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 2000))
+      }
+
+      setResult({
+        sent: totalSent,
+        failed: totalFailed,
+        errors: allErrors,
+        targetUserCount,
+        totalBatches,
+        currentBatch: totalBatches,
+        batchSize,
+      })
+
+      setSending(false)
+      toast.success(`Email terkirim! ${totalSent} berhasil, ${totalFailed} gagal dari ${targetUserCount} user`)
+
+      // Refresh stats
+      const statsRes = await authFetch('/api/admin/email-stats', {
+        headers: { 'x-admin-email': ADMIN_EMAIL },
+      })
+      if (statsRes.ok) {
+        setStats(await statsRes.json())
       }
     } catch (err) {
       console.error('Send error:', err)
       toast.error('Terjadi kesalahan saat mengirim email')
-    } finally {
       setSending(false)
     }
   }
@@ -1375,6 +1467,17 @@ export default function AdminEmailPage() {
                       exit={{ opacity: 0, y: -10 }}
                       className="space-y-3"
                     >
+                      {/* Batch info */}
+                      {result.totalBatches > 1 && (
+                        <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-500/[0.08] border border-blue-500/20">
+                          <Users className="w-5 h-5 text-blue-400" />
+                          <div className="flex-1">
+                            <p className="text-blue-300 text-xs">Total {result.targetUserCount} user diproses dalam {result.totalBatches} batch</p>
+                            <p className="text-blue-300/50 text-[10px]">{result.batchSize} email per batch</p>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-2 gap-3">
                         <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/[0.08] border border-green-500/20">
                           <CheckCircle className="w-5 h-5 text-green-400" />
@@ -1403,6 +1506,23 @@ export default function AdminEmailPage() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+
+                {/* Batch Progress */}
+                {sending && batchProgress.total > 1 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-3"
+                  >
+                    <div className="flex items-center gap-3 p-4 rounded-lg bg-blue-500/[0.08] border border-blue-500/20">
+                      <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+                      <div className="flex-1">
+                        <p className="text-blue-300 text-sm font-medium">Mengirim Batch {batchProgress.current}/{batchProgress.total}</p>
+                        <p className="text-blue-300/50 text-xs">{batchProgress.totalSent} berhasil, {batchProgress.totalFailed} gagal</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -1532,7 +1652,10 @@ export default function AdminEmailPage() {
             <div className="p-3 rounded-xl bg-blue-500/[0.08] border border-blue-500/20">
               <p className="text-xs text-blue-300/70 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
-                Email akan dikirim ke <strong className="text-blue-300">{recipientCount}</strong> user secara bersamaan. Tindakan ini tidak bisa dibatalkan.
+                {recipientCount > 40
+                  ? `Email akan dikirim ke ${recipientCount} user dalam ${Math.ceil(recipientCount / 40)} batch (40 email/batch). Tindakan ini tidak bisa dibatalkan.`
+                  : `Email akan dikirim ke ${recipientCount} user secara bersamaan. Tindakan ini tidak bisa dibatalkan.`
+                }
               </p>
             </div>
           </div>
