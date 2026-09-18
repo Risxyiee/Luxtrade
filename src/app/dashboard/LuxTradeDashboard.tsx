@@ -26,6 +26,7 @@ import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import DashboardModals from './components/DashboardModals'
 import TabContent from './components/TabContent'
+import DemoDataModal from './components/DemoDataModal'
 
 
 // Extracted Utils & Hooks
@@ -102,6 +103,7 @@ function LuxTradeDashboardContent() {
   const [planSelectionModalOpen, setPlanSelectionModalOpen] = useState(false)
   const [shareCardOpen, setShareCardOpen] = useState(false)
   const [paywallModalOpen, setPaywallModalOpen] = useState(false)
+  const [demoDataModalOpen, setDemoDataModalOpen] = useState(false)
 
   // PRO trial - 7 days trial (one-time, from first use)
   const [trialStartedAt, setTrialStartedAt] = useState<string | null>(null)
@@ -491,6 +493,16 @@ function LuxTradeDashboardContent() {
         }
       })
   }, [authLoading, user, loading])
+
+  // Event listener for demo data modal
+  useEffect(() => {
+    const handleOpenDemoModal = () => setDemoDataModalOpen(true)
+    window.addEventListener('open-demo-modal', handleOpenDemoModal)
+
+    return () => {
+      window.removeEventListener('open-demo-modal', handleOpenDemoModal)
+    }
+  }, [])
 
   // ==================== KEYBOARD SHORTCUTS ====================
   useEffect(() => {
@@ -914,6 +926,14 @@ function LuxTradeDashboardContent() {
           tradingAccounts={tradingAccounts}
         />
       </main>
+
+      {/* Demo Data Modal */}
+      <DemoDataModal
+        isOpen={demoDataModalOpen}
+        onClose={() => setDemoDataModalOpen(false)}
+        onLoadComplete={fetchData}
+        language={language}
+      />
 
       {/* All Modals */}
       <DashboardModals

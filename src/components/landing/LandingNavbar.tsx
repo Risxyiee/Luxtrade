@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, MessageSquare } from 'lucide-react'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 interface LandingNavbarProps {
@@ -77,6 +77,16 @@ export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNav
           </div>
 
           <div className="flex items-center gap-2">
+            <a
+              href="https://discord.gg/JwMxsmMqG"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#5865F2]/10 border border-[#5865F2]/30 text-[#5865F2] hover:bg-[#5865F2]/20 transition-all"
+              title="Join Discord Community"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span className="text-[12px] font-medium">Discord</span>
+            </a>
             <div className="hidden sm:block"><LanguageSwitcher /></div>
             <Link href="/auth/login" prefetch={false} className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">
               {t('nav.login')}

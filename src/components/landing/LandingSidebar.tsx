@@ -3,7 +3,7 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
-import { X, ChevronRight } from 'lucide-react'
+import { X, ChevronRight, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 import { type LegalPageTab } from '@/components/LegalPagesModal'
 import SocialIcons from './SocialIcons'
@@ -93,6 +93,21 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
                     <ChevronRight className="w-3.5 h-3.5 text-[#2a3350] group-hover:text-[#4a5578] transition-colors" />
                   </a>
                 ))}
+              </div>
+
+              <div className="px-3">
+                <p className="px-0 mb-3 text-[11px] font-medium tracking-[0.15em] text-[#8892b0] uppercase">
+                  {language === 'id' ? 'Komunitas' : 'Community'}
+                </p>
+                <a
+                  href="https://discord.gg/JwMxsmMqG"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-[14px] bg-[#5865F2]/10 border border-[#5865F2]/30 text-[#5865F2] hover:bg-[#5865F2]/20 transition-colors"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>{language === 'id' ? 'Join Discord' : 'Join Discord'}</span>
+                </a>
               </div>
 
               <div className="px-3">

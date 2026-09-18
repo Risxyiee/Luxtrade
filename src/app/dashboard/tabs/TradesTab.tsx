@@ -373,7 +373,7 @@ function TradesTab({
 
             {/* CTA Buttons */}
             <motion.div
-              className="flex flex-col items-center gap-4"
+              className="flex flex-col sm:flex-row items-center gap-4"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
@@ -394,6 +394,22 @@ function TradesTab({
                 {language === 'id'
                   ? 'atau import dari CSV/MT5'
                   : 'or import from CSV/MT5'}
+              </button>
+
+              <div className="w-px h-6 bg-white/10 hidden sm:block" />
+
+              <button
+                onClick={() => {
+                  // Trigger demo data modal - this needs to be passed as prop
+                  const event = new CustomEvent('open-demo-modal')
+                  window.dispatchEvent(event)
+                }}
+                className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors duration-200 cursor-pointer flex items-center gap-2"
+              >
+                <Activity className="w-4 h-4" />
+                {language === 'id'
+                  ? 'Coba Demo (10 trades)'
+                  : 'Try Demo (10 trades)'}
               </button>
             </motion.div>
           </CardContent>
