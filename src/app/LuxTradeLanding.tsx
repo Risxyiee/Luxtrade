@@ -1109,10 +1109,10 @@ export default function LuxTradeLanding() {
                   </div>
                   <ul className="space-y-4 my-8">
                     {[
-                      { text: language === 'id' ? '10 Jurnal Transaksi / Bulan' : '10 Trade Journals / Month' },
+                      { text: language === 'id' ? '5 Jurnal Transaksi / Bulan' : '5 Trade Journals / Month' },
                       { text: language === 'id' ? 'Grafik Performa & Statistik Standar' : 'Standard Performance Charts & Stats' },
                       { text: language === 'id' ? 'Kalkulator Risiko Trading Pemula' : 'Basic Trading Risk Calculator' },
-                      { text: language === 'id' ? '🎁 BONUS: 3x Uji Coba Fitur Analisis AI & Statistik PRO' : '🎁 BONUS: 3x PRO AI Analysis & Stats Trials' },
+                      { text: language === 'id' ? '🎁 BONUS: 3x Uji Coba Fitur AI' : '🎁 BONUS: 3x AI Features Trial' },
                     ].map((item, index) => (
                       <li key={index} className="flex items-center gap-2.5 text-sm text-white/60">
                         <Check className="w-4.5 h-4.5 text-emerald-400" />
