@@ -69,8 +69,8 @@ export default function PricingSectionNew({
               <span className="text-gray-500">{language === 'en' ? '/month' : '/bulan'}</span>
             </div>
             <ul className="space-y-3 mb-8 text-gray-400 text-sm flex-grow">
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? '5 Trade Entries / month' : '5 Trade Entries / bulan'}</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? '3 AI Queries / lifetime' : '3 AI Queries / seumur hidup'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? '10 Trade Entries / month' : '10 Trade Entries / bulan'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? '10 AI Queries / month' : '10 AI Queries / bulan'}</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Basic Analytics</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Manual Journal Input</li>
               <li className="flex items-center gap-2"><X className="w-4 h-4 text-gray-600" /> AI Pattern Detection</li>
