@@ -33,6 +33,7 @@ model Profile {
   commissionPaid    Boolean   @default(false)            @map("commission_paid")
   publicProfile     Boolean   @default(false)            @map("public_profile")
   onboardingCompleted Boolean   @default(false)            @map("onboarding_completed")
+  aiFreeQuotaUsed   Int       @default(0)                @map("ai_free_quota_used") // Tracks free AI trial usage (max 3)
 
   submissions       UserSubmission[]
   missionProgresses  MissionProgress[]

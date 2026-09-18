@@ -79,6 +79,17 @@ export const createTradeHandlers = ({
       return
     }
 
+    // Show upgrade warning at 80% of limit (4 out of 5 trades)
+    if (isFreeUser && trades.length >= FREE_TRADE_LIMIT - 1 && trades.length < FREE_TRADE_LIMIT) {
+      console.log(`⚠️ [handleAddTrade] Trade limit warning: ${trades.length}/${FREE_TRADE_LIMIT}`)
+      toast.warning(`Kamu sudah pakai ${trades.length}/${FREE_TRADE_LIMIT} trade bulan ini. Upgrade ke PRO untuk unlimited!`, {
+        action: {
+          label: 'Upgrade',
+          onClick: () => setPlanSelectionModalOpen(true)
+        }
+      })
+    }
+
     setSaving(true)
     try {
       const payload: any = {
