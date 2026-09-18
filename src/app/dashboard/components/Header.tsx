@@ -2,7 +2,7 @@
 
 import { memo, useState, useMemo, useEffect } from 'react'
 import {
-  Menu, RefreshCw, LogOut, Keyboard, Settings
+  Menu, RefreshCw, LogOut, Keyboard, Settings, Sparkles
 } from 'lucide-react'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import dynamic from 'next/dynamic'
@@ -65,22 +65,24 @@ const Header = memo(function Header({
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [notifPrefsOpen, setNotifPrefsOpen] = useState(false)
   const [notifPreferences, setNotifPreferences] = useState<Partial<TradeAlertPreferences> | undefined>()
+  const [aiQuotaInfo, setAiQuotaInfo] = useState<{ total: number; used: number; remaining: number; isPro: boolean } | null>(null)
 
-  // Fetch notification preferences on mount
+  // Fetch AI quota info on mount (for free users)
   useEffect(() => {
-    async function loadPrefs() {
+    async function loadAIQuota() {
+      if (isPro) return // Don't show quota for PRO users
       try {
-        const res = await fetch('/api/notifications/preferences', { credentials: 'include' })
+        const res = await fetch('/api/ai/quota', { credentials: 'include' })
         if (res.ok) {
           const data = await res.json()
-          setNotifPreferences(data.preferences)
+          setAiQuotaInfo(data)
         }
       } catch {
         // Use defaults
       }
     }
-    loadPrefs()
-  }, [])
+    loadAIQuota()
+  }, [isPro])
   const shortcuts = useMemo(() => getShortcutsList(), [])
   
   return (
@@ -118,6 +120,26 @@ const Header = memo(function Header({
 
       {/* Right: Utility Controls */}
       <div className="flex items-center gap-1.5">
+        {/* AI Quota Indicator - Only for free users */}
+        {!isPro && aiQuotaInfo && aiQuotaInfo.remaining > 0 && (
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/20">
+            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+            <span className="text-[11px] text-purple-400 font-medium">
+              {aiQuotaInfo.used}/{aiQuotaInfo.total} {language === 'id' ? 'AI Gratis' : 'Free AI'}
+            </span>
+          </div>
+        )}
+
+        {/* AI Quota Exceeded Warning - Show when quota is 0 */}
+        {!isPro && aiQuotaInfo && aiQuotaInfo.remaining === 0 && (
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20">
+            <Sparkles className="w-3.5 h-3.5 text-red-400" />
+            <span className="text-[11px] text-red-400 font-medium">
+              {language === 'id' ? 'AI Habis!' : 'AI Limit Reached'}
+            </span>
+          </div>
+        )}
+
         <LanguageSwitcher />
         <ThemeToggle />
 
