@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     if (error) return error
 
     const body = await request.json()
-    const { target, subject, htmlBody, promoCode } = body
+    const { target, subject, htmlBody, promoCode, offset = 0, limit = 40 } = body
 
     const adminEmail = user!.email || 'admin'
 
@@ -183,44 +183,28 @@ export async function POST(request: NextRequest) {
         errors: ['Tidak ada user yang cocok dengan target ini'],
         sync: syncStats,
         targetUserCount: 0,
+        totalBatches: 0,
+        currentBatch: 0,
       })
     }
 
-    // HARD LIMIT: Cloudflare Workers has ~50 subrequests per invocation
-    // We process in batches of 15, but sync and other operations also consume subrequests
-    // To be safe, limit each broadcast to 40 users maximum
-    const MAX_BROADCAST_SIZE = 40
-    if (profileList.length > MAX_BROADCAST_SIZE) {
-      return NextResponse.json({
-        sent: 0,
-        failed: 0,
-        errors: [
-          `Too many recipients (${profileList.length} users). Cloudflare Workers limit is ${MAX_BROADCAST_SIZE} users per broadcast. Please broadcast to a smaller segment or split into multiple broadcasts.`
-        ],
-        sync: syncStats,
-        targetUserCount: profileList.length,
-      }, { status: 400 })
-    }
+    // Apply offset and limit for batch processing
+    const batchSize = limit
+    const batchStart = offset
+    const batchEnd = Math.min(offset + limit, profileList.length)
+    const currentBatch = profileList.slice(batchStart, batchEnd)
+    const totalBatches = Math.ceil(profileList.length / batchSize)
 
-    // Log recipient count BEFORE sending, so admin can see it
-    console.log(`📢 [email-broadcast] Target "${target}": ${profileList.length} users will receive. Sync stats: auth=${syncStats.totalAuth}, db=${syncStats.existingDb}, new=${syncStats.syncedNew}${syncStats.error ? `, ERROR: ${syncStats.error}` : ''}`)
+    console.log(`📢 [email-broadcast] Target "${target}": batch ${Math.floor(offset / batchSize) + 1}/${totalBatches} (${currentBatch.length} users, offset ${offset}). Total users: ${profileList.length}. Sync stats: auth=${syncStats.totalAuth}, db=${syncStats.existingDb}, new=${syncStats.syncedNew}${syncStats.error ? `, ERROR: ${syncStats.error}` : ''}`)
 
     // Track results with detailed errors for failed emails
     let sent = 0
     let failed = 0
     const errors: Map<string, string> = new Map() // Use Map to avoid duplicate error messages
 
-    // Process profiles in batches to avoid Cloudflare Workers subrequest limit
-    for (let batchStart = 0; batchStart < profileList.length; batchStart += BATCH_SIZE) {
-      const batch = profileList.slice(batchStart, batchStart + BATCH_SIZE)
-      const batchNumber = Math.floor(batchStart / BATCH_SIZE) + 1
-      const totalBatches = Math.ceil(profileList.length / BATCH_SIZE)
-
-      console.log(`📧 [email-broadcast] Processing batch ${batchNumber}/${totalBatches} (${batch.length} emails)`)
-
-      // Process all emails in this batch sequentially
-      for (let i = 0; i < batch.length; i++) {
-        const profile = batch[i]
+    // Process profiles in this batch only
+    for (let i = 0; i < currentBatch.length; i++) {
+        const profile = currentBatch[i]
         const globalIdx = batchStart + i + 1
 
         const userEmail = profile.email
@@ -318,17 +302,10 @@ export async function POST(request: NextRequest) {
           // No retry - batch processing already reduces subrequests
         }
 
-        // Small delay between emails within batch to avoid hitting rate limits
-        if (i < batch.length - 1) {
+        // Small delay between emails to avoid hitting rate limits
+        if (i < currentBatch.length - 1) {
           await new Promise(r => setTimeout(r, 600))
         }
-      }
-
-      // Delay between batches to avoid Cloudflare Workers limits
-      if (batchStart + BATCH_SIZE < profileList.length) {
-        console.log(`📧 [email-broadcast] Batch ${batchNumber}/${totalBatches} completed. Waiting ${BATCH_DELAY_MS}ms before next batch...`)
-        await new Promise(r => setTimeout(r, BATCH_DELAY_MS))
-      }
     }
 
     // Save broadcast record (non-critical — don't fail the whole broadcast if table missing)
@@ -353,6 +330,9 @@ export async function POST(request: NextRequest) {
       errors: errorsArray,
       sync: syncStats,
       targetUserCount: profileList.length,
+      totalBatches,
+      currentBatch: Math.floor(offset / batchSize) + 1,
+      batchSize: currentBatch.length,
     })
   } catch (error: unknown) {
     console.error('[API /admin/email-broadcast POST] Error:', error)
