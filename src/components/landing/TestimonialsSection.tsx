@@ -1,167 +1,373 @@
 'use client'
 
-import React from 'react'
-import { motion } from 'framer-motion'
-import { TrendingUp, Shield, Target, Zap } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Star, Quote, ChevronLeft, ChevronRight, MessageSquare, Plus } from 'lucide-react'
+import TestimonialForm from './TestimonialForm'
 
-interface Testimonial {
+interface DatabaseTestimonial {
+  id: string
+  user_name: string
+  role: string | null
+  rating: number
+  text: string
+  profile_image_url: string | null
+  trades_logged: number
+  prop_firms_passed: number
+  is_verified: boolean
+  created_at: string
+}
+
+interface DefaultTestimonial {
   name: string
   role: string
-  firm: string
-  content: string
-  stats: {
-    winRate: string
-    tradesLogged: string
-    propFirm?: string
-  }
-  icon: any
+  avatar: string
+  rating: number
+  text: string
+  textEn: string
+  gradient: string
+  borderHover: string
 }
 
-const testimonials: Testimonial[] = [
+const DEFAULT_TESTIMONIALS: DefaultTestimonial[] = [
   {
-    name: 'Ahmad Rizky',
-    role: 'Prop Firm Trader',
-    firm: 'FTMO',
-    content: 'Dari 4x breach di challenge pertama, sekarang sudah lewat funding 2 prop firm dalam 6 bulan. Drawdown guard + AI pattern detection yang bantu saya kontrol over-leveraging.',
-    stats: {
-      winRate: '67%',
-      tradesLogged: '450+',
-      propFirm: 'FTMO 100K'
-    },
-    icon: TrendingUp
+    name: 'Andi Pratama',
+    role: 'Forex Trader · Jakarta',
+    avatar: 'AP',
+    rating: 5,
+    text: 'Dulu saya cuma catat trade di notes HP, sekarang semua terstruktur. AI-nya beneran nunjukin pola loss yang saya nggak sadar — selalu FOMO di session London. Win rate naik dari 40% ke 58% dalam 2 bulan.',
+    textEn: 'I used to log trades in phone notes, now everything is structured. The AI really shows loss patterns I didn\'t realize — always FOMOing in London session. Win rate went from 40% to 58% in 2 months.',
+    gradient: 'from-blue-500 to-cyan-600',
+    borderHover: 'hover:border-blue-500/30',
   },
   {
-    name: 'Sarah Wijaya',
-    role: 'Forex Trader',
-    firm: 'The Funded Trader',
-    content: 'AI-nya bikin saya sadar pola terburuk saya: selalu over-trade di sesi London tanpa setup. Setelah 3 bulan pakai LuxTradee, win rate naik dari 42% ke 61%.',
-    stats: {
-      winRate: '61%',
-      tradesLogged: '320+',
-      propFirm: 'TFT 50K'
-    },
-    icon: Shield
+    name: 'Rina Wulandari',
+    role: 'Part-time Trader · Bandung',
+    avatar: 'RW',
+    rating: 5,
+    text: 'Sebagai trader part-time, saya butuh tools yang simpel. LuxTrade pas banget — screenshot langsung jadi jurnal. Nggak perlu input manual lagi. Save banget waktu saya.',
+    textEn: 'As a part-time trader, I need simple tools. LuxTrade is perfect — screenshot instantly becomes a journal. No more manual input. Saves me so much time.',
+    gradient: 'from-cyan-500 to-blue-600',
+    borderHover: 'hover:border-cyan-500/30',
   },
   {
-    name: 'Budi Pratama',
-    role: 'Gold Trader',
-    firm: 'MyForexFunds',
-    content: 'Drawdown guard yang bikin saya aman. Alert sebelum breaching daily drawdown 3x saved account saya. Best investment untuk prop firm trader.',
-    stats: {
-      winRate: '58%',
-      tradesLogged: '280+',
-      propFirm: 'MFF 200K'
-    },
-    icon: Target
+    name: 'Dimas Kurniawan',
+    role: 'Swing Trader · Surabaya',
+    avatar: 'DK',
+    rating: 5,
+    text: 'Fitur equity curve dan AI analysis game changer. Saya baru sadar 60% loss saya terjadi di hari Jumat. Sekarang saya avoid trading di hari itu dan performa langsung membaik.',
+    textEn: 'Equity curve and AI analysis are game changers. I just realized 60% of my losses happen on Fridays. Now I avoid trading that day and performance immediately improved.',
+    gradient: 'from-emerald-500 to-teal-600',
+    borderHover: 'hover:border-emerald-500/30',
   },
-  {
-    name: 'Dina Anggraini',
-    role: 'Index Trader',
-    firm: 'FundedElite',
-    content: 'Upload screenshot MT5 dan AI auto-extract data ini lifesaver. Biasanya 5 menit per trade, sekarang 30 detik saja. Bisa fokus analisa setup.',
-    stats: {
-      winRate: '54%',
-      tradesLogged: '190+',
-      propFirm: 'FE 150K'
-    },
-    icon: Zap
-  }
 ]
 
-interface TestimonialsSectionProps {
-  language?: 'id' | 'en'
-}
+const gradients = [
+  'from-blue-500 to-cyan-600',
+  'from-cyan-500 to-blue-600',
+  'from-emerald-500 to-teal-600',
+  'from-cyan-400 to-rose-600',
+  'from-amber-500 to-orange-600',
+  'from-purple-500 to-pink-600',
+  'from-indigo-500 to-blue-600',
+]
 
-export default function TestimonialsSection({ language = 'id' }: TestimonialsSectionProps) {
+export default function TestimonialsSection({ language }: { language: 'id' | 'en' }) {
+  const [currentPage, setCurrentPage] = useState(0)
+  const [direction, setDirection] = useState(0)
+  const [testimonials, setTestimonials] = useState<(DatabaseTestimonial | DefaultTestimonial)[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const containerRef = React.useRef<HTMLDivElement>(null)
+
+  const testimonialsPerPage = 3
+
+  // Fetch testimonials from database
+  useEffect(() => {
+    const fetchTestimonials = async () => {
+      try {
+        const response = await fetch('/api/testimonials?limit=20')
+        const data = await response.json()
+
+        if (data.success && data.testimonials) {
+          // Add gradient to database testimonials
+          const dbTestimonials = data.testimonials.map((t: DatabaseTestimonial, i: number) => ({
+            ...t,
+            gradient: gradients[i % gradients.length],
+            borderHover: `hover:border-${gradients[i % gradients.length].split('-')[1]}-500/30`,
+          }))
+
+          // Combine DB testimonials with default ones (show DB first, then defaults)
+          setTestimonials([...dbTestimonials, ...DEFAULT_TESTIMONIALS])
+        } else {
+          setTestimonials(DEFAULT_TESTIMONIALS)
+        }
+      } catch (error) {
+        console.error('Error fetching testimonials:', error)
+        setTestimonials(DEFAULT_TESTIMONIALS)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchTestimonials()
+  }, [])
+
+  const totalPages = Math.ceil(testimonials.length / testimonialsPerPage)
+  const currentTestimonials = testimonials.slice(
+    currentPage * testimonialsPerPage,
+    currentPage * testimonialsPerPage + testimonialsPerPage
+  )
+
+  const paginate = (newDirection: number) => {
+    setDirection(newDirection)
+    setCurrentPage(prev => {
+      if (newDirection === 1) return prev >= totalPages - 1 ? 0 : prev + 1
+      return prev <= 0 ? totalPages - 1 : prev - 1
+    })
+  }
+
+  const isDatabaseTestimonial = (t: any): t is DatabaseTestimonial => {
+    return t.id !== undefined
+  }
+
+  const getDisplayName = (t: DatabaseTestimonial | DefaultTestimonial): string => {
+    if (isDatabaseTestimonial(t)) {
+      return t.user_name
+    }
+    return t.name
+  }
+
+  const getRole = (t: DatabaseTestimonial | DefaultTestimonial): string => {
+    if (isDatabaseTestimonial(t)) {
+      if (t.role) return t.role
+      if (t.trades_logged > 0) {
+        const firmsText = t.prop_firms_passed > 0
+          ? ` · ${t.prop_firms_passed} ${t.prop_firms_passed === 1 ? (language === 'id' ? 'Prop Firm' : 'Prop Firm') : (language === 'id' ? 'Prop Firms' : 'Prop Firms')}`
+          : ''
+        return `${language === 'id' ? 'Trader' : 'Trader'}${firmsText}`
+      }
+      return language === 'id' ? 'Trader' : 'Trader'
+    }
+    return t.role
+  }
+
+  const getAvatar = (t: DatabaseTestimonial | DefaultTestimonial, index: number): string => {
+    if (isDatabaseTestimonial(t)) {
+      if (t.profile_image_url) {
+        return t.profile_image_url
+      }
+      // Get initials
+      const initials = t.user_name
+        .split(' ')
+        .map(n => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
+      return initials
+    }
+    return t.avatar
+  }
+
+  const getGradient = (t: DatabaseTestimonial | DefaultTestimonial, index: number): string => {
+    if (isDatabaseTestimonial(t)) {
+      return t.gradient || gradients[index % gradients.length]
+    }
+    return t.gradient
+  }
+
+  const getText = (t: DatabaseTestimonial | DefaultTestimonial): string => {
+    if (isDatabaseTestimonial(t)) {
+      return t.text
+    }
+    return language === 'id' ? t.text : t.textEn
+  }
+
+  const renderStars = (rating: number) => {
+    return Array.from({ length: 5 }).map((_, i) => (
+      <Star
+        key={i}
+        className={`w-4 h-4 ${i < rating ? 'text-amber-400 fill-amber-400' : 'text-[var(--lux-text-label-3)]'}`}
+      />
+    ))
+  }
+
+  if (isLoading) {
+    return (
+      <section id="testimonials" className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-[var(--lux-text-primary)] mb-4">
+              {language === 'id' ? 'Apa Kata Mereka' : 'What They Say'}
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-64 bg-[var(--lux-card-surface)] rounded-2xl animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   return (
-    <section className="py-32 relative z-10">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100%] h-[60%] bg-blue-600/5 blur-[150px] rounded-full pointer-events-none" />
-
-      <div className="max-w-7xl mx-auto px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.3 }}
-          transition={{ duration: 0.5 }}
-          className="text-center mb-16"
-        >
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-white">
-            {language === 'id' ? 'Prop Firm Traders yang Lewati Challenge' : 'Prop Firm Traders Who Passed Challenges'}
+    <section id="testimonials" className="py-20 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto">
+        {/* Section Header */}
+        <div className="text-center mb-14">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-[var(--lux-text-primary)] mb-4">
+            {language === 'id' ? 'Apa Kata Mereka' : 'What They Say'}
           </h2>
-          <p className="text-gray-400 max-w-2xl mx-auto">
+          <p className="text-[var(--lux-text-subtitle)] max-w-lg mx-auto text-base">
             {language === 'id'
-              ? 'Cerita nyata dari trader yang berhasil lewati challenge dengan konsistensi.'
-              : 'Real stories from traders who passed challenges with consistency.'}
+              ? 'Trader Indonesia sudah pakai LuxTrade untuk memperbaiki performa mereka.'
+              : 'Indonesian traders are already using LuxTrade to improve their performance.'}
           </p>
-        </motion.div>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          {testimonials.map((testimonial, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="glass-lux p-6 rounded-2xl hover:bg-white/5 transition-all"
-            >
-              {/* Header */}
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shrink-0">
-                  <testimonial.icon className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-white">{testimonial.name}</h3>
-                  <p className="text-sm text-gray-400">{testimonial.role} • {testimonial.firm}</p>
-                </div>
-              </div>
-
-              {/* Content */}
-              <p className="text-gray-300 text-sm mb-4 leading-relaxed">
-                {testimonial.content}
-              </p>
-
-              {/* Stats */}
-              <div className="flex items-center gap-4 pt-4 border-t border-white/10">
-                <div className="flex-1">
-                  <p className="text-xs text-gray-500 mb-1">Win Rate</p>
-                  <p className="text-lg font-bold text-emerald-400">{testimonial.stats.winRate}</p>
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-gray-500 mb-1">Trades Logged</p>
-                  <p className="text-lg font-bold text-cyan-400">{testimonial.stats.tradesLogged}</p>
-                </div>
-                {testimonial.stats.propFirm && (
-                  <div className="flex-1">
-                    <p className="text-xs text-gray-500 mb-1">Passed</p>
-                    <p className="text-lg font-bold text-purple-400">{testimonial.stats.propFirm}</p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          ))}
         </div>
 
-        {/* CTA */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="mt-16 text-center"
-        >
-          <p className="text-gray-400 text-sm mb-4">
-            {language === 'id'
-              ? 'Ingin jadi cerita sukses berikutnya?'
-              : 'Want to be the next success story?'}
-          </p>
-          <a
-            href="#pricing"
-            className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-xl hover:opacity-90 transition-all glow-bg-luxury"
+        {/* Add Testimonial Button */}
+        <div className="flex justify-center mb-10">
+          <button
+            onClick={() => setShowForm(true)}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white rounded-xl hover:opacity-90 transition-all font-medium"
           >
-            {language === 'id' ? 'Mulai Sekarang' : 'Get Started'}
-          </a>
-        </motion.div>
+            <MessageSquare className="w-5 h-5" />
+            <Plus className="w-5 h-5" />
+            {language === 'id' ? 'Bagikan Testimoni Anda' : 'Share Your Testimonial'}
+          </button>
+        </div>
+
+        {/* Testimonial Cards */}
+        <div ref={containerRef} className="relative overflow-hidden">
+          <AnimatePresence mode="wait" custom={direction}>
+            <motion.div
+              key={currentPage}
+              custom={direction}
+              initial={{ opacity: 0, x: direction >= 0 ? 80 : -80 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: direction >= 0 ? -80 : 80 }}
+              transition={{ duration: 0.35, ease: 'easeInOut' }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+            >
+              {currentTestimonials.map((t, i) => {
+                const actualIndex = currentPage * testimonialsPerPage + i
+                return (
+                  <div
+                    key={isDatabaseTestimonial(t) ? t.id : t.name}
+                    className={`relative flex flex-col bg-[var(--lux-card-surface)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-2xl p-6 hover:bg-[var(--lux-card-surface-hover)] ${isDatabaseTestimonial(t) && t.borderHover ? t.borderHover : ''} transition-all duration-300 h-full`}
+                  >
+                    {/* Quote icon */}
+                    <Quote className="absolute top-5 right-5 w-8 h-8 text-[var(--lux-text-label-3)] opacity-50" />
+
+                    {/* Verified Badge */}
+                    {isDatabaseTestimonial(t) && t.is_verified && (
+                      <div className="absolute top-5 left-5 px-2 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
+                        <span className="text-xs text-green-400 font-medium">
+                          {language === 'id' ? '✓ Terverifikasi' : '✓ Verified'}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Stars */}
+                    <div className="flex items-center gap-1 mb-4">
+                      {renderStars(t.rating)}
+                    </div>
+
+                    {/* Stats (for DB testimonials) */}
+                    {isDatabaseTestimonial(t) && (t.trades_logged > 0 || t.prop_firms_passed > 0) && (
+                      <div className="flex items-center gap-3 mb-3 text-xs text-gray-500">
+                        {t.trades_logged > 0 && (
+                          <span>
+                            {t.trades_logged} {language === 'id' ? 'trade' : 'trade'}{t.trades_logged > 1 ? 's' : ''}
+                          </span>
+                        )}
+                        {t.prop_firms_passed > 0 && (
+                          <span>
+                            {t.prop_firms_passed} {language === 'id' ? 'funded' : 'funded'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Quote Text */}
+                    <div className="flex-1 mb-5">
+                      <p className="text-[var(--lux-text-body-2)] text-sm leading-relaxed">
+                        &ldquo;{getText(t)}&rdquo;
+                      </p>
+                    </div>
+
+                    {/* Author */}
+                    <div className="flex items-center gap-3 pt-4 border-t border-[var(--lux-inline-border)]">
+                      {getAvatar(t, actualIndex).startsWith('http') ? (
+                        <img
+                          src={getAvatar(t, actualIndex)}
+                          alt={getDisplayName(t)}
+                          className="w-10 h-10 rounded-full object-cover shrink-0"
+                        />
+                      ) : (
+                        <div
+                          className={`w-10 h-10 rounded-full bg-gradient-to-br ${getGradient(t, actualIndex)} flex items-center justify-center text-white text-xs font-bold shrink-0`}
+                        >
+                          {getAvatar(t, actualIndex)}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-[var(--lux-text-primary)] truncate">
+                          {getDisplayName(t)}
+                        </p>
+                        <p className="text-xs text-[var(--lux-text-label-2)] truncate">
+                          {getRole(t)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-4 mt-10">
+            <button
+              onClick={() => paginate(-1)}
+              className="w-11 h-11 rounded-full bg-[var(--lux-card-surface)] border border-[var(--lux-inline-border)] flex items-center justify-center hover:bg-[var(--lux-card-surface-hover)] transition-colors"
+              aria-label="Previous testimonials"
+            >
+              <ChevronLeft className="w-5 h-5 text-[var(--lux-text-body-2)]" />
+            </button>
+            <div className="flex items-center gap-2">
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => { setDirection(i > currentPage ? 1 : -1); setCurrentPage(i) }}
+                  className={`w-2.5 h-2.5 rounded-full transition-all ${i === currentPage ? 'bg-blue-500 w-6' : 'bg-[var(--lux-text-label-3)] hover:bg-[var(--lux-text-label-2)]'}`}
+                  aria-label={`Go to page ${i + 1}`}
+                />
+              ))}
+            </div>
+            <button
+              onClick={() => paginate(1)}
+              className="w-11 h-11 rounded-full bg-[var(--lux-card-surface)] border border-[var(--lux-inline-border)] flex items-center justify-center hover:bg-[var(--lux-card-surface-hover)] transition-colors"
+              aria-label="Next testimonials"
+            >
+              <ChevronRight className="w-5 h-5 text-[var(--lux-text-body-2)]" />
+            </button>
+          </div>
+        )}
+
+        {/* Testimonial Form Modal */}
+        <TestimonialForm
+          isOpen={showForm}
+          onClose={() => setShowForm(false)}
+          onSuccess={() => {
+            // Refresh testimonials after submission
+            window.location.reload()
+          }}
+          language={language}
+        />
       </div>
     </section>
   )

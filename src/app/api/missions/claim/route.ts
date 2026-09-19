@@ -9,18 +9,27 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('[missions/claim] Starting claim request...')
+
     // Parse body FIRST before auth (to avoid consuming stream)
     // CRITICAL: Use text() then parse JSON to handle stream safely in Workers
     let body: any = {}
     try {
       const rawBody = await request.text()
       console.log('[missions/claim] Raw body length:', rawBody.length)
+      if (!rawBody) {
+        console.log('[missions/claim] Empty body received')
+        return NextResponse.json(
+          { error: 'Request body is empty' },
+          { status: 400 }
+        )
+      }
       body = JSON.parse(rawBody)
       console.log('[missions/claim] Body parsed:', { missionId: body.missionId, hasProofUrl: !!body.proofUrl })
     } catch (err) {
       console.error('[missions/claim] Failed to parse body:', err)
       return NextResponse.json(
-        { error: 'Invalid request body' },
+        { error: 'Invalid request body: Must be valid JSON' },
         { status: 400 }
       )
     }
@@ -53,13 +62,16 @@ export async function POST(request: NextRequest) {
       authError,
     })
 
-    if (!authUser) {
-      const errorMsg = authError || 'Unauthorized'
+    if (!authUser || !authUser.id) {
+      const errorMsg = authError || 'Unauthorized: No valid user session'
+      console.error('[missions/claim] Auth failed:', errorMsg)
       return NextResponse.json({ error: errorMsg }, { status: 401 })
     }
 
     // Use authenticated user's ID — ignore any userId from body
     const userId = authUser.id
+
+    console.log('[missions/claim] User authenticated:', userId)
 
     // Safety: ensure userId is not null/undefined before any DB operation
     if (!userId) {
@@ -69,13 +81,24 @@ export async function POST(request: NextRequest) {
 
     const admin = getSupabaseAdmin()
     if (!admin) {
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+      console.error('[missions/claim] Failed to get Supabase admin client')
+      return NextResponse.json({ error: 'Internal server error: Database connection failed' }, { status: 500 })
     }
 
     // Ensure profile exists
-    const { data: profile } = await admin.from('profiles').select('*').eq('id', userId).maybeSingle()
+    console.log('[missions/claim] Checking profile for user:', userId)
+    const { data: profile, error: profileError } = await admin.from('profiles').select('*').eq('id', userId).maybeSingle()
+
+    if (profileError) {
+      console.error('[missions/claim] Error fetching profile:', profileError)
+      return NextResponse.json(
+        { error: 'Database error fetching profile' },
+        { status: 500 }
+      )
+    }
 
     if (!profile) {
+      console.error('[missions/claim] Profile not found for user:', userId)
       return NextResponse.json(
         { error: 'Profile not found' },
         { status: 404 }
@@ -83,13 +106,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's submissions and achievements
-    const { data: submissions } = await admin.from('user_submissions').select('*').eq('user_id', userId)
+    console.log('[missions/claim] Fetching user submissions...')
+    const { data: submissions, error: submissionsError } = await admin.from('user_submissions').select('*').eq('user_id', userId)
+
+    if (submissionsError) {
+      console.error('[missions/claim] Error fetching submissions:', submissionsError)
+      return NextResponse.json(
+        { error: 'Database error fetching submissions' },
+        { status: 500 }
+      )
+    }
 
     const existingClaim = (submissions || []).find(
       s => s.achievement_key === missionId && s.status === 'APPROVED'
     )
 
     if (existingClaim) {
+      console.log('[missions/claim] Achievement already claimed:', missionId)
       return NextResponse.json(
         { error: 'Achievement already claimed' },
         { status: 400 }
@@ -100,6 +133,7 @@ export async function POST(request: NextRequest) {
     let validationMessage = ''
 
     if (achievement.type === 'automatic') {
+      console.log('[missions/claim] Validating automatic achievement...')
       isValid = await validateAutomaticAchievement(admin, userId, achievement, profile)
       validationMessage = isValid ? 'Criteria met!' : 'Criteria not met yet'
     } else {
@@ -114,6 +148,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!isValid && achievement.type === 'automatic') {
+      console.log('[missions/claim] Validation failed:', validationMessage)
       return NextResponse.json(
         { error: validationMessage, isValid: false },
         { status: 400 }
@@ -132,23 +167,42 @@ export async function POST(request: NextRequest) {
       reviewed_by: achievement.type === 'automatic' ? 'SYSTEM' : null,
     }).select().single()
 
-    if (subError || !submission) {
+    if (subError) {
+      console.error('[missions/claim] Error creating submission:', subError)
       return NextResponse.json(
-        { error: 'Failed to create submission' },
+        { error: 'Failed to create submission', details: subError.message },
         { status: 500 }
       )
     }
 
+    if (!submission) {
+      console.error('[missions/claim] No submission returned after insert')
+      return NextResponse.json(
+        { error: 'Failed to create submission: No data returned' },
+        { status: 500 }
+      )
+    }
+
+    console.log('[missions/claim] Submission created:', submission.id)
+
     // Add achievement to profile and apply reward if approved
     if (achievement.type === 'automatic' && status === 'APPROVED') {
+      console.log('[missions/claim] Applying reward to profile...')
       const achievements = (profile.achievements as string[]) || []
-      await admin.from('profiles').update({
+      const { error: updateError } = await admin.from('profiles').update({
         achievements: [...achievements, missionId]
       }).eq('id', userId)
+
+      if (updateError) {
+        console.error('[missions/claim] Error updating profile achievements:', updateError)
+        // Continue anyway, submission was created
+      }
+
       await applyReward(admin, userId, achievement)
     }
 
     // Update or create mission progress
+    console.log('[missions/claim] Updating mission progress...')
     const { data: missionProgress } = await admin.from('mission_progress')
       .select('*')
       .eq('user_id', userId)
@@ -156,13 +210,17 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (missionProgress) {
-      await admin.from('mission_progress').update({
+      const { error: progressError } = await admin.from('mission_progress').update({
         progress: missionProgress.target,
         completed: true,
         claimed: true,
       }).eq('id', missionProgress.id)
+
+      if (progressError) {
+        console.error('[missions/claim] Error updating mission progress:', progressError)
+      }
     } else {
-      await admin.from('mission_progress').insert({
+      const { error: insertProgressError } = await admin.from('mission_progress').insert({
         user_id: userId,
         mission_key: missionId,
         progress: 1,
@@ -170,7 +228,13 @@ export async function POST(request: NextRequest) {
         completed: true,
         claimed: true,
       })
+
+      if (insertProgressError) {
+        console.error('[missions/claim] Error inserting mission progress:', insertProgressError)
+      }
     }
+
+    console.log('[missions/claim] Claim successful!')
 
     return NextResponse.json({
       success: true,
@@ -183,9 +247,11 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('[missions/claim] Error:', error)
+    console.error('[missions/claim] Unexpected error:', error)
     const errorMessage = error instanceof Error ? error.message : 'Failed to claim achievement'
     console.error('[missions/claim] Error message:', errorMessage)
+    console.error('[missions/claim] Error stack:', error instanceof Error ? error.stack : 'No stack')
+
     return NextResponse.json(
       { error: errorMessage, details: errorMessage },
       { status: 500 }
