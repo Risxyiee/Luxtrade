@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Star, X, Send, CheckCircle2, User, Briefcase, LogIn } from 'lucide-react'
+import { Star, X, Send, CheckCircle2, User, Briefcase, LogIn, Camera, Upload, Trash2, ImagePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
@@ -28,6 +28,13 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error' | 'need-login'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
 
+  // Photo upload state
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  const [isPhotoUploading, setIsPhotoUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     if (isOpen) {
       setRating(5)
@@ -37,8 +44,88 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
       setPropFirmsPassed('0')
       setSubmitStatus('idle')
       setErrorMessage('')
+      setPhotoFile(null)
+      setPhotoPreview(null)
+      setPhotoUrl(null)
+      setIsPhotoUploading(false)
     }
   }, [isOpen])
+
+  // Handle file selection
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    if (!allowedTypes.includes(file.type)) {
+      setSubmitStatus('error')
+      setErrorMessage(language === 'en' ? 'Invalid file type. Use JPG, PNG, WebP, or GIF.' : 'Tipe file salah. Pakai JPG, PNG, WebP, atau GIF.')
+      return
+    }
+
+    // Validate size (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setSubmitStatus('error')
+      setErrorMessage(language === 'en' ? 'File too large. Maximum 2MB.' : 'File terlalu besar. Maksimal 2MB.')
+      return
+    }
+
+    setPhotoFile(file)
+    setSubmitStatus('idle')
+    setErrorMessage('')
+
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = () => setPhotoPreview(reader.result as string)
+    reader.readAsDataURL(file)
+  }, [language])
+
+  // Remove photo
+  const handleRemovePhoto = useCallback(() => {
+    setPhotoFile(null)
+    setPhotoPreview(null)
+    setPhotoUrl(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }, [])
+
+  // Upload photo to server
+  const uploadPhoto = async (): Promise<string | null> => {
+    if (!photoFile) return null
+    if (photoUrl) return photoUrl // Already uploaded
+
+    setIsPhotoUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('photo', photoFile)
+
+      const response = await fetch('/api/testimonials/upload-photo', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          setSubmitStatus('need-login')
+          return null
+        }
+        throw new Error(data.error || 'Upload failed')
+      }
+
+      setPhotoUrl(data.url)
+      return data.url
+    } catch (error) {
+      console.error('Photo upload error:', error)
+      // Don't block submission if photo upload fails
+      return null
+    } finally {
+      setIsPhotoUploading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,6 +134,12 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
     setErrorMessage('')
 
     try {
+      // Upload photo first if selected
+      let uploadedPhotoUrl = photoUrl
+      if (photoFile && !photoUrl) {
+        uploadedPhotoUrl = await uploadPhoto()
+      }
+
       const response = await fetch('/api/testimonials', {
         method: 'POST',
         headers: {
@@ -58,6 +151,7 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
           user_name: userName || undefined,
           role: role || undefined,
           prop_firms_passed: propFirmsPassed ? parseInt(propFirmsPassed) : 0,
+          profile_image_url: uploadedPhotoUrl || undefined,
         }),
       })
 
@@ -116,7 +210,7 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-          className="w-full max-w-lg"
+          className="w-full max-w-lg max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           <Card className="bg-[#0a0a12] border border-white/10 shadow-2xl">
@@ -206,6 +300,87 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
                         </span>
                       )}
                     </div>
+                  </div>
+
+                  {/* ===== PHOTO UPLOAD ===== */}
+                  <div className="space-y-2">
+                    <Label className="text-sm text-gray-400">
+                      <Camera className="w-4 h-4 inline mr-1.5" />
+                      {language === 'en' ? 'Your Photo (optional)' : 'Foto Anda (opsional)'}
+                    </Label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      {language === 'en'
+                        ? 'Upload your photo to show next to your testimonial. Max 2MB.'
+                        : 'Upload foto Anda untuk ditampilkan di testimoni. Maks 2MB.'}
+                    </p>
+
+                    {!photoPreview ? (
+                      /* Upload Area */
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full h-28 border-2 border-dashed border-white/10 rounded-xl hover:border-blue-500/30 hover:bg-blue-500/5 transition-all duration-200 cursor-pointer flex flex-col items-center justify-center gap-2 group"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-white/5 group-hover:bg-blue-500/10 flex items-center justify-center transition-colors">
+                          <ImagePlus className="w-5 h-5 text-gray-500 group-hover:text-blue-400 transition-colors" />
+                        </div>
+                        <span className="text-xs text-gray-500 group-hover:text-gray-400 transition-colors">
+                          {language === 'en' ? 'Click to upload photo' : 'Klik untuk upload foto'}
+                        </span>
+                        <span className="text-[10px] text-gray-600">
+                          JPG, PNG, WebP, GIF &bull; Max 2MB
+                        </span>
+                      </button>
+                    ) : (
+                      /* Photo Preview */
+                      <div className="relative w-full h-28 rounded-xl overflow-hidden border border-white/10 bg-white/5">
+                        <img
+                          src={photoPreview}
+                          alt="Preview"
+                          className="w-full h-full object-cover"
+                        />
+                        {/* Overlay with actions */}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
+                          >
+                            <Upload className="w-4 h-4 text-white" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleRemovePhoto}
+                            className="p-2 bg-red-500/20 rounded-lg hover:bg-red-500/30 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-400" />
+                          </button>
+                        </div>
+                        {/* Remove button (always visible) */}
+                        <button
+                          type="button"
+                          onClick={handleRemovePhoto}
+                          className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full hover:bg-red-500/60 transition-colors"
+                        >
+                          <X className="w-3 h-3 text-white" />
+                        </button>
+                        {/* Uploading overlay */}
+                        {isPhotoUploading && (
+                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                            <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Hidden file input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
                   </div>
 
                   {/* Name (optional) */}
@@ -330,19 +505,21 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
                       variant="outline"
                       onClick={onClose}
                       className="flex-1 border-white/20 hover:bg-white/5"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || isPhotoUploading}
                     >
                       {language === 'en' ? 'Cancel' : 'Batal'}
                     </Button>
                     <Button
                       type="submit"
-                      disabled={isSubmitting || text.length < 10 || text.length > 1000}
+                      disabled={isSubmitting || isPhotoUploading || text.length < 10 || text.length > 1000}
                       className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-400 hover:opacity-90"
                     >
-                      {isSubmitting ? (
+                      {isSubmitting || isPhotoUploading ? (
                         <span className="flex items-center gap-2">
                           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          {language === 'en' ? 'Submitting...' : 'Mengirim...'}
+                          {isPhotoUploading
+                            ? (language === 'en' ? 'Uploading photo...' : 'Upload foto...')
+                            : (language === 'en' ? 'Submitting...' : 'Mengirim...')}
                         </span>
                       ) : (
                         <span className="flex items-center gap-2">

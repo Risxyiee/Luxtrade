@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  reactStrictMode: false,
+  reactStrictMode: true,
 
   allowedDevOrigins: ['http://127.0.0.1:8080', 'http://localhost:8080', 'http://localhost:3000', 'http://127.0.0.1:3000'],
 
@@ -19,9 +19,9 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
 
-  // Force Cloudflare Pages to invalidate cache on new builds
-  generateBuildId: () => {
-    return `build-${Date.now()}`;
+  // Use stable build ID based on package version
+  generateBuildId: async () => {
+    return 'luxtrade-v1'
   },
 };
 
