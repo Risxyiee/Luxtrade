@@ -118,7 +118,7 @@ export async function POST(request: Request) {
       profile_image_url: body.profile_image_url || profile?.avatar_url || null,
       is_verified: !!user.email, // Auto-verify if they have email
       is_featured: false,
-      status: 'approved', // Auto-approve for now
+      status: 'pending', // Requires admin approval
       trades_logged: tradesCount || 0,
       prop_firms_passed: body.prop_firms_passed || 0
     }

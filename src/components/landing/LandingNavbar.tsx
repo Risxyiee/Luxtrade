@@ -14,10 +14,10 @@ interface LandingNavbarProps {
 }
 
 const NAV_LINKS = [
-  { key: 'how-it-works', id: 'id', label: 'Cara Kerja', en: 'How It Works' },
-  { key: 'features', id: 'id', label: 'Fitur', en: 'Features' },
-  { key: 'pricing', id: 'id', label: 'Harga', en: 'Pricing' },
-  { key: 'faq', id: 'id', label: 'FAQ', en: 'FAQ' },
+  { key: 'cara-kerja', label: 'Cara Kerja', en: 'How It Works' },
+  { key: 'features', label: 'Fitur', en: 'Features' },
+  { key: 'pricing', label: 'Harga', en: 'Pricing' },
+  { key: 'faq', label: 'FAQ', en: 'FAQ' },
 ]
 
 export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNavbarProps) {

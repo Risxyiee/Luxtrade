@@ -302,16 +302,16 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
                     </div>
                   </div>
 
-                  {/* ===== PHOTO UPLOAD ===== */}
+                  {/* ===== CERTIFICATE UPLOAD ===== */}
                   <div className="space-y-2">
                     <Label className="text-sm text-gray-400">
                       <Camera className="w-4 h-4 inline mr-1.5" />
-                      {language === 'en' ? 'Your Photo (optional)' : 'Foto Anda (opsional)'}
+                      {language === 'en' ? 'PropFirm Certificate / Proof (optional)' : 'Bukti Sertifikat Lolos ProFirm (opsional)'}
                     </Label>
                     <p className="text-xs text-gray-500 mb-2">
                       {language === 'en'
-                        ? 'Upload your photo to show next to your testimonial. Max 2MB.'
-                        : 'Upload foto Anda untuk ditampilkan di testimoni. Maks 2MB.'}
+                        ? 'Upload your prop firm certificate or passing proof to show next to your testimonial. Max 2MB.'
+                        : 'Upload bukti sertifikat atau bukti lolos prop firm Anda untuk ditampilkan di testimoni. Maks 2MB.'}
                     </p>
 
                     {!photoPreview ? (
@@ -325,7 +325,7 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
                           <ImagePlus className="w-5 h-5 text-gray-500 group-hover:text-blue-400 transition-colors" />
                         </div>
                         <span className="text-xs text-gray-500 group-hover:text-gray-400 transition-colors">
-                          {language === 'en' ? 'Click to upload photo' : 'Klik untuk upload foto'}
+                          {language === 'en' ? 'Click to upload certificate' : 'Klik untuk upload bukti sertifikat'}
                         </span>
                         <span className="text-[10px] text-gray-600">
                           JPG, PNG, WebP, GIF &bull; Max 2MB
@@ -477,8 +477,8 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
                         <CheckCircle2 className="w-5 h-5" />
                         <span>
                           {language === 'en'
-                            ? 'Thank you! Your testimonial has been submitted.'
-                            : 'Terima kasih! Testimoni Anda telah dikirim.'}
+                            ? 'Thank you! Your testimonial has been submitted and is pending review.'
+                            : 'Terima kasih! Testimoni Anda telah dikirim dan menunggu review admin.'}
                         </span>
                       </motion.div>
                     )}
@@ -518,7 +518,7 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
                         <span className="flex items-center gap-2">
                           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                           {isPhotoUploading
-                            ? (language === 'en' ? 'Uploading photo...' : 'Upload foto...')
+                            ? (language === 'en' ? 'Uploading certificate...' : 'Upload bukti sertifikat...')
                             : (language === 'en' ? 'Submitting...' : 'Mengirim...')}
                         </span>
                       ) : (

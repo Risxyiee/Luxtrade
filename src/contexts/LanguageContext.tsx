@@ -16,21 +16,22 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 const STORAGE_KEY = 'luxtrade_language'
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
+  // Use a mounted state to avoid hydration mismatch
+  // Default to 'id' (Indonesian) for SSR, then read localStorage on client
   const [language, setLanguageState] = useState<Language>('id')
+  const [mounted, setMounted] = useState(false)
 
   // Load language preference from localStorage on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY) as Language
       if (saved === 'id' || saved === 'en') {
-        // Use setTimeout to avoid synchronous setState in effect
-        setTimeout(() => {
-          setLanguageState(saved)
-        }, 0)
+        setLanguageState(saved)
       }
     } catch (error) {
       console.error('Failed to load language preference:', error)
     }
+    setMounted(true)
   }, [])
 
   const setLanguage = (lang: Language) => {
