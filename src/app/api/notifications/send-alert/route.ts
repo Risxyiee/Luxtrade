@@ -151,9 +151,8 @@ function buildEmailHtml(type: string, data: AlertRequestBody['data']): string {
 }
 
 export async function POST(request: NextRequest) {
-  const authResult = await requireAuth(request)
-  if (authResult.response || !authResult.user) return authResult.response || NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const user = authResult.user
+  const { user, response } = await requireAuth(request)
+  if (!user || response) return response!
 
   // Rate limit check
   if (isRateLimited(user.id)) {

@@ -1,3 +1,4 @@
+export const runtime = "edge"
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { createClientForApi } from '@/lib/supabase/server'
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
   try {
     const { supabase } = await createClientForApi(request)
     if (!supabase) {
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+      return NextResponse.json({ error: 'Authentication unavailable' }, { status: 503 })
     }
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 

@@ -27,7 +27,7 @@ function getSupabaseAdmin(): SupabaseClient {
 /**
  * GET - Mendapatkan semua integrasi milik user
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const supabase = await createSupabaseClient(req as NextRequest)
 
@@ -63,7 +63,7 @@ export async function GET(req: Request) {
 /**
  * POST - Menambahkan integrasi baru
  */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const supabase = await createSupabaseClient(req as NextRequest)
 

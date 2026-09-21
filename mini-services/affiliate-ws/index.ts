@@ -1,3 +1,4 @@
+// @ts-ignore
 import { Server } from 'socket.io'
 
 const PORT = 3004

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await auth()
+    const { user } = await getAuthenticatedUser(request)
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -16,7 +16,7 @@ export async function DELETE(request: NextRequest) {
     // Delete all demo trades
     const result = await db.trade.deleteMany({
       where: {
-        user_id: session.user.id,
+        user_id: user.id,
         notes: { contains: '[DEMO DATA]' }
       }
     })

@@ -20,8 +20,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email, plan, and proExpiry are required' }, { status: 400 })
     }
 
+    const profile = await db.profile.findFirst({ where: { email } })
+    if (!profile) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
     const updatedUser = await db.profile.update({
-      where: { email },
+      where: { id: profile.id },
       data: {
         plan,
         proExpiry: new Date(proExpiry)

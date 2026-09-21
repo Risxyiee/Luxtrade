@@ -7,8 +7,8 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 const leaderboardCache = new Map<string, { data: LeaderboardEntry[]; timestamp: number }>()
 const CACHE_TTL = 30 * 1000 // 30 seconds (short TTL for real-time leaderboard updates)
 
-// Expose cache invalidation for public-profile toggle
-export function invalidateLeaderboardCache() {
+// Cache invalidation for public-profile toggle
+function invalidateLeaderboardCache() {
   leaderboardCache.clear()
 }
 

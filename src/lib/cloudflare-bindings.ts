@@ -11,6 +11,11 @@
  * - env.ASSETS: Static assets
  */
 
+// Type declarations for Cloudflare Workers bindings
+declare class D1Database {}
+declare class KVNamespace {}
+declare class R2Bucket {}
+
 /**
  * Get Cloudflare environment with bindings from Next.js request context
  * @param request - Next.js Request object

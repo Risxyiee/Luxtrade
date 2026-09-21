@@ -23,12 +23,12 @@ const SAMPLE_TRADES = [
 
 export async function POST(request: NextRequest) {
   try {
-    const { user: authUser, error: authError } = await getAuthenticatedUser(request)
-    if (!authUser) {
-      return NextResponse.json({ error: authError || 'Unauthorized' }, { status: 401 })
+    const authResult = await getAuthenticatedUser(request)
+    if (!authResult || !authResult.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const userId = authUser.id
+    const userId = authResult.user.id
 
     const pro = await isUserPro(userId)
     if (!pro) {

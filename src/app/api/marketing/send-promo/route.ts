@@ -91,11 +91,30 @@ export async function POST(request: NextRequest) {
     // ============================================
     // Send promo email
     // ============================================
+    const promoCodeUpper = promoCode.toUpperCase()
+    const promoSubject = subject || `🎁 Promo Eksklusif Buat Kamu - LuxTrade`
+    const discount = discountPercent || 50
+    const plan = planName || 'PRO'
+    const duration = durationMonths || 1
+    const expiry = expiryDate || '30 hari lagi'
+    const customMsg = customMessage || undefined
+
+    const htmlBody = `
+      <h2 style="color: #1a1a2e; font-size: 20px; margin: 0 0 16px 0;">🎁 Promo Eksklusif!</h2>
+      <p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 12px 0;">
+        Gunakan kode promo <strong style="color: #d97706; font-family: 'Courier New', monospace; font-size: 18px;">${promoCodeUpper}</strong> untuk diskon <strong>${discount}%</strong> pada plan <strong>${plan}</strong> selama <strong>${duration} bulan</strong>.
+      </p>
+      <p style="color: #555770; font-size: 13px; margin: 0 0 8px 0;">⏰ Berlaku hingga: ${expiry}</p>
+      ${customMsg ? `<p style="color: #555770; font-size: 14px; margin: 12px 0 0 0; font-style: italic;">${customMsg}</p>` : ''}
+    `
+
+    const { getPromotionalEmailHtml } = await import('@/lib/email')
+    const html = getPromotionalEmailHtml(name, promoSubject, htmlBody)
+
     const result = await sendEmail({
       to: email.toLowerCase(),
-      subject: subject || `🎁 Promo Eksklusif Buat Kamu - LuxTrade`,
-      html: `<p>Promo code: ${promoCode.toUpperCase()}</p>`,
-      replyTo: 'luxtradee@gmail.com',
+      subject: promoSubject,
+      html,
     })
 
     if (!result.success) {

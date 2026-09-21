@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     // Auth check
     const { supabase } = await createClientForApi(req as NextRequest)
     if (!supabase) {
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+      return NextResponse.json({ error: 'Authentication unavailable' }, { status: 503 })
     }
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {

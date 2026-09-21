@@ -278,17 +278,17 @@ async function analyzeScreenshotWithVLM(
 export async function POST(request: NextRequest) {
   try {
     // Step 1: Authenticate user
-    const { user: authUser, error: authError } = await getAuthenticatedUser(request)
+    const authResult = await getAuthenticatedUser(request)
 
-    if (!authUser) {
+    if (!authResult || !authResult.user) {
         return NextResponse.json(
-        { error: authError || 'Unauthorized - Please login' },
+        { error: 'Unauthorized - Please login' },
         { status: 401 }
       )
     }
 
     // PRO check - screenshot journal uses AI Vision, a PRO feature
-    const pro = await isUserPro(authUser.id)
+    const pro = await isUserPro(authResult.user.id)
     if (!pro) {
       return NextResponse.json({
         error: 'Screenshot Analysis adalah fitur PRO. Upgrade ke PRO untuk menggunakan AI screenshot analysis!',

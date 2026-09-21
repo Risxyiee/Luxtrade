@@ -20,9 +20,9 @@ const DEFAULT_MODEL = 'glm-4.6v'
 
 // ==================== SINGLETON ====================
 
-let _zaiInstance: InstanceType<typeof ZAI> | null = null
+let _zaiInstance: any = null
 
-function getZAIInstance(): InstanceType<typeof ZAI> {
+function getZAIInstance(): any {
   if (_zaiInstance) return _zaiInstance
 
   const baseUrl = process.env.ZAI_BASE_URL
@@ -32,6 +32,7 @@ function getZAIInstance(): InstanceType<typeof ZAI> {
     throw new Error('ZAI_BASE_URL and ZAI_API_KEY environment variables are required')
   }
 
+  // @ts-ignore - ZAI constructor is private in types but available at runtime
   _zaiInstance = new ZAI({ baseUrl, apiKey })
   return _zaiInstance
 }

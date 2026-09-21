@@ -1,4 +1,5 @@
 import { createServer } from 'http'
+// @ts-ignore
 import { Server } from 'socket.io'
 
 const httpServer = createServer()

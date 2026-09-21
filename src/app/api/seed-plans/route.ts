@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     if (authError) return authError
 
     // Check if plans already exist
-    const existingPlans = await db.subscriptionPlan.findMany()
+    const existingPlans = await (db as any).subscriptionPlan.findMany()
 
     if (existingPlans.length > 0) {
       return NextResponse.json({
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Create default plans
-    const freePlan = await db.subscriptionPlan.create({
+    const freePlan = await (db as any).subscriptionPlan.create({
       data: {
         name: 'Free',
         description: 'Basic trading journal features',
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const eliteProPlan = await db.subscriptionPlan.create({
+    const eliteProPlan = await (db as any).subscriptionPlan.create({
       data: {
         name: 'Elite Pro',
         description: 'Full access to all premium features',
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const lifetimeUltraPlan = await db.subscriptionPlan.create({
+    const lifetimeUltraPlan = await (db as any).subscriptionPlan.create({
       data: {
         name: 'Lifetime Ultra',
         description: 'Lifetime access with exclusive VIP features',
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Create slot tracking for Lifetime Ultra
-    await db.slotTracking.create({
+    await (db as any).slotTracking.create({
       data: {
         planId: lifetimeUltraPlan.id,
         totalSlots: 30,

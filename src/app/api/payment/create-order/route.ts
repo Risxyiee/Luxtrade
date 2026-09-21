@@ -1,3 +1,4 @@
+export const runtime = "edge"
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
     // Get authenticated user
     const { supabase } = await createClientForApi(request)
     if (!supabase) {
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+      return NextResponse.json({ error: 'Authentication unavailable' }, { status: 503 })
     }
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     const customerName = profile?.full_name || user.email?.split('@')[0] || 'Customer'
     const customerEmail = user.email || 'unknown@luxtradee.web.id'
-    const customerPhone = profile?.phone || '08123456789'
+    const customerPhone = '08123456789'
 
     console.log('🛒 [Payment] Creating order:', {
       userId: user.id,

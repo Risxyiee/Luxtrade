@@ -1,3 +1,4 @@
+// @ts-ignore
 import { db } from '../src/lib/db'
 
 async function migrateDatabase() {
@@ -11,7 +12,7 @@ async function migrateDatabase() {
       WHERE table_name = 'users'
       AND table_schema = 'public'
     `
-    const columnNames = existingColumns.map((col: any) => col.column_name.toLowerCase())
+    const columnNames = (existingColumns as any[]).map((col: any) => col.column_name.toLowerCase())
 
     console.log('Existing columns:', columnNames)
 
@@ -58,7 +59,7 @@ async function migrateDatabase() {
       WHERE table_name = 'user_submissions'
       AND table_schema = 'public'
     `
-    const tableExists = existingTables.length > 0
+    const tableExists = (existingTables as any[]).length > 0
 
     if (!tableExists) {
       await db.$executeRawUnsafe(`

@@ -1,4 +1,4 @@
-import BlogPostPage from './BlogPostPageClient'
+import BlogPostPage from './page'
 
 export default async function BlogPage({
   params,
@@ -6,5 +6,5 @@ export default async function BlogPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  return <BlogPostPage slug={slug} />
+  return <BlogPostPage params={Promise.resolve({ slug })} />
 }

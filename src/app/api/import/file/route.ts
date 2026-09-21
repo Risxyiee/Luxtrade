@@ -375,9 +375,9 @@ function parseCSV(content: string): ParsedTrade[] {
 // ==================== MAIN HANDLER ====================
 export async function POST(request: NextRequest) {
   try {
-    const { user: authUser, error: authError } = await getAuthenticatedUser(request)
-    if (!authUser) {
-      return NextResponse.json({ success: false, error: authError || 'Unauthorized' }, { status: 401 })
+    const authResult = await getAuthenticatedUser(request)
+    if (!authResult || !authResult.user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
     // Accept both FormData (from client) and JSON (from legacy callers)

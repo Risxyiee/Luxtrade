@@ -7,9 +7,9 @@ import { getAuthenticatedUser } from '@/lib/api-auth'
  */
 export async function POST(request: NextRequest) {
   try {
-    const { user: authUser, error: authError } = await getAuthenticatedUser(request)
+    const authUser = await getAuthenticatedUser(request)
     if (!authUser) {
-      return NextResponse.json({ error: authError || 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { model, inputs, parameters } = await request.json()

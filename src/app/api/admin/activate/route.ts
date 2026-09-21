@@ -19,7 +19,7 @@ function getSupabaseAdmin() {
 
 interface ActivateRequestBody {
   userId: string
-  planType: 'PRO_30_DAYS' | 'PRO_180_DAYS' | 'PRO_LIFETIME'
+  planType: 'PRO_30_DAYS' | 'PRO_180_DAYS' | 'PRO_LIFETIME' | 'PRO_ANNUAL'
 }
 
 // Map planType to pricing key and duration
@@ -29,6 +29,8 @@ function getPlanConfig(planType: string) {
       return { price: PRICING.PRO_30_DAYS, days: 30, name: 'PRO 30 Hari', commissionRate: AFFILIATE_COMMISSION_RATE }
     case 'PRO_180_DAYS':
       return { price: PRICING.LEGACY.PRO_180_DAYS, days: 180, name: 'PRO 180 Hari', commissionRate: AFFILIATE_COMMISSION_RATE }
+    case 'PRO_ANNUAL':
+      return { price: PRICING.PRO_ANNUAL, days: 365, name: 'PRO Tahunan', commissionRate: AFFILIATE_COMMISSION_RATE }
     case 'PRO_LIFETIME':
       return { price: PRICING.PRO_LIFETIME, days: 365 * 5, name: 'PRO Lifetime', commissionRate: AFFILIATE_LIFETIME_RATE }
     default:

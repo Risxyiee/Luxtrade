@@ -15,8 +15,8 @@ import { Badge } from '@/components/ui/badge'
 import { useLanguage } from '@/contexts/LanguageContext'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 
-// Client component receives slug prop from server component (BlogPostClient.tsx)
-export default function BlogPostPage({ slug }: { slug: string }) {
+export default function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = React.use(params) as { slug: string }
   const { language } = useLanguage()
   const isEnglish = language === 'en'
 

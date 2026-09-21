@@ -22,7 +22,7 @@ function getSupabaseAdmin(): SupabaseClient {
  * PATCH - Update integrasi
  */
 export async function PATCH(
-  req: Request,
+  req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -88,7 +88,7 @@ export async function PATCH(
  * DELETE - Hapus integrasi
  */
 export async function DELETE(
-  req: Request,
+  req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
