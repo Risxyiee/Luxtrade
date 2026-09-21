@@ -8,7 +8,7 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '20')
     const featured = searchParams.get('featured') === 'true'
 
-    const supabase = createClient()
+    const supabase = await createClient()
 
     let query = supabase
       .from('testimonials')
@@ -49,7 +49,7 @@ export async function GET(request: Request) {
 // POST - Create new testimonial
 export async function POST(request: Request) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -155,7 +155,7 @@ export async function POST(request: Request) {
 // DELETE - Delete testimonial (user's own)
 export async function DELETE(request: Request) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
