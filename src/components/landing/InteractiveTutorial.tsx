@@ -153,7 +153,7 @@ export default function InteractiveTutorial({ language = 'id', onGetStarted }: I
       id: 'challenge',
       title: language === 'en' ? 'Prop Firm Guard' : 'Proteksi Prop Firm',
       description: language === 'en'
-        ? 'Real-time drawdown tracking for FTMO, TFT, MFF, and other prop firms. Get alerts before breach.',
+        ? 'Real-time drawdown tracking for FTMO, TFT, MFF, and other prop firms. Get alerts before breach.'
         : 'Tracking drawdown realtime untuk FTMO, TFT, MFF. Dapat peringatan sebelum breach.',
       icon: <TrendingUp className="w-5 h-5" />
     },
