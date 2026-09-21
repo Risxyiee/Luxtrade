@@ -6,7 +6,6 @@ export async function POST(request: NextRequest) {
     const supabaseAdmin = getSupabaseAdmin()
     const body = await request.json()
     const { userId } = body
-    const supabaseAdmin = getSupabaseAdmin()
 
     console.log('🧪 [TEST PRO] Starting test...')
     console.log('🧪 [TEST PRO] userId:', userId)
