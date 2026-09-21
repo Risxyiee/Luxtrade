@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 4: Award the achievement to the user (use admin to bypass RLS)
-    let userAchievement = null
+    let userAchievement: any = null
     try {
       const clientToUse = supabaseAdmin || supabase
       const insertData: any = {

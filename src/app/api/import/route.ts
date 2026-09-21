@@ -53,7 +53,11 @@ export async function POST(request: NextRequest) {
     const errors: string[] = []
 
     // Get supabase client for API operations
-    const { supabase } = createClientForApi(request)
+    const { supabase } = await createClientForApi(request)
+
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
 
     for (let i = 0; i < tradesToInsert.length; i += batchSize) {
       const batch = tradesToInsert.slice(i, i + batchSize)

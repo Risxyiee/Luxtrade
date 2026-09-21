@@ -648,7 +648,7 @@ export default function AdminEmailPage() {
       })
       const data = await res.json()
       if (res.ok) {
-        setResult({ sent: data.sent, failed: data.failed, errors: [] })
+        setResult({ sent: data.sent, failed: data.failed, errors: [], targetUserCount: data.targetUserCount || 0, totalBatches: data.totalBatches || 1, currentBatch: data.currentBatch || 1, batchSize: data.batchSize || 0 })
         toast.success(`Auto update terkirim! ${data.sent} berhasil, ${data.failed} gagal`)
         const statsRes = await authFetch('/api/admin/email-stats', {
           headers: { 'x-admin-email': ADMIN_EMAIL },

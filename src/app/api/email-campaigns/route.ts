@@ -450,13 +450,13 @@ export async function GET(request: Request) {
         return Response.json({ error: 'Failed to fetch users' }, { status: 500 })
       }
 
-      const results = []
+      const results: any[] = []
       const batchSize = 10
 
       for (let i = 0; i < users.length; i += batchSize) {
         const batch = users.slice(i, i + batchSize)
         const emailPromises = batch.map(async (user: User) => {
-          const html = getEmailHtml(campaign.template, user.full_name)
+          const html = getEmailHtml(campaign.template, user.full_name ?? null)
           const result = await sendEmail({
             to: user.email,
             subject: campaign.subject,

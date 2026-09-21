@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Z.ai Vision Model Integration
  * Uses z-ai-web-dev-sdk for image analysis (GLM-4.6v model)

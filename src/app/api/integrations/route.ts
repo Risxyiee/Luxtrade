@@ -29,7 +29,7 @@ function getSupabaseAdmin(): SupabaseClient {
  */
 export async function GET(req: Request) {
   try {
-    const supabase = await createSupabaseClient(req)
+    const supabase = await createSupabaseClient(req as NextRequest)
 
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -65,7 +65,7 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
   try {
-    const supabase = await createSupabaseClient(req)
+    const supabase = await createSupabaseClient(req as NextRequest)
 
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 

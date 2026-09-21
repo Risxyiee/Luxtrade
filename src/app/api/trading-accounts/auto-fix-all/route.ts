@@ -6,6 +6,9 @@ export async function POST(req: NextRequest) {
   try {
     // Get authenticated user
     const { supabase } = await createClientForApi(req)
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -39,8 +42,8 @@ export async function POST(req: NextRequest) {
 
     console.log('🔍 [AUTO FIX] Found accounts:', accounts?.length || 0)
 
-    const fixedAccounts = []
-    const skippedAccounts = []
+    const fixedAccounts: { accountNumber: any; before: any; after: any; reason: string }[] = []
+    const skippedAccounts: { accountNumber: any; reason: string; error?: string }[] = []
 
     for (const account of accounts || []) {
       console.log(`🔍 [AUTO FIX] Checking account ${account.account_number}:`, {
@@ -80,7 +83,7 @@ export async function POST(req: NextRequest) {
           console.error(`🔴 [AUTO FIX] Failed to fix account ${account.account_number}:`, updateError)
           skippedAccounts.push({
             accountNumber: account.account_number,
-            error: updateError.message
+            reason: updateError.message
           })
         } else {
           console.log(`✅ [AUTO FIX] Fixed account ${account.account_number}`)

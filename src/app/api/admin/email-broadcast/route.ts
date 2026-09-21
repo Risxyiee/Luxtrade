@@ -239,7 +239,7 @@ export async function POST(request: NextRequest) {
               subject: reminderSubject,
               html,
               replyTo: 'luxtradee@gmail.com',
-            })
+            }) as { success: boolean; error?: string }
 
             if (result.success) {
               sent++
@@ -271,7 +271,7 @@ export async function POST(request: NextRequest) {
               subject: personalizedSubject,
               html: fullHtml,
               replyTo: 'luxtradee@gmail.com',
-            })
+            }) as { success: boolean; error?: string }
 
             if (result.success) {
               sent++

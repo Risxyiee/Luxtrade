@@ -112,7 +112,7 @@ async function performSearch(query: string): Promise<any[]> {
     }
 
     const data = await ddgResponse.json()
-    const results = []
+    const results: any[] = []
 
     // Add abstract if available
     if (data.Abstract) {

@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     }
 
-    let adminClient = null
+    let adminClient: any = null
     let methodUsed = 'none'
 
     // Method 1: SUPABASE_SERVICE_ROLE_KEY

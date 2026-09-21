@@ -81,7 +81,7 @@ export async function syncUserToDatabase(authUserId: string, email: string, disp
  */
 export async function syncCurrentUser() {
   try {
-    const supabase = getServerClient()
+    const supabase = await getServerClient()
     if (!supabase) {
       return { success: false, error: 'Supabase client not available' }
     }

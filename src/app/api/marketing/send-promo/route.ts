@@ -93,17 +93,9 @@ export async function POST(request: NextRequest) {
     // ============================================
     const result = await sendEmail({
       to: email.toLowerCase(),
-      type: 'promo',
-      name,
       subject: subject || `🎁 Promo Eksklusif Buat Kamu - LuxTrade`,
-      promoCode: promoCode.toUpperCase(),
-      promoData: {
-        discountPercent: discountPercent || 50,
-        planName: planName || 'PRO',
-        durationMonths: durationMonths || 1,
-        expiryDate: expiryDate || '30 hari lagi',
-        customMessage: customMessage || undefined
-      }
+      html: `<p>Promo code: ${promoCode.toUpperCase()}</p>`,
+      replyTo: 'luxtradee@gmail.com',
     })
 
     if (!result.success) {

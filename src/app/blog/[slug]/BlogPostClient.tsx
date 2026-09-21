@@ -1,4 +1,4 @@
-import BlogPostPage from './BlogPostClient'
+import BlogPostPage from './BlogPostPageClient'
 
 export default async function BlogPage({
   params,

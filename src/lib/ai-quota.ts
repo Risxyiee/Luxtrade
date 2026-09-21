@@ -1,5 +1,4 @@
 import { db } from '@/lib/db'
-import { Profile } from '@prisma/client'
 
 const FREE_AI_QUOTA = 10
 

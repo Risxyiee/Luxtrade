@@ -21,7 +21,7 @@ const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY || ''
 
 // Mock data generator for forex
 function generateMockForexData(symbol: string, count: number = 50) {
-  const data = []
+  const data: any[] = []
   let timestamp = Date.now() - (count * 15 * 60 * 1000) // Start from count*15min ago
 
   // Get symbol info or default to EURUSD
