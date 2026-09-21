@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 
 // Demo trade data for tutorial
@@ -188,22 +188,19 @@ const demoTrades = [
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
+    const { user } = await getAuthenticatedUser(request)
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
-    const userId = session.user.id
-    const userEmail = session.user.email ?? ''
-
     // Check if user already has demo data
     const existingTrades = await db.trade.findMany({
       where: {
-        user_id: userId,
+        user_id: user.id,
         notes: { contains: '[DEMO DATA]' }
       }
     })
@@ -218,7 +215,7 @@ export async function POST(request: NextRequest) {
     // Insert demo trades
     const tradesToInsert = demoTrades.map(trade => ({
       ...trade,
-      user_id: userId,
+      user_id: user.id,
       notes: `[DEMO DATA] ${trade.notes}`
     }))
 

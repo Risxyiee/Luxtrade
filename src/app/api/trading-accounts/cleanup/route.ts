@@ -16,7 +16,7 @@ export async function DELETE(req: NextRequest) {
     // Get authenticated user
     const { supabase } = await createClientForApi(req)
     if (!supabase) {
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+      return NextResponse.json({ error: 'Authentication unavailable' }, { status: 503 })
     }
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 

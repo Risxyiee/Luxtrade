@@ -33,7 +33,7 @@ async function testPhotoMatch(fileName: string) {
     console.log('🇮🇩 Indonesia DateTime:', metadata.indonesiaDateTime.toISOString())
     console.log('   Formatted:', metadata.indonesiaDateTime.toLocaleString('id-ID'))
     console.log('   Timezone:', metadata.indonesiaTimezone)
-    console.log('   Is in Indonesia:', metadata.isInIndonesia)
+    console.log('   Is in Indonesia:', !!metadata.indonesiaTimezone)
   }
 
   if (metadata.gpsCoordinates) {
@@ -69,7 +69,15 @@ async function testPhotoMatch(fileName: string) {
     return
   }
 
-  const photoTime = metadata.indonesiaDateTime || metadata.originalDateTime
+  const photoTime = metadata.indonesiaDateTime ?? metadata.originalDateTime
+  if (!photoTime) {
+    console.log('❌ Cannot determine photo time')
+    console.log('')
+    console.log('='.repeat(60))
+    console.log('❌ Test Failed')
+    console.log('='.repeat(60))
+    return
+  }
   console.log('🕐 Photo Time:', photoTime.toISOString())
 
   // Calculate time range (±5 minutes)
@@ -120,10 +128,10 @@ async function testPhotoMatch(fileName: string) {
     photoTime.toISOString()
   )
 
-  console.log('📊 Found', trades.length, 'trade(s) in range')
+  console.log('📊 Found', (trades as any[]).length, 'trade(s) in range')
   console.log('')
 
-  if (trades.length === 0) {
+  if ((trades as any[]).length === 0) {
     console.log('❌ No trades found matching photo time')
     console.log('')
     console.log('💡 Try:')

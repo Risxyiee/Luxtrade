@@ -3,10 +3,10 @@ import { getSupabaseAdmin, getAdminStatus } from '@/lib/supabase-admin-alt'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabaseAdmin = getSupabaseAdmin()
     const adminStatus = getAdminStatus()
+    const supabaseAdmin = getSupabaseAdmin()
 
-    const debugInfo: Record<string, any> = {
+    const debugInfo = {
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV,
       supabase: {
@@ -18,8 +18,10 @@ export async function GET(request: NextRequest) {
         ...adminStatus
       },
       test: {
-        message: 'Debug endpoint working'
-      } as Record<string, any>
+        message: 'Debug endpoint working',
+        listUsers: undefined as string | undefined,
+        userCount: undefined as number | undefined,
+      }
     }
 
     // Test supabaseAdmin if available
@@ -32,7 +34,7 @@ export async function GET(request: NextRequest) {
         debugInfo.test.listUsers = 'EXCEPTION: ' + err.message
       }
     } else {
-      debugInfo.test.listUsers = 'SKIPPED: supabaseAdmin is null'
+      (debugInfo.test as any).listUsers = 'SKIPPED: supabaseAdmin is null'
     }
 
     return NextResponse.json(debugInfo)

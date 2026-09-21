@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
 
       // Transform Binance data to OHLC format
       // Binance returns: [time, open, high, low, close, volume, ...]
-      const ohlcData = (Array.isArray(data) ? data : [])
+      const ohlcData: any[] = (Array.isArray(data) ? data : [])
         .map((kline: any[]) => ({
           time: Math.floor(kline[0] / 1000), // Convert to seconds
           open: parseFloat(kline[1]),

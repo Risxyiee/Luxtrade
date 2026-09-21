@@ -1,7 +1,9 @@
+export const runtime = "edge"
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { createClientForApi } from '@/lib/supabase/server'
 import { checkTransactionStatus, getTransactionHistory } from '@/lib/payment/sakura'
+import type { PaymentOrder } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +20,7 @@ export async function GET(request: NextRequest) {
   try {
     const { supabase } = await createClientForApi(request)
     if (!supabase) {
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+      return NextResponse.json({ error: 'Authentication unavailable' }, { status: 503 })
     }
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check local DB
-    let order: Awaited<ReturnType<typeof db.paymentOrder.findUnique>> = null
+    let order: PaymentOrder | null = null
     try {
       order = await db.paymentOrder.findUnique({
         where: { invoiceNumber },
@@ -141,7 +143,7 @@ export async function GET(request: NextRequest) {
           where: { invoiceNumber },
           data: { status: 'EXPIRED' },
         })
-        order = await db.paymentOrder.findUnique({ where: { invoiceNumber } }) ?? order
+        order = await db.paymentOrder.findUnique({ where: { invoiceNumber } }) || order
       } catch (dbErr: any) {
         console.error('❌ [Order Status] Failed to update DB for expired:', dbErr.message)
       }

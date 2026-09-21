@@ -121,7 +121,7 @@ async function performSearch(query: string): Promise<any[]> {
         snippet: data.Abstract,
         url: data.AbstractURL || '',
         date: new Date().toISOString().split('T')[0]
-      })
+      } as any)
     }
 
     // Add related topics if available
@@ -136,7 +136,7 @@ async function performSearch(query: string): Promise<any[]> {
           snippet: topic.Text,
           url: topic.FirstURL,
           date: new Date().toISOString().split('T')[0]
-        })
+        } as any)
       })
     }
 

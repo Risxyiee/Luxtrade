@@ -13,11 +13,11 @@ export async function GET(request: NextRequest) {
   const results: { step: string; status: string; detail?: string }[] = []
 
   try {
-    const { user: authUser, error: authError } = await getAuthenticatedUser(request)
-    if (!authUser) {
-      return NextResponse.json({ error: authError || 'Unauthorized' }, { status: 401 })
+    const authResult = await getAuthenticatedUser(request)
+    if (!authResult || !authResult.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    const profile = await db.profile.findUnique({ where: { id: authUser.id }, select: { role: true } })
+    const profile = await db.profile.findUnique({ where: { id: authResult.user.id }, select: { role: true } })
     if (profile?.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 })
     }

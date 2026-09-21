@@ -5,9 +5,9 @@ import { createClientForApi } from '@/lib/supabase/server'
 export async function POST(request: NextRequest) {
   try {
     // Get authenticated user
-    const { user: authUser, error: authError } = await getAuthenticatedUser(request)
-    if (!authUser) {
-      return NextResponse.json({ error: authError || 'Unauthorized - Please login' }, { status: 401 })
+    const authResult = await getAuthenticatedUser(request)
+    if (!authResult || !authResult.user) {
+      return NextResponse.json({ error: 'Unauthorized - Please login' }, { status: 401 })
     }
     
     const body = await request.json()
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       take_profit?: number | null;
       ticket_number?: string | null;
     }) => ({
-      user_id: authUser.id,
+      user_id: authResult.user!.id,
       symbol: trade.symbol.toUpperCase(),
       type: trade.type, // BUY or SELL
       open_price: parseFloat(String(trade.open_price)) || 0,
@@ -54,9 +54,8 @@ export async function POST(request: NextRequest) {
 
     // Get supabase client for API operations
     const { supabase } = await createClientForApi(request)
-
     if (!supabase) {
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+      return NextResponse.json({ error: 'Authentication unavailable' }, { status: 503 })
     }
 
     for (let i = 0; i < tradesToInsert.length; i += batchSize) {

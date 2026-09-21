@@ -64,9 +64,9 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now()
 
   try {
-    const { user: authUser, error: authError } = await getAuthenticatedUser(request)
+    const authUser = await getAuthenticatedUser(request)
     if (!authUser) {
-      return NextResponse.json({ success: false, error: authError || 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
     const body = await request.json()

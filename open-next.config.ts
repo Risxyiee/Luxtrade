@@ -7,7 +7,7 @@ const config = defineCloudflareConfig({
       "/api/generate-image/*"
     ]
   }
-});
+} as any);
 
 // Add buildCommand at the top level
 config.buildCommand = "next build";

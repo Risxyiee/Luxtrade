@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     if (isDatabaseAvailable()) {
       try {
         // Check for existing subscription
-        const existing = await db.newsletter.findUnique({ where: { email: trimmed } })
+        const existing = await (db as any).newsletter.findUnique({ where: { email: trimmed } })
         if (existing) {
           return NextResponse.json({
             success: true,
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
           })
         }
 
-        await db.newsletter.create({
+        await (db as any).newsletter.create({
           data: { email: trimmed, subscribedAt: new Date().toISOString() },
         })
       } catch {

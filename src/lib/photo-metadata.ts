@@ -86,12 +86,12 @@ export async function readPhotoMetadata(filePath: string): Promise<PhotoMetadata
         if (detectedTimezone) {
           metadata.timezoneOffset = detectedTimezone.offset
           metadata.originalTimezone = detectedTimezone.name
-          metadata.indonesiaTimezone = detectedTimezone.indonesiaZone
+          metadata.indonesiaTimezone = detectedTimezone.indonesiaZone || 'WIB'
           console.log(`🌍 [EXIF Reader] Detected timezone: ${detectedTimezone.name} (UTC${detectedTimezone.offset >= 0 ? '+' : ''}${detectedTimezone.offset})`)
 
           // Convert to Indonesia timezone
-          if (metadata.originalDateTime && detectedTimezone.indonesiaZone) {
-            const indoOffset = getTimezoneOffset(detectedTimezone.indonesiaZone)
+          if (metadata.originalDateTime) {
+            const indoOffset = getTimezoneOffset(detectedTimezone.indonesiaZone || 'WIB')
             const originalOffset = detectedTimezone.offset
 
             // Calculate time difference

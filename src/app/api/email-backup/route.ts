@@ -7,10 +7,12 @@ import { rateLimitByUser } from '@/lib/rate-limit'
 // POST - Send email backup of trading data
 export async function POST(request: NextRequest) {
   try {
-    const { user: authUser, error: authError } = await getAuthenticatedUser(request)
-    if (!authUser) {
-      return NextResponse.json({ error: authError || 'Unauthorized' }, { status: 401 })
+    const authResult = await getAuthenticatedUser(request)
+    if (!authResult.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const authUser = authResult.user
 
     // Rate limit: max 3 backup emails per hour per user (prevents email abuse / Resend quota burn)
     const limited = rateLimitByUser('email-backup', authUser.id, {
@@ -23,7 +25,7 @@ export async function POST(request: NextRequest) {
     const { supabase } = await createClientForApi(request)
 
     if (!supabase) {
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
     }
 
     // Fetch trades, journal entries, and watchlist in parallel
@@ -139,7 +141,7 @@ export async function POST(request: NextRequest) {
 
     // Send email
     const result = await sendEmail({
-      to: authUser.email || '',
+      to: authUser.email!,
       subject: `LuxTrade Data Backup — ${dateStr}`,
       html: `<pre style="font-family: monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; color: #e2e8f0; background: #1a1a2e; padding: 24px; border-radius: 12px;">${plainTextBody.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`,
     })

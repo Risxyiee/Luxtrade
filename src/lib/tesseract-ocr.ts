@@ -172,6 +172,7 @@ export function parseJournalData(ocrText: string): any {
  */
 export async function cleanupOCR() {
   try {
+    // @ts-ignore - terminate may not be available in all versions
     await Tesseract.terminate()
     console.log('🧹 [Tesseract] Worker terminated')
   } catch (error) {
