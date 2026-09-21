@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Star, X, Send, CheckCircle2, User, Briefcase } from 'lucide-react'
+import { Star, X, Send, CheckCircle2, User, Briefcase, LogIn } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import Link from 'next/link'
 
 interface TestimonialFormProps {
   isOpen: boolean
@@ -24,7 +25,7 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
   const [role, setRole] = useState('')
   const [propFirmsPassed, setPropFirmsPassed] = useState('0')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error' | 'need-login'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
 
   useEffect(() => {
@@ -63,6 +64,12 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
       const data = await response.json()
 
       if (!response.ok) {
+        // Check if unauthorized
+        if (response.status === 401) {
+          setSubmitStatus('need-login')
+          setErrorMessage(data.error || (language === 'id' ? 'Silakan login terlebih dahulu' : 'Please login first'))
+          return
+        }
         throw new Error(data.error || 'Failed to submit testimonial')
       }
 
@@ -88,7 +95,7 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
       2: language === 'en' ? 'Fair' : 'Kurang',
       3: language === 'en' ? 'Good' : 'Bagus',
       4: language === 'en' ? 'Very Good' : 'Sangat Bagus',
-      5: language === 'en' ? 'Excellent' : 'Sangat Bagus',
+      5: language === 'en' ? 'Excellent' : 'Luar Biasa',
     }
     return labels[rating as keyof typeof labels] || ''
   }
@@ -136,186 +143,217 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
               </div>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Rating */}
-                <div className="space-y-2">
-                  <Label className="text-base">
-                    {language === 'en' ? 'Your Rating' : 'Rating Anda'}
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onMouseEnter={() => setHoverRating(star)}
-                          onMouseLeave={() => setHoverRating(0)}
-                          onClick={() => setRating(star)}
-                          className="transition-transform hover:scale-110 focus:outline-none"
-                        >
-                          <Star
-                            className={`w-8 h-8 ${
-                              star <= (hoverRating || rating)
-                                ? 'fill-yellow-400 text-yellow-400'
-                                : 'text-gray-600'
-                            }`}
-                          />
-                        </button>
-                      ))}
+              {/* Need Login State */}
+              {submitStatus === 'need-login' && (
+                <div className="space-y-4">
+                  <div className="p-6 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-center">
+                    <LogIn className="w-10 h-10 text-yellow-400 mx-auto mb-3" />
+                    <h3 className="text-lg font-bold text-white mb-2">
+                      {language === 'en' ? 'Login Required' : 'Perlu Login Dulu'}
+                    </h3>
+                    <p className="text-sm text-gray-400 mb-4">
+                      {language === 'en'
+                        ? 'You need to be logged in to submit a testimonial. It\'s free and takes 30 seconds!'
+                        : 'Anda perlu login untuk kirim testimoni. Gratis dan cuma 30 detik!'}
+                    </p>
+                    <Link href="/auth/signup" className="block">
+                      <Button className="w-full bg-gradient-to-r from-blue-500 to-cyan-400 hover:opacity-90 text-base py-5">
+                        <LogIn className="w-5 h-5 mr-2" />
+                        {language === 'en' ? 'Sign Up Free' : 'Daftar Gratis'}
+                      </Button>
+                    </Link>
+                    <div className="mt-3">
+                      <Link href="/auth/login" className="text-sm text-gray-400 hover:text-white transition-colors">
+                        {language === 'en' ? 'Already have an account? Login' : 'Sudah punya akun? Login'}
+                      </Link>
                     </div>
-                    {hoverRating > 0 && (
-                      <span className="text-sm text-yellow-400 font-medium">
-                        {getRatingLabel(hoverRating)}
-                      </span>
-                    )}
                   </div>
                 </div>
+              )}
 
-                {/* Name (optional) */}
-                <div className="space-y-2">
-                  <Label htmlFor="userName" className="text-sm text-gray-400">
-                    {language === 'en' ? 'Name (optional)' : 'Nama (opsional)'}
-                  </Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+              {/* Normal Form */}
+              {submitStatus !== 'need-login' && (
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Rating */}
+                  <div className="space-y-2">
+                    <Label className="text-base">
+                      {language === 'en' ? 'Your Rating' : 'Rating Anda'}
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onMouseEnter={() => setHoverRating(star)}
+                            onMouseLeave={() => setHoverRating(0)}
+                            onClick={() => setRating(star)}
+                            className="transition-transform hover:scale-110 focus:outline-none"
+                          >
+                            <Star
+                              className={`w-8 h-8 ${
+                                star <= (hoverRating || rating)
+                                  ? 'fill-yellow-400 text-yellow-400'
+                                  : 'text-gray-600'
+                              }`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                      {(hoverRating > 0 || rating > 0) && (
+                        <span className="text-sm text-yellow-400 font-medium">
+                          {getRatingLabel(hoverRating || rating)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Name (optional) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="userName" className="text-sm text-gray-400">
+                      {language === 'en' ? 'Name (optional)' : 'Nama (opsional)'}
+                    </Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+                      <Input
+                        id="userName"
+                        type="text"
+                        value={userName}
+                        onChange={(e) => setUserName(e.target.value)}
+                        placeholder={language === 'en' ? 'Your name' : 'Nama Anda'}
+                        className="pl-10 bg-white/5 border-white/10"
+                        maxLength={50}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Role (optional) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="role" className="text-sm text-gray-400">
+                      {language === 'en' ? 'Role/Title (optional)' : 'Role/Posisi (opsional)'}
+                    </Label>
+                    <div className="relative">
+                      <Briefcase className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+                      <Input
+                        id="role"
+                        type="text"
+                        value={role}
+                        onChange={(e) => setRole(e.target.value)}
+                        placeholder={language === 'en' ? 'e.g., Forex Trader, Jakarta' : 'misalnya, Forex Trader, Jakarta'}
+                        className="pl-10 bg-white/5 border-white/10"
+                        maxLength={100}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Prop Firms Passed (optional) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="propFirmsPassed" className="text-sm text-gray-400">
+                      {language === 'en'
+                        ? 'Prop Firms Passed (optional)'
+                        : 'Prop Firm yang Dilulusi (opsional)'}
+                    </Label>
                     <Input
-                      id="userName"
-                      type="text"
-                      value={userName}
-                      onChange={(e) => setUserName(e.target.value)}
-                      placeholder={language === 'en' ? 'Your name' : 'Nama Anda'}
-                      className="pl-10 bg-white/5 border-white/10"
-                      maxLength={50}
+                      id="propFirmsPassed"
+                      type="number"
+                      min="0"
+                      max="50"
+                      value={propFirmsPassed}
+                      onChange={(e) => setPropFirmsPassed(e.target.value)}
+                      placeholder="0"
+                      className="bg-white/5 border-white/10"
                     />
                   </div>
-                </div>
 
-                {/* Role (optional) */}
-                <div className="space-y-2">
-                  <Label htmlFor="role" className="text-sm text-gray-400">
-                    {language === 'en' ? 'Role/Title (optional)' : 'Role/Posisi (opsional)'}
-                  </Label>
-                  <div className="relative">
-                    <Briefcase className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
-                    <Input
-                      id="role"
-                      type="text"
-                      value={role}
-                      onChange={(e) => setRole(e.target.value)}
-                      placeholder={language === 'en' ? 'e.g., Forex Trader, Jakarta' : 'misalnya, Forex Trader, Jakarta'}
-                      className="pl-10 bg-white/5 border-white/10"
-                      maxLength={100}
+                  {/* Testimonial Text */}
+                  <div className="space-y-2">
+                    <Label htmlFor="text">
+                      {language === 'en' ? 'Your Testimonial' : 'Testimoni Anda'}
+                      <span className="text-red-400 ml-1">*</span>
+                    </Label>
+                    <Textarea
+                      id="text"
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
+                      placeholder={
+                        language === 'en'
+                          ? 'How has LuxTrade helped your trading? What did you like most? (min. 10 characters)'
+                          : 'Bagaimana LuxTrade membantu trading Anda? Apa yang paling Anda suka? (min. 10 karakter)'
+                      }
+                      className="bg-white/5 border-white/10 min-h-[120px] resize-none"
+                      maxLength={1000}
+                      required
                     />
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>{language === 'en' ? 'Min. 10 characters' : 'Min. 10 karakter'}</span>
+                      <span>{text.length}/1000</span>
+                    </div>
                   </div>
-                </div>
 
-                {/* Prop Firms Passed (optional) */}
-                <div className="space-y-2">
-                  <Label htmlFor="propFirmsPassed" className="text-sm text-gray-400">
-                    {language === 'en'
-                      ? 'Prop Firms Passed (optional)'
-                      : 'Prop Firm yang Dilulusi (opsional)'}
-                  </Label>
-                  <Input
-                    id="propFirmsPassed"
-                    type="number"
-                    min="0"
-                    max="50"
-                    value={propFirmsPassed}
-                    onChange={(e) => setPropFirmsPassed(e.target.value)}
-                    placeholder="0"
-                    className="bg-white/5 border-white/10"
-                  />
-                </div>
-
-                {/* Testimonial Text */}
-                <div className="space-y-2">
-                  <Label htmlFor="text">
-                    {language === 'en' ? 'Your Testimonial' : 'Testimoni Anda'}
-                    <span className="text-red-400 ml-1">*</span>
-                  </Label>
-                  <Textarea
-                    id="text"
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    placeholder={
-                      language === 'en'
-                        ? 'How has LuxTrade helped your trading? What did you like most? (min. 10 characters)'
-                        : 'Bagaimana LuxTrade membantu trading Anda? Apa yang paling Anda suka? (min. 10 karakter)'
-                    }
-                    className="bg-white/5 border-white/10 min-h-[120px] resize-none"
-                    maxLength={1000}
-                    required
-                  />
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>{language === 'en' ? 'Min. 10 characters' : 'Min. 10 karakter'}</span>
-                    <span>{text.length}/1000</span>
-                  </div>
-                </div>
-
-                {/* Success Message */}
-                <AnimatePresence>
-                  {submitStatus === 'success' && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="flex items-center gap-2 p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400"
-                    >
-                      <CheckCircle2 className="w-5 h-5" />
-                      <span>
-                        {language === 'en'
-                          ? 'Thank you! Your testimonial has been submitted.'
-                          : 'Terima kasih! Testimoni Anda telah dikirim.'}
-                      </span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Error Message */}
-                <AnimatePresence>
-                  {submitStatus === 'error' && errorMessage && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm"
-                    >
-                      {errorMessage}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Submit Button */}
-                <div className="flex gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={onClose}
-                    className="flex-1 border-white/20 hover:bg-white/5"
-                    disabled={isSubmitting}
-                  >
-                    {language === 'en' ? 'Cancel' : 'Batal'}
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting || text.length < 10 || text.length > 1000}
-                    className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-400 hover:opacity-90"
-                  >
-                    {isSubmitting ? (
-                      <span className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        {language === 'en' ? 'Submitting...' : 'Mengirim...'}
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-2">
-                        <Send className="w-4 h-4" />
-                        {language === 'en' ? 'Submit' : 'Kirim'}
-                      </span>
+                  {/* Success Message */}
+                  <AnimatePresence>
+                    {submitStatus === 'success' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="flex items-center gap-2 p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400"
+                      >
+                        <CheckCircle2 className="w-5 h-5" />
+                        <span>
+                          {language === 'en'
+                            ? 'Thank you! Your testimonial has been submitted.'
+                            : 'Terima kasih! Testimoni Anda telah dikirim.'}
+                        </span>
+                      </motion.div>
                     )}
-                  </Button>
-                </div>
-              </form>
+                  </AnimatePresence>
+
+                  {/* Error Message */}
+                  <AnimatePresence>
+                    {submitStatus === 'error' && errorMessage && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm"
+                      >
+                        {errorMessage}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Submit Button */}
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={onClose}
+                      className="flex-1 border-white/20 hover:bg-white/5"
+                      disabled={isSubmitting}
+                    >
+                      {language === 'en' ? 'Cancel' : 'Batal'}
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isSubmitting || text.length < 10 || text.length > 1000}
+                      className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-400 hover:opacity-90"
+                    >
+                      {isSubmitting ? (
+                        <span className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          {language === 'en' ? 'Submitting...' : 'Mengirim...'}
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-2">
+                          <Send className="w-4 h-4" />
+                          {language === 'en' ? 'Submit' : 'Kirim'}
+                        </span>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              )}
             </CardContent>
           </Card>
         </motion.div>

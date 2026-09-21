@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Star, Quote, ChevronLeft, ChevronRight, MessageSquare, Plus } from 'lucide-react'
+import { Star, Quote, ChevronLeft, ChevronRight, MessageSquarePlus, PenLine, Sparkles } from 'lucide-react'
 import TestimonialForm from './TestimonialForm'
 
 interface DatabaseTestimonial {
@@ -78,6 +78,7 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
   const [testimonials, setTestimonials] = useState<(DatabaseTestimonial | DefaultTestimonial)[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [dbTestimonialCount, setDbTestimonialCount] = useState(0)
   const containerRef = React.useRef<HTMLDivElement>(null)
 
   const testimonialsPerPage = 3
@@ -89,7 +90,8 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
         const response = await fetch('/api/testimonials?limit=20')
         const data = await response.json()
 
-        if (data.success && data.testimonials) {
+        if (data.success && data.testimonials && data.testimonials.length > 0) {
+          setDbTestimonialCount(data.testimonials.length)
           // Add gradient to database testimonials
           const dbTestimonials = data.testimonials.map((t: DatabaseTestimonial, i: number) => ({
             ...t,
@@ -113,6 +115,24 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
     fetchTestimonials()
   }, [])
 
+  // Refresh after submitting
+  const refreshTestimonials = async () => {
+    try {
+      const response = await fetch('/api/testimonials?limit=20')
+      const data = await response.json()
+      if (data.success && data.testimonials) {
+        setDbTestimonialCount(data.testimonials.length)
+        const dbTestimonials = data.testimonials.map((t: DatabaseTestimonial, i: number) => ({
+          ...t,
+          gradient: gradients[i % gradients.length],
+          borderHover: `hover:border-${gradients[i % gradients.length].split('-')[1]}-500/30`,
+        }))
+        setTestimonials([...dbTestimonials, ...DEFAULT_TESTIMONIALS])
+        setCurrentPage(0) // Go to first page to see new testimonial
+      }
+    } catch {}
+  }
+
   const totalPages = Math.ceil(testimonials.length / testimonialsPerPage)
   const currentTestimonials = testimonials.slice(
     currentPage * testimonialsPerPage,
@@ -132,9 +152,7 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
   }
 
   const getDisplayName = (t: DatabaseTestimonial | DefaultTestimonial): string => {
-    if (isDatabaseTestimonial(t)) {
-      return t.user_name
-    }
+    if (isDatabaseTestimonial(t)) return t.user_name
     return t.name
   }
 
@@ -143,7 +161,7 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
       if (t.role) return t.role
       if (t.trades_logged > 0) {
         const firmsText = t.prop_firms_passed > 0
-          ? ` · ${t.prop_firms_passed} ${t.prop_firms_passed === 1 ? (language === 'id' ? 'Prop Firm' : 'Prop Firm') : (language === 'id' ? 'Prop Firms' : 'Prop Firms')}`
+          ? ` · ${t.prop_firms_passed} ${language === 'id' ? 'Prop Firm' : 'Prop Firm'}${t.prop_firms_passed > 1 ? 's' : ''}`
           : ''
         return `${language === 'id' ? 'Trader' : 'Trader'}${firmsText}`
       }
@@ -154,41 +172,25 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
 
   const getAvatar = (t: DatabaseTestimonial | DefaultTestimonial, index: number): string => {
     if (isDatabaseTestimonial(t)) {
-      if (t.profile_image_url) {
-        return t.profile_image_url
-      }
-      // Get initials
-      const initials = t.user_name
-        .split(' ')
-        .map(n => n[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2)
-      return initials
+      if (t.profile_image_url) return t.profile_image_url
+      return t.user_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     }
     return t.avatar
   }
 
   const getGradient = (t: DatabaseTestimonial | DefaultTestimonial, index: number): string => {
-    if (isDatabaseTestimonial(t)) {
-      return t.gradient || gradients[index % gradients.length]
-    }
+    if (isDatabaseTestimonial(t)) return t.gradient || gradients[index % gradients.length]
     return t.gradient
   }
 
   const getText = (t: DatabaseTestimonial | DefaultTestimonial): string => {
-    if (isDatabaseTestimonial(t)) {
-      return t.text
-    }
+    if (isDatabaseTestimonial(t)) return t.text
     return language === 'id' ? t.text : t.textEn
   }
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }).map((_, i) => (
-      <Star
-        key={i}
-        className={`w-4 h-4 ${i < rating ? 'text-amber-400 fill-amber-400' : 'text-[var(--lux-text-label-3)]'}`}
-      />
+      <Star key={i} className={`w-4 h-4 ${i < rating ? 'text-amber-400 fill-amber-400' : 'text-[var(--lux-text-label-3)]'}`} />
     ))
   }
 
@@ -215,7 +217,7 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
     <section id="testimonials" className="py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
         {/* Section Header */}
-        <div className="text-center mb-14">
+        <div className="text-center mb-10">
           <h2 className="text-3xl sm:text-4xl font-extrabold text-[var(--lux-text-primary)] mb-4">
             {language === 'id' ? 'Apa Kata Mereka' : 'What They Say'}
           </h2>
@@ -226,17 +228,57 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
           </p>
         </div>
 
-        {/* Add Testimonial Button */}
-        <div className="flex justify-center mb-10">
+        {/* ===== BESAR & JELAS: CTA Tulis Testimoni ===== */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mb-12"
+        >
           <button
             onClick={() => setShowForm(true)}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white rounded-xl hover:opacity-90 transition-all font-medium"
+            className="w-full group relative overflow-hidden rounded-2xl border border-blue-500/30 bg-gradient-to-r from-blue-500/10 via-cyan-500/10 to-blue-500/10 p-6 sm:p-8 hover:border-blue-500/50 transition-all duration-300"
           >
-            <MessageSquare className="w-5 h-5" />
-            <Plus className="w-5 h-5" />
-            {language === 'id' ? 'Bagikan Testimoni Anda' : 'Share Your Testimonial'}
+            {/* Animated glow background */}
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-cyan-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+            <div className="relative flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
+              {/* Icon */}
+              <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 shadow-lg shadow-blue-500/25">
+                <PenLine className="w-6 h-6 text-white" />
+              </div>
+
+              {/* Text */}
+              <div className="text-center sm:text-left">
+                <h3 className="text-xl sm:text-2xl font-bold text-white mb-1">
+                  {language === 'id'
+                    ? 'Pengen Layak Dilihat Trader Lain?'
+                    : 'Want Other Traders to See Your Story?'}
+                </h3>
+                <p className="text-sm text-gray-400">
+                  {language === 'id'
+                    ? 'Bagikan pengalaman Anda — bantu trader lain & tunjukkan bahwa Anda serius tentang trading.'
+                    : 'Share your experience — help other traders & show you\'re serious about trading.'}
+                </p>
+              </div>
+
+              {/* Arrow */}
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-all group-hover:scale-110">
+                <MessageSquarePlus className="w-5 h-5 text-blue-400" />
+              </div>
+            </div>
+
+            {/* User count badge */}
+            {dbTestimonialCount > 0 && (
+              <div className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20">
+                <Sparkles className="w-3 h-3 text-green-400" />
+                <span className="text-xs text-green-400 font-medium">
+                  {dbTestimonialCount} {language === 'id' ? 'testimoni nyata' : 'real testimonials'}
+                </span>
+              </div>
+            )}
           </button>
-        </div>
+        </motion.div>
 
         {/* Testimonial Cards */}
         <div ref={containerRef} className="relative overflow-hidden">
@@ -264,7 +306,7 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
                     {isDatabaseTestimonial(t) && t.is_verified && (
                       <div className="absolute top-5 left-5 px-2 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
                         <span className="text-xs text-green-400 font-medium">
-                          {language === 'id' ? '✓ Terverifikasi' : '✓ Verified'}
+                          ✓ {language === 'id' ? 'Terverifikasi' : 'Verified'}
                         </span>
                       </div>
                     )}
@@ -278,14 +320,10 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
                     {isDatabaseTestimonial(t) && (t.trades_logged > 0 || t.prop_firms_passed > 0) && (
                       <div className="flex items-center gap-3 mb-3 text-xs text-gray-500">
                         {t.trades_logged > 0 && (
-                          <span>
-                            {t.trades_logged} {language === 'id' ? 'trade' : 'trade'}{t.trades_logged > 1 ? 's' : ''}
-                          </span>
+                          <span>{t.trades_logged} trade{t.trades_logged > 1 ? 's' : ''}</span>
                         )}
                         {t.prop_firms_passed > 0 && (
-                          <span>
-                            {t.prop_firms_passed} {language === 'id' ? 'funded' : 'funded'}
-                          </span>
+                          <span>{t.prop_firms_passed} funded</span>
                         )}
                       </div>
                     )}
@@ -300,25 +338,15 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
                     {/* Author */}
                     <div className="flex items-center gap-3 pt-4 border-t border-[var(--lux-inline-border)]">
                       {getAvatar(t, actualIndex).startsWith('http') ? (
-                        <img
-                          src={getAvatar(t, actualIndex)}
-                          alt={getDisplayName(t)}
-                          className="w-10 h-10 rounded-full object-cover shrink-0"
-                        />
+                        <img src={getAvatar(t, actualIndex)} alt={getDisplayName(t)} className="w-10 h-10 rounded-full object-cover shrink-0" />
                       ) : (
-                        <div
-                          className={`w-10 h-10 rounded-full bg-gradient-to-br ${getGradient(t, actualIndex)} flex items-center justify-center text-white text-xs font-bold shrink-0`}
-                        >
+                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getGradient(t, actualIndex)} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
                           {getAvatar(t, actualIndex)}
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-[var(--lux-text-primary)] truncate">
-                          {getDisplayName(t)}
-                        </p>
-                        <p className="text-xs text-[var(--lux-text-label-2)] truncate">
-                          {getRole(t)}
-                        </p>
+                        <p className="text-sm font-bold text-[var(--lux-text-primary)] truncate">{getDisplayName(t)}</p>
+                        <p className="text-xs text-[var(--lux-text-label-2)] truncate">{getRole(t)}</p>
                       </div>
                     </div>
                   </div>
@@ -362,10 +390,7 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
         <TestimonialForm
           isOpen={showForm}
           onClose={() => setShowForm(false)}
-          onSuccess={() => {
-            // Refresh testimonials after submission
-            window.location.reload()
-          }}
+          onSuccess={refreshTestimonials}
           language={language}
         />
       </div>
