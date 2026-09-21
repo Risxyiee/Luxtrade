@@ -125,7 +125,7 @@ function normalizeTradingData(data: any): any {
 export async function POST(request: NextRequest) {
   try {
     // Auth check
-    const { supabase: authClient } = createClientForApi(request)
+    const { supabase: authClient } = await createClientForApi(request)
     const { data: { user } } = await authClient.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

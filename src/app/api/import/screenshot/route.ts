@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 import { parseMT5TradeData } from '@/lib/simple-parser'
 import { edgeCrypto } from '@/lib/edge-crypto'
 
@@ -64,9 +64,9 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now()
 
   try {
-    const authUser = await getAuthUser(request)
+    const { user: authUser, error: authError } = await getAuthenticatedUser(request)
     if (!authUser) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: authError || 'Unauthorized' }, { status: 401 })
     }
 
     const body = await request.json()

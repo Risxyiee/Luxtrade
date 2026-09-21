@@ -9,7 +9,7 @@ import { createClientForApi } from '@/lib/supabase/server'
 export async function POST(req: Request) {
   try {
     // Auth check
-    const { supabase } = createClientForApi(req as NextRequest)
+    const { supabase } = await createClientForApi(req as NextRequest)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

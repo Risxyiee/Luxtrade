@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin, getAdminStatus } from '@/lib/supabase-admin-alt'
+import { getSupabaseAdmin, getAdminStatus } from '@/lib/supabase-admin-alt'
 
 export async function POST(request: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin()
     const body = await request.json()
     const { userId } = body
 

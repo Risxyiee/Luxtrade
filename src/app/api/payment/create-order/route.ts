@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     // Get authenticated user
-    const { supabase } = createClientForApi(request)
+    const { supabase } = await createClientForApi(request)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {

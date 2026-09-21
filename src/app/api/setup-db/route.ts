@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 import { db } from '@/lib/db'
 
 /**
@@ -13,9 +13,9 @@ export async function GET(request: NextRequest) {
   const results: { step: string; status: string; detail?: string }[] = []
 
   try {
-    const authUser = await getAuthUser(request)
+    const { user: authUser, error: authError } = await getAuthenticatedUser(request)
     if (!authUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: authError || 'Unauthorized' }, { status: 401 })
     }
     const profile = await db.profile.findUnique({ where: { id: authUser.id }, select: { role: true } })
     if (profile?.role !== 'ADMIN') {
