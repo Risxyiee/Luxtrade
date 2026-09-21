@@ -1,38 +1,34 @@
 'use client'
 
 import { useLanguage } from '@/contexts/LanguageContext'
-import { Button } from '@/components/ui/button'
 
 export default function LanguageSwitcher() {
-  const { language, setLanguage, t } = useLanguage()
+  const { language, setLanguage } = useLanguage()
 
   return (
-    <div className="flex items-center gap-1 bg-blue-500/10 rounded-lg p-1 border border-blue-500/30">
-      <Button
-        variant="ghost"
-        size="sm"
+    <div className="flex items-center rounded-full border border-white/15 bg-white/5 overflow-hidden">
+      <button
         onClick={() => setLanguage('id')}
-        className={`h-7 px-3 text-xs font-medium transition-all ${
+        className={`px-2.5 py-1 text-[11px] font-bold tracking-wider transition-all duration-200 ${
           language === 'id'
-            ? 'bg-blue-500 text-white shadow-[0_0_12px_rgba(59,130,246,0.3)]'
-            : 'text-blue-300/60 hover:text-white hover:bg-blue-500/20'
+            ? 'bg-cyan-500/20 text-cyan-400 border-r border-white/10'
+            : 'text-white/50 hover:text-white/80'
         }`}
+        title="Bahasa Indonesia"
       >
-        {t('nav.language.id')}
-      </Button>
-      <div className="w-px h-4 bg-blue-500/30" />
-      <Button
-        variant="ghost"
-        size="sm"
+        ID
+      </button>
+      <button
         onClick={() => setLanguage('en')}
-        className={`h-7 px-3 text-xs font-medium transition-all ${
+        className={`px-2.5 py-1 text-[11px] font-bold tracking-wider transition-all duration-200 ${
           language === 'en'
-            ? 'bg-blue-500 text-white shadow-[0_0_12px_rgba(59,130,246,0.3)]'
-            : 'text-blue-300/60 hover:text-white hover:bg-blue-500/20'
+            ? 'bg-cyan-500/20 text-cyan-400'
+            : 'text-white/50 hover:text-white/80'
         }`}
+        title="English"
       >
-        {t('nav.language.en')}
-      </Button>
+        EN
+      </button>
     </div>
   )
 }

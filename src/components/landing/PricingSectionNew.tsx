@@ -62,18 +62,18 @@ export default function PricingSectionNew({
             transition={{ duration: 0.5, delay: 0.1 }}
             className="glass-lux p-8 flex flex-col"
           >
-            <h3 className="text-xl font-bold mb-2 text-white">Free</h3>
+            <h3 className="text-xl font-bold mb-2 text-white">{language === 'en' ? 'Free' : 'Gratis'}</h3>
             <p className="text-gray-400 text-sm mb-6">{language === 'en' ? 'For traders just starting their journaling journey.' : 'Untuk trader yang baru mulai journaling.'}</p>
             <div className="mb-6">
-              <span className="text-4xl font-bold text-white">Rp0</span>
+              <span className="text-4xl font-bold text-white">{language === 'en' ? '$0' : 'Rp0'}</span>
               <span className="text-gray-500">{language === 'en' ? '/month' : '/bulan'}</span>
             </div>
             <ul className="space-y-3 mb-8 text-gray-400 text-sm flex-grow">
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? '10 Trade Entries / month' : '10 Trade Entries / bulan'}</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? '10 AI Queries / month' : '10 AI Queries / bulan'}</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Basic Analytics</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Manual Journal Input</li>
-              <li className="flex items-center gap-2"><X className="w-4 h-4 text-gray-600" /> AI Pattern Detection</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Basic Analytics' : 'Analitik Dasar'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Manual Journal Input' : 'Input Jurnal Manual'}</li>
+              <li className="flex items-center gap-2"><X className="w-4 h-4 text-gray-600" /> {language === 'en' ? 'AI Pattern Detection' : 'Deteksi Pola AI'}</li>
             </ul>
             <Link href="/auth/signup">
               <span className="block w-full py-3 border border-white/10 rounded-xl hover:bg-white/5 transition-all text-sm font-medium text-white text-center cursor-pointer">
@@ -92,21 +92,21 @@ export default function PricingSectionNew({
             style={{ background: 'rgba(59, 130, 246, 0.05)' }}
           >
             <div className="absolute top-0 right-8 -translate-y-1/2 bg-gradient-to-r from-blue-500 to-cyan-400 text-white text-xs px-3 py-1 rounded-full font-mono">
-              POPULAR
+              {language === 'en' ? 'POPULAR' : 'POPULER'}
             </div>
-            <h3 className="text-xl font-bold mb-2 text-cyan-400">PRO</h3>
+            <h3 className="text-xl font-bold mb-2 text-cyan-400">{language === 'en' ? 'PRO' : 'PRO'}</h3>
             <p className="text-gray-400 text-sm mb-6">{language === 'en' ? 'For serious traders building an edge and passing prop firms.' : 'Untuk serius membangun edge dan lewati prop firm.'}</p>
 
             <div className="mb-6">
               {promoApplied ? (
                 <div className="flex items-end gap-2 transition-all">
-                  <span className="text-gray-500 line-through text-xl mr-2">Rp39K</span>
-                  <span className="text-4xl font-bold text-cyan-400">Rp25K</span>
+                  <span className="text-gray-500 line-through text-xl mr-2">{language === 'en' ? 'Rp39K' : 'Rp39K'}</span>
+                  <span className="text-4xl font-bold text-cyan-400">{language === 'en' ? 'Rp25K' : 'Rp25K'}</span>
                   <span className="text-gray-500 pb-1">{language === 'en' ? '/month' : '/bulan'}</span>
                 </div>
               ) : (
                 <div className="flex items-end gap-2">
-                  <span className="text-4xl font-bold text-white">Rp39K</span>
+                  <span className="text-4xl font-bold text-white">{language === 'en' ? 'Rp39K' : 'Rp39K'}</span>
                   <span className="text-gray-500 pb-1">{language === 'en' ? '/month' : '/bulan'}</span>
                 </div>
               )}
@@ -119,10 +119,10 @@ export default function PricingSectionNew({
             </div>
 
             <ul className="space-y-3 mb-6 text-gray-300 text-sm flex-grow">
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Unlimited Trade Entries</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Advanced Analytics & Equity Curve</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Auto Extract MT5/TV (AI Vision)</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> AI Pattern Detection & Guard</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Unlimited Trade Entries' : 'Trade Entries Tak Terbatas'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Advanced Analytics & Equity Curve' : 'Analitik Lanjutan & Equity Curve'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Auto Extract MT5/TV (AI Vision)' : 'Auto Extract MT5/TV (AI Vision)'}</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'AI Pattern Detection & Guard' : 'Deteksi Pola AI & Guard'}</li>
             </ul>
 
             {/* Promo Input */}

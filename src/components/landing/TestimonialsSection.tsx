@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Star, Quote, ChevronLeft, ChevronRight, MessageSquarePlus, PenLine, Sparkles, Camera } from 'lucide-react'
+import { Star, Quote, ChevronLeft, ChevronRight, MessageSquarePlus, PenLine, Sparkles, Camera, Award, FileCheck } from 'lucide-react'
 import TestimonialForm from './TestimonialForm'
 
 interface DatabaseTestimonial {
@@ -11,7 +11,7 @@ interface DatabaseTestimonial {
   role: string | null
   rating: number
   text: string
-  profile_image_url: string | null
+  profile_image_url: string | null  // Actually stores certificate/proof image URL
   trades_logged: number
   prop_firms_passed: number
   is_verified: boolean
@@ -254,13 +254,13 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
               <div className="text-center sm:text-left">
                 <h3 className="text-xl sm:text-2xl font-bold text-white mb-1">
                   {language === 'id'
-                    ? 'Pengen Layak Dilihat Trader Lain?'
-                    : 'Want Other Traders to See Your Story?'}
+                    ? 'Udah Lolos ProFirm? Tunjukkan Buktinya!'
+                    : 'Passed a PropFirm? Show Your Proof!'}
                 </h3>
                 <p className="text-sm text-gray-400">
                   {language === 'id'
-                    ? 'Bagikan pengalaman & foto Anda — bantu trader lain & tunjukkan bahwa Anda serius tentang trading.'
-                    : 'Share your experience & photo — help other traders & show you\'re serious about trading.'}
+                    ? 'Bagikan pengalaman & bukti sertifikat Anda — bantu trader lain & tunjukkan bahwa Anda serius tentang trading.'
+                    : 'Share your experience & prop firm certificate — help other traders & show you\'re serious about trading.'}
                 </p>
               </div>
 
@@ -322,10 +322,10 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
                     {isDatabaseTestimonial(t) && (t.trades_logged > 0 || t.prop_firms_passed > 0) && (
                       <div className="flex items-center gap-3 mb-3 text-xs text-gray-500">
                         {t.trades_logged > 0 && (
-                          <span>{t.trades_logged} trade{t.trades_logged > 1 ? 's' : ''}</span>
+                          <span>{t.trades_logged} {language === 'id' ? 'trade' : 'trade'}{t.trades_logged > 1 ? 's' : ''}</span>
                         )}
                         {t.prop_firms_passed > 0 && (
-                          <span>{t.prop_firms_passed} funded</span>
+                          <span>{language === 'id' ? `${t.prop_firms_passed} prop firm lolos` : `${t.prop_firms_passed} funded`}</span>
                         )}
                       </div>
                     )}
@@ -339,17 +339,25 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
 
                     {/* Author */}
                     <div className="flex items-center gap-3 pt-4 border-t border-[var(--lux-inline-border)]">
-                      {getAvatar(t, actualIndex).startsWith('http') ? (
-                        <img src={getAvatar(t, actualIndex)} alt={getDisplayName(t)} className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-white/10" />
-                      ) : (
-                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getGradient(t, actualIndex)} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
-                          {getAvatar(t, actualIndex)}
-                        </div>
-                      )}
+                      {/* Always show initials avatar */}
+                      <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getGradient(t, actualIndex)} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
+                        {isDatabaseTestimonial(t) ? t.user_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : t.avatar}
+                      </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-[var(--lux-text-primary)] truncate">{getDisplayName(t)}</p>
                         <p className="text-xs text-[var(--lux-text-label-2)] truncate">{getRole(t)}</p>
                       </div>
+                      {/* Certificate badge - if they have a proof image */}
+                      {isDatabaseTestimonial(t) && t.profile_image_url && (
+                        <a href={t.profile_image_url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 group/cert">
+                          <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-400/40 transition-colors">
+                            <FileCheck className="w-3 h-3 text-emerald-400" />
+                            <span className="text-[10px] text-emerald-400 font-medium">
+                              {language === 'id' ? 'Sertifikat' : 'Cert'}
+                            </span>
+                          </div>
+                        </a>
+                      )}
                     </div>
                   </div>
                 )

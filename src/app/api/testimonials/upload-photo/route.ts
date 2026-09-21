@@ -6,7 +6,7 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
 /**
  * POST /api/testimonials/upload-photo
- * Upload a profile photo for testimonial.
+ * Upload a PropFirm certificate/proof image for testimonial.
  * Uses Supabase Storage bucket "testimonials".
  */
 export async function POST(request: Request) {
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     // Generate unique file path
     const ext = file.name.split('.').pop() || 'jpg'
     const timestamp = Date.now()
-    const filePath = `photos/${user.id}/${timestamp}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+    const filePath = `certificates/${user.id}/${timestamp}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
     // Convert file to ArrayBuffer
     const arrayBuffer = await file.arrayBuffer()

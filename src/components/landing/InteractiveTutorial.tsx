@@ -373,7 +373,7 @@ export default function InteractiveTutorial({ language = 'id', onGetStarted }: I
                       <Card className="bg-[#0a0a12]/60 border border-white/10">
                         <CardHeader>
                           <CardTitle className="flex items-center justify-between">
-                            <span>{selectedTrade.pair} Details</span>
+                            <span>{selectedTrade.pair} {language === 'en' ? 'Details' : 'Detail'}</span>
                             <span className={`text-lg font-bold ${selectedTrade.profit > 0 ? 'text-green-400' : 'text-red-400'}`}>
                               {selectedTrade.profit > 0 ? '+' : ''}${selectedTrade.profit}
                             </span>
@@ -388,7 +388,7 @@ export default function InteractiveTutorial({ language = 'id', onGetStarted }: I
                               </span>
                             </div>
                             <div>
-                              <span className="text-gray-500">Setup: </span>
+                              <span className="text-gray-500">{language === 'en' ? 'Setup' : 'Setup'}: </span>
                               <span className="font-medium">{selectedTrade.setup}</span>
                             </div>
                             <div>
@@ -448,7 +448,7 @@ export default function InteractiveTutorial({ language = 'id', onGetStarted }: I
                             <span className="font-semibold">${challengeState.balance.toLocaleString()}</span>
                           </div>
                           <div className="flex justify-between text-sm mb-1">
-                            <span className="text-gray-500">Equity</span>
+                            <span className="text-gray-500">{language === 'en' ? 'Equity' : 'Ekuitas'}</span>
                             <span className="font-semibold text-blue-400">${challengeState.equity.toLocaleString()}</span>
                           </div>
                         </div>
