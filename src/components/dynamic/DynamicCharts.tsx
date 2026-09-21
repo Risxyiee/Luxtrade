@@ -7,29 +7,33 @@ import dynamic from 'next/dynamic'
  * These components will be code-split and loaded on-demand
  */
 
-export const PerformanceChart = dynamic(
-  () => import('@/app/dashboard/components/PerformanceChart').then(m => ({ default: (m as any).default })),
-  {
-    loading: () => (
-      <div className="h-64 bg-gray-800/50 rounded-xl animate-pulse flex items-center justify-center">
-        <div className="text-gray-500 text-sm">Loading chart...</div>
-      </div>
-    ),
-    ssr: false
-  }
-)
+// Dashboard removed - PerformanceChart import disabled
+// export const PerformanceChart = dynamic(
+//   () => import('@/app/dashboard/components/PerformanceChart').then(m => ({ default: (m as any).default })),
+//   {
+//     loading: () => (
+//       <div className="h-64 bg-gray-800/50 rounded-xl animate-pulse flex items-center justify-center">
+//         <div className="text-gray-500 text-sm">Loading chart...</div>
+//       </div>
+//     ),
+//     ssr: false
+//   }
+// )
+export const PerformanceChart = null as any
 
-export const MarketHeatmap = dynamic(
-  () => import('@/app/dashboard/tabs/HeatmapTab'),
-  {
-    loading: () => (
-      <div className="h-64 bg-gray-800/50 rounded-xl animate-pulse flex items-center justify-center">
-        <div className="text-gray-500 text-sm">Loading heatmap...</div>
-      </div>
-    ),
-    ssr: false
-  }
-)
+// Dashboard removed - MarketHeatmap import disabled
+// export const MarketHeatmap = dynamic(
+//   () => import('@/app/dashboard/tabs/HeatmapTab'),
+//   {
+//     loading: () => (
+//       <div className="h-64 bg-gray-800/50 rounded-xl animate-pulse flex items-center justify-center">
+//         <div className="text-gray-500 text-sm">Loading heatmap...</div>
+//       </div>
+//     ),
+//     ssr: false
+//   }
+// )
+export const MarketHeatmap = null as any
 
 export const TradingScoreChart = dynamic(
   () => import('@/components/TradingScore'),

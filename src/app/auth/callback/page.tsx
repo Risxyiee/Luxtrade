@@ -84,7 +84,7 @@ export default function AuthCallbackPage() {
 
           // HARD REDIRECT - Use window.location for immediate navigation
           setTimeout(() => {
-            window.location.href = '/dashboard'
+            window.location.href = '/'
           }, 3000)
         } else {
           // No code in URL
@@ -148,7 +148,7 @@ export default function AuthCallbackPage() {
               </p>
               <p className="text-white/30 text-xs">
                 Tidak redirect otomatis?{' '}
-                <Link href="/dashboard" className="text-amber-400 hover:text-amber-300">
+                <Link href="/" className="text-amber-400 hover:text-amber-300">
                   Klik di sini
                 </Link>
               </p>

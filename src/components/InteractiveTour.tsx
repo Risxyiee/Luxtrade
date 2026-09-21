@@ -306,7 +306,7 @@ export default function InteractiveTour({ isOpen, onClose, onComplete, language 
                       setShowCompletion(false)
                       onClose()
                       // Navigate to achievements
-                      window.location.href = '/dashboard?tab=achievements'
+                      window.location.href = '/'
                     }}
                     className="w-full h-14 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-lg font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_30px_rgba(59,130,246,0.5)] transition-all duration-300"
                   >

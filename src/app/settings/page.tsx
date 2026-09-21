@@ -144,9 +144,9 @@ export default function SettingsPage() {
       <header className="sticky top-0 z-50 border-b" style={{ background: 'var(--color-lux-bg-sidebar, #050507)', borderColor: 'rgba(255,255,255,0.06)' }}>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => router.push('/dashboard')} className="flex items-center gap-2 text-sm hover:text-white/80 transition-colors" style={{ color: 'var(--sidebar-foreground, #F0F2F5)' }}>
+            <button onClick={() => router.push('/')} className="flex items-center gap-2 text-sm hover:text-white/80 transition-colors" style={{ color: 'var(--sidebar-foreground, #F0F2F5)' }}>
               <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Dashboard</span>
+              <span className="hidden sm:inline">Home</span>
             </button>
             <div className="w-px h-5 bg-white/10" />
             <div className="flex items-center gap-2">

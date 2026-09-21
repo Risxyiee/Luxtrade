@@ -699,17 +699,17 @@ export default function LandingCheckoutModal({
                 )}
                 {!unverifiedUserId && (
                   <p className="text-white/30 text-[11px] mb-4">
-                    {isEn ? 'Redirecting to dashboard...' : 'Mengarahkan ke dashboard...'}
+                    {isEn ? 'Redirecting...' : 'Mengarahkan...'}
                   </p>
                 )}
 
                 <div className="w-full space-y-2">
                   <button
-                    onClick={() => { onClose(); window.location.href = '/dashboard' }}
+                    onClick={() => { onClose(); window.location.href = '/' }}
                     className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl hover:opacity-90 transition-all text-sm font-semibold text-white flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Sparkles className="w-4 h-4" />
-                    {unverifiedUserId ? (isEn ? 'Login to Dashboard' : 'Login ke Dashboard') : (isEn ? 'Go to Dashboard' : 'Ke Dashboard')}
+                    {unverifiedUserId ? (isEn ? 'Login' : 'Login') : (isEn ? 'Go to Home' : 'Ke Beranda')}
                   </button>
                   <button onClick={onClose} className="w-full py-2.5 border border-white/10 rounded-xl hover:bg-white/5 transition-all text-xs font-medium text-white/40 cursor-pointer">
                     {isEn ? 'Close' : 'Tutup'}
