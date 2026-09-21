@@ -424,7 +424,7 @@ export async function GET(request: Request) {
     const campaignId = searchParams.get('campaign')
     const testEmail = searchParams.get('test')
 
-    const supabase = createClient()
+    const supabase = await createClient()
 
     if (action === 'list') {
       return Response.json({
