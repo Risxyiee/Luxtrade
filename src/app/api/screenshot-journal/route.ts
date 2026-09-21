@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 import { isUserPro } from '@/lib/pro-check'
 import { analyzeImageWithAiml } from '@/lib/aiml-vision'
 import { edgeCrypto } from '@/lib/edge-crypto'
@@ -278,11 +278,11 @@ async function analyzeScreenshotWithVLM(
 export async function POST(request: NextRequest) {
   try {
     // Step 1: Authenticate user
-    const authUser = await getAuthUser(request)
+    const { user: authUser, error: authError } = await getAuthenticatedUser(request)
 
     if (!authUser) {
         return NextResponse.json(
-        { error: 'Unauthorized - Please login' },
+        { error: authError || 'Unauthorized - Please login' },
         { status: 401 }
       )
     }

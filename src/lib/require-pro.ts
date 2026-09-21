@@ -46,13 +46,13 @@ export async function isUserPro(userId: string): Promise<boolean> {
  */
 export async function requirePro(request: Request) {
   // Import dynamically to avoid circular deps
-  const { getAuthUser } = await import('@/lib/api-auth')
-  const user = await getAuthUser(request as any)
+  const { getAuthenticatedUser } = await import('@/lib/api-auth')
+  const { user, error: authError } = await getAuthenticatedUser(request as any)
 
   if (!user) {
     return {
       error: NextResponse.json(
-        { error: 'Unauthorized', requiresAuth: true },
+        { error: authError || 'Unauthorized', requiresAuth: true },
         { status: 401 }
       ),
       user: null,

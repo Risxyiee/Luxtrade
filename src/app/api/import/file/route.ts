@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 import pdf from 'pdf-parse-fixed'
 import { edgeCrypto } from '@/lib/edge-crypto'
 
@@ -375,9 +375,9 @@ function parseCSV(content: string): ParsedTrade[] {
 // ==================== MAIN HANDLER ====================
 export async function POST(request: NextRequest) {
   try {
-    const authUser = await getAuthUser(request)
+    const { user: authUser, error: authError } = await getAuthenticatedUser(request)
     if (!authUser) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ success: false, error: authError || 'Unauthorized' }, { status: 401 })
     }
 
     // Accept both FormData (from client) and JSON (from legacy callers)

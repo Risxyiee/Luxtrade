@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 import { sendEmail } from '@/lib/email'
 import { rateLimitByUser } from '@/lib/rate-limit'
 
 // POST - Send email backup of trading data
 export async function POST(request: NextRequest) {
   try {
-    const authUser = await getAuthUser(request)
+    const { user: authUser, error: authError } = await getAuthenticatedUser(request)
     if (!authUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: authError || 'Unauthorized' }, { status: 401 })
     }
 
     // Rate limit: max 3 backup emails per hour per user (prevents email abuse / Resend quota burn)
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     })
     if (limited) return limited
 
-    const { supabase } = createClientForApi(request)
+    const { supabase } = await createClientForApi(request)
 
     // Fetch trades, journal entries, and watchlist in parallel
     const [tradesRes, journalRes, watchlistRes] = await Promise.all([

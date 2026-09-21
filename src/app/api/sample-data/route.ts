@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getAuthUser } from '@/lib/api-auth'
+import { getAuthenticatedUser } from '@/lib/api-auth'
 import { isUserPro } from '@/lib/pro-check'
 
 const SAMPLE_TRADES = [
@@ -23,9 +23,9 @@ const SAMPLE_TRADES = [
 
 export async function POST(request: NextRequest) {
   try {
-    const authUser = await getAuthUser(request)
+    const { user: authUser, error: authError } = await getAuthenticatedUser(request)
     if (!authUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: authError || 'Unauthorized' }, { status: 401 })
     }
 
     const userId = authUser.id

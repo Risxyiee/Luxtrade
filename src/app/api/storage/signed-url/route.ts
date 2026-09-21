@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthUser } from '@/lib/api-auth';
+import { getAuthenticatedUser } from '@/lib/api-auth';
 
 /**
  * Generate signed URL for private storage images
@@ -8,9 +8,9 @@ import { getAuthUser } from '@/lib/api-auth';
 
 export async function POST(request: NextRequest) {
   try {
-    const authUser = await getAuthUser(request)
+    const { user: authUser, error: authError } = await getAuthenticatedUser(request)
     if (!authUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: authError || 'Unauthorized' }, { status: 401 })
     }
 
     const { bucket, path, expiresIn = 3600 } = await request.json();
