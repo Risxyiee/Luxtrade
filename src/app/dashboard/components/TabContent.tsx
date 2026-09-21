@@ -141,7 +141,7 @@ export default function TabContent({
           )}
 
           {activeTab === 'accounts' && (
-            <AccountsTab />
+            <AccountsTab language={language} />
           )}
 
           {activeTab === 'journal' && (
@@ -167,6 +167,7 @@ export default function TabContent({
               onDelete={onWatchlistDelete}
               isPro={isPro}
               onUpgrade={() => setPlanSelectionModalOpen(true)}
+              language={language}
             />
           )}
 
@@ -207,11 +208,11 @@ export default function TabContent({
           )}
 
           {activeTab === 'psychology' && (
-            <PsychologyTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} trades={trades} />
+            <PsychologyTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} trades={trades} language={language} />
           )}
 
           {activeTab === 'heatmap' && (
-            <HeatmapTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} trades={trades} />
+            <HeatmapTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} trades={trades} language={language} />
           )}
 
           {activeTab === 'calendar' && (

@@ -183,7 +183,7 @@ export default function AITab({
             >
               <Brain className="w-5 h-5 text-blue-400" />
             </motion.div>
-            AI Trading Assistant
+            {language === 'id' ? 'Asisten AI Trading' : 'AI Trading Assistant'}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -249,7 +249,7 @@ export default function AITab({
               {isRecording ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {language === 'id' ? 'Merekam...' : 'Recording...'}</>
               ) : (
-                <><Mic className="w-4 h-4 mr-2" /> Voice Journal
+                <><Mic className="w-4 h-4 mr-2" /> {language === 'id' ? 'Jurnal Suara' : 'Voice Journal'}
               </>)}
             </Button>
             {/* Chart Image Analysis */}
@@ -285,7 +285,7 @@ export default function AITab({
             <div className="p-3 rounded-lg bg-blue-500/10 border border-lux-border dark:border-blue-500/20 mt-4">
               <p className="text-sm text-blue-400 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" />
-                Add at least 5 closed trades to unlock AI-powered performance tips.
+                {language === 'id' ? 'Tambahkan minimal 5 trade tertutup untuk membuka tips performa bertenaga AI.' : 'Add at least 5 closed trades to unlock AI-powered performance tips.'}
               </p>
             </div>
           )}
@@ -298,7 +298,7 @@ export default function AITab({
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <ImageIcon className="w-5 h-5 text-cyan-400" />
-              Chart Analysis
+              {language === 'id' ? 'Analisis Chart' : 'Chart Analysis'}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -315,16 +315,16 @@ export default function AITab({
                 </Button>
               </div>
               <div className="bg-black/20 rounded-lg p-4 border border-lux-border dark:border-blue-500/20">
-                <p className="text-sm text-lux-text-secondary dark:text-gray-400 mb-2">AI Analysis:</p>
+                <p className="text-sm text-lux-text-secondary dark:text-gray-400 mb-2">{language === 'id' ? 'Analisis AI:' : 'AI Analysis:'}</p>
                 {loading ? (
                   <div className="flex items-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                    <span className="text-blue-400">Analyzing chart patterns...</span>
+                    <span className="text-blue-400">{language === 'id' ? 'Menganalisis pola chart...' : 'Analyzing chart patterns...'}</span>
                   </div>
                 ) : insight ? (
                   <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">{insight}</p>
                 ) : (
-                  <p className="text-gray-200 text-sm leading-relaxed">Upload a chart screenshot to identify patterns, support/resistance levels, and potential trading opportunities.</p>
+                  <p className="text-gray-200 text-sm leading-relaxed">{language === 'id' ? 'Upload screenshot chart untuk mengidentifikasi pola, level support/resistance, dan peluang trading potensial.' : 'Upload a chart screenshot to identify patterns, support/resistance levels, and potential trading opportunities.'}</p>
                 )}
               </div>
             </div>
@@ -341,7 +341,7 @@ export default function AITab({
                 <Sparkles className="w-4 h-4 text-blue-400" />
               </div>
               <div>
-                <p className="text-sm text-lux-text-secondary dark:text-gray-400 mb-1">AI Insight</p>
+                <p className="text-sm text-lux-text-secondary dark:text-gray-400 mb-1">{language === 'id' ? 'Insight AI' : 'AI Insight'}</p>
                 <p className="text-gray-200 whitespace-pre-wrap">{insight}</p>
               </div>
             </div>
@@ -355,7 +355,7 @@ export default function AITab({
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <MessageCircle className="w-5 h-5 text-blue-400" />
-              Chat with AI Coach
+              {language === 'id' ? 'Chat dengan AI Coach' : 'Chat with AI Coach'}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -368,7 +368,7 @@ export default function AITab({
                 <div className="h-full flex items-center justify-center text-lux-text-muted dark:text-gray-500 text-sm">
                   <div className="text-center">
                     <Bot className="w-8 h-8 mx-auto mb-2 text-blue-400/50" />
-                    <p>Ask me anything about your trading!</p>
+                    <p>{language === 'id' ? 'Tanya apa saja tentang trading Anda!' : 'Ask me anything about your trading!'}</p>
                     <p className="text-xs mt-1 text-gray-600">e.g., &quot;What&apos;s my best trading session?&quot;</p>
                   </div>
                 </div>
@@ -439,7 +439,7 @@ export default function AITab({
                     onSendChat()
                   }
                 }}
-                placeholder="Ask about your trading performance..."
+                placeholder={language === 'id' ? 'Tanya tentang performa trading Anda...' : 'Ask about your trading performance...'}
                 className="bg-black/30 border-lux-border dark:border-blue-900/30 focus:border-blue-500/50 text-gray-200 placeholder-gray-500"
                 disabled={loading}
               />

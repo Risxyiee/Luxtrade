@@ -87,7 +87,7 @@ export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNav
               <MessageSquare className="w-4 h-4" />
               <span className="text-[12px] font-medium">Discord</span>
             </a>
-            <div className="hidden sm:block"><LanguageSwitcher /></div>
+            <LanguageSwitcher />
             <a
               href="https://discord.gg/JwMxsmMqG"
               target="_blank"

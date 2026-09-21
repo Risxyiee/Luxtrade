@@ -28,6 +28,7 @@ interface PsychologyTabProps {
   isPro: boolean
   onUpgrade: () => void
   trades: Trade[]
+  language?: 'id' | 'en'
 }
 
 // Helper: Consecutive Streaks
@@ -49,7 +50,7 @@ function calculateConsecutiveStreaks(trades: Trade[], type: 'win' | 'lose'): num
 }
 
 // Component
-function PsychologyTab({ isPro, onUpgrade, trades }: PsychologyTabProps) {
+function PsychologyTab({ isPro, onUpgrade, trades, language = 'id' }: PsychologyTabProps) {
   // Calculate psychology metrics from trades
   const winningTrades = trades.filter(t => t.profit_loss >= 0)
   const losingTrades = trades.filter(t => t.profit_loss < 0)
@@ -105,10 +106,10 @@ function PsychologyTab({ isPro, onUpgrade, trades }: PsychologyTabProps) {
             >
               <Lock className="w-12 h-12 mx-auto mb-4 text-blue-400" />
             </motion.div>
-            <h3 className="text-lg font-bold text-blue-400 mb-2">Psychology Tracking - PRO Feature</h3>
-            <p className="text-lux-text-secondary dark:text-gray-400 mb-4">Track your emotional patterns and improve trading discipline</p>
+            <h3 className="text-lg font-bold text-blue-400 mb-2">{language === 'id' ? 'Tracking Psikologi - Fitur PRO' : 'Psychology Tracking - PRO Feature'}</h3>
+            <p className="text-lux-text-secondary dark:text-gray-400 mb-4">{language === 'id' ? 'Lacak pola emosi dan tingkatkan disiplin trading' : 'Track your emotional patterns and improve trading discipline'}</p>
             <Button onClick={onUpgrade} className="bg-gradient-to-r from-blue-500 to-blue-600">
-              <Zap className="w-4 h-4 mr-2" /> Upgrade to PRO
+              <Zap className="w-4 h-4 mr-2" /> {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
             </Button>
           </CardContent>
         </Card>
@@ -119,37 +120,37 @@ function PsychologyTab({ isPro, onUpgrade, trades }: PsychologyTabProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Heart className="w-5 h-5 text-cyan-400" />
-                Trading Psychology Analysis
+                {language === 'id' ? 'Analisis Psikologi Trading' : 'Trading Psychology Analysis'}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                  <div className="text-sm text-lux-text-secondary dark:text-gray-400 mb-1">Win Streak</div>
+                  <div className="text-sm text-lux-text-secondary dark:text-gray-400 mb-1">{language === 'id' ? 'Win Streak' : 'Win Streak'}</div>
                   <div className="text-2xl font-bold text-emerald-400">{longestWinStreak}</div>
-                  <p className="text-xs text-lux-text-muted dark:text-gray-500 mt-1">Best consecutive wins</p>
+                  <p className="text-xs text-lux-text-muted dark:text-gray-500 mt-1">{language === 'id' ? 'Menang berturut-turut terbaik' : 'Best consecutive wins'}</p>
                 </div>
                 <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
-                  <div className="text-sm text-lux-text-secondary dark:text-gray-400 mb-1">Lose Streak</div>
+                  <div className="text-sm text-lux-text-secondary dark:text-gray-400 mb-1">{language === 'id' ? 'Lose Streak' : 'Lose Streak'}</div>
                   <div className="text-2xl font-bold text-red-400">{longestLoseStreak}</div>
-                  <p className="text-xs text-lux-text-muted dark:text-gray-500 mt-1">Worst consecutive losses</p>
+                  <p className="text-xs text-lux-text-muted dark:text-gray-500 mt-1">{language === 'id' ? 'Kalah berturut-turut terburuk' : 'Worst consecutive losses'}</p>
                 </div>
                 <div className="p-4 rounded-xl bg-blue-500/10 border border-lux-border dark:border-blue-500/20">
-                  <div className="text-sm text-lux-text-secondary dark:text-gray-400 mb-1">Best Session</div>
+                  <div className="text-sm text-lux-text-secondary dark:text-gray-400 mb-1">{language === 'id' ? 'Sesi Terbaik' : 'Best Session'}</div>
                   <div className="text-xl font-bold text-blue-400">{bestSession?.[0] || '-'}</div>
                   <p className="text-xs text-lux-text-muted dark:text-gray-500 mt-1">{bestSession ? `+${bestSession[1].totalPL.toFixed(0)} P/L` : ''}</p>
                 </div>
                 <div className="p-4 rounded-xl bg-blue-500/10 border border-lux-border dark:border-blue-500/20">
-                  <div className="text-sm text-lux-text-secondary dark:text-gray-400 mb-1">Revenge Trades</div>
+                  <div className="text-sm text-lux-text-secondary dark:text-gray-400 mb-1">{language === 'id' ? 'Revenge Trade' : 'Revenge Trades'}</div>
                   <div className="text-2xl font-bold text-blue-400">{revengeTrades.length}</div>
-                  <p className="text-xs text-lux-text-muted dark:text-gray-500 mt-1">Trades within 1hr after loss</p>
+                  <p className="text-xs text-lux-text-muted dark:text-gray-500 mt-1">{language === 'id' ? 'Trade dalam 1 jam setelah loss' : 'Trades within 1hr after loss'}</p>
                 </div>
               </div>
 
               {/* Session Psychology */}
               <h4 className="font-semibold mb-3 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-blue-400" />
-                Session Performance Psychology
+                {language === 'id' ? 'Psikologi Performa per Sesi' : 'Session Performance Psychology'}
               </h4>
               <div className="space-y-2">
                 {Object.entries(sessionStats).map(([session, stats]) => {
@@ -162,7 +163,7 @@ function PsychologyTab({ isPro, onUpgrade, trades }: PsychologyTabProps) {
                         <span className="font-medium">{session}</span>
                       </div>
                       <div className="flex items-center gap-4 text-sm">
-                        <span className="text-lux-text-secondary dark:text-gray-400">{stats.wins + stats.losses} trades</span>
+                        <span className="text-lux-text-secondary dark:text-gray-400">{stats.wins + stats.losses} {language === 'id' ? 'trade' : 'trades'}</span>
                         <span className={`font-bold ${isProfitable ? 'text-emerald-400' : 'text-red-400'}`}>
                           {isProfitable ? '+' : ''}{stats.totalPL.toFixed(0)}
                         </span>
@@ -181,31 +182,31 @@ function PsychologyTab({ isPro, onUpgrade, trades }: PsychologyTabProps) {
                 <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20">
                   <h4 className="font-semibold text-cyan-400 mb-2 flex items-center gap-2">
                     <Brain className="w-4 h-4" />
-                    Psychology Tips
+                    {language === 'id' ? 'Tips Psikologi' : 'Psychology Tips'}
                   </h4>
                   <ul className="text-sm text-lux-text-primary dark:text-gray-300 space-y-2">
                     {revengeTrades.length > 2 && (
                       <li className="flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 text-blue-400 mt-0.5" />
-                        <span>Consider taking a break after a loss. You have {revengeTrades.length} potential revenge trades.</span>
+                        <span>{language === 'id' ? `Pertimbangkan untuk istirahat setelah loss. Anda memiliki ${revengeTrades.length} potential revenge trade.` : `Consider taking a break after a loss. You have ${revengeTrades.length} potential revenge trades.`}</span>
                       </li>
                     )}
                     {bestSession && (
                       <li className="flex items-start gap-2">
                         <Target className="w-4 h-4 text-emerald-400 mt-0.5" />
-                        <span>Your best session is <strong>{bestSession[0]}</strong>. Consider focusing more trades during this time.</span>
+                        <span>{language === 'id' ? 'Sesi terbaik Anda adalah ' : 'Your best session is '}<strong>{bestSession[0]}</strong>{language === 'id' ? '. Pertimbangkan untuk lebih fokus trade di waktu ini.' : '. Consider focusing more trades during this time.'}</span>
                       </li>
                     )}
                     {longestLoseStreak > 3 && (
                       <li className="flex items-start gap-2">
                         <AlertCircle className="w-4 h-4 text-red-400 mt-0.5" />
-                        <span>Your longest losing streak is {longestLoseStreak}. Consider reducing position size during drawdowns.</span>
+                        <span>{language === 'id' ? `Losing streak terpanjang Anda adalah ${longestLoseStreak}. Pertimbangkan untuk mengurangi ukuran posisi selama drawdown.` : `Your longest losing streak is ${longestLoseStreak}. Consider reducing position size during drawdowns.`}</span>
                       </li>
                     )}
                     {trades.length >= 5 && (
                       <li className="flex items-start gap-2">
                         <Sparkles className="w-4 h-4 text-blue-400 mt-0.5" />
-                        <span>Keep tracking your trades to unlock more personalized psychology insights.</span>
+                        <span>{language === 'id' ? 'Terus lacak trade Anda untuk membuka lebih banyak insight psikologi yang dipersonalisasi.' : 'Keep tracking your trades to unlock more personalized psychology insights.'}</span>
                       </li>
                     )}
                   </ul>

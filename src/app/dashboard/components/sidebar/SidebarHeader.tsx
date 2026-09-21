@@ -7,11 +7,13 @@ import { motion } from 'framer-motion'
 interface SidebarHeaderProps {
   sidebarOpen: boolean
   mobileSidebarOpen: boolean
+  language?: 'id' | 'en'
 }
 
 export default function SidebarHeader({
   sidebarOpen,
-  mobileSidebarOpen
+  mobileSidebarOpen,
+  language = 'id'
 }: SidebarHeaderProps) {
   return (
     <div className="relative p-4 pb-3 border-b border-lux-border dark:border-blue-500/20 shrink-0">
@@ -42,7 +44,7 @@ export default function SidebarHeader({
             <h1 className="text-xl font-bold bg-gradient-to-r from-blue-200 via-blue-400 to-cyan-300 bg-clip-text text-transparent">
               LuxTrade
             </h1>
-            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-blue-500/50 dark:text-blue-400/40">Trading Journal</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-blue-500/50 dark:text-blue-400/40">{language === 'id' ? 'Jurnal Trading' : 'Trading Journal'}</p>
           </motion.div>
         )}
       </Link>

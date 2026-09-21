@@ -7,6 +7,7 @@ import { X, ChevronRight, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 import { type LegalPageTab } from '@/components/LegalPagesModal'
 import SocialIcons from './SocialIcons'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 interface LandingSidebarProps {
   isOpen: boolean
@@ -119,6 +120,9 @@ export default function LandingSidebar({ isOpen, onClose, language, t, openLegal
             </nav>
 
             <div className="px-5 py-4 border-t border-white/[0.08] space-y-3">
+              <div className="flex items-center justify-center">
+                <LanguageSwitcher />
+              </div>
               <div className="flex gap-2">
                 <Link href="/auth/login" onClick={onClose} className="flex-1 text-center py-2.5 text-[13px] font-medium text-[#8892b0] border border-white/10 rounded-xl hover:text-white hover:border-white/20 transition-colors">
                   {t('nav.login')}

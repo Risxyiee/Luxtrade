@@ -25,7 +25,7 @@ interface TradingAccount {
   created_at: string
 }
 
-export default function AccountsTab() {
+export default function AccountsTab({ language = 'id' }: { language?: 'id' | 'en' }) {
   const [accounts, setAccounts] = useState<TradingAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [addAccountOpen, setAddAccountOpen] = useState(false)
@@ -63,7 +63,7 @@ export default function AccountsTab() {
       setAccounts(data.accounts || [])
     } catch (error) {
       console.error('Error fetching accounts:', error)
-      toast.error('Gagal memuat akun trading')
+      toast.error(language === 'id' ? 'Gagal memuat akun trading' : 'Failed to load trading accounts')
     } finally {
       setLoading(false)
     }
@@ -87,13 +87,13 @@ export default function AccountsTab() {
   const handleDeleteClick = (account: TradingAccount) => {
     // Prevent deleting if it's the last account
     if (accounts.length <= 1) {
-      toast.error('Tidak bisa menghapus akun terakhir. Minimal 1 akun diperlukan.')
+      toast.error(language === 'id' ? 'Tidak bisa menghapus akun terakhir. Minimal 1 akun diperlukan.' : 'Cannot delete the last account. At least 1 account is required.')
       return
     }
 
     // Prevent deleting default account
     if (account.is_default) {
-      toast.error('Tidak bisa menghapus akun default. Setel akun lain sebagai default terlebih dahulu.')
+      toast.error(language === 'id' ? 'Tidak bisa menghapus akun default. Setel akun lain sebagai default terlebih dahulu.' : 'Cannot delete the default account. Set another account as default first.')
       return
     }
 
@@ -118,7 +118,7 @@ export default function AccountsTab() {
         throw new Error(data.error || 'Failed to delete account')
       }
 
-      toast.success('Akun trading berhasil dihapus!')
+      toast.success(language === 'id' ? 'Akun trading berhasil dihapus!' : 'Trading account deleted successfully!')
       setDeleteDialogOpen(false)
       setAccountToDelete(null)
 
@@ -131,9 +131,9 @@ export default function AccountsTab() {
     } catch (error: any) {
       console.error('Error deleting account:', error)
       if (error.message?.includes('Cannot delete default account')) {
-        toast.error('Tidak bisa menghapus akun default. Setel akun lain sebagai default terlebih dahulu.')
+        toast.error(language === 'id' ? 'Tidak bisa menghapus akun default. Setel akun lain sebagai default terlebih dahulu.' : 'Cannot delete the default account. Set another account as default first.')
       } else {
-        toast.error(error.message || 'Gagal menghapus akun trading')
+        toast.error(error.message || (language === 'id' ? 'Gagal menghapus akun trading' : 'Failed to delete trading account'))
       }
     } finally {
       setDeleting(false)
@@ -145,8 +145,8 @@ export default function AccountsTab() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-lux-text-primary dark:text-white">Akun Trading</h2>
-          <p className="text-white/60 mt-1">Kelola akun trading Anda</p>
+          <h2 className="text-2xl font-bold text-lux-text-primary dark:text-white">{language === 'id' ? 'Akun Trading' : 'Trading Accounts'}</h2>
+          <p className="text-white/60 mt-1">{language === 'id' ? 'Kelola akun trading Anda' : 'Manage your trading accounts'}</p>
         </div>
         <div className="flex items-center gap-2">
           {/* Account Switcher Dropdown */}
@@ -160,7 +160,7 @@ export default function AccountsTab() {
               >
                 <CreditCard className="w-4 h-4 mr-2 text-blue-400" />
                 <span className="truncate max-w-[150px]">
-                  {selectedAccountName || 'Semua Akun'}
+                  {selectedAccountName || (language === 'id' ? 'Semua Akun' : 'All Accounts')}
                 </span>
                 <ChevronDown className={`w-4 h-4 ml-2 transition-transform ${accountDropdownOpen ? 'rotate-180' : ''}`} />
               </Button>
@@ -172,7 +172,7 @@ export default function AccountsTab() {
                     onClick={() => {
                       setSelectedAccountId(null)
                       setAccountDropdownOpen(false)
-                      toast.success('Semua akun dipilih')
+                      toast.success(language === 'id' ? 'Semua akun dipilih' : 'All accounts selected')
                     }}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-all ${
                       selectedAccountId === null
@@ -181,7 +181,7 @@ export default function AccountsTab() {
                     }`}
                   >
                     <Grid3X3 className={`w-4 h-4 ${selectedAccountId === null ? 'text-blue-400' : 'text-gray-500'}`} />
-                    <span className="flex-1 text-left">Semua Akun</span>
+                    <span className="flex-1 text-left">{language === 'id' ? 'Semua Akun' : 'All Accounts'}</span>
                     {selectedAccountId === null && <Check className="w-4 h-4 text-blue-400" />}
                   </button>
 
@@ -198,7 +198,7 @@ export default function AccountsTab() {
                       <div className={`flex-1 flex items-center gap-3 cursor-pointer`} onClick={() => {
                         setSelectedAccountId(account.id)
                         setAccountDropdownOpen(false)
-                        toast.success(`Switched to ${account.name}`)
+                        toast.success(language === 'id' ? `Beralih ke ${account.name}` : `Switched to ${account.name}`)
                       }}>
                         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${selectedAccountId === account.id ? 'bg-emerald-400' : 'bg-gray-500'}`} />
                         <div className="flex-1">
@@ -232,7 +232,7 @@ export default function AccountsTab() {
                             handleDeleteClick(account)
                           }}
                           className="h-8 w-8 p-0 text-gray-500 hover:text-red-400 hover:bg-red-500/10"
-                          title="Hapus akun"
+                          title={language === 'id' ? 'Hapus akun' : 'Delete account'}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
@@ -250,7 +250,7 @@ export default function AccountsTab() {
             className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
           >
             <Plus className="w-4 h-4 mr-2" />
-            Tambah Akun
+            {language === 'id' ? 'Tambah Akun' : 'Add Account'}
           </Button>
         </div>
       </div>
@@ -260,7 +260,7 @@ export default function AccountsTab() {
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-blue-400" />
-            Daftar Akun Trading
+            {language === 'id' ? 'Daftar Akun Trading' : 'Trading Account List'}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -281,13 +281,13 @@ export default function AccountsTab() {
           <div className="bg-lux-bg-card dark:bg-[#080b12] border border-red-500/30 rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold text-red-400 flex items-center gap-2 mb-4">
               <Trash2 className="w-5 h-5" />
-              Hapus Akun Trading?
+              {language === 'id' ? 'Hapus Akun Trading?' : 'Delete Trading Account?'}
             </h3>
             <div className="text-white/60 space-y-2 mb-6">
-              <p>Anda yakin ingin menghapus akun trading <strong>{accountToDelete?.name}</strong>?</p>
-              {accountToDelete?.account_number && <p>Account: {accountToDelete.account_number}</p>}
+              <p>{language === 'id' ? 'Anda yakin ingin menghapus akun trading' : 'Are you sure you want to delete trading account'} <strong>{accountToDelete?.name}</strong>?</p>
+              {accountToDelete?.account_number && <p>{language === 'id' ? 'Akun' : 'Account'}: {accountToDelete.account_number}</p>}
               {accountToDelete?.broker && <p>Broker: {accountToDelete.broker}</p>}
-              <p className="text-sm text-amber-400 mt-3">⚠️ Tindakan ini tidak dapat dibatalkan. Semua trade yang terkait akan dihapus.</p>
+              <p className="text-sm text-amber-400 mt-3">⚠️ {language === 'id' ? 'Tindakan ini tidak dapat dibatalkan. Semua trade yang terkait akan dihapus.' : 'This action cannot be undone. All related trades will be deleted.'}</p>
             </div>
             <div className="flex justify-end gap-3">
               <Button
@@ -299,7 +299,7 @@ export default function AccountsTab() {
                 disabled={deleting}
                 className="border-white/10 text-white hover:bg-white/5"
               >
-                Batal
+                {language === 'id' ? 'Batal' : 'Cancel'}
               </Button>
               <Button
                 onClick={handleDeleteConfirm}
@@ -309,12 +309,12 @@ export default function AccountsTab() {
                 {deleting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Menghapus...
+                    {language === 'id' ? 'Menghapus...' : 'Deleting...'}
                   </>
                 ) : (
                   <>
                     <Trash2 className="w-4 h-4 mr-2" />
-                    Hapus Akun
+                    {language === 'id' ? 'Hapus Akun' : 'Delete Account'}
                   </>
                 )}
               </Button>

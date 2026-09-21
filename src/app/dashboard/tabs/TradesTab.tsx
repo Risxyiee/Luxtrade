@@ -55,7 +55,9 @@ function TradesTab({
 
   // Build CSV content from a trade list
   const buildCSVContent = (tradeList: Trade[]) => {
-    const headers = ['Symbol','Type','Setup Type','Entry','Exit','Lot Size','P/L','Duration','R:R Ratio','Tags','Session','Open Time','Close Time','Notes','Journal Link']
+    const headers = language === 'id'
+      ? ['Simbol','Tipe','Tipe Setup','Entry','Exit','Lot Size','P/L','Durasi','R:R Ratio','Tag','Sesi','Waktu Buka','Waktu Tutup','Catatan','Link Jurnal']
+      : ['Symbol','Type','Setup Type','Entry','Exit','Lot Size','P/L','Duration','R:R Ratio','Tags','Session','Open Time','Close Time','Notes','Journal Link']
     const rows = tradeList.map(t => {
       const tags = safeParseTags(t.tags)
       return [
@@ -83,7 +85,7 @@ function TradesTab({
   const handleExportFilteredCSV = () => {
     if (typeof document === 'undefined') return
     if (filteredTrades.length === 0) {
-      toast.error('No trades to export')
+      toast.error(language === 'id' ? 'Tidak ada trade untuk diekspor' : 'No trades to export')
       return
     }
     const csvContent = buildCSVContent(filteredTrades)
@@ -95,14 +97,14 @@ function TradesTab({
     link.download = `luxtrade-trades-filtered-${date}.csv`
     link.click()
     URL.revokeObjectURL(url)
-    toast.success(`${filteredTrades.length} filtered trades exported!`)
+    toast.success(language === 'id' ? `${filteredTrades.length} trade terfilter diekspor!` : `${filteredTrades.length} filtered trades exported!`)
   }
 
   // Export all CSV
   const handleExportAllCSV = () => {
     if (typeof document === 'undefined') return
     if (trades.length === 0) {
-      toast.error('No trades to export')
+      toast.error(language === 'id' ? 'Tidak ada trade untuk diekspor' : 'No trades to export')
       return
     }
     const csvContent = buildCSVContent(trades)
@@ -114,14 +116,14 @@ function TradesTab({
     link.download = `luxtrade-trades-all-${date}.csv`
     link.click()
     URL.revokeObjectURL(url)
-    toast.success(`${trades.length} trades exported!`)
+    toast.success(language === 'id' ? `${trades.length} trade diekspor!` : `${trades.length} trades exported!`)
   }
 
   // Export PDF
   const handleExportPDF = async () => {
     if (typeof window === 'undefined') return
     if (filteredTrades.length === 0) {
-      toast.error('No trades to export')
+      toast.error(language === 'id' ? 'Tidak ada trade untuk diekspor' : 'No trades to export')
       return
     }
 
@@ -147,7 +149,7 @@ function TradesTab({
       const tradeCount = filteredTrades.length
       const totalCount = trades.length
       doc.text(
-        `Generated: ${dateStr} | Showing: ${tradeCount} of ${totalCount} trades`,
+        language === 'id' ? `Dihasilkan: ${dateStr} | Menampilkan: ${tradeCount} dari ${totalCount} trade` : `Generated: ${dateStr} | Showing: ${tradeCount} of ${totalCount} trades`,
         pageWidth / 2, 28, { align: 'center' }
       )
 
@@ -178,7 +180,7 @@ function TradesTab({
       // Add table
       doc.autoTable({
         startY: 35,
-        head: [['Symbol', 'Type', 'Entry', 'Exit', 'Lot Size', 'P/L', 'Duration', 'R:R', 'Session', 'Open Time', 'Close Time', 'Notes']],
+        head: [[language === 'id' ? 'Simbol' : 'Symbol', language === 'id' ? 'Tipe' : 'Type', 'Entry', 'Exit', 'Lot Size', 'P/L', language === 'id' ? 'Durasi' : 'Duration', 'R:R', language === 'id' ? 'Sesi' : 'Session', language === 'id' ? 'Waktu Buka' : 'Open Time', language === 'id' ? 'Waktu Tutup' : 'Close Time', language === 'id' ? 'Catatan' : 'Notes']],
         body: tableData,
         styles: {
           fontSize: 7,
@@ -242,12 +244,12 @@ function TradesTab({
 
       doc.setFontSize(9)
       doc.setTextColor(168, 85, 247)
-      doc.text('Summary', 20, summaryY + 8)
+      doc.text(language === 'id' ? 'Ringkasan' : 'Summary', 20, summaryY + 8)
 
       doc.setFontSize(8)
       doc.setTextColor(200, 200, 200)
-      doc.text(`Total Trades: ${tradeCount}`, 20, summaryY + 16)
-      doc.text(`Win Rate: ${winRate.toFixed(1)}%`, 65, summaryY + 16)
+      doc.text(`${language === 'id' ? 'Total Trade' : 'Total Trades'}: ${tradeCount}`, 20, summaryY + 16)
+      doc.text(`${language === 'id' ? 'Win Rate' : 'Win Rate'}: ${winRate.toFixed(1)}%`, 65, summaryY + 16)
 
       // Color-code total P/L
       if (totalPL >= 0) {
@@ -255,7 +257,7 @@ function TradesTab({
       } else {
         doc.setTextColor(239, 68, 68)
       }
-      doc.text(`Total P/L: $${totalPL.toFixed(2)}`, 110, summaryY + 16)
+      doc.text(`${language === 'id' ? 'Total P/L' : 'Total P/L'}: $${totalPL.toFixed(2)}`, 110, summaryY + 16)
 
       // Color-code profit factor
       const pfDisplay = profitFactor === Infinity ? '∞' : profitFactor.toFixed(2)
@@ -266,19 +268,19 @@ function TradesTab({
       } else {
         doc.setTextColor(239, 68, 68)
       }
-      doc.text(`Profit Factor: ${pfDisplay}`, 165, summaryY + 22)
+      doc.text(`${language === 'id' ? 'Profit Factor' : 'Profit Factor'}: ${pfDisplay}`, 165, summaryY + 22)
 
       // Footer
       doc.setFontSize(7)
       doc.setTextColor(120, 120, 120)
-      doc.text('Generated by LuxTrade', pageWidth / 2, doc.internal.pageSize.getHeight() - 8, { align: 'center' })
+      doc.text(language === 'id' ? 'Dihasilkan oleh LuxTrade' : 'Generated by LuxTrade', pageWidth / 2, doc.internal.pageSize.getHeight() - 8, { align: 'center' })
 
       const pdfDate = new Date().toISOString().slice(0, 10)
       doc.save(`luxtrade-trades-${pdfDate}.pdf`)
-      toast.success('PDF exported successfully!')
+      toast.success(language === 'id' ? 'PDF berhasil diekspor!' : 'PDF exported successfully!')
     } catch (error) {
       console.error('PDF export error:', error)
-      toast.error('Failed to export PDF. Please try again.')
+      toast.error(language === 'id' ? 'Gagal mengekspor PDF. Silakan coba lagi.' : 'Failed to export PDF. Please try again.')
     } finally {
       setExporting(false)
     }
@@ -422,8 +424,8 @@ function TradesTab({
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h3 className="text-xl font-bold">Trade History</h3>
-          <p className="text-sm text-lux-text-secondary dark:text-gray-400">{filteredTrades.length} of {trades.length} trades</p>
+          <h3 className="text-xl font-bold">{language === 'id' ? 'Riwayat Trade' : 'Trade History'}</h3>
+          <p className="text-sm text-lux-text-secondary dark:text-gray-400">{filteredTrades.length} {language === 'id' ? 'dari' : 'of'} {trades.length} {language === 'id' ? 'trade' : 'trades'}</p>
         </div>
         <div className="flex gap-2">
           <DropdownMenu>
@@ -434,7 +436,7 @@ function TradesTab({
                 ) : (
                   <Download className="w-4 h-4 mr-2" />
                 )}
-                Export
+                {language === 'id' ? 'Ekspor' : 'Export'}
                 <ChevronDown className="w-3 h-3 ml-1" />
               </Button>
             </DropdownMenuTrigger>
@@ -444,7 +446,7 @@ function TradesTab({
                 className="text-lux-text-primary dark:text-gray-300 focus:bg-lux-surface-hover dark:focus:bg-white/10 focus:text-white cursor-pointer"
               >
                 <FileDown className="w-4 h-4 mr-2 text-emerald-400" />
-                Export All Trades (CSV)
+                {language === 'id' ? 'Ekspor Semua Trade (CSV)' : 'Export All Trades (CSV)'}
                 <span className="ml-auto text-xs text-gray-500">{trades.length}</span>
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -452,7 +454,7 @@ function TradesTab({
                 className="text-lux-text-primary dark:text-gray-300 focus:bg-lux-surface-hover dark:focus:bg-white/10 focus:text-white cursor-pointer"
               >
                 <Download className="w-4 h-4 mr-2 text-blue-400" />
-                Export Filtered (CSV)
+                {language === 'id' ? 'Ekspor Terfilter (CSV)' : 'Export Filtered (CSV)'}
                 <span className="ml-auto text-xs text-gray-500">{filteredTrades.length}</span>
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -460,7 +462,7 @@ function TradesTab({
                 className="text-lux-text-primary dark:text-gray-300 focus:bg-lux-surface-hover dark:focus:bg-white/10 focus:text-white cursor-pointer"
               >
                 <FileDown className="w-4 h-4 mr-2 text-blue-400" />
-                Export to PDF
+                {language === 'id' ? 'Ekspor ke PDF' : 'Export to PDF'}
                 <span className="ml-auto text-xs text-gray-500">{filteredTrades.length}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -476,7 +478,7 @@ function TradesTab({
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-lux-text-secondary dark:text-gray-400" />
               <Input
-                placeholder="Search symbol or notes..."
+                placeholder={language === 'id' ? 'Cari simbol atau catatan...' : 'Search symbol or notes...'}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 bg-lux-surface-hover dark:bg-white/5 border-lux-input-border dark:border-lux-border dark:border-blue-900/30"
@@ -486,10 +488,10 @@ function TradesTab({
             {/* Type Filter */}
             <Select value={filterType} onValueChange={(v: any) => setFilterType(v)}>
               <SelectTrigger className="w-[120px] bg-lux-surface-hover dark:bg-white/5 border-lux-input-border dark:border-lux-border dark:border-blue-900/30">
-                <SelectValue placeholder="Type" />
+                <SelectValue placeholder={language === 'id' ? 'Tipe' : 'Type'} />
               </SelectTrigger>
               <SelectContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-lux-border dark:border-blue-900/30">
-                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="all">{language === 'id' ? 'Semua Tipe' : 'All Types'}</SelectItem>
                 <SelectItem value="BUY">BUY</SelectItem>
                 <SelectItem value="SELL">SELL</SelectItem>
               </SelectContent>
@@ -498,10 +500,10 @@ function TradesTab({
             {/* Session Filter */}
             <Select value={filterSession} onValueChange={(v: any) => setFilterSession(v)}>
               <SelectTrigger className="w-[140px] bg-lux-surface-hover dark:bg-white/5 border-lux-input-border dark:border-lux-border dark:border-blue-900/30">
-                <SelectValue placeholder="Session" />
+                <SelectValue placeholder={language === 'id' ? 'Sesi' : 'Session'} />
               </SelectTrigger>
               <SelectContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-lux-border dark:border-blue-900/30">
-                <SelectItem value="all">All Sessions</SelectItem>
+                <SelectItem value="all">{language === 'id' ? 'Semua Sesi' : 'All Sessions'}</SelectItem>
                 <SelectItem value="London">London</SelectItem>
                 <SelectItem value="New York">New York</SelectItem>
                 <SelectItem value="Asia">Asia</SelectItem>
@@ -518,14 +520,14 @@ function TradesTab({
               <thead>
                 <tr className="border-b border-lux-border dark:border-blue-900/30 text-lux-text-secondary dark:text-gray-400">
                   <th className="text-left p-4 font-medium" scope="col">Symbol</th>
-                  <th className="text-left p-4 font-medium" scope="col">Type</th>
+                  <th className="text-left p-4 font-medium" scope="col">{language === 'id' ? 'Tipe' : 'Type'}</th>
                   <th className="text-left p-4 font-medium hidden lg:table-cell" scope="col">Setup</th>
                   <th className="text-left p-4 font-medium hidden md:table-cell" scope="col">Duration</th>
                   <th className="text-left p-4 font-medium hidden md:table-cell" scope="col">R:R</th>
                   <th className="text-left p-4 font-medium hidden sm:table-cell" scope="col">Tags</th>
                   <th className="text-left p-4 font-medium hidden sm:table-cell" scope="col">Entry</th>
                   <th className="text-left p-4 font-medium hidden sm:table-cell" scope="col">Exit</th>
-                  <th className="text-left p-4 font-medium hidden md:table-cell" scope="col">Session</th>
+                  <th className="text-left p-4 font-medium hidden md:table-cell" scope="col">{language === 'id' ? 'Sesi' : 'Session'}</th>
                   <th className="text-right p-4 font-medium" scope="col">P/L</th>
                   <th className="text-right p-4 font-medium" scope="col">Actions</th>
                 </tr>
@@ -534,7 +536,7 @@ function TradesTab({
                 {filteredTrades.length === 0 ? (
                   <tr>
                     <td colSpan={11} className="p-8 text-center text-lux-text-secondary dark:text-gray-400">
-                      No trades match your filters
+                      {language === 'id' ? 'Tidak ada trade cocok dengan filter' : 'No trades match your filters'}
                     </td>
                   </tr>
                 ) : (
@@ -629,16 +631,16 @@ function TradesTab({
                           <button
                             onClick={() => onView(trade)}
                             className="p-1.5 rounded-lg hover:bg-lux-surface-hover dark:hover:bg-white/10 text-lux-text-secondary dark:text-gray-400 hover:text-lux-text-primary dark:hover:text-white transition-colors"
-                            title="View trade"
-                            aria-label="View trade"
+                            title={language === 'id' ? 'Lihat trade' : 'View trade'}
+                            aria-label={language === 'id' ? 'Lihat trade' : 'View trade'}
                           >
                             <ViewIcon className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => onEdit(trade)}
                             className="p-1.5 rounded-lg hover:bg-lux-surface-hover dark:hover:bg-white/10 text-lux-text-secondary dark:text-gray-400 hover:text-blue-400 transition-colors"
-                            title="Edit trade"
-                            aria-label="Edit trade"
+                            title={language === 'id' ? 'Edit trade' : 'Edit trade'}
+                            aria-label={language === 'id' ? 'Edit trade' : 'Edit trade'}
                           >
                             <Edit className="w-4 h-4" />
                           </button>
@@ -646,8 +648,8 @@ function TradesTab({
                             <button
                               onClick={() => handleDuplicate(trade)}
                               className="p-1.5 rounded-lg hover:bg-lux-surface-hover dark:hover:bg-white/10 text-lux-text-secondary dark:text-gray-400 hover:text-amber-400 transition-colors"
-                              title="Duplicate trade"
-                              aria-label="Duplicate trade"
+                              title={language === 'id' ? 'Duplikat trade' : 'Duplicate trade'}
+                              aria-label={language === 'id' ? 'Duplikat trade' : 'Duplicate trade'}
                             >
                               <Copy className="w-4 h-4" />
                             </button>
@@ -655,8 +657,8 @@ function TradesTab({
                           <button
                             onClick={() => onDelete(trade)}
                             className="p-1.5 rounded-lg hover:bg-lux-surface-hover dark:hover:bg-white/10 text-lux-text-secondary dark:text-gray-400 hover:text-red-400 transition-colors"
-                            title="Delete trade"
-                            aria-label="Delete trade"
+                            title={language === 'id' ? 'Hapus trade' : 'Delete trade'}
+                            aria-label={language === 'id' ? 'Hapus trade' : 'Delete trade'}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
