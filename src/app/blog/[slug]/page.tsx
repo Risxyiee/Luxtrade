@@ -15,7 +15,8 @@ import { Badge } from '@/components/ui/badge'
 import { useLanguage } from '@/contexts/LanguageContext'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 
-export default function BlogPostPage({ params }: { params: { slug: string } }) {
+// Client component receives slug prop from server component (BlogPostClient.tsx)
+export default function BlogPostPage({ slug }: { slug: string }) {
   const { language } = useLanguage()
   const isEnglish = language === 'en'
 

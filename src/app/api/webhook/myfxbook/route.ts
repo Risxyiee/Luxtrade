@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     console.log('✅ [MYFXBOOK WEBHOOK] Found trading account:', tradingAccount.account_number)
 
     // Process each trade
-    const processedTrades = []
+    const processedTrades: any[] = []
     for (const trade of body.trades) {
       console.log('📊 [MYFXBOOK WEBHOOK] Processing trade:', trade.tradeId)
 

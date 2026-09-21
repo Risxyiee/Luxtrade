@@ -28,7 +28,7 @@ function getPlanConfig(planType: string) {
     case 'PRO_30_DAYS':
       return { price: PRICING.PRO_30_DAYS, days: 30, name: 'PRO 30 Hari', commissionRate: AFFILIATE_COMMISSION_RATE }
     case 'PRO_180_DAYS':
-      return { price: PRICING.PRO_180_DAYS, days: 180, name: 'PRO 180 Hari', commissionRate: AFFILIATE_COMMISSION_RATE }
+      return { price: PRICING.LEGACY.PRO_180_DAYS, days: 180, name: 'PRO 180 Hari', commissionRate: AFFILIATE_COMMISSION_RATE }
     case 'PRO_LIFETIME':
       return { price: PRICING.PRO_LIFETIME, days: 365 * 5, name: 'PRO Lifetime', commissionRate: AFFILIATE_LIFETIME_RATE }
     default:

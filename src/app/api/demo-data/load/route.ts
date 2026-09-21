@@ -197,10 +197,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const userId = session.user.id
+    const userEmail = session.user.email ?? ''
+
     // Check if user already has demo data
     const existingTrades = await db.trade.findMany({
       where: {
-        user_id: session.user.id,
+        user_id: userId,
         notes: { contains: '[DEMO DATA]' }
       }
     })
@@ -215,7 +218,7 @@ export async function POST(request: NextRequest) {
     // Insert demo trades
     const tradesToInsert = demoTrades.map(trade => ({
       ...trade,
-      user_id: session.user.id,
+      user_id: userId,
       notes: `[DEMO DATA] ${trade.notes}`
     }))
 

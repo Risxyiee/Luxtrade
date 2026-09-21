@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     console.log(`   Fetched ${ohlcData.length} candles`)
 
     // Calculate indicators for each candle (starting from index 2)
-    const signals = []
+    const signals: any[] = []
 
     for (let i = 2; i < ohlcData.length; i++) {
       const current = ohlcData[i]

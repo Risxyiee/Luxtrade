@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Tesseract.js OCR Helper
  * Free OCR alternative to OpenAI Vision

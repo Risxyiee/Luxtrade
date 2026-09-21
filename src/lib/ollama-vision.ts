@@ -233,7 +233,7 @@ export function generateJournalEntry(result: OllamaAnalysisResult): string {
   if (result.type) parts.push(`**Type**: ${result.type}`);
   if (result.entry_price) parts.push(`**Entry**: ${result.entry_price}`);
   if (result.exit_price) parts.push(`**Exit**: ${result.exit_price}`);
-  if (result.profit_loss !== undefined) {
+  if (result.profit_loss !== undefined && result.profit_loss !== null) {
     const pl = result.profit_loss;
     parts.push(`**P/L**: ${pl >= 0 ? '+$' : '-$'}${Math.abs(pl).toFixed(2)}`);
   }

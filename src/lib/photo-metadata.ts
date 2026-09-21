@@ -90,7 +90,7 @@ export async function readPhotoMetadata(filePath: string): Promise<PhotoMetadata
           console.log(`🌍 [EXIF Reader] Detected timezone: ${detectedTimezone.name} (UTC${detectedTimezone.offset >= 0 ? '+' : ''}${detectedTimezone.offset})`)
 
           // Convert to Indonesia timezone
-          if (metadata.originalDateTime) {
+          if (metadata.originalDateTime && detectedTimezone.indonesiaZone) {
             const indoOffset = getTimezoneOffset(detectedTimezone.indonesiaZone)
             const originalOffset = detectedTimezone.offset
 

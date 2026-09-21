@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
     const supabaseAdmin = getSupabaseAdmin()
     const adminStatus = getAdminStatus()
 
-    const debugInfo = {
+    const debugInfo: Record<string, any> = {
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV,
       supabase: {
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       },
       test: {
         message: 'Debug endpoint working'
-      }
+      } as Record<string, any>
     }
 
     // Test supabaseAdmin if available

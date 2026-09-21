@@ -126,6 +126,9 @@ export async function POST(request: NextRequest) {
   try {
     // Auth check
     const { supabase: authClient } = await createClientForApi(request)
+    if (!authClient) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
     const { data: { user } } = await authClient.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

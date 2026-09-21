@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // Mock data generator for fallback
 function generateMockData(symbol: string, count: number = 50) {
-  const data = []
+  const data: any[] = []
   let timestamp = Date.now() - (count * 15 * 60 * 1000) // Start from count*15min ago
   let basePrice = 0
 

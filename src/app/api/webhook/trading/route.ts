@@ -367,8 +367,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Handle batch of trades (array)
-    const results = []
-    const errors = []
+    const results: any[] = []
+    const errors: any[] = []
 
     for (const item of rawData) {
       const parsedTrade = detectAndParseTrade({ ...item, source })

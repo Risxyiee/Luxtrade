@@ -148,11 +148,14 @@ export async function POST(req: NextRequest) {
     if (updateError) {
       console.error('🔴 [METAAPI CONNECT] Error updating trading account:', updateError)
       // ROLLBACK: Delete the trading account since update failed
-      await supabaseAdmin
-        .from('trading_accounts')
-        .delete()
-        .eq('id', tradingAccountId)
-        .catch(err => console.error('Failed to delete during rollback:', err))
+      try {
+        await supabaseAdmin
+          .from('trading_accounts')
+          .delete()
+          .eq('id', tradingAccountId)
+      } catch (rollbackErr) {
+        console.error('Failed to delete during rollback:', rollbackErr)
+      }
       return NextResponse.json(
         { error: 'Failed to update trading account' },
         { status: 500 }
@@ -196,11 +199,14 @@ export async function POST(req: NextRequest) {
         process.env.SUPABASE_SERVICE_ROLE_KEY!
       )
       if (supabaseAdmin) {
-        await supabaseAdmin
-          .from('trading_accounts')
-          .delete()
-          .eq('id', body.tradingAccountId)
-          .catch(err => console.error('Failed to delete during rollback in main catch:', err))
+        try {
+          await supabaseAdmin
+            .from('trading_accounts')
+            .delete()
+            .eq('id', body.tradingAccountId)
+        } catch (rollbackErr) {
+          console.error('Failed to delete during rollback in main catch:', rollbackErr)
+        }
       }
     }
 

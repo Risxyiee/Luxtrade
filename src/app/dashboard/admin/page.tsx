@@ -16,7 +16,7 @@ export default async function AdminPanel() {
   console.log('[AdminPanel Server] NEXT_PUBLIC_SUPABASE_ANON_KEY:',
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? `${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.substring(0, 10)}...` : 'MISSING')
 
-  const supabase = getServerClient()
+  const supabase = await getServerClient()
 
   if (!supabase) {
     console.error('[AdminPanel Server] Supabase client not initialized')

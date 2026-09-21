@@ -17,6 +17,9 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   try {
     const { supabase } = await createClientForApi(request)
+    if (!supabase) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -30,7 +33,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check local DB
-    let order = null
+    let order: Awaited<ReturnType<typeof db.paymentOrder.findUnique>> = null
     try {
       order = await db.paymentOrder.findUnique({
         where: { invoiceNumber },
@@ -138,7 +141,7 @@ export async function GET(request: NextRequest) {
           where: { invoiceNumber },
           data: { status: 'EXPIRED' },
         })
-        order = await db.paymentOrder.findUnique({ where: { invoiceNumber } }) || order
+        order = await db.paymentOrder.findUnique({ where: { invoiceNumber } }) ?? order
       } catch (dbErr: any) {
         console.error('❌ [Order Status] Failed to update DB for expired:', dbErr.message)
       }
