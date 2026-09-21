@@ -21,6 +21,7 @@ const CaraKerjaSection = dynamic(() => import('@/components/landing/CaraKerjaSec
 const PricingSectionNew = dynamic(() => import('@/components/landing/PricingSectionNew').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const FAQSection = dynamic(() => import('@/components/landing/FAQSection').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const FinalCTA = dynamic(() => import('@/components/landing/FinalCTA').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const LandingFooter = dynamic(() => import('@/components/landing/LandingFooter').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 
 interface LandingStats {
   totalUsers: number
@@ -47,7 +48,7 @@ export default function LuxTradeLanding() {
   const [landingStats, setLandingStats] = useState<LandingStats | null>(null)
 
   const handleProUpgrade = () => {
-    if (language === 'en') window.open('https://skrill.me/rq/RIZQI%20AKBAR/3/USD?key=vXcr_5kNitZJFVBnkmK0sakLnjB', '_blank')
+    if (language === 'en') window.open('/api/payment/skrill-redirect', '_blank')
     else setShowCheckoutModal(true)
   }
 
@@ -120,6 +121,8 @@ export default function LuxTradeLanding() {
           <FinalCTA language={language} />
         </main>
 
+        <LandingFooter language={language} openLegalPage={openLegalPage} />
+
 
 
         <ScrollToTopButton />
@@ -127,7 +130,7 @@ export default function LuxTradeLanding() {
         {/* Mobile Sticky CTA */}
         <div ref={mobileCtaRef} id="mobile-cta" className="md:hidden fixed bottom-0 left-0 w-full p-4 bg-[#050507]/90 backdrop-blur-xl border-t border-white/10 z-40">
           <button onClick={handleProUpgrade} className="block w-full py-3.5 bg-gradient-to-r from-blue-500 to-cyan-400 text-white text-center font-semibold rounded-xl glow-bg-luxury text-sm cursor-pointer">
-            Daftar Gratis Sekarang
+            {language === 'en' ? 'Sign Up Free Now' : 'Daftar Gratis Sekarang'}
           </button>
         </div>
 

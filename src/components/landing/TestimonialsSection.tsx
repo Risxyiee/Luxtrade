@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Star, Quote, ChevronLeft, ChevronRight, MessageSquarePlus, PenLine, Sparkles } from 'lucide-react'
+import { Star, Quote, ChevronLeft, ChevronRight, MessageSquarePlus, PenLine, Sparkles, Camera } from 'lucide-react'
 import TestimonialForm from './TestimonialForm'
 
 interface DatabaseTestimonial {
@@ -257,8 +257,8 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
                 </h3>
                 <p className="text-sm text-gray-400">
                   {language === 'id'
-                    ? 'Bagikan pengalaman Anda — bantu trader lain & tunjukkan bahwa Anda serius tentang trading.'
-                    : 'Share your experience — help other traders & show you\'re serious about trading.'}
+                    ? 'Bagikan pengalaman & foto Anda — bantu trader lain & tunjukkan bahwa Anda serius tentang trading.'
+                    : 'Share your experience & photo — help other traders & show you\'re serious about trading.'}
                 </p>
               </div>
 
@@ -338,7 +338,7 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
                     {/* Author */}
                     <div className="flex items-center gap-3 pt-4 border-t border-[var(--lux-inline-border)]">
                       {getAvatar(t, actualIndex).startsWith('http') ? (
-                        <img src={getAvatar(t, actualIndex)} alt={getDisplayName(t)} className="w-10 h-10 rounded-full object-cover shrink-0" />
+                        <img src={getAvatar(t, actualIndex)} alt={getDisplayName(t)} className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-white/10" />
                       ) : (
                         <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getGradient(t, actualIndex)} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
                           {getAvatar(t, actualIndex)}

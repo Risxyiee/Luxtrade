@@ -80,3 +80,7 @@ tool-results/
 # AI agent data dumps (not part of the app)
 funderblu.json
 sakura-docs.json
+
+# Backup/corrupted files
+*.bak
+*.corrupted

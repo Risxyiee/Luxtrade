@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/api/', '/dashboard/', '/admin-dashboard-secret/', '/admin-secure/'],
       },
     ],
-    sitemap: 'https://luxtrade.id/sitemap.xml',
+    sitemap: 'https://luxtradee.web.id/sitemap.xml',
   }
 }

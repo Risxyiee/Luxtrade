@@ -10,6 +10,17 @@ export const dynamic = 'force-dynamic'
 /**
  * POST /api/midtrans/create-transaction-unverified
  *
+ * ⚠️ SECURITY WARNING: This endpoint creates payment transactions WITHOUT
+ * full authentication (no verified session required). It relies on:
+ *   - Rate limiting (5 req / 5 min)
+ *   - Profile lookup + email match verification
+ *   - 30-minute account age restriction
+ * These mitigations may be insufficient for production. Consider:
+ *   - Adding CAPTCHA or email OTP verification before allowing transactions
+ *   - Tightening the 30-minute window
+ *   - Requiring at least email verification before payment
+ *   - Adding server-side abuse monitoring/alerting
+ *
  * Allows creating a Midtrans transaction for a user who just signed up
  * but hasn't verified their email yet (no active session).
  * Uses Supabase only — no Prisma (CF Workers compatible).
