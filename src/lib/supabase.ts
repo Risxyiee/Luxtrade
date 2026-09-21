@@ -119,18 +119,10 @@ export const supabase: SupabaseClient = new Proxy({} as any, {
       console.log(`[Supabase] Initializing client - URL: ${url}, Env: ${process.env.NODE_ENV}, Anon Key: ${anon ? anon.substring(0, 10) + '...' : 'MISSING'}`)
 
       if (!anon) {
-        const errorMsg = isProduction
-          ? 'CRITICAL: NEXT_PUBLIC_SUPABASE_ANON_KEY is required in production. Please set this environment variable in Cloudflare Pages settings.'
-          : '⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY not set. Supabase features will not work in development.'
+        console.error('⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY not set. Supabase features will not work until this is configured.')
 
-        console.error(errorMsg)
-
-        if (isProduction) {
-          throw new Error(errorMsg)
-        }
-
-        // In development, create a mock client that won't crash
-        _cachedClient = createClient(url, 'dev-placeholder-key', {
+        // Return placeholder client so the app doesn't crash
+        _cachedClient = createClient(url, 'placeholder-key-not-configured', {
           auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
           global: { headers: { 'X-Client-Info': 'luxtrade-web-dev' } }
         })
