@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { Settings, LogOut, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 interface SidebarFooterProps {
   sidebarOpen: boolean
@@ -69,6 +70,13 @@ export default function SidebarFooter({
               v2.1.0
             </span>
           </div>
+        </div>
+      )}
+
+      {/* Language Switcher */}
+      {(sidebarOpen || mobileSidebarOpen) && (
+        <div className="flex justify-center pt-1">
+          <LanguageSwitcher />
         </div>
       )}
 

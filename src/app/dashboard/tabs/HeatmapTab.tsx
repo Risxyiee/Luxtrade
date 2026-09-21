@@ -27,13 +27,18 @@ interface HeatmapTabProps {
   isPro: boolean
   onUpgrade: () => void
   trades: Trade[]
+  language?: 'id' | 'en'
 }
 
 // Component
-function HeatmapTab({ isPro, onUpgrade, trades }: HeatmapTabProps) {
+function HeatmapTab({ isPro, onUpgrade, trades, language = 'id' }: HeatmapTabProps) {
   // Calculate heatmap data by day and session
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  const sessions = ['Asia', 'London', 'New York', 'Off-Market']
+  const dayNames = language === 'id'
+    ? ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
+    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const sessions = language === 'id'
+    ? ['Asia', 'London', 'New York', 'Off-Market']
+    : ['Asia', 'London', 'New York', 'Off-Market']
 
   const heatmapData = trades.reduce((acc, trade) => {
     const day = new Date(trade.open_time).getDay()
@@ -80,10 +85,10 @@ function HeatmapTab({ isPro, onUpgrade, trades }: HeatmapTabProps) {
             >
               <Lock className="w-12 h-12 mx-auto mb-4 text-blue-400" />
             </motion.div>
-            <h3 className="text-lg font-bold text-blue-400 mb-2">Market Heatmap - PRO Feature</h3>
-            <p className="text-lux-text-secondary dark:text-gray-400 mb-4">Visualize market strength across all pairs</p>
+            <h3 className="text-lg font-bold text-blue-400 mb-2">{language === 'id' ? 'Heatmap Pasar - Fitur PRO' : 'Market Heatmap - PRO Feature'}</h3>
+            <p className="text-lux-text-secondary dark:text-gray-400 mb-4">{language === 'id' ? 'Visualisasi kekuatan pasar di semua pair' : 'Visualize market strength across all pairs'}</p>
             <Button onClick={onUpgrade} className="bg-gradient-to-r from-blue-500 to-blue-600">
-              <Zap className="w-4 h-4 mr-2" /> Upgrade to PRO
+              <Zap className="w-4 h-4 mr-2" /> {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
             </Button>
           </CardContent>
         </Card>
@@ -94,7 +99,7 @@ function HeatmapTab({ isPro, onUpgrade, trades }: HeatmapTabProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Grid3X3 className="w-5 h-5 text-blue-400" />
-                Performance Heatmap
+                {language === 'id' ? 'Heatmap Performa' : 'Performance Heatmap'}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -103,7 +108,7 @@ function HeatmapTab({ isPro, onUpgrade, trades }: HeatmapTabProps) {
                 <table className="w-full text-xs">
                   <thead>
                     <tr>
-                      <th className="p-2 text-left text-lux-text-secondary dark:text-gray-400">Day / Session</th>
+                      <th className="p-2 text-left text-lux-text-secondary dark:text-gray-400">{language === 'id' ? 'Hari / Sesi' : 'Day / Session'}</th>
                       {sessions.map(s => (
                         <th key={s} className="p-2 text-center text-lux-text-secondary dark:text-gray-400">{s}</th>
                       ))}
@@ -142,7 +147,7 @@ function HeatmapTab({ isPro, onUpgrade, trades }: HeatmapTabProps) {
                                     <span className={`font-bold ${pl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                                       {pl >= 0 ? '+' : ''}{pl.toFixed(0)}
                                     </span>
-                                    <span className="text-lux-text-secondary dark:text-gray-400 text-[10px]">{data.count} trades</span>
+                                    <span className="text-lux-text-secondary dark:text-gray-400 text-[10px]">{data.count} {language === 'id' ? 'trade' : 'trades'}</span>
                                   </>
                                 )}
                               </div>
@@ -159,15 +164,15 @@ function HeatmapTab({ isPro, onUpgrade, trades }: HeatmapTabProps) {
               <div className="flex items-center justify-center gap-4 mt-4 text-xs text-lux-text-secondary dark:text-gray-400">
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded bg-red-500/30" />
-                  <span>Loss</span>
+                  <span>{language === 'id' ? 'Loss' : 'Loss'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded bg-white/5" />
-                  <span>No Data</span>
+                  <span>{language === 'id' ? 'Tidak Ada Data' : 'No Data'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded bg-emerald-500/30" />
-                  <span>Profit</span>
+                  <span>{language === 'id' ? 'Profit' : 'Profit'}</span>
                 </div>
               </div>
             </CardContent>
@@ -178,7 +183,7 @@ function HeatmapTab({ isPro, onUpgrade, trades }: HeatmapTabProps) {
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-blue-400" />
-                Symbol Performance
+                {language === 'id' ? 'Performa Simbol' : 'Symbol Performance'}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -198,7 +203,7 @@ function HeatmapTab({ isPro, onUpgrade, trades }: HeatmapTabProps) {
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-xs text-lux-text-secondary dark:text-gray-400">
-                        <span>{stats.count} trades</span>
+                        <span>{stats.count} {language === 'id' ? 'trade' : 'trades'}</span>
                         <span>{winRate}% WR</span>
                       </div>
                     </div>

@@ -17,7 +17,7 @@ import type { Trade, JournalEntry } from '@/types'
 
 // ==================== DAILY PROMPTS ====================
 
-const DAILY_PROMPTS = [
+const DAILY_PROMPTS_ID = [
   "Apa hal terbaik yang Anda pelajari dari trading hari ini?",
   "Gambarkan emosi Anda saat trading hari ini. Apa yang mempengaruhi?",
   "Trade mana yang paling berkesan minggu ini dan mengapa?",
@@ -35,12 +35,31 @@ const DAILY_PROMPTS = [
   "Apa yang akan Anda lakukan berbeda di minggu depan?",
 ]
 
+const DAILY_PROMPTS_EN = [
+  "What is the best thing you learned from trading today?",
+  "Describe your emotions while trading today. What influenced them?",
+  "Which trade was the most memorable this week and why?",
+  "What mistake do you often repeat? How can you stop it?",
+  "How is the market condition today? Does it match your expectations?",
+  "If you could change one trading decision this week, what would it be?",
+  "What is your trading goal for next week?",
+  "Evaluate your risk management this week. Has it been consistent?",
+  "Which pair best suits your trading style?",
+  "What market pattern do you exploit most often?",
+  "Tell me about your best trade and what made it successful.",
+  "How do you cope with consecutive losses?",
+  "What indicator or setup is most reliable for you?",
+  "How well did you follow your trading plan this week?",
+  "What will you do differently next week?",
+]
+
 // ==================== HELPER FUNCTIONS ====================
 
-function getDailyPrompt() {
+function getDailyPrompt(language: 'id' | 'en' = 'id') {
   const today = new Date()
   const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24))
-  return DAILY_PROMPTS[dayOfYear % DAILY_PROMPTS.length]
+  const prompts = language === 'id' ? DAILY_PROMPTS_ID : DAILY_PROMPTS_EN
+  return prompts[dayOfYear % prompts.length]
 }
 
 function getMoodIcon(mood: string | null) {
@@ -82,9 +101,10 @@ interface CalendarViewProps {
   currentMonth: Date
   setCurrentMonth: (date: Date) => void
   onView: (entry: JournalEntry) => void
+  language: 'id' | 'en'
 }
 
-function CalendarView({ entries, currentMonth, setCurrentMonth, onView }: CalendarViewProps) {
+function CalendarView({ entries, currentMonth, setCurrentMonth, onView, language }: CalendarViewProps) {
   // Pre-compute a lookup map: date string → entries (O(1) per lookup instead of O(N) filter)
   const entriesByDate = useMemo(() => {
     const map = new Map<string, JournalEntry[]>()
@@ -112,7 +132,7 @@ function CalendarView({ entries, currentMonth, setCurrentMonth, onView }: Calend
   }
 
   const { startDayOfWeek, totalDays } = getDaysInMonth(currentMonth)
-  const monthName = currentMonth.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
+  const monthName = currentMonth.toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { month: 'long', year: 'numeric' })
   const days: any[] = []
 
   // Empty cells for days before the first day of the month
@@ -164,7 +184,7 @@ function CalendarView({ entries, currentMonth, setCurrentMonth, onView }: Calend
               </p>
             ))}
             {dayEntries.length > 2 && (
-              <p className="text-xs text-lux-text-muted dark:text-gray-500">+{dayEntries.length - 2} more</p>
+              <p className="text-xs text-lux-text-muted dark:text-gray-500">+{dayEntries.length - 2} {language === 'id' ? 'lagi' : 'more'}</p>
             )}
           </div>
         )}
@@ -201,13 +221,13 @@ function CalendarView({ entries, currentMonth, setCurrentMonth, onView }: Calend
             onClick={() => setCurrentMonth(new Date())}
             className="border-blue-500/30 text-blue-400"
           >
-            Today
+            {language === 'id' ? 'Hari Ini' : 'Today'}
           </Button>
         </div>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-7 gap-2 mb-2">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+          {(language === 'id' ? ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']).map((day) => (
             <div key={day} className="text-center text-xs text-lux-text-muted dark:text-gray-500 font-medium">
               {day}
             </div>
@@ -267,7 +287,7 @@ function JournalTab({
   // ============ LEGACY EXPORT (kept for reference, UI moved to ExportButtons) ============
   const handleExportPDF = useCallback(async () => {
     if (filteredEntries.length === 0) {
-      toast.error('Tidak ada entri jurnal untuk diekspor')
+      toast.error(language === 'id' ? 'Tidak ada entri jurnal untuk diekspor' : 'No journal entries to export')
       return
     }
     _setExporting(true)
@@ -279,7 +299,7 @@ function JournalTab({
       const doc = new jsPDF()
       // jspdf-autotable v5 does NOT auto-extend jsPDF prototype — must pass doc explicitly
       const autoTable = (autoTableModule as any).default || autoTableModule
-      const exportDate = new Date().toLocaleDateString('id-ID', {
+      const exportDate = new Date().toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', {
         day: 'numeric', month: 'long', year: 'numeric'
       })
 
@@ -303,19 +323,19 @@ function JournalTab({
 
       // Total entries
       doc.setTextColor(200, 200, 200)
-      doc.text(`${filteredEntries.length} entries`, 160, 30)
+      doc.text(`${filteredEntries.length} ${language === 'id' ? 'entri' : 'entries'}`, 160, 30)
 
       let yPos = 50
 
       if (filteredEntries.length === 0) {
         doc.setTextColor(150, 150, 150)
         doc.setFontSize(14)
-        doc.text('No journal entries to export.', 14, yPos)
+        doc.text(language === 'id' ? 'Tidak ada entri jurnal untuk diekspor.' : 'No journal entries to export.', 14, yPos)
       } else {
         // Table with summary data
         const tableData = filteredEntries.map((entry, index) => [
           (index + 1).toString(),
-          new Date(entry.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+          new Date(entry.created_at).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
           entry.title,
           entry.mood || '-',
           entry.market_condition || '-',
@@ -324,7 +344,7 @@ function JournalTab({
 
         autoTable(doc, {
           startY: yPos,
-          head: [['#', 'Date', 'Title', 'Mood', 'Market', 'Tags']],
+          head: [['#', language === 'id' ? 'Tanggal' : 'Date', language === 'id' ? 'Judul' : 'Title', 'Mood', 'Market', language === 'id' ? 'Tag' : 'Tags']],
           body: tableData,
           theme: 'grid',
           styles: {
@@ -374,11 +394,11 @@ function JournalTab({
           // Entry date & mood
           doc.setFontSize(9)
           doc.setTextColor(120, 120, 120)
-          const entryDate = new Date(entry.created_at).toLocaleDateString('id-ID', {
+          const entryDate = new Date(entry.created_at).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', {
             day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
           })
-          const moodText = entry.mood ? ` | Mood: ${entry.mood}` : ''
-          const marketText = entry.market_condition ? ` | Market: ${entry.market_condition}` : ''
+          const moodText = entry.mood ? ` | ${language === 'id' ? 'Mood' : 'Mood'}: ${entry.mood}` : ''
+          const marketText = entry.market_condition ? ` | ${language === 'id' ? 'Market' : 'Market'}: ${entry.market_condition}` : ''
           doc.text(`${entryDate}${moodText}${marketText}`, 14, yPos)
           yPos += 6
 
@@ -406,33 +426,33 @@ function JournalTab({
 
         doc.setTextColor(160, 180, 200)
         doc.setFontSize(8)
-        doc.text('Generated by LuxTrade', 14, 290)
+        doc.text(language === 'id' ? 'Dihasilkan oleh LuxTrade' : 'Generated by LuxTrade', 14, 290)
         doc.text(`Page ${i} of ${pageCount}`, 160, 290)
       }
 
       doc.save('luxtrade-journal.pdf')
-      toast.success('Journal berhasil diekspor ke PDF!')
+      toast.success(language === 'id' ? 'Journal berhasil diekspor ke PDF!' : 'Journal exported to PDF successfully!')
     } catch (error: any) {
       console.error('PDF export error:', error)
-      toast.error(`Gagal mengekspor PDF: ${error.message || 'Unknown error'}`)
+      toast.error(language === 'id' ? `Gagal mengekspor PDF: ${error.message || 'Unknown error'}` : `Failed to export PDF: ${error.message || 'Unknown error'}`)
     } finally {
       _setExporting(false)
     }
-  }, [filteredEntries])
+  }, [filteredEntries, language])
 
   // ============ FEATURE 2: PRINT ============
   const handlePrint = useCallback(() => {
     const entriesToPrint = filteredEntries
     const now = new Date()
     const dateRange = entriesToPrint.length > 0
-      ? `${new Date(entriesToPrint[entriesToPrint.length - 1].created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} — ${new Date(entriesToPrint[0].created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`
-      : now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+      ? `${new Date(entriesToPrint[entriesToPrint.length - 1].created_at).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })} — ${new Date(entriesToPrint[0].created_at).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`
+      : now.toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })
 
     const entriesHtml = entriesToPrint.map((entry) => `
       <div style="margin-bottom: 24px; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px; page-break-inside: avoid;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
           <h3 style="font-size: 16px; font-weight: 700; margin: 0; color: #1a1a2e;">${entry.title}</h3>
-          <span style="font-size: 12px; color: #6b7280;">${new Date(entry.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+          <span style="font-size: 12px; color: #6b7280;">${new Date(entry.created_at).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
         </div>
         <div style="display: flex; gap: 8px; margin-bottom: 12px;">
           ${entry.mood ? `<span style="display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 12px; font-weight: 500; background: ${entry.mood === 'confident' ? '#d1fae5' : entry.mood === 'anxious' ? '#fee2e2' : '#dbeafe'}; color: ${entry.mood === 'confident' ? '#065f46' : entry.mood === 'anxious' ? '#991b1b' : '#1d4ed8'};">${entry.mood}</span>` : ''}
@@ -479,10 +499,10 @@ function JournalTab({
       <div class="header">
         <h1>LuxTrade Journal</h1>
         <div class="date">${dateRange}</div>
-        <div class="count">${entriesToPrint.length} entries</div>
+        <div class="count">${entriesToPrint.length} ${language === 'id' ? 'entri' : 'entries'}</div>
       </div>
       ${entriesHtml}
-      <div class="footer">Generated by LuxTrade — ${now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+      <div class="footer">${language === 'id' ? 'Dihasilkan oleh' : 'Generated by'} LuxTrade — ${now.toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
     </body>
     </html>`
 
@@ -495,7 +515,7 @@ function JournalTab({
         printWindow.onafterprint = () => printWindow.close()
       }
     }
-  }, [filteredEntries])
+  }, [filteredEntries, language])
 
   // Toggle analytics and fetch data
   const toggleAnalytics = useCallback(async () => {
@@ -550,7 +570,7 @@ function JournalTab({
     )
   }
 
-  const todayPrompt = getDailyPrompt()
+  const todayPrompt = getDailyPrompt(language)
 
   // Calendar helpers
   const getDaysInMonth = (date: Date) => {
@@ -573,8 +593,8 @@ function JournalTab({
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h3 className="text-xl font-bold">Trading Journal</h3>
-          <p className="text-sm text-lux-text-secondary dark:text-gray-400">Document your trading journey</p>
+          <h3 className="text-xl font-bold">{language === 'id' ? 'Jurnal Trading' : 'Trading Journal'}</h3>
+          <p className="text-sm text-lux-text-secondary dark:text-gray-400">{language === 'id' ? 'Dokumentasikan perjalanan trading Anda' : 'Document your trading journey'}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -583,7 +603,7 @@ function JournalTab({
             onClick={() => setViewMode('list')}
             className={viewMode === 'list' ? 'bg-blue-500' : 'border-blue-500/30 text-blue-400'}
           >
-            <BookOpen className="w-4 h-4 mr-1" /> List
+            <BookOpen className="w-4 h-4 mr-1" /> {language === 'id' ? 'Daftar' : 'List'}
           </Button>
           <Button
             variant={viewMode === 'calendar' ? 'default' : 'outline'}
@@ -591,7 +611,7 @@ function JournalTab({
             onClick={() => setViewMode('calendar')}
             className={viewMode === 'calendar' ? 'bg-blue-500' : 'border-blue-500/30 text-blue-400'}
           >
-            <Calendar className="w-4 h-4 mr-1" /> Calendar
+            <Calendar className="w-4 h-4 mr-1" /> {language === 'id' ? 'Kalender' : 'Calendar'}
           </Button>
           {entries.length > 2 && (
             <Button
@@ -601,7 +621,7 @@ function JournalTab({
               className="border-blue-500/30 text-blue-400"
             >
               <BarChart3 className="w-4 h-4 mr-1" />
-              {showAnalytics ? 'Hide Analytics' : 'Analytics'}
+              {showAnalytics ? (language === 'id' ? 'Sembunyikan Analitik' : 'Hide Analytics') : (language === 'id' ? 'Analitik' : 'Analytics')}
             </Button>
           )}
           <ExportButtons
@@ -611,7 +631,7 @@ function JournalTab({
             language={language}
           />
           <Button onClick={onAdd} className="bg-gradient-to-r from-blue-500 to-blue-600">
-            <Plus className="w-4 h-4 mr-2" />New Entry
+            <Plus className="w-4 h-4 mr-2" />{language === 'id' ? 'Entri Baru' : 'New Entry'}
           </Button>
         </div>
       </div>
@@ -632,10 +652,9 @@ function JournalTab({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-blue-200">
-                  📝 Belum menulis jurnal hari ini. Catat trading kamu sekarang!
-                </p>
-                <p className="text-xs text-blue-300/60 mt-0.5">
-                  Haven't written a journal entry today. Log your trades now!
+                  {language === 'id'
+                    ? '📝 Belum menulis jurnal hari ini. Catat trading kamu sekarang!'
+                    : "📝 Haven't written a journal entry today. Log your trades now!"}
                 </p>
               </div>
             </div>
@@ -646,12 +665,12 @@ function JournalTab({
                 className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
               >
                 <PenLine className="w-4 h-4 mr-1.5" />
-                Write Now
+                {language === 'id' ? 'Tulis Sekarang' : 'Write Now'}
               </Button>
               <button
                 onClick={dismissReminder}
                 className="p-1.5 rounded-lg text-blue-300/50 hover:text-blue-200 hover:bg-blue-500/15 transition-colors"
-                aria-label="Dismiss reminder"
+                aria-label={language === 'id' ? 'Tutup pengingat' : 'Dismiss reminder'}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -670,18 +689,20 @@ function JournalTab({
                 <span className="text-2xl">{quickStreak > 0 ? '🔥' : '💤'}</span>
               </div>
               <div>
-                <p className="text-sm text-amber-300/70">Journal Streak</p>
+                <p className="text-sm text-amber-300/70">{language === 'id' ? 'Streak Jurnal' : 'Journal Streak'}</p>
                 <p className="text-2xl font-bold text-amber-400">
-                  {quickStreak} {quickStreak === 1 ? 'hari' : 'hari'}
+                  {quickStreak} {quickStreak === 1 ? (language === 'id' ? 'hari' : 'day') : (language === 'id' ? 'hari' : 'days')}
                 </p>
                 <p className="text-xs text-amber-300/50">
-                  {hasTodayEntry ? '✅ Sudah journaling hari ini!' : '📝 Belum journaling hari ini'}
+                  {hasTodayEntry
+                    ? (language === 'id' ? '✅ Sudah journaling hari ini!' : '✅ Journaled today!')
+                    : (language === 'id' ? '📝 Belum journaling hari ini' : "📝 Haven't journaled today")}
                 </p>
               </div>
             </div>
             {quickStreak >= 7 && (
               <div className="mt-3 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                <p className="text-xs text-blue-300 font-medium">🏆 {quickStreak} hari streak! Konsisten adalah kunci trader sukses.</p>
+                <p className="text-xs text-blue-300 font-medium">🏆 {quickStreak} {language === 'id' ? 'hari' : 'day'} streak! {language === 'id' ? 'Konsisten adalah kunci trader sukses.' : 'Consistency is the key to successful trading.'}</p>
               </div>
             )}
           </CardContent>
@@ -692,7 +713,7 @@ function JournalTab({
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <Sparkles className="w-4 h-4 text-blue-400" />
-              <p className="text-sm text-blue-300/70 font-medium">Daily Reflection Prompt</p>
+              <p className="text-sm text-blue-300/70 font-medium">{language === 'id' ? 'Prompt Refleksi Harian' : 'Daily Reflection Prompt'}</p>
             </div>
             <p className="text-lux-text-primary dark:text-white/90 text-sm italic leading-relaxed">{todayPrompt}</p>
             {!hasTodayEntry && (
@@ -702,7 +723,7 @@ function JournalTab({
                 onClick={onAdd}
                 className="mt-3 border-blue-500/30 text-blue-400 text-xs"
               >
-                <Edit className="w-3 h-3 mr-1" /> Tulis jawabanmu
+                <Edit className="w-3 h-3 mr-1" /> {language === 'id' ? 'Tulis jawabanmu' : 'Write your answer'}
               </Button>
             )}
           </CardContent>
@@ -727,36 +748,36 @@ function JournalTab({
                 <CardContent className="p-4 lg:p-6">
                   <h4 className="font-bold mb-4 flex items-center gap-2">
                     <Brain className="w-5 h-5 text-blue-400" />
-                    Journal Analytics
+                    {language === 'id' ? 'Analitik Jurnal' : 'Journal Analytics'}
                   </h4>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                     <div className="p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5 text-center">
                       <p className="text-2xl font-bold text-blue-400">{journalAnalytics.totalEntries}</p>
-                      <p className="text-xs text-lux-text-muted dark:text-gray-500">Total Entries</p>
+                      <p className="text-xs text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Total Entri' : 'Total Entries'}</p>
                     </div>
                     <div className="p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5 text-center">
                       <p className="text-2xl font-bold text-amber-400">{journalAnalytics.longestStreak}</p>
-                      <p className="text-xs text-lux-text-muted dark:text-gray-500">Longest Streak</p>
+                      <p className="text-xs text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Streak Terpanjang' : 'Longest Streak'}</p>
                     </div>
                     <div className="p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5 text-center">
                       <p className="text-2xl font-bold text-emerald-400">{journalAnalytics.daysActive}</p>
-                      <p className="text-xs text-lux-text-muted dark:text-gray-500">Days Active</p>
+                      <p className="text-xs text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Hari Aktif' : 'Days Active'}</p>
                     </div>
                     <div className="p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5 text-center">
                       <p className="text-2xl font-bold text-cyan-400">{journalAnalytics.avgWordsPerEntry}</p>
-                      <p className="text-xs text-lux-text-muted dark:text-gray-500">Avg Words</p>
+                      <p className="text-xs text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Rata-rata Kata' : 'Avg Words'}</p>
                     </div>
                   </div>
 
                   {/* Mood Distribution */}
                   <div className="mb-6">
-                    <p className="text-sm font-medium text-lux-text-secondary dark:text-gray-400 mb-3">Mood Distribution</p>
+                    <p className="text-sm font-medium text-lux-text-secondary dark:text-gray-400 mb-3">{language === 'id' ? 'Distribusi Mood' : 'Mood Distribution'}</p>
                     <div className="flex items-center gap-4">
                       {[
-                        { label: 'Confident', emoji: '😊', count: journalAnalytics.moodDistribution?.confident || 0, color: 'bg-emerald-500' },
-                        { label: 'Neutral', emoji: '😐', count: journalAnalytics.moodDistribution?.neutral || 0, color: 'bg-blue-500' },
-                        { label: 'Anxious', emoji: '😰', count: journalAnalytics.moodDistribution?.anxious || 0, color: 'bg-red-500' },
+                        { label: language === 'id' ? 'Percaya Diri' : 'Confident', emoji: '😊', count: journalAnalytics.moodDistribution?.confident || 0, color: 'bg-emerald-500' },
+                        { label: language === 'id' ? 'Netral' : 'Neutral', emoji: '😐', count: journalAnalytics.moodDistribution?.neutral || 0, color: 'bg-blue-500' },
+                        { label: language === 'id' ? 'Cemas' : 'Anxious', emoji: '😰', count: journalAnalytics.moodDistribution?.anxious || 0, color: 'bg-red-500' },
                       ].map(m => {
                         const total = journalAnalytics.totalEntries || 1
                         const pct = Math.round((m.count / total) * 100)
@@ -784,7 +805,7 @@ function JournalTab({
                   {/* Mood Trend */}
                   {journalAnalytics.moodTrend && journalAnalytics.moodTrend.length > 1 && (
                     <div className="mb-6">
-                      <p className="text-sm font-medium text-lux-text-secondary dark:text-gray-400 mb-3">Mood Trend (Recent)</p>
+                      <p className="text-sm font-medium text-lux-text-secondary dark:text-gray-400 mb-3">{language === 'id' ? 'Tren Mood (Terbaru)' : 'Mood Trend (Recent)'}</p>
                       <div className="flex items-end gap-2 h-20">
                         {journalAnalytics.moodTrend.map((item: any, i: number) => (
                           <div key={i} className="flex-1 flex flex-col items-center gap-1">
@@ -809,7 +830,7 @@ function JournalTab({
                     <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-transparent border border-lux-border dark:border-blue-500/20">
                       <div className="flex items-center gap-2 mb-2">
                         <Zap className="w-4 h-4 text-blue-400" />
-                        <p className="text-sm font-bold text-blue-300">Weekly AI Summary</p>
+                        <p className="text-sm font-bold text-blue-300">{language === 'id' ? 'Ringkasan AI Mingguan' : 'Weekly AI Summary'}</p>
                       </div>
                       <p className="text-xs text-lux-text-secondary dark:text-gray-400 leading-relaxed mb-2">{journalAnalytics.weeklySummary.moodAssessment}</p>
                       <p className="text-xs text-lux-text-muted dark:text-gray-500 leading-relaxed">{journalAnalytics.weeklySummary.recommendation}</p>
@@ -831,17 +852,18 @@ function JournalTab({
       {/* Filtered entries count */}
       {filteredEntries.length !== entries.length && entries.length > 0 && (
         <p className="text-sm text-lux-text-secondary dark:text-gray-400">
-          Showing <span className="font-bold text-blue-400">{filteredEntries.length}</span> of <span className="font-bold">{entries.length}</span> entries
+          {language === 'id' ? 'Menampilkan' : 'Showing'} <span className="font-bold text-blue-400">{filteredEntries.length}</span> {language === 'id' ? 'dari' : 'of'} <span className="font-bold">{entries.length}</span> {language === 'id' ? 'entri' : 'entries'}
         </p>
       )}
 
       {/* Calendar View */}
       {viewMode === 'calendar' && filteredEntries.length > 0 && (
-        <CalendarView 
-          entries={filteredEntries} 
-          currentMonth={currentMonth} 
+        <CalendarView
+          entries={filteredEntries}
+          currentMonth={currentMonth}
           setCurrentMonth={setCurrentMonth}
           onView={onView}
+          language={language}
         />
       )}
 
@@ -850,13 +872,13 @@ function JournalTab({
         <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardContent className="py-16 text-center">
             <BookOpen className="w-12 h-12 mx-auto mb-4 text-lux-text-muted dark:text-gray-500" />
-            <h3 className="text-lg font-semibold mb-2">No Journal Entries</h3>
-            <p className="text-lux-text-secondary dark:text-gray-400 mb-4">Start documenting your trades!</p>
+            <h3 className="text-lg font-semibold mb-2">{language === 'id' ? 'Belum Ada Entri Jurnal' : 'No Journal Entries'}</h3>
+            <p className="text-lux-text-secondary dark:text-gray-400 mb-4">{language === 'id' ? 'Mulai dokumentasikan trade Anda!' : 'Start documenting your trades!'}</p>
             <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/10 max-w-sm mx-auto mb-4">
-              <p className="text-xs text-blue-300/70 italic">💡 Daily Prompt: &ldquo;{todayPrompt}&rdquo;</p>
+              <p className="text-xs text-blue-300/70 italic">💡 {language === 'id' ? 'Prompt Harian' : 'Daily Prompt'}: &ldquo;{todayPrompt}&rdquo;</p>
             </div>
             <Button onClick={onAdd} variant="outline" className="border-blue-500/30 text-blue-400">
-              <Plus className="w-4 h-4 mr-2" /> Write First Entry
+              <Plus className="w-4 h-4 mr-2" /> {language === 'id' ? 'Tulis Entri Pertama' : 'Write First Entry'}
             </Button>
           </CardContent>
         </Card>
@@ -864,8 +886,8 @@ function JournalTab({
         <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardContent className="py-12 text-center">
             <BookOpen className="w-10 h-10 mx-auto mb-3 text-lux-text-muted dark:text-gray-500" />
-            <h3 className="text-lg font-semibold mb-2">No Matching Entries</h3>
-            <p className="text-lux-text-secondary dark:text-gray-400 text-sm">Try adjusting your search or filters</p>
+            <h3 className="text-lg font-semibold mb-2">{language === 'id' ? 'Tidak Ada Entri Cocok' : 'No Matching Entries'}</h3>
+            <p className="text-lux-text-secondary dark:text-gray-400 text-sm">{language === 'id' ? 'Coba sesuaikan pencarian atau filter' : 'Try adjusting your search or filters'}</p>
           </CardContent>
         </Card>
       ) : viewMode === 'list' ? (
@@ -885,7 +907,7 @@ function JournalTab({
                     <h4 className="font-bold text-lg">{entry.title}</h4>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-lux-text-muted dark:text-gray-500">{new Date(entry.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    <span className="text-xs text-lux-text-muted dark:text-gray-500">{new Date(entry.created_at).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                     <button
                       onClick={(e) => { e.stopPropagation(); onDelete(entry.id) }}
                       className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-lux-text-muted dark:text-gray-500 hover:text-red-400 transition-all"
@@ -917,14 +939,14 @@ function JournalTab({
                   {entry.image_url && (
                     <Badge variant="outline" className="text-xs border-cyan-500/30 text-cyan-400">
                       <ImageIcon className="w-2.5 h-2.5 mr-1" />
-                      Image
+                      {language === 'id' ? 'Gambar' : 'Image'}
                     </Badge>
                   )}
                   {/* Linked Trades Indicator */}
                   {entry.linked_trades_count && entry.linked_trades_count > 0 && (
                     <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-400">
                       <Link2 className="w-2.5 h-2.5 mr-1" />
-                      {entry.linked_trades_count} trades
+                      {entry.linked_trades_count} {language === 'id' ? 'trade' : 'trades'}
                     </Badge>
                   )}
                 </div>
@@ -941,12 +963,12 @@ function JournalTab({
             <div className="flex items-center gap-3">
               <Crown className="w-6 h-6 text-amber-400" />
               <div>
-                <p className="text-sm font-bold text-white">Unlock Advanced Journal Analytics</p>
-                <p className="text-xs text-lux-text-secondary dark:text-gray-400">Get AI summaries, mood charts, and weekly reports with PRO</p>
+                <p className="text-sm font-bold text-white">{language === 'id' ? 'Buka Analitik Jurnal Lanjutan' : 'Unlock Advanced Journal Analytics'}</p>
+                <p className="text-xs text-lux-text-secondary dark:text-gray-400">{language === 'id' ? 'Dapatkan ringkasan AI, chart mood, dan laporan mingguan dengan PRO' : 'Get AI summaries, mood charts, and weekly reports with PRO'}</p>
               </div>
             </div>
             <Button onClick={onUpgrade} size="sm" className="bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold">
-              Upgrade PRO
+              {language === 'id' ? 'Upgrade PRO' : 'Upgrade PRO'}
             </Button>
           </CardContent>
         </Card>

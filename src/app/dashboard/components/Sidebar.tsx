@@ -109,6 +109,7 @@ const Sidebar = memo(function Sidebar({
           <SidebarHeader
             sidebarOpen={sidebarOpen}
             mobileSidebarOpen={false}
+            language={language}
           />
 
           <div className="flex-1 overflow-y-auto overscroll-y-contain scrollbar-thin">
@@ -155,6 +156,7 @@ const Sidebar = memo(function Sidebar({
           <SidebarHeader
             sidebarOpen={true}
             mobileSidebarOpen={mobileSidebarOpen}
+            language={language}
           />
 
           <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overscroll-y-contain scrollbar-thin">

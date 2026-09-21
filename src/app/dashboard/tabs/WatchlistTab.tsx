@@ -21,6 +21,7 @@ interface WatchlistTabProps {
   onDelete: (id: string) => void
   isPro?: boolean
   onUpgrade?: () => void
+  language?: 'id' | 'en'
 }
 
 export default function WatchlistTab({
@@ -29,7 +30,8 @@ export default function WatchlistTab({
   onAdd,
   onDelete,
   isPro,
-  onUpgrade
+  onUpgrade,
+  language = 'id'
 }: WatchlistTabProps) {
   // Local alert toggle state (visual only — persists in session)
   const [alertItems, setAlertItems] = useState<Set<string>>(() => {
@@ -61,10 +63,10 @@ export default function WatchlistTab({
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center mb-4">
           <Crown className="w-8 h-8 text-white" />
         </div>
-        <h3 className="text-xl font-bold text-white mb-2">Premium Feature</h3>
-        <p className="text-lux-text-secondary dark:text-gray-400 text-center max-w-sm mb-6">Watchlist is only available for PRO users</p>
+        <h3 className="text-xl font-bold text-white mb-2">{language === 'id' ? 'Fitur Premium' : 'Premium Feature'}</h3>
+        <p className="text-lux-text-secondary dark:text-gray-400 text-center max-w-sm mb-6">{language === 'id' ? 'Watchlist hanya tersedia untuk pengguna PRO' : 'Watchlist is only available for PRO users'}</p>
         <button onClick={onUpgrade} className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity">
-          Upgrade to PRO
+          {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
         </button>
       </div>
     )
@@ -82,11 +84,11 @@ export default function WatchlistTab({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-bold">Watchlist</h3>
-          <p className="text-sm text-lux-text-secondary dark:text-gray-400">Track potential opportunities</p>
+          <h3 className="text-xl font-bold">{language === 'id' ? 'Daftar Pantauan' : 'Watchlist'}</h3>
+          <p className="text-sm text-lux-text-secondary dark:text-gray-400">{language === 'id' ? 'Lacak peluang potensial' : 'Track potential opportunities'}</p>
         </div>
         <Button onClick={onAdd} className="bg-gradient-to-r from-blue-500 to-cyan-600">
-          <Plus className="w-4 h-4 mr-2" />Add Symbol
+          <Plus className="w-4 h-4 mr-2" />{language === 'id' ? 'Tambah Simbol' : 'Add Symbol'}
         </Button>
       </div>
 
@@ -94,10 +96,10 @@ export default function WatchlistTab({
         <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardContent className="py-16 text-center">
             <Eye className="w-12 h-12 mx-auto mb-4 text-lux-text-muted dark:text-gray-500" />
-            <h3 className="text-lg font-semibold mb-2">No Watchlist Items</h3>
-            <p className="text-lux-text-secondary dark:text-gray-400 mb-4">Add symbols to track potential setups!</p>
+            <h3 className="text-lg font-semibold mb-2">{language === 'id' ? 'Belum Ada Item Watchlist' : 'No Watchlist Items'}</h3>
+            <p className="text-lux-text-secondary dark:text-gray-400 mb-4">{language === 'id' ? 'Tambah simbol untuk lacak setup potensial!' : 'Add symbols to track potential setups!'}</p>
             <Button onClick={onAdd} variant="outline" className="border-blue-500/30 text-blue-400">
-              <Plus className="w-4 h-4 mr-2" /> Add First Symbol
+              <Plus className="w-4 h-4 mr-2" /> {language === 'id' ? 'Tambah Simbol Pertama' : 'Add First Symbol'}
             </Button>
           </CardContent>
         </Card>
@@ -124,7 +126,7 @@ export default function WatchlistTab({
                         <button
                           onClick={() => toggleAlert(item.id)}
                           className={`p-1.5 rounded-lg transition-all ${isAlertOn ? 'text-amber-400 bg-amber-500/15 hover:bg-amber-500/25' : 'text-lux-text-muted dark:text-gray-500 hover:text-lux-text-primary dark:text-gray-300 hover:bg-lux-surface-hover dark:hover:bg-lux-surface-hover dark:bg-white/5 opacity-0 group-hover:opacity-100'}`}
-                          title={isAlertOn ? 'Alert ON' : 'Alert OFF'}
+                          title={isAlertOn ? (language === 'id' ? 'Alert ON' : 'Alert ON') : (language === 'id' ? 'Alert OFF' : 'Alert OFF')}
                         >
                           {isAlertOn ? (
                             <BellRing className="w-4 h-4 animate-[swing_1s_ease-in-out_infinite]" />
@@ -143,7 +145,7 @@ export default function WatchlistTab({
                     </div>
                     {item.target_price && (
                       <div className="mb-2">
-                        <span className="text-xs text-lux-text-muted dark:text-gray-500">Target: </span>
+                        <span className="text-xs text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Target: ' : 'Target: '}</span>
                         <span className="text-sm font-bold text-emerald-400">{item.target_price}</span>
                       </div>
                     )}
@@ -151,11 +153,11 @@ export default function WatchlistTab({
                       <p className="text-xs text-lux-text-secondary dark:text-gray-400 line-clamp-2">{item.notes}</p>
                     )}
                     <div className="flex items-center justify-between mt-2">
-                      <p className="text-xs text-gray-600">Added {new Date(item.created_at).toLocaleDateString()}</p>
+                      <p className="text-xs text-gray-600">{language === 'id' ? 'Ditambahkan' : 'Added'} {new Date(item.created_at).toLocaleDateString()}</p>
                       {isAlertOn && (
                         <span className="text-[10px] text-amber-400/80 font-medium flex items-center gap-1">
                           <BellRing className="w-3 h-3" />
-                          Alert ON
+                          {language === 'id' ? 'Alert ON' : 'Alert ON'}
                         </span>
                       )}
                     </div>
@@ -167,7 +169,7 @@ export default function WatchlistTab({
 
           {/* Alert notice */}
           <p className="text-xs text-lux-text-muted dark:text-gray-500 text-center mt-2">
-            🔔 Alerts require real-time price data (coming soon) / Alert membutuhkan data harga real-time (segera hadir)
+            🔔 {language === 'id' ? 'Alert membutuhkan data harga real-time (segera hadir)' : 'Alerts require real-time price data (coming soon)'}
           </p>
         </>
       )}

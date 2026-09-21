@@ -73,8 +73,8 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
       <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
         <CardContent className="py-20 text-center">
           <Activity className="w-12 h-12 text-blue-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No Data Available</h3>
-          <p className="text-lux-text-secondary dark:text-gray-400">Start logging trades to see analytics</p>
+          <h3 className="text-lg font-semibold mb-2">{language === 'id' ? 'Tidak Ada Data' : 'No Data Available'}</h3>
+          <p className="text-lux-text-secondary dark:text-gray-400">{language === 'id' ? 'Mulai catat trade untuk melihat analitik' : 'Start logging trades to see analytics'}</p>
         </CardContent>
       </Card>
     )
@@ -162,7 +162,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
               <p className={`text-xl font-bold ${
                 analytics.activeStreak.type === 'win' ? 'text-emerald-400' : 'text-red-400'
               }`}>
-                {analytics.activeStreak.count} {analytics.activeStreak.type === 'win' ? 'Wins' : 'Losses'}
+                {analytics.activeStreak.count} {analytics.activeStreak.type === 'win' ? (language === 'id' ? 'Menang' : 'Wins') : (language === 'id' ? 'Kalah' : 'Losses')}
               </p>
             </div>
           </div>
@@ -212,7 +212,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Zap className="w-4 h-4 text-blue-400" />
-                  <p className="text-xs text-lux-text-secondary dark:text-gray-400">Sharpe Ratio</p>
+                  <p className="text-xs text-lux-text-secondary dark:text-gray-400">{language === 'id' ? 'Rasio Sharpe' : 'Sharpe Ratio'}</p>
                 </div>
                 <p className={`text-2xl font-bold ${getRatioColor(analytics.sharpeRatio || 0)}`}>
                   {(analytics.sharpeRatio || 0).toFixed(2)}
@@ -330,7 +330,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
                         border: '1px solid rgba(59,130,246,0.3)',
                         borderRadius: 8
                       }}
-                      formatter={(value: number) => [`$${value.toFixed(2)}`, 'Equity']}
+                      formatter={(value: number) => [`$${value.toFixed(2)}`, language === 'id' ? 'Ekuitas' : 'Equity']}
                       labelFormatter={(label: string) => {
                         const d = new Date(label)
                         return d.toLocaleDateString()

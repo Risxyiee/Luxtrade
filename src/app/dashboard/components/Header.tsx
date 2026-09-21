@@ -154,7 +154,7 @@ const Header = memo(function Header({
           </DialogTrigger>
           <DialogContent className="sm:max-w-md bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-blue-900/30 text-lux-text-primary dark:text-white">
             <DialogHeader>
-              <DialogTitle className="text-lux-text-primary dark:text-white">Keyboard Shortcuts</DialogTitle>
+              <DialogTitle className="text-lux-text-primary dark:text-white">{language === 'id' ? 'Pintasan Keyboard' : 'Keyboard Shortcuts'}</DialogTitle>
             </DialogHeader>
             <div className="space-y-2 pt-2">
               {shortcuts.map((s, i) => (
@@ -182,7 +182,7 @@ const Header = memo(function Header({
 
         <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          <span className="text-[11px] text-emerald-400 font-medium">Live</span>
+          <span className="text-[11px] text-emerald-400 font-medium">{language === 'id' ? 'Siaran' : 'Live'}</span>
         </div>
 
         {user && (
