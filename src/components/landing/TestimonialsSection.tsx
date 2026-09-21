@@ -16,6 +16,8 @@ interface DatabaseTestimonial {
   prop_firms_passed: number
   is_verified: boolean
   created_at: string
+  gradient?: string
+  borderHover?: string
 }
 
 interface DefaultTestimonial {

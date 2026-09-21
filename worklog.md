@@ -1062,3 +1062,21 @@ Stage Summary:
 - All build errors fixed
 - Testimonials system is intact (TestimonialsSection + TestimonialForm + API)
 - Pushed to origin/main
+
+---
+Task ID: 3
+Agent: Main
+Task: Fix high-priority testimonial TypeScript errors and provide SQL
+
+Work Log:
+- Fixed 7 TS errors in testimonials/route.ts: `createClient()` → `await createClient()` (missing await on async function)
+- Fixed 3 TS errors in testimonials/upload-photo/route.ts: same `await` fix
+- Fixed 3 TS errors in TestimonialsSection.tsx: added `gradient?` and `borderHover?` to DatabaseTestimonial interface
+- Created storage bucket migration: `prisma/migrations/20250616_create_testimonials_storage_bucket.sql`
+- Verified build passes (`npx next build` succeeds)
+- Verified dev server compiles API route correctly (no TS errors at runtime)
+
+Stage Summary:
+- 13 TypeScript errors fixed across 3 files
+- All fixes are minimal - only changed what was needed, no unrelated files touched
+- Testimonials SQL (table + storage bucket) ready for Supabase deployment
