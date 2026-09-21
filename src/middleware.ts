@@ -62,14 +62,10 @@ export async function middleware(request: NextRequest) {
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
     if (!supabaseUrl || !supabaseKey) {
-      console.error('[Middleware] Missing Supabase environment variables:', {
-        hasUrl: !!supabaseUrl,
-        hasKey: !!supabaseKey,
-      })
-      const url = request.nextUrl.clone()
-      url.pathname = '/auth/login'
-      url.searchParams.set('redirect', pathname)
-      return NextResponse.redirect(url)
+      console.error('[Middleware] Missing Supabase environment variables - letting request through without auth check')
+      // Instead of redirecting, let the request through
+      // The API/page will handle auth internally and show proper error UI
+      return NextResponse.next()
     }
 
     const supabase = createServerClient(

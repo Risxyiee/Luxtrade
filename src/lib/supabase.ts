@@ -28,7 +28,7 @@ export function getSupabaseServiceRoleKey(): string | undefined {
 }
 
 /** Server-side non-admin client with cookie support (for server components) */
-export function getServerClient(): SupabaseClient | null {
+export async function getServerClient(): Promise<SupabaseClient | null> {
   const url = getSupabaseUrl()
   const anon = getSupabaseAnonKey()
   
@@ -42,7 +42,7 @@ export function getServerClient(): SupabaseClient | null {
   }
 
   try {
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     const supabase = createServerClient(
       url,
       anon,

@@ -28,20 +28,13 @@ export async function createClient() {
 
   // Check if env vars are available
   if (!key) {
-    const isProduction = process.env.NODE_ENV === 'production'
-    const errorMsg = isProduction
-      ? 'CRITICAL: NEXT_PUBLIC_SUPABASE_ANON_KEY is required in production. Please set this environment variable in Cloudflare Pages settings.'
-      : '⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY not set. Supabase features will not work in development.'
+    console.error('⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY not set. Supabase features will not work until this is configured.')
+    console.error('Available SUPABASE env keys:', Object.keys(process.env).filter(k => k.includes('SUPABASE')))
 
-    console.error(errorMsg)
-
-    if (isProduction) {
-      throw new Error(errorMsg)
-    }
-
-    // In development, create client with placeholder for build to succeed
+    // Return a placeholder client so the app doesn't crash
+    // API routes will get auth errors gracefully instead of throwing
     const cookieStore = await cookies()
-    return createServerClient(url, 'dev-placeholder-key', {
+    return createServerClient(url, 'placeholder-key-not-configured', {
       cookies: {
         get(name: string) {
           return cookieStore.get(name)?.value
@@ -97,20 +90,12 @@ export async function createClientForApi(request: NextRequest) {
   const url = getSupabaseUrl()
   const key = getSupabaseAnonKey()
 
-  console.log('[createClientForApi] URL:', url, 'Key length:', key?.length || 0)
-
   // Check if env vars are available
   if (!key) {
-    const isProduction = process.env.NODE_ENV === 'production'
-    const errorMsg = isProduction
-      ? 'CRITICAL: NEXT_PUBLIC_SUPABASE_ANON_KEY is required in production. Please set this environment variable in Cloudflare Pages settings.'
-      : '⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY not set. Supabase features will not work in development.'
+    console.error('[createClientForApi] ⚠️ NEXT_PUBLIC_SUPABASE_ANON_KEY not set. Supabase features will not work until this is configured.')
+    console.error('[createClientForApi] Available SUPABASE env keys:', Object.keys(process.env).filter(k => k.includes('SUPABASE')))
 
-    console.error('[createClientForApi]', errorMsg)
-    console.error('[createClientForApi] NODE_ENV:', process.env.NODE_ENV)
-    console.error('[createClientForApi] Available env keys:', Object.keys(process.env).filter(k => k.includes('SUPABASE')))
-
-    // Return null instead of throwing to allow graceful error handling
+    // Return null supabase so API routes can handle gracefully
     return { supabase: null, response: NextResponse.next() }
   }
 
