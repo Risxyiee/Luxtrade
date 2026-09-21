@@ -6,7 +6,6 @@ const ADMIN_EMAILS = ['luxtradee@gmail.com']
 
 export const config = {
   matcher: [
-    '/dashboard/:path*',
     '/settings',
     '/auth/:path*',
     '/admin-secret',
@@ -43,11 +42,11 @@ export async function middleware(request: NextRequest) {
   }
 
   // Admin-only paths — require login + admin email
-  const adminPaths = ['/dashboard/admin', '/admin-email', '/admin-secret', '/admin-subscriptions']
+  const adminPaths = ['/admin-email', '/admin-secret', '/admin-subscriptions']
   const isAdminPath = adminPaths.some(p => pathname === p || pathname.startsWith(p + '/'))
 
   // Protected paths — require login
-  const protectedPaths = ['/dashboard', '/settings']
+  const protectedPaths = ['/settings']
   const isProtectedPath = protectedPaths.some(p => pathname === p || pathname.startsWith(p + '/'))
 
   console.log('[Middleware] Path classification:', { isAdminPath, isProtectedPath })
@@ -63,8 +62,6 @@ export async function middleware(request: NextRequest) {
 
     if (!supabaseUrl || !supabaseKey) {
       console.error('[Middleware] Missing Supabase environment variables - letting request through without auth check')
-      // Instead of redirecting, let the request through
-      // The API/page will handle auth internally and show proper error UI
       return NextResponse.next()
     }
 
@@ -109,9 +106,9 @@ export async function middleware(request: NextRequest) {
       console.log('[Middleware] Admin check:', { userEmail, isAuthorized, adminEmails: ADMIN_EMAILS })
 
       if (!isAuthorized) {
-        console.log('[Middleware] User is not admin, redirecting to dashboard')
+        console.log('[Middleware] User is not admin, redirecting to home')
         const url = request.nextUrl.clone()
-        url.pathname = '/dashboard'
+        url.pathname = '/'
         return NextResponse.redirect(url)
       }
 

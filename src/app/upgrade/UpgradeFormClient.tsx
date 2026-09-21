@@ -79,7 +79,7 @@ function UpgradeFormClient({ user }: UpgradeFormClientProps) {
       const d = await r.json()
       if (!r.ok || !d.success) { setError(d.details || d.message || 'Gagal'); return }
       setSuccess(true); setPromoData(d.subscription)
-      setTimeout(() => { window.location.href = '/dashboard' }, 2000)
+      setTimeout(() => { window.location.href = '/' }, 2000)
     } catch { setError('Gagal') }
     finally { setIsApplying(false) }
   }

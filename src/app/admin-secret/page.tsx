@@ -70,7 +70,7 @@ export default function AdminPanel() {
     if (!loading && user) {
       if (user.email !== ADMIN_EMAIL) {
         toast.error('Access denied. Admin only.')
-        router.push('/dashboard')
+        router.push('/')
       } else {
         fetchUsers()
       }
@@ -186,7 +186,7 @@ export default function AdminPanel() {
     localStorage.setItem('admin_impersonating_email', targetUser.email)
 
     toast.success(`Mengalihkan ke view user: ${targetUser.email}`)
-    router.push('/dashboard')
+    router.push('/')
   }
 
   const formatRupiah = (amount: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount)
@@ -286,7 +286,7 @@ export default function AdminPanel() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push('/')}
               className="text-gray-400 hover:text-white"
             >
               Back to Dashboard

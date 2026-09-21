@@ -515,7 +515,7 @@ export default function LuxTradeLanding() {
 
       if (!res.ok) { toast.error(data.error || 'Gagal membuat transaksi'); setPayLoading(null); return }
       ;(window as any).snap.pay(data.token, {
-        onSuccess: () => { toast.success('Pembayaran berhasil! Akun PRO sedang diaktivasi...'); setTimeout(() => window.location.href = '/dashboard', 2000) },
+        onSuccess: () => { toast.success('Pembayaran berhasil! Akun PRO sedang diaktivasi...'); setTimeout(() => window.location.href = '/', 2000) },
         onPending: () => { toast.info('Menunggu pembayaran. Selesaikan untuk mengaktifkan PRO otomatis.') },
         onError: () => { toast.error('Pembayaran gagal atau dibatalkan.') },
         onClose: () => { setPayLoading(null) },
@@ -972,7 +972,7 @@ export default function LuxTradeLanding() {
           </motion.div>
           
           <div className="text-center mt-10">
-            <Link href="/dashboard">
+            <Link href="/">
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.98 }}

@@ -169,7 +169,7 @@ async function sendWeeklyEmail(
 ): Promise<boolean> {
   const name = stats.full_name || 'Trader'
   const weekLabel = formatWeekLabel(weekStart, weekEnd)
-  const ctaUrl = `${SITE_URL}/dashboard`
+  const ctaUrl = `${SITE_URL}/`
   const unsubUrl = `${SITE_URL}/api/cron/weekly-summary/unsubscribe?uid=${stats.user_id}`
 
   const winRate = stats.trade_count > 0
