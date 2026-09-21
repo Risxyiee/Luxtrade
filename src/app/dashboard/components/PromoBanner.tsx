@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, ExternalLink, Flame } from 'lucide-react'
 import Image from 'next/image'
 
-const CTA_URL = 'https://app.fundingtraders.com/express_checkout?ref=pil14250337&promo=fundingtrade'
+const CTA_URL = 'https://app.fundingtraders.com/express_checkout?ref=pil14250337&promo=LUXTRADEE'
 
 export default function PromoBanner() {
   const [dismissed, setDismissed] = useState(false)
