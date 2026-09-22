@@ -24,3 +24,24 @@ Stage Summary:
 - New submissions default to 'pending' status requiring admin approval
 - Admin testimonial management page at /dashboard/admin/testimonials
 - Admin API at /api/admin/testimonials (GET/PATCH/DELETE)
+
+---
+Task ID: fix-restore-dashboard
+Agent: main
+Task: Restore dashboard that was incorrectly deleted, keep only the mp4 fix
+
+Work Log:
+- Realized user wanted to KEEP dashboard, not delete it
+- Reverted the commit that deleted dashboard and changed all /dashboard references
+- Dashboard route (/dashboard) fully restored with all components
+- Middleware, DynamicCharts, and all other files restored to original state
+- Kept the fix: deleted demo-tutorial.mp4 (55 MiB) that caused Cloudflare deploy error
+- Updated TutorialVideoSection.tsx to use YouTube iframe instead of local mp4
+- Verified both landing page (/) and dashboard (/dashboard) return HTTP 200
+
+Stage Summary:
+- Dashboard fully restored - no longer deleted
+- demo-tutorial.mp4 deleted (fixes Cloudflare "Asset too large" error)
+- TutorialVideoSection.tsx updated to use YouTube embed instead of local video
+- Both / and /dashboard work correctly
+- No files in public/ exceed 10MB

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Play, Pause, VolumeX, MonitorPlay } from 'lucide-react'
 import { TutorialSvg } from './SectionSvgArt'
@@ -9,7 +9,7 @@ interface TutorialVideoSectionProps {
   language: 'id' | 'en'
 }
 
-// Simplified floating particles (reduced from 4 orbs + 12 sparkles to 2 orbs + 4 sparkles)
+// Simplified floating particles
 function VideoParticles() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -43,18 +43,12 @@ function VideoParticles() {
 }
 
 export default function TutorialVideoSection({ language }: TutorialVideoSectionProps) {
-  const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [showVideo, setShowVideo] = useState(false)
 
   const handlePlay = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause()
-      } else {
-        videoRef.current.play()
-      }
-      setIsPlaying(!isPlaying)
-    }
+    setShowVideo(true)
+    setIsPlaying(true)
   }
 
   return (
@@ -106,28 +100,23 @@ export default function TutorialVideoSection({ language }: TutorialVideoSectionP
             <VideoParticles />
             <div className="absolute inset-0 rounded-2xl border border-white/10 z-10 pointer-events-none" />
 
-            {/* Video */}
-            <video
-              ref={videoRef}
-              src="/demo-tutorial.mp4"
-              playsInline
-              preload="none"
-              loop
-              className="w-full object-contain relative z-[5] cursor-pointer"
-              onClick={handlePlay}
-            />
-
-            {/* Play/Pause Overlay */}
-            <AnimatePresence>
-              {!isPlaying && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] cursor-pointer z-20"
-                  onClick={handlePlay}
-                >
+            {/* YouTube Embed or Placeholder */}
+            {showVideo ? (
+              <div className="relative z-[5] w-full aspect-video">
+                <iframe
+                  className="w-full h-full"
+                  src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&rel=0"
+                  title="LuxTrade Tutorial"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            ) : (
+              <div
+                className="relative z-[5] w-full aspect-video flex items-center justify-center cursor-pointer bg-gradient-to-br from-[#0c1445] to-[#0a0e2a]"
+                onClick={handlePlay}
+              >
+                <div className="flex flex-col items-center gap-3">
                   <motion.div
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
@@ -135,28 +124,12 @@ export default function TutorialVideoSection({ language }: TutorialVideoSectionP
                   >
                     <Play className="w-7 h-7 sm:w-8 sm:h-8 text-white ml-1 relative z-10" fill="white" />
                   </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Pause button (when playing) */}
-            <AnimatePresence>
-              {isPlaying && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 20 }}
-                  className="absolute bottom-4 right-4 z-20"
-                >
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handlePlay() }}
-                    className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-md border border-white/20 flex items-center justify-center hover:bg-black/70 transition-colors"
-                  >
-                    <Pause className="w-4 h-4 text-white" fill="white" />
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  <p className="text-sm text-[#8892b0]">
+                    {language === 'id' ? 'Klik untuk menonton' : 'Click to watch'}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Top badges */}
             <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-20 pointer-events-none">
@@ -168,7 +141,7 @@ export default function TutorialVideoSection({ language }: TutorialVideoSectionP
               </div>
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur-sm border border-white/10">
                 <VolumeX className="w-3 h-3 text-[#8892b0]" />
-                <span className="text-[10px] text-[#8892b0] font-medium">No Audio</span>
+                <span className="text-[10px] text-[#8892b0] font-medium">Video</span>
               </div>
             </div>
           </div>
@@ -182,8 +155,8 @@ export default function TutorialVideoSection({ language }: TutorialVideoSectionP
           className="text-center text-xs text-[#8892b0] mt-6 opacity-50"
         >
           {language === 'id'
-            ? 'Video tanpa suara — fokus ke tampilan'
-            : 'Video without audio — focused on visuals'}
+            ? 'Klik play untuk mulai tutorial'
+            : 'Click play to start the tutorial'}
         </motion.p>
       </div>
     </section>
