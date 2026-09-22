@@ -114,7 +114,7 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
 <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
   <tr>
     <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px;">
-      <a href="https://luxtradee.web.id/" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Upgrade ke PRO Sekarang →</a>
+      <a href="https://luxtradee.web.id/dashboard" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Upgrade ke PRO Sekarang →</a>
     </td>
   </tr>
 </table>`,
@@ -166,7 +166,7 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
 <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
   <tr>
     <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px;">
-      <a href="https://luxtradee.web.id/" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Coba Sekarang →</a>
+      <a href="https://luxtradee.web.id/dashboard" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Coba Sekarang →</a>
     </td>
   </tr>
 </table>`,
@@ -244,7 +244,7 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
 <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
   <tr>
     <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px;">
-      <a href="https://luxtradee.web.id/" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Buka Dashboard Sekarang →</a>
+      <a href="https://luxtradee.web.id/dashboard" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Buka Dashboard Sekarang →</a>
     </td>
   </tr>
 </table>
@@ -272,7 +272,7 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
 <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
   <tr>
     <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px;">
-      <a href="https://luxtradee.web.id/" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Buka Dashboard →</a>
+      <a href="https://luxtradee.web.id/dashboard" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Buka Dashboard →</a>
     </td>
   </tr>
 </table>`,
@@ -320,7 +320,7 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
 <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
   <tr>
     <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px;">
-      <a href="https://luxtradee.web.id/" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Buka Trading Journal →</a>
+      <a href="https://luxtradee.web.id/dashboard" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Buka Trading Journal →</a>
     </td>
   </tr>
 </table>
@@ -367,7 +367,7 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
 <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
   <tr>
     <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px;">
-      <a href="https://luxtradee.web.id/" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Mulai Trading Sekarang →</a>
+      <a href="https://luxtradee.web.id/dashboard" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Mulai Trading Sekarang →</a>
     </td>
   </tr>
 </table>
@@ -412,7 +412,7 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
 <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
   <tr>
     <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px;">
-      <a href="https://luxtradee.web.id/" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Buka Dashboard →</a>
+      <a href="https://luxtradee.web.id/dashboard" style="display: inline-block; padding: 16px 40px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700;">Buka Dashboard →</a>
     </td>
   </tr>
 </table>

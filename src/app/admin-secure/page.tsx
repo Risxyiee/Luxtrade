@@ -50,7 +50,7 @@ export default function AdminSecurePage() {
 
       if (user.email !== ADMIN_EMAIL) {
         toast.error('Akses Ditolak: Hanya admin yang boleh mengakses halaman ini')
-        router.push('/')
+        router.push('/dashboard')
         return
       }
 
@@ -242,11 +242,11 @@ export default function AdminSecurePage() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.push('/')}
+                onClick={() => router.push('/dashboard')}
                 className="text-white/60 hover:text-white hover:bg-white/10"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Home
+                Back to Dashboard
               </Button>
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/20 border border-blue-500/30">

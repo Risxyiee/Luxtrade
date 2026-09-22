@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/api/', '/admin-dashboard-secret/', '/admin-secure/'],
+        disallow: ['/api/', '/dashboard/', '/admin-dashboard-secret/', '/admin-secure/'],
       },
     ],
     sitemap: 'https://luxtradee.web.id/sitemap.xml',

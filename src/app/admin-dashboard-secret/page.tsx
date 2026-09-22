@@ -66,7 +66,7 @@ export default function AdminDashboard() {
 
         if (!ADMIN_EMAILS.includes(session.user.email || '')) {
           toast.error('Access denied. Admin only.')
-          router.push('/')
+          router.push('/dashboard')
           return
         }
 
@@ -221,7 +221,7 @@ export default function AdminDashboard() {
           <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-white mb-2">Access Denied</h1>
           <p className="text-white/60 mb-6">You don&apos;t have permission to access this page.</p>
-          <Link href="/">
+          <Link href="/dashboard">
             <Button className="bg-cyan-600 hover:bg-cyan-600">
               Go to Dashboard
             </Button>
@@ -305,7 +305,7 @@ export default function AdminDashboard() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <Link href="/" className="text-white/60 hover:text-white text-sm flex items-center gap-2 mb-4">
+          <Link href="/dashboard" className="text-white/60 hover:text-white text-sm flex items-center gap-2 mb-4">
             <ArrowLeft className="w-4 h-4" />
             Back to Dashboard
           </Link>
