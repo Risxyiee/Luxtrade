@@ -23,6 +23,9 @@ const FAQSection = dynamic(() => import('@/components/landing/FAQSection').then(
 const FinalCTA = dynamic(() => import('@/components/landing/FinalCTA').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const LandingFooter = dynamic(() => import('@/components/landing/LandingFooter').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const LandingPromoBanner = dynamic(() => import('@/components/landing/LandingPromoBanner').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const TrustStats = dynamic(() => import('@/components/landing/TrustStats').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const LiveActivityFeed = dynamic(() => import('@/components/landing/LiveActivityFeed').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const FeatureComparison = dynamic(() => import('@/components/landing/FeatureComparison').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 
 interface LandingStats {
   totalUsers: number
@@ -106,6 +109,7 @@ export default function LuxTradeLanding() {
           <HeroSection language={language} />
           <LandingPromoBanner language={language} />
           <SocialProofBar language={language} />
+          <TrustStats language={language} />
           <AIVisionSimulator language={language} />
           <InteractiveTutorial language={language} onGetStarted={handleProUpgrade} />
           <CaraKerjaSection language={language} />
@@ -119,6 +123,7 @@ export default function LuxTradeLanding() {
             handleProUpgrade={handleProUpgrade}
             language={language}
           />
+          <FeatureComparison language={language} />
           <FAQSection language={language} />
           <FinalCTA language={language} />
         </main>
@@ -128,6 +133,7 @@ export default function LuxTradeLanding() {
 
 
         <ScrollToTopButton />
+        <LiveActivityFeed language={language} />
 
         {/* Mobile Sticky CTA */}
         <div ref={mobileCtaRef} id="mobile-cta" className="md:hidden fixed bottom-0 left-0 w-full p-4 bg-[#050507]/90 backdrop-blur-xl border-t border-white/10 z-40">

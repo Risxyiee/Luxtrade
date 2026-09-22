@@ -45,3 +45,184 @@ Stage Summary:
 - TutorialVideoSection.tsx updated to use YouTube embed instead of local video
 - Both / and /dashboard work correctly
 - No files in public/ exceed 10MB
+
+---
+Task ID: 3-a, 3-f
+Agent: landing-components
+Task: Create TrustStats section and LiveActivityFeed component for landing page
+
+Work Log:
+- Read worklog.md to understand previous work context
+- Reviewed SocialProofBar.tsx and StatsStrip.tsx for design patterns and conventions
+- Read page.tsx to understand component integration structure (dynamic imports, language prop)
+- Created TrustStats.tsx: social proof stats bar with animated count-up counters
+  - Uses framer-motion useInView for scroll-triggered count animation
+  - 4 stats: 150+ Active Traders, 12,000+ Trades Logged, 8 Prop Firms Passed, 4.9 User Rating
+  - AnimatedCounter component with ease-out cubic easing, supports both integer and decimal targets
+  - Premium glassmorphic dark design: bg-white/[0.03], border-white/[0.08], backdrop-blur-xl
+  - Gradient text from-blue-400 to-cyan-400 on stat values
+  - Inner glow gradient overlay for depth
+  - Responsive: 2x2 grid on mobile, 4 columns on lg
+  - Section id="trust-stats" for anchor linking
+  - Bilingual support (id/en)
+- Created LiveActivityFeed.tsx: FOMO-style bottom-left notification
+  - Uses framer-motion AnimatePresence for smooth enter/exit transitions
+  - 6 fake activities with bilingual text (id/en), randomized order via Fisher-Yates shuffle
+  - Show cycle: 4s visible → 8s pause → next notification
+  - Only appears after user scrolls past 50vh
+  - Glass morphism card: bg-white/[0.06], border-white/[0.1], backdrop-blur-xl, max-w-xs
+  - Green ping pulse indicator (emerald-500 with animate-ping ring)
+  - X dismiss button stores 'lux-live-feed-dismissed' in localStorage to permanently hide
+  - Fixed position bottom-left, z-30, positioned above mobile sticky CTA on small screens
+- Integrated both components into page.tsx:
+  - TrustStats added after SocialProofBar in main content flow
+  - LiveActivityFeed added after ScrollToTopButton in fixed layer
+  - Both loaded via dynamic() with ssr: false
+- Ran lint: no ESLint warnings or errors
+- Dev server running without errors
+
+Stage Summary:
+- TrustStats section created with animated count-up stats (150+ traders, 12K+ trades, 8 prop firms, 4.9 rating)
+- LiveActivityFeed created with FOMO notifications cycling every 4s/8s, scroll-triggered at 50vh
+- Both components integrated into landing page with bilingual support
+- Premium glassmorphic dark design matching existing landing page aesthetic
+- No lint errors, dev server stable
+
+---
+Task ID: 3-b
+Agent: landing-components
+Task: Create FeatureComparison component (Free vs Pro comparison table) for landing page
+
+Work Log:
+- Read worklog.md to understand previous work and design conventions
+- Reviewed PricingSectionNew.tsx and FAQSection.tsx for design patterns (glassmorphism, motion, language)
+- Read page.tsx to understand integration pattern (dynamic imports, language prop, section ordering)
+- Created FeatureComparison.tsx at /home/z/my-project/src/components/landing/FeatureComparison.tsx
+  - 'use client' directive, framer-motion for staggered row animations
+  - Bilingual support (language: 'id' | 'en') throughout
+  - Section id="features" replacing old #features anchor
+  - Premium dark glassmorphic design matching site aesthetic
+  - Section header: "Fitur Lengkap" / "Complete Features" with subtitle
+  - Comparison grid/table with 3 columns: Feature Name | Free | Pro
+  - Pro column header has gradient glow badge "PRO" with shadow glow
+  - 18 feature rows covering all specified features
+  - CellRenderer component handles 4 cell types: check (emerald-400), cross (gray-600), text (white/70), unlimited (cyan-400 with ∞ icon)
+  - Alternating row bg-white/[0.01] for readability
+  - Pro column has bg-blue-500/[0.05] background to visually stand out
+  - Each row animates in with staggered delay (0.04s per row) using framer-motion whileInView
+  - Feature names in text-white/80 on the left
+  - Responsive: works on all screen sizes, mobile scroll hint
+  - Bottom CTA: "Mulai dengan Gratis, upgrade kapan saja" / "Start with Free, upgrade anytime" with Link to #pricing
+  - Subtle background glow blob for depth
+- Integrated into page.tsx:
+  - Added dynamic import for FeatureComparison with ssr: false
+  - Placed between PricingSectionNew and FAQSection as required
+- Ran lint: no ESLint warnings or errors
+- Dev server running without errors
+
+Stage Summary:
+- FeatureComparison component created with 18-row Free vs Pro comparison table
+- Staggered framer-motion row animations whileInView
+- Bilingual (id/en), section id="features", glassmorphic dark design
+- Pro column visually highlighted with blue-500/5 bg and gradient PRO badge
+- CTA linking to #pricing at bottom
+- Integrated into landing page between Pricing and FAQ sections
+- No lint errors, dev server stable
+
+---
+Task ID: 3-c, 3-d
+Agent: landing-components
+Task: Upgrade LandingFooter (4 columns, newsletter, social links, bottom bar) and add animated stats to HeroSection
+
+Work Log:
+- Read worklog.md to understand previous work and design conventions
+- Read existing LandingFooter.tsx (3-column layout: Brand col-span-2, Product, Company)
+- Read existing HeroSection.tsx (CTA buttons, no stats row below them)
+- Read SocialIcons.tsx to understand social link structure (Instagram, TikTok, Discord)
+- Checked sonner/toast availability: already installed and used across project
+
+- **Task 3-c: Upgrade LandingFooter**
+  - Rebuilt footer from 3-column (grid-cols-4) to 4-column (grid-cols-5) layout:
+    - Brand column (col-span-2): Logo, description, SocialIcons + new Twitter/X icon link
+    - Product column: Fitur, Harga, Roadmap, Demo, Changelog (added)
+    - Company column: Kontak, Tentang Kami (added), Ketentuan Layanan, Kebijakan Privasi, Kebijakan Refund, Disclaimer (added)
+    - Support column (NEW): FAQ, Discord Community, Email (luxtradee@gmail.com with Mail icon), Status Page (with Clock icon)
+  - Added Newsletter signup section before bottom bar:
+    - Glass morphic design: bg-white/[0.03], border-white/[0.08], backdrop-blur-xl, rounded-2xl
+    - Email input + Subscribe button (gradient blue→cyan)
+    - Text: "Dapatkan tips trading & update" / "Get trading tips & updates" + subtext
+    - On submit: validates email, shows toast success via sonner
+  - Added Twitter/X social icon (SVG path) alongside existing SocialIcons
+  - Upgraded bottom bar:
+    - Left: "© 2025 LuxTrade" + "Made with ❤️ in Indonesia"
+    - Right: Midtrans badge + Privacy/Terms/Disclaimer links via openLegalPage
+  - Kept LegalPagesModal integration (openLegalPage prop) for all legal buttons
+  - Bilingual support (id/en) throughout with t() helper
+
+- **Task 3-d: Add Animated Stats to Hero**
+  - Added stats row between CTA buttons and phone mockups in HeroSection
+  - 4 stats with icons from lucide-react:
+    - Users icon + "150+" + "Traders/Trader"
+    - BarChart3 icon + "12K+" + "Trades/Trade"
+    - Star icon + "4.9 ★" + "Rating"
+    - Trophy icon + "8" + "Prop Firms/Prop Firm"
+  - Design: text-xs to text-sm, numbers with blue→cyan gradient (bg-clip-text text-transparent)
+  - Labels in text-white/40, icons in text-white/30, dot dividers (text-white/15)
+  - framer-motion fade-in with delay: 0.4 (after CTA at 0.24)
+  - Responsive: flex-wrap for mobile, justify-center on mobile / justify-start on lg
+  - Hidden dot dividers on smallest screens for cleaner look
+
+- Ran lint: no ESLint warnings or errors
+- Dev server running without errors
+
+Stage Summary:
+- LandingFooter upgraded: 4-column layout (Brand, Product, Company, Support), newsletter signup with glass morphic design, Twitter/X social link, Disclaimer/About/Changelog added, enhanced bottom bar with Indonesia credit + legal links
+- HeroSection: animated stats row added below CTA buttons (150+ Traders, 12K+ Trades, 4.9★ Rating, 8 Prop Firms) with gradient numbers, lucide icons, framer-motion delay
+- Both components bilingual (id/en), no lint errors, dev server stable
+
+---
+Task ID: 3-e, 3-h
+Agent: landing-pricing-faq
+Task: Improve Pricing Cards and FAQ Section
+
+Work Log:
+- Read worklog.md for previous context
+- Read PricingSectionNew.tsx: 2-card layout (Free/Pro), no annual toggle, 4 Pro features, basic popular badge, simple Midtrans security line
+- Read FAQSection.tsx: 6 FAQ items, custom accordion with framer-motion AnimatePresence, no category badges
+- Read globals.css: found existing pulse-glow, glass-lux, animate-float-lux keyframes
+- Checked shadcn/ui components: Switch, Accordion, Badge all available
+
+- **Task 3-e: Improve Pricing Cards**
+  - Added annual/monthly toggle (Bulanan/Tahunan) with styled buttons in a glass pill container
+  - Annual shows discounted price: Rp390K/year with strikethrough Rp468K (12×Rp39K)
+  - "Hemat Rp78K" / "Save Rp78K" badge with Zap icon appears when annual is selected (framer-motion scale-in)
+  - "~17% lebih murah dari bulanan" subtitle shown on annual
+  - Promo pricing adapts to annual/monthly (Rp25K/mo or Rp250K/yr)
+  - Added 4 new Pro features: Prioritas Support, Ekspor CSV & PDF, Jurnal Tak Terbatas, Skor Trading & Psikologi
+  - Added animated glow border on Pro card: `.border-glow-animated` CSS class with gradient position animation (pro-card-glow keyframe, 4s cycle, blue→cyan gradient)
+  - Pro card restructured with outer wrapper for glow effect + inner glass-lux card
+  - "POPULER" badge changed to "PALING POPULER" / "MOST POPULAR"
+  - Added ShieldCheck icon + "Tanpa auto-renew. Bisa cancel kapan pun." / "No auto-renew. Cancel anytime." below Midtrans security line
+  - Added pro-card-glow keyframes and .border-glow-animated class to globals.css
+
+- **Task 3-h: Improve FAQ Section**
+  - Expanded from 6 to 10 FAQ items with bilingual content
+  - New items: Mobile support, Broker compatibility, AI Vision explanation, Affiliate program
+  - Added category badges with color-coded styling:
+    - Umum/General: blue-500/10 bg, blue-400 text
+    - Teknis/Technical: cyan-500/10 bg, cyan-400 text
+    - Pembayaran/Payment: emerald-500/10 bg, emerald-400 text
+  - Replaced custom accordion with shadcn/ui Accordion component (Radix-based)
+    - type="single" collapsible for one-at-a-time behavior
+    - Smooth open/close via Radix built-in animations (data-[state=open]:animate-accordion-down / data-[state=closed]:animate-accordion-up)
+  - Refactored FAQ data into typed FAQItem[] array with q_id, q_en, a_id, a_en, category fields
+  - Staggered entry animation via framer-motion whileInView on the accordion container
+  - Maintained FaqSvg background decoration and section styling
+
+- Ran lint: no ESLint warnings or errors
+- Build: successful (next build completed without errors)
+
+Stage Summary:
+- Pricing: annual/monthly toggle with Rp78K savings badge, 4 new Pro features (8 total), animated glow border on Pro card, no-auto-renew security badge
+- FAQ: expanded to 10 items with 3 category badges (Umum/Teknis/Pembayaran), migrated to shadcn/ui Accordion, smooth animations
+- Both components bilingual (id/en), no lint errors, build successful
