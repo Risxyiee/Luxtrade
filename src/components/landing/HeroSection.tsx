@@ -128,6 +128,20 @@ function HeroLogo3D() {
 }
 
 export default function HeroSection({ language = 'id' }: HeroSectionProps) {
+  const [stats, setStats] = useState({ users: 0, trades: 0 })
+
+  useEffect(() => {
+    fetch('/api/landing-stats')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d) setStats({ users: d.activeUsers || d.totalUsers || 0, trades: d.tradesLogged || 0 })
+      })
+      .catch(() => {})
+  }, [])
+
+  const usersDisplay = stats.users >= 1000 ? `${(stats.users / 1000).toFixed(1)}K+` : stats.users > 0 ? `${stats.users}+` : '—'
+  const tradesDisplay = stats.trades >= 1000 ? `${Math.round(stats.trades / 1000)}K+` : stats.trades > 0 ? `${stats.trades}+` : '—'
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 pb-20 z-10">
       <HeroLogo3D />
@@ -193,8 +207,8 @@ export default function HeroSection({ language = 'id' }: HeroSectionProps) {
             className="flex flex-wrap items-center justify-center lg:justify-start gap-x-5 gap-y-2 mt-5"
           >
             {[
-              { icon: Users, num: '150+', label: language === 'en' ? 'Traders' : 'Trader' },
-              { icon: BarChart3, num: '12K+', label: language === 'en' ? 'Trades' : 'Trade' },
+              { icon: Users, num: usersDisplay, label: language === 'en' ? 'Traders' : 'Trader' },
+              { icon: BarChart3, num: tradesDisplay, label: language === 'en' ? 'Trades' : 'Trade' },
               { icon: Star, num: '4.9 ★', label: language === 'en' ? 'Rating' : 'Rating' },
               { icon: Trophy, num: '8', label: language === 'en' ? 'Prop Firms' : 'Prop Firm' },
             ].map((stat, i) => (
