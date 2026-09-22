@@ -26,6 +26,7 @@ const LandingPromoBanner = dynamic(() => import('@/components/landing/LandingPro
 const TrustStats = dynamic(() => import('@/components/landing/TrustStats').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const LiveActivityFeed = dynamic(() => import('@/components/landing/LiveActivityFeed').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const FeatureComparison = dynamic(() => import('@/components/landing/FeatureComparison').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const CSBotWidget = dynamic(() => import('@/components/landing/CSBotWidget').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 
 interface LandingStats {
   totalUsers: number
@@ -134,6 +135,7 @@ export default function LuxTradeLanding() {
 
         <ScrollToTopButton />
         <LiveActivityFeed language={language} />
+        <CSBotWidget language={language} />
 
         {/* Mobile Sticky CTA */}
         <div ref={mobileCtaRef} id="mobile-cta" className="md:hidden fixed bottom-0 left-0 w-full p-4 bg-[#050507]/90 backdrop-blur-xl border-t border-white/10 z-40">

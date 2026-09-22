@@ -28,8 +28,8 @@ const faqData: FAQItem[] = [
   {
     q_id: 'LuxTrade gratis nggak?',
     q_en: 'Is LuxTrade free?',
-    a_id: 'Ada paket gratis — 10 trade per bulan dan 10 AI queries untuk mencoba fitur-fiturnya. Kalau kamu serius prop firm dan butuh fitur lengkap tanpa batas, upgrade ke Elite Pro.',
-    a_en: "There's a free plan — 10 trades per month and 10 AI queries to try the features. If you're serious about prop firm trading, upgrade to Elite Pro for unlimited access.",
+    a_id: 'Ada paket gratis — 10 trade per bulan dan 10 AI queries untuk mencoba fitur-fiturnya. Kalau kamu serius prop firm dan butuh fitur lengkap tanpa batas, upgrade ke PRO.',
+    a_en: "There's a free plan — 10 trades per month and 10 AI queries to try the features. If you're serious about prop firm trading, upgrade to PRO for unlimited access.",
     category: 'general',
   },
   {
@@ -42,15 +42,15 @@ const faqData: FAQItem[] = [
   {
     q_id: 'Bisa import dari MT4/MT5?',
     q_en: 'Can I import from MT4/MT5?',
-    a_id: 'Bisa. Screenshot trade kamu, upload dan AI otomatis extract data + buat jurnal. Atau input manual langsung dari dashboard.',
-    a_en: 'Yes. Screenshot your trade, upload and AI auto-extracts data + creates a journal. Or input manually from the dashboard.',
+    a_id: 'Bisa! Screenshot trade kamu, upload dan AI otomatis extract pair, entry/exit, SL/TP, profit/loss — langsung jadi jurnal. Atau input manual dari dashboard.',
+    a_en: 'Yes! Screenshot your trade, upload and AI auto-extracts pair, entry/exit, SL/TP, profit/loss — instantly becomes a journal. Or input manually from the dashboard.',
     category: 'technical',
   },
   {
     q_id: 'Data trading saya aman?',
     q_en: 'Is my trading data secure?',
-    a_id: 'Data dienkripsi dan disimpan aman. Kami nggak jual data ke pihak ketiga, nggak ada iklan, dan cuma kamu yang bisa akses.',
-    a_en: "Data is encrypted and securely stored. We don't sell data, no ads, only you can access your data.",
+    a_id: 'Data dienkripsi dan disimpan aman di Supabase. Kami nggak jual data ke pihak ketiga, nggak ada iklan, dan cuma kamu yang bisa akses.',
+    a_en: "Data is encrypted and securely stored on Supabase. We don't sell data, no ads, only you can access your data.",
     category: 'general',
   },
   {
@@ -63,37 +63,9 @@ const faqData: FAQItem[] = [
   {
     q_id: 'Butuh bantuan, hubungi siapa?',
     q_en: 'Need help, who do I contact?',
-    a_id: 'Langsung aja join Discord LuxTrade atau email luxtradee@gmail.com. Biasanya balasnya cepat — karena ini project kecil, bukan perusahaan besar pakai CS robot.',
-    a_en: 'Just join our Discord server or email luxtradee@gmail.com. Response is usually fast — this is a small project, not a big company with robot customer service.',
+    a_id: 'Langsung aja chat Telegram @Risxyiee atau email luxtradee@gmail.com. Atau join Discord LuxTrade. Biasanya balasnya cepat!',
+    a_en: 'Just chat Telegram @Risxyiee or email luxtradee@gmail.com. Or join our Discord. Response is usually fast!',
     category: 'general',
-  },
-  {
-    q_id: 'Apakah bisa pakai di HP?',
-    q_en: 'Can I use it on mobile?',
-    a_id: 'Ya! LuxTrade responsive dan bisa diakses dari browser HP apa pun. Kami juga punya plan untuk mobile app di masa depan.',
-    a_en: 'Yes! LuxTrade is responsive and works on any mobile browser. We also have plans for a native mobile app in the future.',
-    category: 'general',
-  },
-  {
-    q_id: 'Broker apa saja yang didukung?',
-    q_en: 'Which brokers are supported?',
-    a_id: 'Kami mendukung semua broker yang menggunakan MT4/MT5/cTrader. Screenshot dari platform manapun bisa di-extract otomatis oleh AI kami.',
-    a_en: 'We support all brokers using MT4/MT5/cTrader. Screenshots from any platform can be auto-extracted by our AI.',
-    category: 'technical',
-  },
-  {
-    q_id: 'Bagaimana AI Vision bekerja?',
-    q_en: 'How does AI Vision work?',
-    a_id: 'Cukup upload screenshot MT5 atau TradingView, AI kami akan otomatis membaca dan mencatat pair, entry/exit price, SL/TP, dan profit/loss. Tanpa input manual!',
-    a_en: 'Just upload an MT5 or TradingView screenshot, our AI will automatically read and log the pair, entry/exit price, SL/TP, and profit/loss. No manual input needed!',
-    category: 'technical',
-  },
-  {
-    q_id: 'Ada program afiliasi?',
-    q_en: 'Is there an affiliate program?',
-    a_id: 'Ya! Kami punya program afiliasi dimana kamu bisa mendapat komisi untuk setiap referral yang berlangganan PRO. Hubungi kami di Telegram untuk detail.',
-    a_en: 'Yes! We have an affiliate program where you can earn commission for each referral that subscribes to PRO. Contact us on Telegram for details.',
-    category: 'payment',
   },
 ]
 

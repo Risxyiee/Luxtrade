@@ -8,47 +8,25 @@ interface LiveActivityFeedProps {
   language?: 'id' | 'en'
 }
 
-const activities = {
-  id: [
-    'Riyan dari Jakarta baru signup',
-    'Andi berhasil lewat FTMO challenge',
-    'Seseorang mencatat 15 trade hari ini',
-    'Dinda dari Surabaya upgrade ke PRO',
-    'Fajar baru lewat FundingTraders challenge',
-    '30 trade dicatat dalam jam terakhir',
-  ],
-  en: [
-    'Riyan from Jakarta just signed up',
-    'Andi passed FTMO challenge',
-    'Someone logged 15 trades today',
-    'Dinda from Surabaya upgraded to PRO',
-    'Fajar just passed FundingTraders challenge',
-    '30 trades logged in the last hour',
-  ],
+interface Activity {
+  text_id: string
+  text_en: string
+  time: string
 }
 
-function shuffleArray<T>(arr: T[]): T[] {
-  const shuffled = [...arr]
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-  }
-  return shuffled
-}
-
-const SHOW_DURATION = 4000  // 4 seconds visible
-const PAUSE_DURATION = 8000 // 8 seconds between notifications
+const SHOW_DURATION = 4000
+const PAUSE_DURATION = 8000
 
 export default function LiveActivityFeed({ language = 'id' }: LiveActivityFeedProps) {
-  const [dismissed, setDismissed] = useState(true) // start true to prevent flash
+  const [dismissed, setDismissed] = useState(true)
   const [visible, setVisible] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [shuffledActivities, setShuffledActivities] = useState<string[]>([])
+  const [activities, setActivities] = useState<Activity[]>([])
   const [hasScrolledEnough, setHasScrolledEnough] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const phaseRef = useRef<'showing' | 'pausing'>('showing')
 
-  // Check localStorage on mount
+  // Fetch real activity from API
   useEffect(() => {
     try {
       const stored = localStorage.getItem('lux-live-feed-dismissed')
@@ -56,19 +34,23 @@ export default function LiveActivityFeed({ language = 'id' }: LiveActivityFeedPr
         setDismissed(true)
         return
       }
-    } catch {
-      // localStorage not available
-    }
+    } catch {}
+
     setDismissed(false)
 
-    // Shuffle activities
-    const list = language === 'id' ? activities.id : activities.en
-    setShuffledActivities(shuffleArray(list))
-  }, [language])
+    fetch('/api/recent-activity')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.activities?.length > 0) {
+          setActivities(data.activities)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
-  // Scroll listener – start after 50vh
+  // Scroll listener
   useEffect(() => {
-    if (dismissed) return
+    if (dismissed || activities.length === 0) return
 
     const handleScroll = () => {
       if (window.scrollY > window.innerHeight * 0.5) {
@@ -77,28 +59,24 @@ export default function LiveActivityFeed({ language = 'id' }: LiveActivityFeedPr
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
-    // Check initial position
     handleScroll()
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [dismissed])
+  }, [dismissed, activities.length])
 
-  // Main cycle: show → pause → show → ...
+  // Main cycle
   useEffect(() => {
-    if (dismissed || !hasScrolledEnough || shuffledActivities.length === 0) return
+    if (dismissed || !hasScrolledEnough || activities.length === 0) return
 
-    // Start showing first notification
     setVisible(true)
     phaseRef.current = 'showing'
 
     const cycle = () => {
       if (phaseRef.current === 'showing') {
-        // Fade out
         setVisible(false)
         phaseRef.current = 'pausing'
         timerRef.current = setTimeout(cycle, PAUSE_DURATION)
       } else {
-        // Move to next activity and show
-        setCurrentIndex((prev) => (prev + 1) % shuffledActivities.length)
+        setCurrentIndex((prev) => (prev + 1) % activities.length)
         setVisible(true)
         phaseRef.current = 'showing'
         timerRef.current = setTimeout(cycle, SHOW_DURATION)
@@ -110,22 +88,20 @@ export default function LiveActivityFeed({ language = 'id' }: LiveActivityFeedPr
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [dismissed, hasScrolledEnough, shuffledActivities.length])
+  }, [dismissed, hasScrolledEnough, activities.length])
 
   const handleDismiss = useCallback(() => {
     setDismissed(true)
     setVisible(false)
     try {
       localStorage.setItem('lux-live-feed-dismissed', 'true')
-    } catch {
-      // noop
-    }
+    } catch {}
   }, [])
 
-  // Don't render anything if dismissed
-  if (dismissed) return null
+  if (dismissed || activities.length === 0) return null
 
-  const currentText = shuffledActivities[currentIndex]
+  const currentActivity = activities[currentIndex]
+  const currentText = currentActivity ? (language === 'id' ? currentActivity.text_id : currentActivity.text_en) : ''
 
   return (
     <div className="fixed bottom-20 sm:bottom-6 left-4 sm:left-6 z-30 pointer-events-none">
@@ -140,7 +116,6 @@ export default function LiveActivityFeed({ language = 'id' }: LiveActivityFeedPr
             className="pointer-events-auto max-w-xs rounded-xl bg-white/[0.06] border border-white/[0.1] backdrop-blur-xl px-4 py-3 shadow-2xl shadow-black/40"
           >
             <div className="flex items-start gap-3">
-              {/* Green pulse dot */}
               <span className="relative flex h-2.5 w-2.5 mt-1.5 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
