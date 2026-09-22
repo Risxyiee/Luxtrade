@@ -18,11 +18,11 @@ export async function proxy(request: NextRequest) {
   if (PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) return NextResponse.next()
 
   // Admin-only paths — require login + admin email
-  const adminPaths = ['/admin-email', '/admin-secret', '/admin-subscriptions']
+  const adminPaths = ['/dashboard/admin', '/admin-email', '/admin-secret', '/admin-subscriptions']
   const isAdminPath = adminPaths.some(p => pathname === p || pathname.startsWith(p + '/'))
 
   // Protected paths — require login
-  const protectedPaths = ['/settings']
+  const protectedPaths = ['/dashboard', '/settings']
   const isProtectedPath = protectedPaths.some(p => pathname === p || pathname.startsWith(p + '/'))
 
   if (isAdminPath || isProtectedPath) {
@@ -55,9 +55,9 @@ export async function proxy(request: NextRequest) {
     if (isAdminPath) {
       const userEmail = user.email?.toLowerCase() || ''
       if (!ADMIN_EMAILS.includes(userEmail)) {
-        // Not admin — redirect to home
+        // Not admin — redirect to dashboard
         const url = request.nextUrl.clone()
-        url.pathname = '/'
+        url.pathname = '/dashboard'
         return NextResponse.redirect(url)
       }
     }
@@ -68,6 +68,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/dashboard/:path*',
     '/settings',
     '/auth/:path*',
     '/admin-secret',

@@ -179,9 +179,9 @@ export async function POST(request: NextRequest) {
         phone: customerPhone,
       },
       callbacks: {
-        finish: `${baseUrl}/?payment=finish`,
-        error: `${baseUrl}/?payment=error`,
-        pending: `${baseUrl}/?payment=pending`,
+        finish: `${baseUrl}/dashboard?payment=finish`,
+        error: `${baseUrl}/dashboard?payment=error`,
+        pending: `${baseUrl}/dashboard?payment=pending`,
       },
       custom_field1: user.id,
       custom_field2: plan,

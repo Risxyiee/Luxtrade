@@ -122,7 +122,7 @@ async function logSentEmail(user: TargetUser, success: boolean): Promise<void> {
 async function sendDailyReminder(user: TargetUser): Promise<boolean> {
   const name = user.full_name || 'Trader'
   const dayName = getDayName()
-  const ctaUrl = `${SITE_URL}/`
+  const ctaUrl = `${SITE_URL}/dashboard`
   const unsubUrl = `${SITE_URL}/api/cron/daily-reminder/unsubscribe?uid=${user.user_id}`
 
   // Get this week's stats

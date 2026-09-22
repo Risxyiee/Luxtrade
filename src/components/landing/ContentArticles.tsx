@@ -86,8 +86,8 @@ interface ContentArticlesProps {
 
 export default function ContentArticles({ language = 'id' }: ContentArticlesProps) {
   const getArticleLink = (articleId: string) => {
-    // Link to home/landing page
-    return `/`
+    // For now, link to blog (if exists) or dashboard
+    return `/dashboard`
   }
 
   return (
@@ -162,7 +162,7 @@ export default function ContentArticles({ language = 'id' }: ContentArticlesProp
           viewport={{ once: true }}
           className="text-center mt-12"
         >
-          <Link href="/">
+          <Link href="/dashboard">
             <span className="inline-flex items-center gap-2 px-6 py-3 bg-white/5 text-white font-medium rounded-xl hover:bg-white/10 border border-white/10 transition-all">
               {language === 'en' ? 'View All Articles' : 'Lihat Semua Artikel'}
               <ArrowRight className="w-4 h-4" />

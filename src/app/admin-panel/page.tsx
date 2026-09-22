@@ -5,5 +5,5 @@ import { redirect } from 'next/navigation'
  * This page is kept only to handle old bookmarks / direct URLs.
  */
 export default function AdminPanelRedirect() {
-  redirect('/')
+  redirect('/dashboard/admin')
 }

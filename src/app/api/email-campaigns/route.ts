@@ -111,7 +111,7 @@ function getEmailHtml(template: string, userName: string | null, data: Record<st
                   <div class="stat-label">Prop Firms Supported</div>
                 </div>
               </div>
-              <a href="${baseUrl}/" class="btn">Start Logging Trades →</a>
+              <a href="${baseUrl}/dashboard" class="btn">Start Logging Trades →</a>
             </div>
             <div class="card">
               <h2>What You Can Do Right Now:</h2>
@@ -188,7 +188,7 @@ function getEmailHtml(template: string, userName: string | null, data: Record<st
                   <p>Get personalized improvement suggestions</p>
                 </div>
               </div>
-              <a href="${baseUrl}/" class="btn">Log Your First Trade →</a>
+              <a href="${baseUrl}/dashboard" class="btn">Log Your First Trade →</a>
             </div>
             <div class="card">
               <p style="color: #9ca3af; font-size: 14px;">💡 <strong>Pro tip:</strong> Even if you're trading demo accounts, logging trades now will build valuable data for when you start your prop firm challenge.</p>
@@ -246,7 +246,7 @@ function getEmailHtml(template: string, userName: string | null, data: Record<st
                 <h4>🟢 Your Winning Edge</h4>
                 <p style="color: #9ca3af; font-size: 14px; margin: 0;">Discover which setups and timeframes work best for you.</p>
               </div>
-              <a href="${baseUrl}/" class="btn">Try AI Analysis →</a>
+              <a href="${baseUrl}/dashboard" class="btn">Try AI Analysis →</a>
             </div>
             <div class="footer">
               <p>Questions? Join our Discord community: <a href="https://discord.gg/JwMxsmMqG" style="color: #3b82f6;">discord.gg/JwMxsmMqG</a></p>
@@ -319,7 +319,7 @@ function getEmailHtml(template: string, userName: string | null, data: Record<st
                   <div class="feature-title">FundedNext</div>
                 </div>
               </div>
-              <a href="${baseUrl}/" class="btn">Set Up Drawdown Guard →</a>
+              <a href="${baseUrl}/dashboard" class="btn">Set Up Drawdown Guard →</a>
             </div>
             <div class="footer">
               <p>Questions? Join our Discord community: <a href="https://discord.gg/JwMxsmMqG" style="color: #3b82f6;">discord.gg/JwMxsmMqG</a></p>

@@ -76,7 +76,7 @@ function LuxInput({ icon: Icon, placeholder, value, onChange, type = 'text', req
 function AuthPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirectPath = searchParams.get('redirect') || '/'
+  const redirectPath = searchParams.get('redirect') || '/dashboard'
 
   // View toggle
   const [view, setView] = useState<'login' | 'register'>('login')

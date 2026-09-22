@@ -78,7 +78,7 @@ async function getTargetUsers(): Promise<TargetUser[]> {
 
 async function sendReEngagementEmail(user: TargetUser): Promise<boolean> {
   const name = user.full_name || 'Trader'
-  const ctaUrl = `${SITE_URL}/`
+  const ctaUrl = `${SITE_URL}/dashboard`
   const unsubUrl = `${SITE_URL}/api/cron/re-engage/unsubscribe?uid=${user.user_id}`
 
   let html: string
