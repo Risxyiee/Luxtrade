@@ -52,7 +52,7 @@ export default function LandingPromoBanner({ language = 'id' }: LandingPromoBann
               <div className="relative">
                 <div className="absolute -inset-1 bg-orange-500/20 rounded-xl blur-sm" />
                 <Image
-                  src="/fundingtraders-logo.png"
+                  src="/fundingtraders-logo.jpeg"
                   alt="FundingTraders"
                   width={52}
                   height={52}
