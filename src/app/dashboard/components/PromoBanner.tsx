@@ -33,7 +33,7 @@ export default function PromoBanner() {
           {/* Logo */}
           <div className="flex-shrink-0 hidden sm:block">
             <Image
-              src="/fundingtraders-logo.png"
+              src="/fundingtraders-logo.jpeg"
               alt="FundingTraders"
               width={40}
               height={40}
@@ -44,7 +44,7 @@ export default function PromoBanner() {
           {/* Mobile: smaller logo */}
           <div className="flex-shrink-0 sm:hidden">
             <Image
-              src="/fundingtraders-logo.png"
+              src="/fundingtraders-logo.jpeg"
               alt="FundingTraders"
               width={32}
               height={32}
