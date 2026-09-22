@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useState } from 'react'
 import { motion, useScroll, useTransform, useSpring } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Sparkles, ScanLine } from 'lucide-react'
+import { Sparkles, ScanLine, Users, BarChart3, Star, Trophy } from 'lucide-react'
 
 interface HeroSectionProps {
   language?: 'id' | 'en'
@@ -183,6 +183,30 @@ export default function HeroSection({ language = 'id' }: HeroSectionProps) {
                 {language === 'en' ? 'View Pricing' : 'Lihat Pricing'}
               </span>
             </Link>
+          </motion.div>
+
+          {/* Animated Stats Row */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="flex flex-wrap items-center justify-center lg:justify-start gap-x-5 gap-y-2 mt-5"
+          >
+            {[
+              { icon: Users, num: '150+', label: language === 'en' ? 'Traders' : 'Trader' },
+              { icon: BarChart3, num: '12K+', label: language === 'en' ? 'Trades' : 'Trade' },
+              { icon: Star, num: '4.9 ★', label: language === 'en' ? 'Rating' : 'Rating' },
+              { icon: Trophy, num: '8', label: language === 'en' ? 'Prop Firms' : 'Prop Firm' },
+            ].map((stat, i) => (
+              <React.Fragment key={i}>
+                {i > 0 && <span className="text-white/15 text-xs hidden sm:inline">•</span>}
+                <div className="flex items-center gap-1.5">
+                  <stat.icon className="w-3.5 h-3.5 text-white/30" />
+                  <span className="text-xs sm:text-sm font-semibold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">{stat.num}</span>
+                  <span className="text-xs sm:text-sm text-white/40">{stat.label}</span>
+                </div>
+              </React.Fragment>
+            ))}
           </motion.div>
 
         </div>

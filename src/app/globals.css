@@ -596,6 +596,32 @@ button, a, [role="button"], [type="button"], [type="submit"] {
   50% { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
 }
 
+/* Pro Card Glow Animation — animated gradient border for "Most Popular" card */
+@keyframes pro-card-glow {
+  0%, 100% {
+    background-position: 0% 50%;
+    opacity: 0.6;
+  }
+  50% {
+    background-position: 100% 50%;
+    opacity: 1;
+  }
+}
+.border-glow-animated {
+  background: linear-gradient(
+    90deg,
+    rgba(59, 130, 246, 0.0),
+    rgba(59, 130, 246, 0.5),
+    rgba(34, 211, 238, 0.5),
+    rgba(59, 130, 246, 0.0),
+    rgba(34, 211, 238, 0.3),
+    rgba(59, 130, 246, 0.0)
+  );
+  background-size: 300% 100%;
+  animation: pro-card-glow 4s ease-in-out infinite;
+  border-radius: inherit;
+}
+
 /* Marquee Animation */
 @keyframes marquee-scroll {
   0% { transform: translateX(0); }

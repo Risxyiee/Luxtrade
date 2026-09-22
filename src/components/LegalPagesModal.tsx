@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, FileText, RotateCcw, HelpCircle, Phone, Mail, Send, MapPin, Clock, AlertCircle, Globe, Shield } from 'lucide-react'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 
-export type LegalPageTab = 'terms' | 'refund' | 'faq' | 'contact' | 'privacy'
+export type LegalPageTab = 'terms' | 'refund' | 'faq' | 'contact' | 'privacy' | 'disclaimer'
 
 interface LegalPagesModalProps {
   isOpen: boolean
@@ -19,6 +19,7 @@ const TABS: { id: LegalPageTab; label: string; icon: React.ReactNode }[] = [
   { id: 'faq', label: 'FAQ', icon: <HelpCircle className="w-4 h-4" /> },
   { id: 'contact', label: 'Kontak', icon: <Phone className="w-4 h-4" /> },
   { id: 'privacy', label: 'Privasi', icon: <Shield className="w-4 h-4" /> },
+  { id: 'disclaimer', label: 'Disclaimer', icon: <AlertCircle className="w-4 h-4" /> },
 ]
 
 export default function LegalPagesModal({ isOpen, onClose, initialTab = 'terms' }: LegalPagesModalProps) {
@@ -141,6 +142,7 @@ export default function LegalPagesModal({ isOpen, onClose, initialTab = 'terms' 
                   {activeTab === 'faq' && <FAQContent />}
                   {activeTab === 'contact' && <ContactContent />}
                   {activeTab === 'privacy' && <PrivacyContent />}
+                  {activeTab === 'disclaimer' && <DisclaimerContent />}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -684,6 +686,63 @@ function PrivacyContent() {
         <h4 className="text-sm font-bold text-white mb-2">Pertanyaan tentang privasi?</h4>
         <p className="text-white/40 text-sm">
           Hubungi kami di <a href="mailto:support@luxtrade.id" className="text-[#8a2be2] hover:underline">support@luxtrade.id</a> atau melalui <a href="https://discord.gg/KkYYFP9nC" target="_blank" rel="noopener noreferrer" className="text-[#5865F2] hover:underline">Discord</a>.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/*
+   Disclaimer
+   ═════════════════════════════════════════════════════ */
+function DisclaimerContent() {
+  return (
+    <div>
+      <div className="mb-8">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-2">Disclaimer</h2>
+        <p className="text-white/40 text-sm">Terakhir diperbarui: 1 Januari 2025</p>
+      </div>
+
+      <Section title="1. Bukan Nasihat Keuangan">
+        <Paragraph>
+          LuxTrade adalah alat jurnal trading dan analisis. Semua konten, fitur AI, dan insight yang diberikan bersifat informatif saja dan BUKAN nasihat keuangan, investasi, atau trading. Keputusan trading sepenuhnya menjadi tanggung jawab Anda.
+        </Paragraph>
+      </Section>
+
+      <Section title="2. Risiko Trading">
+        <Paragraph>
+          Trading forex, CFD, dan instrumen keuangan lainnya melibatkan risiko tinggi dan mungkin tidak cocok untuk semua investor. Anda bisa kehilangan seluruh modal yang diinvestasikan. Pastikan Anda memahami risiko yang terlibat sebelum trading.
+        </Paragraph>
+      </Section>
+
+      <Section title="3. Performa Masa Lalu">
+        <Paragraph>
+          Performa trading masa lalu tidak menjamin hasil di masa depan. Statistik dan analitik yang ditampilkan di LuxTrade didasarkan pada histori trading Anda sendiri dan tidak merepresentasikan hasil yang bisa diandalkan untuk periode berikutnya.
+        </Paragraph>
+      </Section>
+
+      <Section title="4. Akurasi Data">
+        <Paragraph>
+          LuxTrade berusaha menjaga akurasi data dan analisis AI, namun tidak menjamin keakuratan, kelengkapan, atau keandalan informasi yang diberikan. Kesalahan atau ketidakakuratan mungkin terjadi dan pengguna bertanggung jawab untuk memverifikasi informasi sebelum mengambil keputusan.
+        </Paragraph>
+      </Section>
+
+      <Section title="5. Ketersediaan Layanan">
+        <Paragraph>
+          LuxTrade tidak menjamin layanan akan selalu tersedia tanpa gangguan. Kami berhak untuk melakukan pemeliharaan, update, atau modifikasi layanan kapan saja tanpa pemberitahuan sebelumnya.
+        </Paragraph>
+      </Section>
+
+      <Section title="6. Pihak Ketiga">
+        <Paragraph>
+          LuxTrade mungkin berisi link ke situs pihak ketiga atau integrasi dengan layanan eksternal. Kami tidak bertanggung jawab atas konten, kebijakan privasi, atau praktik dari situs/layanan pihak ketiga tersebut.
+        </Paragraph>
+      </Section>
+
+      <div className="mt-8 p-4 bg-white/[0.02] border border-white/[0.06] rounded-xl">
+        <h4 className="text-sm font-bold text-white mb-2">Pertanyaan tentang disclaimer?</h4>
+        <p className="text-white/40 text-sm">
+          Hubungi kami di <a href="mailto:luxtradee@gmail.com" className="text-[#8a2be2] hover:underline">luxtradee@gmail.com</a> atau melalui <a href="https://t.me/Risxyiee" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Telegram</a>.
         </p>
       </div>
     </div>
