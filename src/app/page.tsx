@@ -22,6 +22,7 @@ const PricingSectionNew = dynamic(() => import('@/components/landing/PricingSect
 const FAQSection = dynamic(() => import('@/components/landing/FAQSection').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const FinalCTA = dynamic(() => import('@/components/landing/FinalCTA').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const LandingFooter = dynamic(() => import('@/components/landing/LandingFooter').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const LandingPromoBanner = dynamic(() => import('@/components/landing/LandingPromoBanner').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 
 interface LandingStats {
   totalUsers: number
@@ -103,6 +104,7 @@ export default function LuxTradeLanding() {
 
         <main id="main-content" className="flex-1 pb-20 md:pb-0">
           <HeroSection language={language} />
+          <LandingPromoBanner language={language} />
           <SocialProofBar language={language} />
           <AIVisionSimulator language={language} />
           <InteractiveTutorial language={language} onGetStarted={handleProUpgrade} />
