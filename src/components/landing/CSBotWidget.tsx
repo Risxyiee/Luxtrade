@@ -67,6 +67,13 @@ export default function CSBotWidget({ language }: CSBotWidgetProps) {
     }
   }, [isOpen])
 
+  // Also re-focus input after loading completes
+  useEffect(() => {
+    if (!isLoading && isOpen && inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [isLoading, isOpen])
+
   const sendMessage = useCallback(async () => {
     const trimmed = input.trim()
     if (!trimmed || isLoading) return
@@ -79,59 +86,78 @@ export default function CSBotWidget({ language }: CSBotWidgetProps) {
     setInput('')
     setIsLoading(true)
 
-    const maxRetries = 2
-    let lastError: string | null = null
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000)
 
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      let res: Response
       try {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 30000) // 30s timeout
-
-        const res = await fetch('/api/chat', {
+        res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId, message: trimmed, language }),
           signal: controller.signal,
         })
-
+      } catch (fetchErr) {
+        // Network error or abort
         clearTimeout(timeoutId)
-
-        if (!res.ok) {
-          // If 503 (service unavailable), retry
-          if (res.status === 503 && attempt < maxRetries) {
-            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)))
-            continue
-          }
+        if (fetchErr instanceof Error && fetchErr.name === 'AbortError') {
+          toast.error(language === 'en' ? 'Response timed out. Please try again.' : 'Waktu habis. Coba lagi ya.')
+        } else {
+          toast.error(language === 'en' ? 'Connection error. Please try again.' : 'Gangguan koneksi. Coba lagi ya.')
         }
+        return
+      }
 
-        const data = await res.json()
+      clearTimeout(timeoutId)
 
-        if (data.error) {
-          toast.error(language === 'en' ? 'Failed to send message' : 'Gagal mengirim pesan')
+      // Parse response
+      let data: { response?: string; error?: string; limited?: boolean }
+      try {
+        data = await res.json()
+      } catch {
+        toast.error(language === 'en' ? 'Invalid response from server.' : 'Respon server tidak valid.')
+        return
+      }
+
+      // Handle HTTP errors
+      if (!res.ok) {
+        // On 503, show service unavailable message
+        if (res.status === 503) {
+          const botMsg: ChatMessage = {
+            role: 'assistant',
+            content: data.response || (language === 'en'
+              ? 'AI service is currently unavailable. Try again in a moment.'
+              : 'Layanan AI sedang tidak tersedia. Coba lagi sebentar.')
+          }
+          setMessages(prev => [...prev, botMsg])
           return
         }
-
-        const botMsg: ChatMessage = { role: 'assistant', content: data.response }
-        setMessages(prev => [...prev, botMsg])
-
-        if (data.limited) {
-          toast.warning(language === 'en' ? 'Chat limit reached' : 'Batas chat tercapai')
-        }
-        return // Success, exit retry loop
-      } catch (err) {
-        lastError = err instanceof Error && err.name === 'AbortError'
-          ? (language === 'en' ? 'Response timed out. Please try again.' : 'Waktu habis. Coba lagi ya.')
-          : null
-        
-        if (attempt < maxRetries) {
-          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)))
-          continue
-        }
+        toast.error(data.error || (language === 'en' ? 'Failed to send message' : 'Gagal mengirim pesan'))
+        return
       }
-    }
 
-    // All retries failed
-    toast.error(lastError || (language === 'en' ? 'Connection error. Please try again.' : 'Gangguan koneksi. Coba lagi ya.'))
+      // Handle API-level errors
+      if (data.error) {
+        toast.error(language === 'en' ? 'Failed to send message' : 'Gagal mengirim pesan')
+        return
+      }
+
+      // Success — add assistant reply to messages
+      const botMsg: ChatMessage = { role: 'assistant', content: data.response || '...' }
+      setMessages(prev => [...prev, botMsg])
+
+      if (data.limited) {
+        toast.warning(language === 'en' ? 'Chat limit reached' : 'Batas chat tercapai')
+      }
+    } catch (err) {
+      // Catch-all for any unexpected errors
+      console.error('[CSBotWidget] Unexpected error:', err)
+      toast.error(language === 'en' ? 'Something went wrong. Please try again.' : 'Terjadi kesalahan. Coba lagi ya.')
+    } finally {
+      // CRITICAL: Always reset isLoading so input is never permanently locked
+      setIsLoading(false)
+    }
   }, [input, isLoading, sessionId, language, showWelcome])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
