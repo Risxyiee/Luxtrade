@@ -210,7 +210,9 @@ bun run lint             # Cek code quality
 
 | Dokumen | Deskripsi |
 |---------|-----------|
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Deployment guide (Cloudflare Workers, env vars, build/deploy commands) |
 | [HANDOFF.md](HANDOFF.md) | Panduan maintenance lengkap (file map, data flow, auth, AI, risk map, change guide) |
+| [docs/archive/](docs/archive/) | Archived historical documentation |
 
 ---
 
