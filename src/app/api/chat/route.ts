@@ -26,7 +26,6 @@ INFO PRODUK:
 - AI Pattern Detection: deteksi pola loss berulang (FOMO, overtrading, dll)
 - Payment: Midtrans (IDR), Skrill (USD)
 - Support: Telegram @Risxyiee, email luxtradee@gmail.com, Discord
-- Ada program afiliasi dan partnership FundingTraders
 - Bisa import dari MT4/MT5/cTrader via CSV atau screenshot
 - Data aman, terenkripsi, nggak dijual ke pihak ketiga
 - No auto-renew, bisa cancel kapan pun

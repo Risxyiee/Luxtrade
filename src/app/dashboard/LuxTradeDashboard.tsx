@@ -27,7 +27,6 @@ import Header from './components/Header'
 import DashboardModals from './components/DashboardModals'
 import TabContent from './components/TabContent'
 import DemoDataModal from './components/DemoDataModal'
-import PromoBanner from './components/PromoBanner'
 
 
 // Extracted Utils & Hooks
@@ -886,8 +885,6 @@ function LuxTradeDashboardContent() {
           isAdmin={isAdmin}
         />
 
-        {/* Promo Banner */}
-        <PromoBanner />
 
         {/* Tab Content */}
         <TabContent

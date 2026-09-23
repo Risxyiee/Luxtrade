@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { isUserPro } from '@/lib/pro-check'
+import { geminiPrompt, isGeminiAvailable } from '@/lib/gemini'
 
 /**
  * AI Trade Analysis API
- * Provides AI-powered analysis of trading performance
+ * Provides AI-powered analysis of trading performance using Gemini
+ * Falls back to rule-based analysis when Gemini is unavailable
  */
+
+const SYSTEM_PROMPT = `You are an AI trading analyst for LuxTradee. Analyze the user's trading data and provide actionable insights. Be specific, data-driven, and practical. Use markdown formatting for readability. Reference actual numbers from the data when making observations. Keep your analysis concise but thorough.`
 
 export async function POST(req: Request) {
   try {
@@ -49,49 +53,91 @@ export async function POST(req: Request) {
     const avgLoss = Math.abs(trades.filter((t: any) => t.profit_loss < 0).reduce((sum: number, t: any) => sum + t.profit_loss, 0)) / (losingTrades || 1)
     const profitFactor = avgLoss > 0 ? avgProfit / avgLoss : totalPL > 0 ? 999 : 0
 
-    // Generate AI analysis based on statistics
-    let analysis = ''
+    const statistics = {
+      totalTrades,
+      winningTrades,
+      losingTrades,
+      winRate,
+      totalPL,
+      avgProfit,
+      avgLoss,
+      profitFactor
+    }
 
+    // Build trade summary for AI context (last 20 trades)
+    const recentTrades = trades.slice(-20).map((t: any) => ({
+      symbol: t.symbol || 'N/A',
+      type: t.type || 'N/A',
+      profit_loss: t.profit_loss ?? 0,
+      session: t.session || 'N/A',
+      open_time: t.open_time || 'N/A',
+    }))
+
+    // Build the user prompt with statistics and trade context
+    const statsContext = `## Trading Statistics
+- Total Trades: ${totalTrades}
+- Winning Trades: ${winningTrades}
+- Losing Trades: ${losingTrades}
+- Win Rate: ${winRate.toFixed(1)}%
+- Total P/L: $${totalPL.toFixed(2)}
+- Avg Profit: $${avgProfit.toFixed(2)}
+- Avg Loss: $${avgLoss.toFixed(2)}
+- Profit Factor: ${profitFactor.toFixed(2)}`
+
+    const tradesContext = `## Recent Trades (last ${recentTrades.length})
+${JSON.stringify(recentTrades, null, 2)}`
+
+    // Determine the analysis prompt based on question type
+    let analysisPrompt = ''
     if (!question || question === 'general') {
-      analysis = generateGeneralAnalysis({
-        totalTrades,
-        winningTrades,
-        losingTrades,
-        winRate,
-        totalPL,
-        avgProfit,
-        avgLoss,
-        profitFactor
-      })
+      analysisPrompt = `${statsContext}\n\n${tradesContext}\n\nProvide a comprehensive general analysis of this trading performance. Cover overall profitability, win rate assessment, risk management quality, and any notable patterns you see in the recent trades. Be specific with numbers.`
     } else if (question === 'improvement') {
-      analysis = generateImprovementSuggestions({
-        winRate,
-        profitFactor,
-        totalTrades
-      })
+      analysisPrompt = `${statsContext}\n\n${tradesContext}\n\nBased on this trading data, provide specific, actionable improvement suggestions. Focus on the weakest aspects first. Reference the actual numbers. Prioritize suggestions by expected impact.`
     } else if (question === 'strengths') {
-      analysis = generateStrengths({
-        winRate,
-        totalPL,
-        profitFactor
-      })
+      analysisPrompt = `${statsContext}\n\n${tradesContext}\n\nIdentify and analyze the key strengths in this trading performance. What is the trader doing well? Which patterns or habits are contributing positively? Reference actual data points.`
     } else {
-      analysis = generateCustomAnalysis(trades, question)
+      // Custom question
+      analysisPrompt = `${statsContext}\n\n${tradesContext}\n\nAnswer the following question about this trading data: "${question}"`
+    }
+
+    // Try Gemini first, fall back to rule-based on failure
+    let analysis = ''
+    let source: 'gemini' | 'fallback' = 'fallback'
+
+    if (isGeminiAvailable()) {
+      try {
+        const geminiResult = await geminiPrompt(analysisPrompt, {
+          systemInstruction: SYSTEM_PROMPT,
+          temperature: 0.7,
+          maxTokens: 2048,
+          timeoutMs: 30000, // 30s timeout
+        })
+
+        if (geminiResult && geminiResult.trim().length > 0) {
+          analysis = geminiResult
+          source = 'gemini'
+        } else {
+          // Empty response from Gemini, fall back
+          console.warn('[AI /analyze-trade] Gemini returned empty response, using fallback')
+          analysis = fallbackAnalysis(question, trades, statistics)
+        }
+      } catch (geminiError: any) {
+        // Handle Gemini errors gracefully — rate limit, timeout, API errors, etc.
+        const errMsg = geminiError?.message || String(geminiError)
+        console.warn(`[AI /analyze-trade] Gemini failed (${errMsg}), using fallback`)
+        analysis = fallbackAnalysis(question, trades, statistics)
+      }
+    } else {
+      // Gemini not configured
+      console.info('[AI /analyze-trade] Gemini not available, using fallback')
+      analysis = fallbackAnalysis(question, trades, statistics)
     }
 
     return NextResponse.json({
       success: true,
       analysis,
-      statistics: {
-        totalTrades,
-        winningTrades,
-        losingTrades,
-        winRate,
-        totalPL,
-        avgProfit,
-        avgLoss,
-        profitFactor
-      }
+      source,
+      statistics
     })
   } catch (error: any) {
     console.error('[AI /analyze-trade] Error:', error)
@@ -99,6 +145,26 @@ export async function POST(req: Request) {
       { error: 'Failed to analyze trades' },
       { status: 500 }
     )
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Fallback: Rule-based analysis (used when Gemini is unavailable or fails)
+// ---------------------------------------------------------------------------
+
+function fallbackAnalysis(
+  question: string | undefined,
+  trades: any[],
+  stats: { totalTrades: number; winningTrades: number; losingTrades: number; winRate: number; totalPL: number; avgProfit: number; avgLoss: number; profitFactor: number }
+): string {
+  if (!question || question === 'general') {
+    return generateGeneralAnalysis(stats)
+  } else if (question === 'improvement') {
+    return generateImprovementSuggestions(stats)
+  } else if (question === 'strengths') {
+    return generateStrengths(stats)
+  } else {
+    return generateCustomAnalysis(trades, question)
   }
 }
 
