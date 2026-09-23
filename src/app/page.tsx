@@ -23,8 +23,7 @@ const FAQSection = dynamic(() => import('@/components/landing/FAQSection').then(
 const FinalCTA = dynamic(() => import('@/components/landing/FinalCTA').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const LandingFooter = dynamic(() => import('@/components/landing/LandingFooter').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const LandingPromoBanner = dynamic(() => import('@/components/landing/LandingPromoBanner').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
-const TrustStats = dynamic(() => import('@/components/landing/TrustStats').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
-const LiveActivityFeed = dynamic(() => import('@/components/landing/LiveActivityFeed').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+// TrustStats and LiveActivityFeed removed — fake data components
 const FeatureComparison = dynamic(() => import('@/components/landing/FeatureComparison').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const CSBotWidget = dynamic(() => import('@/components/landing/CSBotWidget').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 
@@ -110,7 +109,7 @@ export default function LuxTradeLanding() {
           <HeroSection language={language} />
           <LandingPromoBanner language={language} />
           <SocialProofBar language={language} />
-          <TrustStats language={language} />
+          {/* TrustStats removed — fake data */}
           <AIVisionSimulator language={language} />
           <InteractiveTutorial language={language} onGetStarted={handleProUpgrade} />
           <CaraKerjaSection language={language} />
@@ -134,7 +133,7 @@ export default function LuxTradeLanding() {
 
 
         <ScrollToTopButton />
-        <LiveActivityFeed language={language} />
+        {/* LiveActivityFeed removed — fake data */}
         <CSBotWidget language={language} />
 
         {/* Mobile Sticky CTA */}

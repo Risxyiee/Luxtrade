@@ -1,12 +1,22 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { autoFixRLS } from '@/lib/auto-fix-rls'
 
 // In-memory cache — avoids hitting DB on every landing page visit.
 // Stats are not critical real-time data, 60s staleness is fine.
 let cache: { data: { totalUsers: number; activeUsers: number; tradesLogged: number }; expiry: number } | null = null
 const CACHE_TTL = 60_000 // 60 seconds
 
+// Auto-fix RLS on first request (fire-and-forget, non-blocking)
+let rlsFixTriggered = false
+
 export async function GET() {
+  // Trigger RLS auto-fix once in background (doesn't block the response)
+  if (!rlsFixTriggered) {
+    rlsFixTriggered = true
+    autoFixRLS().catch(() => {}) // fire-and-forget
+  }
+
   try {
     // Return cached data if still fresh
     if (cache && Date.now() < cache.expiry) {
