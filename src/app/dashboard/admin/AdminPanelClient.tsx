@@ -68,6 +68,9 @@ export default function AdminPanelClient() {
   const [dataNotice, setDataNotice] = useState<string | null>(null)
   const [fetchError, setFetchError] = useState<string | null>(null)
 
+  // Fix RLS state
+  const [fixingRls, setFixingRls] = useState(false)
+
   // Fetch users
   const fetchUsers = async (showErrorToast = false) => {
     setLoading(true)
@@ -124,6 +127,33 @@ export default function AdminPanelClient() {
       toast.error('Network error saat sinkronisasi')
     } finally {
       setSyncing(false)
+    }
+  }
+
+  // Fix RLS function
+  const fixRls = async () => {
+    if (fixingRls) return
+    if (!confirm('Fix RLS policies untuk user_submissions & mission_progress? Ini akan mengubah keamanan database.')) return
+    setFixingRls(true)
+    try {
+      const res = await authFetch('/api/fix-rls', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        const okCount = data.results?.filter((r: any) => r.status === 'ok').length || 0
+        const errCount = data.results?.filter((r: any) => r.status === 'error').length || 0
+        toast.success(`RLS fixed! ${okCount} ok, ${errCount} error`, { duration: 8000 })
+        console.log('RLS fix results:', data.results)
+      } else {
+        toast.error(data.error || 'Gagal fix RLS', { duration: 8000 })
+        console.error('RLS fix error:', data)
+      }
+    } catch (err) {
+      toast.error('Network error saat fix RLS')
+    } finally {
+      setFixingRls(false)
     }
   }
 
@@ -393,6 +423,17 @@ export default function AdminPanelClient() {
               </Button>
             </Link>
           ))}
+          <Button
+            onClick={fixRls}
+            disabled={fixingRls}
+            variant="outline"
+            size="sm"
+            className="border-amber-500/30 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 disabled:opacity-50 h-8 text-xs gap-1.5"
+            title="Fix RLS policies untuk user_submissions & mission_progress"
+          >
+            <Shield className={`w-3.5 h-3.5 ${fixingRls ? 'animate-pulse' : ''}`} />
+            {fixingRls ? 'Fixing...' : 'Fix RLS'}
+          </Button>
         </div>
 
         {/* Stats */}
