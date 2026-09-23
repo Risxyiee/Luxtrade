@@ -66,7 +66,7 @@ function AnimatedCounter({
 }
 
 // Format large numbers: 1200 → 1.2K, 15000 → 15K
-function formatStat(num: number): { display: string; target: number; suffix: string } {
+function formatStat(num: number): { display: string; target: number; suffix: string; isDecimal?: boolean } {
   if (num >= 1000) {
     const k = num / 1000
     if (k >= 10) {

@@ -26,6 +26,13 @@ export async function POST(request: NextRequest) {
     const { createAdminClient } = await import('@/lib/supabase/admin');
     const supabase = createAdminClient();
 
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
     // Generate signed URL
     const { data, error } = await supabase.storage
       .from(bucket)

@@ -75,6 +75,14 @@ export async function POST(request: NextRequest) {
     // Step 7: Upload to Supabase Storage using admin client
     const supabaseAdmin = createAdminClient()
 
+    if (!supabaseAdmin) {
+      console.log('❌ [API] Supabase admin client not available')
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      )
+    }
+
     const { data: uploadData, error: uploadError } = await supabaseAdmin
       .storage
       .from('trade-screenshots')
