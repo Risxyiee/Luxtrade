@@ -92,7 +92,7 @@ Email broadcast uses batch processing (25 per batch) to stay under the subreques
 
 ## Deployment Checklist
 
-- [ ] Supabase project active, schema migrated
+- [ ] Supabase project active, schema migrated via `supabase/migrations/`
 - [ ] Storage bucket `trade-screenshots` created (public)
 - [ ] All required env vars set in Cloudflare Dashboard or `wrangler.toml`
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` set as Wrangler secret
@@ -113,6 +113,23 @@ wrangler deploy
 
 # Or rollback in Cloudflare Dashboard → Workers → Deployments → Rollback
 ```
+
+---
+
+## Database Migrations
+
+All database migrations live in **`supabase/migrations/`** (the Supabase CLI canonical location).
+
+| File | Purpose |
+|------|---------|
+| `20250519_create_trading_tables.sql` | Trading tables (trades, trading_accounts, trading_integrations) + RLS |
+| `20260728_enable_rls_all_tables.sql` | Enable RLS on all public tables + policies |
+| `20260906_fix_critical_schema.sql` | Add missing columns & indexes |
+
+Apply via Supabase CLI: `supabase db push` or paste into Supabase SQL Editor.
+
+> **Note:** Legacy migration files from `db/`, `supabase-migrations/`, and root `.sql` files
+> have been archived to `_archive/sql-history/`.
 
 ---
 
