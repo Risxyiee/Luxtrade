@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     console.log('[API] Watchlist deleted')
 
     // Step 8: Delete user's mission progress
-    await admin.from('mission_claims').delete().eq('user_id', userId)
+    await admin.from('mission_progress').delete().eq('user_id', userId)
     console.log('[API] Mission progress deleted')
 
     // Step 9: Delete user's weekly goals
