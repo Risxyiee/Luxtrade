@@ -1,231 +1,124 @@
-# Deployment Guide
+# Deployment Guide — LuxTrade
 
-## Local Development (SQLite)
+**Platform:** Cloudflare Workers
+**Domain:** luxtradee.web.id
 
-For local development, the app uses SQLite database.
+---
 
-**Current setup:**
-- `.env` file uses: `DATABASE_URL="file:./db/dev.db"`
-- `prisma/schema.prisma` uses: `provider = "sqlite"`
-
-**Run locally:**
-```bash
-bun run dev
-```
-
-## Production Deployment (PostgreSQL/Supabase)
-
-For production, the app uses Supabase PostgreSQL.
-
-### Step 1: Set Environment Variables
-
-In your production environment (Vercel, Railway, etc.), set:
-
-```env
-DATABASE_URL=postgresql://postgres:Riskiakbarp123@db.klxkdrfsfcoankbaoejn.supabase.co:5432/postgres
-```
-
-### Step 2: Switch Schema to PostgreSQL
-
-Before building for production, switch the Prisma schema:
+## Build & Deploy
 
 ```bash
-# Backup current SQLite schema
-cp prisma/schema.prisma prisma/schema.prisma.sqlite.backup
+# Build for Cloudflare Workers
+bun run build:next                    # Step 1: Next.js build
+npx opennextjs-cloudflare build       # Step 2: OpenNext optimization
 
-# Switch to PostgreSQL schema
-cp prisma/schema.prisma.pgsql.backup prisma/schema.prisma
+# Or use the build script
+bash build.sh
 
-# Generate Prisma Client
-bun run db:generate
+# Deploy
+wrangler deploy
 ```
 
-### Step 3: Create Database Tables
-
-You need to create the database schema in Supabase. You have two options:
-
-#### Option A: Use Prisma Migrate (Recommended)
+### Local Development
 
 ```bash
-# Create initial migration
-bunx prisma migrate dev --name init
-
-# Push schema to Supabase
-bunx prisma db push
+wrangler dev       # Run locally via Wrangler
+bun run dev        # Standard Next.js dev server
 ```
 
-#### Option B: Manual SQL (If Prisma Push Fails)
+---
 
-If you can't connect to Supabase from your local machine, you can run the SQL manually in Supabase Dashboard:
+## Configuration Files
 
-1. Go to Supabase Dashboard → Project → SQL Editor
-2. Run the following SQL to create all tables:
+| File | Purpose |
+|------|---------|
+| `wrangler.toml` | Cloudflare Workers config (name, bindings, vars, observability) |
+| `open-next.config.ts` | OpenNext Cloudflare adapter (edge route exclusions) |
+| `build.sh` | Build script (next build + opennextjs-cloudflare build) |
+| `next.config.ts` | Next.js config with `output: 'standalone'` |
 
-```sql
--- Create tables for Trading Journal App
+---
 
-CREATE TABLE IF NOT EXISTS profiles (
-  id TEXT PRIMARY KEY,
-  email TEXT,
-  "streakCount" INTEGER DEFAULT 0,
-  "lastLoginAt" TIMESTAMP,
-  "bestStreak" INTEGER DEFAULT 0,
-  achievements TEXT DEFAULT '[]',
-  plan TEXT DEFAULT 'FREE',
-  "proExpiry" TIMESTAMP,
-  role TEXT DEFAULT 'USER',
-  "full_name" TEXT,
-  "is_pro" BOOLEAN DEFAULT false,
-  "subscription_until" TIMESTAMP,
-  "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+## Environment Variables
 
-CREATE TABLE IF NOT EXISTS users (
-  id TEXT PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
-  name TEXT,
-  "emailVerified" TIMESTAMP,
-  image TEXT,
-  role TEXT DEFAULT 'USER',
-  "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+### Required (app will not work without these)
 
-CREATE TABLE IF NOT EXISTS trades (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  account_id TEXT,
-  symbol TEXT NOT NULL,
-  type TEXT NOT NULL,
-  "open_price" FLOAT NOT NULL,
-  "close_price" FLOAT NOT NULL,
-  "lot_size" FLOAT NOT NULL,
-  "profit_loss" FLOAT NOT NULL,
-  "open_time" TIMESTAMP NOT NULL,
-  "close_time" TIMESTAMP NOT NULL,
-  session TEXT,
-  notes TEXT,
-  "image_url" TEXT,
-  "screenshot_url" TEXT,
-  emotion TEXT,
-  "setup_type" TEXT,
-  tags TEXT,
-  "risk_reward_ratio" FLOAT,
-  "trade_duration" INTEGER,
-  "linked_journal_id" TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
-);
+| Variable | Description | Source |
+|----------|-------------|--------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Supabase Dashboard → Settings → API |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous key | Supabase Dashboard → Settings → API |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase admin key **(set as secret)** | Supabase Dashboard → Settings → API |
 
-CREATE TABLE IF NOT EXISTS trading_accounts (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  name TEXT NOT NULL,
-  broker TEXT,
-  "account_type" TEXT DEFAULT 'STANDARD',
-  "account_number" TEXT,
-  "initial_balance" FLOAT DEFAULT 0,
-  "current_balance" FLOAT DEFAULT 0,
-  leverage INTEGER DEFAULT 100,
-  currency TEXT DEFAULT 'USD',
-  "is_default" BOOLEAN DEFAULT false,
-  "is_active" BOOLEAN DEFAULT true,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
-);
-
--- Add indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_trades_user_id ON trades(user_id);
-CREATE INDEX IF NOT EXISTS idx_trades_close_time ON trades("close_time" DESC);
-CREATE INDEX IF NOT EXISTS idx_trading_accounts_user_id ON trading_accounts(user_id);
-
--- Enable Row Level Security (RLS)
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE trades ENABLE ROW LEVEL SECURITY;
-ALTER TABLE trading_accounts ENABLE ROW LEVEL SECURITY;
-
--- Create policies (you may need to adjust based on your auth setup)
-CREATE POLICY "Users can view own profiles" ON profiles
-  FOR SELECT USING (auth.uid()::text = id);
-
-CREATE POLICY "Users can insert own profiles" ON profiles
-  FOR INSERT WITH CHECK (auth.uid()::text = id);
-
-CREATE POLICY "Users can view own trades" ON trades
-  FOR SELECT USING (auth.uid()::text = user_id);
-
-CREATE POLICY "Users can insert own trades" ON trades
-  FOR INSERT WITH CHECK (auth.uid()::text = user_id);
-
-CREATE POLICY "Users can update own trades" ON trades
-  FOR UPDATE USING (auth.uid()::text = user_id);
-
-CREATE POLICY "Users can delete own trades" ON trades
-  FOR DELETE USING (auth.uid()::text = user_id);
-
-CREATE POLICY "Users can view own trading accounts" ON trading_accounts
-  FOR SELECT USING (auth.uid()::text = user_id);
-
-CREATE POLICY "Users can insert own trading accounts" ON trading_accounts
-  FOR INSERT WITH CHECK (auth.uid()::text = user_id);
-```
-
-### Step 4: Build and Deploy
+### Set secrets via Wrangler
 
 ```bash
-# Build the application
-bun run build
-
-# Deploy to your platform
-# (Vercel, Railway, etc.)
+wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 ```
 
-### Step 5: Verify Deployment
+Non-secret vars (NEXT_PUBLIC_*) are defined in `wrangler.toml` under `[vars]`.
 
-After deployment, check the logs to ensure:
-- Database connection is successful
-- No Prisma initialization errors
-- API endpoints are responding correctly
+### Important (for specific features)
 
-## Troubleshooting
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_SITE_URL` | Site URL for links and webhooks |
+| `RESEND_API_KEY` | Email sending (verification, password reset, broadcast) |
+| `MIDTRANS_SERVER_KEY` / `MIDTRANS_CLIENT_KEY` | Midtrans payment gateway |
+| `GEMINI_API_KEY` | AI chat, vision, auto-journal |
 
-### Error: "Unable to open the database file"
+### Optional
 
-**Cause:** Using SQLite in production or DATABASE_URL not set correctly.
+| Variable | Purpose |
+|----------|---------|
+| `OPENAI_API_KEY` | TTS and AI fallback |
+| `OPENROUTER_API_KEY` | AI vision fallback |
+| `HUGGING_FACE_API_TOKEN` | Free OCR vision fallback |
+| `METAAPI_TOKEN` | Real-time broker data sync |
+| `ADMIN_EMAILS` | Admin panel access |
 
-**Solution:**
-1. Ensure DATABASE_URL is set in production environment variables
-2. For production, use PostgreSQL connection string
-3. Make sure Prisma schema uses `provider = "postgresql"`
+---
 
-### Error: "DATABASE_URL does not start with file:"
+## Cloudflare Workers Limits
 
-**Cause:** The `db.ts` file is trying to convert PostgreSQL URL to SQLite.
+| Limit | Free | Paid |
+|-------|------|------|
+| Subrequests per invocation | 50 | 50 |
+| Worker size (bundled) | 10 MB | 25 MB |
+| CPU time | 10 ms | 30 s |
 
-**Solution:**
-- Check that your production DATABASE_URL starts with `postgresql://`
-- The updated `db.ts` should handle both SQLite and PostgreSQL correctly
+Email broadcast uses batch processing (25 per batch) to stay under the subrequest limit.
 
-### Can't Connect to Supabase from Local Machine
+---
 
-**Solution:**
-- Use Option B (Manual SQL) to create tables in Supabase Dashboard
-- Set DATABASE_URL in production environment, not locally
-- Deploy and test from production environment
+## Deployment Checklist
 
-## Switching Between Development and Production
+- [ ] Supabase project active, schema migrated
+- [ ] Storage bucket `trade-screenshots` created (public)
+- [ ] All required env vars set in Cloudflare Dashboard or `wrangler.toml`
+- [ ] `SUPABASE_SERVICE_ROLE_KEY` set as Wrangler secret
+- [ ] `wrangler deploy` succeeds
+- [ ] Login/signup works
+- [ ] Dashboard loads after auth
+- [ ] Trade creation + screenshot upload works
+- [ ] AI features work (if API keys set)
 
-### To Switch to Development (SQLite):
+---
+
+## Rollback
+
 ```bash
-cp prisma/schema.prisma.sqlite.backup prisma/schema.prisma
-bun run db:push
+# Redeploy previous version
+git checkout <previous-commit>
+wrangler deploy
+
+# Or rollback in Cloudflare Dashboard → Workers → Deployments → Rollback
 ```
 
-### To Switch to Production (PostgreSQL):
-```bash
-cp prisma/schema.prisma.pgsql.backup prisma/schema.prisma
-bun run db:generate
-```
+---
+
+## References
+
+- [OpenNext Cloudflare Docs](https://opennext.js.org/cloudflare)
+- [Cloudflare Workers Docs](https://developers.cloudflare.com/workers/)
+- [Wrangler CLI Reference](https://developers.cloudflare.com/workers/wrangler/)
+- [Supabase Docs](https://supabase.com/docs)
