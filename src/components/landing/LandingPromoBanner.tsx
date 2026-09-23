@@ -85,13 +85,13 @@ export default function LandingPromoBanner({ language = 'id' }: LandingPromoBann
               </div>
               <p className="text-base sm:text-lg font-bold text-white/95 leading-snug">
                 {isEn
-                  ? 'LuxTrade x FundingTraders — Get a trading evaluation account & scale your capital!'
-                  : 'LuxTrade x FundingTraders — Dapatkan akun evaluasi trading dan tingkatkan modalmu!'}
+                  ? 'LuxTradee x FundingTraders — Get a trading evaluation account & scale your capital!'
+                  : 'LuxTradee x FundingTraders — Dapatkan akun evaluasi trading dan tingkatkan modalmu!'}
               </p>
               <p className="text-xs sm:text-sm text-white/40 mt-1 leading-relaxed">
                 {isEn
-                  ? 'Pass the challenge, get funded up to $200K. Special promo for LuxTrade users.'
-                  : 'Lulus challenge, dapatkan funding hingga $200K. Promo spesial untuk pengguna LuxTrade.'}
+                  ? 'Pass the challenge, get funded up to $200K. Special promo for LuxTradee users.'
+                  : 'Lulus challenge, dapatkan funding hingga $200K. Promo spesial untuk pengguna LuxTradee.'}
               </p>
             </div>
 

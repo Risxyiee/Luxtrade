@@ -122,8 +122,8 @@ const t = {
     milestoneSilver: 'Silver',
     milestoneGold: 'Gold',
     milestonePlatinum: 'Platinum',
-    q1Title: 'Apa itu Program Afiliasi LuxTrade?',
-    q1Content: 'Program Afiliasi LuxTrade memungkinkan Anda mendapatkan komisi nyata (Rupiah) dari setiap teman yang mendaftar menggunakan link referral Anda dan berlangganan paket Pro. Semakin banyak referral yang aktif, semakin besar pendapatan Anda.',
+    q1Title: 'Apa itu Program Afiliasi LuxTradee?',
+    q1Content: 'Program Afiliasi LuxTradee memungkinkan Anda mendapatkan komisi nyata (Rupiah) dari setiap teman yang mendaftar menggunakan link referral Anda dan berlangganan paket Pro. Semakin banyak referral yang aktif, semakin besar pendapatan Anda.',
     q2Title: 'Berapa komisi yang saya dapatkan?',
     q2Content: 'Anda mendapatkan komisi untuk setiap referral yang berhasil berlangganan paket Pro. Komisi dikreditkan ke saldo afiliasi Anda dan dapat ditarik ke rekening bank Anda kapan saja setelah mencapai minimum Rp100.000.',
     q3Title: 'Kapan komisi dibayarkan?',
@@ -135,7 +135,7 @@ const t = {
     how1Title: 'Bagikan Link',
     how1Desc: 'Dapatkan link referral unik Anda dan bagikan ke teman-teman.',
     how2Title: 'Teman Daftar',
-    how2Desc: 'Teman mendaftar melalui link referral Anda di LuxTrade.',
+    how2Desc: 'Teman mendaftar melalui link referral Anda di LuxTradee.',
     how3Title: 'Dapatkan Komisi',
     how3Desc: 'Anda mendapat komisi setiap kali referral berlangganan Pro.',
     updateCodeTitle: 'Ubah Kode Referral',
@@ -215,8 +215,8 @@ const t = {
     milestoneSilver: 'Silver',
     milestoneGold: 'Gold',
     milestonePlatinum: 'Platinum',
-    q1Title: 'What is the LuxTrade Affiliate Program?',
-    q1Content: 'The LuxTrade Affiliate Program lets you earn real commissions (Rupiah) from every friend who signs up using your referral link and subscribes to a Pro plan. The more active referrals you have, the more you earn.',
+    q1Title: 'What is the LuxTradee Affiliate Program?',
+    q1Content: 'The LuxTradee Affiliate Program lets you earn real commissions (Rupiah) from every friend who signs up using your referral link and subscribes to a Pro plan. The more active referrals you have, the more you earn.',
     q2Title: 'How much commission do I earn?',
     q2Content: 'You earn a commission for every referral who successfully subscribes to a Pro plan. The commission is credited to your affiliate balance and can be withdrawn to your bank account anytime after reaching the minimum of Rp100,000.',
     q3Title: 'When are commissions paid?',
@@ -228,7 +228,7 @@ const t = {
     how1Title: 'Share Your Link',
     how1Desc: 'Get your unique referral link and share it with friends.',
     how2Title: 'Friend Signs Up',
-    how2Desc: 'Your friend registers through your referral link on LuxTrade.',
+    how2Desc: 'Your friend registers through your referral link on LuxTradee.',
     how3Title: 'Earn Commissions',
     how3Desc: 'You earn a commission every time your referral subscribes to Pro.',
     updateCodeTitle: 'Update Referral Code',
@@ -360,12 +360,12 @@ export default function AffiliateTab({ isPro, onUpgrade, language }: AffiliateTa
   const handleShare = async () => {
     if (!affiliate) return
     const shareText = language === 'id'
-      ? `Trading jadi lebih mudah dengan LuxTrade! Daftar pakai link saya dan mulai catat trading kamu. ${affiliate.referralLink}`
-      : `Trading made easier with LuxTrade! Sign up using my link and start tracking your trades. ${affiliate.referralLink}`
+      ? `Trading jadi lebih mudah dengan LuxTradee! Daftar pakai link saya dan mulai catat trading kamu. ${affiliate.referralLink}`
+      : `Trading made easier with LuxTradee! Sign up using my link and start tracking your trades. ${affiliate.referralLink}`
 
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'LuxTrade', text: shareText, url: affiliate.referralLink })
+        await navigator.share({ title: 'LuxTradee', text: shareText, url: affiliate.referralLink })
       } catch {
         // User cancelled or not supported
       }
@@ -457,14 +457,14 @@ export default function AffiliateTab({ isPro, onUpgrade, language }: AffiliateTa
 
   const promoTexts = affiliate ? {
     whatsapp: language === 'id'
-      ? `Hai! 🔥 Trading kamu bisa jadi lebih terorganisir dengan LuxTrade. Catat setiap transaksi, analisa performa, dan tingkatkan konsistensi. Daftar gratis pakai link saya: ${affiliate.referralLink}\n\nKalo kamu upgrade ke Pro, aku dapat komisi loh! Makasih 🙏`
-      : `Hey! 🔥 Your trading can be more organized with LuxTrade. Track every trade, analyze performance, and improve consistency. Sign up free with my link: ${affiliate.referralLink}\n\nIf you upgrade to Pro, I earn a commission! Thanks 🙏`,
+      ? `Hai! 🔥 Trading kamu bisa jadi lebih terorganisir dengan LuxTradee. Catat setiap transaksi, analisa performa, dan tingkatkan konsistensi. Daftar gratis pakai link saya: ${affiliate.referralLink}\n\nKalo kamu upgrade ke Pro, aku dapat komisi loh! Makasih 🙏`
+      : `Hey! 🔥 Your trading can be more organized with LuxTradee. Track every trade, analyze performance, and improve consistency. Sign up free with my link: ${affiliate.referralLink}\n\nIf you upgrade to Pro, I earn a commission! Thanks 🙏`,
     telegram: language === 'id'
-      ? `📊 LuxTrade - Jurnal Trading Terbaik\n\nCatat trading, analisa performa, dan tingkatkan skill kamu. Daftar pakai link referral saya dan mulai perjalanan trading yang lebih baik!\n\n🔗 ${affiliate.referralLink}\n\n#trading #forex #luxtrade`
-      : `📊 LuxTrade - The Best Trading Journal\n\nTrack trades, analyze performance, and level up your skills. Sign up with my referral link and start a better trading journey!\n\n🔗 ${affiliate.referralLink}\n\n#trading #forex #luxtrade`,
+      ? `📊 LuxTradee - Jurnal Trading Terbaik\n\nCatat trading, analisa performa, dan tingkatkan skill kamu. Daftar pakai link referral saya dan mulai perjalanan trading yang lebih baik!\n\n🔗 ${affiliate.referralLink}\n\n#trading #forex #luxtradee`
+      : `📊 LuxTradee - The Best Trading Journal\n\nTrack trades, analyze performance, and level up your skills. Sign up with my referral link and start a better trading journey!\n\n🔗 ${affiliate.referralLink}\n\n#trading #forex #luxtradee`,
     twitter: language === 'id'
-      ? `Trading journal yang bikin konsistensi naik 📈\n\nCatat transaksi, analisa performa, & raih target trading kamu dengan LuxTrade.\n\nDaftar: ${affiliate.referralLink}\n\n#TradingJournal #Forex #LuxTrade`
-      : `The trading journal that boosts consistency 📈\n\nTrack trades, analyze performance, & hit your trading targets with LuxTrade.\n\nSign up: ${affiliate.referralLink}\n\n#TradingJournal #Forex #LuxTrade`,
+      ? `Trading journal yang bikin konsistensi naik 📈\n\nCatat transaksi, analisa performa, & raih target trading kamu dengan LuxTradee.\n\nDaftar: ${affiliate.referralLink}\n\n#TradingJournal #Forex #LuxTradee`
+      : `The trading journal that boosts consistency 📈\n\nTrack trades, analyze performance, & hit your trading targets with LuxTradee.\n\nSign up: ${affiliate.referralLink}\n\n#TradingJournal #Forex #LuxTradee`,
   } : { whatsapp: '', telegram: '', twitter: '' }
 
   // Status badge helper

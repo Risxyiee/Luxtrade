@@ -32,7 +32,7 @@ export function getWebhookInstructions(service: 'myfxbook' | 'fxblue'): {
         '6. Enter this Webhook URL: ' + webhookUrl,
         '7. Select events: "New Trade", "Trade Closed", "Trade Modified"',
         '8. Save settings',
-        '9. Your trades will now sync automatically to Luxtrade!'
+        '9. Your trades will now sync automatically to LuxTradee!'
       ],
       webhookUrl
     }
@@ -49,7 +49,7 @@ export function getWebhookInstructions(service: 'myfxbook' | 'fxblue'): {
       '6. Enter this Webhook URL: ' + webhookUrl,
       '7. Select events: "New Trade", "Trade Closed", "Trade Modified"',
       '8. Save settings',
-      '9. Your trades will now sync automatically to Luxtrade!'
+      '9. Your trades will now sync automatically to LuxTradee!'
     ],
     webhookUrl
   }

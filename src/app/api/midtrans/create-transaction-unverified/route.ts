@@ -94,10 +94,10 @@ export async function POST(request: NextRequest) {
     const customerName = fullName || profile.full_name || email.split('@')[0] || 'Customer'
 
     const planLabel: Record<string, string> = {
-      PRO_30_DAYS: 'LuxTrade PRO 30 Hari',
-      PRO_ANNUAL: 'LuxTrade PRO Annual',
-      PRO_180_DAYS: 'LuxTrade PRO 180 Hari',
-      PRO_LIFETIME: 'LuxTrade Lifetime',
+      PRO_30_DAYS: 'LuxTradee PRO 30 Hari',
+      PRO_ANNUAL: 'LuxTradee PRO Annual',
+      PRO_180_DAYS: 'LuxTradee PRO 180 Hari',
+      PRO_LIFETIME: 'LuxTradee Lifetime',
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://luxtradee.web.id'
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
           quantity: 1,
           name: planLabel[plan] || plan,
           category: 'Subscription',
-          merchant_name: 'LuxTrade',
+          merchant_name: 'LuxTradee',
         },
       ],
       customer_details: {

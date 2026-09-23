@@ -463,7 +463,7 @@ export default function AffiliatePage() {
             </span>
           </h1>
           <p className="mt-3 max-w-xl mx-auto text-sm text-white/60 sm:text-base">
-            Ajak teman bergabung ke LuxTrade dan dapatkan komisi dari setiap
+            Ajak teman bergabung ke LuxTradee dan dapatkan komisi dari setiap
             langganan yang terdaftar melalui kode referral kamu.
           </p>
         </motion.section>

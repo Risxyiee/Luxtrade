@@ -124,10 +124,10 @@ export async function POST(request: NextRequest) {
     const customerPhone = profile?.phone || user.user_metadata?.phone || '08123456789'
 
     const planLabel: Record<string, string> = {
-      PRO_30_DAYS: 'LuxTrade PRO 30 Hari',
-      PRO_ANNUAL: 'LuxTrade PRO Annual',
-      PRO_180_DAYS: 'LuxTrade PRO 180 Hari',
-      PRO_LIFETIME: 'LuxTrade Lifetime',
+      PRO_30_DAYS: 'LuxTradee PRO 30 Hari',
+      PRO_ANNUAL: 'LuxTradee PRO Annual',
+      PRO_180_DAYS: 'LuxTradee PRO 180 Hari',
+      PRO_LIFETIME: 'LuxTradee Lifetime',
     }
 
     interface ItemDetail {
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
         quantity: 1,
         name: planLabel[plan] || plan,
         category: 'Subscription',
-        merchant_name: 'LuxTrade',
+        merchant_name: 'LuxTradee',
       },
     ]
 
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
         quantity: 1,
         name: `Diskon ${discountPercent}% (${promoCode})`,
         category: 'Discount',
-        merchant_name: 'LuxTrade',
+        merchant_name: 'LuxTradee',
       })
     }
 

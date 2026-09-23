@@ -21,13 +21,13 @@ export default function DisclaimerPage() {
           <Link href="/" className="inline-flex items-center gap-3">
             <Image
               src="/logo-premium.png"
-              alt="LuxTrade Logo"
+              alt="LuxTradee Logo"
               width={36}
               height={36}
               className="object-contain"
             />
             <span className="text-lg font-bold bg-gradient-to-r from-cyan-200 to-cyan-400 bg-clip-text text-transparent">
-              LuxTrade
+              LuxTradee
             </span>
           </Link>
           <Link href="/">
@@ -61,8 +61,8 @@ export default function DisclaimerPage() {
               <div>
                 <h2 className="text-xl font-bold text-red-300 mb-2">Penegasan Penting</h2>
                 <p className="text-white/80 leading-relaxed">
-                  <strong>LuxTrade BUKAN broker sekuritas, BUKAN pialang berjangka, BUKAN pengelola dana (investment manager), 
-                  dan BUKAN penasihat investasi terdaftar.</strong> LuxTrade adalah platform perangkat lunak berbasis web 
+                  <strong>LuxTradee BUKAN broker sekuritas, BUKAN pialang berjangka, BUKAN pengelola dana (investment manager), 
+                  dan BUKAN penasihat investasi terdaftar.</strong> LuxTradee adalah platform perangkat lunak berbasis web 
                   (Software-as-a-Service) yang menyediakan dashboard analisis data untuk trader ritel. 
                   Kami <strong>TIDAK menerima simpanan dana, TIDAK mengeksekusi transaksi, dan TIDAK memberikan 
                   rekomendasi beli/jual instrumen keuangan apapun.</strong>
@@ -80,9 +80,9 @@ export default function DisclaimerPage() {
               </div>
               <div className="space-y-4">
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
-                  <h3 className="text-lg font-medium text-cyan-400 mb-2">Apa Itu LuxTrade?</h3>
+                  <h3 className="text-lg font-medium text-cyan-400 mb-2">Apa Itu LuxTradee?</h3>
                   <p className="text-white/70 leading-relaxed">
-                    LuxTrade adalah platform SaaS (Software-as-a-Service) yang menyediakan dashboard dan perangkat 
+                    LuxTradee adalah platform SaaS (Software-as-a-Service) yang menyediakan dashboard dan perangkat 
                     analisis data untuk membantu trader ritel dalam mencatat, memantau, dan mengevaluasi performa 
                     perdagangan mereka. Layanan kami berfokus pada penyediaan tools teknologi informasi, 
                     <strong className="text-white"> BUKAN pada penyelenggaraan kegiatan perdagangan.</strong>
@@ -148,7 +148,7 @@ export default function DisclaimerPage() {
                 <h2 className="text-2xl font-semibold text-white">3. Batasan Tanggung Jawab</h2>
               </div>
               <p className="text-white/70 leading-relaxed mb-4">
-                LuxTrade secara tegas menolak segala bentuk tanggung jawab atas:
+                LuxTradee secara tegas menolak segala bentuk tanggung jawab atas:
               </p>
               <ul className="space-y-3 text-white/70">
                 <li className="flex items-start gap-3">
@@ -182,7 +182,7 @@ export default function DisclaimerPage() {
               <h2 className="text-2xl font-semibold text-white mb-4">4. Sifat Informatif Layanan</h2>
               <p className="text-white/70 leading-relaxed mb-4">
                 Seluruh informasi, data chart, statistik, fitur analitik, dan konten yang disediakan oleh 
-                LuxTrade bersifat <strong className="text-white">informatif dan edukatif</strong>. Informasi 
+                LuxTradee bersifat <strong className="text-white">informatif dan edukatif</strong>. Informasi 
                 tersebut <strong className="text-white">BUKAN</strong> merupakan:
               </p>
               <ul className="list-disc list-inside space-y-2 text-white/70">
@@ -203,7 +203,7 @@ export default function DisclaimerPage() {
             <section>
               <h2 className="text-2xl font-semibold text-white mb-4">5. Perjanjian Pengguna</h2>
               <p className="text-white/70 leading-relaxed">
-                Dengan menggunakan LuxTrade, Anda mengakui dan menyetujui bahwa:
+                Dengan menggunakan LuxTradee, Anda mengakui dan menyetujui bahwa:
               </p>
               <ul className="space-y-3 text-white/70 mt-4">
                 <li className="flex items-start gap-3">
@@ -216,11 +216,11 @@ export default function DisclaimerPage() {
                 </li>
                 <li className="flex items-start gap-3">
                   <div className="w-2 h-2 rounded-full bg-emerald-400 mt-2 flex-shrink-0" />
-                  <span>LuxTrade bukan merupakan substitute untuk konsultasi profesional</span>
+                  <span>LuxTradee bukan merupakan substitute untuk konsultasi profesional</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <div className="w-2 h-2 rounded-full bg-emerald-400 mt-2 flex-shrink-0" />
-                  <span>Anda tidak akan menuntut LuxTrade atas kerugian yang timbul dari trading</span>
+                  <span>Anda tidak akan menuntut LuxTradee atas kerugian yang timbul dari trading</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <div className="w-2 h-2 rounded-full bg-emerald-400 mt-2 flex-shrink-0" />
@@ -233,7 +233,7 @@ export default function DisclaimerPage() {
             <section>
               <h2 className="text-2xl font-semibold text-white mb-4">6. Data Pihak Ketiga</h2>
               <p className="text-white/70 leading-relaxed">
-                LuxTrade menampilkan data pasar keuangan yang bersumber dari penyedia data pihak ketiga 
+                LuxTradee menampilkan data pasar keuangan yang bersumber dari penyedia data pihak ketiga 
                 (third-party data providers). Meskipun kami berupaya menyajikan data yang akurat, kami tidak 
                 menjamin keakuratan, kelengkapan, atau kekinian data tersebut. Pengguna disarankan untuk 
                 memverifikasi informasi penting dari sumber resmi sebelum mengambil keputusan trading.
@@ -259,7 +259,7 @@ export default function DisclaimerPage() {
               </p>
               <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 mt-4 space-y-2">
                 <p className="text-white/70"><strong className="text-cyan-400">Email:</strong> luxtradee@gmail.com</p>
-                <p className="text-white/70"><strong className="text-cyan-400">Discord:</strong> <a href="https://discord.gg/KkYYFP9nC" target="_blank" rel="noopener noreferrer" className="text-[#5865F2] hover:underline">LuxTrade Server</a></p>
+                <p className="text-white/70"><strong className="text-cyan-400">Discord:</strong> <a href="https://discord.gg/KkYYFP9nC" target="_blank" rel="noopener noreferrer" className="text-[#5865F2] hover:underline">LuxTradee Server</a></p>
                 <p className="text-white/70"><strong className="text-cyan-400">Website:</strong> <a href="https://luxtradee.web.id" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">luxtradee.web.id</a></p>
               </div>
             </section>
@@ -270,7 +270,7 @@ export default function DisclaimerPage() {
       {/* Footer */}
       <footer className="border-t border-white/5 py-8 mt-12">
         <div className="max-w-4xl mx-auto px-4 text-center text-white/40 text-sm">
-          <p>© {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} LuxTradee. All rights reserved.</p>
           <div className="flex justify-center gap-6 mt-4">
             <Link href="/disclaimer" className="hover:text-white transition-colors">Disclaimer</Link>
             <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>

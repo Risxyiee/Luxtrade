@@ -138,7 +138,7 @@ function buildEmailHtml(type: string, data: AlertRequestBody['data']): string {
           <!-- Footer -->
           <tr>
             <td style="padding: 16px 24px; border-top: 1px solid rgba(255,255,255,0.05); text-align: center;">
-              <p style="margin: 0; color: #4b5563; font-size: 12px;">LuxTrade Trading Journal</p>
+              <p style="margin: 0; color: #4b5563; font-size: 12px;">LuxTradee Trading Journal</p>
               <p style="margin: 4px 0 0; color: #374151; font-size: 11px;">Email alert ini dikirim berdasarkan pengaturan notifikasi kamu.</p>
             </td>
           </tr>
@@ -226,10 +226,10 @@ export async function POST(request: NextRequest) {
   // Build and send email
   const html = buildEmailHtml(type, data)
   const subjectMap: Record<string, string> = {
-    big_win: 'LuxTrade - Big Win Alert',
-    big_loss: 'LuxTrade - Big Loss Alert',
-    streak: 'LuxTrade - Streak Alert',
-    daily_limit: 'LuxTrade - Daily Loss Limit Alert',
+    big_win: 'LuxTradee - Big Win Alert',
+    big_loss: 'LuxTradee - Big Loss Alert',
+    streak: 'LuxTradee - Streak Alert',
+    daily_limit: 'LuxTradee - Daily Loss Limit Alert',
   }
 
   const result = await sendEmail({

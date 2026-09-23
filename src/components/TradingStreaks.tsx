@@ -290,7 +290,7 @@ function UpgradeOverlay({ onUpgrade }: { onUpgrade: () => void }) {
         Pro Feature
       </p>
       <p className="mb-5 max-w-xs text-center text-sm text-white/60">
-        Unlock streaks, achievements &amp; performance insights with LuxTrade
+        Unlock streaks, achievements &amp; performance insights with LuxTradee
         Pro.
       </p>
       <Button

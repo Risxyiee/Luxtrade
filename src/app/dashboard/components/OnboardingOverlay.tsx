@@ -30,8 +30,8 @@ interface Step {
 const steps: Step[] = [
   {
     icon: BarChart3,
-    titleId: 'Selamat Datang di LuxTrade!',
-    titleEn: 'Welcome to LuxTrade!',
+    titleId: 'Selamat Datang di LuxTradee!',
+    titleEn: 'Welcome to LuxTradee!',
     descId: 'Platform trading journal terlengkap untuk melacak, menganalisis, dan meningkatkan performa trading Anda. Mari kita kenali fitur-fitur utamanya.',
     descEn: 'The most complete trading journal platform to track, analyze, and improve your trading performance. Let\'s explore the key features.',
     gradient: 'from-blue-500/20 via-blue-600/10 to-cyan-500/10',

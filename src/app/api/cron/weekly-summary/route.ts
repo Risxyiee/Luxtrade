@@ -192,7 +192,7 @@ async function sendWeeklyEmail(
     unsubUrl,
   })
 
-  const subject = `📊 Weekly Report: ${stats.trade_count} trades ${stats.total_pnl >= 0 ? '+' : ''}${stats.total_pnl.toLocaleString('en-US', { maximumFractionDigits: 0 })} PnL — LuxTrade`
+  const subject = `📊 Weekly Report: ${stats.trade_count} trades ${stats.total_pnl >= 0 ? '+' : ''}${stats.total_pnl.toLocaleString('en-US', { maximumFractionDigits: 0 })} PnL — LuxTradee`
 
   const result = await sendEmail({ to: stats.email, subject, html })
   return result.success

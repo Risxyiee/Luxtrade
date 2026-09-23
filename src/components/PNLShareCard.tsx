@@ -289,12 +289,12 @@ const PNLShareCard = forwardRef<HTMLDivElement, PNLShareCardProps>(function PNLS
           >
             <img 
               src="/logo.png" 
-              alt="LuxTrade Logo" 
+              alt="LuxTradee Logo" 
               style={{ width: '40px', height: '40px', objectFit: 'contain' }}
             />
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <span style={{ fontSize: '20px', fontWeight: 'bold', color: 'white' }}>
-                LuxTrade
+                LuxTradee
               </span>
               <span style={{ fontSize: '10px', letterSpacing: '2px', color: FADED_WHITE, textTransform: 'uppercase' }}>
                 Trading Journal
@@ -474,7 +474,7 @@ const PNLShareCard = forwardRef<HTMLDivElement, PNLShareCardProps>(function PNLS
               }}
             >
               <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.25)', letterSpacing: '2px' }}>
-                measured by <span style={{ color: 'rgba(255,255,255,0.4)', fontWeight: '600' }}>LuxTrade</span>
+                measured by <span style={{ color: 'rgba(255,255,255,0.4)', fontWeight: '600' }}>LuxTradee</span>
               </p>
             </div>
           </div>

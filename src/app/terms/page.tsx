@@ -21,13 +21,13 @@ export default function TermsOfServicePage() {
           <Link href="/" className="inline-flex items-center gap-3">
             <Image 
               src="/logo-premium.png" 
-              alt="LuxTrade Logo" 
+              alt="LuxTradee Logo" 
               width={36} 
               height={36}
               className="object-contain"
             />
             <span className="text-lg font-bold bg-gradient-to-r from-cyan-200 to-cyan-400 bg-clip-text text-transparent">
-              LuxTrade
+              LuxTradee
             </span>
           </Link>
           <Link href="/">
@@ -52,7 +52,7 @@ export default function TermsOfServicePage() {
           {/* CRITICAL NOTICE */}
           <div className="bg-gradient-to-r from-red-500/10 via-blue-500/10 to-red-500/10 border border-red-500/25 rounded-2xl p-5 mb-8">
             <p className="text-white/80 leading-relaxed text-sm">
-              <strong className="text-red-300">Penting:</strong> LuxTrade adalah platform perangkat lunak (SaaS) untuk analisis data trading. 
+              <strong className="text-red-300">Penting:</strong> LuxTradee adalah platform perangkat lunak (SaaS) untuk analisis data trading. 
               Kami <strong>BUKAN broker, BUKAN pialang berjangka, dan BUKAN pengelola dana</strong>. 
               Selengkapnya baca halaman <Link href="/disclaimer" className="text-cyan-400 underline hover:text-cyan-300">Disclaimer</Link>.
             </p>
@@ -62,14 +62,14 @@ export default function TermsOfServicePage() {
             <section>
               <h2 className="text-2xl font-semibold text-white mb-4">1. Penerimaan Ketentuan</h2>
               <p className="text-white/70 leading-relaxed">
-                Dengan mengakses atau menggunakan LuxTrade, Anda menyetujui untuk terikat dengan Ketentuan Layanan ini. Jika Anda tidak menyetujui ketentuan ini, mohon untuk tidak menggunakan layanan kami.
+                Dengan mengakses atau menggunakan LuxTradee, Anda menyetujui untuk terikat dengan Ketentuan Layanan ini. Jika Anda tidak menyetujui ketentuan ini, mohon untuk tidak menggunakan layanan kami.
               </p>
             </section>
 
             <section>
               <h2 className="text-2xl font-semibold text-white mb-4">2. Deskripsi Layanan</h2>
               <p className="text-white/70 leading-relaxed">
-                LuxTrade adalah platform Software-as-a-Service (SaaS) berupa dashboard analisis data
+                LuxTradee adalah platform Software-as-a-Service (SaaS) berupa dashboard analisis data
                 untuk membantu trader ritel mencatat, memantau, dan mengevaluasi performa trading mereka.
                 Layanan ini BUKAN merupakan platform trading, broker, pialang, atau pengelola investasi.
                 Layanan mencakup:
@@ -128,7 +128,7 @@ export default function TermsOfServicePage() {
                 <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-5">
                   <h3 className="text-lg font-medium text-red-400 mb-2">Produk Digital — Non-Refundable</h3>
                   <p className="text-white/70 leading-relaxed">
-                    <strong className="text-red-300">Pembelian paket langganan LuxTrade bersifat FINAL dan TIDAK DAPAT dikembalikan (non-refundable).</strong>{' '}
+                    <strong className="text-red-300">Pembelian paket langganan LuxTradee bersifat FINAL dan TIDAK DAPAT dikembalikan (non-refundable).</strong>{' '}
                     Layanan kami adalah produk digital berupa akses perangkat lunak yang diaktifkan secara otomatis setelah pembayaran berhasil.
                     Karena sifat digital yang tidak dapat dikembalikan, kami tidak memberikan pengembalian dana (refund) setelah
                     fitur premium diakses dan digunakan.
@@ -144,7 +144,7 @@ export default function TermsOfServicePage() {
             <section>
               <h2 className="text-2xl font-semibold text-white mb-4">6. Kepemilikan Intelektual</h2>
               <p className="text-white/70 leading-relaxed">
-                Semua konten, fitur, dan fungsionalitas LuxTrade adalah milik LuxTrade dan dilindungi oleh hukum hak cipta internasional. Data trading yang Anda input tetap menjadi milik Anda.
+                Semua konten, fitur, dan fungsionalitas LuxTradee adalah milik LuxTradee dan dilindungi oleh hukum hak cipta internasional. Data trading yang Anda input tetap menjadi milik Anda.
               </p>
             </section>
 
@@ -152,7 +152,7 @@ export default function TermsOfServicePage() {
               <h2 className="text-2xl font-semibold text-white mb-4">7. Batasan Tanggung Jawab</h2>
               <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-5">
                 <p className="text-white/70 leading-relaxed">
-                  <strong className="text-red-400">Penting:</strong> LuxTrade adalah platform perangkat lunak (SaaS), BUKAN
+                  <strong className="text-red-400">Penting:</strong> LuxTradee adalah platform perangkat lunak (SaaS), BUKAN
                   platform trading, broker, pialang, atau saran investasi. Keputusan trading sepenuhnya
                   tanggung jawab pengguna. Kami tidak bertanggung jawab atas kerugian finansial yang
                   mungkin terjadi dari aktivitas trading pengguna. Selengkapnya baca halaman{' '}
@@ -195,7 +195,7 @@ export default function TermsOfServicePage() {
                 Jika Anda memiliki pertanyaan tentang Ketentuan Layanan ini, silakan hubungi kami di:
               </p>
               <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 mt-4 space-y-2">
-                <p className="text-white/70"><strong className="text-cyan-400">Nama Usaha:</strong> LuxTrade</p>
+                <p className="text-white/70"><strong className="text-cyan-400">Nama Usaha:</strong> LuxTradee</p>
                 <p className="text-white/70"><strong className="text-cyan-400">Email:</strong> luxtradee@gmail.com</p>
                 <p className="text-white/70"><strong className="text-cyan-400">Telepon:</strong> +62 857-1205-4394</p>
                 <p className="text-white/70"><strong className="text-cyan-400">Alamat Usaha:</strong> Jakarta, Indonesia</p>
@@ -209,7 +209,7 @@ export default function TermsOfServicePage() {
       {/* Footer */}
       <footer className="border-t border-white/5 py-8 mt-12">
         <div className="max-w-4xl mx-auto px-4 text-center text-white/40 text-sm">
-          <p>© {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} LuxTradee. All rights reserved.</p>
           <div className="flex justify-center gap-4 mt-4 flex-wrap">
             <Link href="/disclaimer" className="hover:text-white transition-colors">Disclaimer</Link>
             <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>

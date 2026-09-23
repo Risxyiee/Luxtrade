@@ -28,7 +28,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
     category: isEnglish ? 'Trading Tips' : 'Tips Trading',
     readTime: isEnglish ? '8 min read' : '8 bacaan',
     date: 'December 15, 2024',
-    author: isEnglish ? 'LuxTrade Team' : 'Tim LuxTrade',
+    author: isEnglish ? 'LuxTradee Team' : 'Tim LuxTradee',
     gradient: 'from-blue-500 to-cyan-600'
   }
 
@@ -78,7 +78,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
         ]
       },
       {
-        title: 'How LuxTrade Makes Journaling Easy',
+        title: 'How LuxTradee Makes Journaling Easy',
         icon: Lightbulb,
         points: [
           'AI-powered mistake detection and solutions',
@@ -89,7 +89,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
         ]
       }
     ],
-    conclusion: 'The journey to consistent profitability starts with awareness, and awareness starts with journaling. Whether you\'re using a notebook, spreadsheet, or a modern platform like LuxTrade, the key is consistency. Start today—your future profitable self will thank you.',
+    conclusion: 'The journey to consistent profitability starts with awareness, and awareness starts with journaling. Whether you\'re using a notebook, spreadsheet, or a modern platform like LuxTradee, the key is consistency. Start today—your future profitable self will thank you.',
     cta: 'Ready to transform your trading with professional journaling?'
   } : {
     intro: 'Setiap trader sukses akan memberitahu Anda rahasia yang sama: journaling bukan opsional—ini esensial. Jurnal trading adalah peta jalan menuju profitabilitas konsisten, partner akuntabilitas Anda, dan alat pembelajaran paling kuat Anda.',
@@ -137,7 +137,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
         ]
       },
       {
-        title: 'Cara LuxTrade Memudahkan Journaling',
+        title: 'Cara LuxTradee Memudahkan Journaling',
         icon: Lightbulb,
         points: [
           'Deteksi kesalahan dan solusi bertenaga AI',
@@ -148,7 +148,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
         ]
       }
     ],
-    conclusion: 'Perjalanan menuju profitabilitas konsisten dimulai dengan kesadaran, dan kesadaran dimulai dengan journaling. Apakah Anda menggunakan buku catatan, spreadsheet, atau platform modern seperti LuxTrade, kuncinya adalah konsistensi. Mulai hari ini—diri Anda yang profitable di masa depan akan berterima kasih.',
+    conclusion: 'Perjalanan menuju profitabilitas konsisten dimulai dengan kesadaran, dan kesadaran dimulai dengan journaling. Apakah Anda menggunakan buku catatan, spreadsheet, atau platform modern seperti LuxTradee, kuncinya adalah konsistensi. Mulai hari ini—diri Anda yang profitable di masa depan akan berterima kasih.',
     cta: 'Siap untuk mengubah trading Anda dengan journaling profesional?'
   }
 
@@ -187,14 +187,14 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
             <div className="flex items-center gap-3">
               <Image
                 src="/logo.png"
-                alt="LuxTrade Logo"
+                alt="LuxTradee Logo"
                 width={40}
                 height={40}
                 className="object-contain"
               />
               <div>
                 <Link href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
-                  LuxTrade
+                  LuxTradee
                 </Link>
               </div>
             </div>
@@ -351,8 +351,8 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
                 </h3>
                 <p className="text-white/60 mb-8 max-w-2xl mx-auto">
                   {isEnglish
-                    ? 'Start your free trial today and join 50+ traders who are already using LuxTrade to improve their trading results.'
-                    : 'Mulai trial gratis Anda hari ini dan bergabung dengan 50+ trader yang sudah menggunakan LuxTrade untuk meningkatkan hasil trading mereka.'}
+                    ? 'Start your free trial today and join 50+ traders who are already using LuxTradee to improve their trading results.'
+                    : 'Mulai trial gratis Anda hari ini dan bergabung dengan 50+ trader yang sudah menggunakan LuxTradee untuk meningkatkan hasil trading mereka.'}
                 </p>
                 <Link href="/auth/signup">
                   <Button className="h-14 px-8 text-lg bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700 text-white font-extrabold shadow-lg shadow-emerald-500/30 hover:shadow-[0_0_40px_rgba(16,185,129,0.5)] transition-all duration-300">
@@ -401,7 +401,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
         <div className="max-w-7xl mx-auto">
           <div className="text-center">
             <p className="text-white/40 text-sm font-medium">
-              © 2024 LuxTrade. All rights reserved.
+              © 2024 LuxTradee. All rights reserved.
             </p>
           </div>
         </div>

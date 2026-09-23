@@ -57,7 +57,7 @@ const AUTO_UPDATE_TARGET_OPTIONS = [
   { value: 'all', label: 'Semua User' },
 ]
 
-const AUTO_UPDATE_DEFAULT_SUBJECT = '✨ Pembaruan LuxTrade — Fitur Baru & Perbaikan Bug'
+const AUTO_UPDATE_DEFAULT_SUBJECT = '✨ Pembaruan LuxTradee — Fitur Baru & Perbaikan Bug'
 
 const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
   {
@@ -78,10 +78,10 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
     value: 'promo-pro',
     label: 'Promo PRO',
     icon: Crown,
-    subject: '🔥 Promo Spesial: Upgrade ke PRO LuxTrade Sekarang!',
+    subject: '🔥 Promo Spesial: Upgrade ke PRO LuxTradee Sekarang!',
     body: `<h2 style="color: #1a1a2e; font-size: 20px; margin: 0 0 8px 0; font-weight: 700;">Upgrade ke PRO & Raih Keuntungan Lebih Banyak!</h2>
 <p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Halo {{name}},</p>
-<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Kami punya <strong style="color: #1a1a2e;">penawaran spesial</strong> buat kamu! Upgrade ke akun PRO LuxTrade sekarang dan nikmatin semua fitur premium:</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Kami punya <strong style="color: #1a1a2e;">penawaran spesial</strong> buat kamu! Upgrade ke akun PRO LuxTradee sekarang dan nikmatin semua fitur premium:</p>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
   <tr>
     <td style="background-color: #f0f4ff; border-radius: 12px; padding: 20px;">
@@ -110,7 +110,7 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
     </td>
   </tr>
 </table>
-<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 24px 0;">Jangan lewatkan kesempatan ini! Promo terbatas hanya untuk pengguna setia LuxTrade.</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 24px 0;">Jangan lewatkan kesempatan ini! Promo terbatas hanya untuk pengguna setia LuxTradee.</p>
 <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
   <tr>
     <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px;">
@@ -123,10 +123,10 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
     value: 'maintenance',
     label: 'Maintenance Notice',
     icon: Settings,
-    subject: '🔧 Pemberitahuan Maintenance LuxTrade',
+    subject: '🔧 Pemberitahuan Maintenance LuxTradee',
     body: `<h2 style="color: #1a1a2e; font-size: 20px; margin: 0 0 8px 0; font-weight: 700;">Pemeliharaan Sistem Terjadwal</h2>
 <p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Halo {{name}},</p>
-<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Kami akan melakukan <strong style="color: #1a1a2e;">pemeliharaan sistem</strong> pada LuxTrade untuk meningkatkan performa dan keamanan layanan kami.</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Kami akan melakukan <strong style="color: #1a1a2e;">pemeliharaan sistem</strong> pada LuxTradee untuk meningkatkan performa dan keamanan layanan kami.</p>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
   <tr>
     <td style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0 12px 12px 0; padding: 18px 20px;">
@@ -150,10 +150,10 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
     value: 'new-feature',
     label: 'New Feature',
     icon: Megaphone,
-    subject: '🚀 Fitur Baru di LuxTrade!',
+    subject: '🚀 Fitur Baru di LuxTradee!',
     body: `<h2 style="color: #1a1a2e; font-size: 20px; margin: 0 0 8px 0; font-weight: 700;">Fitur Baru Telah Hadir!</h2>
 <p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Halo {{name}},</p>
-<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Kami dengan senang hati memperkenalkan <strong style="color: #1a1a2e;">fitur terbaru</strong> di LuxTrade!</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Kami dengan senang hati memperkenalkan <strong style="color: #1a1a2e;">fitur terbaru</strong> di LuxTradee!</p>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
   <tr>
     <td style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 22px 22px;">
@@ -162,7 +162,7 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
     </td>
   </tr>
 </table>
-<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 24px 0;">Coba fitur baru ini sekarang dan rasakan pengalaman trading yang lebih baik bersama LuxTrade!</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 24px 0;">Coba fitur baru ini sekarang dan rasakan pengalaman trading yang lebih baik bersama LuxTradee!</p>
 <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
   <tr>
     <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px;">
@@ -175,10 +175,10 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
     value: 'update-fix',
     label: 'Update & Perbaikan',
     icon: Sparkles,
-    subject: '✨ Pembaruan LuxTrade — Fitur Baru & Perbaikan Bug',
+    subject: '✨ Pembaruan LuxTradee — Fitur Baru & Perbaikan Bug',
     body: `<h2 style="color: #1a1a2e; font-size: 20px; margin: 0 0 8px 0; font-weight: 700;">Kami Terus Berkembang untuk Kamu! 🚀</h2>
 <p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Halo {{name}},</p>
-<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Tim LuxTrade terus bekerja keras buat bikin pengalaman trading kamu makin baik. Kali ini kami sudah merilis beberapa <strong style="color: #1a1a2e;">pembaruan fitur dan perbaikan bug</strong> yang penting:</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Tim LuxTradee terus bekerja keras buat bikin pengalaman trading kamu makin baik. Kali ini kami sudah merilis beberapa <strong style="color: #1a1a2e;">pembaruan fitur dan perbaikan bug</strong> yang penting:</p>
 
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
   <tr>
@@ -249,16 +249,16 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
   </tr>
 </table>
 
-<p style="color: #8b8da0; font-size: 13px; line-height: 1.6; margin: 24px 0 0 0; text-align: center;">Terima kasih sudah setia pakai LuxTrade. Happy trading! 📈</p>`,
+<p style="color: #8b8da0; font-size: 13px; line-height: 1.6; margin: 24px 0 0 0; text-align: center;">Terima kasih sudah setia pakai LuxTradee. Happy trading! 📈</p>`,
   },
   {
     value: 'announcement',
     label: 'Pengumuman',
     icon: Bell,
-    subject: '📢 Pengumuman Penting dari LuxTrade',
+    subject: '📢 Pengumuman Penting dari LuxTradee',
     body: `<h2 style="color: #1a1a2e; font-size: 20px; margin: 0 0 8px 0; font-weight: 700;">📢 Pengumuman Penting</h2>
 <p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Halo {{name}},</p>
-<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Kami ingin menyampaikan <strong style="color: #1a1a2e;">informasi penting</strong> mengenai LuxTrade:</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Kami ingin menyampaikan <strong style="color: #1a1a2e;">informasi penting</strong> mengenai LuxTradee:</p>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
   <tr>
     <td style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0 12px 12px 0; padding: 20px 22px;">
@@ -268,7 +268,7 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
     </td>
   </tr>
 </table>
-<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 24px 0;">Pertanyaan lebih lanjut? Hubungi kami melalui fitur <strong style="color: #1a1a2e;">Contact</strong> di website LuxTrade.</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 24px 0;">Pertanyaan lebih lanjut? Hubungi kami melalui fitur <strong style="color: #1a1a2e;">Contact</strong> di website LuxTradee.</p>
 <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
   <tr>
     <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px;">
@@ -284,7 +284,7 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
     subject: '💡 Tips Trading: [Judul Tips]',
     body: `<h2 style="color: #1a1a2e; font-size: 20px; margin: 0 0 8px 0; font-weight: 700;">💡 Tips Trading Minggu Ini</h2>
 <p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Halo {{name}},</p>
-<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Kali ini tim LuxTrade mau berbagi <strong style="color: #1a1a2e;">tips trading</strong> yang bisa langsung kamu praktekkan:</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Kali ini tim LuxTradee mau berbagi <strong style="color: #1a1a2e;">tips trading</strong> yang bisa langsung kamu praktekkan:</p>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 16px 0;">
   <tr>
     <td style="background-color: #f0f4ff; border-radius: 12px; padding: 22px 22px;">
@@ -331,14 +331,14 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
     value: 'reminder',
     label: 'Reminder Aktif',
     icon: Zap,
-    subject: '⏰ Jangan Lupa! Akun LuxTrade Kamu Menunggu',
+    subject: '⏰ Jangan Lupa! Akun LuxTradee Kamu Menunggu',
     body: `<h2 style="color: #1a1a2e; font-size: 20px; margin: 0 0 8px 0; font-weight: 700;">Kami Rindu Kamu, {{name}}! 👋</h2>
-<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Sudah lama tidak melihat kamu di LuxTrade.</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Sudah lama tidak melihat kamu di LuxTradee.</p>
 <p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Semakin sering kamu mencatat trade di <strong style="color: #1a1a2e;">journal</strong>, semakin banyak <strong style="color: #1a1a2e;">insight berharga</strong> yang kamu dapat untuk meningkatkan performa tradingmu.</p>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
   <tr>
     <td style="background-color: #f0f4ff; border-radius: 12px; padding: 20px 22px;">
-      <p style="color: #1e40af; font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">📊 Kenapa Harus Aktif di LuxTrade?</p>
+      <p style="color: #1e40af; font-size: 14px; font-weight: 700; margin: 0 0 12px 0;">📊 Kenapa Harus Aktif di LuxTradee?</p>
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
         <tr>
           <td style="padding: 4px 0; color: #555770; font-size: 14px; line-height: 1.8;"><span style="color: #3b82f6; margin-right: 8px;">✦</span> Catat & analisa setiap trade dengan detail</td>
@@ -378,18 +378,18 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
     value: 'milestone',
     label: 'Milestone',
     icon: Trophy,
-    subject: '🎉 Terima Kasih! LuxTrade Telah Menjangkau [Angka] Trader',
+    subject: '🎉 Terima Kasih! LuxTradee Telah Menjangkau [Angka] Trader',
     body: `<h2 style="color: #1a1a2e; font-size: 20px; margin: 0 0 8px 0; font-weight: 700;">🎉 Terima Kasih, {{name}}!</h2>
-<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">LuxTrade telah mencapai <strong style="color: #1a1a2e;">milestone baru</strong>!</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">LuxTradee telah mencapai <strong style="color: #1a1a2e;">milestone baru</strong>!</p>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
   <tr>
     <td style="background-color: #f0f4ff; border-radius: 12px; padding: 24px 22px; text-align: center;">
       <p style="color: #1e40af; font-size: 36px; font-weight: 800; margin: 0 0 4px 0;">[Angka]+</p>
-      <p style="color: #555770; font-size: 14px; margin: 0;">Trader yang sudah bergabung di LuxTrade</p>
+      <p style="color: #555770; font-size: 14px; margin: 0;">Trader yang sudah bergabung di LuxTradee</p>
     </td>
   </tr>
 </table>
-<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Semua ini tidak akan terjadi tanpa <strong style="color: #1a1a2e;">dukungan kamu</strong> dan seluruh komunitas trader LuxTrade. Terima kasih sudah mempercayakan journal trading kamu bersama kami.</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Semua ini tidak akan terjadi tanpa <strong style="color: #1a1a2e;">dukungan kamu</strong> dan seluruh komunitas trader LuxTradee. Terima kasih sudah mempercayakan journal trading kamu bersama kami.</p>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 20px 0;">
   <tr>
     <td style="background-color: #ecfdf5; border-radius: 12px; padding: 20px 22px;">
@@ -408,7 +408,7 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
     </td>
   </tr>
 </table>
-<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 24px 0;">Tetap semangat trading, catat setiap transaksi, dan terus belajar bersama LuxTrade!</p>
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 24px 0;">Tetap semangat trading, catat setiap transaksi, dan terus belajar bersama LuxTradee!</p>
 <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
   <tr>
     <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px;">
@@ -417,7 +417,7 @@ const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
   </tr>
 </table>
 
-<p style="color: #8b8da0; font-size: 13px; line-height: 1.6; margin: 24px 0 0 0; text-align: center;">Dari tim LuxTrade, dengan ❤️ untuk setiap trader Indonesia.</p>`,
+<p style="color: #8b8da0; font-size: 13px; line-height: 1.6; margin: 24px 0 0 0; text-align: center;">Dari tim LuxTradee, dengan ❤️ untuk setiap trader Indonesia.</p>`,
   },
 ]
 
@@ -1328,7 +1328,7 @@ export default function AdminEmailPage() {
                       <Textarea
                         value={htmlBody}
                         onChange={e => setHtmlBody(e.target.value)}
-                        placeholder={`<h1>Halo {{name}}!</h1>\n<p>Ini adalah email broadcast dari LuxTrade...</p>\n<a href="https://luxtradee.web.id">Kunjungi LuxTrade</a>`}
+                        placeholder={`<h1>Halo {{name}}!</h1>\n<p>Ini adalah email broadcast dari LuxTradee...</p>\n<a href="https://luxtradee.web.id">Kunjungi LuxTradee</a>`}
                         rows={12}
                         className="bg-white/[0.03] border border-white/[0.06] text-[#f0f2ff] placeholder:text-[#8892b0]/50 focus:border-blue-500/40 focus:ring-blue-500/20 font-mono text-sm rounded-xl"
                       />
@@ -1366,7 +1366,7 @@ export default function AdminEmailPage() {
                                     <span className="text-lg">👑</span>
                                   </div>
                                   <div>
-                                    <p className="text-sm font-bold text-gray-900">LuxTrade</p>
+                                    <p className="text-sm font-bold text-gray-900">LuxTradee</p>
                                     <p className="text-[11px] text-gray-400">noreply@luxtradee.web.id</p>
                                   </div>
                                 </div>
@@ -1382,7 +1382,7 @@ export default function AdminEmailPage() {
                               />
                               {/* Email footer */}
                               <div className="px-10 py-4 border-t border-gray-100 text-center">
-                                <p className="text-[11px] text-gray-400">© {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
+                                <p className="text-[11px] text-gray-400">© {new Date().getFullYear()} LuxTradee. All rights reserved.</p>
                                 <p className="text-[10px] text-gray-300 mt-1">Email ini dikirim dari noreply@luxtradee.web.id</p>
                               </div>
                             </div>
@@ -1614,7 +1614,7 @@ export default function AdminEmailPage() {
                 </div>
                 <div className="flex items-start gap-2 text-xs text-[#8892b0]">
                   <span className="text-blue-400 mt-0.5">•</span>
-                  <span>From: LuxTrade &lt;noreply@luxtradee.web.id&gt;</span>
+                  <span>From: LuxTradee &lt;noreply@luxtradee.web.id&gt;</span>
                 </div>
               </CardContent>
             </Card>

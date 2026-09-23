@@ -14,15 +14,15 @@ interface FAQItem {
 
 const faqSections: { title: string; items: FAQItem[] }[] = [
   {
-    title: 'Tentang LuxTrade',
+    title: 'Tentang LuxTradee',
     items: [
       {
-        question: 'Apa itu LuxTrade?',
-        answer: 'LuxTrade adalah platform SaaS (Software-as-a-Service) berupa trading journal dan dashboard analisis untuk membantu trader mencatat, memantau, dan mengevaluasi performa trading mereka. Kami BUKAN broker, pialang, atau pengelola dana.',
+        question: 'Apa itu LuxTradee?',
+        answer: 'LuxTradee adalah platform SaaS (Software-as-a-Service) berupa trading journal dan dashboard analisis untuk membantu trader mencatat, memantau, dan mengevaluasi performa trading mereka. Kami BUKAN broker, pialang, atau pengelola dana.',
       },
       {
-        question: 'Apakah LuxTrade adalah broker atau platform trading?',
-        answer: 'TIDAK. LuxTrade hanya menyediakan perangkat lunak untuk mencatat dan menganalisis data trading. Kami tidak mengeksekusi transaksi atau menyimpan dana pengguna.',
+        question: 'Apakah LuxTradee adalah broker atau platform trading?',
+        answer: 'TIDAK. LuxTradee hanya menyediakan perangkat lunak untuk mencatat dan menganalisis data trading. Kami tidak mengeksekusi transaksi atau menyimpan dana pengguna.',
       },
     ],
   },
@@ -31,7 +31,7 @@ const faqSections: { title: string; items: FAQItem[] }[] = [
     items: [
       {
         question: 'Apakah ada versi gratis?',
-        answer: 'Ya, LuxTrade menyediakan paket gratis dengan fitur dasar termasuk 10 jurnal transaksi per bulan, grafik performa standar, dan kalkulator risiko pemula.',
+        answer: 'Ya, LuxTradee menyediakan paket gratis dengan fitur dasar termasuk 10 jurnal transaksi per bulan, grafik performa standar, dan kalkulator risiko pemula.',
       },
       {
         question: 'Apa saja keuntungan paket Elite Pro?',
@@ -58,7 +58,7 @@ const faqSections: { title: string; items: FAQItem[] }[] = [
         question: 'Apakah bisa refund?',
         answer: (
           <>
-            Karena LuxTrade adalah produk digital (SaaS), pembelian bersifat non-refundable. Namun kami menyediakan free trial 7 hari untuk evaluasi. Pengecualian hanya untuk pembayaran ganda atau error teknis. Lihat halaman{' '}
+            Karena LuxTradee adalah produk digital (SaaS), pembelian bersifat non-refundable. Namun kami menyediakan free trial 7 hari untuk evaluasi. Pengecualian hanya untuk pembayaran ganda atau error teknis. Lihat halaman{' '}
             <Link href="/refund" className="text-cyan-400 underline hover:text-cyan-300 transition-colors">Refund Policy</Link> untuk detail lengkap.
           </>
         ),
@@ -73,8 +73,8 @@ const faqSections: { title: string; items: FAQItem[] }[] = [
         answer: 'Ya, kami menggunakan enkripsi dan keamanan standar industri. Data trading Anda tetap menjadi milik Anda dan tidak dijual ke pihak ketiga.',
       },
       {
-        question: 'Apakah LuxTrade terdaftar di OJK?',
-        answer: 'Tidak. LuxTrade adalah platform perangkat lunak (SaaS) dan tidak memerlukan registrasi OJK karena kami tidak menyediakan layanan keuangan, broker, atau pengelolaan dana.',
+        question: 'Apakah LuxTradee terdaftar di OJK?',
+        answer: 'Tidak. LuxTradee adalah platform perangkat lunak (SaaS) dan tidak memerlukan registrasi OJK karena kami tidak menyediakan layanan keuangan, broker, atau pengelolaan dana.',
       },
     ],
   },
@@ -82,8 +82,8 @@ const faqSections: { title: string; items: FAQItem[] }[] = [
     title: 'Teknis',
     items: [
       {
-        question: 'Di platform apa LuxTrade bisa diakses?',
-        answer: 'LuxTrade adalah web-based platform yang dapat diakses dari browser manapun (desktop dan mobile) tanpa perlu instalasi aplikasi.',
+        question: 'Di platform apa LuxTradee bisa diakses?',
+        answer: 'LuxTradee adalah web-based platform yang dapat diakses dari browser manapun (desktop dan mobile) tanpa perlu instalasi aplikasi.',
       },
       {
         question: 'Bagaimana cara menghapus akun?',
@@ -152,13 +152,13 @@ export default function FAQPage() {
           <Link href="/" className="inline-flex items-center gap-3">
             <Image
               src="/logo-premium.png"
-              alt="LuxTrade Logo"
+              alt="LuxTradee Logo"
               width={36}
               height={36}
               className="object-contain"
             />
             <span className="text-lg font-bold bg-gradient-to-r from-cyan-200 to-cyan-400 bg-clip-text text-transparent">
-              LuxTrade
+              LuxTradee
             </span>
           </Link>
           <Link href="/">
@@ -179,7 +179,7 @@ export default function FAQPage() {
         >
           <h1 className="text-4xl font-bold mb-2">FAQ</h1>
           <p className="text-white/40 mb-10">
-            Pertanyaan yang sering diajukan tentang LuxTrade
+            Pertanyaan yang sering diajukan tentang LuxTradee
           </p>
 
           <div className="space-y-10">
@@ -202,7 +202,7 @@ export default function FAQPage() {
       {/* Footer */}
       <footer className="border-t border-white/5 py-8 mt-12">
         <div className="max-w-4xl mx-auto px-4 text-center text-white/40 text-sm">
-          <p>© {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} LuxTradee. All rights reserved.</p>
           <div className="flex flex-wrap justify-center gap-4 md:gap-6 mt-4">
             <Link href="/disclaimer" className="hover:text-white transition-colors">Disclaimer</Link>
             <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>

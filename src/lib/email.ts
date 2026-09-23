@@ -19,7 +19,7 @@ export async function sendEmail({ to, subject, html, replyTo }: EmailOptions) {
 
   try {
     const payload: Record<string, unknown> = {
-      from: 'LuxTrade <noreply@luxtradee.web.id>',
+      from: 'LuxTradee <noreply@luxtradee.web.id>',
       to,
       subject,
       html,
@@ -122,7 +122,7 @@ export async function sendEmailFromTemplate({
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'LuxTrade <noreply@luxtradee.web.id>',
+        from: 'LuxTradee <noreply@luxtradee.web.id>',
         to,
         subject,
         template_id: templateId,
@@ -168,7 +168,7 @@ export const SUPABASE_CONFIRM_SIGNUP = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konfirmasi Email - LuxTrade</title>
+  <title>Konfirmasi Email - LuxTradee</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
@@ -184,7 +184,7 @@ export const SUPABASE_CONFIRM_SIGNUP = `<!DOCTYPE html>
                   </td>
                 </tr>
               </table>
-              <h1 style="color: #1a1a2e; font-size: 28px; margin: 20px 0 10px 0; font-weight: 700;">LuxTrade</h1>
+              <h1 style="color: #1a1a2e; font-size: 28px; margin: 20px 0 10px 0; font-weight: 700;">LuxTradee</h1>
               <p style="color: #8b8da0; font-size: 14px; margin: 0;">Premium Trading Journal</p>
             </td>
           </tr>
@@ -194,7 +194,7 @@ export const SUPABASE_CONFIRM_SIGNUP = `<!DOCTYPE html>
                 Halo{{if .Data.DisplayName}} {{.Data.DisplayName}}{{end}}! 👋
               </h2>
               <p style="color: #555770; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-                Terima kasih telah mendaftar di LuxTrade. Untuk memulai perjalanan trading Anda, silakan konfirmasi alamat email Anda:
+                Terima kasih telah mendaftar di LuxTradee. Untuk memulai perjalanan trading Anda, silakan konfirmasi alamat email Anda:
               </p>
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 30px 0;">
                 <tr>
@@ -224,10 +224,10 @@ export const SUPABASE_CONFIRM_SIGNUP = `<!DOCTYPE html>
           <tr>
             <td style="padding: 30px 40px; text-align: center;">
               <p style="color: #8b8da0; font-size: 13px; margin: 0 0 10px 0;">
-                Jika Anda tidak merasa mendaftar di LuxTrade, mohon abaikan email ini.
+                Jika Anda tidak merasa mendaftar di LuxTradee, mohon abaikan email ini.
               </p>
               <p style="color: #8b8da0; font-size: 12px; margin: 0;">
-                &copy; 2025 LuxTrade. All rights reserved.
+                &copy; 2025 LuxTradee. All rights reserved.
               </p>
             </td>
           </tr>
@@ -247,7 +247,7 @@ export const SUPABASE_RESET_PASSWORD = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reset Password - LuxTrade</title>
+  <title>Reset Password - LuxTradee</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
@@ -263,7 +263,7 @@ export const SUPABASE_RESET_PASSWORD = `<!DOCTYPE html>
                   </td>
                 </tr>
               </table>
-              <h1 style="color: #1a1a2e; font-size: 28px; margin: 20px 0 10px 0; font-weight: 700;">LuxTrade</h1>
+              <h1 style="color: #1a1a2e; font-size: 28px; margin: 20px 0 10px 0; font-weight: 700;">LuxTradee</h1>
               <p style="color: #8b8da0; font-size: 14px; margin: 0;">Premium Trading Journal</p>
             </td>
           </tr>
@@ -280,7 +280,7 @@ export const SUPABASE_RESET_PASSWORD = `<!DOCTYPE html>
                 Reset Password
               </h2>
               <p style="color: #555770; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0; text-align: center;">
-                Kami menerima permintaan untuk mengubah password akun LuxTrade Anda. Klik tombol di bawah untuk membuat password baru:
+                Kami menerima permintaan untuk mengubah password akun LuxTradee Anda. Klik tombol di bawah untuk membuat password baru:
               </p>
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 30px auto;">
                 <tr>
@@ -319,7 +319,7 @@ export const SUPABASE_RESET_PASSWORD = `<!DOCTYPE html>
                 Jika Anda tidak meminta reset password, abaikan email ini.
               </p>
               <p style="color: #8b8da0; font-size: 12px; margin: 0;">
-                &copy; 2025 LuxTrade. All rights reserved.
+                &copy; 2025 LuxTradee. All rights reserved.
               </p>
             </td>
           </tr>
@@ -339,7 +339,7 @@ export const SUPABASE_CHANGE_EMAIL = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konfirmasi Ubah Email - LuxTrade</title>
+  <title>Konfirmasi Ubah Email - LuxTradee</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
@@ -355,7 +355,7 @@ export const SUPABASE_CHANGE_EMAIL = `<!DOCTYPE html>
                   </td>
                 </tr>
               </table>
-              <h1 style="color: #1a1a2e; font-size: 28px; margin: 20px 0 10px 0; font-weight: 700;">LuxTrade</h1>
+              <h1 style="color: #1a1a2e; font-size: 28px; margin: 20px 0 10px 0; font-weight: 700;">LuxTradee</h1>
               <p style="color: #8b8da0; font-size: 14px; margin: 0;">Premium Trading Journal</p>
             </td>
           </tr>
@@ -404,7 +404,7 @@ export const SUPABASE_CHANGE_EMAIL = `<!DOCTYPE html>
                 Jika Anda tidak merasa meminta perubahan ini, mohon abaikan email ini.
               </p>
               <p style="color: #8b8da0; font-size: 12px; margin: 0;">
-                &copy; 2025 LuxTrade. All rights reserved.
+                &copy; 2025 LuxTradee. All rights reserved.
               </p>
             </td>
           </tr>
@@ -417,7 +417,7 @@ export const SUPABASE_CHANGE_EMAIL = `<!DOCTYPE html>
 
 // ============================================
 // PROGRAMMATIC TEMPLATES (untuk sendEmail via Resend langsung)
-// Clean Professional Light Design - LuxTrade Brand
+// Clean Professional Light Design - LuxTradee Brand
 // ============================================
 
 export function getConfirmationEmailHtml(name: string, confirmationUrl: string) {
@@ -427,7 +427,7 @@ export function getConfirmationEmailHtml(name: string, confirmationUrl: string) 
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Verifikasi Akun LuxTrade</title>
+      <title>Verifikasi Akun LuxTradee</title>
     </head>
     <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
@@ -448,7 +448,7 @@ export function getConfirmationEmailHtml(name: string, confirmationUrl: string) 
                       </td>
                     </tr>
                   </table>
-                  <h1 style="color: #1a1a2e; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTrade</h1>
+                  <h1 style="color: #1a1a2e; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTradee</h1>
                   <p style="color: #8b8da0; font-size: 12px; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Premium Trading Journal</p>
                 </td>
               </tr>
@@ -467,7 +467,7 @@ export function getConfirmationEmailHtml(name: string, confirmationUrl: string) 
                     Selamat Datang, ${name}! ✨
                   </h2>
                   <p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 24px 0;">
-                    Akun LuxTrade kamu udah jadi! Tinggal satu langkah lagi — klik tombol di bawah buat verifikasi email dan langsung mulai trading.
+                    Akun LuxTradee kamu udah jadi! Tinggal satu langkah lagi — klik tombol di bawah buat verifikasi email dan langsung mulai trading.
                   </p>
                   
                   <!-- CTA Button -->
@@ -525,7 +525,7 @@ export function getConfirmationEmailHtml(name: string, confirmationUrl: string) 
 
                   <!-- Expiry Notice -->
                   <p style="color: #8b8da0; font-size: 12px; line-height: 1.6; margin: 0; text-align: center;">
-                    ⏰ Link ini berlaku <strong style="color: #555770;">24 jam</strong>. Kalau nggak merasa daftar di LuxTrade, abaikan email ini.
+                    ⏰ Link ini berlaku <strong style="color: #555770;">24 jam</strong>. Kalau nggak merasa daftar di LuxTradee, abaikan email ini.
                   </p>
                 </td>
               </tr>
@@ -541,7 +541,7 @@ export function getConfirmationEmailHtml(name: string, confirmationUrl: string) 
               <tr>
                 <td style="padding: 24px 40px 32px 40px; text-align: center;">
                   <p style="color: #8b8da0; font-size: 11px; margin: 0 0 4px 0;">
-                    © ${new Date().getFullYear()} LuxTrade. All rights reserved.
+                    © ${new Date().getFullYear()} LuxTradee. All rights reserved.
                   </p>
                   <p style="color: #8b8da0; font-size: 10px; margin: 0;">
                     Email ini dikirim dari noreply@luxtradee.web.id
@@ -566,7 +566,7 @@ export function getReminderVerificationEmailHtml(name: string, confirmationUrl: 
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Reminder Verifikasi - LuxTrade</title>
+      <title>Reminder Verifikasi - LuxTradee</title>
     </head>
     <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
@@ -587,7 +587,7 @@ export function getReminderVerificationEmailHtml(name: string, confirmationUrl: 
                       </td>
                     </tr>
                   </table>
-                  <h1 style="color: #1a1a2e; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTrade</h1>
+                  <h1 style="color: #1a1a2e; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTradee</h1>
                   <p style="color: #8b8da0; font-size: 12px; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Premium Trading Journal</p>
                 </td>
               </tr>
@@ -616,7 +616,7 @@ export function getReminderVerificationEmailHtml(name: string, confirmationUrl: 
                     Eits, ${name}! 🙈
                   </h2>
                   <p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 6px 0; text-align: center;">
-                    Kayaknya kamu lupa verifikasi email nih. Akun LuxTrade kamu masih nunggu buat diaktifin!
+                    Kayaknya kamu lupa verifikasi email nih. Akun LuxTradee kamu masih nunggu buat diaktifin!
                   </p>
                   <p style="color: #555770; font-size: 14px; line-height: 1.7; margin: 0 0 24px 0; text-align: center;">
                     Tanpa verifikasi, kamu belum bisa login dan mulai catat trading. Yuk langsung aja klik tombol di bawah:
@@ -692,7 +692,7 @@ export function getReminderVerificationEmailHtml(name: string, confirmationUrl: 
                   </table>
 
                   <p style="color: #8b8da0; font-size: 12px; line-height: 1.6; margin: 0; text-align: center;">
-                    Kalau kamu nggak merasa daftar di LuxTrade, abaikan email ini ya!
+                    Kalau kamu nggak merasa daftar di LuxTradee, abaikan email ini ya!
                   </p>
                 </td>
               </tr>
@@ -708,7 +708,7 @@ export function getReminderVerificationEmailHtml(name: string, confirmationUrl: 
               <tr>
                 <td style="padding: 24px 40px 32px 40px; text-align: center;">
                   <p style="color: #8b8da0; font-size: 11px; margin: 0 0 4px 0;">
-                    © ${new Date().getFullYear()} LuxTrade. All rights reserved.
+                    © ${new Date().getFullYear()} LuxTradee. All rights reserved.
                   </p>
                   <p style="color: #8b8da0; font-size: 10px; margin: 0;">
                     Email ini dikirim dari noreply@luxtradee.web.id
@@ -733,7 +733,7 @@ export function getResetPasswordEmailHtml(name: string, resetUrl: string) {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Reset Password - LuxTrade</title>
+      <title>Reset Password - LuxTradee</title>
     </head>
     <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
@@ -750,7 +750,7 @@ export function getResetPasswordEmailHtml(name: string, resetUrl: string) {
                       </td>
                     </tr>
                   </table>
-                  <h1 style="color: #1a1a2e; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTrade</h1>
+                  <h1 style="color: #1a1a2e; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTradee</h1>
                   <p style="color: #8b8da0; font-size: 12px; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Premium Trading Journal</p>
                 </td>
               </tr>
@@ -822,7 +822,7 @@ export function getResetPasswordEmailHtml(name: string, resetUrl: string) {
               <tr>
                 <td style="padding: 24px 40px 32px 40px; text-align: center;">
                   <p style="color: #8b8da0; font-size: 11px; margin: 0 0 4px 0;">
-                    © ${new Date().getFullYear()} LuxTrade. All rights reserved.
+                    © ${new Date().getFullYear()} LuxTradee. All rights reserved.
                   </p>
                   <p style="color: #8b8da0; font-size: 10px; margin: 0;">
                     Email ini dikirim dari noreply@luxtradee.web.id
@@ -846,7 +846,7 @@ export function getEmailChangeHtml(name: string, confirmationUrl: string, newEma
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Konfirmasi Ubah Email - LuxTrade</title>
+      <title>Konfirmasi Ubah Email - LuxTradee</title>
     </head>
     <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
@@ -867,7 +867,7 @@ export function getEmailChangeHtml(name: string, confirmationUrl: string, newEma
                       </td>
                     </tr>
                   </table>
-                  <h1 style="color: #1a1a2e; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTrade</h1>
+                  <h1 style="color: #1a1a2e; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTradee</h1>
                   <p style="color: #8b8da0; font-size: 12px; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Premium Trading Journal</p>
                 </td>
               </tr>
@@ -962,7 +962,7 @@ export function getEmailChangeHtml(name: string, confirmationUrl: string, newEma
               <tr>
                 <td style="padding: 24px 40px 32px 40px; text-align: center;">
                   <p style="color: #8b8da0; font-size: 11px; margin: 0 0 4px 0;">
-                    © ${new Date().getFullYear()} LuxTrade. All rights reserved.
+                    © ${new Date().getFullYear()} LuxTradee. All rights reserved.
                   </p>
                   <p style="color: #8b8da0; font-size: 10px; margin: 0;">
                     Email ini dikirim dari noreply@luxtradee.web.id
@@ -987,7 +987,7 @@ export function getWelcomeEmailHtml(name: string) {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Selamat Datang - LuxTrade</title>
+      <title>Selamat Datang - LuxTradee</title>
     </head>
     <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
@@ -1008,7 +1008,7 @@ export function getWelcomeEmailHtml(name: string) {
                       </td>
                     </tr>
                   </table>
-                  <h1 style="color: #1a1a2e; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTrade</h1>
+                  <h1 style="color: #1a1a2e; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTradee</h1>
                   <p style="color: #8b8da0; font-size: 12px; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Premium Trading Journal</p>
                 </td>
               </tr>
@@ -1040,7 +1040,7 @@ export function getWelcomeEmailHtml(name: string) {
                     Selamat Datang, ${name}!
                   </h3>
                   <p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 24px 0; text-align: center;">
-                    Akun LuxTrade kamu udah aktif! Sekarang kamu bisa mulai catat trading, analisa performa, dan tingkatkan skill trading kamu bareng AI insights kami. Yuk langsung mulai! 🚀
+                    Akun LuxTradee kamu udah aktif! Sekarang kamu bisa mulai catat trading, analisa performa, dan tingkatkan skill trading kamu bareng AI insights kami. Yuk langsung mulai! 🚀
                   </p>
 
                   <!-- Features Box -->
@@ -1095,7 +1095,7 @@ export function getWelcomeEmailHtml(name: string) {
               <tr>
                 <td style="padding: 24px 40px 32px 40px; text-align: center;">
                   <p style="color: #8b8da0; font-size: 11px; margin: 0 0 4px 0;">
-                    © ${new Date().getFullYear()} LuxTrade. All rights reserved.
+                    © ${new Date().getFullYear()} LuxTradee. All rights reserved.
                   </p>
                   <p style="color: #8b8da0; font-size: 10px; margin: 0;">
                     Email ini dikirim dari noreply@luxtradee.web.id
@@ -1120,7 +1120,7 @@ export function getPromotionalEmailHtml(name: string, subject: string, htmlBody:
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>${subject} - LuxTrade</title>
+      <title>${subject} - LuxTradee</title>
     </head>
     <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
@@ -1141,7 +1141,7 @@ export function getPromotionalEmailHtml(name: string, subject: string, htmlBody:
                       </td>
                     </tr>
                   </table>
-                  <h1 style="color: #1a1a2e; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTrade</h1>
+                  <h1 style="color: #1a1a2e; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTradee</h1>
                   <p style="color: #8b8da0; font-size: 12px; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Premium Trading Journal</p>
                 </td>
               </tr>
@@ -1180,7 +1180,7 @@ export function getPromotionalEmailHtml(name: string, subject: string, htmlBody:
               <tr>
                 <td style="padding: 20px 40px 32px 40px; text-align: center;">
                   <p style="color: #8b8da0; font-size: 11px; margin: 0 0 4px 0;">
-                    © ${new Date().getFullYear()} LuxTrade. All rights reserved.
+                    © ${new Date().getFullYear()} LuxTradee. All rights reserved.
                   </p>
                   <p style="color: #8b8da0; font-size: 10px; margin: 0;">
                     Email ini dikirim dari noreply@luxtradee.web.id
@@ -1208,7 +1208,7 @@ export function getVerificationPromoEmailHtml(name: string, confirmationUrl: str
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Verifikasi & Dapatkan Promo - LuxTrade</title>
+      <title>Verifikasi & Dapatkan Promo - LuxTradee</title>
     </head>
     <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
@@ -1228,7 +1228,7 @@ export function getVerificationPromoEmailHtml(name: string, confirmationUrl: str
                       </td>
                     </tr>
                   </table>
-                  <h1 style="color: #1a1a2e; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTrade</h1>
+                  <h1 style="color: #1a1a2e; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTradee</h1>
                   <p style="color: #8b8da0; font-size: 12px; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Premium Trading Journal</p>
                 </td>
               </tr>
@@ -1340,7 +1340,7 @@ export function getVerificationPromoEmailHtml(name: string, confirmationUrl: str
                   </table>
 
                   <p style="color: #8b8da0; font-size: 12px; line-height: 1.6; margin: 0; text-align: center;">
-                    Kalau kamu nggak merasa daftar di LuxTrade, abaikan email ini ya!
+                    Kalau kamu nggak merasa daftar di LuxTradee, abaikan email ini ya!
                   </p>
                 </td>
               </tr>
@@ -1356,7 +1356,7 @@ export function getVerificationPromoEmailHtml(name: string, confirmationUrl: str
               <tr>
                 <td style="padding: 24px 40px 32px 40px; text-align: center;">
                   <p style="color: #8b8da0; font-size: 11px; margin: 0 0 4px 0;">
-                    © ${new Date().getFullYear()} LuxTrade. All rights reserved.
+                    © ${new Date().getFullYear()} LuxTradee. All rights reserved.
                   </p>
                   <p style="color: #8b8da0; font-size: 10px; margin: 0;">
                     Email ini dikirim dari noreply@luxtradee.web.id
@@ -1380,7 +1380,7 @@ export function getUnverifiedBulkReminderHtml(name: string, confirmationUrl: str
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Akun Belum Verifikasi - LuxTrade</title>
+      <title>Akun Belum Verifikasi - LuxTradee</title>
     </head>
     <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
@@ -1401,7 +1401,7 @@ export function getUnverifiedBulkReminderHtml(name: string, confirmationUrl: str
                       </td>
                     </tr>
                   </table>
-                  <h1 style="color: #1a1a2e; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTrade</h1>
+                  <h1 style="color: #1a1a2e; font-size: 26px; margin: 0 0 4px 0; font-weight: 800; letter-spacing: -0.5px;">LuxTradee</h1>
                   <p style="color: #8b8da0; font-size: 12px; margin: 0; letter-spacing: 2px; text-transform: uppercase;">Premium Trading Journal</p>
                 </td>
               </tr>
@@ -1430,10 +1430,10 @@ export function getUnverifiedBulkReminderHtml(name: string, confirmationUrl: str
                     ${name}, Akun Kamu Menunggu! 🔔
                   </h2>
                   <p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 6px 0; text-align: center;">
-                    Kami notice akun kamu masih belum terverifikasi nih. Padahal semua fitur LuxTrade udah siap dipake — tinggal klik tombol verifikasi aja!
+                    Kami notice akun kamu masih belum terverifikasi nih. Padahal semua fitur LuxTradee udah siap dipake — tinggal klik tombol verifikasi aja!
                   </p>
                   <p style="color: #555770; font-size: 14px; line-height: 1.7; margin: 0 0 24px 0; text-align: center;">
-                    Gak mau kan ketinggalan fitur keren dari LuxTrade? Buruan verifikasi sekarang:
+                    Gak mau kan ketinggalan fitur keren dari LuxTradee? Buruan verifikasi sekarang:
                   </p>
 
                   <!-- CTA Button -->
@@ -1501,7 +1501,7 @@ export function getUnverifiedBulkReminderHtml(name: string, confirmationUrl: str
                   </table>
 
                   <p style="color: #8b8da0; font-size: 12px; line-height: 1.6; margin: 0; text-align: center;">
-                    Kalau kamu nggak merasa daftar di LuxTrade, abaikan email ini ya!
+                    Kalau kamu nggak merasa daftar di LuxTradee, abaikan email ini ya!
                   </p>
                 </td>
               </tr>
@@ -1517,7 +1517,7 @@ export function getUnverifiedBulkReminderHtml(name: string, confirmationUrl: str
               <tr>
                 <td style="padding: 24px 40px 32px 40px; text-align: center;">
                   <p style="color: #8b8da0; font-size: 11px; margin: 0 0 4px 0;">
-                    © ${new Date().getFullYear()} LuxTrade. All rights reserved.
+                    © ${new Date().getFullYear()} LuxTradee. All rights reserved.
                   </p>
                   <p style="color: #8b8da0; font-size: 10px; margin: 0;">
                     Email ini dikirim dari noreply@luxtradee.web.id
@@ -1551,7 +1551,7 @@ export function getReEngagementNoTradeHtml(name: string, ctaUrl: string, unsubUr
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Yuk Coba LuxTrade! 👑</title>
+      <title>Yuk Coba LuxTradee! 👑</title>
     </head>
     <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
@@ -1573,7 +1573,7 @@ export function getReEngagementNoTradeHtml(name: string, ctaUrl: string, unsubUr
               <tr>
                 <td style="padding: 12px 40px 32px 40px;">
                   <p style="color: #4a4a68; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
-                    Kemarin kamu baru sempat lihat sekilas <strong>LuxTrade</strong>. Yuk lanjutkan — kamu cuma perlu upload <strong>1 screenshot trade</strong>, dan otomatis dapat <strong>1 hari akses PRO gratis</strong>!
+                    Kemarin kamu baru sempat lihat sekilas <strong>LuxTradee</strong>. Yuk lanjutkan — kamu cuma perlu upload <strong>1 screenshot trade</strong>, dan otomatis dapat <strong>1 hari akses PRO gratis</strong>!
                   </p>
                   <p style="color: #4a4a68; font-size: 15px; line-height: 1.6; margin: 0 0 28px 0;">
                     Di PRO kamu bisa:<br>
@@ -1585,7 +1585,7 @@ export function getReEngagementNoTradeHtml(name: string, ctaUrl: string, unsubUr
                     <tr>
                       <td align="center">
                         <a href="${ctaUrl}" style="display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; padding: 14px 40px; border-radius: 10px;">
-                          Buka LuxTrade
+                          Buka LuxTradee
                         </a>
                       </td>
                     </tr>
@@ -1603,7 +1603,7 @@ export function getReEngagementNoTradeHtml(name: string, ctaUrl: string, unsubUr
               <tr>
                 <td style="padding: 24px 40px 16px 40px; text-align: center;">
                   <p style="color: #8b8da0; font-size: 11px; margin: 0 0 4px 0;">
-                    &copy; ${new Date().getFullYear()} LuxTrade. All rights reserved.
+                    &copy; ${new Date().getFullYear()} LuxTradee. All rights reserved.
                   </p>
                   <p style="color: #8b8da0; font-size: 10px; margin: 0 0 8px 0;">
                     Email ini dikirim dari noreply@luxtradee.web.id
@@ -1652,7 +1652,7 @@ export function getReEngagementHasTradeHtml(name: string, tradeCount: number, ct
               <tr>
                 <td style="padding: 12px 40px 32px 40px;">
                   <p style="color: #4a4a68; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
-                    Halo <strong>${name}</strong>! Kamu udah upload <strong>${tradeCount} trade</strong> di LuxTrade. Itu langkah pertama yang keren!
+                    Halo <strong>${name}</strong>! Kamu udah upload <strong>${tradeCount} trade</strong> di LuxTradee. Itu langkah pertama yang keren!
                   </p>
                   <p style="color: #4a4a68; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
                     Yuk lanjutin kebiasaan ini — tambah trade hari ini dan lihat progressmu:
@@ -1687,7 +1687,7 @@ export function getReEngagementHasTradeHtml(name: string, tradeCount: number, ct
               <tr>
                 <td style="padding: 24px 40px 16px 40px; text-align: center;">
                   <p style="color: #8b8da0; font-size: 11px; margin: 0 0 4px 0;">
-                    &copy; ${new Date().getFullYear()} LuxTrade. All rights reserved.
+                    &copy; ${new Date().getFullYear()} LuxTradee. All rights reserved.
                   </p>
                   <p style="color: #8b8da0; font-size: 10px; margin: 0 0 8px 0;">
                     Email ini dikirim dari noreply@luxtradee.web.id
@@ -1771,7 +1771,7 @@ export function getWeeklySummaryHtml(params: {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Weekly Report — LuxTrade 📊</title>
+      <title>Weekly Report — LuxTradee 📊</title>
     </head>
     <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
@@ -1907,7 +1907,7 @@ export function getWeeklySummaryHtml(params: {
               <tr>
                 <td style="padding: 24px 40px 16px 40px; text-align: center;">
                   <p style="color: #8b8da0; font-size: 11px; margin: 0 0 4px 0;">
-                    &copy; ${new Date().getFullYear()} LuxTrade. All rights reserved.
+                    &copy; ${new Date().getFullYear()} LuxTradee. All rights reserved.
                   </p>
                   <p style="color: #8b8da0; font-size: 10px; margin: 0 0 8px 0;">
                     Email ini dikirim dari noreply@luxtradee.web.id
@@ -1982,7 +1982,7 @@ export function getDailyReminderHtml(params: {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Daily Reminder — LuxTrade</title>
+      <title>Daily Reminder — LuxTradee</title>
     </head>
     <body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
@@ -2074,7 +2074,7 @@ export function getDailyReminderHtml(params: {
               <tr>
                 <td style="padding: 24px 40px 16px 40px; text-align: center;">
                   <p style="color: #8b8da0; font-size: 11px; margin: 0 0 4px 0;">
-                    &copy; ${new Date().getFullYear()} LuxTrade. All rights reserved.
+                    &copy; ${new Date().getFullYear()} LuxTradee. All rights reserved.
                   </p>
                   <p style="color: #8b8da0; font-size: 10px; margin: 0 0 8px 0;">
                     Email ini dikirim dari noreply@luxtradee.web.id

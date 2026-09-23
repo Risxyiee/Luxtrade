@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       email: ADMIN_EMAIL,
       email_confirm: true,
       user_metadata: {
-        name: 'LuxTrade Admin',
+        name: 'LuxTradee Admin',
         role: 'ADMIN'
       }
     })

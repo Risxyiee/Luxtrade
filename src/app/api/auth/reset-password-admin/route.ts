@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     if (listError || !users || users.length === 0) {
       console.error('User not found for password reset:', email, listError)
       return NextResponse.json(
-        { error: 'Email tidak ditemukan. Pastikan email terdaftar di LuxTrade.' },
+        { error: 'Email tidak ditemukan. Pastikan email terdaftar di LuxTradee.' },
         { status: 404 }
       )
     }

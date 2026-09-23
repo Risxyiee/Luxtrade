@@ -140,7 +140,7 @@ export default function NotificationCenter({ trades = [], isPro = false, demoMod
       generated.unshift({
         id: 'welcome-demo',
         type: 'info',
-        title: 'Welcome to LuxTrade Demo',
+        title: 'Welcome to LuxTradee Demo',
         message: 'Explore all features. Upgrade to start real trading journaling.',
         timestamp: new Date(Date.now() - 600000),
         read: false,

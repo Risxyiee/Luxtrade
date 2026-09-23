@@ -1,5 +1,5 @@
 /**
- * Pricing Configuration for LuxTrade
+ * Pricing Configuration for LuxTradee
  *
  * All pricing must be updated in this central location
  * to ensure consistency across the entire application.

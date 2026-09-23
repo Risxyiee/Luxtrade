@@ -1,5 +1,5 @@
 /**
- * Gemini API client for LuxTrade PRO features
+ * Gemini API client for LuxTradee PRO features
  * Uses Google's official @google/generative-ai SDK
  * Free tier: 15 RPM, 1M tokens/day
  */

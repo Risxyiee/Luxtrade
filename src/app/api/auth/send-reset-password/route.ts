@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       console.error('Generate reset link error:', linkError)
       if (linkError.message?.includes('not found') || linkError.message?.includes('No user')) {
         return NextResponse.json(
-          { error: 'Email tidak terdaftar di LuxTrade.' },
+          { error: 'Email tidak terdaftar di LuxTradee.' },
           { status: 404 }
         )
       }
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     const emailResult = await sendEmailFromTemplate({
       to: email,
-      subject: 'Reset Password - LuxTrade 🔒',
+      subject: 'Reset Password - LuxTradee 🔒',
       templateId: process.env.RESEND_TEMPLATE_RESET || '',
       templateParams: {
         name,

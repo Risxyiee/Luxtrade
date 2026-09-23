@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       adminUser = await db.user.create({
         data: {
           email: ADMIN_EMAIL,
-          name: 'LuxTrade Admin',
+          name: 'LuxTradee Admin',
           emailVerified: new Date(),
         }
       })

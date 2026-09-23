@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     const emailResult = await sendEmailFromTemplate({
       to: email,
-      subject: 'Konfirmasi Email - LuxTrade 👑',
+      subject: 'Konfirmasi Email - LuxTradee 👑',
       templateId: process.env.RESEND_TEMPLATE_CONFIRM || '',
       templateParams: {
         name,

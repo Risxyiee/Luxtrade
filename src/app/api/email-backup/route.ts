@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
 
     // Compose email body
     const plainTextBody = [
-      `LuxTrade Data Backup — ${dateStr}`,
+      `LuxTradee Data Backup — ${dateStr}`,
       '================================',
       '',
       'TRADES SUMMARY:',
@@ -135,14 +135,14 @@ export async function POST(request: NextRequest) {
       watchlistDetail,
       '',
       '—',
-      'This is an automated backup from LuxTrade.',
+      'This is an automated backup from LuxTradee.',
       `Generated at: ${now.toISOString()}`,
     ].join('\n')
 
     // Send email
     const result = await sendEmail({
       to: authUser.email!,
-      subject: `LuxTrade Data Backup — ${dateStr}`,
+      subject: `LuxTradee Data Backup — ${dateStr}`,
       html: `<pre style="font-family: monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; color: #e2e8f0; background: #1a1a2e; padding: 24px; border-radius: 12px;">${plainTextBody.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`,
     })
 

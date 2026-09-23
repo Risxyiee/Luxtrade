@@ -60,8 +60,8 @@ export default function LandingNavbar({ language, t, onSidebarOpen }: LandingNav
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between h-14 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2.5">
-            <Image src="/logo.png" alt="LuxTrade" width={28} height={28} className="object-contain" />
-            <span className="text-[15px] font-medium text-[#f0f2ff] tracking-tight">LuxTrade</span>
+            <Image src="/logo.png" alt="LuxTradee" width={28} height={28} className="object-contain" />
+            <span className="text-[15px] font-medium text-[#f0f2ff] tracking-tight">LuxTradee</span>
           </div>
 
           <div className="hidden md:flex items-center gap-6">

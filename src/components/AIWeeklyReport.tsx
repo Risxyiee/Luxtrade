@@ -380,7 +380,7 @@ function reportToText(report: WeeklyReport): string {
   const lines: string[] = []
 
   lines.push('╔══════════════════════════════════════════════════════╗')
-  lines.push('║            LUXTRADE AI WEEKLY REPORT                ║')
+  lines.push('║            LUXTRADEE AI WEEKLY REPORT                ║')
   lines.push('╚══════════════════════════════════════════════════════╝')
   lines.push('')
   lines.push(`📅 Period:     ${report.period}`)
@@ -446,7 +446,7 @@ function reportToText(report: WeeklyReport): string {
   })
   lines.push('')
   lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  lines.push('  Powered by LuxTrade AI  •  luxtrade.app')
+  lines.push('  Powered by LuxTradee AI  •  luxtrade.app')
   lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
   return lines.join('\n')
@@ -566,7 +566,7 @@ export default function AIWeeklyReport({
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `luxtrade-weekly-report-${new Date().toISOString().slice(0, 10)}.txt`
+    a.download = `luxtradee-weekly-report-${new Date().toISOString().slice(0, 10)}.txt`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -858,7 +858,7 @@ export default function AIWeeklyReport({
                     className="flex items-center justify-between border-t border-white/[0.04] pt-4"
                   >
                     <p className="text-[10px] uppercase tracking-widest text-slate-600">
-                      Powered by LuxTrade AI
+                      Powered by LuxTradee AI
                     </p>
                     <div className="flex items-center gap-2">
                       <Button

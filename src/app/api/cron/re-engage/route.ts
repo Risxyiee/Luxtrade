@@ -86,10 +86,10 @@ async function sendReEngagementEmail(user: TargetUser): Promise<boolean> {
 
   if (user.email_type === 'has_trade') {
     html = getReEngagementHasTradeHtml(name, user.trade_count, ctaUrl, unsubUrl)
-    subject = `Trade pertamamu udah tersimpan! 📊 — Yuk lanjutin di LuxTrade`
+    subject = `Trade pertamamu udah tersimpan! 📊 — Yuk lanjutin di LuxTradee`
   } else {
     html = getReEngagementNoTradeHtml(name, ctaUrl, unsubUrl)
-    subject = `Yuk Coba LuxTrade! 👑 — Upload 1 trade, dapat 1 hari PRO gratis`
+    subject = `Yuk Coba LuxTradee! 👑 — Upload 1 trade, dapat 1 hari PRO gratis`
   }
 
   const result = await sendEmail({ to: user.email, subject, html })

@@ -26,7 +26,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'first_trade',
     title: 'First Trade',
-    description: 'Complete your very first trade in LuxTrade',
+    description: 'Complete your very first trade in LuxTradee',
     category: 'trading',
     type: 'automatic',
     icon: '🚀',
@@ -123,7 +123,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'daily_warrior',
     title: 'Daily Warrior',
-    description: 'Login to LuxTrade for 7 consecutive days',
+    description: 'Login to LuxTradee for 7 consecutive days',
     category: 'engagement',
     type: 'automatic',
     icon: '🎯',
@@ -182,7 +182,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'tiktok_influencer',
     title: 'TikTok Influencer',
-    description: 'Share your LuxTrade trading results on TikTok',
+    description: 'Share your LuxTradee trading results on TikTok',
     category: 'social',
     type: 'manual',
     icon: '📱',
@@ -201,7 +201,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'youtube_reviewer',
     title: 'YouTube Reviewer',
-    description: 'Create and share a LuxTrade review on YouTube',
+    description: 'Create and share a LuxTradee review on YouTube',
     category: 'social',
     type: 'manual',
     icon: '🎥',
@@ -220,7 +220,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'instagram_sharer',
     title: 'Instagram Sharer',
-    description: 'Post your trading journey on Instagram with LuxTrade',
+    description: 'Post your trading journey on Instagram with LuxTradee',
     category: 'social',
     type: 'manual',
     icon: '📸',
@@ -239,7 +239,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'twitter_mention',
     title: 'Twitter Mention',
-    description: 'Mention @LuxTrade in your trading tweet',
+    description: 'Mention @LuxTradee in your trading tweet',
     category: 'social',
     type: 'manual',
     icon: '🐦',

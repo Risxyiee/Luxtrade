@@ -111,7 +111,7 @@ export async function notifyPaymentConfirmation(data: {
     `🔢 Rekening: <code>${data.accountNumber}</code>\n` +
     `📋 Atas Nama: ${data.accountHolder}\n\n` +
     `⏰ ${new Date().toLocaleString('id-ID')}\n\n` +
-    `<i>Untuk aktivasi, login ke Admin Panel LuxTrade</i>`
+    `<i>Untuk aktivasi, login ke Admin Panel LuxTradee</i>`
 
   return sendToAdmin(msg)
 }

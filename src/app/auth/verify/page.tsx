@@ -86,13 +86,13 @@ function VerifyForm() {
         <Link href="/" className="inline-flex items-center gap-3">
           <Image
             src="/logo.png"
-            alt="LuxTrade Logo"
+            alt="LuxTradee Logo"
             width={48}
             height={48}
             className="object-contain"
           />
           <span className="text-2xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent">
-            LuxTrade
+            LuxTradee
           </span>
         </Link>
       </div>
@@ -123,7 +123,7 @@ function VerifyForm() {
             </p>
             <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3 mb-6">
               <p className="text-emerald-400/80 text-xs">
-                🎉 Selamat! Kamu sekarang bisa login dan mulai menggunakan semua fitur LuxTrade.
+                🎉 Selamat! Kamu sekarang bisa login dan mulai menggunakan semua fitur LuxTradee.
               </p>
             </div>
             <Button

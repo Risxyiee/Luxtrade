@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       finalAffiliate = updated
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://luxtrade.id'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://luxtradee.web.id'
     const referralLink = `${baseUrl}?ref=${finalAffiliate!.referral_code}`
 
     return NextResponse.json({

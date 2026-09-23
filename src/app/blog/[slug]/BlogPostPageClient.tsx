@@ -31,7 +31,7 @@ export default function BlogPostPageClient({ slug }: BlogPostPageClientProps) {
     category: isEnglish ? 'Trading Tips' : 'Tips Trading',
     readTime: isEnglish ? '8 min read' : '8 bacaan',
     date: 'December 15, 2024',
-    author: isEnglish ? 'LuxTrade Team' : 'Tim LuxTrade',
+    author: isEnglish ? 'LuxTradee Team' : 'Tim LuxTradee',
     gradient: 'from-blue-500 to-cyan-600'
   }
 
@@ -81,7 +81,7 @@ export default function BlogPostPageClient({ slug }: BlogPostPageClientProps) {
         ]
       },
       {
-        title: 'How LuxTrade Makes Journaling Easy',
+        title: 'How LuxTradee Makes Journaling Easy',
         icon: Lightbulb,
         points: [
           'AI-powered mistake detection and solutions',
@@ -92,7 +92,7 @@ export default function BlogPostPageClient({ slug }: BlogPostPageClientProps) {
         ]
       }
     ],
-    conclusion: 'The journey to consistent profitability starts with awareness, and awareness starts with journaling. Whether you\'re using a notebook, spreadsheet, or a modern platform like LuxTrade, the key is consistency. Start today—your future profitable self will thank you.',
+    conclusion: 'The journey to consistent profitability starts with awareness, and awareness starts with journaling. Whether you\'re using a notebook, spreadsheet, or a modern platform like LuxTradee, the key is consistency. Start today—your future profitable self will thank you.',
     cta: 'Ready to transform your trading with professional journaling?'
   } : {
     intro: 'Setiap trader sukses akan memberitahu Anda rahasia yang sama: journaling bukan opsional—ini esensial. Jurnal trading adalah peta jalan menuju profitabilitas konsisten, partner akuntabilitas Anda, dan alat pembelajaran paling kuat Anda.',
@@ -140,7 +140,7 @@ export default function BlogPostPageClient({ slug }: BlogPostPageClientProps) {
         ]
       },
       {
-        title: 'Bagaimana LuxTrade Memudahkan Journaling',
+        title: 'Bagaimana LuxTradee Memudahkan Journaling',
         icon: Lightbulb,
         points: [
           'Deteksi dan solusi kesalahan berbasis AI',
@@ -151,7 +151,7 @@ export default function BlogPostPageClient({ slug }: BlogPostPageClientProps) {
         ]
       }
     ],
-    conclusion: 'Perjalanan menuju profitabilitas konsisten dimulai dengan kesadaran, dan kesadaran dimulai dengan journaling. Apakah Anda menggunakan buku catatan, spreadsheet, atau platform modern seperti LuxTrade, kuncinya adalah konsistensi. Mulai hari ini—diri Anda yang profitable di masa depan akan berterima kasih.',
+    conclusion: 'Perjalanan menuju profitabilitas konsisten dimulai dengan kesadaran, dan kesadaran dimulai dengan journaling. Apakah Anda menggunakan buku catatan, spreadsheet, atau platform modern seperti LuxTradee, kuncinya adalah konsistensi. Mulai hari ini—diri Anda yang profitable di masa depan akan berterima kasih.',
     cta: 'Siap untuk mengubah trading Anda dengan journaling profesional?'
   }
 
@@ -181,7 +181,7 @@ export default function BlogPostPageClient({ slug }: BlogPostPageClientProps) {
             <Link href="/" className="flex items-center gap-2">
               <TrendingUp className="h-6 w-6 text-primary" />
               <span className="font-bold text-xl bg-gradient-to-r from-primary to-cyan-600 bg-clip-text text-transparent">
-                LuxTrade
+                LuxTradee
               </span>
             </Link>
             <LanguageSwitcher />
@@ -339,10 +339,10 @@ export default function BlogPostPageClient({ slug }: BlogPostPageClientProps) {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2 mb-4">
             <TrendingUp className="h-6 w-6 text-primary" />
-            <span className="font-bold text-xl text-white">LuxTrade</span>
+            <span className="font-bold text-xl text-white">LuxTradee</span>
           </Link>
           <p className="text-sm">
-            {isEnglish ? '© 2024 LuxTrade. All rights reserved.' : '© 2024 LuxTrade. Hak cipta dilindungi.'}
+            {isEnglish ? '© 2024 LuxTradee. All rights reserved.' : '© 2024 LuxTradee. Hak cipta dilindungi.'}
           </p>
         </div>
       </footer>

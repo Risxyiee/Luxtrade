@@ -32,8 +32,8 @@ export default function CSBotWidget({ language }: CSBotWidgetProps) {
 
   // Welcome message
   const welcomeMessage = language === 'id'
-    ? 'Halo! 👋 Ada yang bisa dibantu? Tanya apa aja tentang LuxTrade.'
-    : 'Hi! 👋 How can I help? Ask anything about LuxTrade.'
+    ? 'Halo! 👋 Ada yang bisa dibantu? Tanya apa aja tentang LuxTradee.'
+    : 'Hi! 👋 How can I help? Ask anything about LuxTradee.'
 
   // Check if mobile CTA is visible to adjust positioning
   useEffect(() => {
@@ -184,7 +184,7 @@ export default function CSBotWidget({ language }: CSBotWidgetProps) {
                 🤖
               </div>
               <span className="text-sm font-semibold text-white">
-                CS LuxTrade 🤖
+                CS LuxTradee 🤖
               </span>
             </div>
             <button
