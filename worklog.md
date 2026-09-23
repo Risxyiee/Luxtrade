@@ -289,3 +289,24 @@ Stage Summary:
 - Fix RLS button added to /dashboard/admin Quick Actions bar
 - Mobile-friendly: just tap the button, auth handled automatically via authFetch
 - No need to manually call POST /api/fix-rls from browser
+
+---
+Task ID: 7
+Agent: main
+Task: Fix CS Bot API - ganti dari z-ai-web-dev-sdk ke Gemini API
+
+Work Log:
+- Diagnosa masalah: /api/chat pakai z-ai-web-dev-sdk yang error (SWC syntax error, init gagal)
+- Chat API test awal berhasil 200 tapi pakai ZAI SDK yang unstable
+- Ganti seluruh /api/chat/route.ts ke Gemini API (geminiChat dari @/lib/gemini)
+- Fix system prompt: role 'assistant' → systemInstruction (proper Gemini format)
+- Tambah health check GET /api/chat → {status, provider, model}
+- Tambah graceful 503/504 error handling
+- Tambah sessionId validation
+- Update CSBotWidget: retry logic (max 2x), AbortController timeout 30s, 503 retry
+- Lint clean, committed, pushed to GitHub
+
+Stage Summary:
+- CS Bot sekarang pakai Gemini 2.5 Flash (gratis, 15 RPM, 1M tokens/day)
+- Perlu set GEMINI_API_KEY di .env untuk development
+- Push: 50db0d9 → main
