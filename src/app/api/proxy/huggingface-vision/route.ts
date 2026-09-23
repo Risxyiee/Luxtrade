@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 
 /**
- * Proxy API for HuggingFace Vision to bypass DNS issues on Vercel
+ * Proxy API for HuggingFace Vision to bypass DNS issues on Edge Runtime
  * This endpoint acts as a middleman between client and HuggingFace API
  */
 export async function POST(request: NextRequest) {

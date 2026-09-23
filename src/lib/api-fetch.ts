@@ -3,8 +3,7 @@ import { getClientBrowserAsync } from '@/lib/supabase-browser'
 /**
  * Authenticated fetch for API routes.
  * Automatically includes the Supabase session token as a Bearer header.
- * This fixes Vercel production issues where Edge→Serverless cookie propagation
- * can cause auth to fail.
+ * This ensures auth works reliably across Edge Runtime boundaries.
  *
  * Usage (replaces fetch):
  *   import { authFetch } from '@/lib/api-fetch'

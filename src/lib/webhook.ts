@@ -4,12 +4,12 @@
  */
 
 export function getMyfxbookWebhookURL(): string {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://luxtrade-jade.vercel.app'
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://luxtradee.web.id'
   return `${baseUrl}/api/webhook/myfxbook`
 }
 
 export function getFxBlueWebhookURL(): string {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://luxtrade-jade.vercel.app'
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://luxtradee.web.id'
   return `${baseUrl}/api/webhook/fxblue`
 }
 

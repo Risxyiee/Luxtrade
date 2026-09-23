@@ -4,7 +4,7 @@
 -- Run this in Supabase SQL Editor
 
 -- Add both domains to allowed origins for auth
--- This allows authentication from both luxtradee.web.id and luxtrade-jade.vercel.app
+-- This allows authentication from luxtradee.web.id (Cloudflare Workers)
 
 -- Update authentication settings (via UI, but here's the SQL for reference)
 -- You need to update CORS in Supabase Dashboard -> Authentication -> URL Configuration

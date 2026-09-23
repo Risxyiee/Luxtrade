@@ -393,7 +393,7 @@ Return the JSON now:
 
 /**
  * COMBINED prompt: extracts trade data AND generates journal analysis in ONE call.
- * This halves the AI latency for the auto-journal feature (critical for Vercel Hobby 10s limit).
+ * This halves the AI latency for the auto-journal feature (critical for Edge Runtime 30s limit).
  *
  * Language support:
  *   - 'id' (default): Indonesian — semua field teks (journalTitle, journalContent, tags)

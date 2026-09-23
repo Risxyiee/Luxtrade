@@ -5,7 +5,7 @@ import { db, isDatabaseAvailable } from '@/lib/db'
  * GET|POST /api/cron/downgrade-expired-pro
  *
  * Cron job: checks all PRO users whose subscription has expired and downgrades them to FREE.
- * Runs daily at 03:00 WIB via Vercel Cron (vercel.json).
+ * Runs daily at 03:00 WIB via Cloudflare Workers cron trigger (wrangler.toml).
  *
  * Smart downgrade logic:
  * - Finds PRO users with expired pro_expiry / subscription_until

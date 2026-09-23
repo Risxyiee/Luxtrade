@@ -20,7 +20,7 @@ import { sendEmail, getDailyReminderHtml } from '@/lib/email'
  *   ?force=true     — bypass auth + send to all active users
  *   ?uid=xxx        — send to single user (for testing)
  *
- * Vercel Cron: runs daily at 08:00 WIB (01:00 UTC)
+ * Cron: runs daily at 08:00 WIB (01:00 UTC) via Cloudflare Workers cron trigger
  */
 export const dynamic = 'force-dynamic'
 

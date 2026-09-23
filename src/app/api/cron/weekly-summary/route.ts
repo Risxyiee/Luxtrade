@@ -19,7 +19,7 @@ import { sendEmail, getWeeklySummaryHtml } from '@/lib/email'
  *   ?uid=xxx        — send to a single user (for testing)
  *   ?week=YYYY-MM-DD — override week start date (default: last Monday)
  *
- * Vercel Cron: runs every Monday at 10:00 AM WIB (03:00 UTC)
+ * Cron: runs every Monday at 10:00 AM WIB (03:00 UTC) via Cloudflare Workers cron trigger
  */
 export const dynamic = 'force-dynamic'
 

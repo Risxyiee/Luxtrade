@@ -9,7 +9,7 @@ import { NextResponse } from 'next/server'
  * If you need file uploads on Cloudflare, use:
  * 1. Supabase Storage (recommended — already configured)
  * 2. Cloudflare R2 with presigned URLs
- * 3. A third-party service like UploadThing or Vercel Blob
+ * 3. A third-party service like UploadThing
  */
 export async function POST() {
   return NextResponse.json(

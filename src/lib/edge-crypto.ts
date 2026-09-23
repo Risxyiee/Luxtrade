@@ -1,6 +1,6 @@
 /**
  * Edge-compatible crypto & encoding utilities.
- * Uses the Web Crypto API (available on Cloudflare Workers, Vercel Edge, Deno, browsers).
+ * Uses the Web Crypto API (available on Cloudflare Workers, Deno, browsers).
  * Drop-in replacement for Node.js `crypto` module and `Buffer` for base64 operations.
  */
 

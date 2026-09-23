@@ -34,3 +34,14 @@ persist = true
 enabled = false
 head_sampling_rate = 1
 persist = true
+
+# Cron triggers (migrated from vercel.json)
+# Cloudflare Workers crons invoke the worker's scheduled() handler.
+# The OpenNext adapter routes cron requests to the matching API path.
+# All times in UTC.
+[triggers]
+crons = [
+  "0 1 * * *",    # daily-reminder  (08:00 WIB)
+  "0 3 * * *",    # re-engage + downgrade-expired-pro (10:00 WIB)
+  "0 3 * * 1",    # weekly-summary  (10:00 WIB, Mondays only)
+]

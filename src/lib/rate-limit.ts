@@ -1,13 +1,13 @@
 /**
- * Simple in-memory rate limiter for Vercel serverless functions.
+ * Simple in-memory rate limiter for Cloudflare Workers.
  *
  * ⚠️ TRADE-OFF (wajib dipahami):
- * - In-memory = TIDAK share antar serverless instance.
- *   Jika Vercel spin 3 instance sekaligus, tiap instance punya counter sendiri.
- *   Akibatnya: user bisa 3x limit sebenarnya (per instance).
+ * - In-memory = TIDAK share antar Worker isolate.
+ *   Jika Cloudflare spin beberapa isolate sekaligus, tiap isolate punya counter sendiri.
+ *   Akibatnya: user bisa melewati limit sebenarnya (per isolate).
  * - Untuk traffic kecil (<1000 concurrent users), ini biasanya cukup karena
- *   Vercel cenderung reuse instance yang sama (warm start).
- * - Untuk production berskala besar, upgrade ke Upstash Redis atau Vercel KV.
+ *   Workers cenderung reuse isolate yang sama (warm start).
+ * - Untuk production berskala besar, upgrade ke Upstash Redis atau Cloudflare D1.
  *
  * Auto-cleanup: entries yang sudah expired dihapus setiap 60 detik.
  */

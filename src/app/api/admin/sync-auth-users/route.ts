@@ -9,7 +9,7 @@ async function performSync() {
     if (!admin) {
       return {
         error: 'SUPABASE_SERVICE_ROLE_KEY not configured',
-        message: 'Please set SUPABASE_SERVICE_ROLE_KEY in Vercel Environment Variables',
+        message: 'Please set SUPABASE_SERVICE_ROLE_KEY in Cloudflare Environment Variables',
       }
     }
 
