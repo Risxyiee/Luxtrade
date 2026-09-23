@@ -63,8 +63,8 @@ const faqData: FAQItem[] = [
   {
     q_id: 'Butuh bantuan, hubungi siapa?',
     q_en: 'Need help, who do I contact?',
-    a_id: 'Langsung aja chat Telegram @Risxyiee atau email luxtradee@gmail.com. Atau join Discord LuxTrade. Biasanya balasnya cepat!',
-    a_en: 'Just chat Telegram @Risxyiee or email luxtradee@gmail.com. Or join our Discord. Response is usually fast!',
+    a_id: 'Klik aja ikon chat 🤖 di pojok kanan bawah — bot CS kami siap bantu 24/7! Kalau butuh bicara langsung sama admin, bot akan arahkan ke Telegram @Risxyiee.',
+    a_en: 'Click the chat icon 🤖 at the bottom right — our CS bot is ready 24/7! If you need to talk to an admin directly, the bot will direct you to Telegram @Risxyiee.',
     category: 'general',
   },
 ]
