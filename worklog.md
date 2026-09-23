@@ -338,3 +338,22 @@ Stage Summary:
 - 20 unused npm packages removed
 - Build now auto-cleans .open-next and .next cache
 - Server compiles and runs correctly post-cleanup
+
+---
+Task ID: 9
+Agent: main (CS Bot Specialist & Debugger)
+Task: Fix CS Bot stuck on 2nd message + remove Chatbase
+
+Work Log:
+- Found Chatbase script in layout.tsx (lines 92-128) — removed entirely
+- Identified root cause: sendMessage() had no finally{} → isLoading stuck true → input locked
+- Identified CF Workers issue: req.json() → "Stream already consumed" on 2nd request
+- Rewrote CSBotWidget.tsx: try/catch/finally with setIsLoading(false) in finally, re-focus input after load
+- Rewrote /api/chat/route.ts: req.text() + JSON.parse(), export const dynamic = 'force-dynamic'
+- Tested: 3 consecutive messages on same session — no crash, no stream lock
+- Lint clean, committed, pushed to GitHub
+
+Stage Summary:
+- 3 critical bugs fixed: Chatbase removal, isLoading lock, CF Workers stream lock
+- Push: 8bfcbc7 → main
+- ⚠️ GEMINI_API_KEY still not set — bot returns 503 until configured
