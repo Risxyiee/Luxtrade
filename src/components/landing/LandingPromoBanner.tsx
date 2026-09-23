@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ExternalLink, Flame, Handshake } from 'lucide-react'
 import Image from 'next/image'
@@ -12,7 +12,15 @@ interface LandingPromoBannerProps {
 }
 
 export default function LandingPromoBanner({ language = 'id' }: LandingPromoBannerProps) {
+  const DISMISS_KEY = 'lux-landing-promo-dismissed'
   const [dismissed, setDismissed] = useState(false)
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(DISMISS_KEY)
+      if (stored === 'true') setDismissed(true)
+    } catch {}
+  }, [])
 
   if (dismissed) return null
 
@@ -106,7 +114,10 @@ export default function LandingPromoBanner({ language = 'id' }: LandingPromoBann
 
           {/* Dismiss button */}
           <button
-            onClick={() => setDismissed(true)}
+            onClick={() => {
+              setDismissed(true)
+              try { localStorage.setItem(DISMISS_KEY, 'true') } catch {}
+            }}
             className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-white/10 transition-colors z-10"
             aria-label={isEn ? 'Close banner' : 'Tutup banner'}
           >
