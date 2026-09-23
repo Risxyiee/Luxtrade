@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { isUserPro } from '@/lib/pro-check'
+import { randomUUID } from 'crypto'
 
 /** Get a Supabase client with user session (cookie or Bearer token) */
 async function getClientWithAuth(request: NextRequest) {
@@ -104,6 +105,7 @@ export async function POST(request: NextRequest) {
     const { data: item, error } = await client
       .from('watchlist')
       .insert([{
+        id: randomUUID(),
         user_id: user.id,
         symbol: body.symbol.toUpperCase(),
         name: body.name || body.symbol.toUpperCase(),
