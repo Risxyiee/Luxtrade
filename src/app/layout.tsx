@@ -89,44 +89,6 @@ export default function RootLayout({
           </LanguageProvider>
           <Toaster position="top-right" />
 
-          {/* AI Chat Widget - Chatbase (deferred: load only after page is idle + 3s delay) */}
-          <Script
-            id="chatbase-widget"
-            strategy="afterInteractive"
-            dangerouslySetInnerHTML={{
-              __html: `
-                (function(){
-                  if(!window.chatbase||window.chatbase("getState")!=="initialized"){
-                    window.chatbase=(...arguments)=>{
-                      if(!window.chatbase.q){window.chatbase.q=[]}
-                      window.chatbase.q.push(arguments)
-                    };
-                    window.chatbase=new Proxy(window.chatbase,{
-                      get(target,prop){
-                        if(prop==="q"){return target.q}
-                        return(...args)=>target(prop,...args)
-                      }
-                    })
-                  }
-                  // Delay 3s after page load to avoid blocking critical rendering
-                  var loadChatbase=function(){
-                    var script=document.createElement("script");
-                    script.src="https://www.chatbase.co/embed.min.js";
-                    script.id="g6SMFqtY0p-Vv9YdiGWZT";
-                    script.domain="www.chatbase.co";
-                    document.body.appendChild(script)
-                  };
-                  // Use requestIdleCallback if available, fallback to setTimeout
-                  if("requestIdleCallback" in window){
-                    requestIdleCallback(function(){setTimeout(loadChatbase,3000)})
-                  }else{
-                    window.addEventListener("load",function(){setTimeout(loadChatbase,3000)})
-                  }
-                })();
-              `,
-            }}
-          />
-
           {/* Page View Tracker (non-blocking, deferred) */}
           <Script
             id="page-view-tracker"

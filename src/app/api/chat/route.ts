@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { geminiChat, isGeminiAvailable } from '@/lib/gemini'
 
+// Force dynamic rendering — prevent CF Workers from caching/stale response
+export const dynamic = 'force-dynamic'
+
 // System prompt for LuxTrade CS bot
 const SYSTEM_PROMPT = `Kamu adalah asisten customer service LuxTrade — jurnal trading AI untuk trader Indonesia.
 
@@ -35,7 +38,22 @@ const MAX_MESSAGES = 20
 
 export async function POST(req: NextRequest) {
   try {
-    const { sessionId, message, language } = await req.json()
+    // CRITICAL: Use req.text() + JSON.parse() instead of req.json()
+    // to avoid "Stream already consumed" error in Cloudflare Workers V8 Isolate
+    // on the second+ request in the same session.
+    const rawBody = await req.text()
+    let sessionId: string
+    let message: string
+    let language: string
+
+    try {
+      const parsed = JSON.parse(rawBody)
+      sessionId = parsed.sessionId
+      message = parsed.message
+      language = parsed.language || 'id'
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json({ error: 'Message required' }, { status: 400 })
