@@ -124,15 +124,31 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ response: aiResponse })
-  } catch (error) {
-    console.error('[chat API] Error:', error)
+  } catch (error: any) {
+    // Descriptive error logging for Cloudflare Workers diagnostics
+    console.error('[chat API] Error:', {
+      name: error?.name || 'Unknown',
+      message: error?.message || 'No message',
+      code: error?.code || 'N/A',
+      stack: error?.stack?.substring(0, 300) || 'No stack',
+    })
 
-    const isTimeout = error instanceof Error && error.message.includes('timed out')
+    const isTimeout = error instanceof Error && (
+      error.message.includes('timed out') ||
+      error.message.includes('Abort') ||
+      error.name === 'TimeoutError'
+    )
+    const isKeyError = error instanceof Error && (
+      error.message.includes('API_KEY') ||
+      error.message.includes('not configured')
+    )
     const errMsg = isTimeout
       ? 'Maaf, respon terlalu lama. Coba lagi atau hubungi Telegram @Risxyiee.'
-      : 'Maaf, sedang gangguan. Coba lagi atau hubungi Telegram @Risxyiee.'
+      : isKeyError
+        ? 'Maaf, layanan AI belum dikonfigurasi. Hubungi Telegram @Risxyiee.'
+        : 'Maaf, sedang gangguan. Coba lagi atau hubungi Telegram @Risxyiee.'
 
-    return NextResponse.json({ response: errMsg }, { status: isTimeout ? 504 : 500 })
+    return NextResponse.json({ response: errMsg }, { status: isTimeout ? 504 : isKeyError ? 503 : 500 })
   }
 }
 

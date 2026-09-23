@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { geminiChat } from '@/lib/gemini'
+import { geminiChat, isGeminiAvailable } from '@/lib/gemini'
 import { createClientForApi } from '@/lib/supabase/server'
 import { isUserPro } from '@/lib/pro-check'
 import { checkAIQuota, incrementAIQuota, getAIQuotaInfo } from '@/lib/ai-quota'
@@ -31,6 +31,11 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check Gemini availability
+    if (!isGeminiAvailable()) {
+      return NextResponse.json({ error: 'AI service not configured (GEMINI_API_KEY missing)' }, { status: 503 })
     }
 
     // Check AI quota (PRO users have unlimited, free users have 3 trials)

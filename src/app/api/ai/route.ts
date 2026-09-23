@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
-import { geminiPrompt, geminiVision } from '@/lib/gemini'
+import { geminiPrompt, geminiVision, isGeminiAvailable } from '@/lib/gemini'
 import { isUserPro } from '@/lib/pro-check'
 
 // In-memory rate limiter
@@ -824,6 +824,11 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check Gemini availability
+    if (!isGeminiAvailable()) {
+      return NextResponse.json({ error: 'AI service not configured (GEMINI_API_KEY missing)' }, { status: 503 })
     }
 
     const pro = await isUserPro(user.id)
