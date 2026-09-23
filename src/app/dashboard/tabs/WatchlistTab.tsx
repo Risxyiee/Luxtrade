@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import { Eye, Plus, Trash2, TrendingUp as TrendingUpIcon, Bell, BellRing, Crown, Lock } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Eye, Plus, Trash2, TrendingUp as TrendingUpIcon, Bell, BellRing, Crown, Lock, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { toast } from 'sonner'
 
 export interface WatchlistItem {
   id: string
@@ -33,16 +34,38 @@ export default function WatchlistTab({
   onUpgrade,
   language = 'id'
 }: WatchlistTabProps) {
-  // Local alert toggle state (visual only — persists in session)
+  // Local alert toggle state — persists in localStorage across sessions
   const [alertItems, setAlertItems] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set()
     try {
-      const stored = sessionStorage.getItem('watchlist-alerts')
+      const stored = localStorage.getItem('luxtradee-watchlist-alerts')
       return stored ? new Set(JSON.parse(stored)) : new Set()
     } catch {
       return new Set()
     }
   })
+
+  // Current prices per symbol (from /api/forex polling)
+  const [currentPrices, setCurrentPrices] = useState<Record<string, number>>({})
+
+  // Triggered alert IDs — items whose target price was reached
+  const [triggeredAlerts, setTriggeredAlerts] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set()
+    try {
+      const stored = localStorage.getItem('luxtradee-watchlist-triggered')
+      return stored ? new Set(JSON.parse(stored)) : new Set()
+    } catch {
+      return new Set()
+    }
+  })
+
+  // Refs to access latest state inside polling interval without re-creating effect
+  const alertItemsRef = useRef(alertItems)
+  const triggeredAlertsRef = useRef(triggeredAlerts)
+  const itemsRef = useRef(items)
+  alertItemsRef.current = alertItems
+  triggeredAlertsRef.current = triggeredAlerts
+  itemsRef.current = items
 
   const toggleAlert = (id: string) => {
     setAlertItems(prev => {
@@ -52,10 +75,66 @@ export default function WatchlistTab({
       } else {
         next.add(id)
       }
-      sessionStorage.setItem('watchlist-alerts', JSON.stringify([...next]))
+      localStorage.setItem('luxtradee-watchlist-alerts', JSON.stringify([...next]))
       return next
     })
   }
+
+  // Price polling for items with alerts enabled
+  useEffect(() => {
+    if (items.length === 0) return
+
+    const alertItemsList = items.filter(item => alertItems.has(item.id))
+    if (alertItemsList.length === 0) return
+
+    const pollPrices = async () => {
+      const currentAlertItems = itemsRef.current.filter(item => alertItemsRef.current.has(item.id))
+      if (currentAlertItems.length === 0) return
+
+      const uniqueSymbols = [...new Set(currentAlertItems.map(i => i.symbol))]
+      const priceMap: Record<string, number> = {}
+
+      await Promise.all(uniqueSymbols.map(async (symbol) => {
+        try {
+          const res = await fetch(`/api/forex?symbol=${symbol}&limit=1`)
+          const data = await res.json()
+          if (data.success && data.data?.length > 0) {
+            priceMap[symbol] = data.data[data.data.length - 1].close
+          }
+        } catch {
+          // Silently ignore fetch errors
+        }
+      }))
+
+      setCurrentPrices(prev => ({ ...prev, ...priceMap }))
+
+      // Check alerts against fetched prices
+      currentAlertItems.forEach(item => {
+        const price = priceMap[item.symbol]
+        if (price && item.target_price) {
+          const reached = Math.abs(price - item.target_price) / item.target_price < 0.001 // Within 0.1%
+          if (reached && !triggeredAlertsRef.current.has(item.id)) {
+            setTriggeredAlerts(prev => {
+              const next = new Set([...prev, item.id])
+              localStorage.setItem('luxtradee-watchlist-triggered', JSON.stringify([...next]))
+              return next
+            })
+            // Toast notification
+            const msg = language === 'id'
+              ? `🎯 ${item.symbol} — Target ${item.target_price} tercapai! Harga: ${price.toFixed(item.symbol.includes('JPY') ? 3 : 5)}`
+              : `🎯 ${item.symbol} — Target ${item.target_price} reached! Price: ${price.toFixed(item.symbol.includes('JPY') ? 3 : 5)}`
+            toast.success(msg, { duration: 8000 })
+            // Auto-disable alert after trigger
+            toggleAlert(item.id)
+          }
+        }
+      })
+    }
+
+    pollPrices() // Initial poll
+    const interval = setInterval(pollPrices, 60000) // Every 60s
+    return () => clearInterval(interval)
+  }, [items, alertItems, language])
 
   if (!loading && !isPro) {
     return (
@@ -143,10 +222,25 @@ export default function WatchlistTab({
                         </button>
                       </div>
                     </div>
+                    {/* Current price from polling */}
+                    {currentPrices[item.symbol] != null && (
+                      <div className="mb-1">
+                        <span className="text-xs text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Harga: ' : 'Price: '}</span>
+                        <span className="text-sm font-mono text-blue-400">{currentPrices[item.symbol].toFixed(item.symbol.includes('JPY') ? 3 : 5)}</span>
+                      </div>
+                    )}
                     {item.target_price && (
                       <div className="mb-2">
                         <span className="text-xs text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Target: ' : 'Target: '}</span>
-                        <span className="text-sm font-bold text-emerald-400">{item.target_price}</span>
+                        {triggeredAlerts.has(item.id) ? (
+                          <span className="text-sm font-bold text-emerald-400 flex items-center gap-1">
+                            {item.target_price}
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="text-[10px] font-medium">{language === 'id' ? 'Tercapai!' : 'Reached!'}</span>
+                          </span>
+                        ) : (
+                          <span className="text-sm font-bold text-emerald-400">{item.target_price}</span>
+                        )}
                       </div>
                     )}
                     {item.notes && (
@@ -169,7 +263,7 @@ export default function WatchlistTab({
 
           {/* Alert notice */}
           <p className="text-xs text-lux-text-muted dark:text-gray-500 text-center mt-2">
-            🔔 {language === 'id' ? 'Alert membutuhkan data harga real-time (segera hadir)' : 'Alerts require real-time price data (coming soon)'}
+            🔔 {language === 'id' ? 'Alert aktif — harga dicek setiap 60 detik' : 'Alerts active — prices checked every 60s'}
           </p>
         </>
       )}

@@ -22,7 +22,6 @@ const PricingSectionNew = dynamic(() => import('@/components/landing/PricingSect
 const FAQSection = dynamic(() => import('@/components/landing/FAQSection').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const FinalCTA = dynamic(() => import('@/components/landing/FinalCTA').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const LandingFooter = dynamic(() => import('@/components/landing/LandingFooter').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
-const LandingPromoBanner = dynamic(() => import('@/components/landing/LandingPromoBanner').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 // TrustStats and LiveActivityFeed removed — fake data components
 const FeatureComparison = dynamic(() => import('@/components/landing/FeatureComparison').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const CSBotWidget = dynamic(() => import('@/components/landing/CSBotWidget').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
@@ -107,7 +106,6 @@ export default function LuxTradeLanding() {
 
         <main id="main-content" className="flex-1 pb-20 md:pb-0">
           <HeroSection language={language} />
-          <LandingPromoBanner language={language} />
           <SocialProofBar language={language} />
           {/* TrustStats removed — fake data */}
           <AIVisionSimulator language={language} />

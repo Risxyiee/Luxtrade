@@ -352,6 +352,7 @@ model Affiliate {
   referralCode    String    @unique @map("referral_code")
   totalEarned     Float     @default(0) @map("total_earned")
   totalPaid       Float     @default(0) @map("total_paid")
+  totalWithdrawn  Float     @default(0) @map("total_withdrawn")
   currentBalance  Float     @default(0) @map("current_balance")
   codeChangedAt   DateTime?                              @map("code_changed_at")
   createdAt       DateTime  @default(now()) @map("created_at")
@@ -393,6 +394,55 @@ model AffiliateWithdrawal {
   @@index([affiliateId])
   @@index([status])
   @@map("affiliate_withdrawals")
+}
+
+model NotificationPreference {
+  id                String    @id @default(uuid())
+  userId            String    @unique @map("user_id")
+  emailDigest       Boolean   @default(true) @map("email_digest")
+  tradeAlerts       Boolean   @default(true) @map("trade_alerts")
+  weeklyReport      Boolean   @default(true) @map("weekly_report")
+  dailyReminder     Boolean   @default(true) @map("daily_reminder")
+  plThreshold       Float     @default(100) @map("pl_threshold")
+  drawdownAlert     Boolean   @default(true) @map("drawdown_alert")
+  drawdownThreshold Float     @default(5) @map("drawdown_threshold")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("notification_preferences")
+}
+
+model Testimonial {
+  id                String    @id @default(uuid())
+  userName          String    @map("user_name")
+  role              String?
+  rating            Int       @default(5)
+  text              String
+  profileImageUrl   String?   @map("profile_image_url")
+  tradesLogged      Int       @default(0) @map("trades_logged")
+  propFirmsPassed   Int       @default(0) @map("prop_firms_passed")
+  isVerified        Boolean   @default(false) @map("is_verified")
+  status            String    @default("pending")
+  userId            String?   @map("user_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([userId])
+  @@map("testimonials")
+}
+
+model WeeklySummaryEmail {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  weekStart   DateTime  @map("week_start")
+  sentAt      DateTime  @default(now()) @map("sent_at")
+  status      String    @default("sent")
+
+  @@index([userId])
+  @@index([weekStart])
+  @@map("weekly_summary_emails")
 }
 
 model SharedTrade {
