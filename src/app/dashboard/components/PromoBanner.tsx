@@ -1,14 +1,22 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ExternalLink, Flame } from 'lucide-react'
 import Image from 'next/image'
 
 const CTA_URL = 'https://app.fundingtraders.com/express_checkout?ref=pil14250337&promo=LUXTRADEE'
+const DISMISS_KEY = 'lux-promo-banner-dismissed'
 
 export default function PromoBanner() {
   const [dismissed, setDismissed] = useState(false)
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(DISMISS_KEY)
+      if (stored === 'true') setDismissed(true)
+    } catch {}
+  }, [])
 
   if (dismissed) return null
 
@@ -56,7 +64,7 @@ export default function PromoBanner() {
           <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-4">
             <p className="text-sm sm:text-[14px] font-semibold text-white/90 leading-snug truncate">
               <Flame className="w-4 h-4 inline text-orange-400 mr-1 -mt-0.5" />
-              Luxtradee x FundingTraders: Dapatkan akun evaluasi trading dan tingkatkan modalmu!
+              LuxTradee x FundingTraders: {typeof window !== 'undefined' && document?.documentElement?.lang === 'en' ? 'Get a trading evaluation account and grow your capital!' : 'Dapatkan akun evaluasi trading dan tingkatkan modalmu!'}
             </p>
             <a
               href={CTA_URL}
@@ -64,15 +72,18 @@ export default function PromoBanner() {
               rel="noopener noreferrer"
               className="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 text-[12px] sm:text-[13px] font-bold text-white hover:from-orange-400 hover:to-amber-400 active:scale-[0.97] transition-all duration-200 shadow-lg shadow-orange-500/20"
             >
-              Daftar Sekarang
+              {typeof window !== 'undefined' && document?.documentElement?.lang === 'en' ? 'Sign Up Now' : 'Daftar Sekarang'}
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>
 
           {/* Dismiss button */}
           <button
-            onClick={() => setDismissed(true)}
-            className="flex-shrink-0 p-1 rounded-md hover:bg-white/10 transition-colors"
+            onClick={() => {
+              setDismissed(true)
+              try { localStorage.setItem(DISMISS_KEY, 'true') } catch {}
+            }}
+            className="flex-shrink-0 p-1 rounded-md hover:bg-white/10 transition-colors cursor-pointer"
             aria-label="Tutup banner"
           >
             <X className="w-4 h-4 text-white/40 hover:text-white/70" />

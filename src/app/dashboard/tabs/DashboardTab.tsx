@@ -636,7 +636,7 @@ function DashboardTab({
                 </Button>
 
                 <button
-                  onClick={() => setAddTradeOpen(true)}
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-demo-modal'))}
                   className="text-sm text-blue-400 hover:text-blue-300 transition-colors duration-200 cursor-pointer group"
                 >
                   {language === 'id'

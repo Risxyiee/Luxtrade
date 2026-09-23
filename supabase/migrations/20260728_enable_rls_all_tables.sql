@@ -62,7 +62,65 @@ CREATE POLICY "Users can update own subscriptions"
   USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can delete own subscriptions"
+  ON public.user_subscriptions FOR DELETE
+  TO authenticated
+  USING ((select auth.uid()) = user_id);
+
+-- ===========================================
+-- 2b. TABLE: user_submissions
+--     Fix: Users can CRUD own submissions. service_role bypasses.
+-- ===========================================
+
+ALTER TABLE public.user_submissions ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE public.user_submissions FROM anon;
+
+CREATE POLICY "Users can view own submissions"
+  ON public.user_submissions FOR SELECT
+  TO authenticated
+  USING ((select auth.uid()) = user_id);
+
+CREATE POLICY "Users can insert own submissions"
+  ON public.user_submissions FOR INSERT
+  TO authenticated
+  WITH CHECK ((select auth.uid()) = user_id);
+
+CREATE POLICY "Users can update own submissions"
+  ON public.user_submissions FOR UPDATE
+  TO authenticated
+  USING ((select auth.uid()) = user_id);
+
+CREATE POLICY "Users can delete own submissions"
   ON public.user_submissions FOR DELETE
+  TO authenticated
+  USING ((select auth.uid()) = user_id);
+
+-- ===========================================
+-- 2c. TABLE: mission_progress
+--     Fix: Users can CRUD own mission progress. service_role bypasses.
+-- ===========================================
+
+ALTER TABLE public.mission_progress ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE public.mission_progress FROM anon;
+
+CREATE POLICY "Users can view own mission progress"
+  ON public.mission_progress FOR SELECT
+  TO authenticated
+  USING ((select auth.uid()) = user_id);
+
+CREATE POLICY "Users can insert own mission progress"
+  ON public.mission_progress FOR INSERT
+  TO authenticated
+  WITH CHECK ((select auth.uid()) = user_id);
+
+CREATE POLICY "Users can update own mission progress"
+  ON public.mission_progress FOR UPDATE
+  TO authenticated
+  USING ((select auth.uid()) = user_id);
+
+CREATE POLICY "Users can delete own mission progress"
+  ON public.mission_progress FOR DELETE
   TO authenticated
   USING ((select auth.uid()) = user_id);
 
@@ -336,6 +394,8 @@ CREATE POLICY "Affiliates can view own withdrawals"
 
 GRANT USAGE, SELECT, INSERT, UPDATE, DELETE ON public.users TO authenticated;
 GRANT USAGE, SELECT, INSERT, UPDATE, DELETE ON public.user_subscriptions TO authenticated;
+GRANT USAGE, SELECT, INSERT, UPDATE, DELETE ON public.user_submissions TO authenticated;
+GRANT USAGE, SELECT, INSERT, UPDATE, DELETE ON public.mission_progress TO authenticated;
 GRANT USAGE, SELECT, INSERT, UPDATE, DELETE ON public.journal_entries TO authenticated;
 GRANT USAGE, SELECT, INSERT, UPDATE, DELETE ON public.tags TO authenticated;
 GRANT USAGE, SELECT, INSERT, UPDATE, DELETE ON public.weekly_goals TO authenticated;
