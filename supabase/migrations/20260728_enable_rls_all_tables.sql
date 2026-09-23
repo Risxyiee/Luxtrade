@@ -396,6 +396,7 @@ GRANT USAGE, SELECT, INSERT, UPDATE, DELETE ON public.users TO authenticated;
 GRANT USAGE, SELECT, INSERT, UPDATE, DELETE ON public.user_subscriptions TO authenticated;
 GRANT USAGE, SELECT, INSERT, UPDATE, DELETE ON public.user_submissions TO authenticated;
 GRANT USAGE, SELECT, INSERT, UPDATE, DELETE ON public.mission_progress TO authenticated;
+GRANT USAGE, SELECT, INSERT, UPDATE, DELETE ON public.testimonials TO authenticated;
 GRANT USAGE, SELECT, INSERT, UPDATE, DELETE ON public.journal_entries TO authenticated;
 GRANT USAGE, SELECT, INSERT, UPDATE, DELETE ON public.tags TO authenticated;
 GRANT USAGE, SELECT, INSERT, UPDATE, DELETE ON public.weekly_goals TO authenticated;
@@ -406,6 +407,14 @@ GRANT USAGE, SELECT ON public.promo_codes TO authenticated;
 GRANT USAGE, SELECT, UPDATE ON public.affiliates TO authenticated;
 GRANT USAGE, SELECT ON public.affiliate_referrals TO authenticated;
 GRANT USAGE, SELECT ON public.affiliate_withdrawals TO authenticated;
+
+-- Explicit GRANTs for service_role on tables used by admin API routes.
+-- service_role normally bypasses RLS, but needs table-level permissions.
+GRANT ALL ON TABLE public.testimonials TO service_role;
+GRANT ALL ON TABLE public.user_submissions TO service_role;
+GRANT ALL ON TABLE public.mission_progress TO service_role;
+GRANT ALL ON TABLE public.profiles TO service_role;
+GRANT ALL ON TABLE public.trades TO service_role;
 
 -- ===========================================
 -- VERIFY: List all tables that should have RLS enabled
