@@ -310,3 +310,31 @@ Stage Summary:
 - CS Bot sekarang pakai Gemini 2.5 Flash (gratis, 15 RPM, 1M tokens/day)
 - Perlu set GEMINI_API_KEY di .env untuk development
 - Push: 50db0d9 → main
+
+---
+Task ID: 8
+Agent: main (System Maintenance & Code Cleanup Agent)
+Task: Full codebase cleanup — dead code, unused deps, build optimization
+
+Work Log:
+- Ran comprehensive dead code analysis via subagent
+- Identified 68+ SAFE_TO_DELETE files, 15 NEEDS_REVIEW
+- Identified 20 unused npm packages
+- Deleted 10 root debug scripts (fix_ai.js, test-db.ts, etc.)
+- Deleted 5 screenshot artifacts
+- Deleted 3 dead page routes (/test-promo, /admin-dashboard-secret, LuxTradeLanding.tsx)
+- Deleted 26 dead API routes + 5 debug API routes
+- Deleted 21 unused components + 16 unused landing components
+- Deleted 19 unused lib files + 5 unused stores/hooks
+- Deleted 3 dead mini-services (ollama, zai-vision, affiliate-ws)
+- Removed 20 npm packages (saves ~3MB+ bundle size)
+- Added clean build scripts to package.json
+- Verified: lint clean, HTTP 200, all routes compile
+- Committed: 116 files changed, 99 insertions, 19,764 deletions
+- Pushed: c8e48e1 → main
+
+Stage Summary:
+- 19,764 lines of dead code removed
+- 20 unused npm packages removed
+- Build now auto-cleans .open-next and .next cache
+- Server compiles and runs correctly post-cleanup
