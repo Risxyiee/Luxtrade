@@ -111,7 +111,7 @@ export default function PaymentConfirmationModal({
                 <div className="bg-white rounded-2xl p-4 flex items-center justify-center">
                   <img
                     src="/qris-luxtrade.jpeg"
-                    alt="QRIS LuxTrade"
+                    alt="QRIS LuxTradee"
                     className="w-full max-w-[240px] h-auto rounded-lg"
                   />
                 </div>
@@ -120,7 +120,7 @@ export default function PaymentConfirmationModal({
                 <div className="flex items-center justify-between pt-1">
                   <div>
                     <p className="text-[10px] text-white/30 uppercase tracking-wider">Merchant</p>
-                    <p className="text-sm font-semibold text-white/80">Luxtrade</p>
+                    <p className="text-sm font-semibold text-white/80">LuxTradee</p>
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] text-white/30 uppercase tracking-wider">NMID</p>

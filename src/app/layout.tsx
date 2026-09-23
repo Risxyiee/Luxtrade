@@ -22,22 +22,22 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://luxtradee.web.id'),
-  title: "LuxTrade - AI Trading Journal Indonesia | Catat Trade, Deteksi Kesalahan, Naikkan Win Rate",
+  title: "LuxTradee - AI Trading Journal Indonesia | Catat Trade, Deteksi Kesalahan, Naikkan Win Rate",
   description: "Trading journal dengan AI untuk trader Indonesia. Screenshot trade dari MT4/MT5, AI auto-extract data & deteksi pola kesalahan berulang. Equity curve, analisis psikologi trading, risk calculator. Gratis 10 trade/bulan.",
   keywords: ["trading journal", "jurnal trading", "trading journal Indonesia", "AI trading journal", "jurnal trading AI", "catat trade", "analisis trading", "forex journal", "jurnal forex", "equity curve", "deteksi kesalahan trading", "trading psikologi", "risk calculator forex", "MT4 journal", "MT5 journal", "luxtrade"],
-  authors: [{ name: "LuxTrade" }],
+  authors: [{ name: "LuxTradee" }],
   icons: { icon: "/logo.png" },
   openGraph: {
-    title: "LuxTrade - AI Trading Journal Indonesia | Catat Trade, Deteksi Kesalahan, Naikkan Win Rate",
+    title: "LuxTradee - AI Trading Journal Indonesia | Catat Trade, Deteksi Kesalahan, Naikkan Win Rate",
     description: "Trading journal dengan AI untuk trader Indonesia. Screenshot trade dari MT4/MT5, AI auto-extract data & deteksi pola kesalahan berulang. Gratis 10 trade/bulan.",
     type: "website",
-    siteName: "LuxTrade",
+    siteName: "LuxTradee",
     locale: "id_ID",
-    images: [{ url: "/logo.png", width: 1200, height: 630, alt: "LuxTrade - AI Trading Journal Indonesia" }],
+    images: [{ url: "/logo.png", width: 1200, height: 630, alt: "LuxTradee - AI Trading Journal Indonesia" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "LuxTrade - AI Trading Journal Indonesia",
+    title: "LuxTradee - AI Trading Journal Indonesia",
     description: "Trading journal dengan AI untuk trader Indonesia. Catat trade, deteksi kesalahan, naikkan win rate.",
     images: ["/logo.png"],
   },

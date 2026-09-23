@@ -193,7 +193,7 @@ function ResetPasswordContent() {
               </Link>
             </div>
           </div>
-          <p className="text-center mt-8 text-[10px] text-gray-700 font-[JetBrains_Mono,monospace] uppercase tracking-widest">© 2026 LuxTrade. All rights reserved.</p>
+          <p className="text-center mt-8 text-[10px] text-gray-700 font-[JetBrains_Mono,monospace] uppercase tracking-widest">© 2026 LuxTradee. All rights reserved.</p>
         </div>
       </div>
     )
@@ -225,7 +225,7 @@ function ResetPasswordContent() {
               </Link>
             </div>
           </div>
-          <p className="text-center mt-8 text-[10px] text-gray-700 font-[JetBrains_Mono,monospace] uppercase tracking-widest relative z-10">© 2026 LuxTrade. All rights reserved.</p>
+          <p className="text-center mt-8 text-[10px] text-gray-700 font-[JetBrains_Mono,monospace] uppercase tracking-widest relative z-10">© 2026 LuxTradee. All rights reserved.</p>
         </div>
       </div>
     )
@@ -321,7 +321,7 @@ function ResetPasswordContent() {
           </div>
         </div>
 
-        <p className="text-center mt-8 text-[10px] text-gray-700 font-[JetBrains_Mono,monospace] uppercase tracking-widest relative z-10">© 2026 LuxTrade. All rights reserved.</p>
+        <p className="text-center mt-8 text-[10px] text-gray-700 font-[JetBrains_Mono,monospace] uppercase tracking-widest relative z-10">© 2026 LuxTradee. All rights reserved.</p>
       </div>
     </div>
   )

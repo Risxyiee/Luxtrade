@@ -432,7 +432,7 @@ function SignUpForm() {
       } else {
         setError(
           'Akun dibuat, tapi gagal mengirim email verifikasi. ' +
-          'Silakan hubungi admin LuxTrade atau coba kirim ulang dari halaman login.'
+          'Silakan hubungi admin LuxTradee atau coba kirim ulang dari halaman login.'
         )
       }
     } catch (err: unknown) {
@@ -456,7 +456,7 @@ function SignUpForm() {
           <SuccessScreen email={email} onLogin={() => router.push('/auth/login')} />
           <div className="text-center mt-8">
             <p className="text-[10px] text-gray-700 font-[JetBrains_Mono,monospace] uppercase tracking-widest">
-              © 2026 LuxTrade. All rights reserved.
+              © 2026 LuxTradee. All rights reserved.
             </p>
           </div>
           <style jsx global>{`
@@ -544,7 +544,7 @@ function SignUpForm() {
               <LuxInput
                 id="fullName"
                 type="text"
-                placeholder="Trader LuxTrade"
+                placeholder="Trader LuxTradee"
                 value={fullName}
                 onChange={(e) => { setFullName(e.target.value); setFieldErrors(prev => ({ ...prev, fullName: false })) }}
                 required
@@ -642,7 +642,7 @@ function SignUpForm() {
                   <a href="/terms" className="text-cyan-400 hover:underline">Syarat & Ketentuan</a>
                   {' '}serta{' '}
                   <a href="/privacy" className="text-cyan-400 hover:underline">Kebijakan Privasi</a>
-                  {' '}LuxTrade.
+                  {' '}LuxTradee.
                 </>
               }
             />
@@ -684,7 +684,7 @@ function SignUpForm() {
         {/* Footer */}
         <div className="text-center mt-8">
           <p className="text-[10px] text-gray-700 font-[JetBrains_Mono,monospace] uppercase tracking-widest">
-            © 2026 LuxTrade. All rights reserved.
+            © 2026 LuxTradee. All rights reserved.
           </p>
         </div>
       </motion.div>

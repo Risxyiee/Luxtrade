@@ -24,7 +24,7 @@ export default function UserGuideTab() {
 
   const content = {
     id: {
-      title: "Selamat Datang di LuxTrade! Panduan Kilat Menguasai Dashboard Trading Journal Milikmu",
+      title: "Selamat Datang di LuxTradee! Panduan Kilat Menguasai Dashboard Trading Journal Milikmu",
       subtitle: "Panduan lengkap untuk memaksimalkan pengalaman jurnal trading Anda",
       sections: [
         {
@@ -73,7 +73,7 @@ export default function UserGuideTab() {
       }
     },
     en: {
-      title: "Welcome to LuxTrade! Quick Guide to Mastering Your Trading Journal Dashboard",
+      title: "Welcome to LuxTradee! Quick Guide to Mastering Your Trading Journal Dashboard",
       subtitle: "Complete guide to maximize your trading journal experience",
       sections: [
         {

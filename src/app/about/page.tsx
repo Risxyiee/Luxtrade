@@ -51,8 +51,8 @@ export default function AboutPage() {
       icon: Users,
       title: isEnglish ? 'Community Driven' : 'Didorong Komunitas',
       description: isEnglish
-        ? 'Built by traders, for traders. Our community shapes the future of LuxTrade.'
-        : 'Dibuat oleh trader, untuk trader. Komunitas kami membentuk masa depan LuxTrade.'
+        ? 'Built by traders, for traders. Our community shapes the future of LuxTradee.'
+        : 'Dibuat oleh trader, untuk trader. Komunitas kami membentuk masa depan LuxTradee.'
     },
     {
       icon: Heart,
@@ -66,7 +66,7 @@ export default function AboutPage() {
   const milestones = [
     {
       year: '2024',
-      title: isEnglish ? 'LuxTrade Founded' : 'LuxTrade Didirikan',
+      title: isEnglish ? 'LuxTradee Founded' : 'LuxTradee Didirikan',
       description: isEnglish
         ? 'Started with a simple mission: help traders improve through data-driven journaling and AI insights.'
         : 'Dimulai dengan misi sederhana: membantu trader meningkat melalui journaling berbasis data dan wawasan AI.'
@@ -123,14 +123,14 @@ export default function AboutPage() {
             <div className="flex items-center gap-3">
               <Image
                 src="/logo.png"
-                alt="LuxTrade Logo"
+                alt="LuxTradee Logo"
                 width={40}
                 height={40}
                 className="object-contain"
               />
               <div>
                 <Link href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
-                  LuxTrade
+                  LuxTradee
                 </Link>
               </div>
             </div>
@@ -197,8 +197,8 @@ export default function AboutPage() {
               </h1>
               <p className="text-xl sm:text-2xl text-white/60 max-w-3xl mx-auto mb-12 leading-relaxed font-light">
                 {isEnglish
-                  ? 'LuxTrade is a premium trading journal platform built by traders, for traders. We believe that consistent profitability comes from disciplined analysis, not luck.'
-                  : 'LuxTrade adalah platform jurnal trading premium yang dibuat oleh trader, untuk trader. Kami percaya bahwa profitabilitas konsisten datang dari analisis yang disiplin, bukan keberuntungan.'}
+                  ? 'LuxTradee is a premium trading journal platform built by traders, for traders. We believe that consistent profitability comes from disciplined analysis, not luck.'
+                  : 'LuxTradee adalah platform jurnal trading premium yang dibuat oleh trader, untuk trader. Kami percaya bahwa profitabilitas konsisten datang dari analisis yang disiplin, bukan keberuntungan.'}
               </p>
             </motion.div>
           </motion.div>
@@ -390,7 +390,7 @@ export default function AboutPage() {
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
                 <a
-                  href="https://www.instagram.com/luxtrade.web"
+                  href="https://www.instagram.com/luxtradee"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-12 h-12 rounded-xl backdrop-blur-sm bg-white/5 border border-white/[0.08] flex items-center justify-center hover:bg-white/10 hover:border-blue-500/30 transition-all duration-300 hover:scale-110"
@@ -398,7 +398,7 @@ export default function AboutPage() {
                   <span className="text-sm font-bold text-white/60">I</span>
                 </a>
                 <a
-                  href="https://www.tiktok.com/@luxtradeee"
+                  href="https://www.tiktok.com/@luxtradee"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-12 h-12 rounded-xl backdrop-blur-sm bg-white/5 border border-white/[0.08] flex items-center justify-center hover:bg-white/10 hover:border-blue-500/30 transition-all duration-300 hover:scale-110"
@@ -442,7 +442,7 @@ export default function AboutPage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-white/40 text-sm font-medium">
-              © {new Date().getFullYear()} LuxTrade. All rights reserved.
+              © {new Date().getFullYear()} LuxTradee. All rights reserved.
             </p>
             <div className="flex items-center gap-6">
               <Link

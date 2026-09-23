@@ -21,13 +21,13 @@ export default function PrivacyPolicyPage() {
           <Link href="/" className="inline-flex items-center gap-3">
             <Image 
               src="/logo-premium.png" 
-              alt="LuxTrade Logo" 
+              alt="LuxTradee Logo" 
               width={36} 
               height={36}
               className="object-contain"
             />
             <span className="text-lg font-bold bg-gradient-to-r from-cyan-200 to-cyan-400 bg-clip-text text-transparent">
-              LuxTrade
+              LuxTradee
             </span>
           </Link>
           <Link href="/">
@@ -53,7 +53,7 @@ export default function PrivacyPolicyPage() {
             <section>
               <h2 className="text-2xl font-semibold text-white mb-4">1. Pendahuluan</h2>
               <p className="text-white/70 leading-relaxed">
-                LuxTrade (&quot;kami&quot;, &quot;kita&quot;, atau &quot;Platform&quot;) menghargai privasi Anda. Kebijakan Privasi ini menjelaskan bagaimana kami mengumpulkan, menggunakan, mengungkapkan, dan melindungi informasi pribadi Anda saat Anda menggunakan layanan trading journal kami.
+                LuxTradee (&quot;kami&quot;, &quot;kita&quot;, atau &quot;Platform&quot;) menghargai privasi Anda. Kebijakan Privasi ini menjelaskan bagaimana kami mengumpulkan, menggunakan, mengungkapkan, dan melindungi informasi pribadi Anda saat Anda menggunakan layanan trading journal kami.
               </p>
             </section>
 
@@ -83,7 +83,7 @@ export default function PrivacyPolicyPage() {
               <h2 className="text-2xl font-semibold text-white mb-4">3. Penggunaan Informasi</h2>
               <p className="text-white/70 leading-relaxed mb-4">Kami menggunakan informasi yang dikumpulkan untuk:</p>
               <ul className="list-disc list-inside space-y-2 text-white/70">
-                <li>Menyediakan dan mengelola layanan LuxTrade</li>
+                <li>Menyediakan dan mengelola layanan LuxTradee</li>
                 <li>Menyimpan dan menampilkan data trading journal Anda</li>
                 <li>Menghasilkan analitik dan insight trading</li>
                 <li>Mengirim notifikasi penting terkait akun Anda</li>
@@ -135,7 +135,7 @@ export default function PrivacyPolicyPage() {
                   </ul>
                 </div>
                 <p className="text-white/70 leading-relaxed">
-                  Seluruh pemrosesan pembayaran dilakukan melalui QRIS yang tersertifikasi oleh Bank Indonesia. LuxTrade tidak menyimpan kredensial keuangan sensitif Anda.
+                  Seluruh pemrosesan pembayaran dilakukan melalui QRIS yang tersertifikasi oleh Bank Indonesia. LuxTradee tidak menyimpan kredensial keuangan sensitif Anda.
                 </p>
               </div>
             </section>
@@ -182,7 +182,7 @@ export default function PrivacyPolicyPage() {
                 Jika Anda memiliki pertanyaan tentang Kebijakan Privasi ini, silakan hubungi kami di:
               </p>
               <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 mt-4 space-y-2">
-                <p className="text-white/70"><strong className="text-cyan-400">Nama Usaha:</strong> LuxTrade</p>
+                <p className="text-white/70"><strong className="text-cyan-400">Nama Usaha:</strong> LuxTradee</p>
                 <p className="text-white/70"><strong className="text-cyan-400">Email:</strong> luxtradee@gmail.com</p>
                 <p className="text-white/70"><strong className="text-cyan-400">Telepon:</strong> +62 857-1205-4394</p>
                 <p className="text-white/70"><strong className="text-cyan-400">Alamat Usaha:</strong> Jakarta, Indonesia</p>
@@ -195,7 +195,7 @@ export default function PrivacyPolicyPage() {
       {/* Footer */}
       <footer className="border-t border-white/5 py-8 mt-12">
         <div className="max-w-4xl mx-auto px-4 text-center text-white/40 text-sm">
-          <p>© {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} LuxTradee. All rights reserved.</p>
           <div className="flex justify-center gap-4 mt-4 flex-wrap">
             <Link href="/disclaimer" className="hover:text-white transition-colors">Disclaimer</Link>
             <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>

@@ -192,7 +192,7 @@ export function ExportButtons({
                   trades,
                   journalEntries,
                   analytics,
-                  `luxtrade-backup-${today}.json`
+                  `luxtradee-backup-${today}.json`
                 )
               }
               className="cursor-pointer text-lux-text-primary dark:text-gray-300 hover:text-lux-text-primary dark:hover:text-white"

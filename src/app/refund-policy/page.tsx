@@ -21,13 +21,13 @@ export default function RefundPolicyPage() {
           <Link href="/" className="inline-flex items-center gap-3">
             <Image 
               src="/logo-premium.png" 
-              alt="LuxTrade Logo" 
+              alt="LuxTradee Logo" 
               width={36} 
               height={36}
               className="object-contain"
             />
             <span className="text-lg font-bold bg-gradient-to-r from-cyan-200 to-cyan-400 bg-clip-text text-transparent">
-              LuxTrade
+              LuxTradee
             </span>
           </Link>
           <Link href="/">
@@ -52,7 +52,7 @@ export default function RefundPolicyPage() {
           {/* CRITICAL BANNER */}
           <div className="bg-gradient-to-r from-red-500/10 via-blue-500/10 to-red-500/10 border border-red-500/25 rounded-2xl p-5 mb-8">
             <p className="text-white/80 leading-relaxed text-sm">
-              <strong className="text-red-300">⚠️ Penting:</strong> LuxTrade adalah produk digital berupa langganan SaaS (Software-as-a-Service). 
+              <strong className="text-red-300">⚠️ Penting:</strong> LuxTradee adalah produk digital berupa langganan SaaS (Software-as-a-Service). 
               Ini <strong className="text-red-300">BUKAN barang fisik</strong> yang dapat dikembalikan. 
               Seluruh pembelian langganan bersifat <strong className="text-red-300">FINAL dan TIDAK DAPAT dikembalikan (non-refundable)</strong> secara default, 
               sesuai dengan sifat produk digital yang diakses secara instan setelah pembayaran berhasil.
@@ -64,7 +64,7 @@ export default function RefundPolicyPage() {
             <section>
               <h2 className="text-2xl font-semibold text-white mb-4">1. Sifat Produk Digital</h2>
               <p className="text-white/70 leading-relaxed">
-                LuxTrade adalah produk digital berupa layanan SaaS (Software-as-a-Service) yang memberikan akses perangkat lunak 
+                LuxTradee adalah produk digital berupa layanan SaaS (Software-as-a-Service) yang memberikan akses perangkat lunak 
                 berbasis web untuk pencatatan dan analisis data trading. Layanan ini bukan merupakan barang fisik yang dapat 
                 dikirim, disimpan, atau dikembalikan secara fisik.
               </p>
@@ -115,7 +115,7 @@ export default function RefundPolicyPage() {
                 </div>
                 <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-5">
                   <p className="text-white/70 leading-relaxed">
-                    <strong className="text-red-300">Batas waktu pengajuan:</strong> Permintaan refund atas pengecualian di atas harus diajukan dalam waktu <strong>maksimal 7 hari</strong> sejak insiden terjadi, melalui Discord <strong className="text-cyan-400">LuxTrade Server</strong> atau email <strong className="text-cyan-400">luxtradee@gmail.com</strong>.
+                    <strong className="text-red-300">Batas waktu pengajuan:</strong> Permintaan refund atas pengecualian di atas harus diajukan dalam waktu <strong>maksimal 7 hari</strong> sejak insiden terjadi, melalui Discord <strong className="text-cyan-400">LuxTradee Server</strong> atau email <strong className="text-cyan-400">luxtradee@gmail.com</strong>.
                   </p>
                 </div>
               </div>
@@ -128,7 +128,7 @@ export default function RefundPolicyPage() {
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
                   <h3 className="text-lg font-medium text-cyan-400 mb-2">Langkah Pengajuan</h3>
                   <ul className="list-disc list-inside space-y-2 text-white/70">
-                    <li>Hubungi kami melalui <strong className="text-cyan-400">Discord (LuxTrade Server)</strong> atau email <strong className="text-cyan-400">luxtradee@gmail.com</strong></li>
+                    <li>Hubungi kami melalui <strong className="text-cyan-400">Discord (LuxTradee Server)</strong> atau email <strong className="text-cyan-400">luxtradee@gmail.com</strong></li>
                     <li>Sertakan bukti pendukung (screenshot pembayaran ganda, bukti transfer, dll.)</li>
                     <li>Sertakan informasi akun: email terdaftar dan tanggal transaksi</li>
                   </ul>
@@ -155,7 +155,7 @@ export default function RefundPolicyPage() {
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
                   <h3 className="text-lg font-medium text-cyan-400 mb-2">Uji Coba Gratis 7 Hari</h3>
                   <ul className="list-disc list-inside space-y-2 text-white/70">
-                    <li>Free trial selama <strong>7 hari</strong> tersedia untuk semua pengguna baru LuxTrade</li>
+                    <li>Free trial selama <strong>7 hari</strong> tersedia untuk semua pengguna baru LuxTradee</li>
                     <li>Pengguna disarankan untuk memanfaatkan masa trial secara penuh guna mengevaluasi fitur premium sebelum melakukan pembelian</li>
                     <li>Trial akan aktif setelah pengguna melakukan <strong>verifikasi email</strong></li>
                     <li>Free trial bersifat <strong>sekali pakai</strong> — tidak tersedia bagi pengguna yang sebelumnya sudah pernah memiliki status Pro</li>
@@ -171,7 +171,7 @@ export default function RefundPolicyPage() {
                 Jika Anda memiliki pertanyaan mengenai Kebijakan Pengembalian Dana ini, silakan hubungi kami:
               </p>
               <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 space-y-3">
-                <p className="text-white/70"><strong className="text-cyan-400">Nama Usaha:</strong> LuxTrade</p>
+                <p className="text-white/70"><strong className="text-cyan-400">Nama Usaha:</strong> LuxTradee</p>
                 <p className="text-white/70"><strong className="text-cyan-400">Email:</strong> luxtradee@gmail.com</p>
                 <p className="text-white/70"><strong className="text-cyan-400">Telepon:</strong> +62 857-1205-4394</p>
                 <p className="text-white/70"><strong className="text-cyan-400">Alamat Usaha:</strong> Jakarta, Indonesia</p>
@@ -185,7 +185,7 @@ export default function RefundPolicyPage() {
       {/* Footer */}
       <footer className="border-t border-white/5 py-8 mt-12">
         <div className="max-w-4xl mx-auto px-4 text-center text-white/40 text-sm">
-          <p>© {new Date().getFullYear()} LuxTrade. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} LuxTradee. All rights reserved.</p>
           <div className="flex justify-center flex-wrap gap-6 mt-4">
             <Link href="/disclaimer" className="hover:text-white transition-colors">Disclaimer</Link>
             <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>

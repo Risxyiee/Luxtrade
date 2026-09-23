@@ -26,7 +26,7 @@ export default function AutoUpdateEmailTab() {
   const [fixInput, setFixInput] = useState('')
   const [improvementInput, setImprovementInput] = useState('')
 
-  const [subject, setSubject] = useState('✨ Pembaruan LuxTrade — Fitur Baru & Perbaikan Bug')
+  const [subject, setSubject] = useState('✨ Pembaruan LuxTradee — Fitur Baru & Perbaikan Bug')
   const [target, setTarget] = useState('verified')
 
   const [recipientCount, setRecipientCount] = useState<number | null>(null)

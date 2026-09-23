@@ -47,8 +47,8 @@ const DEFAULT_TESTIMONIALS: DefaultTestimonial[] = [
     role: 'Part-time Trader · Bandung',
     avatar: 'RW',
     rating: 5,
-    text: 'Sebagai trader part-time, saya butuh tools yang simpel. LuxTrade pas banget — screenshot langsung jadi jurnal. Nggak perlu input manual lagi. Save banget waktu saya.',
-    textEn: 'As a part-time trader, I need simple tools. LuxTrade is perfect — screenshot instantly becomes a journal. No more manual input. Saves me so much time.',
+    text: 'Sebagai trader part-time, saya butuh tools yang simpel. LuxTradee pas banget — screenshot langsung jadi jurnal. Nggak perlu input manual lagi. Save banget waktu saya.',
+    textEn: 'As a part-time trader, I need simple tools. LuxTradee is perfect — screenshot instantly becomes a journal. No more manual input. Saves me so much time.',
     gradient: 'from-cyan-500 to-blue-600',
     borderHover: 'hover:border-cyan-500/30',
   },
@@ -225,8 +225,8 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
           </h2>
           <p className="text-[var(--lux-text-subtitle)] max-w-lg mx-auto text-base">
             {language === 'id'
-              ? 'Trader Indonesia sudah pakai LuxTrade untuk memperbaiki performa mereka.'
-              : 'Indonesian traders are already using LuxTrade to improve their performance.'}
+              ? 'Trader Indonesia sudah pakai LuxTradee untuk memperbaiki performa mereka.'
+              : 'Indonesian traders are already using LuxTradee to improve their performance.'}
           </p>
         </div>
 

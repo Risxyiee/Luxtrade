@@ -24,13 +24,13 @@ export async function POST(request: NextRequest) {
     // Test basic email
     const result1 = await sendEmail({
       to: email,
-      subject: 'Test Debug - LuxTrade',
+      subject: 'Test Debug - LuxTradee',
       html: `
         <!DOCTYPE html>
         <html>
         <body>
           <h1>Test Email</h1>
-          <p>Ini adalah email test dari LuxTrade debugging system.</p>
+          <p>Ini adalah email test dari LuxTradee debugging system.</p>
           <p>Email: ${email}</p>
           <p>Waktu: ${new Date().toISOString()}</p>
         </body>
@@ -102,10 +102,10 @@ export async function GET(request: NextRequest) {
 
       const result = await sendEmail({
         to: email,
-        subject: 'Test Broadcast Debug - LuxTrade',
+        subject: 'Test Broadcast Debug - LuxTradee',
         html: `
           <h1>Test Email</h1>
-          <p>Halo, ini adalah test email dari LuxTrade untuk debugging broadcast.</p>
+          <p>Halo, ini adalah test email dari LuxTradee untuk debugging broadcast.</p>
           <p>Email tujuan: ${email}</p>
         `,
       })

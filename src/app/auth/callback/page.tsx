@@ -122,7 +122,7 @@ export default function AuthCallbackPage() {
                 <Crown className="w-6 h-6 text-white" />
               </div>
               <span className="text-2xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent">
-                LuxTrade
+                LuxTradee
               </span>
             </Link>
           </div>
@@ -144,7 +144,7 @@ export default function AuthCallbackPage() {
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">Akun Terkonfirmasi!</h2>
               <p className="text-white/40 text-sm mb-4">
-                Selamat datang di LuxTrade. Kamu akan dialihkan ke dashboard...
+                Selamat datang di LuxTradee. Kamu akan dialihkan ke dashboard...
               </p>
               <p className="text-white/30 text-xs">
                 Tidak redirect otomatis?{' '}

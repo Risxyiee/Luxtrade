@@ -31,7 +31,7 @@ export default function ContactPage() {
 
     try {
       // Construct mailto link with form data
-      const subject = encodeURIComponent(`[LuxTrade Contact] ${formData.subject}`)
+      const subject = encodeURIComponent(`[LuxTradee Contact] ${formData.subject}`)
       const body = encodeURIComponent(
         `Name: ${formData.name}\n` +
         `Email: ${formData.email}\n\n` +
@@ -82,14 +82,14 @@ export default function ContactPage() {
             <div className="flex items-center gap-3">
               <Image
                 src="/logo.png"
-                alt="LuxTrade Logo"
+                alt="LuxTradee Logo"
                 width={40}
                 height={40}
                 className="object-contain"
               />
               <div>
                 <Link href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
-                  LuxTrade
+                  LuxTradee
                 </Link>
               </div>
             </div>
@@ -300,13 +300,13 @@ export default function ContactPage() {
                   </div>
                   <div className="text-center">
                     <p className="text-white font-semibold mb-1">Discord</p>
-                    <p className="text-white/60 text-sm">LuxTrade Server</p>
+                    <p className="text-white/60 text-sm">LuxTradee Server</p>
                   </div>
                 </a>
 
                 {/* Instagram */}
                 <a
-                  href="https://www.instagram.com/luxtrade.web"
+                  href="https://www.instagram.com/luxtradee"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group flex flex-col items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10 hover:border-cyan-400/30 hover:bg-white/10 transition-all duration-300"
@@ -316,7 +316,7 @@ export default function ContactPage() {
                   </div>
                   <div className="text-center">
                     <p className="text-white font-semibold mb-1">Instagram</p>
-                    <p className="text-white/60 text-sm">@luxtrade.web</p>
+                    <p className="text-white/60 text-sm">@luxtradee</p>
                   </div>
                 </a>
 
@@ -354,7 +354,7 @@ export default function ContactPage() {
       <footer className="border-t border-white/[0.08] py-8 px-4 sm:px-6 lg:px-8 mt-auto">
         <div className="max-w-7xl mx-auto text-center">
           <p className="text-white/40 text-sm font-medium">
-            © {new Date().getFullYear()} LuxTrade. All rights reserved.
+            © {new Date().getFullYear()} LuxTradee. All rights reserved.
           </p>
           <div className="flex justify-center gap-4 mt-4 flex-wrap">
             <Link href="/disclaimer" className="text-white/40 hover:text-white text-sm transition-colors">Disclaimer</Link>

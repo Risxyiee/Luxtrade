@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
     const { error, user } = await requireAdmin(request)
     if (error) return error
 
-    const subject = request.nextUrl.searchParams.get('subject') || 'Test Email — LuxTrade'
-    const htmlBody = request.nextUrl.searchParams.get('htmlBody') || '<p>Ini email test dari Admin Panel LuxTrade.</p>'
+    const subject = request.nextUrl.searchParams.get('subject') || 'Test Email — LuxTradee'
+    const htmlBody = request.nextUrl.searchParams.get('htmlBody') || '<p>Ini email test dari Admin Panel LuxTradee.</p>'
 
     const adminEmail = user!.email || 'admin'
 
@@ -227,7 +227,7 @@ export async function POST(request: NextRequest) {
             }).eq('id', profile.id)
 
             const confirmationUrl = `${getSiteUrl()}/auth/verify?token=${newToken}`
-            const reminderSubject = subject || `${name}, akun LuxTrade kamu belum diverifikasi nih ⏳`
+            const reminderSubject = subject || `${name}, akun LuxTradee kamu belum diverifikasi nih ⏳`
 
             // Use promo template if promoCode is provided, otherwise use default reminder
             const html = promoCode

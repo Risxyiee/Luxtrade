@@ -142,13 +142,13 @@ async function sendDailyReminder(user: TargetUser): Promise<boolean> {
   // Dynamic subject based on streak
   let subject: string
   if (user.streak_count === 0) {
-    subject = `💪 Mulai streak barumu hari ini! — LuxTrade`
+    subject = `💪 Mulai streak barumu hari ini! — LuxTradee`
   } else if (user.streak_count < 7) {
-    subject = `🔥 Streak ${user.streak_count} hari! Jangan putus — LuxTrade`
+    subject = `🔥 Streak ${user.streak_count} hari! Jangan putus — LuxTradee`
   } else if (user.streak_count < 30) {
-    subject = `⚡ ${user.streak_count} hari streak! Kamu luar biasa — LuxTrade`
+    subject = `⚡ ${user.streak_count} hari streak! Kamu luar biasa — LuxTradee`
   } else {
-    subject = `👑 ${user.streak_count} HARI STREAK! Legendary — LuxTrade`
+    subject = `👑 ${user.streak_count} HARI STREAK! Legendary — LuxTradee`
   }
 
   const result = await sendEmail({ to: user.email, subject, html })

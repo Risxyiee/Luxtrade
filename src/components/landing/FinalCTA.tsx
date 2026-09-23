@@ -109,7 +109,7 @@ function LuxTradeLogo3D() {
               {/* The logo image */}
               <Image
                 src="/logo.png"
-                alt="LuxTrade"
+                alt="LuxTradee"
                 width={110}
                 height={110}
                 className="relative object-contain"

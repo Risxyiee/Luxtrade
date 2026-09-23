@@ -34,8 +34,8 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
           {/* Brand Column — spans 2 cols on md */}
           <div className="col-span-2">
             <div className="flex items-center gap-2.5 mb-4">
-              <Image src="/logo.png" alt="LuxTrade" width={28} height={28} className="object-contain" />
-              <span className="text-[15px] font-medium text-[#f0f2ff]">LuxTrade</span>
+              <Image src="/logo.png" alt="LuxTradee" width={28} height={28} className="object-contain" />
+              <span className="text-[15px] font-medium text-[#f0f2ff]">LuxTradee</span>
             </div>
             <p className="text-[#8892b0] max-w-sm text-[13px] leading-relaxed mb-5">
               {t(
@@ -144,7 +144,7 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
-            <p className="text-[#8892b0] text-[12px]">© 2025 LuxTrade</p>
+            <p className="text-[#8892b0] text-[12px]">© 2025 LuxTradee</p>
             <span className="hidden sm:inline text-white/10">•</span>
             <p className="text-[#8892b0] text-[12px]">Made with ❤️ in Indonesia</p>
           </div>

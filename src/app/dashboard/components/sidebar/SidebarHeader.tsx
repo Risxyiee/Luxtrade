@@ -27,7 +27,7 @@ export default function SidebarHeader({
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl blur-lg opacity-40 group-hover:opacity-60 transition-opacity" />
           <Image
             src="/logo.png"
-            alt="LuxTrade Logo"
+            alt="LuxTradee Logo"
             width={40}
             height={40}
             className="relative object-contain"
@@ -42,7 +42,7 @@ export default function SidebarHeader({
             className="overflow-hidden"
           >
             <h1 className="text-xl font-bold bg-gradient-to-r from-blue-200 via-blue-400 to-cyan-300 bg-clip-text text-transparent">
-              LuxTrade
+              LuxTradee
             </h1>
             <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-blue-500/50 dark:text-blue-400/40">{language === 'id' ? 'Jurnal Trading' : 'Trading Journal'}</p>
           </motion.div>

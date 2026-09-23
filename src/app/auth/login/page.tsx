@@ -252,7 +252,7 @@ function AuthPage() {
               </button>
             </div>
           </div>
-          <p className="text-center mt-8 text-[10px] text-gray-700 font-[JetBrains_Mono,monospace] uppercase tracking-widest">© 2026 LuxTrade. All rights reserved.</p>
+          <p className="text-center mt-8 text-[10px] text-gray-700 font-[JetBrains_Mono,monospace] uppercase tracking-widest">© 2026 LuxTradee. All rights reserved.</p>
         </div>
       </div>
     )
@@ -353,7 +353,7 @@ function AuthPage() {
               <form onSubmit={handleRegister} className="space-y-4">
                 <div>
                   <label className="text-[10px] font-[JetBrains_Mono,monospace] text-gray-500 uppercase tracking-widest mb-2 block">Nama Lengkap</label>
-                  <LuxInput icon={User} placeholder="Trader LuxTrade" value={fullName} onChange={e => setFullName(e.target.value)} required error={regFieldErrors.name} onClearError={() => setRegFieldErrors(p => ({ ...p, name: false }))} />
+                  <LuxInput icon={User} placeholder="Trader LuxTradee" value={fullName} onChange={e => setFullName(e.target.value)} required error={regFieldErrors.name} onClearError={() => setRegFieldErrors(p => ({ ...p, name: false }))} />
                 </div>
                 <div>
                   <label className="text-[10px] font-[JetBrains_Mono,monospace] text-gray-500 uppercase tracking-widest mb-2 block">Email</label>
@@ -383,7 +383,7 @@ function AuthPage() {
                 <div className="flex items-start gap-3 pt-2">
                   <input type="checkbox" checked={termsChecked} onChange={e => { setTermsChecked(e.target.checked); setTermsError(false) }} className="auth-checkbox" />
                   <label className="text-[11px] text-gray-400 font-light leading-relaxed cursor-pointer" onClick={() => { setTermsChecked(!termsChecked); setTermsError(false) }}>
-                    Saya menyetujui <a href="/terms" className="text-cyan-400 hover:underline">Syarat & Ketentuan</a> serta <a href="/privacy" className="text-cyan-400 hover:underline">Kebijakan Privasi</a> LuxTrade.
+                    Saya menyetujui <a href="/terms" className="text-cyan-400 hover:underline">Syarat & Ketentuan</a> serta <a href="/privacy" className="text-cyan-400 hover:underline">Kebijakan Privasi</a> LuxTradee.
                   </label>
                 </div>
                 <div style={{ transform: 'translateZ(60px)' }} className="pt-4">
@@ -405,7 +405,7 @@ function AuthPage() {
           </div>
         </div>
 
-        <p className="text-center mt-8 text-[10px] text-gray-700 font-[JetBrains_Mono,monospace] uppercase tracking-widest relative z-10">© 2026 LuxTrade. All rights reserved.</p>
+        <p className="text-center mt-8 text-[10px] text-gray-700 font-[JetBrains_Mono,monospace] uppercase tracking-widest relative z-10">© 2026 LuxTradee. All rights reserved.</p>
       </div>
     </div>
   )

@@ -266,7 +266,7 @@ export default function AdminPanel() {
             </div>
             <div>
               <h1 className="font-bold text-lg">Admin Secret Panel</h1>
-              <p className="text-xs text-gray-500">LuxTrade Owner Dashboard</p>
+              <p className="text-xs text-gray-500">LuxTradee Owner Dashboard</p>
             </div>
           </div>
 

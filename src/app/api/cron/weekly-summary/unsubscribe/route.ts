@@ -53,7 +53,7 @@ function getUnsubHtml(status: 'success' | 'error' | 'not_found') {
   const messages = {
     success: {
       title: 'Berhasil Unsubscribe ✅',
-      body: 'Kamu sudah tidak akan menerima weekly report dari LuxTrade lagi.',
+      body: 'Kamu sudah tidak akan menerima weekly report dari LuxTradee lagi.',
     },
     not_found: {
       title: 'Tidak Ditemukan',
@@ -72,7 +72,7 @@ function getUnsubHtml(status: 'success' | 'error' | 'not_found') {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Unsubscribe Weekly Report - LuxTrade</title>
+  <title>Unsubscribe Weekly Report - LuxTradee</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f4f4f7; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
@@ -87,7 +87,7 @@ function getUnsubHtml(status: 'success' | 'error' | 'not_found') {
   <div class="card">
     <h1>${msg.title}</h1>
     <p>${msg.body}</p>
-    <a href="${SITE_URL}">← Kembali ke LuxTrade</a>
+    <a href="${SITE_URL}">← Kembali ke LuxTradee</a>
   </div>
 </body>
 </html>`

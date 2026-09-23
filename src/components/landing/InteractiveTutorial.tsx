@@ -137,8 +137,8 @@ export default function InteractiveTutorial({ language = 'id', onGetStarted }: I
       id: 'overview',
       title: language === 'en' ? 'Overview' : 'Gambaran Fitur',
       description: language === 'en'
-        ? 'LuxTrade helps prop firm traders avoid drawdown breaches and pass challenges consistently.'
-        : 'LuxTrade membantu trader prop firm menghindari drawdown breach dan lulus challenge konsisten.',
+        ? 'LuxTradee helps prop firm traders avoid drawdown breaches and pass challenges consistently.'
+        : 'LuxTradee membantu trader prop firm menghindari drawdown breach dan lulus challenge konsisten.',
       icon: <Target className="w-5 h-5" />
     },
     {
@@ -238,8 +238,8 @@ export default function InteractiveTutorial({ language = 'id', onGetStarted }: I
           </h2>
           <p className="text-gray-400 max-w-2xl mx-auto">
             {language === 'en'
-              ? 'Experience LuxTrade with real demo data. See how we help prop firm traders pass challenges.'
-              : 'Rasakan LuxTrade dengan data demo asli. Lihat bagaimana kami membantu trader prop firm lulus challenge.'}
+              ? 'Experience LuxTradee with real demo data. See how we help prop firm traders pass challenges.'
+              : 'Rasakan LuxTradee dengan data demo asli. Lihat bagaimana kami membantu trader prop firm lulus challenge.'}
           </p>
         </motion.div>
 

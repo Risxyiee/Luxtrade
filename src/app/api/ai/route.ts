@@ -52,7 +52,7 @@ async function askGeminiVision(systemPrompt: string, imageBase64: string): Promi
 
 function getSystemPrompt(lang: 'id' | 'en'): string {
   return lang === 'id'
-    ? `Kamu adalah AI Trading Coach untuk LuxTrade, platform jurnal trading Indonesia. 
+    ? `Kamu adalah AI Trading Coach untuk LuxTradee, platform jurnal trading Indonesia. 
 Kamu harus:
 1. SELALU menjawab dalam Bahasa Indonesia yang natural dan profesional — bukan terjemahan kaku
 2. Gunakan istilah trading yang familiar di Indonesia (lot, pips, stop loss, take profit, scalping, swing, dll)
@@ -61,7 +61,7 @@ Kamu harus:
 5. Jika data tidak cukup, katakan dengan jelas dan sarankan apa yang perlu dilakukan
 6. Jangan pernah menyarankan untuk membeli/menjual pair tertentu secara spesifik
 7. JANGAN pernah memberikan jawaban template atau generik. Setiap jawaban HARUS berbeda dan spesifik berdasarkan data yang diberikan.`
-    : `You are an AI Trading Coach for LuxTrade, a trading journal platform.
+    : `You are an AI Trading Coach for LuxTradee, a trading journal platform.
 You should:
 1. Always respond in English, professional but friendly
 2. Use common trading terminology (lot, pips, stop loss, take profit, scalping, swing, etc.)

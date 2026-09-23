@@ -265,9 +265,9 @@ function CheckoutContent() {
         {/* Logo */}
         <div className="text-center mb-6">
           <Link href="/" className="inline-flex items-center gap-3">
-            <Image src="/logo.png" alt="LuxTrade" width={40} height={40} className="object-contain" />
+            <Image src="/logo.png" alt="LuxTradee" width={40} height={40} className="object-contain" />
             <span className="text-2xl font-bold bg-gradient-to-r from-blue-300 via-blue-400 to-blue-300 bg-clip-text text-transparent">
-              LuxTrade
+              LuxTradee
             </span>
           </Link>
         </div>

@@ -26,8 +26,8 @@ interface FAQItem {
 
 const faqData: FAQItem[] = [
   {
-    q_id: 'LuxTrade gratis nggak?',
-    q_en: 'Is LuxTrade free?',
+    q_id: 'LuxTradee gratis nggak?',
+    q_en: 'Is LuxTradee free?',
     a_id: 'Ada paket gratis — 10 trade per bulan dan 10 AI queries untuk mencoba fitur-fiturnya. Kalau kamu serius prop firm dan butuh fitur lengkap tanpa batas, upgrade ke PRO.',
     a_en: "There's a free plan — 10 trades per month and 10 AI queries to try the features. If you're serious about prop firm trading, upgrade to PRO for unlimited access.",
     category: 'general',
@@ -56,8 +56,8 @@ const faqData: FAQItem[] = [
   {
     q_id: 'Kalau mau refund gimana?',
     q_en: 'What about refunds?',
-    a_id: 'LuxTrade itu produk digital (SaaS) — sekali bayar, akses langsung aktif. Karena sifatnya digital, semua pembelian bersifat final dan non-refundable. Kecuali kalau ada double charge atau eror dari payment gateway.',
-    a_en: 'LuxTrade is a digital product (SaaS). All purchases are final and non-refundable. Except in cases of double charges or payment gateway errors.',
+    a_id: 'LuxTradee itu produk digital (SaaS) — sekali bayar, akses langsung aktif. Karena sifatnya digital, semua pembelian bersifat final dan non-refundable. Kecuali kalau ada double charge atau eror dari payment gateway.',
+    a_en: 'LuxTradee is a digital product (SaaS). All purchases are final and non-refundable. Except in cases of double charges or payment gateway errors.',
     category: 'payment',
   },
   {

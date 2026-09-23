@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Dashboard - LuxTrade',
+  title: 'Dashboard - LuxTradee',
   description: 'Kelola trading journal, analisis performa, dan AI insights Anda.',
   robots: { index: false, follow: false },
 }

@@ -153,14 +153,14 @@ export default function BlogPage() {
             <div className="flex items-center gap-3">
               <Image
                 src="/logo.png"
-                alt="LuxTrade Logo"
+                alt="LuxTradee Logo"
                 width={40}
                 height={40}
                 className="object-contain"
               />
               <div>
                 <Link href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
-                  LuxTrade
+                  LuxTradee
                 </Link>
               </div>
             </div>
@@ -377,7 +377,7 @@ export default function BlogPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center">
             <p className="text-white/40 text-sm font-medium">
-              © 2024 LuxTrade. All rights reserved.
+              © 2024 LuxTradee. All rights reserved.
             </p>
           </div>
         </div>

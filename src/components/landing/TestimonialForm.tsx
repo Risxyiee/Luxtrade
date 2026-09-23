@@ -222,8 +222,8 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
                   </CardTitle>
                   <CardDescription className="mt-2">
                     {language === 'en'
-                      ? 'Help other traders by sharing your experience with LuxTrade'
-                      : 'Bantu trader lain dengan berbagi pengalaman Anda menggunakan LuxTrade'}
+                      ? 'Help other traders by sharing your experience with LuxTradee'
+                      : 'Bantu trader lain dengan berbagi pengalaman Anda menggunakan LuxTradee'}
                   </CardDescription>
                 </div>
                 <Button
@@ -452,8 +452,8 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
                       onChange={(e) => setText(e.target.value)}
                       placeholder={
                         language === 'en'
-                          ? 'How has LuxTrade helped your trading? What did you like most? (min. 10 characters)'
-                          : 'Bagaimana LuxTrade membantu trading Anda? Apa yang paling Anda suka? (min. 10 karakter)'
+                          ? 'How has LuxTradee helped your trading? What did you like most? (min. 10 characters)'
+                          : 'Bagaimana LuxTradee membantu trading Anda? Apa yang paling Anda suka? (min. 10 karakter)'
                       }
                       className="bg-white/5 border-white/10 min-h-[120px] resize-none"
                       maxLength={1000}

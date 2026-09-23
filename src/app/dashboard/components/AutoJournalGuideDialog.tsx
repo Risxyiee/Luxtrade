@@ -57,7 +57,7 @@ const getTranslations = (lang: Language, mode: 'auto' | 'manual') => ({
             : 'Take a screenshot of the trade detail screen. Make sure all data is clearly visible.',
         },
         {
-          title: lang === 'id' ? 'Upload di LuxTrade' : 'Upload on LuxTrade',
+          title: lang === 'id' ? 'Upload di LuxTradee' : 'Upload on LuxTradee',
           desc: lang === 'id'
             ? 'Klik "Auto-Journal (AI Lengkap)", upload screenshot tadi. AI otomatis isi semua data + buat jurnal.'
             : 'Click "Auto-Journal (AI Complete)", upload the screenshot. AI automatically fills all data + creates journal.',
@@ -83,7 +83,7 @@ const getTranslations = (lang: Language, mode: 'auto' | 'manual') => ({
             : 'Tap a closed trade, then screenshot its detail (symbol, price, profit).',
         },
         {
-          title: lang === 'id' ? 'Upload Screenshot di LuxTrade' : 'Upload Screenshot on LuxTrade',
+          title: lang === 'id' ? 'Upload Screenshot di LuxTradee' : 'Upload Screenshot on LuxTradee',
           desc: lang === 'id'
             ? 'Klik "Screenshot (AI Isi Otomatis)", upload gambar tadi. AI akan otomatis isi data symbol, harga, lot, dll di form.'
             : 'Click "Screenshot (AI Auto-fill)", upload the image. AI will auto-fill symbol, price, lot, etc. in the form.',
@@ -122,14 +122,14 @@ const getTranslations = (lang: Language, mode: 'auto' | 'manual') => ({
             : 'MT5 screenshot to upload',
         },
         {
-          title: lang === 'id' ? '2. Hasilnya di Form LuxTrade' : '2. Result in LuxTrade Form',
+          title: lang === 'id' ? '2. Hasilnya di Form LuxTradee' : '2. Result in LuxTradee Form',
           desc: lang === 'id'
-            ? 'Setelah upload, AI otomatis isi data di form LuxTrade. Tinggal cek dan simpan.'
-            : 'After upload, AI auto-fills data in LuxTrade form. Just verify and save.',
+            ? 'Setelah upload, AI otomatis isi data di form LuxTradee. Tinggal cek dan simpan.'
+            : 'After upload, AI auto-fills data in LuxTradee form. Just verify and save.',
           image: '/images/guide/manual-trade-example.jpeg',
           alt: lang === 'id'
-            ? 'Hasil form LuxTrade setelah AI isi otomatis'
-            : 'LuxTrade form result after AI auto-fill',
+            ? 'Hasil form LuxTradee setelah AI isi otomatis'
+            : 'LuxTradee form result after AI auto-fill',
         },
       ],
 

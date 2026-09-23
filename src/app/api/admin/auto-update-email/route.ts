@@ -4,7 +4,7 @@ import { sendEmail, getPromotionalEmailHtml } from '@/lib/email'
 import { requireAdmin } from '@/lib/admin-auth'
 
 const EMAIL_DELAY_MS = 600
-const DEFAULT_SUBJECT = '✨ Pembaruan LuxTrade — Fitur Baru & Perbaikan Bug'
+const DEFAULT_SUBJECT = '✨ Pembaruan LuxTradee — Fitur Baru & Perbaikan Bug'
 
 /**
  * Sync users from Supabase Auth → profiles DB before broadcast.
@@ -120,7 +120,7 @@ function generateUpdateEmailHtml(
 ): string {
   let html = `<h2 style="color: #1a1a2e; font-size: 20px; margin: 0 0 8px 0; font-weight: 700;">Kami Terus Berkembang untuk Kamu! 🚀</h2>
 <p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Halo {{name}},</p>
-<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Tim LuxTrade terus bekerja keras buat bikin pengalaman trading kamu makin baik. Kali ini kami sudah merilis beberapa <strong style="color: #1a1a2e;">pembaruan fitur dan perbaikan bug</strong> yang penting:</p>`
+<p style="color: #555770; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0;">Tim LuxTradee terus bekerja keras buat bikin pengalaman trading kamu makin baik. Kali ini kami sudah merilis beberapa <strong style="color: #1a1a2e;">pembaruan fitur dan perbaikan bug</strong> yang penting:</p>`
 
   // Features section (blue #f0f4ff, bullet ✦)
   if (features.length > 0) {
@@ -207,7 +207,7 @@ ${items}
   </tr>
 </table>
 
-<p style="color: #8b8da0; font-size: 13px; line-height: 1.6; margin: 24px 0 0 0; text-align: center;">Terima kasih sudah setia pakai LuxTrade. Happy trading! 📈</p>`
+<p style="color: #8b8da0; font-size: 13px; line-height: 1.6; margin: 24px 0 0 0; text-align: center;">Terima kasih sudah setia pakai LuxTradee. Happy trading! 📈</p>`
 
   return html
 }

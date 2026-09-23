@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     if (usedQuota >= maxQuota) {
       return NextResponse.json({
         valid: false,
-        message: 'Kuota kode promo sudah habis. Hubungi admin di Discord LuxTrade Server untuk request reset.'
+        message: 'Kuota kode promo sudah habis. Hubungi admin di Discord LuxTradee Server untuk request reset.'
       })
     }
 

@@ -200,7 +200,7 @@ export async function POST(request: NextRequest) {
           try {
             const fallbackHtml = getConfirmationEmailHtml(name, confirmationUrl)
             await sendEmailFromTemplate({
-              to: emailLower, subject: 'Kirim Ulang: Verifikasi Akun LuxTrade 👑',
+              to: emailLower, subject: 'Kirim Ulang: Verifikasi Akun LuxTradee 👑',
               templateId: process.env.RESEND_TEMPLATE_CONFIRM || '',
               templateParams: { name, confirmationUrl }, fallbackHtml,
             })
@@ -307,7 +307,7 @@ export async function POST(request: NextRequest) {
       const fallbackHtml = getConfirmationEmailHtml(name, confirmationUrl)
       const emailResult = await sendEmailFromTemplate({
         to: emailLower,
-        subject: 'Verifikasi Akun LuxTrade - Ayo Mulai! 👑',
+        subject: 'Verifikasi Akun LuxTradee - Ayo Mulai! 👑',
         templateId: process.env.RESEND_TEMPLATE_CONFIRM || '',
         templateParams: { name, confirmationUrl }, fallbackHtml,
       })

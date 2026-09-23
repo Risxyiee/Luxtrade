@@ -132,8 +132,8 @@ async function callOpenRouter(
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://luxtrade.id',
-      'X-Title': 'LuxTrade',
+      'HTTP-Referer': 'https://luxtradee.web.id',
+      'X-Title': 'LuxTradee',
     },
     body: JSON.stringify({
       model,
@@ -279,8 +279,8 @@ export async function analyzeTextWithZyloo(
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://luxtrade.id',
-        'X-Title': 'LuxTrade',
+        'HTTP-Referer': 'https://luxtradee.web.id',
+        'X-Title': 'LuxTradee',
       },
       body: JSON.stringify({
         model,
