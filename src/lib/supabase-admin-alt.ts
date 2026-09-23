@@ -1,35 +1,39 @@
 /**
  * Lazy-initialized Supabase Admin client for Cloudflare Workers.
- * 
+ *
  * CRITICAL FIX: On CF Workers, process.env is only available at request time.
- * The previous implementation cached `_adminInitFailed = true` which meant
- * if the first call happened before env vars were available, ALL subsequent
- * calls returned null forever (for the entire isolate lifetime).
- * 
- * Fixed: Now retries on every call until success, caching only the SUCCESS.
+ * - createAdminClient() returns null if SUPABASE_SERVICE_ROLE_KEY is not yet available.
+ * - We NEVER cache a null result — always retry on next call.
+ * - We ONLY cache a successful (non-null) client.
  */
 import { createAdminClient, getSupabaseAdminAuth } from '@/lib/supabase/admin'
 
 let _adminClient: ReturnType<typeof createAdminClient> | null = null
+let _initSucceeded = false
 
 /**
  * Get the Supabase admin client (lazy-initialized).
  * Retries on every call until success — caches only the successful client.
  * This is safe because env vars become available at request time on CF Workers.
+ *
+ * @returns Supabase admin client, or null if SUPABASE_SERVICE_ROLE_KEY is not configured
  */
 export function getSupabaseAdmin() {
-  // Return cached client if available
-  if (_adminClient) return _adminClient
+  // Return cached client if we previously succeeded
+  if (_initSucceeded && _adminClient) return _adminClient
 
-  // Always try to create — env vars may now be available
-  try {
-    _adminClient = createAdminClient()
+  // Try to create — env vars may now be available at request time
+  const client = createAdminClient()
+
+  if (client) {
+    // Success! Cache it
+    _adminClient = client
+    _initSucceeded = true
     return _adminClient
-  } catch (error: any) {
-    // Don't cache failure — try again on next request
-    console.error('❌ [Supabase Admin] Failed to create admin client:', error.message)
-    return null
   }
+
+  // Don't cache failure — env vars might arrive on the next request
+  return null
 }
 
 /** DEPRECATED: Use getSupabaseAdmin() function instead. */

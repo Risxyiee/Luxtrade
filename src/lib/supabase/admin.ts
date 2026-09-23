@@ -1,36 +1,29 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 /**
- * Create a Supabase admin client with SERVICE_ROLE_KEY
- * This client has full access to bypass RLS policies and perform admin operations
- * WARNING: Only use this on the server side, never expose to the client
+ * Create a Supabase admin client with SERVICE_ROLE_KEY.
+ * This client has full access to bypass RLS policies and perform admin operations.
+ * WARNING: Only use this on the server side, never expose to the client.
  *
- * @returns Supabase client with admin privileges
+ * CRITICAL: Returns null if SUPABASE_SERVICE_ROLE_KEY is not available.
+ * On Cloudflare Workers, env vars are only available at request time.
+ * Callers MUST check for null return value.
+ *
+ * @returns Supabase client with admin privileges, or null if key not available
  */
-export function createAdminClient() {
+export function createAdminClient(): SupabaseClient | null {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!supabaseUrl) {
-    console.warn('[Supabase Admin] NEXT_PUBLIC_SUPABASE_URL not defined. Will be available at runtime.')
-    // Return placeholder for build
-    return createClient('https://klxkdrfsfcoankbaoejn.supabase.co', 'placeholder-key-for-build', {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    })
+    // During build time, env vars may not be available — return null
+    return null
   }
 
   if (!supabaseServiceKey) {
-    console.warn('[Supabase Admin] SUPABASE_SERVICE_ROLE_KEY not defined. Will be available at runtime.')
-    // Return placeholder for build
-    return createClient(supabaseUrl, 'placeholder-key-for-build', {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    })
+    // On CF Workers, the service role key must be set as a secret
+    // If missing, all admin operations will fail — return null so callers can detect
+    return null
   }
 
   return createClient(supabaseUrl, supabaseServiceKey, {
