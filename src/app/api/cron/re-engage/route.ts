@@ -18,7 +18,7 @@ import {
  * Only sends ONCE per user (tracked in re_engagement_emails table).
  * Supports ?dry=true for preview without sending.
  *
- * Vercel Cron: runs daily at 10:00 AM WIB (03:00 UTC)
+ * Cron: runs daily at 10:00 AM WIB (03:00 UTC) via Cloudflare Workers cron trigger
  */
 export const dynamic = 'force-dynamic'
 
@@ -125,7 +125,7 @@ async function handleRequest(request: NextRequest) {
   const dry = searchParams.get('dry') === 'true'
   const force = searchParams.get('force') === 'true'
 
-  // Simple auth check: require CRON_SECRET header (set in Vercel env)
+  // Simple auth check: require CRON_SECRET header (set in Cloudflare env)
   const cronSecret = request.headers.get('authorization')?.replace('Bearer ', '')
   if (!force && process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
