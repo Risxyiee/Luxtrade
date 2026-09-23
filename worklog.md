@@ -268,3 +268,24 @@ Stage Summary:
 - Frontend: glass morphic floating chat widget with pulse animation, typing indicator, message bubbles, mobile-aware positioning
 - Bilingual support (id/en) throughout both backend and frontend
 - No lint errors, dev server stable
+
+---
+Task ID: 6
+Agent: main
+Task: Add Fix RLS button to admin panel (mobile-friendly)
+
+Work Log:
+- Analyzed /api/fix-rls/route.ts - already supports both GET and POST, requires admin auth
+- Identified that user can't call POST from mobile browser
+- Added "Fix RLS" button to admin panel Quick Actions bar in AdminPanelClient.tsx
+- Added `fixingRls` state and `fixRls()` function using `authFetch('/api/fix-rls', { method: 'POST' })`
+- Button uses Shield icon, amber color scheme, confirmation dialog before executing
+- Shows loading state "Fixing..." with pulse animation while running
+- Displays success/error toast with result counts after completion
+- Lint clean, no errors
+- Note: Dev server OOM kills due to large project size (1969 modules, 2.3GB RAM) - not a code issue
+
+Stage Summary:
+- Fix RLS button added to /dashboard/admin Quick Actions bar
+- Mobile-friendly: just tap the button, auth handled automatically via authFetch
+- No need to manually call POST /api/fix-rls from browser
