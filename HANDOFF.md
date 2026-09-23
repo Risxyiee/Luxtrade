@@ -25,7 +25,7 @@ my-project/
 ├── src/
 │   ├── app/                    # Semua halaman & API routes
 │   │   ├── page.tsx             # Landing page (halaman utama)
-│   │   ├── layout.tsx           # Root layout (AuthProvider, LanguageProvider, Sentry)
+│   │   ├── layout.tsx           # Root layout (AuthProvider, LanguageProvider)
 │   │   ├── proxy.ts             # ⚠️ BUKAN middleware.ts! Ini pengganti middleware
 │   │   ├── auth/                # Halaman login, signup, verify, dll
 │   │   ├── dashboard/           # Dashboard utama
@@ -590,7 +590,6 @@ NEXT_PUBLIC_MIDTRANS_CLIENT_KEY=SB-Mid-client-...
 # === Lainnya ===
 NEXT_PUBLIC_APP_URL=https://luxtrade.id
 NEXT_PUBLIC_SITE_URL=https://luxtrade.id
-SENTRY_DSN=https://...
 ADMIN_EMAILS=...
 ```
 
@@ -635,7 +634,6 @@ ADMIN_EMAILS=...
 | Resend | Latest | Email |
 | Midtrans | - | Payment gateway |
 | Socket.IO | - | Real-time affiliate |
-| Sentry | 10 | Error monitoring |
 | Lucide React | Latest | Icons |
 
 ---
