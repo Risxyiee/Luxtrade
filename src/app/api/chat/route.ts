@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import ZAI from 'z-ai-web-dev-sdk'
+import { geminiChat, isGeminiAvailable } from '@/lib/gemini'
 
 // System prompt for LuxTrade CS bot
 const SYSTEM_PROMPT = `Kamu adalah asisten customer service LuxTrade — jurnal trading AI untuk trader Indonesia.
@@ -29,19 +29,9 @@ GAYA JAWAB:
 - Pakai emoji secukupnya
 - Kalau ga yakin, arahkan ke Telegram @Risxyiee atau Discord`
 
-// In-memory conversation store (simple, no persistence needed for landing page CS)
-const conversations = new Map<string, Array<{role: string; content: string}>>()
+// In-memory conversation store
+const conversations = new Map<string, Array<{role: 'user' | 'model'; content: string}>>()
 const MAX_MESSAGES = 20
-
-// Singleton ZAI instance
-let zaiInstance: Awaited<ReturnType<typeof ZAI.create>> | null = null
-
-async function getZAI() {
-  if (!zaiInstance) {
-    zaiInstance = await ZAI.create()
-  }
-  return zaiInstance
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -51,39 +41,57 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Message required' }, { status: 400 })
     }
 
-    // Rate limit: max 50 messages per session
+    if (!sessionId || typeof sessionId !== 'string') {
+      return NextResponse.json({ error: 'Session ID required' }, { status: 400 })
+    }
+
+    // Check Gemini availability
+    if (!isGeminiAvailable()) {
+      console.error('[chat API] GEMINI_API_KEY not configured')
+      return NextResponse.json({
+        response: language === 'en'
+          ? "Sorry, AI service is not configured. Please contact Telegram @Risxyiee."
+          : "Maaf, layanan AI belum dikonfigurasi. Hubungi Telegram @Risxyiee."
+      }, { status: 503 })
+    }
+
+    // Rate limit: max 20 messages per session (40 entries)
     const history = conversations.get(sessionId) || []
     if (history.length > MAX_MESSAGES * 2) {
-      return NextResponse.json({ 
-        response: language === 'en' 
-          ? "You've reached the chat limit. Please contact us on Telegram @Risxyiee for further assistance." 
+      return NextResponse.json({
+        response: language === 'en'
+          ? "You've reached the chat limit. Please contact us on Telegram @Risxyiee for further assistance."
           : "Kamu udah cap batas chat. Hubungi kami di Telegram @Risxyiee untuk bantuan lebih lanjut.",
-        limited: true 
+        limited: true
       })
     }
 
-    const zai = await getZAI()
-
-    // Build messages array
-    const messages = [
-      { role: 'assistant', content: SYSTEM_PROMPT },
-      ...history,
-      { role: 'user', content: message }
+    // Build Gemini messages from history
+    const geminiMessages = [
+      ...history.map(msg => ({
+        role: msg.role as 'user' | 'model',
+        parts: [{ text: msg.content }]
+      })),
+      { role: 'user' as const, parts: [{ text: message }] }
     ]
 
-    const completion = await zai.chat.completions.create({
-      messages,
-      thinking: { type: 'disabled' }
+    // Call Gemini
+    const result = await geminiChat(geminiMessages, {
+      model: 'gemini-2.5-flash',
+      temperature: 0.7,
+      maxTokens: 1024,
+      systemInstruction: SYSTEM_PROMPT,
+      timeoutMs: 30000,
     })
 
-    const aiResponse = completion.choices?.[0]?.message?.content || 
+    const aiResponse = result.text ||
       (language === 'en' ? "Sorry, I couldn't process that. Please try again." : "Maaf, gagal memproses. Coba lagi ya.")
 
     // Save to history
     const updatedHistory = [
       ...history,
-      { role: 'user', content: message },
-      { role: 'assistant', content: aiResponse }
+      { role: 'user' as const, content: message },
+      { role: 'model' as const, content: aiResponse }
     ]
     // Trim old messages if too long
     if (updatedHistory.length > MAX_MESSAGES * 2) {
@@ -95,8 +103,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ response: aiResponse })
   } catch (error) {
     console.error('[chat API] Error:', error)
-    return NextResponse.json({ 
-      response: 'Maaf, sedang gangguan. Coba lagi atau hubungi Telegram @Risxyiee.' 
-    }, { status: 500 })
+
+    const isTimeout = error instanceof Error && error.message.includes('timed out')
+    const errMsg = isTimeout
+      ? 'Maaf, respon terlalu lama. Coba lagi atau hubungi Telegram @Risxyiee.'
+      : 'Maaf, sedang gangguan. Coba lagi atau hubungi Telegram @Risxyiee.'
+
+    return NextResponse.json({ response: errMsg }, { status: isTimeout ? 504 : 500 })
   }
+}
+
+// Health check
+export async function GET() {
+  return NextResponse.json({
+    status: isGeminiAvailable() ? 'ok' : 'not_configured',
+    provider: 'gemini',
+    model: 'gemini-2.5-flash',
+  })
 }
