@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Sidebar } from '@/app/dashboard/components/Sidebar'
+import Sidebar from '@/app/dashboard/components/Sidebar'
 import { toast } from 'sonner'
 
 // Mock toast

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { TradeForm } from '@/app/dashboard/components/TradeForm'
+import TradeForm from '@/app/dashboard/components/TradeForm'
 import { toast } from 'sonner'
 
 // Mock toast
