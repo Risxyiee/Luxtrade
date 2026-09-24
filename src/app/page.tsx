@@ -25,6 +25,7 @@ const LandingFooter = dynamic(() => import('@/components/landing/LandingFooter')
 // TrustStats and LiveActivityFeed removed — fake data components
 const FeatureComparison = dynamic(() => import('@/components/landing/FeatureComparison').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 const CSBotWidget = dynamic(() => import('@/components/landing/CSBotWidget').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
+const PartnerBanner = dynamic(() => import('@/components/landing/PartnerBanner').then(m => ({ default: m.default })), { ssr: false, loading: () => loadingDiv })
 
 interface LandingStats {
   totalUsers: number
@@ -122,6 +123,7 @@ export default function LuxTradeLanding() {
             language={language}
           />
           <FeatureComparison language={language} />
+          <PartnerBanner language={language} />
           <FAQSection language={language} />
           <FinalCTA language={language} />
         </main>
