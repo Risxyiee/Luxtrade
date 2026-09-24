@@ -108,11 +108,11 @@ export default function LuxTradeLanding() {
         <main id="main-content" className="flex-1 pb-20 md:pb-0">
           <HeroSection language={language} />
           <SocialProofBar language={language} />
+          <PartnerBanner language={language} />
           {/* TrustStats removed — fake data */}
           <AIVisionSimulator language={language} />
           <InteractiveTutorial language={language} onGetStarted={handleProUpgrade} />
           <CaraKerjaSection language={language} />
-          <PartnerBanner language={language} />
           <PricingSectionNew
             promoCode={promoCode}
             promoActive={promoActive}
