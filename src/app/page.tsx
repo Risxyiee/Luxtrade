@@ -112,8 +112,7 @@ export default function LuxTradeLanding() {
           <AIVisionSimulator language={language} />
           <InteractiveTutorial language={language} onGetStarted={handleProUpgrade} />
           <CaraKerjaSection language={language} />
-          <TestimonialsSection language={language} />
-          <ContentArticles language={language} />
+          <PartnerBanner language={language} />
           <PricingSectionNew
             promoCode={promoCode}
             promoActive={promoActive}
@@ -122,8 +121,9 @@ export default function LuxTradeLanding() {
             handleProUpgrade={handleProUpgrade}
             language={language}
           />
+          <TestimonialsSection language={language} />
+          <ContentArticles language={language} />
           <FeatureComparison language={language} />
-          <PartnerBanner language={language} />
           <FAQSection language={language} />
           <FinalCTA language={language} />
         </main>

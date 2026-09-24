@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ExternalLink, GraduationCap, Handshake } from 'lucide-react'
+import { X, ExternalLink, Building2 } from 'lucide-react'
 import Image from 'next/image'
 
 const PARTNER_URL = 'https://primeacademyfx.com/'
@@ -12,7 +12,7 @@ interface PartnerBannerProps {
 }
 
 export default function PartnerBanner({ language = 'id' }: PartnerBannerProps) {
-  const DISMISS_KEY = 'lux-partner-banner-dismissed'
+  const DISMISS_KEY = 'luxtradee-partner-banner-dismissed'
   const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
@@ -27,76 +27,68 @@ export default function PartnerBanner({ language = 'id' }: PartnerBannerProps) {
   const isEn = language === 'en'
 
   return (
-    <section className="relative py-6 px-4 sm:px-6 lg:px-8 overflow-hidden">
+    <section className="relative py-8 px-4 sm:px-6 lg:px-8 overflow-hidden">
       <AnimatePresence>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.1 }}
           transition={{ duration: 0.5 }}
-          className="relative max-w-5xl mx-auto rounded-2xl overflow-hidden"
+          className="relative max-w-4xl mx-auto rounded-2xl overflow-hidden"
         >
-          {/* Background layers */}
-          <div className="absolute inset-0 bg-gradient-to-r from-emerald-900/30 via-teal-800/20 to-emerald-900/30" />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/5 to-transparent" />
-          <div className="absolute inset-0 border border-emerald-500/20 rounded-2xl" />
+          {/* Background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/40 via-[#0a1a15] to-teal-950/40" />
+          <div className="absolute inset-0 border border-emerald-500/15 rounded-2xl" />
 
-          {/* Animated glow orbs */}
+          {/* Subtle glow */}
           <motion.div
-            className="absolute -top-16 -right-16 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl"
-            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
-            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-          />
-          <motion.div
-            className="absolute -bottom-12 -left-12 w-36 h-36 bg-teal-400/10 rounded-full blur-3xl"
-            animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.7, 0.4] }}
-            transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+            className="absolute -top-20 -right-20 w-56 h-56 bg-emerald-500/8 rounded-full blur-3xl"
+            animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.6, 0.3] }}
+            transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
           />
 
           {/* Content */}
-          <div className="relative flex flex-col sm:flex-row items-center gap-4 sm:gap-6 px-6 py-5 sm:px-8 sm:py-6">
-            {/* Logo + Partner Badge */}
+          <div className="relative flex flex-col sm:flex-row items-center gap-5 sm:gap-8 px-6 py-6 sm:px-8 sm:py-7">
+            {/* Logo — BIG and clickable */}
             <a
               href={PARTNER_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 flex-shrink-0 group/logo"
+              className="flex-shrink-0 group/logo"
             >
               <div className="relative">
-                <div className="absolute -inset-1 bg-emerald-500/20 rounded-xl blur-sm group-hover/logo:bg-emerald-500/30 transition-colors" />
-                <Image
-                  src="/primeacademyfx-logo.jpeg"
-                  alt="Prime Academy FX"
-                  width={52}
-                  height={52}
-                  className="relative rounded-xl object-contain"
-                />
-              </div>
-              <div className="hidden sm:flex flex-col items-center gap-0.5">
-                <Handshake className="w-5 h-5 text-emerald-400/80" />
-                <span className="text-[9px] uppercase tracking-widest text-emerald-400/60 font-medium">
-                  Partner
-                </span>
+                {/* Glow ring behind logo */}
+                <div className="absolute -inset-2 bg-emerald-500/15 rounded-2xl blur-md group-hover/logo:bg-emerald-500/25 transition-colors" />
+                <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white/5 border border-white/10 p-1.5 flex items-center justify-center">
+                  <Image
+                    src="/primeacademyfx-logo.png"
+                    alt="PrimeAcademyFX"
+                    width={96}
+                    height={96}
+                    className="w-full h-full object-contain rounded-xl"
+                    unoptimized
+                  />
+                </div>
               </div>
             </a>
 
             {/* Text Content */}
             <div className="flex-1 text-center sm:text-left min-w-0">
-              <div className="flex items-center justify-center sm:justify-start gap-2 mb-1.5">
-                <GraduationCap className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                <span className="text-[11px] uppercase tracking-widest text-emerald-400/80 font-semibold">
-                  {isEn ? 'Official Education Partner' : 'Partner Edukasi Resmi'}
+              <div className="flex items-center justify-center sm:justify-start gap-2 mb-2">
+                <Building2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <span className="text-[11px] uppercase tracking-[0.15em] text-emerald-400/90 font-bold">
+                  {isEn ? 'Partner ProFirm' : 'Partner ProFirm'}
                 </span>
               </div>
-              <p className="text-base sm:text-lg font-bold text-white/95 leading-snug">
+              <p className="text-lg sm:text-xl font-bold text-white leading-snug">
                 {isEn
-                  ? 'LuxTradee x Prime Academy FX — Level up your trading skills with professional education!'
-                  : 'LuxTradee x Prime Academy FX — Tingkatkan skill trading kamu dengan edukasi profesional!'}
+                  ? 'LuxTradee × PrimeAcademyFX'
+                  : 'LuxTradee × PrimeAcademyFX'}
               </p>
-              <p className="text-xs sm:text-sm text-white/40 mt-1 leading-relaxed">
+              <p className="text-sm text-white/50 mt-1.5 leading-relaxed">
                 {isEn
-                  ? 'Structured courses, mentorship, and community for serious forex traders.'
-                  : 'Kursus terstruktur, mentorship, dan komunitas untuk trader forex yang serius.'}
+                  ? 'Pass your prop firm challenge with structured courses & mentorship.'
+                  : 'Lulus challenge prop firm kamu dengan kursus terstruktur & mentorship.'}
               </p>
             </div>
 
@@ -106,27 +98,27 @@ export default function PartnerBanner({ language = 'id' }: PartnerBannerProps) {
                 href={PARTNER_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-sm font-bold text-white hover:from-emerald-400 hover:to-teal-400 active:scale-[0.97] transition-all duration-200 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-400/30"
+                className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-sm font-bold text-white hover:from-emerald-400 hover:to-teal-400 active:scale-[0.97] transition-all duration-200 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-400/25"
               >
-                {isEn ? 'Learn More' : 'Pelajari Lebih Lanjut'}
-                <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                {isEn ? 'Visit Partner' : 'Kunjungi Partner'}
+                <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
               </a>
-              <span className="text-[10px] text-white/25">
-                {isEn ? 'PrimeAcademyFX.com' : 'PrimeAcademyFX.com'}
+              <span className="text-[10px] text-white/20">
+                primeacademyfx.com
               </span>
             </div>
           </div>
 
-          {/* Dismiss button */}
+          {/* Dismiss */}
           <button
             onClick={() => {
               setDismissed(true)
               try { localStorage.setItem(DISMISS_KEY, 'true') } catch {}
             }}
             className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-white/10 transition-colors z-10"
-            aria-label={isEn ? 'Close banner' : 'Tutup banner'}
+            aria-label={isEn ? 'Close' : 'Tutup'}
           >
-            <X className="w-4 h-4 text-white/30 hover:text-white/60" />
+            <X className="w-4 h-4 text-white/25 hover:text-white/50" />
           </button>
         </motion.div>
       </AnimatePresence>
