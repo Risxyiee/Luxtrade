@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Star, Quote, ChevronLeft, ChevronRight, MessageSquarePlus, PenLine, Sparkles, Camera, Award, FileCheck } from 'lucide-react'
+import { Star, ChevronLeft, ChevronRight, MessageSquarePlus, PenLine, Sparkles, FileCheck, BadgeCheck } from 'lucide-react'
 import TestimonialForm from './TestimonialForm'
 
 interface DatabaseTestimonial {
@@ -11,7 +11,7 @@ interface DatabaseTestimonial {
   role: string | null
   rating: number
   text: string
-  profile_image_url: string | null  // Actually stores certificate/proof image URL
+  profile_image_url: string | null
   trades_logged: number
   prop_firms_passed: number
   is_verified: boolean
@@ -85,7 +85,6 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
 
   const testimonialsPerPage = 3
 
-  // Fetch testimonials from database
   useEffect(() => {
     const fetchTestimonials = async () => {
       try {
@@ -94,14 +93,11 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
 
         if (data.success && data.testimonials && data.testimonials.length > 0) {
           setDbTestimonialCount(data.testimonials.length)
-          // Add gradient to database testimonials
           const dbTestimonials = data.testimonials.map((t: DatabaseTestimonial, i: number) => ({
             ...t,
             gradient: gradients[i % gradients.length],
             borderHover: `hover:border-${gradients[i % gradients.length].split('-')[1]}-500/30`,
           }))
-
-          // Combine DB testimonials with default ones (show DB first, then defaults)
           setTestimonials([...dbTestimonials, ...DEFAULT_TESTIMONIALS])
         } else {
           setTestimonials(DEFAULT_TESTIMONIALS)
@@ -117,7 +113,6 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
     fetchTestimonials()
   }, [])
 
-  // Refresh after submitting
   const refreshTestimonials = async () => {
     try {
       const response = await fetch('/api/testimonials?limit=20')
@@ -130,7 +125,7 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
           borderHover: `hover:border-${gradients[i % gradients.length].split('-')[1]}-500/30`,
         }))
         setTestimonials([...dbTestimonials, ...DEFAULT_TESTIMONIALS])
-        setCurrentPage(0) // Go to first page to see new testimonial
+        setCurrentPage(0)
       }
     } catch {}
   }
@@ -163,11 +158,11 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
       if (t.role) return t.role
       if (t.trades_logged > 0) {
         const firmsText = t.prop_firms_passed > 0
-          ? ` · ${t.prop_firms_passed} ${language === 'id' ? 'Prop Firm' : 'Prop Firm'}${t.prop_firms_passed > 1 ? 's' : ''}`
+          ? ` · ${t.prop_firms_passed} Prop Firm${t.prop_firms_passed > 1 ? 's' : ''}`
           : ''
-        return `${language === 'id' ? 'Trader' : 'Trader'}${firmsText}`
+        return `Trader${firmsText}`
       }
-      return language === 'id' ? 'Trader' : 'Trader'
+      return 'Trader'
     }
     return t.role
   }
@@ -192,7 +187,7 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }).map((_, i) => (
-      <Star key={i} className={`w-4 h-4 ${i < rating ? 'text-amber-400 fill-amber-400' : 'text-[var(--lux-text-label-3)]'}`} />
+      <Star key={i} className={`w-3.5 h-3.5 ${i < rating ? 'text-amber-400 fill-amber-400' : 'text-white/15'}`} />
     ))
   }
 
@@ -230,7 +225,7 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
           </p>
         </div>
 
-        {/* ===== BESAR & JELAS: CTA Tulis Testimoni ===== */}
+        {/* CTA Tulis Testimoni */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -241,16 +236,13 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
             onClick={() => setShowForm(true)}
             className="w-full group relative overflow-hidden rounded-2xl border border-blue-500/30 bg-gradient-to-r from-blue-500/10 via-cyan-500/10 to-blue-500/10 p-6 sm:p-8 hover:border-blue-500/50 transition-all duration-300"
           >
-            {/* Animated glow background */}
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-cyan-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
             <div className="relative flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
-              {/* Icon */}
               <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 shadow-lg shadow-blue-500/25">
                 <PenLine className="w-6 h-6 text-white" />
               </div>
 
-              {/* Text */}
               <div className="text-center sm:text-left">
                 <h3 className="text-xl sm:text-2xl font-bold text-white mb-1">
                   {language === 'id'
@@ -264,13 +256,11 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
                 </p>
               </div>
 
-              {/* Arrow */}
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-all group-hover:scale-110">
                 <MessageSquarePlus className="w-5 h-5 text-blue-400" />
               </div>
             </div>
 
-            {/* User count badge */}
             {dbTestimonialCount > 0 && (
               <div className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20">
                 <Sparkles className="w-3 h-3 text-green-400" />
@@ -296,60 +286,57 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
             >
               {currentTestimonials.map((t, i) => {
                 const actualIndex = currentPage * testimonialsPerPage + i
+                const isDb = isDatabaseTestimonial(t)
                 return (
                   <div
-                    key={isDatabaseTestimonial(t) ? t.id : t.name}
-                    className={`relative flex flex-col bg-[var(--lux-card-surface)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-2xl p-6 hover:bg-[var(--lux-card-surface-hover)] ${isDatabaseTestimonial(t) && t.borderHover ? t.borderHover : ''} transition-all duration-300 h-full`}
+                    key={isDb ? t.id : t.name}
+                    className={`relative flex flex-col bg-[var(--lux-card-surface)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-2xl p-5 sm:p-6 hover:bg-[var(--lux-card-surface-hover)] ${isDb && t.borderHover ? t.borderHover : ''} transition-all duration-300 h-full`}
                   >
-                    {/* Quote icon */}
-                    <Quote className="absolute top-5 right-5 w-8 h-8 text-[var(--lux-text-label-3)] opacity-50" />
-
-                    {/* Verified Badge */}
-                    {isDatabaseTestimonial(t) && t.is_verified && (
-                      <div className="absolute top-5 left-5 px-2 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
-                        <span className="text-xs text-green-400 font-medium">
-                          ✓ {language === 'id' ? 'Terverifikasi' : 'Verified'}
-                        </span>
+                    {/* Top row: Stars left, Verified right — NO absolute positioning */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-0.5">
+                        {renderStars(t.rating)}
                       </div>
-                    )}
-
-                    {/* Stars */}
-                    <div className="flex items-center gap-1 mb-4">
-                      {renderStars(t.rating)}
+                      {isDb && t.is_verified && (
+                        <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                          <BadgeCheck className="w-3 h-3 text-emerald-400" />
+                          <span className="text-[10px] text-emerald-400 font-semibold">
+                            {language === 'id' ? 'Verified' : 'Verified'}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Stats (for DB testimonials) */}
-                    {isDatabaseTestimonial(t) && (t.trades_logged > 0 || t.prop_firms_passed > 0) && (
+                    {isDb && (t.trades_logged > 0 || t.prop_firms_passed > 0) && (
                       <div className="flex items-center gap-3 mb-3 text-xs text-gray-500">
                         {t.trades_logged > 0 && (
-                          <span>{t.trades_logged} {language === 'id' ? 'trade' : 'trade'}{t.trades_logged > 1 ? 's' : ''}</span>
+                          <span>{t.trades_logged} trade{t.trades_logged > 1 ? 's' : ''}</span>
                         )}
                         {t.prop_firms_passed > 0 && (
-                          <span>{language === 'id' ? `${t.prop_firms_passed} prop firm lolos` : `${t.prop_firms_passed} funded`}</span>
+                          <span>{t.prop_firms_passed} prop firm {language === 'id' ? 'lolos' : 'funded'}</span>
                         )}
                       </div>
                     )}
 
-                    {/* Quote Text */}
-                    <div className="flex-1 mb-5">
+                    {/* Quote Text — clear space, no overlap */}
+                    <div className="flex-1 mb-4">
                       <p className="text-[var(--lux-text-body-2)] text-sm leading-relaxed">
                         &ldquo;{getText(t)}&rdquo;
                       </p>
                     </div>
 
-                    {/* Author */}
-                    <div className="flex items-center gap-3 pt-4 border-t border-[var(--lux-inline-border)]">
-                      {/* Always show initials avatar */}
-                      <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getGradient(t, actualIndex)} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
-                        {isDatabaseTestimonial(t) ? t.user_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : t.avatar}
+                    {/* Author footer */}
+                    <div className="flex items-center gap-3 pt-3 mt-auto border-t border-[var(--lux-inline-border)]">
+                      <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${getGradient(t, actualIndex)} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
+                        {isDb ? t.user_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : t.avatar}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-[var(--lux-text-primary)] truncate">{getDisplayName(t)}</p>
                         <p className="text-xs text-[var(--lux-text-label-2)] truncate">{getRole(t)}</p>
                       </div>
-                      {/* Certificate badge - if they have a proof image */}
-                      {isDatabaseTestimonial(t) && t.profile_image_url && (
-                        <a href={t.profile_image_url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 group/cert">
+                      {isDb && t.profile_image_url && (
+                        <a href={t.profile_image_url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
                           <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-400/40 transition-colors">
                             <FileCheck className="w-3 h-3 text-emerald-400" />
                             <span className="text-[10px] text-emerald-400 font-medium">
