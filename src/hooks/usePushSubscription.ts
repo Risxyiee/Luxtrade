@@ -12,7 +12,7 @@ interface PushSubscriptionState {
 
 interface UsePushSubscriptionReturn extends PushSubscriptionState {
   requestPermission: () => Promise<boolean>
-  subscribe: (userId: string) => Promise<boolean>
+  subscribe: (userId: string, isPro?: boolean) => Promise<boolean>
   unsubscribe: () => Promise<boolean>
 }
 
@@ -62,8 +62,17 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
     }
   }, [state.isSupported])
 
-  const subscribe = useCallback(async (userId: string): Promise<boolean> => {
+  const subscribe = useCallback(async (userId: string, isPro?: boolean): Promise<boolean> => {
     if (!state.isSupported || !userId) return false
+
+    // Pro check — push notifications require Pro account
+    if (isPro === false) {
+      setState((s) => ({
+        ...s,
+        error: 'Upgrade ke Pro untuk mengaktifkan notifikasi push',
+      }))
+      return false
+    }
 
     setState((s) => ({ ...s, isLoading: true, error: null }))
 
@@ -120,7 +129,12 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
       })
 
       if (!saveRes.ok) {
-        throw new Error('Failed to save subscription')
+        const errorData = await saveRes.json().catch(() => ({}))
+        // If server says not Pro, show upgrade message
+        if (saveRes.status === 403) {
+          throw new Error('Upgrade ke Pro untuk mengaktifkan notifikasi push')
+        }
+        throw new Error(errorData.error || 'Failed to save subscription')
       }
 
       setState((s) => ({

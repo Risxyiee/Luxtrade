@@ -1,11 +1,17 @@
 'use client'
 
+import { useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { TabSkeleton } from '@/components/TabSkeleton'
 import { Trade, JournalEntry, WatchlistItem, Analytics } from '../utils/types'
 
+// DashboardTab is eagerly imported (NOT lazy) — it's the default tab shown on first load
+import DashboardTab from '../tabs/DashboardTab'
+
+// Push notification setup banner
+import PushNotificationSetup from '@/components/PushNotificationSetup'
+
 // Lazy-loaded tab components — each chunk is only fetched when the tab is first visited
-const DashboardTab = dynamic(() => import('../tabs/DashboardTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const TradesTab = dynamic(() => import('../tabs/TradesTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const AccountsTab = dynamic(() => import('../tabs/AccountsTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const JournalTab = dynamic(() => import('../tabs/JournalTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
@@ -106,8 +112,27 @@ export default function TabContent({
   hasMounted,
   tradingAccounts,
 }: TabContentProps) {
+  // Prefetch critical API data on mount for faster tab switches
+  useEffect(() => {
+    // Prefetch the most commonly needed API endpoints for other tabs
+    const prefetchUrls = ['/api/trades', '/api/analytics', '/api/journal']
+    for (const url of prefetchUrls) {
+      // Use link rel=prefetch via a temporary link element for browser-level prefetch
+      const link = document.createElement('link')
+      link.rel = 'prefetch'
+      link.href = url
+      link.as = 'fetch'
+      document.head.appendChild(link)
+      // Clean up after a delay to avoid DOM pollution
+      setTimeout(() => link.remove(), 5000)
+    }
+  }, [])
+
   return (
     <div className="w-full px-2 sm:px-4 lg:px-6 pb-24">
+          {/* Push notification setup banner — shows once per session */}
+          <PushNotificationSetup />
+
           {activeTab === 'dashboard' && (
             <DashboardTab
               analytics={analytics}

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Settings, LogOut, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
+import PushNotificationPermission from '@/components/PushNotificationPermission'
 
 interface SidebarFooterProps {
   sidebarOpen: boolean
@@ -11,6 +12,7 @@ interface SidebarFooterProps {
   language: 'id' | 'en'
   user: any
   isAdmin: boolean
+  isPro: boolean
   setSidebarOpen: (open: boolean) => void
   setMobileSidebarOpen: (open: boolean) => void
 }
@@ -21,11 +23,19 @@ export default function SidebarFooter({
   language,
   user,
   isAdmin,
+  isPro,
   setSidebarOpen,
   setMobileSidebarOpen
 }: SidebarFooterProps) {
+  const userId = user?.id || ''
+
   return (
     <div className="relative p-3 border-t border-lux-border dark:border-blue-500/20 space-y-1.5 pb-safe mt-auto">
+      {/* Push Notification Toggle — compact switch in sidebar */}
+      {(sidebarOpen || mobileSidebarOpen) && userId && isPro && (
+        <PushNotificationPermission userId={userId} compact />
+      )}
+
       {/* Settings Link */}
       <Link href="/settings" className="block">
         <button

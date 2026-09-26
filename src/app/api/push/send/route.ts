@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sendPushToUser, type PushPayload } from '@/lib/web-push'
+import { isUserPro } from '@/lib/pro-check'
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,6 +10,12 @@ export async function POST(req: NextRequest) {
 
     if (!userId || !title || !messageBody) {
       return NextResponse.json({ error: 'Missing required fields (userId, title, body)' }, { status: 400 })
+    }
+
+    // Check that the target user is Pro — only Pro users can receive push notifications
+    const proStatus = await isUserPro(userId)
+    if (!proStatus) {
+      return NextResponse.json({ sent: 0, message: 'Target user is not Pro — push notifications require Pro' })
     }
 
     // Get all subscriptions for this user

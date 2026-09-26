@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "web.id.luxtradee.twa",
+    "sha256_cert_fingerprints": [
+      "5F:73:3F:24:A3:D4:E4:12:03:F3:48:94:42:5F:D4:68:57:2E:AC:0C:68:0B:1E:FC:B7:A8:2F:40:91:63:68:FC"
+    ]
+  }
+}]

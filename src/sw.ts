@@ -31,6 +31,7 @@ sw.addEventListener('install', (event) => {
       cache.addAll([
         OFFLINE_URL,
         '/',
+        '/dashboard',
         '/icon-192x192.png',
         '/icon-512x512.png',
         '/manifest.webmanifest',
@@ -122,18 +123,40 @@ registerRoute(
   })
 )
 
+// ─── Dashboard Route - StaleWhileRevalidate ────────────────────────────────────
+// Serve cached dashboard instantly, update in background
+// Dashboard has more data to load so SWR gives instant response on revisit
+
+registerRoute(
+  ({ url, request }) => url.pathname === '/dashboard' && request.mode === 'navigate',
+  new StaleWhileRevalidate({
+    cacheName: 'luxtradee-dashboard',
+    plugins: [
+      new ExpirationPlugin({
+        maxEntries: 3,
+        maxAgeSeconds: 24 * 60 * 60, // 1 day
+      }),
+      new CacheableResponsePlugin({
+        statuses: [0, 200],
+      }),
+    ],
+  })
+)
+
 // ─── Navigation / HTML - NetworkFirst + Offline Fallback ─────────────────────
-// 1. Try network (2s timeout - fast for WebView/TWA)
+// 1. Try network (4s timeout for dashboard, 2s for other pages)
 // 2. Cache fallback (previously visited pages)
 // 3. offline.html (pre-cached on install)
 
 registerRoute(
-  ({ request }) => request.mode === 'navigate',
-  async ({ event }) => {
+  ({ request, url }) => request.mode === 'navigate' && url.pathname !== '/dashboard',
+  async ({ event, url }) => {
     const request = (event as FetchEvent).request
+    // Dashboard pages need more time to load due to heavier data
+    const timeoutMs = url.pathname.startsWith('/dashboard') ? 4000 : 2000
 
     try {
-      const networkResponse = await fetchWithTimeout(request, 2000)
+      const networkResponse = await fetchWithTimeout(request, timeoutMs)
       if (networkResponse && networkResponse.ok) {
         const cache = await caches.open('luxtradee-pages')
         cache.put(request, networkResponse.clone())
