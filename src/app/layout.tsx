@@ -9,6 +9,7 @@ import GlobalErrorBoundary from "@/components/GlobalErrorBoundary";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { SupabaseConfigLoader } from "@/components/supabase-config-loader";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 
 const lexend = Lexend({
   variable: "--font-lexend",
@@ -107,6 +108,7 @@ export default function RootLayout({
           </LanguageProvider>
           <Toaster position="top-right" />
           <PWAInstallPrompt />
+          <ServiceWorkerRegistration />
 
           {/* Page View Tracker (non-blocking, deferred) */}
           <Script
