@@ -26,5 +26,6 @@ export default withSerwist({
   swDest: "public/sw.js",
   cacheOnNavigation: true,
   reloadOnOnline: true,
-  disable: process.env.NODE_ENV === "development",
+  // Enable SW in development for testing offline/standalone behavior
+  disable: process.env.NODE_ENV === "development" && process.env.ENABLE_SW !== "true",
 })(nextConfig);
