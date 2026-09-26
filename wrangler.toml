@@ -29,9 +29,9 @@ binding = "IMAGES"
 [ai]
 binding = "ai_luxtrade"
 
-# Rate Limiting
-[limits]
-cpu_ms = 30000
+# CPU limits removed — not supported on Free plan (error 100328)
+# [limits]
+# cpu_ms = 30000
 
 # Browser Rendering (for PDF generation, server-side screenshots)
 [browser]
