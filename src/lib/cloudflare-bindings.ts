@@ -5,7 +5,7 @@
  * - env.ASSETS          : Static assets (OpenNext)
  * - env.IMAGES          : Cloudflare Images
  * - env.luxtradee_kv    : KV Namespace — shared cache
- * - env.R2              : R2 Bucket — file uploads
+ * - env.R2              : R2 Bucket — DISABLED (error 10042)
  * - env.ai_luxtrade     : Workers AI — LLM, embeddings
  * - env.ai_run          : Browser Rendering — PDF, screenshots
  * - env.queue           : Queue Producer — background jobs
@@ -28,12 +28,8 @@ declare abstract class CFKVNamespace {
   abstract list(options?: { prefix?: string; limit?: number; cursor?: string }): Promise<{ keys: Array<{ name: string; expiration?: number; metadata?: any }>; list_complete: boolean; cursor?: string }>
 }
 
-declare abstract class CFR2Bucket {
-  abstract get(key: string): Promise<R2ObjectBody | null>
-  abstract put(key: string, value: ReadableStream | ArrayBuffer | Uint8Array | string, options?: { httpMetadata?: { contentType?: string; cacheControl?: string; contentEncoding?: string; contentDisposition?: string }; customMetadata?: Record<string, string> }): Promise<R2Object>
-  abstract delete(keys: string | string[]): Promise<void>
-  abstract list(options?: { prefix?: string; limit?: number; cursor?: string; include?: ('httpMetadata' | 'customMetadata')[] }): Promise<R2Objects>
-}
+// R2 types kept for future re-enable (error 10042)
+// declare abstract class CFR2Bucket { ... }
 
 declare abstract class CFAi {
   abstract run(model: string, inputs: any, options?: any): Promise<any>
@@ -45,37 +41,21 @@ declare abstract class CFVectorizeIndex {
   abstract deleteByIds(ids: string[]): Promise<void>
 }
 
-interface R2Object {
-  key: string
-  size: number
-  uploaded: Date
-  httpMetadata?: { contentType?: string; cacheControl?: string; contentEncoding?: string; contentDisposition?: string }
-  customMetadata?: Record<string, string>
-}
-
-interface R2ObjectBody extends R2Object {
-  body: ReadableStream
-  arrayBuffer(): Promise<ArrayBuffer>
-  text(): Promise<string>
-  json<T>(): Promise<T>
-}
-
-interface R2Objects {
-  objects: R2Object[]
-  delimitedPrefixes: string[]
-  truncated: boolean
-  cursor?: string
-}
+// R2 interfaces kept for future re-enable (error 10042)
+// interface R2Object { ... }
+// interface R2ObjectBody extends R2Object { ... }
+// interface R2Objects { ... }
 
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
-export type { CFFetcher as Fetcher, CFKVNamespace as KVNamespace, CFR2Bucket as R2Bucket, CFAi as Ai, CFVectorizeIndex as VectorizeIndex }
+export type { CFFetcher as Fetcher, CFKVNamespace as KVNamespace, CFAi as Ai, CFVectorizeIndex as VectorizeIndex }
+// R2Bucket export disabled (error 10042)
 
 export interface CloudflareBindings {
   ASSETS?: CFFetcher
   IMAGES?: CFFetcher
   luxtradee_kv?: CFKVNamespace  // KV Namespace binding
-  R2?: CFR2Bucket
+  // R2?: any  // R2 disabled (error 10042, not provisioned)
   ai_luxtrade?: CFAi            // Workers AI binding
   ai_run?: any                  // Browser Rendering binding
   queue?: any                   // Queue Producer binding

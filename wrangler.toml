@@ -16,10 +16,10 @@ assets = { directory = ".open-next/assets", binding = "ASSETS" }
 binding = "luxtradee_kv"
 id = "4d16786ba51a4c22b42b1af7b97e3bd6"
 
-# R2 Bucket — file uploads (trade screenshots, testimonials)
-[[r2_buckets]]
-binding = "R2"
-bucket_name = "luxtradee-uploads"
+# R2 Bucket — DISABLED (error 10042, not provisioned)
+# [[r2_buckets]]
+# binding = "R2"
+# bucket_name = "luxtradee-uploads"
 
 # Cloudflare Images
 [images]
