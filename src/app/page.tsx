@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
-const APK_URL = '/LuxTradee-v1.1.0-debug.apk'
+const APK_URL = '/api/download-apk'
 const APK_SIZE = '5.5 MB'
 const APK_VERSION = 'v1.1.0'
 const APP_NAME = 'LuxTradee'
