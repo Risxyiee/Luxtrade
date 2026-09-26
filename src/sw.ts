@@ -16,22 +16,71 @@ interface SerwistPrecacheEntry {
 precacheAndRoute((self as unknown as { __SW_MANIFEST: SerwistPrecacheEntry[] }).__SW_MANIFEST)
 cleanupOutdatedCaches()
 
-// ─── Offline Fallback Strategy ───────────────────────────────────────────────
-// PWABuilder requires fast offline support — return cached page or offline.html
+// ─── Offline Fallback & Critical Asset Caching ────────────────────────────────
 
 const OFFLINE_URL = '/offline.html'
-const CACHE_NAME = 'luxtradee-offline-v1'
+const CACHE_NAME = 'luxtradee-offline-v2'
 
-// Pre-cache the offline fallback page on install
+// ServiceWorker global scope
 const sw = self as unknown as ServiceWorkerGlobalScope
 
+// Pre-cache offline page + critical dashboard assets on install
 sw.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.add(OFFLINE_URL))
+    caches.open(CACHE_NAME).then((cache) =>
+      cache.addAll([
+        OFFLINE_URL,
+        '/',
+        '/icon-192x192.png',
+        '/icon-512x512.png',
+        '/manifest.webmanifest',
+      ]).catch(() => cache.add(OFFLINE_URL)) // partial cache is ok
+    )
+  )
+  // Activate immediately - don't wait for old SW to finish
+  sw.skipWaiting?.()
+})
+
+// Claim all clients immediately on activate for faster SW control
+sw.addEventListener('activate', (event) => {
+  event.waitUntil(
+    Promise.all([
+      sw.clients.claim?.(),
+      // Clean up old caches
+      caches.keys().then((names) =>
+        Promise.all(
+          names
+            .filter((name) => name.startsWith('luxtradee-') && name !== CACHE_NAME)
+            .map((name) => caches.delete(name))
+        )
+      ),
+    ])
   )
 })
 
-// ─── Cache Static Assets — CacheFirst, 30 days ───────────────────────────────
+// ─── Cache JS/CSS Build Chunks - CacheFirst, 1 year (immutable) ──────────────
+// Next.js static chunks are content-hashed - never change, cache aggressively
+// This makes dashboard load near-instant on repeat visits
+
+registerRoute(
+  ({ request, url }) =>
+    (request.destination === 'script' || request.destination === 'style') &&
+    url.pathname.startsWith('/_next/static/'),
+  new CacheFirst({
+    cacheName: 'luxtradee-static-chunks',
+    plugins: [
+      new ExpirationPlugin({
+        maxEntries: 200,
+        maxAgeSeconds: 365 * 24 * 60 * 60, // 1 year
+      }),
+      new CacheableResponsePlugin({
+        statuses: [0, 200],
+      }),
+    ],
+  })
+)
+
+// ─── Cache Static Assets - CacheFirst, 30 days ───────────────────────────────
 
 registerRoute(
   ({ request }) =>
@@ -54,7 +103,8 @@ registerRoute(
   })
 )
 
-// ─── Cache API — StaleWhileRevalidate, 5 min ─────────────────────────────────
+// ─── Cache API - StaleWhileRevalidate, 5 min ─────────────────────────────────
+// Return stale immediately (instant UI), then update in background
 
 registerRoute(
   ({ url }) => url.pathname.startsWith('/api/') && !url.pathname.startsWith('/api/chat'),
@@ -72,11 +122,10 @@ registerRoute(
   })
 )
 
-// ─── Navigation / HTML — NetworkFirst + Offline Fallback ─────────────────────
-// This is the critical route for PWABuilder "Offline Support" test:
-// 1. Try network first (fast when online)
-// 2. If network fails, return cached page from precache
-// 3. If no cached page, return offline.html fallback
+// ─── Navigation / HTML - NetworkFirst + Offline Fallback ─────────────────────
+// 1. Try network (2s timeout - fast for WebView/TWA)
+// 2. Cache fallback (previously visited pages)
+// 3. offline.html (pre-cached on install)
 
 registerRoute(
   ({ request }) => request.mode === 'navigate',
@@ -84,27 +133,23 @@ registerRoute(
     const request = (event as FetchEvent).request
 
     try {
-      // Try network first — with 3 second timeout for fast fallback
-      const networkResponse = await fetchWithTimeout(request, 3000)
+      const networkResponse = await fetchWithTimeout(request, 2000)
       if (networkResponse && networkResponse.ok) {
-        // Cache the successful response for offline use
         const cache = await caches.open('luxtradee-pages')
         cache.put(request, networkResponse.clone())
         return networkResponse
       }
     } catch {
-      // Network failed — fall through to cache
+      // Network failed
     }
 
-    // Try cache
     try {
       const cachedResponse = await caches.match(request)
       if (cachedResponse) return cachedResponse
     } catch {
-      // Cache miss — fall through to offline
+      // Cache miss
     }
 
-    // Return offline fallback page
     try {
       const offlineResponse = await caches.match(OFFLINE_URL)
       if (offlineResponse) return offlineResponse
@@ -112,18 +157,13 @@ registerRoute(
       // Even offline page not cached
     }
 
-    // Last resort: basic HTML response
     return new Response(
-      '<!DOCTYPE html><html><head><meta charset="utf-8"><title>LuxTradee — Offline</title></head><body style="background:#050507;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif"><div style="text-align:center"><h1>📡 Offline</h1><p>Kamu sedang offline. Coba lagi saat koneksi kembali.</p></div></body></html>',
+      '<!DOCTYPE html><html><head><meta charset="utf-8"><title>LuxTradee - Offline</title></head><body style="background:#050507;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif"><div style="text-align:center"><h1>Offline</h1><p>Kamu sedang offline. Coba lagi saat koneksi kembali.</p></div></body></html>',
       { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
     )
   }
 )
 
-/**
- * Fetch with timeout — prevents hanging network requests.
- * Returns null on timeout (instead of throwing), so we can fall back to cache.
- */
 async function fetchWithTimeout(request: Request, timeoutMs: number): Promise<Response | null> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
@@ -140,7 +180,6 @@ async function fetchWithTimeout(request: Request, timeoutMs: number): Promise<Re
 
 // ─── Push Notification Handlers ──────────────────────────────────────────────
 
-// Handle push events — display notification even when app is closed
 sw.addEventListener('push', (event) => {
   let data: { title?: string; body?: string; icon?: string; badge?: string; url?: string; tag?: string; type?: string } = {}
 
@@ -167,7 +206,6 @@ sw.addEventListener('push', (event) => {
   event.waitUntil(sw.registration.showNotification(title, options))
 })
 
-// Handle notification click — open/focus the app
 sw.addEventListener('notificationclick', (event) => {
   event.notification.close()
 
@@ -187,7 +225,6 @@ sw.addEventListener('notificationclick', (event) => {
   )
 })
 
-// Handle subscription push change (e.g., browser refreshed keys)
 sw.addEventListener('pushsubscriptionchange', () => {
   console.log('[sw] Push subscription changed, app will re-subscribe on next launch')
 })
