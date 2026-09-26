@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LuxTradee</string>
+    <string name="settings_title">Settings</string>
+
+    <!-- Notification channels -->
+    <string name="channel_trades">Trade Notifications</string>
+    <string name="channel_alerts">Price Alerts</string>
+    <string name="channel_general">General</string>
+    <string name="channel_chat">AI Chat</string>
+
+    <!-- Notification messages -->
+    <string name="notification_trade_entered">Trade entered successfully</string>
+    <string name="notification_trade_closed">Trade closed — P&amp;L updated</string>
+    <string name="notification_price_alert">Price alert triggered!</string>
+    <string name="notification_streak">You\'re on a %d trade streak! 🔥</string>
+    <string name="notification_daily_limit">Daily loss limit reached ⚠️</string>
+
+    <!-- Preferences -->
+    <string name="pref_notifications">Notifications</string>
+    <string name="pref_trades_notif">Trade notifications</string>
+    <string name="pref_alerts_notif">Price alert notifications</string>
+    <string name="pref_twa_mode">Use Trusted Web Activity</string>
+    <string name="pref_twa_mode_summary">Launch in Chrome Custom Tab (faster). Disable to use in-app WebView.</string>
+    <string name="pref_cache">Cache &amp; Storage</string>
+    <string name="pref_clear_cache">Clear cache</string>
+    <string name="pref_clear_cache_summary">Free up storage by clearing cached web content</string>
+
+    <!-- Shortcuts -->
+    <string name="shortcut_log_trade">Log Trade</string>
+    <string name="shortcut_log_trade_long">Log a new trade</string>
+    <string name="shortcut_analytics">Analytics</string>
+    <string name="shortcut_analytics_long">View trading analytics</string>
+
+    <!-- Offline -->
+    <string name="offline_title">You\'re Offline</string>
+    <string name="offline_message">Check your internet connection and try again.</string>
+    <string name="offline_retry">Retry</string>
+</resources>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { isUserPro } from '@/lib/pro-check'
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,6 +9,15 @@ export async function POST(req: NextRequest) {
 
     if (!userId || !endpoint || !p256dh || !auth) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // Verify user is Pro — push notifications require a Pro account
+    const proStatus = await isUserPro(userId)
+    if (!proStatus) {
+      return NextResponse.json(
+        { error: 'Push notifications require a Pro account' },
+        { status: 403 }
+      )
     }
 
     // Upsert — if endpoint already exists, update keys & userId

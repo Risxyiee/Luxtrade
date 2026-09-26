@@ -1,0 +1,62 @@
+{
+  "host": "luxtradee.com",
+  "name": "LuxTradee - AI Trading Journal",
+  "launcherName": "LuxTradee",
+  "display": "standalone",
+  "orientation": "any",
+  "startUrl": "/dashboard",
+  "iconUrl": "https://luxtradee.com/icon-512x512.png",
+  "iconUrlHash": "465c60328a3b23541e86f1d7ebd4412fc51938b3ce32e4537dc2ed29e2a9401e",
+  "maskableIconUrl": "https://luxtradee.com/icon-maskable-512x512.png",
+  "maskableIconUrlHash": "465c60328a3b23541e86f1d7ebd4412fc51938b3ce32e4537dc2ed29e2a9401e",
+  "themeColor": "#0f172a",
+  "backgroundColor": "#0f172a",
+  "enableNotifications": true,
+  "shareTarget": {
+    "action": "/dashboard?action=log-trade",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "webSiteUrl": "https://luxtradee.com",
+  "packageId": "web.id.luxtradee.twa",
+  "signingKey": {
+    "path": "keystore.jks",
+    "alias": "luxtradee"
+  },
+  "splashScreenColor": "#0f172a",
+  "navigationColor": "#0f172a",
+  "navigationDividerColor": "#1e293b",
+  "navigationBarColor": "#0f172a",
+  "fullScopeUrl": "https://luxtradee.com/",
+  "scope": "/",
+  "useBrowserOnChromeOS": true,
+  "additionalTrustedOrigins": [],
+  "alphaDependencies": {
+    "enableGooglePlayBilling": false
+  },
+  "appVersion": "1.0.0",
+  "appVersionCode": 1,
+  "minSdkVersion": 24,
+  "targetSdkVersion": 34,
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": {
+      "enabled": false
+    },
+    "playBilling": {
+      "enabled": false
+    },
+    "firstRunNotification": {
+      "enabled": true,
+      "title": "LuxTradee siap digunakan!",
+      "body": "Ketuk untuk mulai mencatat trade dan analisis AI Anda.",
+      "channelId": "general",
+      "channelName": "General"
+    }
+  }
+}

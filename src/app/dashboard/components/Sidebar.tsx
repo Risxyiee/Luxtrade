@@ -131,6 +131,7 @@ const Sidebar = memo(function Sidebar({
             language={language}
             user={user}
             isAdmin={isAdmin}
+            isPro={isPro}
             setSidebarOpen={setSidebarOpen}
             setMobileSidebarOpen={setMobileSidebarOpen}
           />
@@ -177,6 +178,7 @@ const Sidebar = memo(function Sidebar({
               language={language}
               user={user}
               isAdmin={isAdmin}
+              isPro={isPro}
               setSidebarOpen={setSidebarOpen}
               setMobileSidebarOpen={setMobileSidebarOpen}
             />

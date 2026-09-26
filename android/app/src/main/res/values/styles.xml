@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base app theme - using standard Android themes for compatibility -->
+    <style name="Theme.LuxTradee" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorPrimary">#0f172a</item>
+        <item name="android:colorPrimaryDark">#050507</item>
+        <item name="android:colorAccent">#FFD700</item>
+        <item name="android:statusBarColor">#0f172a</item>
+        <item name="android:navigationBarColor">#0f172a</item>
+        <item name="android:windowBackground">#0f172a</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+
+    <!-- Splash screen theme - simple dark background -->
+    <style name="Theme.LuxTradee.Splash" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorPrimary">#0f172a</item>
+        <item name="android:colorPrimaryDark">#050507</item>
+        <item name="android:colorAccent">#FFD700</item>
+        <item name="android:windowBackground">#0f172a</item>
+        <item name="android:statusBarColor">#0f172a</item>
+        <item name="android:navigationBarColor">#0f172a</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>

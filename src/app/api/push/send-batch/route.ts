@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sendPushToUser, type PushPayload } from '@/lib/web-push'
+import { isUserPro } from '@/lib/pro-check'
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,14 +17,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Batch too large, max 1000 users' }, { status: 400 })
     }
 
-    // Get all subscriptions for these users
+    // Filter to only Pro users — skip non-Pro silently
+    const proChecks = await Promise.all(
+      userIds.map(async (uid: string) => ({
+        uid,
+        isPro: await isUserPro(uid),
+      }))
+    )
+    const proUserIds = proChecks.filter(c => c.isPro).map(c => c.uid)
+    const skippedCount = userIds.length - proUserIds.length
+
+    if (proUserIds.length === 0) {
+      return NextResponse.json({
+        sent: 0,
+        skipped: skippedCount,
+        message: 'No Pro users found — push notifications require Pro',
+      })
+    }
+
+    // Get all subscriptions for Pro users only
     const subscriptions = await db.pushSubscription.findMany({
-      where: { userId: { in: userIds } },
+      where: { userId: { in: proUserIds } },
       select: { endpoint: true, p256dh: true, auth: true, userId: true },
     })
 
     if (subscriptions.length === 0) {
-      return NextResponse.json({ sent: 0, message: 'No subscriptions found' })
+      return NextResponse.json({ sent: 0, skipped: skippedCount, message: 'No subscriptions found for Pro users' })
     }
 
     const payload: PushPayload = {
@@ -74,6 +93,7 @@ export async function POST(req: NextRequest) {
       expired: allExpired.length,
       totalSubscriptions: subscriptions.length,
       totalUsers: byUser.size,
+      skippedNonPro: skippedCount,
     })
   } catch (error: any) {
     console.error('[push/send-batch] Error:', error.message)
