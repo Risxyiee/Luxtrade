@@ -25,7 +25,7 @@ export default function PWAInstallPrompt() {
 
     // Check iOS Safari (no beforeinstallprompt support)
     const ua = navigator.userAgent
-    const ios = /iPad|iPhone|iPod/.test(ua) && !window.MSStream
+    const ios = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream
     setIsIOS(ios)
 
     // Listen for beforeinstallprompt
