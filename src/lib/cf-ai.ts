@@ -46,14 +46,14 @@ export async function cfChat(
   options: CFChatOptions = {}
 ): Promise<string | null> {
   const env = getCloudflareEnv(request)
-  if (!env?.worked_ai) return null
+  if (!env?.ai_luxtrade) return null
 
   const model = options.model ?? CF_AI_MODELS.chat
   const maxTokens = options.maxTokens ?? 512
   const temperature = options.temperature ?? 0.7
 
   try {
-    const response = await env.worked_ai.run(model, {
+    const response = await env.ai_luxtrade.run(model, {
       messages,
       max_tokens: maxTokens,
       temperature,
@@ -82,10 +82,10 @@ export async function cfSentiment(
   text: string
 ): Promise<SentimentResult | null> {
   const env = getCloudflareEnv(request)
-  if (!env?.worked_ai) return null
+  if (!env?.ai_luxtrade) return null
 
   try {
-    const response = await env.worked_ai.run(CF_AI_MODELS.sentiment, { text })
+    const response = await env.ai_luxtrade.run(CF_AI_MODELS.sentiment, { text })
     const results = response.results ?? response
 
     if (Array.isArray(results) && results.length > 0) {
@@ -115,10 +115,10 @@ export async function cfEmbed(
   model: string = CF_AI_MODELS.embedding
 ): Promise<number[] | null> {
   const env = getCloudflareEnv(request)
-  if (!env?.worked_ai) return null
+  if (!env?.ai_luxtrade) return null
 
   try {
-    const response = await env.worked_ai.run(model, { text })
+    const response = await env.ai_luxtrade.run(model, { text })
     return response.data ?? response.embedding ?? null
   } catch (error) {
     console.error('[CF AI] Embed error:', error)
@@ -137,10 +137,10 @@ export async function cfClassifyImage(
   imageBuffer: ArrayBuffer
 ): Promise<Array<{ label: string; score: number }> | null> {
   const env = getCloudflareEnv(request)
-  if (!env?.worked_ai) return null
+  if (!env?.ai_luxtrade) return null
 
   try {
-    const response = await env.worked_ai.run(CF_AI_MODELS.imageClassify, {
+    const response = await env.ai_luxtrade.run(CF_AI_MODELS.imageClassify, {
       image: Array.from(new Uint8Array(imageBuffer)),
     })
 

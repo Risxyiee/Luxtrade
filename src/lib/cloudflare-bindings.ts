@@ -4,11 +4,11 @@
  * Bindings available:
  * - env.ASSETS          : Static assets (OpenNext)
  * - env.IMAGES          : Cloudflare Images
- * - env.Kv_luxtr        : KV Namespace — shared cache
+ * - env.luxtradee_kv    : KV Namespace — shared cache
  * - env.R2              : R2 Bucket — file uploads
- * - env.worked_ai       : Workers AI — LLM, embeddings
- * - env.Run_ai          : Browser Rendering — PDF, screenshots
- * - env.Queue           : Queue Producer — background jobs
+ * - env.ai_luxtrade     : Workers AI — LLM, embeddings
+ * - env.ai_run          : Browser Rendering — PDF, screenshots
+ * - env.queue           : Queue Producer — background jobs
  * - env.RATE_LIMITER    : (via CF Rate Limiting API)
  * - env.VECTORIZE_INDEX : Vectorize — semantic search (optional)
  */
@@ -74,11 +74,11 @@ export type { CFFetcher as Fetcher, CFKVNamespace as KVNamespace, CFR2Bucket as 
 export interface CloudflareBindings {
   ASSETS?: CFFetcher
   IMAGES?: CFFetcher
-  Kv_luxtr?: CFKVNamespace    // KV Namespace binding
+  luxtradee_kv?: CFKVNamespace  // KV Namespace binding
   R2?: CFR2Bucket
-  worked_ai?: CFAi            // Workers AI binding
-  Run_ai?: any                // Browser Rendering binding
-  Queue?: any                 // Queue Producer binding
+  ai_luxtrade?: CFAi            // Workers AI binding
+  ai_run?: any                  // Browser Rendering binding
+  queue?: any                   // Queue Producer binding
   VECTORIZE_INDEX?: CFVectorizeIndex
   RATE_LIMITER?: any
 }
@@ -135,9 +135,9 @@ export async function runAIInference(
   prompt: string,
   model: string = '@cf/meta/llama-3.1-8b-instruct'
 ): Promise<{ response: string; tokens: number }> {
-  if (!env?.worked_ai) throw new Error('Workers AI binding not configured')
+  if (!env?.ai_luxtrade) throw new Error('Workers AI binding not configured')
 
-  const response = await env.worked_ai.run(model, { prompt, max_tokens: 512 })
+  const response = await env.ai_luxtrade.run(model, { prompt, max_tokens: 512 })
   return {
     response: response.response || response.output || response.text || '',
     tokens: response.tokens ?? (response.input_tokens ?? 0) + (response.output_tokens ?? 0),
@@ -150,9 +150,9 @@ export async function createEmbedding(
   text: string,
   model: string = '@cf/baai/bge-base-en-v1.5'
 ): Promise<number[]> {
-  if (!env?.worked_ai) throw new Error('Workers AI binding not configured')
+  if (!env?.ai_luxtrade) throw new Error('Workers AI binding not configured')
 
-  const response = await env.worked_ai.run(model, { text })
+  const response = await env.ai_luxtrade.run(model, { text })
   return response.data ?? response.embedding ?? response.vector ?? []
 }
 
