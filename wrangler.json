@@ -33,9 +33,7 @@
   "images": {
     "binding": "IMAGES"
   },
-  "limits": {
-    "cpu_ms": 30000
-  },
+  "limits": {},
   "vars": {
     "NEXT_PUBLIC_SUPABASE_URL": "https://klxkdrfsfcoankbaoejn.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "REDACTED-DEAD-KEY",
