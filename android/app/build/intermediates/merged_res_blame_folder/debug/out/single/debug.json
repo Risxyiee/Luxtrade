@@ -1,27 +1,19 @@
 [
     {
-        "merged": "web.id.luxtradee.twa.app-merged_res-32:/mipmap-mdpi_ic_launcher.png.flat",
-        "source": "web.id.luxtradee.twa.app-main-34:/mipmap-mdpi/ic_launcher.png"
-    },
-    {
-        "merged": "web.id.luxtradee.twa.app-merged_res-32:/mipmap-xhdpi_ic_launcher.png.flat",
-        "source": "web.id.luxtradee.twa.app-main-34:/mipmap-xhdpi/ic_launcher.png"
-    },
-    {
         "merged": "web.id.luxtradee.twa.app-merged_res-32:/mipmap-hdpi_ic_launcher.png.flat",
         "source": "web.id.luxtradee.twa.app-main-34:/mipmap-hdpi/ic_launcher.png"
     },
     {
-        "merged": "web.id.luxtradee.twa.app-merged_res-32:/mipmap-mdpi_ic_launcher_round.png.flat",
-        "source": "web.id.luxtradee.twa.app-main-34:/mipmap-mdpi/ic_launcher_round.png"
+        "merged": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-merged_res-32:/mipmap-hdpi_ic_launcher.png.flat",
+        "source": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-main-34:/mipmap-hdpi/ic_launcher.png"
+    },
+    {
+        "merged": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-merged_res-32:/drawable_progress_bar.xml.flat",
+        "source": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-main-34:/drawable/progress_bar.xml"
     },
     {
         "merged": "web.id.luxtradee.twa.app-merged_res-32:/mipmap-xhdpi_ic_launcher_round.png.flat",
         "source": "web.id.luxtradee.twa.app-main-34:/mipmap-xhdpi/ic_launcher_round.png"
-    },
-    {
-        "merged": "web.id.luxtradee.twa.app-merged_res-32:/xml_preferences.xml.flat",
-        "source": "web.id.luxtradee.twa.app-main-34:/xml/preferences.xml"
     },
     {
         "merged": "web.id.luxtradee.twa.app-merged_res-32:/mipmap-hdpi_ic_launcher_round.png.flat",
@@ -32,39 +24,87 @@
         "source": "web.id.luxtradee.twa.app-main-34:/mipmap-xxxhdpi/ic_launcher.png"
     },
     {
-        "merged": "web.id.luxtradee.twa.app-merged_res-32:/xml_network_security_config.xml.flat",
-        "source": "web.id.luxtradee.twa.app-main-34:/xml/network_security_config.xml"
+        "merged": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-merged_res-32:/mipmap-xxhdpi_ic_launcher_round.png.flat",
+        "source": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-main-34:/mipmap-xxhdpi/ic_launcher_round.png"
     },
     {
-        "merged": "web.id.luxtradee.twa.app-merged_res-32:/layout_activity_settings.xml.flat",
-        "source": "web.id.luxtradee.twa.app-main-34:/layout/activity_settings.xml"
+        "merged": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-merged_res-32:/mipmap-xhdpi_ic_notification.png.flat",
+        "source": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-main-34:/mipmap-xhdpi/ic_notification.png"
+    },
+    {
+        "merged": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-merged_res-32:/mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-main-34:/mipmap-xxhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-merged_res-32:/mipmap-mdpi_ic_launcher_round.png.flat",
+        "source": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-main-34:/mipmap-mdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-merged_res-32:/mipmap-mdpi_ic_launcher.png.flat",
+        "source": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-main-34:/mipmap-mdpi/ic_launcher.png"
+    },
+    {
+        "merged": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-merged_res-32:/mipmap-xhdpi_ic_launcher_round.png.flat",
+        "source": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-main-34:/mipmap-xhdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-merged_res-32:/xml_network_security_config.xml.flat",
+        "source": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-main-34:/xml/network_security_config.xml"
+    },
+    {
+        "merged": "web.id.luxtradee.twa.app-merged_res-32:/mipmap-xxxhdpi_ic_launcher_round.png.flat",
+        "source": "web.id.luxtradee.twa.app-main-34:/mipmap-xxxhdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-merged_res-32:/mipmap-hdpi_ic_launcher_round.png.flat",
+        "source": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-main-34:/mipmap-hdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "web.id.luxtradee.twa.app-merged_res-32:/mipmap-mdpi_ic_launcher.png.flat",
+        "source": "web.id.luxtradee.twa.app-main-34:/mipmap-mdpi/ic_launcher.png"
+    },
+    {
+        "merged": "web.id.luxtradee.twa.app-merged_res-32:/mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "web.id.luxtradee.twa.app-main-34:/mipmap-xhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-merged_res-32:/layout_activity_settings.xml.flat",
+        "source": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-main-34:/layout/activity_settings.xml"
+    },
+    {
+        "merged": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-merged_res-32:/xml_shortcuts.xml.flat",
+        "source": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-main-34:/xml/shortcuts.xml"
+    },
+    {
+        "merged": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-merged_res-32:/mipmap-xxxhdpi_ic_launcher_round.png.flat",
+        "source": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-main-34:/mipmap-xxxhdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "web.id.luxtradee.twa.app-merged_res-32:/mipmap-mdpi_ic_launcher_round.png.flat",
+        "source": "web.id.luxtradee.twa.app-main-34:/mipmap-mdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-merged_res-32:/mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-main-34:/mipmap-xhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-merged_res-32:/layout_activity_main.xml.flat",
+        "source": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-main-34:/layout/activity_main.xml"
     },
     {
         "merged": "web.id.luxtradee.twa.app-merged_res-32:/mipmap-xxhdpi_ic_launcher.png.flat",
         "source": "web.id.luxtradee.twa.app-main-34:/mipmap-xxhdpi/ic_launcher.png"
     },
     {
-        "merged": "web.id.luxtradee.twa.app-merged_res-32:/drawable_progress_bar.xml.flat",
-        "source": "web.id.luxtradee.twa.app-main-34:/drawable/progress_bar.xml"
+        "merged": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-merged_res-32:/xml_preferences.xml.flat",
+        "source": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-main-34:/xml/preferences.xml"
     },
     {
         "merged": "web.id.luxtradee.twa.app-merged_res-32:/mipmap-xxhdpi_ic_launcher_round.png.flat",
         "source": "web.id.luxtradee.twa.app-main-34:/mipmap-xxhdpi/ic_launcher_round.png"
     },
     {
-        "merged": "web.id.luxtradee.twa.app-merged_res-32:/layout_activity_main.xml.flat",
-        "source": "web.id.luxtradee.twa.app-main-34:/layout/activity_main.xml"
-    },
-    {
-        "merged": "web.id.luxtradee.twa.app-merged_res-32:/mipmap-xhdpi_ic_notification.png.flat",
-        "source": "web.id.luxtradee.twa.app-main-34:/mipmap-xhdpi/ic_notification.png"
-    },
-    {
-        "merged": "web.id.luxtradee.twa.app-merged_res-32:/xml_shortcuts.xml.flat",
-        "source": "web.id.luxtradee.twa.app-main-34:/xml/shortcuts.xml"
-    },
-    {
-        "merged": "web.id.luxtradee.twa.app-merged_res-32:/mipmap-xxxhdpi_ic_launcher_round.png.flat",
-        "source": "web.id.luxtradee.twa.app-main-34:/mipmap-xxxhdpi/ic_launcher_round.png"
+        "merged": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-merged_res-32:/mipmap-xxxhdpi_ic_launcher.png.flat",
+        "source": "/home/z/.gradle/daemon/8.5/web.id.luxtradee.twa.app-main-34:/mipmap-xxxhdpi/ic_launcher.png"
     }
 ]
