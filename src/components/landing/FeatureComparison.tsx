@@ -228,7 +228,7 @@ export default function FeatureComparison({ language }: FeatureComparisonProps) 
         </motion.div>
 
         {/* Mobile scroll hint */}
-        <p className="mt-3 text-center text-xs text-white/30 sm:hidden">
+        <p className="mt-3 text-center text-xs text-white/50 sm:hidden">
           {isEn ? '↔ Scroll horizontally if needed' : '↔ Geser horizontal jika perlu'}
         </p>
 

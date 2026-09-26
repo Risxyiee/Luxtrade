@@ -234,7 +234,7 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
         >
           <button
             onClick={() => setShowForm(true)}
-            className="w-full group relative overflow-hidden rounded-2xl border border-blue-500/30 bg-gradient-to-r from-blue-500/10 via-cyan-500/10 to-blue-500/10 p-6 sm:p-8 hover:border-blue-500/50 transition-all duration-300"
+            className="w-full group relative overflow-hidden rounded-2xl border border-blue-500/30 bg-gradient-to-r from-blue-500/10 via-cyan-500/10 to-blue-500/10 p-6 sm:p-8 hover:border-blue-500/50 transition-colors duration-300"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-cyan-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
@@ -290,7 +290,7 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
                 return (
                   <div
                     key={isDb ? t.id : t.name}
-                    className={`relative flex flex-col bg-[var(--lux-card-surface)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-2xl p-5 sm:p-6 hover:bg-[var(--lux-card-surface-hover)] ${isDb && t.borderHover ? t.borderHover : ''} transition-all duration-300 h-full`}
+                    className={`relative flex flex-col bg-[var(--lux-card-surface)] backdrop-blur-sm border border-[var(--lux-inline-border)] rounded-2xl p-5 sm:p-6 hover:bg-[var(--lux-card-surface-hover)] ${isDb && t.borderHover ? t.borderHover : ''} transition-colors duration-300 h-full`}
                   >
                     {/* Top row: Stars left, Verified right — NO absolute positioning */}
                     <div className="flex items-center justify-between mb-3">
@@ -368,7 +368,7 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
                 <button
                   key={i}
                   onClick={() => { setDirection(i > currentPage ? 1 : -1); setCurrentPage(i) }}
-                  className={`w-2.5 h-2.5 rounded-full transition-all ${i === currentPage ? 'bg-blue-500 w-6' : 'bg-[var(--lux-text-label-3)] hover:bg-[var(--lux-text-label-2)]'}`}
+                  className={`w-2.5 h-2.5 rounded-full transition-colors ${i === currentPage ? 'bg-blue-500 w-6' : 'bg-[var(--lux-text-label-3)] hover:bg-[var(--lux-text-label-2)]'}`}
                   aria-label={`Go to page ${i + 1}`}
                 />
               ))}
