@@ -1,4 +1,6 @@
 {
+  "id": "/?source=pwa",
+  "dir": "ltr",
   "name": "LuxTradee - AI Trading Journal",
   "short_name": "LuxTradee",
   "description": "Trading journal dengan AI untuk trader Indonesia. Screenshot trade dari MT4/MT5, AI auto-extract data & deteksi pola kesalahan berulang.",
@@ -33,9 +35,9 @@
   "screenshots": [
     {
       "src": "/screenshot-dashboard.jpeg",
-      "sizes": "1280x720",
+      "sizes": "750x1396",
       "type": "image/jpeg",
-      "form_factor": "wide",
+      "form_factor": "narrow",
       "label": "Dashboard with equity curve and analytics"
     },
     {
