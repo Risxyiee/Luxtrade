@@ -15,12 +15,7 @@
       "id": "4d16786ba51a4c22b42b1af7b97e3bd6"
     }
   ],
-  "r2_buckets": [
-    {
-      "binding": "R2",
-      "bucket_name": "luxtradee-uploads"
-    }
-  ],
+  "r2_buckets": [],
   "queues": {
     "producers": [
       {
