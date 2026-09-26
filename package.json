@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "rm -rf .open-next .next && opennextjs-cloudflare build",
+    "build": "rm -rf .open-next .next && opennextjs-cloudflare build && find .open-next/assets -name '*.apk' -o -name '*.mov' -o -name 'demo-tutorial.mp4' | xargs rm -f 2>/dev/null; echo '✅ Build complete — large assets purged from .open-next/assets'",
     "build:clean": "rm -rf .open-next .next node_modules/.cache && opennextjs-cloudflare build",
     "prebuild": "echo '🧹 Cleaning cache...'",
     "lint": "eslint .",
