@@ -70,3 +70,63 @@ registerRoute(
     ],
   })
 )
+
+// ─── Push Notification Handlers ───────────────────────────────────────────
+
+// ServiceWorker global scope reference
+const sw = self as unknown as ServiceWorkerGlobalScope
+
+// Handle push events — display notification even when app is closed
+sw.addEventListener('push', (event) => {
+  let data: { title?: string; body?: string; icon?: string; badge?: string; url?: string; tag?: string; type?: string } = {}
+
+  try {
+    data = event.data?.json() ?? {}
+  } catch {
+    data.body = event.data?.text() ?? 'New notification from LuxTradee'
+  }
+
+  const title = data.title || 'LuxTradee'
+  const options: NotificationOptions = {
+    body: data.body || '',
+    icon: data.icon || '/icon-192x192.png',
+    badge: data.badge || '/icon-72x72.png',
+    tag: data.tag || 'default',
+    data: {
+      url: data.url || '/',
+      type: data.type || 'general',
+    },
+    requireInteraction: data.type === 'trade' || data.type === 'price-alert',
+    silent: false,
+  }
+
+  event.waitUntil(sw.registration.showNotification(title, options))
+})
+
+// Handle notification click — open/focus the app
+sw.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+
+  const urlToOpen = (event.notification.data as { url?: string })?.url || '/'
+
+  event.waitUntil(
+    sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // If app is already open, focus it and navigate
+      for (const client of clientList) {
+        if (client.url.includes(sw.location.origin) && 'focus' in client) {
+          return (client as WindowClient).navigate(urlToOpen).then((c) => {
+            if (c) return c.focus()
+          })
+        }
+      }
+      // Otherwise open new window
+      return sw.clients.openWindow(urlToOpen)
+    })
+  )
+})
+
+// Handle subscription push change (e.g., browser refreshed keys)
+sw.addEventListener('pushsubscriptionchange', () => {
+  // We'll let the app re-subscribe on next launch
+  console.log('[sw] Push subscription changed, app will re-subscribe on next launch')
+})

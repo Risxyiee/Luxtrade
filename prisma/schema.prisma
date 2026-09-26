@@ -460,3 +460,18 @@ model SharedTrade {
   @@index([shareCode])
   @@map("shared_trades")
 }
+
+model PushSubscription {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  endpoint          String
+  p256dh            String
+  auth              String
+  userAgent         String?   @map("user_agent")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@unique([endpoint])
+  @@index([userId])
+  @@map("push_subscriptions")
+}
