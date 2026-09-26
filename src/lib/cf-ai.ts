@@ -46,7 +46,7 @@ export async function cfChat(
   options: CFChatOptions = {}
 ): Promise<string | null> {
   const env = getCloudflareEnv(request)
-  if (!env?.AI) return null
+  if (!env?.worked_ai) return null
 
   const model = options.model ?? CF_AI_MODELS.chat
   const maxTokens = options.maxTokens ?? 512
@@ -82,7 +82,7 @@ export async function cfSentiment(
   text: string
 ): Promise<SentimentResult | null> {
   const env = getCloudflareEnv(request)
-  if (!env?.AI) return null
+  if (!env?.worked_ai) return null
 
   try {
     const response = await env.worked_ai.run(CF_AI_MODELS.sentiment, { text })
@@ -115,7 +115,7 @@ export async function cfEmbed(
   model: string = CF_AI_MODELS.embedding
 ): Promise<number[] | null> {
   const env = getCloudflareEnv(request)
-  if (!env?.AI) return null
+  if (!env?.worked_ai) return null
 
   try {
     const response = await env.worked_ai.run(model, { text })
@@ -137,7 +137,7 @@ export async function cfClassifyImage(
   imageBuffer: ArrayBuffer
 ): Promise<Array<{ label: string; score: number }> | null> {
   const env = getCloudflareEnv(request)
-  if (!env?.AI) return null
+  if (!env?.worked_ai) return null
 
   try {
     const response = await env.worked_ai.run(CF_AI_MODELS.imageClassify, {
