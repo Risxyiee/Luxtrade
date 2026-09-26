@@ -1,14 +1,51 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "main": ".open-next/worker.js",
-  "name": "luxtrade-nextjs",
+  "name": "luxtrade",
   "compatibility_date": "2025-07-18",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["nodejs_compat", "streams_enable_constructors"],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
-  "vars": {},
+  "kv_namespaces": [
+    {
+      "binding": "Kv_luxtr",
+      "id": "4d16786ba51a4c22b42b1af7b97e3bd6"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "R2",
+      "bucket_name": "luxtradee-uploads"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "Queue",
+        "queue": "luxtradee"
+      }
+    ]
+  },
+  "browser": {
+    "binding": "Run_ai"
+  },
+  "ai": {
+    "binding": "worked_ai"
+  },
+  "images": {
+    "binding": "IMAGES"
+  },
+  "limits": {
+    "cpu_ms": 30000
+  },
+  "vars": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://klxkdrfsfcoankbaoejn.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtseGtkcmZzZmNvYW5rYmFvZWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzY0MTAsImV4cCI6MjA4NTk1MjQxMH0.4Yv9JesMXWEy4phu2D-Yw9rkbq0l8z9kz-sRwFZerQ0",
+    "NEXT_PUBLIC_SITE_URL": "https://luxtradee.web.id",
+    "MIDTRANS_IS_PRODUCTION": "true"
+  },
   "observability": {
     "logs": {
       "enabled": true,
@@ -21,5 +58,12 @@
       "head_sampling_rate": 1,
       "persist": true
     }
+  },
+  "triggers": {
+    "crons": [
+      "0 1 * * *",
+      "0 3 * * *",
+      "0 3 * * 1"
+    ]
   }
 }

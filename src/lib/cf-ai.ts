@@ -53,7 +53,7 @@ export async function cfChat(
   const temperature = options.temperature ?? 0.7
 
   try {
-    const response = await env.AI.run(model, {
+    const response = await env.worked_ai.run(model, {
       messages,
       max_tokens: maxTokens,
       temperature,
@@ -85,7 +85,7 @@ export async function cfSentiment(
   if (!env?.AI) return null
 
   try {
-    const response = await env.AI.run(CF_AI_MODELS.sentiment, { text })
+    const response = await env.worked_ai.run(CF_AI_MODELS.sentiment, { text })
     const results = response.results ?? response
 
     if (Array.isArray(results) && results.length > 0) {
@@ -118,7 +118,7 @@ export async function cfEmbed(
   if (!env?.AI) return null
 
   try {
-    const response = await env.AI.run(model, { text })
+    const response = await env.worked_ai.run(model, { text })
     return response.data ?? response.embedding ?? null
   } catch (error) {
     console.error('[CF AI] Embed error:', error)
@@ -140,7 +140,7 @@ export async function cfClassifyImage(
   if (!env?.AI) return null
 
   try {
-    const response = await env.AI.run(CF_AI_MODELS.imageClassify, {
+    const response = await env.worked_ai.run(CF_AI_MODELS.imageClassify, {
       image: Array.from(new Uint8Array(imageBuffer)),
     })
 
