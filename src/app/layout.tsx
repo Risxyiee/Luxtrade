@@ -8,6 +8,7 @@ import CookieConsent from '@/components/CookieConsent';
 import GlobalErrorBoundary from "@/components/GlobalErrorBoundary";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { SupabaseConfigLoader } from "@/components/supabase-config-loader";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 
 const lexend = Lexend({
   variable: "--font-lexend",
@@ -26,7 +27,25 @@ export const metadata: Metadata = {
   description: "Trading journal dengan AI untuk trader Indonesia. Screenshot trade dari MT4/MT5, AI auto-extract data & deteksi pola kesalahan berulang. Equity curve, analisis psikologi trading, risk calculator. Gratis 10 trade/bulan.",
   keywords: ["trading journal", "jurnal trading", "trading journal Indonesia", "AI trading journal", "jurnal trading AI", "catat trade", "analisis trading", "forex journal", "jurnal forex", "equity curve", "deteksi kesalahan trading", "trading psikologi", "risk calculator forex", "MT4 journal", "MT5 journal", "luxtrade"],
   authors: [{ name: "LuxTradee" }],
-  icons: { icon: "/logo.png" },
+  manifest: '/manifest.webmanifest',
+  icons: {
+    icon: [
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'LuxTradee',
+    startupImage: ['/icon-512x512.png'],
+  },
+  formatDetection: {
+    telephone: false,
+  },
   openGraph: {
     title: "LuxTradee - AI Trading Journal Indonesia | Catat Trade, Deteksi Kesalahan, Naikkan Win Rate",
     description: "Trading journal dengan AI untuk trader Indonesia. Screenshot trade dari MT4/MT5, AI auto-extract data & deteksi pola kesalahan berulang. Gratis 10 trade/bulan.",
@@ -49,8 +68,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="id" suppressHydrationWarning>
+    <html lang="id" suppressHydrationWarning className="dark">
       <head>
+        <meta name="theme-color" content="#050507" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -58,13 +79,10 @@ export default function RootLayout({
                 try {
                   var theme = localStorage.getItem('luxtrade-theme');
                   if (theme === 'light') {
+                    document.documentElement.classList.remove('dark');
                     document.documentElement.classList.add('light');
-                  } else {
-                    document.documentElement.classList.add('dark');
                   }
-                } catch(e) {
-                  document.documentElement.classList.add('dark');
-                }
+                } catch(e) {}
               })();
             `,
           }}
@@ -88,6 +106,7 @@ export default function RootLayout({
             </Providers>
           </LanguageProvider>
           <Toaster position="top-right" />
+          <PWAInstallPrompt />
 
           {/* Page View Tracker (non-blocking, deferred) */}
           <Script
