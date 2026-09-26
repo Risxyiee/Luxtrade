@@ -1,23 +1,17 @@
 /// <reference lib="webworker" />
-import type { PrecacheEntry } from '@serwist/precaching'
-import { install, activate } from '@serwist/precaching'
-import { skipWaiting, clientsClaim } from 'serwist'
+import { Serwist } from 'serwist'
+import { precacheAndRoute, cleanupOutdatedCaches } from '@serwist/precaching'
 import { ExpirationPlugin } from '@serwist/expiration'
 import { CacheableResponsePlugin } from '@serwist/cacheable-response'
 import { registerRoute } from '@serwist/routing'
 import { StaleWhileRevalidate, CacheFirst, NetworkFirst } from '@serwist/strategies'
 
-// This is required — serwist replaces this with the precache manifest at build time
+// Precache manifest (injected by serwist at build time)
 declare const self: ServiceWorkerGlobalScope
-const _SW_MANIFEST = self.__SW_MANIFEST
 
-// Skip waiting and claim clients immediately
-skipWaiting()
-clientsClaim()
-
-// Precache & cleanup old precache entries
-install((_SW_MANIFEST as PrecacheEntry[]) as unknown as PrecacheEntry[])
-activate((_SW_MANIFEST as PrecacheEntry[]) as unknown as PrecacheEntry[])
+// Setup precaching & cleanup
+precacheAndRoute(self.__SW_MANIFEST)
+cleanupOutdatedCaches()
 
 // Cache static assets (images, fonts, icons) — CacheFirst, 30 days
 registerRoute(
@@ -32,7 +26,7 @@ registerRoute(
     plugins: [
       new ExpirationPlugin({
         maxEntries: 100,
-        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+        maxAgeSeconds: 30 * 24 * 60 * 60,
       }),
       new CacheableResponsePlugin({
         statuses: [0, 200],
@@ -49,7 +43,7 @@ registerRoute(
     plugins: [
       new ExpirationPlugin({
         maxEntries: 50,
-        maxAgeSeconds: 5 * 60, // 5 minutes
+        maxAgeSeconds: 5 * 60,
       }),
       new CacheableResponsePlugin({
         statuses: [0, 200],
@@ -66,7 +60,7 @@ registerRoute(
     plugins: [
       new ExpirationPlugin({
         maxEntries: 20,
-        maxAgeSeconds: 10 * 60, // 10 minutes
+        maxAgeSeconds: 10 * 60,
       }),
       new CacheableResponsePlugin({
         statuses: [0, 200],
