@@ -179,3 +179,89 @@ Stage Summary:
 - All icons have transparent backgrounds
 - logo.png upgraded from 438x437 to 512x512 HD
 - APK rebuilt with correct website logo icons
+---
+Task ID: 1
+Agent: main
+Task: Configure Service Worker, PWA manifest, and offline cache for LuxTradee
+
+Work Log:
+- Audited entire PWA/SW/manifest setup via exploration agent
+- Found dual manifest conflict (manifest.ts + manifest.webmanifest)
+- Found maskable icon identical to regular icon (no safe zone padding)
+- Found apple-icon.png at 152x152 instead of 180x180
+- Created proper maskable icon with 80% safe zone padding using Pillow
+- Created proper 180x180 apple-icon.png
+- Created 152x152 Microsoft tile icon
+- Updated manifest.webmanifest: added 192x192 maskable, HD PNG icons, confirmed standalone mode
+- Removed conflicting src/app/manifest.ts (static manifest.webmanifest is authoritative)
+- Enhanced src/sw.ts with:
+  - Upgraded cache versions (v3) to force cache refresh
+  - Added logo-hd-1024.png and maskable icon to precache
+  - Increased static chunk cache to 300 entries, 1 year
+  - Increased static assets cache to 150 entries, 60 days
+  - Increased API cache to 80 entries
+  - Added navigation timeout of 3s (5s for dashboard)
+  - Added Background Sync for offline POST/PUT replay
+  - Added SKIP_WAITING message handler for instant SW updates
+  - Enhanced push notifications: vibrate pattern, 512x512 icon, timestamp
+  - Fixed NavigationRoute type error (removed, used direct registerRoute)
+  - Fixed NotificationOptions vibrate type error
+- Enhanced offline.html with LuxTradee branding, logo, cyan color scheme
+- Updated ServiceWorkerRegistration.tsx:
+  - Dev mode SW support via ?sw=true URL param or localStorage flag
+  - 30-minute update check interval (was 60)
+  - SKIP_WAITING message posting on new SW
+  - Controller change listener
+- Updated next.config.ts:
+  - SW can be enabled in dev with ENABLE_SW=true env var
+- Build verified: next build compiles successfully with all type checks
+- All PWA assets verified: page, sw.js, manifest, offline.html, icons, APK
+
+Stage Summary:
+- Service Worker fully configured with offline cache, background sync, push notifications
+- Manifest fixed: standalone mode, 6 HD PNG icons (including proper maskable), screenshots, shortcuts
+- Dual manifest conflict resolved (removed manifest.ts)
+- Production build passes successfully
+---
+Task ID: 1
+Agent: main
+Task: Configure Service Worker, PWA manifest, and offline cache for LuxTradee
+
+Work Log:
+- Audited entire PWA/SW/manifest setup via exploration agent
+- Found dual manifest conflict (manifest.ts + manifest.webmanifest)
+- Found maskable icon identical to regular icon (no safe zone padding)
+- Found apple-icon.png at 152x152 instead of 180x180
+- Created proper maskable icon with 80% safe zone padding using Pillow
+- Created proper 180x180 apple-icon.png
+- Created 152x152 Microsoft tile icon
+- Updated manifest.webmanifest: added 192x192 maskable, HD PNG icons, confirmed standalone mode
+- Removed conflicting src/app/manifest.ts (static manifest.webmanifest is authoritative)
+- Enhanced src/sw.ts with:
+  - Upgraded cache versions (v3) to force cache refresh
+  - Added logo-hd-1024.png and maskable icon to precache
+  - Increased static chunk cache to 300 entries, 1 year
+  - Increased static assets cache to 150 entries, 60 days
+  - Increased API cache to 80 entries
+  - Added navigation timeout of 3s (5s for dashboard)
+  - Added Background Sync for offline POST/PUT replay
+  - Added SKIP_WAITING message handler for instant SW updates
+  - Enhanced push notifications: vibrate pattern, 512x512 icon, timestamp
+  - Fixed NavigationRoute type error (removed, used direct registerRoute)
+  - Fixed NotificationOptions vibrate type error
+- Enhanced offline.html with LuxTradee branding, logo, cyan color scheme
+- Updated ServiceWorkerRegistration.tsx:
+  - Dev mode SW support via ?sw=true URL param or localStorage flag
+  - 30-minute update check interval (was 60)
+  - SKIP_WAITING message posting on new SW
+  - Controller change listener
+- Updated next.config.ts:
+  - SW can be enabled in dev with ENABLE_SW=true env var
+- Build verified: next build compiles successfully with all type checks
+- All PWA assets verified: page, sw.js, manifest, offline.html, icons, APK
+
+Stage Summary:
+- Service Worker fully configured with offline cache, background sync, push notifications
+- Manifest fixed: standalone mode, 6 HD PNG icons (including proper maskable), screenshots, shortcuts
+- Dual manifest conflict resolved (removed manifest.ts)
+- Production build passes successfully

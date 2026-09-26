@@ -19,26 +19,27 @@ cleanupOutdatedCaches()
 // ─── Offline Fallback & Critical Asset Caching ────────────────────────────────
 
 const OFFLINE_URL = '/offline.html'
-const CACHE_NAME = 'luxtradee-offline-v2'
+const CACHE_NAME = 'luxtradee-offline-v3'
 
 // ServiceWorker global scope
 const sw = self as unknown as ServiceWorkerGlobalScope
 
-// Pre-cache offline page + critical dashboard assets on install
+// Pre-cache offline page + critical assets on install
 sw.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
       cache.addAll([
         OFFLINE_URL,
         '/',
-        '/dashboard',
         '/icon-192x192.png',
         '/icon-512x512.png',
+        '/icon-maskable-512x512.png',
         '/manifest.webmanifest',
+        '/logo-hd-1024.png',
       ]).catch(() => cache.add(OFFLINE_URL)) // partial cache is ok
     )
   )
-  // Activate immediately - don't wait for old SW to finish
+  // Activate immediately — don't wait for old SW to finish
   sw.skipWaiting?.()
 })
 
@@ -47,7 +48,7 @@ sw.addEventListener('activate', (event) => {
   event.waitUntil(
     Promise.all([
       sw.clients.claim?.(),
-      // Clean up old caches
+      // Clean up ALL old luxtradee caches
       caches.keys().then((names) =>
         Promise.all(
           names
@@ -59,8 +60,8 @@ sw.addEventListener('activate', (event) => {
   )
 })
 
-// ─── Cache JS/CSS Build Chunks - CacheFirst, 1 year (immutable) ──────────────
-// Next.js static chunks are content-hashed - never change, cache aggressively
+// ─── Cache JS/CSS Build Chunks — CacheFirst, 1 year (immutable) ──────────────
+// Next.js static chunks are content-hashed — never change, cache aggressively
 // This makes dashboard load near-instant on repeat visits
 
 registerRoute(
@@ -68,10 +69,10 @@ registerRoute(
     (request.destination === 'script' || request.destination === 'style') &&
     url.pathname.startsWith('/_next/static/'),
   new CacheFirst({
-    cacheName: 'luxtradee-static-chunks',
+    cacheName: 'luxtradee-static-chunks-v2',
     plugins: [
       new ExpirationPlugin({
-        maxEntries: 200,
+        maxEntries: 300,
         maxAgeSeconds: 365 * 24 * 60 * 60, // 1 year
       }),
       new CacheableResponsePlugin({
@@ -81,7 +82,8 @@ registerRoute(
   })
 )
 
-// ─── Cache Static Assets - CacheFirst, 30 days ───────────────────────────────
+// ─── Cache Static Assets — CacheFirst, 60 days ───────────────────────────────
+// Images, fonts, icons, logos — cached long for smooth repeat visits
 
 registerRoute(
   ({ request }) =>
@@ -91,11 +93,11 @@ registerRoute(
     request.url.includes('/apple-icon') ||
     request.url.includes('/logo'),
   new CacheFirst({
-    cacheName: 'luxtradee-static-assets',
+    cacheName: 'luxtradee-static-assets-v2',
     plugins: [
       new ExpirationPlugin({
-        maxEntries: 100,
-        maxAgeSeconds: 30 * 24 * 60 * 60,
+        maxEntries: 150,
+        maxAgeSeconds: 60 * 24 * 60 * 60, // 60 days
       }),
       new CacheableResponsePlugin({
         statuses: [0, 200],
@@ -104,16 +106,17 @@ registerRoute(
   })
 )
 
-// ─── Cache API - StaleWhileRevalidate, 5 min ─────────────────────────────────
+// ─── Cache API — StaleWhileRevalidate, 5 min ─────────────────────────────────
 // Return stale immediately (instant UI), then update in background
+// Chat API excluded — always needs fresh data
 
 registerRoute(
   ({ url }) => url.pathname.startsWith('/api/') && !url.pathname.startsWith('/api/chat'),
   new StaleWhileRevalidate({
-    cacheName: 'luxtradee-api',
+    cacheName: 'luxtradee-api-v2',
     plugins: [
       new ExpirationPlugin({
-        maxEntries: 50,
+        maxEntries: 80,
         maxAgeSeconds: 5 * 60,
       }),
       new CacheableResponsePlugin({
@@ -123,17 +126,19 @@ registerRoute(
   })
 )
 
-// ─── Dashboard Route - StaleWhileRevalidate ────────────────────────────────────
+// ─── Dashboard Route — StaleWhileRevalidate, 1 day ────────────────────────────
 // Serve cached dashboard instantly, update in background
-// Dashboard has more data to load so SWR gives instant response on revisit
+// This eliminates the "lag" on dashboard revisit
 
 registerRoute(
-  ({ url, request }) => url.pathname === '/dashboard' && request.mode === 'navigate',
+  ({ url, request }) =>
+    (url.pathname === '/dashboard' || url.pathname.startsWith('/dashboard/')) &&
+    request.mode === 'navigate',
   new StaleWhileRevalidate({
-    cacheName: 'luxtradee-dashboard',
+    cacheName: 'luxtradee-dashboard-v2',
     plugins: [
       new ExpirationPlugin({
-        maxEntries: 3,
+        maxEntries: 5,
         maxAgeSeconds: 24 * 60 * 60, // 1 day
       }),
       new CacheableResponsePlugin({
@@ -143,29 +148,31 @@ registerRoute(
   })
 )
 
-// ─── Navigation / HTML - NetworkFirst + Offline Fallback ─────────────────────
-// 1. Try network (4s timeout for dashboard, 2s for other pages)
+// ─── Navigation / HTML — NetworkFirst + Offline Fallback ─────────────────────
+// 1. Try network (3s timeout for fast-fail)
 // 2. Cache fallback (previously visited pages)
 // 3. offline.html (pre-cached on install)
+// 4. Inline HTML fallback (last resort)
 
 registerRoute(
-  ({ request, url }) => request.mode === 'navigate' && url.pathname !== '/dashboard',
+  ({ request }) => request.mode === 'navigate',
   async ({ event, url }) => {
     const request = (event as FetchEvent).request
-    // Dashboard pages need more time to load due to heavier data
-    const timeoutMs = url.pathname.startsWith('/dashboard') ? 4000 : 2000
+    const isDashboard = url.pathname.startsWith('/dashboard')
+    const timeoutMs = isDashboard ? 5000 : 3000
 
     try {
       const networkResponse = await fetchWithTimeout(request, timeoutMs)
       if (networkResponse && networkResponse.ok) {
-        const cache = await caches.open('luxtradee-pages')
+        const cache = await caches.open('luxtradee-pages-v2')
         cache.put(request, networkResponse.clone())
         return networkResponse
       }
     } catch {
-      // Network failed
+      // Network failed — fall through to cache
     }
 
+    // Try page cache
     try {
       const cachedResponse = await caches.match(request)
       if (cachedResponse) return cachedResponse
@@ -173,6 +180,7 @@ registerRoute(
       // Cache miss
     }
 
+    // Try offline fallback
     try {
       const offlineResponse = await caches.match(OFFLINE_URL)
       if (offlineResponse) return offlineResponse
@@ -180,8 +188,9 @@ registerRoute(
       // Even offline page not cached
     }
 
+    // Last resort: inline offline page
     return new Response(
-      '<!DOCTYPE html><html><head><meta charset="utf-8"><title>LuxTradee - Offline</title></head><body style="background:#050507;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif"><div style="text-align:center"><h1>Offline</h1><p>Kamu sedang offline. Coba lagi saat koneksi kembali.</p></div></body></html>',
+      `<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LuxTradee — Offline</title><meta name="theme-color" content="#050507"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#050507;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:20px}.c{max-width:400px}.i{font-size:56px;margin-bottom:16px}h1{font-size:20px;font-weight:700;margin-bottom:8px}p{font-size:14px;color:rgba(255,255,255,0.5);line-height:1.5;margin-bottom:24px}button{display:inline-flex;align-items:center;gap:8px;padding:10px 24px;border-radius:12px;background:#4FC3F7;color:#050507;font-size:14px;font-weight:600;border:none;cursor:pointer;transition:background .2s}button:hover{background:#29B6F6}</style></head><body><div class="c"><div class="i">📡</div><h1>Kamu Sedang Offline</h1><p>Tidak ada koneksi internet. Data yang sudah di-cache tetap bisa diakses.</p><button onclick="window.location.reload()">🔄 Coba Lagi</button></div></body></html>`,
       { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
     )
   }
@@ -201,10 +210,61 @@ async function fetchWithTimeout(request: Request, timeoutMs: number): Promise<Re
   }
 }
 
+// ─── Background Sync for Offline Actions ─────────────────────────────────────
+// Queue failed POST/PUT requests and replay when online
+
+interface QueuedRequest {
+  url: string
+  method: string
+  body: string
+  headers: Record<string, string>
+  timestamp: number
+}
+
+const SYNC_QUEUE = 'luxtradee-sync-queue'
+
+sw.addEventListener('sync', (event) => {
+  if (event.tag === 'luxtradee-replay-queue') {
+    event.waitUntil(replayQueuedRequests())
+  }
+})
+
+async function replayQueuedRequests(): Promise<void> {
+  try {
+    const cache = await caches.open(SYNC_QUEUE)
+    const requests = await cache.match('/__queued__')
+    if (!requests) return
+
+    const queued: QueuedRequest[] = await requests.json()
+    const remaining: QueuedRequest[] = []
+
+    for (const req of queued) {
+      try {
+        const response = await fetch(req.url, {
+          method: req.method,
+          headers: req.headers,
+          body: req.body,
+        })
+        if (!response.ok) remaining.push(req)
+      } catch {
+        remaining.push(req)
+      }
+    }
+
+    if (remaining.length === 0) {
+      await cache.delete('/__queued__')
+    } else {
+      await cache.put('/__queued__', new Response(JSON.stringify(remaining)))
+    }
+  } catch {
+    // Silent fail — will retry on next sync
+  }
+}
+
 // ─── Push Notification Handlers ──────────────────────────────────────────────
 
 sw.addEventListener('push', (event) => {
-  let data: { title?: string; body?: string; icon?: string; badge?: string; url?: string; tag?: string; type?: string } = {}
+  let data: { title?: string; body?: string; icon?: string; badge?: string; url?: string; tag?: string; type?: string; vibrate?: number[] } = {}
 
   try {
     data = event.data?.json() ?? {}
@@ -213,16 +273,19 @@ sw.addEventListener('push', (event) => {
   }
 
   const title = data.title || 'LuxTradee'
-  const options: NotificationOptions = {
+  const isTradeAlert = data.type === 'trade' || data.type === 'price-alert'
+
+  const options: NotificationOptions & { vibrate?: number[] } = {
     body: data.body || '',
-    icon: data.icon || '/icon-192x192.png',
-    badge: data.badge || '/icon-72x72.png',
+    icon: data.icon || '/icon-512x512.png',
+    badge: data.badge || '/icon-192x192.png',
     tag: data.tag || 'default',
+    vibrate: data.vibrate || (isTradeAlert ? [200, 100, 200] : [100]),
     data: {
       url: data.url || '/',
       type: data.type || 'general',
     },
-    requireInteraction: data.type === 'trade' || data.type === 'price-alert',
+    requireInteraction: isTradeAlert,
     silent: false,
   }
 
@@ -236,6 +299,7 @@ sw.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Focus existing window if available
       for (const client of clientList) {
         if (client.url.includes(sw.location.origin) && 'focus' in client) {
           return (client as WindowClient).navigate(urlToOpen).then((c) => {
@@ -243,11 +307,21 @@ sw.addEventListener('notificationclick', (event) => {
           })
         }
       }
+      // Open new window
       return sw.clients.openWindow(urlToOpen)
     })
   )
 })
 
 sw.addEventListener('pushsubscriptionchange', () => {
-  console.log('[sw] Push subscription changed, app will re-subscribe on next launch')
+  console.log('[sw] Push subscription changed — app will re-subscribe on next launch')
+})
+
+// ─── Online/Offline Status Detection ─────────────────────────────────────────
+// Notify all clients when connectivity changes
+
+sw.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    sw.skipWaiting?.()
+  }
 })
