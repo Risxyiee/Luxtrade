@@ -11,7 +11,7 @@
   },
   "kv_namespaces": [
     {
-      "binding": "Kv_luxtr",
+      "binding": "luxtradee_kv",
       "id": "4d16786ba51a4c22b42b1af7b97e3bd6"
     }
   ],
@@ -24,16 +24,16 @@
   "queues": {
     "producers": [
       {
-        "binding": "Queue",
+        "binding": "queue",
         "queue": "luxtradee"
       }
     ]
   },
   "browser": {
-    "binding": "Run_ai"
+    "binding": "ai_run"
   },
   "ai": {
-    "binding": "worked_ai"
+    "binding": "ai_luxtrade"
   },
   "images": {
     "binding": "IMAGES"

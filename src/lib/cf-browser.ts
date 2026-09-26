@@ -14,7 +14,7 @@ import { getCloudflareEnv, type CloudflareBindings } from './cloudflare-bindings
  */
 export function isBrowserAvailable(request: Request): boolean {
   const env = getCloudflareEnv(request)
-  return !!env?.Run_ai
+  return !!env?.ai_run
 }
 
 /**
@@ -32,10 +32,10 @@ export async function generatePDF(
   } = {}
 ): Promise<ArrayBuffer | null> {
   const env = getCloudflareEnv(request)
-  if (!env?.Run_ai) return null
+  if (!env?.ai_run) return null
 
   try {
-    const browser = await env.Run_ai
+    const browser = await env.ai_run
     const page = await browser.newPage()
 
     await page.goto(url, { waitUntil: 'networkidle0' })
@@ -75,10 +75,10 @@ export async function takeScreenshot(
   } = {}
 ): Promise<ArrayBuffer | null> {
   const env = getCloudflareEnv(request)
-  if (!env?.Run_ai) return null
+  if (!env?.ai_run) return null
 
   try {
-    const browser = await env.Run_ai
+    const browser = await env.ai_run
     const page = await browser.newPage()
 
     await page.setViewportSize({
