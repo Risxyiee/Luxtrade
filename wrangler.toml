@@ -13,9 +13,8 @@ assets = { directory = ".open-next/assets", binding = "ASSETS" }
 
 # KV Namespace — shared cache across Worker isolates
 [[kv_namespaces]]
-binding = "KV"
-id = "PLACEHOLDER_KV_ID"          # ← Replace after: wrangler kv namespace create "LUXTRADEE_CACHE"
-preview_id = "PLACEHOLDER_KV_PREVIEW_ID"
+binding = "Kv_luxtr"
+id = "4d16786ba51a4c22b42b1af7b97e3bd6"
 
 # R2 Bucket — file uploads (trade screenshots, testimonials)
 [[r2_buckets]]
@@ -28,7 +27,7 @@ binding = "IMAGES"
 
 # Workers AI — LLM, embeddings, image classification
 [ai]
-binding = "AI"
+binding = "worked_ai"
 
 # Rate Limiting
 [limits]
@@ -36,7 +35,12 @@ cpu_ms = 30000
 
 # Browser Rendering (for PDF generation, server-side screenshots)
 [browser]
-binding = "MY_BROWSER"
+binding = "Run_ai"
+
+# Queue Producer — background jobs
+[[queues.producers]]
+binding = "Queue"
+queue = "luxtradee"
 
 # Vectorize Index — semantic search for trade journals
 # Uncomment after creating the index:

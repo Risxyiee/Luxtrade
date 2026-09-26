@@ -10,7 +10,7 @@ import { getCloudflareEnv, type CloudflareBindings } from './cloudflare-bindings
 export interface KVCacheOptions {
   /** TTL in seconds (default: 300 = 5 minutes) */
   ttl?: number
-  /** KV namespace binding key (default: 'KV') */
+  /** KV namespace binding key (default: 'Kv_luxtr') */
   binding?: string
 }
 
@@ -20,7 +20,7 @@ export interface KVCacheOptions {
  */
 export async function kvGet<T>(request: Request, key: string): Promise<T | null> {
   const env = getCloudflareEnv(request)
-  const kv = env.KV
+  const kv = env.Kv_luxtr
 
   if (!kv) return null
 
@@ -43,7 +43,7 @@ export async function kvSet(
   options: KVCacheOptions = {}
 ): Promise<boolean> {
   const env = getCloudflareEnv(request)
-  const kv = env.KV
+  const kv = env.Kv_luxtr
 
   if (!kv) return false
 
@@ -61,7 +61,7 @@ export async function kvSet(
  */
 export async function kvDelete(request: Request, key: string): Promise<boolean> {
   const env = getCloudflareEnv(request)
-  const kv = env.KV
+  const kv = env.Kv_luxtr
 
   if (!kv) return false
 
@@ -100,7 +100,7 @@ export async function kvList(
   limit: number = 100
 ): Promise<string[]> {
   const env = getCloudflareEnv(request)
-  const kv = env.KV
+  const kv = env.Kv_luxtr
 
   if (!kv) return []
 
