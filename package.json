@@ -86,6 +86,7 @@
     "zustand": "^5.0.6"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260926.1",
     "@opennextjs/cloudflare": "^1.20.4",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^7.0.1",

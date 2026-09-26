@@ -1,5 +1,5 @@
 name = "luxtrade"
-compatibility_date = "2025-01-01"
+compatibility_date = "2025-07-18"
 compatibility_flags = ["nodejs_compat", "streams_enable_constructors"]
 
 # Prevent wrangler from overriding dashboard environment variables
@@ -9,9 +9,41 @@ keep_vars = true
 main = ".open-next/worker.js"
 assets = { directory = ".open-next/assets", binding = "ASSETS" }
 
-# Cloudflare Images binding
+# ─── Cloudflare Bindings ─────────────────────────────────────────────────────
+
+# KV Namespace — shared cache across Worker isolates
+[[kv_namespaces]]
+binding = "KV"
+id = "PLACEHOLDER_KV_ID"          # ← Replace after: wrangler kv namespace create "LUXTRADEE_CACHE"
+preview_id = "PLACEHOLDER_KV_PREVIEW_ID"
+
+# R2 Bucket — file uploads (trade screenshots, testimonials)
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "luxtradee-uploads"
+
+# Cloudflare Images
 [images]
 binding = "IMAGES"
+
+# Workers AI — LLM, embeddings, image classification
+[ai]
+binding = "AI"
+
+# Rate Limiting
+[limits]
+cpu_ms = 30000
+
+# Browser Rendering (for PDF generation, server-side screenshots)
+[browser]
+binding = "MY_BROWSER"
+
+# Vectorize Index — semantic search for trade journals
+# Uncomment after creating the index:
+# wrangler vectorize create "luxtradee-journals" --dimensions=768 --metric=cosine
+# [[vectorize]]
+# binding = "VECTORIZE_INDEX"
+# index_name = "luxtradee-journals"
 
 # secret environment variables
 [vars]
@@ -35,10 +67,7 @@ enabled = false
 head_sampling_rate = 1
 persist = true
 
-# Cron triggers (migrated from vercel.json)
-# Cloudflare Workers crons invoke the worker's scheduled() handler.
-# The OpenNext adapter routes cron requests to the matching API path.
-# All times in UTC.
+# Cron triggers
 [triggers]
 crons = [
   "0 1 * * *",    # daily-reminder  (08:00 WIB)
