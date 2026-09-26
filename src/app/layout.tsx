@@ -33,6 +33,8 @@ export const metadata: Metadata = {
     icon: [
       { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
       { url: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+      { url: '/icon-1024x1024.png', sizes: '1024x1024', type: 'image/png' },
     ],
     apple: [
       { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
@@ -73,6 +75,15 @@ export default function RootLayout({
       <head>
         <meta name="theme-color" content="#050507" />
         <meta name="mobile-web-app-capable" content="yes" />
+        {/* WebView Performance Optimization for Android TWA/PWA */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
+        {/* Preconnect to critical origins for faster loading */}
+        <link rel="preconnect" href="https://klxkdrfsfcoankbaoejn.supabase.co" />
+        <link rel="dns-prefetch" href="https://klxkdrfsfcoankbaoejn.supabase.co" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Splash screen background color for instant paint */}
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
