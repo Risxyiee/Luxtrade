@@ -120,7 +120,7 @@ export default function AIVisionSimulator({ language = 'id' }: AIVisionSimulator
                   key={key}
                   onClick={() => runSim(key)}
                   disabled={scanning}
-                  className={`px-3 py-2.5 rounded-xl text-xs font-mono transition-all cursor-pointer ${
+                  className={`px-3 py-2.5 rounded-xl text-xs font-mono transition-colors cursor-pointer ${
                     activeKey === key
                       ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
                       : 'bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300'

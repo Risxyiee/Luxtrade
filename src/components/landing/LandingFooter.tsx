@@ -37,7 +37,7 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
               <Image src="/logo.png" alt="LuxTradee" width={28} height={28} className="object-contain" />
               <span className="text-[15px] font-medium text-[#f0f2ff]">LuxTradee</span>
             </div>
-            <p className="text-[#8892b0] max-w-sm text-[13px] leading-relaxed mb-5">
+            <p className="text-[#a8b2d1] max-w-sm text-[13px] leading-relaxed mb-5">
               {t(
                 'Trading journal untuk trader Indonesia. Catat trade, lihat pola kesalahan, perbaiki strategi.',
                 'A trading journal for traders. Log trades, see mistake patterns, fix your strategy.'
@@ -63,9 +63,9 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
 
           {/* Product Column */}
           <div>
-            <h4 className="text-[12px] font-medium tracking-[0.12em] uppercase text-[#8892b0] mb-4">
+            <h3 className="text-[12px] font-medium tracking-[0.12em] uppercase text-[#a8b2d1] mb-4">
               {t('Produk', 'Product')}
-            </h4>
+            </h3>
             <ul className="space-y-2.5">
               <li><a href="#features" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Fitur', 'Features')}</a></li>
               <li><a href="#pricing" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Harga', 'Pricing')}</a></li>
@@ -77,9 +77,9 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
 
           {/* Company Column */}
           <div>
-            <h4 className="text-[12px] font-medium tracking-[0.12em] uppercase text-[#8892b0] mb-4">
+            <h3 className="text-[12px] font-medium tracking-[0.12em] uppercase text-[#a8b2d1] mb-4">
               {t('Perusahaan', 'Company')}
-            </h4>
+            </h3>
             <ul className="space-y-2.5">
               <li><button onClick={() => openLegalPage('contact')} className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Kontak', 'Contact')}</button></li>
               <li><a href="#about" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Tentang Kami', 'About Us')}</a></li>
@@ -92,9 +92,9 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
 
           {/* Support Column (NEW) */}
           <div>
-            <h4 className="text-[12px] font-medium tracking-[0.12em] uppercase text-[#8892b0] mb-4">
+            <h3 className="text-[12px] font-medium tracking-[0.12em] uppercase text-[#a8b2d1] mb-4">
               {t('Bantuan', 'Support')}
-            </h4>
+            </h3>
             <ul className="space-y-2.5">
               <li><a href="#faq" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">FAQ</a></li>
               <li><a href="https://discord.gg/KkYYFP9nC" target="_blank" rel="noopener noreferrer" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Komunitas Discord', 'Discord Community')}</a></li>
@@ -119,7 +119,7 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
               <p className="text-[13px] font-medium text-[#f0f2ff]/80 mb-1">
                 {t('Dapatkan tips trading & update', 'Get trading tips & updates')}
               </p>
-              <p className="text-[11px] text-[#8892b0]/60">
+              <p className="text-[11px] text-[#a8b2d1]/80">
                 {t('Bergabung dengan 150+ trader. Tidak ada spam, berhenti kapan saja.', 'Join 150+ traders. No spam, unsubscribe anytime.')}
               </p>
             </div>
@@ -129,7 +129,7 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t('Email kamu', 'Your email')}
-                className="flex-1 sm:w-56 px-4 py-2.5 text-[13px] rounded-xl bg-white/[0.04] border border-white/[0.08] text-[#f0f2ff] placeholder:text-[#8892b0]/40 focus:outline-none focus:border-blue-400/40 transition-colors"
+                className="flex-1 sm:w-56 px-4 py-2.5 text-[13px] rounded-xl bg-white/[0.04] border border-white/[0.08] text-[#f0f2ff] placeholder:text-[#a8b2d1]/50 focus:outline-none focus:border-blue-400/40 transition-colors"
               />
               <button
                 type="submit"
@@ -158,9 +158,9 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
               <span className="text-[#8892b0] text-[12px]">Powered by <span className="text-[#f0f2ff]/60">Midtrans</span></span>
             </div>
             <span className="text-white/10">•</span>
-            <button onClick={() => openLegalPage('privacy')} className="text-[12px] text-[#8892b0]/50 hover:text-[#f0f2ff]/60 transition-colors">{t('Privasi', 'Privacy')}</button>
-            <button onClick={() => openLegalPage('terms')} className="text-[12px] text-[#8892b0]/50 hover:text-[#f0f2ff]/60 transition-colors">{t('Ketentuan', 'Terms')}</button>
-            <button onClick={() => openLegalPage('disclaimer')} className="text-[12px] text-[#8892b0]/50 hover:text-[#f0f2ff]/60 transition-colors">{t('Disclaimer', 'Disclaimer')}</button>
+            <button onClick={() => openLegalPage('privacy')} className="text-[12px] text-[#a8b2d1]/70 hover:text-[#f0f2ff]/80 transition-colors">{t('Privasi', 'Privacy')}</button>
+            <button onClick={() => openLegalPage('terms')} className="text-[12px] text-[#a8b2d1]/70 hover:text-[#f0f2ff]/80 transition-colors">{t('Ketentuan', 'Terms')}</button>
+            <button onClick={() => openLegalPage('disclaimer')} className="text-[12px] text-[#a8b2d1]/70 hover:text-[#f0f2ff]/80 transition-colors">{t('Disclaimer', 'Disclaimer')}</button>
           </div>
         </div>
       </div>

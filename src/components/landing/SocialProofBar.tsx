@@ -17,7 +17,7 @@ export default function SocialProofBar({ language = 'id' }: SocialProofBarProps)
   return (
     <section className="py-16 border-y border-white/5 bg-[#070710] relative z-10">
       <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-10">
-        <p className="text-sm text-gray-500 uppercase tracking-widest font-mono text-center">
+        <p className="text-sm text-gray-400 uppercase tracking-widest font-mono text-center">
           {language === 'en' ? 'Trusted by traders who pass Prop Firm challenges.' : 'Dipercaya oleh trader yang melewati tantangan Prop Firm.'}
         </p>
         <div className="w-full overflow-hidden mask-gradient">
@@ -27,7 +27,7 @@ export default function SocialProofBar({ language = 'id' }: SocialProofBarProps)
                 {logos.map((logo) => (
                   <div
                     key={`${dup}-${logo.name}`}
-                    className={`text-1.25xl font-bold text-blue-400 transition-all opacity-60 cursor-pointer flex items-center gap-2 hover:text-blue-300 hover:opacity-100 hover:drop-shadow-[0_0_12px_rgba(96,165,250,0.3)] text-[1.25rem] ${logo.style}`}
+                    className={`text-1.25xl font-bold text-blue-400 transition-colors opacity-60 cursor-pointer flex items-center gap-2 hover:text-blue-300 hover:opacity-100 hover:drop-shadow-[0_0_12px_rgba(96,165,250,0.3)] text-[1.25rem] ${logo.style}`}
                   >
                     {logo.name === 'midtrans' ? (
                       <>

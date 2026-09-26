@@ -103,7 +103,7 @@ export default function PartnerBanner({ language = 'id' }: PartnerBannerProps) {
                 {isEn ? 'Visit Partner' : 'Kunjungi Partner'}
                 <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
               </a>
-              <span className="text-[10px] text-white/20">
+              <span className="text-[10px] text-white/40">
                 primeacademyfx.com
               </span>
             </div>

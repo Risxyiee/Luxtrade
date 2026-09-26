@@ -63,7 +63,7 @@ export default function PricingSectionNew({
           <div className="mt-8 inline-flex items-center gap-3 bg-white/[0.04] border border-white/[0.08] rounded-full px-2 py-1.5">
             <button
               onClick={() => setIsAnnual(false)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all cursor-pointer ${
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors cursor-pointer ${
                 !isAnnual
                   ? 'bg-white/10 text-white shadow-sm'
                   : 'text-gray-400 hover:text-gray-300'
@@ -73,7 +73,7 @@ export default function PricingSectionNew({
             </button>
             <button
               onClick={() => setIsAnnual(true)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all cursor-pointer ${
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors cursor-pointer ${
                 isAnnual
                   ? 'bg-white/10 text-white shadow-sm'
                   : 'text-gray-400 hover:text-gray-300'
@@ -117,7 +117,7 @@ export default function PricingSectionNew({
               <li className="flex items-center gap-2"><X className="w-4 h-4 text-gray-600" /> {language === 'en' ? 'AI Pattern Detection' : 'Deteksi Pola AI'}</li>
             </ul>
             <Link href="/auth/signup">
-              <span className="block w-full py-3 border border-white/10 rounded-xl hover:bg-white/5 transition-all text-sm font-medium text-white text-center cursor-pointer">
+              <span className="block w-full py-3 border border-white/10 rounded-xl hover:bg-white/5 transition-colors text-sm font-medium text-white text-center cursor-pointer">
                 {language === 'en' ? 'Start Free' : 'Mulai Gratis'}
               </span>
             </Link>
@@ -144,7 +144,7 @@ export default function PricingSectionNew({
 
               <div className="mb-6">
                 {promoApplied ? (
-                  <div className="flex items-end gap-2 transition-all">
+                  <div className="flex items-end gap-2 transition-colors">
                     <span className="text-gray-500 line-through text-xl mr-2">
                       {isAnnual ? annualPrice : monthlyPrice}
                     </span>

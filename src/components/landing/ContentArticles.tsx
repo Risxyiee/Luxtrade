@@ -125,7 +125,7 @@ export default function ContentArticles({ language = 'id' }: ContentArticlesProp
               transition={{ delay: index * 0.1 }}
             >
               <Link href={getArticleLink(article.id)}>
-                <Card className="h-full bg-[#0a0a12]/60 backdrop-blur-xl border border-white/10 hover:border-blue-500/30 transition-all group cursor-pointer">
+                <Card className="h-full bg-[#0a0a12]/60 backdrop-blur-xl border border-white/10 hover:border-blue-500/30 transition-colors group cursor-pointer">
                   <CardHeader>
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
@@ -163,7 +163,7 @@ export default function ContentArticles({ language = 'id' }: ContentArticlesProp
           className="text-center mt-12"
         >
           <Link href="/dashboard">
-            <span className="inline-flex items-center gap-2 px-6 py-3 bg-white/5 text-white font-medium rounded-xl hover:bg-white/10 border border-white/10 transition-all">
+            <span className="inline-flex items-center gap-2 px-6 py-3 bg-white/5 text-white font-medium rounded-xl hover:bg-white/10 border border-white/10 transition-colors">
               {language === 'en' ? 'View All Articles' : 'Lihat Semua Artikel'}
               <ArrowRight className="w-4 h-4" />
             </span>

@@ -251,7 +251,7 @@ export default function InteractiveTutorial({ language = 'id', onGetStarted }: I
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.1 }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                   index === currentStep
                     ? 'bg-blue-500/20 border border-blue-500/30 text-blue-400'
                     : index < currentStep
@@ -278,7 +278,8 @@ export default function InteractiveTutorial({ language = 'id', onGetStarted }: I
                   <TabsTrigger
                     key={step.id}
                     value={step.id}
-                    className={`data-[state=active]:bg-blue-500 data-[state=active]:text-white transition-all ${
+                    aria-label={step.title}
+                    className={`data-[state=active]:bg-blue-500 data-[state=active]:text-white transition-colors ${
                       index === currentStep ? '' : 'text-gray-400'
                     }`}
                   >
@@ -339,7 +340,7 @@ export default function InteractiveTutorial({ language = 'id', onGetStarted }: I
                           key={trade.id}
                           whileHover={{ scale: 1.02 }}
                           onClick={() => handleTradeClick(trade.id)}
-                          className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                          className={`p-4 rounded-xl border cursor-pointer transition-colors ${
                             selectedTradeId === trade.id
                               ? 'bg-blue-500/20 border-blue-500/30'
                               : trade.profit > 0
