@@ -1,216 +1,185 @@
-// @ts-nocheck
 /**
- * Cloudflare Worker Bindings Helper
+ * Cloudflare Worker Bindings — Central Hub
  *
- * Binding yang tersedia:
- * - env.MY_BROWSER: Browser Rendering Service (Puppeteer)
- * - env.RATE_LIMITER: Rate Limiter untuk proteksi API
- * - env.AI: Workers AI untuk LLM & embeddings
- * - env.VECTORIZE_INDEX: Vectorize Index untuk vector search & RAG
- * - env.IMAGES: Cloudflare Images
- * - env.ASSETS: Static assets
+ * Bindings available:
+ * - env.ASSETS       : Static assets (OpenNext)
+ * - env.IMAGES       : Cloudflare Images
+ * - env.KV           : KV Namespace — shared cache
+ * - env.R2           : R2 Bucket — file uploads
+ * - env.AI           : Workers AI — LLM, embeddings
+ * - env.MY_BROWSER   : Browser Rendering — PDF, screenshots
+ * - env.RATE_LIMITER : (via CF Rate Limiting API)
+ * - env.VECTORIZE_INDEX : Vectorize — semantic search (optional)
  */
 
-// Type declarations for Cloudflare Workers bindings
-declare class D1Database {}
-declare class KVNamespace {}
-declare class R2Bucket {}
+// ─── Cloudflare Type Declarations ─────────────────────────────────────────────
+// Minimal declarations for CF Worker bindings (avoids conflict with DOM types)
 
-/**
- * Get Cloudflare environment with bindings from Next.js request context
- * @param request - Next.js Request object
- * @returns Cloudflare env with bindings
- */
-export function getCloudflareEnv(request: Request) {
-  // In Cloudflare Workers, env is available via request.cf or passed from middleware
-  // For OpenNext, bindings are attached to the request context
-  return (request as any).env || process.env
+declare abstract class CFFetcher {
+  abstract fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>
 }
 
+declare abstract class CFKVNamespace {
+  abstract get(key: string, type: 'text'): Promise<string | null>
+  abstract get(key: string, options?: { type?: 'text' | 'json' | 'arrayBuffer' | 'stream' }): Promise<any>
+  abstract put(key: string, value: string | ReadableStream | ArrayBuffer, options?: { expirationTtl?: number; expiration?: number; metadata?: any }): Promise<void>
+  abstract delete(key: string): Promise<void>
+  abstract list(options?: { prefix?: string; limit?: number; cursor?: string }): Promise<{ keys: Array<{ name: string; expiration?: number; metadata?: any }>; list_complete: boolean; cursor?: string }>
+}
+
+declare abstract class CFR2Bucket {
+  abstract get(key: string): Promise<R2ObjectBody | null>
+  abstract put(key: string, value: ReadableStream | ArrayBuffer | Uint8Array | string, options?: { httpMetadata?: { contentType?: string; cacheControl?: string; contentEncoding?: string; contentDisposition?: string }; customMetadata?: Record<string, string> }): Promise<R2Object>
+  abstract delete(keys: string | string[]): Promise<void>
+  abstract list(options?: { prefix?: string; limit?: number; cursor?: string; include?: ('httpMetadata' | 'customMetadata')[] }): Promise<R2Objects>
+}
+
+declare abstract class CFAi {
+  abstract run(model: string, inputs: any, options?: any): Promise<any>
+}
+
+declare abstract class CFVectorizeIndex {
+  abstract query(vector: number[], options?: { topK?: number; namespace?: string; returnMetadata?: boolean; returnValues?: boolean }): Promise<{ matches: Array<{ id: string; score: number; values?: number[]; metadata?: Record<string, string> }> }>
+  abstract upsert(vectors: Array<{ id: string; values: number[]; metadata?: Record<string, string>; namespace?: string }>): Promise<void>
+  abstract deleteByIds(ids: string[]): Promise<void>
+}
+
+interface R2Object {
+  key: string
+  size: number
+  uploaded: Date
+  httpMetadata?: { contentType?: string; cacheControl?: string; contentEncoding?: string; contentDisposition?: string }
+  customMetadata?: Record<string, string>
+}
+
+interface R2ObjectBody extends R2Object {
+  body: ReadableStream
+  arrayBuffer(): Promise<ArrayBuffer>
+  text(): Promise<string>
+  json<T>(): Promise<T>
+}
+
+interface R2Objects {
+  objects: R2Object[]
+  delimitedPrefixes: string[]
+  truncated: boolean
+  cursor?: string
+}
+
+// ─── Exports ──────────────────────────────────────────────────────────────────
+
+export type { CFFetcher as Fetcher, CFKVNamespace as KVNamespace, CFR2Bucket as R2Bucket, CFAi as Ai, CFVectorizeIndex as VectorizeIndex }
+
+export interface CloudflareBindings {
+  ASSETS?: CFFetcher
+  IMAGES?: CFFetcher
+  KV?: CFKVNamespace
+  R2?: CFR2Bucket
+  AI?: CFAi
+  MY_BROWSER?: any  // Browser Rendering (Puppeteer-like)
+  VECTORIZE_INDEX?: CFVectorizeIndex
+  RATE_LIMITER?: any
+}
+
+// ─── Get Environment ─────────────────────────────────────────────────────────
+
 /**
- * Helper untuk rate limiting API endpoints
- * @param env - Cloudflare environment
- * @param identifier - IP address, user ID, atau API key
- * @param limit - Maximum requests
- * @param window - Time window in seconds (default: 60)
+ * Get Cloudflare env with bindings from Next.js request context.
+ * In OpenNext/CF Workers, bindings are on (request as any).env
+ */
+export function getCloudflareEnv(request: Request): CloudflareBindings {
+  return (request as any).env ?? {}
+}
+
+/** Shorthand: get typed bindings from request */
+export function getBindings(request: Request): CloudflareBindings {
+  return getCloudflareEnv(request)
+}
+
+// ─── Rate Limiting ────────────────────────────────────────────────────────────
+
+/**
+ * Check rate limit via Cloudflare Rate Limiting API.
+ * Falls back to allowing all if binding not configured.
  */
 export async function checkRateLimit(
-  env: any,
+  env: CloudflareBindings | any,
   identifier: string,
   limit: number = 100,
   window: number = 60
 ): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
   try {
-    if (!env.RATE_LIMITER) {
-      console.warn('[RateLimit] RATE_LIMITER binding not configured, allowing all requests')
+    if (!env?.RATE_LIMITER) {
       return { allowed: true, remaining: limit, resetAt: Date.now() + window * 1000 }
     }
 
-    const key = `rate_limit:${identifier}`
-    const result = await env.RATE_LIMITER.limit({
-      key,
-      limit,
-      window,
-    })
-
+    const result = await env.RATE_LIMITER.limit({ key: identifier, limit, window })
     return {
       allowed: result.success,
       remaining: result.remaining,
       resetAt: result.resetAt,
     }
   } catch (error) {
-    console.error('[RateLimit] Error:', error)
-    // Fail open - allow request if rate limiter fails
+    console.error('[CF RateLimit] Error:', error)
     return { allowed: true, remaining: limit, resetAt: Date.now() + window * 1000 }
   }
 }
 
-/**
- * Helper untuk AI inference (LLM)
- * @param env - Cloudflare environment
- * @param prompt - Input prompt
- * @param model - Model name (default: @cf/meta/llama-3.1-8b-instruct)
- */
+// ─── Workers AI ───────────────────────────────────────────────────────────────
+
+/** Run LLM inference via Workers AI */
 export async function runAIInference(
-  env: any,
+  env: CloudflareBindings | any,
   prompt: string,
   model: string = '@cf/meta/llama-3.1-8b-instruct'
 ): Promise<{ response: string; tokens: number }> {
-  if (!env.AI) {
-    throw new Error('AI binding not configured')
-  }
+  if (!env?.AI) throw new Error('Workers AI binding not configured')
 
-  try {
-    const response = await env.AI.run(model, {
-      prompt,
-      max_tokens: 512,
-    })
-
-    return {
-      response: response.response || response.output || response.text || '',
-      tokens: response.tokens || response.input_tokens + (response.output_tokens || 0),
-    }
-  } catch (error) {
-    console.error('[AI] Inference error:', error)
-    throw new Error(`AI inference failed: ${error}`)
+  const response = await env.AI.run(model, { prompt, max_tokens: 512 })
+  return {
+    response: response.response || response.output || response.text || '',
+    tokens: response.tokens ?? (response.input_tokens ?? 0) + (response.output_tokens ?? 0),
   }
 }
 
-/**
- * Helper untuk vector embeddings
- * @param env - Cloudflare environment
- * @param text - Text to embed
- * @param model - Model name (default: @cf/baai/bge-base-en-v1.5)
- */
+/** Create text embedding via Workers AI */
 export async function createEmbedding(
-  env: any,
+  env: CloudflareBindings | any,
   text: string,
   model: string = '@cf/baai/bge-base-en-v1.5'
 ): Promise<number[]> {
-  if (!env.AI) {
-    throw new Error('AI binding not configured')
-  }
+  if (!env?.AI) throw new Error('Workers AI binding not configured')
 
-  try {
-    const response = await env.AI.run(model, {
-      text,
-    })
-
-    return response.data || response.embedding || response.vector || []
-  } catch (error) {
-    console.error('[AI] Embedding error:', error)
-    throw new Error(`Embedding creation failed: ${error}`)
-  }
+  const response = await env.AI.run(model, { text })
+  return response.data ?? response.embedding ?? response.vector ?? []
 }
 
-/**
- * Helper untuk vector search
- * @param env - Cloudflare environment
- * @param query - Query vector or text
- * @param topK - Number of results (default: 5)
- * @param namespace - Vectorize namespace
- */
+// ─── Vectorize ────────────────────────────────────────────────────────────────
+
+/** Search vectors in Vectorize index */
 export async function vectorSearch(
-  env: any,
+  env: CloudflareBindings | any,
   query: number[] | string,
   topK: number = 5,
   namespace: string = 'default'
-): Promise<Array<{ id: string; score: number; metadata?: any }>> {
-  if (!env.VECTORIZE_INDEX) {
-    throw new Error('VECTORIZE_INDEX binding not configured')
-  }
+): Promise<Array<{ id: string; score: number; metadata?: Record<string, string> }>> {
+  if (!env?.VECTORIZE_INDEX) throw new Error('VECTORIZE_INDEX binding not configured')
 
-  try {
-    let vector: number[]
+  const vector = typeof query === 'string' ? await createEmbedding(env, query) : query
+  const results = await env.VECTORIZE_INDEX.query(vector, { topK, namespace, returnMetadata: true })
 
-    // If query is text, create embedding first
-    if (typeof query === 'string') {
-      vector = await createEmbedding(env, query)
-    } else {
-      vector = query
-    }
-
-    const results = await env.VECTORIZE_INDEX.query(vector, {
-      topK,
-      namespace,
-      returnMetadata: true,
-    })
-
-    return results.matches.map((match: any) => ({
-      id: match.id,
-      score: match.score,
-      metadata: match.metadata,
-    }))
-  } catch (error) {
-    console.error('[Vectorize] Search error:', error)
-    throw new Error(`Vector search failed: ${error}`)
-  }
+  return results.matches.map((m: any) => ({
+    id: m.id,
+    score: m.score,
+    metadata: m.metadata,
+  }))
 }
 
-/**
- * Helper untuk insert vector ke index
- * @param env - Cloudflare environment
- * @param vectors - Array of vectors to insert
- */
+/** Insert vectors into Vectorize index */
 export async function insertVectors(
-  env: any,
-  vectors: Array<{
-    id: string
-    values: number[]
-    metadata?: any
-    namespace?: string
-  }>
+  env: CloudflareBindings | any,
+  vectors: Array<{ id: string; values: number[]; metadata?: Record<string, string>; namespace?: string }>
 ): Promise<void> {
-  if (!env.VECTORIZE_INDEX) {
-    throw new Error('VECTORIZE_INDEX binding not configured')
-  }
-
-  try {
-    await env.VECTORIZE_INDEX.upsert(vectors)
-  } catch (error) {
-    console.error('[Vectorize] Insert error:', error)
-    throw new Error(`Vector insert failed: ${error}`)
-  }
-}
-
-/**
- * Type definitions for Cloudflare bindings
- */
-export interface CloudflareBindings {
-  MY_BROWSER?: any
-  RATE_LIMITER?: any
-  AI?: any
-  VECTORIZE_INDEX?: any
-  IMAGES?: any
-  ASSETS?: any
-  DB?: D1Database
-  KV?: KVNamespace
-  R2?: R2Bucket
-}
-
-/**
- * Get typed bindings from request
- */
-export function getBindings(request: Request): CloudflareBindings {
-  return getCloudflareEnv(request) as CloudflareBindings
+  if (!env?.VECTORIZE_INDEX) throw new Error('VECTORIZE_INDEX binding not configured')
+  await env.VECTORIZE_INDEX.upsert(vectors)
 }
