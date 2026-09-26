@@ -11,11 +11,28 @@ interface SerwistPrecacheEntry {
   revision?: string
 }
 
-// Setup precaching & cleanup
+// ─── Precaching & Cleanup ─────────────────────────────────────────────────────
+
 precacheAndRoute((self as unknown as { __SW_MANIFEST: SerwistPrecacheEntry[] }).__SW_MANIFEST)
 cleanupOutdatedCaches()
 
-// Cache static assets (images, fonts, icons) — CacheFirst, 30 days
+// ─── Offline Fallback Strategy ───────────────────────────────────────────────
+// PWABuilder requires fast offline support — return cached page or offline.html
+
+const OFFLINE_URL = '/offline.html'
+const CACHE_NAME = 'luxtradee-offline-v1'
+
+// Pre-cache the offline fallback page on install
+const sw = self as unknown as ServiceWorkerGlobalScope
+
+sw.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.add(OFFLINE_URL))
+  )
+})
+
+// ─── Cache Static Assets — CacheFirst, 30 days ───────────────────────────────
+
 registerRoute(
   ({ request }) =>
     request.destination === 'image' ||
@@ -37,7 +54,8 @@ registerRoute(
   })
 )
 
-// Cache API requests — StaleWhileRevalidate, 5 minutes
+// ─── Cache API — StaleWhileRevalidate, 5 min ─────────────────────────────────
+
 registerRoute(
   ({ url }) => url.pathname.startsWith('/api/') && !url.pathname.startsWith('/api/chat'),
   new StaleWhileRevalidate({
@@ -54,27 +72,73 @@ registerRoute(
   })
 )
 
-// Cache pages (HTML) — NetworkFirst with cache fallback, 10 minutes
+// ─── Navigation / HTML — NetworkFirst + Offline Fallback ─────────────────────
+// This is the critical route for PWABuilder "Offline Support" test:
+// 1. Try network first (fast when online)
+// 2. If network fails, return cached page from precache
+// 3. If no cached page, return offline.html fallback
+
 registerRoute(
   ({ request }) => request.mode === 'navigate',
-  new NetworkFirst({
-    cacheName: 'luxtradee-pages',
-    plugins: [
-      new ExpirationPlugin({
-        maxEntries: 20,
-        maxAgeSeconds: 10 * 60,
-      }),
-      new CacheableResponsePlugin({
-        statuses: [0, 200],
-      }),
-    ],
-  })
+  async ({ event }) => {
+    const request = (event as FetchEvent).request
+
+    try {
+      // Try network first — with 3 second timeout for fast fallback
+      const networkResponse = await fetchWithTimeout(request, 3000)
+      if (networkResponse && networkResponse.ok) {
+        // Cache the successful response for offline use
+        const cache = await caches.open('luxtradee-pages')
+        cache.put(request, networkResponse.clone())
+        return networkResponse
+      }
+    } catch {
+      // Network failed — fall through to cache
+    }
+
+    // Try cache
+    try {
+      const cachedResponse = await caches.match(request)
+      if (cachedResponse) return cachedResponse
+    } catch {
+      // Cache miss — fall through to offline
+    }
+
+    // Return offline fallback page
+    try {
+      const offlineResponse = await caches.match(OFFLINE_URL)
+      if (offlineResponse) return offlineResponse
+    } catch {
+      // Even offline page not cached
+    }
+
+    // Last resort: basic HTML response
+    return new Response(
+      '<!DOCTYPE html><html><head><meta charset="utf-8"><title>LuxTradee — Offline</title></head><body style="background:#050507;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif"><div style="text-align:center"><h1>📡 Offline</h1><p>Kamu sedang offline. Coba lagi saat koneksi kembali.</p></div></body></html>',
+      { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+    )
+  }
 )
 
-// ─── Push Notification Handlers ───────────────────────────────────────────
+/**
+ * Fetch with timeout — prevents hanging network requests.
+ * Returns null on timeout (instead of throwing), so we can fall back to cache.
+ */
+async function fetchWithTimeout(request: Request, timeoutMs: number): Promise<Response | null> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
-// ServiceWorker global scope reference
-const sw = self as unknown as ServiceWorkerGlobalScope
+  try {
+    const response = await fetch(request, { signal: controller.signal })
+    clearTimeout(timeoutId)
+    return response
+  } catch {
+    clearTimeout(timeoutId)
+    return null
+  }
+}
+
+// ─── Push Notification Handlers ──────────────────────────────────────────────
 
 // Handle push events — display notification even when app is closed
 sw.addEventListener('push', (event) => {
@@ -111,7 +175,6 @@ sw.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // If app is already open, focus it and navigate
       for (const client of clientList) {
         if (client.url.includes(sw.location.origin) && 'focus' in client) {
           return (client as WindowClient).navigate(urlToOpen).then((c) => {
@@ -119,7 +182,6 @@ sw.addEventListener('notificationclick', (event) => {
           })
         }
       }
-      // Otherwise open new window
       return sw.clients.openWindow(urlToOpen)
     })
   )
@@ -127,6 +189,5 @@ sw.addEventListener('notificationclick', (event) => {
 
 // Handle subscription push change (e.g., browser refreshed keys)
 sw.addEventListener('pushsubscriptionchange', () => {
-  // We'll let the app re-subscribe on next launch
   console.log('[sw] Push subscription changed, app will re-subscribe on next launch')
 })
