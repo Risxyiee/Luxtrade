@@ -71,39 +71,42 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get user profile to check PRO status
+    // Get user profile to check PRO status and admin role
     const { data: profile } = await client
       .from('profiles')
-      .select('is_pro, subscription_status')
+      .select('is_pro, subscription_status, role')
       .eq('id', userId)
       .single()
 
-    const isPro = profile?.is_pro || profile?.subscription_status === 'PRO' || profile?.subscription_status === 'active'
+    const isAdmin = profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN'
+    const isPro = isAdmin || profile?.is_pro || profile?.subscription_status === 'PRO' || profile?.subscription_status === 'active'
 
-    // Count existing accounts
+    // Admin & PRO users: unlimited accounts. FREE: 1 account only.
+    if (!isPro) {
+      const { count: existingAccounts } = await client
+        .from('trading_accounts')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+
+      if ((existingAccounts ?? 0) >= 1) {
+        console.log(`❌ [API] Account limit reached. FREE user has ${existingAccounts}, max is 1`)
+        return NextResponse.json(
+          {
+            error: 'Account limit reached',
+            requiresPro: true,
+            message: 'FREE users can only have 1 trading account. Upgrade to PRO for unlimited accounts.'
+          },
+          { status: 403 }
+        )
+      }
+    }
+
+    // Check if this is the first account (make it default)
     const { count: existingAccounts } = await client
       .from('trading_accounts')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
 
-    const maxAccounts = isPro ? 999 : 1 // FREE users limited to 1 account
-
-    // Check if user reached account limit
-    if ((existingAccounts ?? 0) >= maxAccounts) {
-      console.log(`❌ [API] Account limit reached. User has ${existingAccounts}, max is ${maxAccounts}`)
-      return NextResponse.json(
-        {
-          error: 'Account limit reached',
-          requiresPro: true,
-          message: isPro
-            ? 'You have reached the maximum number of accounts'
-            : 'FREE users can only have 1 trading account. Upgrade to PRO for unlimited accounts.'
-        },
-        { status: 403 }
-      )
-    }
-
-    // Check if this is the first account (make it default)
     const isDefault = (existingAccounts ?? 0) === 0 || body.is_default === true
 
     // If setting this as default, unset other defaults

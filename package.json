@@ -43,6 +43,7 @@
     "@radix-ui/react-toggle-group": "^1.1.10",
     "@radix-ui/react-tooltip": "^1.2.7",
     "@serwist/cacheable-response": "^9.5.12",
+    "@serwist/expiration": "^9.5.12",
     "@serwist/next": "^9.5.12",
     "@serwist/precaching": "^9.5.12",
     "@serwist/routing": "^9.5.12",
