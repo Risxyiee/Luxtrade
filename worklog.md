@@ -159,3 +159,23 @@ Stage Summary:
 - WebView optimized for dashboard: hardware acceleration, caching, DNS prefetch
 - Push notifications actually wired and working: auto-prompt for pro users, 403 for free users
 - Pro enforcement: only pro users can subscribe to push notifications
+---
+Task ID: 2
+Agent: main
+Task: Replace app icon with website logo (HD, transparent background) and push to GitHub
+
+Work Log:
+- Analyzed existing website logo (logo.png): 438x437, 4 cyan (#4FC3F7) bars in pinwheel/X arrangement, transparent background
+- Upscaled original logo to 1024x1024 HD using Lanczos3 kernel while preserving transparency
+- Generated all PWA icon sizes from HD logo: 512x512, 192x192, 72x72, 152x152, 32x32, maskable-512x512, 1024x1024
+- Replaced logo.png with 512x512 HD version (was 438x437)
+- Updated logo-premium.png to match
+- Updated all Android mipmap icons (mdpi through xxxhdpi) with transparent logo
+- Rebuilt APK: LuxTradee-v1.1.0-debug.apk (5.5MB, properly signed)
+- Cleaned up temporary files (logo-hd-1024-test.png, old AI-generated icon)
+
+Stage Summary:
+- All icons now match the website logo exactly: cyan pinwheel/X design
+- All icons have transparent backgrounds
+- logo.png upgraded from 438x437 to 512x512 HD
+- APK rebuilt with correct website logo icons
