@@ -1,3 +1,4 @@
+/// <reference lib="webworker" />
 import type { PrecacheEntry } from '@serwist/precaching'
 import { install, activate } from '@serwist/precaching'
 import { skipWaiting, clientsClaim } from 'serwist'
@@ -6,13 +7,17 @@ import { CacheableResponsePlugin } from '@serwist/cacheable-response'
 import { registerRoute } from '@serwist/routing'
 import { StaleWhileRevalidate, CacheFirst, NetworkFirst } from '@serwist/strategies'
 
+// This is required — serwist replaces this with the precache manifest at build time
+declare const self: ServiceWorkerGlobalScope
+const _SW_MANIFEST = self.__SW_MANIFEST
+
 // Skip waiting and claim clients immediately
 skipWaiting()
 clientsClaim()
 
 // Precache & cleanup old precache entries
-install((entries: PrecacheEntry[]) => entries)
-activate((entries: PrecacheEntry[]) => entries)
+install((_SW_MANIFEST as PrecacheEntry[]) as unknown as PrecacheEntry[])
+activate((_SW_MANIFEST as PrecacheEntry[]) as unknown as PrecacheEntry[])
 
 // Cache static assets (images, fonts, icons) — CacheFirst, 30 days
 registerRoute(
