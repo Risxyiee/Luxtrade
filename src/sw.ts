@@ -1,16 +1,18 @@
 /// <reference lib="webworker" />
-import { Serwist } from 'serwist'
 import { precacheAndRoute, cleanupOutdatedCaches } from '@serwist/precaching'
 import { ExpirationPlugin } from '@serwist/expiration'
 import { CacheableResponsePlugin } from '@serwist/cacheable-response'
 import { registerRoute } from '@serwist/routing'
 import { StaleWhileRevalidate, CacheFirst, NetworkFirst } from '@serwist/strategies'
 
-// Precache manifest (injected by serwist at build time)
-declare const self: ServiceWorkerGlobalScope
+// Precache manifest type (injected by serwist at build time)
+interface SerwistPrecacheEntry {
+  url: string
+  revision?: string
+}
 
 // Setup precaching & cleanup
-precacheAndRoute(self.__SW_MANIFEST)
+precacheAndRoute((self as unknown as { __SW_MANIFEST: SerwistPrecacheEntry[] }).__SW_MANIFEST)
 cleanupOutdatedCaches()
 
 // Cache static assets (images, fonts, icons) — CacheFirst, 30 days
