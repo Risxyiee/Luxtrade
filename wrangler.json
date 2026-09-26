@@ -4,6 +4,7 @@
   "name": "luxtrade",
   "compatibility_date": "2025-07-18",
   "compatibility_flags": ["nodejs_compat", "streams_enable_constructors"],
+  "keep_vars": true,
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
@@ -47,6 +48,7 @@
     "MIDTRANS_IS_PRODUCTION": "true"
   },
   "observability": {
+    "enabled": true,
     "logs": {
       "enabled": true,
       "head_sampling_rate": 1,
