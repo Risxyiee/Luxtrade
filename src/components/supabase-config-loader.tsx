@@ -5,17 +5,34 @@ import { loadSupabaseConfig } from '@/lib/supabase/config-loader'
 
 /**
  * Component that preloads Supabase configuration on app mount.
- * This should be placed near the root of the app to ensure config is loaded
- * before any Supabase operations are attempted.
+ * Delayed by 2s to avoid blocking initial page load and PWA network-idle detection.
+ * Includes AbortController for proper cleanup on unmount.
  */
 export function SupabaseConfigLoader() {
   useEffect(() => {
-    // Load config in the background
-    loadSupabaseConfig().catch(error => {
-      console.error('[SupabaseConfigLoader] Failed to load config:', error)
-    })
+    let mounted = true
+    let timerId: ReturnType<typeof setTimeout> | null = null
+
+    // Delay config load to avoid blocking PWA network-idle
+    // Puppeteer needs network to be idle within 20s — this delay
+    // ensures auth/config requests don't overlap with SW install
+    timerId = setTimeout(() => {
+      if (!mounted) return
+      loadSupabaseConfig().catch(error => {
+        if (mounted) {
+          console.error('[SupabaseConfigLoader] Failed to load config:', error)
+        }
+      })
+    }, 2000)
+
+    return () => {
+      mounted = false
+      if (timerId !== null) {
+        clearTimeout(timerId)
+        timerId = null
+      }
+    }
   }, [])
 
-  // This component doesn't render anything
   return null
 }

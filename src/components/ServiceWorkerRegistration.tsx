@@ -9,22 +9,26 @@ import { useEffect } from 'react'
  * so that Lighthouse can detect it via HTML parsing.
  *
  * This component handles:
- * - Listening for SW updates7updates
+ * - Listening for SW updates
  * - Skip waiting for new SW activation
-D * - Periodic update checks (every 30 minutes)
+ * - Periodic update checks (every 30 minutes) with PROPER CLEANUP
  */
+
+const SW_UPDATE_INTERVAL = 30 * 60 * 1000 // 30 minutes
 
 export default function ServiceWorkerRegistration() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (!('serviceWorker' in navigator)) return
 
-    // SW is already registered by the inline script in layout.tsx <head>
-    // This component only handles updates and lifecycle
+    let updateIntervalId: ReturnType<typeof setInterval> | null = null
+    let mounted = true
 
     const handleSWUpdates = async () => {
       try {
         const registration = await navigator.serviceWorker.getRegistration('/')
+        if (!mounted) return
+
         if (!registration) {
           // No registration found — register now as fallback
           const reg = await navigator.serviceWorker.register('/sw.js', {
@@ -57,10 +61,10 @@ export default function ServiceWorkerRegistration() {
           console.log('[SW] Controller changed — new SW is active')
         })
 
-        // Check for updates periodically (every 30 minutes)
-        setInterval(() => {
+        // Check for updates periodically — with cleanup
+        updateIntervalId = setInterval(() => {
           registration.update().catch(() => {})
-        }, 30 * 60 * 1000)
+        }, SW_UPDATE_INTERVAL)
 
       } catch (error) {
         console.warn('[SW] Update handler failed:', error)
@@ -72,6 +76,15 @@ export default function ServiceWorkerRegistration() {
       handleSWUpdates()
     } else {
       window.addEventListener('load', handleSWUpdates)
+    }
+
+    // Cleanup on unmount
+    return () => {
+      mounted = false
+      if (updateIntervalId !== null) {
+        clearInterval(updateIntervalId)
+        updateIntervalId = null
+      }
     }
   }, [])
 

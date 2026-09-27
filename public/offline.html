@@ -6,71 +6,26 @@
   <title>LuxTradee — Offline</title>
   <meta name="theme-color" content="#050507">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Lexend', sans-serif;
-      background: #050507;
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      text-align: center;
-      padding: 24px;
-    }
-    .container { max-width: 400px; }
-    .logo {
-      width: 72px;
-      height: 72px;
-      margin: 0 auto 20px;
-      border-radius: 18px;
-      overflow: hidden;
-    }
-    .logo img { width: 100%; height: 100%; object-fit: contain; }
-    .icon { font-size: 48px; margin-bottom: 12px; }
-    h1 { font-size: 20px; font-weight: 700; margin-bottom: 8px; color: #fff; }
-    p { font-size: 14px; color: rgba(255,255,255,0.5); line-height: 1.6; margin-bottom: 24px; }
-    .badge {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 999px;
-      background: rgba(79,195,247,0.1);
-      color: #4FC3F7;
-      font-size: 12px;
-      font-weight: 600;
-      margin-bottom: 20px;
-      border: 1px solid rgba(79,195,247,0.2);
-    }
-    button {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 28px;
-      border-radius: 12px;
-      background: #4FC3F7;
-      color: #050507;
-      font-size: 14px;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
-    }
-    button:hover { background: #29B6F6; transform: translateY(-1px); }
-    button:active { transform: translateY(0); }
-    .footer { margin-top: 32px; font-size: 11px; color: rgba(255,255,255,0.2); }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#050507;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:24px}
+    .c{max-width:400px}
+    .i{font-size:56px;margin-bottom:16px}
+    h1{font-size:20px;font-weight:700;margin-bottom:8px}
+    p{font-size:14px;color:rgba(255,255,255,0.5);line-height:1.6;margin-bottom:24px}
+    .b{display:inline-block;padding:4px 12px;border-radius:999px;background:rgba(79,195,247,0.1);color:#4FC3F7;font-size:12px;font-weight:600;margin-bottom:20px;border:1px solid rgba(79,195,247,0.2)}
+    button{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border-radius:12px;background:#4FC3F7;color:#050507;font-size:14px;font-weight:600;border:none;cursor:pointer;transition:background .2s}
+    button:hover{background:#29B6F6}
+    .f{margin-top:32px;font-size:11px;color:rgba(255,255,255,0.2)}
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="logo">
-      <img src="/logo-hd-1024.png" alt="LuxTradee" onerror="this.parentElement.style.display='none'">
-    </div>
-    <div class="icon">📡</div>
+  <div class="c">
+    <div class="i">📡</div>
     <h1>Kamu Sedang Offline</h1>
-    <div class="badge">CACHE AKTIF</div>
+    <div class="b">CACHE AKTIF</div>
     <p>Tidak ada koneksi internet, tapi data yang sudah di-cache tetap bisa diakses. Dashboard dan trade terakhir masih tersedia.</p>
     <button onclick="window.location.reload()">🔄 Coba Lagi</button>
-    <div class="footer">LuxTradee — Data tersimpan lokal tetap bisa diakses</div>
+    <div class="f">LuxTradee — Data tersimpan lokal tetap bisa diakses</div>
   </div>
 </body>
 </html>

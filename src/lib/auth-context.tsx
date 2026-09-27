@@ -248,10 +248,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    initializeSupabase()
+    // Delay auth init slightly to allow SW install to complete first
+    // This prevents Supabase requests from blocking PWA network-idle
+    const initTimer = setTimeout(() => {
+      initializeSupabase()
+    }, 1500)
 
     return () => {
       mounted = false
+      clearTimeout(initTimer)
     }
   }, [])
 
