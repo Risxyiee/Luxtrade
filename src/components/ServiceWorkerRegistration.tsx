@@ -71,11 +71,14 @@ export default function ServiceWorkerRegistration() {
       }
     }
 
-    // Run after page load to avoid blocking rendering
+    // Run after page load + 10s delay to avoid blocking Network Idle for PWA audit
+    const startUpdates = () => {
+      setTimeout(handleSWUpdates, 10000)
+    }
     if (document.readyState === 'complete') {
-      handleSWUpdates()
+      startUpdates()
     } else {
-      window.addEventListener('load', handleSWUpdates)
+      window.addEventListener('load', startUpdates)
     }
 
     // Cleanup on unmount

@@ -86,40 +86,44 @@ export default function TrustStats({ language = 'id' }: TrustStatsProps) {
   ])
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const res = await fetch('/api/landing-stats')
-        if (!res.ok) return
-        const data: LandingStats = await res.json()
+    // Delay fetch by 10s to allow Network Idle for PWA audit
+    const delayTimeout = setTimeout(() => {
+      const fetchStats = async () => {
+        try {
+          const res = await fetch('/api/landing-stats')
+          if (!res.ok) return
+          const data: LandingStats = await res.json()
 
-        const usersCount = data.activeUsers || data.totalUsers || 0
-        const tradesCount = data.tradesLogged || 0
+          const usersCount = data.activeUsers || data.totalUsers || 0
+          const tradesCount = data.tradesLogged || 0
 
-        const usersFormatted = usersCount >= 1000
-          ? formatStat(usersCount)
-          : { target: usersCount, suffix: usersCount > 0 ? '+' : '' }
+          const usersFormatted = usersCount >= 1000
+            ? formatStat(usersCount)
+            : { target: usersCount, suffix: usersCount > 0 ? '+' : '' }
 
-        const tradesFormatted = tradesCount >= 1000
-          ? formatStat(tradesCount)
-          : { target: tradesCount, suffix: tradesCount > 0 ? '+' : '' }
+          const tradesFormatted = tradesCount >= 1000
+            ? formatStat(tradesCount)
+            : { target: tradesCount, suffix: tradesCount > 0 ? '+' : '' }
 
-        setStats([
-          { target: usersFormatted.target, suffix: usersFormatted.suffix, labelId: 'Trader Aktif', labelEn: 'Active Traders', isDecimal: usersCount >= 1000 && usersCount < 10000 },
-          { target: tradesFormatted.target, suffix: tradesFormatted.suffix, labelId: 'Trade Tercatat', labelEn: 'Trades Logged', isDecimal: tradesCount >= 1000 && tradesCount < 10000 },
-          { target: 8, suffix: '', labelId: 'Prop Firm Lolos', labelEn: 'Prop Firms Passed' },
-          { target: 4.9, suffix: '', labelId: 'Rating Pengguna', labelEn: 'User Rating', isDecimal: true },
-        ])
-      } catch {
-        // Fallback: use reasonable defaults if API fails
-        setStats([
-          { target: 50, suffix: '+', labelId: 'Trader Aktif', labelEn: 'Active Traders' },
-          { target: 500, suffix: '+', labelId: 'Trade Tercatat', labelEn: 'Trades Logged' },
-          { target: 8, suffix: '', labelId: 'Prop Firm Lolos', labelEn: 'Prop Firms Passed' },
-          { target: 4.9, suffix: '', labelId: 'Rating Pengguna', labelEn: 'User Rating', isDecimal: true },
-        ])
+          setStats([
+            { target: usersFormatted.target, suffix: usersFormatted.suffix, labelId: 'Trader Aktif', labelEn: 'Active Traders', isDecimal: usersCount >= 1000 && usersCount < 10000 },
+            { target: tradesFormatted.target, suffix: tradesFormatted.suffix, labelId: 'Trade Tercatat', labelEn: 'Trades Logged', isDecimal: tradesCount >= 1000 && tradesCount < 10000 },
+            { target: 8, suffix: '', labelId: 'Prop Firm Lolos', labelEn: 'Prop Firms Passed' },
+            { target: 4.9, suffix: '', labelId: 'Rating Pengguna', labelEn: 'User Rating', isDecimal: true },
+          ])
+        } catch {
+          // Fallback: use reasonable defaults if API fails
+          setStats([
+            { target: 50, suffix: '+', labelId: 'Trader Aktif', labelEn: 'Active Traders' },
+            { target: 500, suffix: '+', labelId: 'Trade Tercatat', labelEn: 'Trades Logged' },
+            { target: 8, suffix: '', labelId: 'Prop Firm Lolos', labelEn: 'Prop Firms Passed' },
+            { target: 4.9, suffix: '', labelId: 'Rating Pengguna', labelEn: 'User Rating', isDecimal: true },
+          ])
+        }
       }
-    }
-    fetchStats()
+      fetchStats()
+    }, 10000)
+    return () => clearTimeout(delayTimeout)
   }, [])
 
   // Don't render if all stats are still 0 (loading)

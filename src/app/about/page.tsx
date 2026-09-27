@@ -129,7 +129,7 @@ export default function AboutPage() {
                 className="object-contain"
               />
               <div>
-                <Link href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
+                <Link prefetch={false} href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
                   LuxTradee
                 </Link>
               </div>
@@ -144,6 +144,7 @@ export default function AboutPage() {
                 { key: 'contact', label: isEnglish ? 'Contact' : 'Kontak', href: '/contact' }
               ].map((item) => (
                 <Link
+                  prefetch={false}
                   key={item.key}
                   href={item.href}
                   className="text-sm text-white/60 hover:text-white hover:text-cyan-300 transition-all duration-300 font-medium relative group"
@@ -156,12 +157,12 @@ export default function AboutPage() {
 
             <div className="flex items-center gap-3">
               <LanguageSwitcher />
-              <Link href="/auth/login">
+              <Link prefetch={false} href="/auth/login">
                 <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 hover:shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all duration-300 font-semibold backdrop-blur-sm">
                   {isEnglish ? 'Login' : 'Masuk'}
                 </Button>
               </Link>
-              <Link href="/auth/signup">
+              <Link prefetch={false} href="/auth/signup">
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
                   <Button className="h-10 px-6 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-all duration-300 backdrop-blur-sm">
                     {isEnglish ? 'Sign Up' : 'Daftar'}
@@ -417,7 +418,7 @@ export default function AboutPage() {
                 </a>
               </div>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link href="/auth/signup">
+                <Link prefetch={false} href="/auth/signup">
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
                     <Button className="h-14 px-8 text-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_40px_rgba(59,130,246,0.5)] transition-all duration-300 backdrop-blur-xl">
                       {isEnglish ? 'Start Free Trial' : 'Mulai Gratis Sekarang'}
@@ -425,7 +426,7 @@ export default function AboutPage() {
                     </Button>
                   </motion.div>
                 </Link>
-                <Link href="/contact">
+                <Link prefetch={false} href="/contact">
                   <Button variant="outline" className="h-14 px-8 text-lg border-2 border-white/10 hover:border-white/20 text-white hover:bg-white/5 backdrop-blur-xl font-semibold transition-all">
                     <Mail className="w-5 h-5 mr-2" />
                     {isEnglish ? 'Contact Us' : 'Hubungi Kami'}
@@ -446,24 +447,28 @@ export default function AboutPage() {
             </p>
             <div className="flex items-center gap-6">
               <Link
+                prefetch={false}
                 href="/disclaimer"
                 className="text-white/40 hover:text-white text-sm font-medium transition-colors"
               >
                 {isEnglish ? 'Disclaimer' : 'Penyangkalan'}
               </Link>
               <Link
+                prefetch={false}
                 href="/privacy"
                 className="text-white/40 hover:text-white text-sm font-medium transition-colors"
               >
                 {isEnglish ? 'Privacy Policy' : 'Kebijakan Privasi'}
               </Link>
               <Link
+                prefetch={false}
                 href="/terms"
                 className="text-white/40 hover:text-white text-sm font-medium transition-colors"
               >
                 {isEnglish ? 'Terms of Service' : 'Syarat & Ketentuan'}
               </Link>
               <Link
+                prefetch={false}
                 href="/contact"
                 className="text-white/40 hover:text-white text-sm font-medium transition-colors flex items-center gap-2"
               >

@@ -321,7 +321,7 @@ export default function AffiliateManagementPage() {
             Anda tidak memiliki akses ke halaman ini. Halaman ini hanya untuk admin.
           </p>
         </div>
-        <Link href="/dashboard">
+        <Link prefetch={false} href="/dashboard">
           <Button variant="outline" className="border-white/[0.06] text-[#8892b0] hover:text-[#f0f2ff] hover:bg-white/[0.03]">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Kembali ke Dashboard

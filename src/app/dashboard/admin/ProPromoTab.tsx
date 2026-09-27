@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -130,13 +130,23 @@ export default function ProPromoTab() {
   useEffect(() => { fetchData() }, [fetchData])
 
   // Auto-refresh every 10 seconds
+  // Delayed by 10s to allow Network Idle for PWA audit
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
   useEffect(() => {
-    const interval = setInterval(() => {
+    const delayTimeout = setTimeout(() => {
       if (document.visibilityState === 'visible') {
         fetchData()
       }
-    }, 10_000)
-    return () => clearInterval(interval)
+      intervalRef.current = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          fetchData()
+        }
+      }, 10_000)
+    }, 10000)
+    return () => {
+      clearTimeout(delayTimeout)
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
   }, [fetchData])
 
   const formatDate = (dateStr: string | null) => {

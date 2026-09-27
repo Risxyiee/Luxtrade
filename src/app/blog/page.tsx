@@ -159,7 +159,7 @@ export default function BlogPage() {
                 className="object-contain"
               />
               <div>
-                <Link href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
+                <Link prefetch={false} href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
                   LuxTradee
                 </Link>
               </div>
@@ -174,6 +174,7 @@ export default function BlogPage() {
                 { key: 'contact', label: isEnglish ? 'Contact' : 'Kontak', href: '/contact' }
               ].map((item) => (
                 <Link
+                  prefetch={false}
                   key={item.key}
                   href={item.href}
                   className="text-sm text-white/60 hover:text-white hover:text-cyan-300 transition-all duration-300 font-medium relative group"
@@ -186,12 +187,12 @@ export default function BlogPage() {
 
             <div className="flex items-center gap-3">
               <LanguageSwitcher />
-              <Link href="/auth/login">
+              <Link prefetch={false} href="/auth/login">
                 <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 hover:shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all duration-300 font-semibold backdrop-blur-sm">
                   {isEnglish ? 'Login' : 'Masuk'}
                 </Button>
               </Link>
-              <Link href="/auth/signup">
+              <Link prefetch={false} href="/auth/signup">
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
                   <Button className="h-10 px-6 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-all duration-300 backdrop-blur-sm">
                     {isEnglish ? 'Sign Up' : 'Daftar'}
@@ -283,7 +284,7 @@ export default function BlogPage() {
                     whileHover={{ y: -4 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <Link href={`/blog/${post.slug}`}>
+                    <Link prefetch={false} href={`/blog/${post.slug}`}>
                       <Card className="h-full backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_40px_rgba(59,130,246,0.2)] transition-all duration-300 overflow-hidden">
                         <div className={`p-6`}>
                           {/* Category Badge */}
@@ -359,7 +360,7 @@ export default function BlogPage() {
                   ? 'Join 50+ traders receiving our weekly newsletter with proven strategies, market insights, and trading psychology tips.'
                   : 'Bergabung dengan 50+ trader yang menerima newsletter mingguan kami dengan strategi terbukti, wawasan pasar, dan tips psikologi trading.'}
               </p>
-              <Link href="/auth/signup">
+              <Link prefetch={false} href="/auth/signup">
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
                   <Button className="h-14 px-8 text-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_40px_rgba(59,130,246,0.5)] transition-all duration-300 backdrop-blur-xl">
                     {isEnglish ? 'Subscribe for Free' : 'Berlangganan Gratis'}

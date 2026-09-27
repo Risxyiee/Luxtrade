@@ -312,7 +312,7 @@ function AuthPage() {
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <label className="text-[10px] font-[JetBrains_Mono,monospace] text-gray-500 uppercase tracking-widest">Password</label>
-                    <Link href="/auth/forgot-password" className="text-[10px] font-[JetBrains_Mono,monospace] text-cyan-400 transition-all hover:text-cyan-300" style={{ textShadow: '0 0 8px rgba(6,182,212,0.4)' }}>Lupa Password?</Link>
+                    <Link prefetch={false} href="/auth/forgot-password" className="text-[10px] font-[JetBrains_Mono,monospace] text-cyan-400 transition-all hover:text-cyan-300" style={{ textShadow: '0 0 8px rgba(6,182,212,0.4)' }}>Lupa Password?</Link>
                   </div>
                   <LuxInput icon={Lock} type={showPassword ? 'text' : 'password'} placeholder="••••••••••••" value={password} onChange={e => setPassword(e.target.value)} required mono error={loginFieldErrors.password} onClearError={() => setLoginFieldErrors(p => ({ ...p, password: false }))} rightElement={
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white/30 hover:text-cyan-400 transition-colors bg-transparent border-none cursor-pointer">

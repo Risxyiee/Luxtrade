@@ -178,7 +178,7 @@ export default function BlogPostPageClient({ slug }: BlogPostPageClientProps) {
       <nav className="fixed top-0 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md z-50 border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link href="/" className="flex items-center gap-2">
+            <Link prefetch={false} href="/" className="flex items-center gap-2">
               <TrendingUp className="h-6 w-6 text-primary" />
               <span className="font-bold text-xl bg-gradient-to-r from-primary to-cyan-600 bg-clip-text text-transparent">
                 LuxTradee
@@ -198,7 +198,7 @@ export default function BlogPostPageClient({ slug }: BlogPostPageClientProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <Link href="/blog" className="inline-flex items-center gap-2 text-white/90 hover:text-white mb-6 transition-colors">
+            <Link prefetch={false} href="/blog" className="inline-flex items-center gap-2 text-white/90 hover:text-white mb-6 transition-colors">
               <ArrowLeft className="h-4 w-4" />
               {isEnglish ? 'Back to Blog' : 'Kembali ke Blog'}
             </Link>
@@ -286,7 +286,7 @@ export default function BlogPostPageClient({ slug }: BlogPostPageClientProps) {
             <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-4">
               {content.cta}
             </h3>
-            <Link href="/auth/signup">
+            <Link prefetch={false} href="/auth/signup">
               <Button size="lg" className="bg-gradient-to-r from-primary to-cyan-600 hover:from-primary/90 hover:to-cyan-600/90">
                 {isEnglish ? 'Start Your Free Trial' : 'Mulai Trial Gratis Anda'}
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -337,7 +337,7 @@ export default function BlogPostPageClient({ slug }: BlogPostPageClientProps) {
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-300 py-12">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <Link href="/" className="inline-flex items-center gap-2 mb-4">
+          <Link prefetch={false} href="/" className="inline-flex items-center gap-2 mb-4">
             <TrendingUp className="h-6 w-6 text-primary" />
             <span className="font-bold text-xl text-white">LuxTradee</span>
           </Link>

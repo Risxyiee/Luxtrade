@@ -3,7 +3,7 @@ import { precacheAndRoute, cleanupOutdatedCaches } from '@serwist/precaching'
 import { ExpirationPlugin } from '@serwist/expiration'
 import { CacheableResponsePlugin } from '@serwist/cacheable-response'
 import { registerRoute, setCatchHandler } from '@serwist/routing'
-import { StaleWhileRevalidate, CacheFirst, NetworkFirst } from '@serwist/strategies'
+import { CacheFirst, NetworkFirst } from '@serwist/strategies'
 
 // Precache manifest type (injected by serwist at build time)
 interface SerwistPrecacheEntry {
@@ -123,11 +123,14 @@ registerRoute(
   })
 )
 
-// ─── Cache API — StaleWhileRevalidate, 5 min ─────────────────────────────────
+// ─── Cache API — CacheFirst, 5 min (NO background revalidation) ─────────────
+// IMPORTANT: Using CacheFirst instead of StaleWhileRevalidate to avoid
+// background revalidation requests that prevent Lighthouse "Network Idle" status.
+// CacheFirst serves from cache first, falls back to network only on cache miss.
 
 registerRoute(
   ({ url }) => url.pathname.startsWith('/api/') && !url.pathname.startsWith('/api/chat'),
-  new StaleWhileRevalidate({
+  new CacheFirst({
     cacheName: 'luxtradee-api-v4',
     plugins: [
       new ExpirationPlugin({

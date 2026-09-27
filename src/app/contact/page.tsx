@@ -88,7 +88,7 @@ export default function ContactPage() {
                 className="object-contain"
               />
               <div>
-                <Link href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
+                <Link prefetch={false} href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
                   LuxTradee
                 </Link>
               </div>
@@ -96,12 +96,12 @@ export default function ContactPage() {
 
             <div className="flex items-center gap-3">
               <LanguageSwitcher />
-              <Link href="/auth/login">
+              <Link prefetch={false} href="/auth/login">
                 <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 hover:shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all duration-300 font-semibold backdrop-blur-sm">
                   {isEnglish ? 'Login' : 'Masuk'}
                 </Button>
               </Link>
-              <Link href="/auth/signup">
+              <Link prefetch={false} href="/auth/signup">
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
                   <Button className="h-10 px-6 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-extrabold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-all duration-300 backdrop-blur-sm">
                     {isEnglish ? 'Sign Up' : 'Daftar'}
@@ -357,12 +357,12 @@ export default function ContactPage() {
             © {new Date().getFullYear()} LuxTradee. All rights reserved.
           </p>
           <div className="flex justify-center gap-4 mt-4 flex-wrap">
-            <Link href="/disclaimer" className="text-white/40 hover:text-white text-sm transition-colors">Disclaimer</Link>
-            <Link href="/privacy" className="text-white/40 hover:text-white text-sm transition-colors">Privacy Policy</Link>
-            <Link href="/terms" className="text-white/40 hover:text-white text-sm transition-colors">Terms of Service</Link>
-            <Link href="/refund-policy" className="text-white/40 hover:text-white text-sm transition-colors">Refund Policy</Link>
-            <Link href="/faq" className="text-white/40 hover:text-white text-sm transition-colors">FAQ</Link>
-            <Link href="/contact" className="text-white/40 hover:text-white text-sm transition-colors">Kontak</Link>
+            <Link prefetch={false} href="/disclaimer" className="text-white/40 hover:text-white text-sm transition-colors">Disclaimer</Link>
+            <Link prefetch={false} href="/privacy" className="text-white/40 hover:text-white text-sm transition-colors">Privacy Policy</Link>
+            <Link prefetch={false} href="/terms" className="text-white/40 hover:text-white text-sm transition-colors">Terms of Service</Link>
+            <Link prefetch={false} href="/refund-policy" className="text-white/40 hover:text-white text-sm transition-colors">Refund Policy</Link>
+            <Link prefetch={false} href="/faq" className="text-white/40 hover:text-white text-sm transition-colors">FAQ</Link>
+            <Link prefetch={false} href="/contact" className="text-white/40 hover:text-white text-sm transition-colors">Kontak</Link>
           </div>
         </div>
       </footer>

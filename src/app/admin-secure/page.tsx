@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   Shield, Users, Crown, Clock, Mail, Calendar, 
@@ -60,14 +60,22 @@ export default function AdminSecurePage() {
   }, [user, authLoading, router])
 
   // Real-time auto-refresh every 15 seconds
+  // Delayed by 10s to allow Network Idle for PWA audit
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
   useEffect(() => {
     if (!isVerified) return
 
-    const interval = setInterval(() => {
+    const delayTimeout = setTimeout(() => {
       fetchUsers()
-    }, 15000)
+      intervalRef.current = setInterval(() => {
+        fetchUsers()
+      }, 15000)
+    }, 10000)
 
-    return () => clearInterval(interval)
+    return () => {
+      clearTimeout(delayTimeout)
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
   }, [isVerified])
 
   const fetchUsers = async () => {

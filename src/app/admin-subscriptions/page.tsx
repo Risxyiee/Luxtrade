@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -244,13 +244,21 @@ export default function AdminSubscriptionsPanel() {
   }, [fetchData])
 
   // Real-time updates with polling (60 seconds, no loading state)
+  // Delayed by 10s to allow Network Idle for PWA audit
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
   useEffect(() => {
-    const interval = setInterval(() => {
+    const delayTimeout = setTimeout(() => {
       fetchDataBackground().catch(err => console.error('Polling error:', err))
-      setIsRealTimeConnected(true)
-    }, 60000) // 60 seconds
+      intervalRef.current = setInterval(() => {
+        fetchDataBackground().catch(err => console.error('Polling error:', err))
+        setIsRealTimeConnected(true)
+      }, 60000) // 60 seconds
+    }, 10000)
 
-    return () => clearInterval(interval)
+    return () => {
+      clearTimeout(delayTimeout)
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
   }, [fetchDataBackground])
 
   const handleCreateUser = async () => {

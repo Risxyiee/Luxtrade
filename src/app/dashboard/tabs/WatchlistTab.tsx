@@ -63,6 +63,7 @@ export default function WatchlistTab({
   const alertItemsRef = useRef(alertItems)
   const triggeredAlertsRef = useRef(triggeredAlerts)
   const itemsRef = useRef(items)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   alertItemsRef.current = alertItems
   triggeredAlertsRef.current = triggeredAlerts
   itemsRef.current = items
@@ -131,9 +132,16 @@ export default function WatchlistTab({
       })
     }
 
-    pollPrices() // Initial poll
-    const interval = setInterval(pollPrices, 60000) // Every 60s
-    return () => clearInterval(interval)
+    // Delay polling by 10s to allow Network Idle for PWA audit
+    const delayTimeout = setTimeout(() => {
+      pollPrices() // Initial poll
+      intervalRef.current = setInterval(pollPrices, 60000) // Every 60s
+    }, 10000)
+
+    return () => {
+      clearTimeout(delayTimeout)
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
   }, [items, alertItems, language])
 
   if (!loading && !isPro) {

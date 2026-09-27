@@ -264,7 +264,7 @@ function CheckoutContent() {
       >
         {/* Logo */}
         <div className="text-center mb-6">
-          <Link href="/" className="inline-flex items-center gap-3">
+          <Link prefetch={false} href="/" className="inline-flex items-center gap-3">
             <Image src="/logo.png" alt="LuxTradee" width={40} height={40} className="object-contain" />
             <span className="text-2xl font-bold bg-gradient-to-r from-blue-300 via-blue-400 to-blue-300 bg-clip-text text-transparent">
               LuxTradee
@@ -414,7 +414,7 @@ function CheckoutContent() {
               )}
 
               <div className="mt-4 text-center">
-                <Link href="/" className="text-white/30 hover:text-white/50 text-xs transition-colors">
+                <Link prefetch={false} href="/" className="text-white/30 hover:text-white/50 text-xs transition-colors">
                   Kembali ke Beranda
                 </Link>
               </div>

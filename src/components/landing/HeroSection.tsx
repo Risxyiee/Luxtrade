@@ -175,12 +175,12 @@ export default function HeroSection({ language = 'id' }: HeroSectionProps) {
             transition={{ duration: 0.5, delay: 0.24 }}
             className="flex flex-col sm:flex-row gap-4 mt-4"
           >
-            <Link href="#simulator">
+            <Link prefetch={false} href="#simulator">
               <span className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-xl hover:opacity-90 transition-all glow-bg-luxury">
                 {language === 'en' ? 'Try AI Simulator' : 'Coba AI Simulator'} <ScanLine className="w-4 h-4" />
               </span>
             </Link>
-            <Link href="#pricing">
+            <Link prefetch={false} href="#pricing">
               <span className="inline-flex items-center gap-2 px-6 py-3 bg-white/5 text-white font-medium rounded-xl hover:bg-white/10 border border-white/10 transition-colors">
                 {language === 'en' ? 'View Pricing' : 'Lihat Pricing'}
               </span>

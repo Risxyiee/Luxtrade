@@ -17,7 +17,7 @@ export default function SidebarHeader({
 }: SidebarHeaderProps) {
   return (
     <div className="relative p-4 pb-3 border-b border-lux-border dark:border-blue-500/20 shrink-0">
-      <Link href="/" className="flex items-center gap-3 group">
+      <Link prefetch={false} href="/" className="flex items-center gap-3 group">
         <motion.div
           className="relative flex-shrink-0"
           whileHover={{ scale: 1.1, rotate: 5 }}

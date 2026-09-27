@@ -40,7 +40,7 @@ const forceEnableSW = process.env.ENABLE_SW === "true";
 export default withSerwist({
   swSrc: "src/sw.ts",
   swDest: "public/sw.js",
-  cacheOnNavigation: true,
+  cacheOnNavigation: false,
   reloadOnOnline: true,
   // Force-enable in production — always generate sw.js
   // In dev, only enable when explicitly requested

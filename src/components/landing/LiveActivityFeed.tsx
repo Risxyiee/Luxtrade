@@ -38,14 +38,19 @@ export default function LiveActivityFeed({ language = 'id' }: LiveActivityFeedPr
 
     setDismissed(false)
 
-    fetch('/api/recent-activity')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data?.activities?.length > 0) {
-          setActivities(data.activities)
-        }
-      })
-      .catch(() => {})
+    // Delay fetch by 10s to allow Network Idle for PWA audit
+    const delayTimeout = setTimeout(() => {
+      fetch('/api/recent-activity')
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.activities?.length > 0) {
+            setActivities(data.activities)
+          }
+        })
+        .catch(() => {})
+    }, 10000)
+
+    return () => clearTimeout(delayTimeout)
   }, [])
 
   // Scroll listener

@@ -116,7 +116,7 @@ export default function PricingSectionNew({
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> {language === 'en' ? 'Manual Journal Input' : 'Input Jurnal Manual'}</li>
               <li className="flex items-center gap-2"><X className="w-4 h-4 text-gray-600" /> {language === 'en' ? 'AI Pattern Detection' : 'Deteksi Pola AI'}</li>
             </ul>
-            <Link href="/auth/signup">
+            <Link prefetch={false} href="/auth/signup">
               <span className="block w-full py-3 border border-white/10 rounded-xl hover:bg-white/5 transition-colors text-sm font-medium text-white text-center cursor-pointer">
                 {language === 'en' ? 'Start Free' : 'Mulai Gratis'}
               </span>

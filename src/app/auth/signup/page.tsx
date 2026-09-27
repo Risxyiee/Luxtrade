@@ -674,7 +674,7 @@ function SignUpForm() {
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-500 font-light">
               Sudah punya akun?{' '}
-              <Link href="/auth/login" className="text-cyan-400 font-medium hover:underline transition-all ml-1">
+              <Link prefetch={false} href="/auth/login" className="text-cyan-400 font-medium hover:underline transition-all ml-1">
                 Masuk di sini
               </Link>
             </p>

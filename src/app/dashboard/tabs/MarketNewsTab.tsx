@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -33,6 +33,7 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [lastFetched, setLastFetched] = useState<string>('')
   const [unavailableMsg, setUnavailableMsg] = useState<string | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Fetch news
   const fetchNews = useCallback(async () => {
@@ -52,9 +53,15 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
   }, [])
 
   useEffect(() => {
-    fetchNews()
-    const interval = setInterval(fetchNews, 30 * 60 * 1000)
-    return () => clearInterval(interval)
+    // Delay by 10s to allow Network Idle for PWA audit
+    const delayTimeout = setTimeout(() => {
+      fetchNews()
+      intervalRef.current = setInterval(fetchNews, 30 * 60 * 1000)
+    }, 10000)
+    return () => {
+      clearTimeout(delayTimeout)
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
   }, [fetchNews])
 
   if (!isPro) {

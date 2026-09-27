@@ -18,7 +18,7 @@ export default function RefundPolicyPage() {
       {/* Header */}
       <header className="border-b border-white/5 bg-[#0a0612]/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="inline-flex items-center gap-3">
+          <Link prefetch={false} href="/" className="inline-flex items-center gap-3">
             <Image 
               src="/logo-premium.png" 
               alt="LuxTradee Logo" 
@@ -30,7 +30,7 @@ export default function RefundPolicyPage() {
               LuxTradee
             </span>
           </Link>
-          <Link href="/">
+          <Link prefetch={false} href="/">
             <Button variant="ghost" className="text-white/60 hover:text-white">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Kembali
@@ -187,12 +187,12 @@ export default function RefundPolicyPage() {
         <div className="max-w-4xl mx-auto px-4 text-center text-white/40 text-sm">
           <p>© {new Date().getFullYear()} LuxTradee. All rights reserved.</p>
           <div className="flex justify-center flex-wrap gap-6 mt-4">
-            <Link href="/disclaimer" className="hover:text-white transition-colors">Disclaimer</Link>
-            <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
-            <Link href="/refund-policy" className="hover:text-white transition-colors">Refund Policy</Link>
-            <Link href="/faq" className="hover:text-white transition-colors">FAQ</Link>
-            <Link href="/kontak" className="hover:text-white transition-colors">Kontak</Link>
+            <Link prefetch={false} href="/disclaimer" className="hover:text-white transition-colors">Disclaimer</Link>
+            <Link prefetch={false} href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <Link prefetch={false} href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+            <Link prefetch={false} href="/refund-policy" className="hover:text-white transition-colors">Refund Policy</Link>
+            <Link prefetch={false} href="/faq" className="hover:text-white transition-colors">FAQ</Link>
+            <Link prefetch={false} href="/kontak" className="hover:text-white transition-colors">Kontak</Link>
           </div>
         </div>
       </footer>

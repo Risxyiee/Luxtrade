@@ -37,7 +37,7 @@ export default function SidebarFooter({
       )}
 
       {/* Settings Link */}
-      <Link href="/settings" className="block">
+      <Link prefetch={false} href="/settings" className="block">
         <button
           className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150 group
             text-lux-text-secondary dark:text-gray-400 hover:text-lux-text-primary dark:hover:text-white hover:bg-lux-surface-hover dark:hover:bg-white/5
@@ -54,7 +54,7 @@ export default function SidebarFooter({
 
       {/* Admin Panel — only for admins */}
       {isAdmin && (
-        <Link href="/dashboard/admin" className="block">
+        <Link prefetch={false} href="/dashboard/admin" className="block">
           <button
             className="w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-150 group
               text-blue-400/70 hover:text-blue-400 hover:bg-blue-500/10"

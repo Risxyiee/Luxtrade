@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -34,6 +34,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
   const [currencyFilter, setCurrencyFilter] = useState<string>('all')
   const [lastFetched, setLastFetched] = useState<string>('')
   const [unavailableMsg, setUnavailableMsg] = useState<string | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchCalendar = useCallback(async () => {
     setCalLoading(true)
@@ -52,9 +53,15 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
   }, [])
 
   useEffect(() => {
-    fetchCalendar()
-    const interval = setInterval(fetchCalendar, 60 * 60 * 1000)
-    return () => clearInterval(interval)
+    // Delay by 10s to allow Network Idle for PWA audit
+    const delayTimeout = setTimeout(() => {
+      fetchCalendar()
+      intervalRef.current = setInterval(fetchCalendar, 60 * 60 * 1000)
+    }, 10000)
+    return () => {
+      clearTimeout(delayTimeout)
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
   }, [fetchCalendar])
 
   // Get unique currencies

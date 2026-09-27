@@ -322,21 +322,24 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
   useEffect(() => {
     if (!mounted || !isCreatedRef.current) return
 
-    console.log('[LUXCHART] 🚀 Starting data fetch')
-    fetchKlines()
+    console.log('[LUXCHART] 🚀 Starting data fetch (delayed 10s for Network Idle)')
 
     // Clear previous interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
     }
 
-    // Refresh every 30 seconds
-    intervalRef.current = setInterval(() => {
-      console.log('[LUXCHART] 🔄 Scheduled refresh')
+    // Delay by 10s to allow Network Idle for PWA audit
+    const delayTimeout = setTimeout(() => {
       fetchKlines()
-    }, 30000)
+      intervalRef.current = setInterval(() => {
+        console.log('[LUXCHART] 🔄 Scheduled refresh')
+        fetchKlines()
+      }, 30000)
+    }, 10000)
 
     return () => {
+      clearTimeout(delayTimeout)
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
         intervalRef.current = null
