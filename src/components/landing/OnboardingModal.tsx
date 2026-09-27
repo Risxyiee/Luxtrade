@@ -113,9 +113,10 @@ export default function OnboardingModal({
         <div className="absolute top-0 left-0 right-0 h-1 bg-white/5">
           <motion.div
             className="h-full bg-gradient-to-r from-blue-500 to-cyan-400"
+            style={{ willChange: 'width' }}
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.2 }}
           />
         </div>
 
@@ -152,9 +153,10 @@ export default function OnboardingModal({
             {/* Icon Animation */}
             <motion.div
               key={step.id}
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.15 }}
+              style={{ willChange: 'opacity' }}
               className="w-24 h-24 rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-400/20 border border-white/10 flex items-center justify-center"
             >
               <step.icon className="w-12 h-12 text-cyan-400" />
@@ -163,9 +165,10 @@ export default function OnboardingModal({
             {/* Description */}
             <motion.p
               key={`desc-${step.id}`}
-              initial={{ y: 10, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.15, delay: 0 }}
+              style={{ willChange: 'opacity' }}
               className="text-center text-gray-400 text-lg max-w-lg"
             >
               {step.description[language]}
