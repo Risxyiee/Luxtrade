@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+export const dynamic = 'force-static';
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { autoFixRLS } from '@/lib/auto-fix-rls'
 

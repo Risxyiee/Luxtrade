@@ -1,4 +1,5 @@
 /**
+export const dynamic = 'force-static';
  * API Route: Cleanup Orphan Trading Accounts
  * DELETE - Remove trading accounts in PENDING status without metaapi_account_id
  * This helps clean up accounts that failed MetaApi connection

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-static';
 import { getSupabaseAdmin, getAdminStatus } from '@/lib/supabase-admin-alt'
 
 export async function POST(request: NextRequest) {

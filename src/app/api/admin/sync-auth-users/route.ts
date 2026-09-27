@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-static';
 import { getSupabaseAdmin, getAdminAuth } from '@/lib/supabase-admin-alt'
 import { requireAdmin } from '@/lib/admin-auth'
 

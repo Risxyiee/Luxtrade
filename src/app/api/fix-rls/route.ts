@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+export const dynamic = 'force-static';
 import { autoFixRLS } from '@/lib/auto-fix-rls'
 
 /**

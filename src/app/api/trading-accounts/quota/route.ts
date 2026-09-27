@@ -1,4 +1,5 @@
 /**
+export const dynamic = 'force-static';
  * API Route: Trading Account Quota Check
  * GET - Check if user can add more trading accounts based on their subscription plan
  */

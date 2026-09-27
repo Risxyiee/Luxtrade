@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-static';
 import { db } from '@/lib/db'
 import { sendPushToUser, type PushPayload } from '@/lib/web-push'
 import { isUserPro } from '@/lib/pro-check'

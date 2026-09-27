@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-static';
 import { edgeCrypto } from '@/lib/edge-crypto';
 
 // In-memory cache

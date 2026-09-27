@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-static';
 import { createClientForApi } from '@/lib/supabase/server'
 // Fixed: removed legacy fields that don't exist in database
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'

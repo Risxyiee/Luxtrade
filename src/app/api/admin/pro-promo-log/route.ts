@@ -14,7 +14,7 @@ import { requireAdmin } from '@/lib/admin-auth'
  * returns clear error telling admin to run db-sync. This prevents silent
  * failures where auto-created empty tables hide the real data.
  */
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-static'
 
 // Short cache for burst requests (5s)
 let cache: { data: any; expiry: number } | null = null

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+export const dynamic = 'force-static';
 
 /**
  * Returns Supabase connection config for client-side initialization.

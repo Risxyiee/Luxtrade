@@ -7,7 +7,7 @@ import { edgeCrypto } from '@/lib/edge-crypto'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { isUserPro } from '@/lib/pro-check'
 
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-static'
 
 /**
  * POST /api/midtrans/create-transaction

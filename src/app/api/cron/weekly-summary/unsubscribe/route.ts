@@ -6,7 +6,7 @@ import { db, isDatabaseAvailable } from '@/lib/db'
  * Unsubscribe page: marks user as unsubscribed from weekly summary emails.
  * Shows a simple HTML confirmation page.
  */
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-static'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 

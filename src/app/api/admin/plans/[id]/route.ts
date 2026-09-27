@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-static';
+export async function generateStaticParams() { return []; }
 import { requireAdmin } from '@/lib/admin-auth'
 
 const DEPRECATED_RESPONSE = {

@@ -1,4 +1,5 @@
 /**
+export const dynamic = 'force-static';
  * API Route: Myfxbook Webhook
  * POST - Receive trade data from Myfxbook and save to Supabase
  *

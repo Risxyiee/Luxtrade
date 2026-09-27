@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyMidtransSignature } from '@/lib/payment/midtrans'
 import { getAdminAuth, getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-static'
 
 /**
  * POST /api/midtrans/webhook

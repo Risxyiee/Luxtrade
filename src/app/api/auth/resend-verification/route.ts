@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-static';
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { sendEmailFromTemplate, getConfirmationEmailHtml } from '@/lib/email'
 import { rateLimitByEmail } from '@/lib/rate-limit'
