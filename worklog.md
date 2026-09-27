@@ -232,3 +232,26 @@ Stage Summary:
 - All Link prefetching disabled globally and per-component
 - Build passes, TypeScript compiles, ESLint clean
 - First page request returns 200 with full content
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix PRO user detected as FREE - replace all inline pro-checks with canonical isUserPro()
+
+Work Log:
+- Audited all 50+ API routes for broken pro-check patterns
+- Found 6 APIs with inline pro-checks that don't validate subscription expiry
+- Found 1 quota API querying non-existent column (subscription_plan)
+- Fixed trading-accounts/route.ts POST: replaced inline is_pro/subscription_status check with isUserPro() + admin role check
+- Fixed integrations/route.ts POST: replaced plan/pro_expiry check with isUserPro()
+- Fixed reward/first-trade/route.ts POST: replaced bare is_pro check with isUserPro()
+- Fixed midtrans/create-transaction/route.ts POST: replaced inline is_pro/subscription_until check with isUserPro()
+- Fixed midtrans/create-transaction-unverified/route.ts POST: replaced inline is_pro/subscription_until check with isUserPro()
+- Fixed profile/me/route.ts GET: replaced duplicated expiry logic with isUserPro()
+- Fixed trading-accounts/quota/route.ts GET: rewrote to use isUserPro() instead of non-existent subscription_plan column
+
+Stage Summary:
+- Root cause: trading-accounts/route.ts checked is_pro + subscription_status but NEVER checked expiry dates
+- A PRO user whose subscription_until/pro_expiry was in the future would be treated as FREE if subscription_status wasn't 'PRO' or 'active'
+- The subscription_status column can be stale - the canonical check uses is_pro + (subscription_until || pro_expiry) > now
+- All 7 broken APIs now use isUserPro() from src/lib/pro-check.ts as single source of truth
+- ESLint passes, TypeScript compiles

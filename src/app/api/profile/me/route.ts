@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { isUserPro } from '@/lib/pro-check'
 
 /**
  * GET /api/profile/me - Fetch user profile
@@ -77,9 +78,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ profile: null })
     }
 
-    // Determine effective PRO status
-    const untilStr = profile.subscription_until || profile.pro_expiry
-    const isProActive = profile.is_pro && untilStr && new Date(untilStr) > new Date()
+    // Determine effective PRO status using canonical isUserPro() which validates expiry
+    const isProActive = await isUserPro(user.id)
 
     return NextResponse.json({
       profile: {
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
         plan: isProActive ? 'PRO' : (profile.plan || 'FREE'),
         is_pro: isProActive,
         subscription_status: isProActive ? 'active' : (profile.subscription_status || 'inactive'),
-        subscription_until: untilStr || null,
+        subscription_until: profile.subscription_until || profile.pro_expiry || null,
         proExpiry: profile.pro_expiry || null,
         pro_status: profile.pro_status || 'inactive',
         role: profile.role || user.user_metadata?.role || 'USER',

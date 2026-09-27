@@ -4,6 +4,7 @@ import { getPlanPrice, type PricingPlan } from '@/lib/pricing'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { edgeCrypto } from '@/lib/edge-crypto'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { isUserPro } from '@/lib/pro-check'
 
 export const dynamic = 'force-dynamic'
 
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     const { data: profile } = await adminClient
       .from('profiles')
-      .select('id, email, full_name, created_at, is_pro, subscription_until')
+      .select('id, email, full_name, created_at')
       .eq('id', userId)
       .single()
 
@@ -77,7 +78,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Session expired. Please login and try again.' }, { status: 410 })
     }
 
-    if (profile.is_pro && profile.subscription_until && new Date(profile.subscription_until) > new Date()) {
+    // Use canonical isUserPro() which checks is_pro + expiry (subscription_until || pro_expiry)
+    const alreadyPro = await isUserPro(userId)
+    if (alreadyPro) {
       return NextResponse.json({ error: 'Akun kamu sudah PRO aktif.' }, { status: 400 })
     }
 
