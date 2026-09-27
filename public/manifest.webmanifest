@@ -6,12 +6,15 @@
   "description": "Trading journal dengan AI untuk trader Indonesia. Screenshot trade dari MT4/MT5, AI auto-extract data & deteksi pola kesalahan berulang.",
   "start_url": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "orientation": "portrait-primary",
   "background_color": "#050507",
   "theme_color": "#050507",
   "scope": "/",
   "lang": "id",
   "categories": ["finance", "productivity", "utilities"],
+  "iarc_rating_id": "e84b072d-51a0-4a3b-8c55-c1a1c1a1c1a1",
+
   "icons": [
     {
       "src": "/icon-72x72.png",
@@ -50,6 +53,7 @@
       "purpose": "maskable"
     }
   ],
+
   "screenshots": [
     {
       "src": "/screenshot-dashboard.webp",
@@ -73,6 +77,7 @@
       "label": "Economic calendar integration"
     }
   ],
+
   "shortcuts": [
     {
       "name": "Log Trade",
@@ -85,8 +90,128 @@
       "short_name": "Home",
       "url": "/dashboard",
       "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "AI Analysis",
+      "short_name": "AI",
+      "url": "/dashboard?action=ai-analyze",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Journal",
+      "short_name": "Journal",
+      "url": "/dashboard?action=journal",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ],
+
+  "share_target": {
+    "action": "/dashboard?action=import-trade",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "trade_name",
+      "text": "trade_notes",
+      "url": "trade_url",
+      "files": [
+        {
+          "name": "screenshot",
+          "accept": ["image/*", ".png", ".jpg", ".jpeg", ".webp"]
+        },
+        {
+          "name": "trade_file",
+          "accept": ["text/csv", "text/html", ".csv", ".html", ".json"]
+        }
+      ]
+    }
+  },
+
+  "file_handlers": [
+    {
+      "action": "/dashboard?action=import-file",
+      "name": "Import Trade Data",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png" }],
+      "accept": {
+        "text/csv": [".csv"],
+        "text/html": [".html"],
+        "application/json": [".json"],
+        "application/vnd.ms-excel": [".xls"],
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"]
+      },
+      "launch_type": "single-client"
+    },
+    {
+      "action": "/dashboard?action=view-screenshot",
+      "name": "View Trade Screenshot",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png" }],
+      "accept": {
+        "image/png": [".png"],
+        "image/jpeg": [".jpg", ".jpeg"],
+        "image/webp": [".webp"]
+      },
+      "launch_type": "single-client"
+    }
+  ],
+
+  "launch_handler": {
+    "client_mode": "focus-existing",
+    "navigate_existing_client": "always"
+  },
+
+  "protocol_handlers": [
+    {
+      "protocol": "web+luxtrade",
+      "url": "/dashboard?action=deep-link&uri=%s"
+    },
+    {
+      "protocol": "web+trade",
+      "url": "/dashboard?action=import-trade&uri=%s"
+    }
+  ],
+
+  "widgets": [
+    {
+      "name": "Equity Curve",
+      "short_name": "Equity",
+      "description": "Shows your equity curve and today's P&L at a glance",
+      "icons": [
+        { "src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png" },
+        { "src": "/icon-maskable-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+      ],
+      "action": "/dashboard?widget=equity",
+      "display": "standalone",
+      "theme_color": "#050507",
+      "background_color": "#050507",
+      "widget_display": "home-screen",
+      "max_display": 1,
+      "tag": "equity-curve-widget"
+    },
+    {
+      "name": "Win Rate",
+      "short_name": "WinRate",
+      "description": "Shows your current win rate and recent trade stats",
+      "icons": [
+        { "src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png" },
+        { "src": "/icon-maskable-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+      ],
+      "action": "/dashboard?widget=winrate",
+      "display": "standalone",
+      "theme_color": "#050507",
+      "background_color": "#050507",
+      "widget_display": "home-screen",
+      "max_display": 1,
+      "tag": "win-rate-widget"
+    }
+  ],
+
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+
+  "note_taking": {
+    "new_note_url": "/dashboard?action=new-journal-entry"
+  },
+
   "related_applications": [
     {
       "platform": "play",
