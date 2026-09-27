@@ -241,6 +241,7 @@ export default function FeatureComparison({ language }: FeatureComparisonProps) 
           className="mt-12 text-center"
         >
           <Link
+            prefetch={false}
             href="#pricing"
             className="inline-flex items-center gap-2 text-sm font-medium text-cyan-400 hover:text-cyan-300 transition-colors group"
           >

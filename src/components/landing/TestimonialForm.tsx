@@ -250,14 +250,14 @@ export default function TestimonialForm({ isOpen, onClose, onSuccess, language =
                         ? 'You need to be logged in to submit a testimonial. It\'s free and takes 30 seconds!'
                         : 'Anda perlu login untuk kirim testimoni. Gratis dan cuma 30 detik!'}
                     </p>
-                    <Link href="/auth/signup" className="block">
+                    <Link prefetch={false} href="/auth/signup" className="block">
                       <Button className="w-full bg-gradient-to-r from-blue-500 to-cyan-400 hover:opacity-90 text-base py-5">
                         <LogIn className="w-5 h-5 mr-2" />
                         {language === 'en' ? 'Sign Up Free' : 'Daftar Gratis'}
                       </Button>
                     </Link>
                     <div className="mt-3">
-                      <Link href="/auth/login" className="text-sm text-gray-400 hover:text-white transition-colors">
+                      <Link prefetch={false} href="/auth/login" className="text-sm text-gray-400 hover:text-white transition-colors">
                         {language === 'en' ? 'Already have an account? Login' : 'Sudah punya akun? Login'}
                       </Link>
                     </div>

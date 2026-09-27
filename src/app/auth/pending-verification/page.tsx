@@ -10,7 +10,7 @@ import {
   CheckCircle, AlertCircle, Shield
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 function PendingVerificationForm() {
   const router = useRouter()
@@ -58,14 +58,22 @@ function PendingVerificationForm() {
 
   // Auto-poll verification status every 5 seconds when unverified
   // This catches the case where user verifies in another tab/window
+  // Delayed by 10s to allow Network Idle for PWA audit
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   useEffect(() => {
     if (status !== 'unverified' || isLoading) return
 
-    const pollInterval = setInterval(() => {
+    const delayTimeout = setTimeout(() => {
       checkStatus()
-    }, 5000) // poll every 5 seconds
+      pollIntervalRef.current = setInterval(() => {
+        checkStatus()
+      }, 5000) // poll every 5 seconds
+    }, 10000)
 
-    return () => clearInterval(pollInterval)
+    return () => {
+      clearTimeout(delayTimeout)
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
+    }
   }, [status, isLoading, checkStatus])
 
   // Countdown timer
@@ -300,7 +308,7 @@ function PendingVerificationForm() {
           </Button>
           <p className="text-center text-white/30 text-xs">
             Salah email?{' '}
-            <Link href="/auth/signup" className="text-amber-400/70 hover:text-amber-400 transition-colors">
+            <Link prefetch={false} href="/auth/signup" className="text-amber-400/70 hover:text-amber-400 transition-colors">
               Daftar dengan email lain
             </Link>
           </p>

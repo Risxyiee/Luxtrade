@@ -12,6 +12,7 @@ export default function NotFound() {
           Maaf, halaman yang Anda cari tidak ada atau telah dipindahkan.
         </p>
         <Link
+          prefetch={false}
           href="/"
           className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold hover:from-blue-700 hover:to-pink-700 transition-all shadow-lg shadow-blue-500/30"
         >

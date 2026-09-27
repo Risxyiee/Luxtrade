@@ -218,80 +218,86 @@ export default function AffiliatePage() {
   useEffect(() => {
     if (authLoading || !affiliateData) return
 
-    const socket = io('/?XTransformPort=3004', {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 2000,
-    })
-    socketRef.current = socket
+    // Delay WebSocket connection by 10s to allow Network Idle for PWA audit
+    const connectTimeout = setTimeout(() => {
+      const socket = io('/?XTransformPort=3004', {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 2000,
+      })
+      socketRef.current = socket
 
-    socket.on('connect', () => {
-      setWsConnected(true)
-      socket.emit('affiliate:join', 'affiliate-user')
-    })
+      socket.on('connect', () => {
+        setWsConnected(true)
+        socket.emit('affiliate:join', 'affiliate-user')
+      })
 
-    socket.on('disconnect', () => {
-      setWsConnected(false)
-    })
+      socket.on('disconnect', () => {
+        setWsConnected(false)
+      })
 
-    socket.on('affiliate:new_referral', (data) => {
-      const name = data?.referredName || data?.referredEmail || 'Seseorang'
-      const activity: ActivityEvent = {
-        id: `evt-${Date.now()}`,
-        type: 'new_referral',
-        message: `${name} mendaftar menggunakan kode referral kamu!`,
-        timestamp: Date.now(),
-      }
-      setActivities(prev => [activity, ...prev].slice(0, 20))
-      toast.success(`🆕 Referral baru: ${name}`)
-      fetchReferrals()
-      refreshAll()
-    })
+      socket.on('affiliate:new_referral', (data) => {
+        const name = data?.referredName || data?.referredEmail || 'Seseorang'
+        const activity: ActivityEvent = {
+          id: `evt-${Date.now()}`,
+          type: 'new_referral',
+          message: `${name} mendaftar menggunakan kode referral kamu!`,
+          timestamp: Date.now(),
+        }
+        setActivities(prev => [activity, ...prev].slice(0, 20))
+        toast.success(`🆕 Referral baru: ${name}`)
+        fetchReferrals()
+        refreshAll()
+      })
 
-    socket.on('affiliate:commission', (data) => {
-      const activity: ActivityEvent = {
-        id: `evt-${Date.now()}`,
-        type: 'commission',
-        message: `Komisi ${fmt(data.amount)} diterima dari referral ${data?.referredName || 'baru'}!`,
-        timestamp: Date.now(),
-      }
-      setActivities(prev => [activity, ...prev].slice(0, 20))
-      toast.success(`💰 Komisi ${fmt(data.amount)} masuk ke saldo!`)
-      refreshAll()
-    })
+      socket.on('affiliate:commission', (data) => {
+        const activity: ActivityEvent = {
+          id: `evt-${Date.now()}`,
+          type: 'commission',
+          message: `Komisi ${fmt(data.amount)} diterima dari referral ${data?.referredName || 'baru'}!`,
+          timestamp: Date.now(),
+        }
+        setActivities(prev => [activity, ...prev].slice(0, 20))
+        toast.success(`💰 Komisi ${fmt(data.amount)} masuk ke saldo!`)
+        refreshAll()
+      })
 
-    socket.on('affiliate:subscription', (data) => {
-      const activity: ActivityEvent = {
-        id: `evt-${Date.now()}`,
-        type: 'subscription',
-        message: `Referral ${data?.referredName || 'kamu'} berlangganan ${data?.plan || 'PRO'}!`,
-        timestamp: Date.now(),
-      }
-      setActivities(prev => [activity, ...prev].slice(0, 20))
-      toast.info(`📋 Referral berlangganan ${data?.plan || 'PRO'}`)
-      fetchReferrals()
-    })
+      socket.on('affiliate:subscription', (data) => {
+        const activity: ActivityEvent = {
+          id: `evt-${Date.now()}`,
+          type: 'subscription',
+          message: `Referral ${data?.referredName || 'kamu'} berlangganan ${data?.plan || 'PRO'}!`,
+          timestamp: Date.now(),
+        }
+        setActivities(prev => [activity, ...prev].slice(0, 20))
+        toast.info(`📋 Referral berlangganan ${data?.plan || 'PRO'}`)
+        fetchReferrals()
+      })
 
-    socket.on('affiliate:withdrawal_update', (data) => {
-      const activity: ActivityEvent = {
-        id: `evt-${Date.now()}`,
-        type: 'withdrawal',
-        message: `Penarikan ${fmt(data.amount)} status: ${data.status}`,
-        timestamp: Date.now(),
-      }
-      setActivities(prev => [activity, ...prev].slice(0, 20))
-      if (data.status === 'PAID') {
-        toast.success(`✅ Penarikan ${fmt(data.amount)} berhasil dibayar!`)
-      } else {
-        toast.info(`Penarikan ${fmt(data.amount)}: ${data.status}`)
-      }
-      refreshAll()
-    })
+      socket.on('affiliate:withdrawal_update', (data) => {
+        const activity: ActivityEvent = {
+          id: `evt-${Date.now()}`,
+          type: 'withdrawal',
+          message: `Penarikan ${fmt(data.amount)} status: ${data.status}`,
+          timestamp: Date.now(),
+        }
+        setActivities(prev => [activity, ...prev].slice(0, 20))
+        if (data.status === 'PAID') {
+          toast.success(`✅ Penarikan ${fmt(data.amount)} berhasil dibayar!`)
+        } else {
+          toast.info(`Penarikan ${fmt(data.amount)}: ${data.status}`)
+        }
+        refreshAll()
+      })
+    }, 10000)
 
     return () => {
-      socket.disconnect()
-      socketRef.current = null
+      clearTimeout(connectTimeout)
+      if (socketRef.current) {
+        socketRef.current.disconnect()
+        socketRef.current = null
+      }
       setWsConnected(false)
     }
   }, [authLoading, affiliateData])

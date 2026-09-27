@@ -186,7 +186,7 @@ function ResetPasswordContent() {
                 <h2 className="text-2xl font-light text-white tracking-wide mb-2">Password Berhasil Diubah!</h2>
                 <p className="text-xs text-gray-500 font-[JetBrains_Mono,monospace]">Silakan login dengan password baru Anda.</p>
               </div>
-              <Link href="/auth/login" className="block">
+              <Link prefetch={false} href="/auth/login" className="block">
                 <button className="auth-glow-btn w-full py-3.5">
                   Login Sekarang <ArrowRight className="w-4 h-4" />
                 </button>
@@ -218,7 +218,7 @@ function ResetPasswordContent() {
               <p className="text-xs text-gray-500 font-[JetBrains_Mono,monospace] mb-6">
                 Link reset password tidak mengandung informasi email. Silakan kirim ulang dari halaman Lupa Password.
               </p>
-              <Link href="/auth/forgot-password" className="block">
+              <Link prefetch={false} href="/auth/forgot-password" className="block">
                 <button className="auth-glow-btn w-full py-3.5">
                   Kirim Ulang Link Reset <ArrowRight className="w-4 h-4" />
                 </button>
@@ -315,7 +315,7 @@ function ResetPasswordContent() {
           </form>
 
           <div className="mt-6 text-center">
-            <Link href="/auth/login" className="inline-flex items-center gap-1.5 text-gray-500 text-xs font-light hover:text-cyan-400 transition-all">
+            <Link prefetch={false} href="/auth/login" className="inline-flex items-center gap-1.5 text-gray-500 text-xs font-light hover:text-cyan-400 transition-all">
               Kembali ke Login
             </Link>
           </div>

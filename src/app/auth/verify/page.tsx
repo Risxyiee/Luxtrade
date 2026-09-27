@@ -83,7 +83,7 @@ function VerifyForm() {
     >
       {/* Logo */}
       <div className="text-center mb-8">
-        <Link href="/" className="inline-flex items-center gap-3">
+        <Link prefetch={false} href="/" className="inline-flex items-center gap-3">
           <Image
             src="/logo.png"
             alt="LuxTradee Logo"
@@ -202,6 +202,7 @@ function VerifyForm() {
             )}
             <div className="pt-4 border-t border-white/10">
               <Link
+                prefetch={false}
                 href="/auth/login"
                 className="text-amber-400 hover:text-amber-300 text-sm font-medium transition-colors"
               >

@@ -110,7 +110,10 @@ export default function TestimonialsSection({ language }: { language: 'id' | 'en
       }
     }
 
-    fetchTestimonials()
+    // Delay fetch by 10s to allow Network Idle for PWA audit
+    const delayTimeout = setTimeout(fetchTestimonials, 10000)
+
+    return () => clearTimeout(delayTimeout)
   }, [])
 
   const refreshTestimonials = async () => {

@@ -117,7 +117,7 @@ export default function AuthCallbackPage() {
         <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-8 backdrop-blur-sm">
           {/* Logo */}
           <div className="flex justify-center mb-6">
-            <Link href="/" className="inline-flex items-center gap-3">
+            <Link prefetch={false} href="/" className="inline-flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
                 <Crown className="w-6 h-6 text-white" />
               </div>
@@ -148,7 +148,7 @@ export default function AuthCallbackPage() {
               </p>
               <p className="text-white/30 text-xs">
                 Tidak redirect otomatis?{' '}
-                <Link href="/dashboard" className="text-amber-400 hover:text-amber-300">
+                <Link prefetch={false} href="/dashboard" className="text-amber-400 hover:text-amber-300">
                   Klik di sini
                 </Link>
               </p>
@@ -166,7 +166,7 @@ export default function AuthCallbackPage() {
               <p className="text-white/30 text-xs mb-4">
                 Link mungkin sudah kadaluarsa atau tidak valid.
               </p>
-              <Link href="/auth/login">
+              <Link prefetch={false} href="/auth/login">
                 <button className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold rounded-lg">
                   Ke Halaman Login
                 </button>

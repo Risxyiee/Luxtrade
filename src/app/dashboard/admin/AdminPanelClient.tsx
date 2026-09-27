@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import {
   Shield, ArrowLeft, Users, Crown, Mail, Calendar,
@@ -198,14 +198,24 @@ export default function AdminPanelClient() {
   }
 
   // Auto-refresh every 60 seconds (only when tab is visible)
+  // Delayed by 10s to allow Network Idle for PWA audit
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
   useEffect(() => {
-    const interval = setInterval(() => {
+    const delayTimeout = setTimeout(() => {
       if (document.visibilityState === 'visible') {
         fetchUsers()
       }
-    }, 60000)
+      intervalRef.current = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          fetchUsers()
+        }
+      }, 60000)
+    }, 10000)
 
-    return () => clearInterval(interval)
+    return () => {
+      clearTimeout(delayTimeout)
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
   }, [])
 
   // Activate 30 Days PRO
@@ -359,7 +369,7 @@ export default function AdminPanelClient() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <Link href="/dashboard">
+              <Link prefetch={false} href="/dashboard">
                 <Button variant="ghost" size="sm" className="text-white/60 hover:text-white hover:bg-white/10 h-8 px-2">
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
@@ -412,7 +422,7 @@ export default function AdminPanelClient() {
         {/* Quick Actions Bar */}
         <div className="flex flex-wrap gap-2 mb-6">
           {quickActions.map((action) => (
-            <Link key={action.href} href={action.href}>
+            <Link prefetch={false} key={action.href} href={action.href}>
               <Button
                 variant="outline"
                 size="sm"

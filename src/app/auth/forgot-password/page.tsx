@@ -178,7 +178,7 @@ function ForgotPasswordContent() {
                   ⚠️ Link reset password cuma berlaku <strong>1 jam</strong>. Kalau kamu nggak merasa minta reset, langsung aja abaikan email ini.
                 </p>
               </div>
-              <Link href="/auth/login" className="block">
+              <Link prefetch={false} href="/auth/login" className="block">
                 <button className="auth-glow-btn w-full py-3.5">
                   Kembali ke Login <ArrowRight className="w-4 h-4" />
                 </button>
@@ -242,7 +242,7 @@ function ForgotPasswordContent() {
           </form>
 
           <div className="mt-6 text-center">
-            <Link href="/auth/login" className="inline-flex items-center gap-1.5 text-gray-500 text-xs font-light hover:text-cyan-400 transition-all">
+            <Link prefetch={false} href="/auth/login" className="inline-flex items-center gap-1.5 text-gray-500 text-xs font-light hover:text-cyan-400 transition-all">
               <ArrowLeft className="w-3.5 h-3.5" />
               Kembali ke Login
             </Link>

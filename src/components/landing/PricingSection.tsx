@@ -66,7 +66,7 @@ export default function PricingSection({ language, t, payLoading, handleProUpgra
               </div>
             </div>
             <div className="p-6 pt-0">
-              <Link href="/auth/signup" className="w-full flex items-center justify-center h-12 rounded-xl border border-white/[0.1] text-[#f0f2ff] text-[14px] font-medium hover:bg-white/[0.03] active:scale-[0.98] transition-all duration-200">
+              <Link prefetch={false} href="/auth/signup" className="w-full flex items-center justify-center h-12 rounded-xl border border-white/[0.1] text-[#f0f2ff] text-[14px] font-medium hover:bg-white/[0.03] active:scale-[0.98] transition-all duration-200">
                 {t('pricing.cta.free')}
               </Link>
             </div>

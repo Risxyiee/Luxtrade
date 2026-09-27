@@ -193,7 +193,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
                 className="object-contain"
               />
               <div>
-                <Link href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
+                <Link prefetch={false} href="/" className="text-xl font-extrabold bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">
                   LuxTradee
                 </Link>
               </div>
@@ -201,7 +201,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
 
             <div className="flex items-center gap-3">
               <LanguageSwitcher />
-              <Link href="/blog">
+              <Link prefetch={false} href="/blog">
                 <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 hover:shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all duration-300 font-semibold backdrop-blur-sm">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   {isEnglish ? 'Back to Blog' : 'Kembali ke Blog'}
@@ -221,7 +221,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <Link href="/blog" className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 mb-6 transition-colors">
+            <Link prefetch={false} href="/blog" className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 mb-6 transition-colors">
               <ArrowLeft className="w-4 h-4" />
               {isEnglish ? 'Back to Blog' : 'Kembali ke Blog'}
             </Link>
@@ -354,7 +354,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
                     ? 'Start your free trial today and join 50+ traders who are already using LuxTradee to improve their trading results.'
                     : 'Mulai trial gratis Anda hari ini dan bergabung dengan 50+ trader yang sudah menggunakan LuxTradee untuk meningkatkan hasil trading mereka.'}
                 </p>
-                <Link href="/auth/signup">
+                <Link prefetch={false} href="/auth/signup">
                   <Button className="h-14 px-8 text-lg bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700 text-white font-extrabold shadow-lg shadow-emerald-500/30 hover:shadow-[0_0_40px_rgba(16,185,129,0.5)] transition-all duration-300">
                     {isEnglish ? 'Start Free Trial' : 'Mulai Gratis Sekarang'}
                     <TrendingUp className="w-5 h-5 ml-2" />
@@ -376,7 +376,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {relatedPosts.map((post) => (
-                <Link key={post.id} href="/blog">
+                <Link prefetch={false} key={post.id} href="/blog">
                   <Card className="backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] hover:bg-white/[0.06] hover:border-blue-500/30 hover:shadow-[0_0_30px_rgba(59,130,246,0.2)] transition-all duration-300 p-6">
                     <Badge className={`bg-gradient-to-r ${post.gradient} text-white border-0 mb-4`}>
                       {post.category}

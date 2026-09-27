@@ -355,21 +355,26 @@ export default function PromoCodesPage() {
   }, [isAdminUser, fetchData])
 
   // Auto-refresh every 10s when visible
+  // Delayed by 10s to allow Network Idle for PWA audit
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         fetchData()
       }
     }
-    document.addEventListener('visibilitychange', handleVisibility)
 
-    intervalRef.current = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        fetchData()
-      }
+    const delayTimeout = setTimeout(() => {
+      document.addEventListener('visibilitychange', handleVisibility)
+
+      intervalRef.current = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          fetchData()
+        }
+      }, 10000)
     }, 10000)
 
     return () => {
+      clearTimeout(delayTimeout)
       document.removeEventListener('visibilitychange', handleVisibility)
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
@@ -447,7 +452,7 @@ export default function PromoCodesPage() {
       <header className="sticky top-0 z-50 bg-[#050507]/90 backdrop-blur-xl border-b border-white/[0.06] relative">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/dashboard/admin">
+            <Link prefetch={false} href="/dashboard/admin">
               <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white hover:bg-white/10 -ml-2">
                 <ArrowLeft className="h-4 w-4 mr-1" />Kembali
               </Button>

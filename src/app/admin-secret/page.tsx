@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import {
@@ -81,14 +81,24 @@ export default function AdminPanel() {
   }, [user, loading, router])
 
   // Real-time auto-refresh every 10 seconds
+  // Delayed by 10s to allow Network Idle for PWA audit
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
   useEffect(() => {
-    const interval = setInterval(() => {
+    const delayTimeout = setTimeout(() => {
       if (!loading && user && user.email === ADMIN_EMAIL) {
         fetchUsers()
       }
+      intervalRef.current = setInterval(() => {
+        if (!loading && user && user.email === ADMIN_EMAIL) {
+          fetchUsers()
+        }
+      }, 10000)
     }, 10000)
 
-    return () => clearInterval(interval)
+    return () => {
+      clearTimeout(delayTimeout)
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
   }, [user, loading])
 
   // Apply filters

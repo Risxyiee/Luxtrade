@@ -213,7 +213,7 @@ export default function FinalCTA({ language = 'id' }: FinalCTAProps) {
             : 'Bergabung bersama trader Indonesia yang sudah mengontrol risiko, mendisiplinkan psikologi, dan menemukan setup terbaik mereka lewat LuxTradee.'}
         </p>
         <div className="flex flex-col sm:flex-row gap-4 mt-4">
-          <Link href="/auth/signup">
+          <Link prefetch={false} href="/auth/signup">
             <span className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-medium rounded-xl hover:opacity-90 transition-all glow-bg-luxury text-lg group">
               {language === 'en' ? 'Sign Up Free Now' : 'Daftar Gratis Sekarang'} 
               <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
