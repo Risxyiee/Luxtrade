@@ -61,6 +61,92 @@ jobs:
         run: |
           sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
+      # ─── Prepare Environment ──────────────────────────────────────────────
+      # Uses .env.ci (committed to repo with all NEXT_PUBLIC_* values)
+      # plus optional GitHub Secrets overrides for server-side keys.
+      # This means ZERO manual secret setup is required for a working build.
+      - name: 🔧 Prepare environment (.env.ci → .env)
+        run: |
+          echo "📋 Loading build environment from .env.ci..."
+          if [ -f ".env.ci" ]; then
+            cp .env.ci .env
+            echo "✅ .env.ci copied to .env"
+          else
+            echo "⚠️  .env.ci not found, creating minimal .env"
+            touch .env
+          fi
+
+          # ── Append any GitHub Secrets that are set (optional overrides) ──
+          # These are server-side keys not needed for static export builds,
+          # but included so the build doesn't fail if code references them.
+          SECRETS_TO_PASS="
+            SUPABASE_SERVICE_ROLE_KEY
+            GEMINI_API_KEY
+            GOOGLE_GEMINI_API_KEY
+            OPENAI_API_KEY
+            OPENROUTER_API_KEY
+            ZAI_BASE_URL
+            ZAI_API_KEY
+            ZAI_CHAT_ID
+            ZAI_USER_ID
+            ZAI_TOKEN
+            MIDTRANS_SERVER_KEY
+            MIDTRANS_CLIENT_KEY
+            RESEND_API_KEY
+            RESEND_TEMPLATE_CONFIRM
+            RESEND_TEMPLATE_RESET
+            WEBHOOK_SECRET
+            VAPID_PRIVATE_KEY
+            VAPID_SUBJECT
+            ALPHA_VANTAGE_API_KEY
+            RAPIDAPI_TRADING_ECONOMICS_KEY
+            METAAPI_TOKEN
+          "
+
+          for secret_name in $SECRETS_TO_PASS; do
+            # Check if the secret is set as an env var (GitHub injects secrets as env)
+            secret_value=$(printenv "$secret_name" 2>/dev/null || true)
+            if [ -n "$secret_value" ]; then
+              # Only add if not already in .env
+              if ! grep -q "^${secret_name}=" .env 2>/dev/null; then
+                echo "${secret_name}=${secret_value}" >> .env
+                echo "  🔑 ${secret_name} ← GitHub Secret"
+              fi
+            else
+              # Add empty placeholder so process.env.XXX doesn't crash at build
+              if ! grep -q "^${secret_name}=" .env 2>/dev/null; then
+                echo "${secret_name}=" >> .env
+              fi
+            fi
+          done
+
+          echo ""
+          echo "📊 .env vars loaded: $(grep -c '=' .env 2>/dev/null || echo 0)"
+          echo "🔑 NEXT_PUBLIC vars: $(grep -c '^NEXT_PUBLIC' .env 2>/dev/null || echo 0)"
+        env:
+          # Pass GitHub Secrets as env vars so the script above can detect them
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_GEMINI_API_KEY: ${{ secrets.GOOGLE_GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ZAI_BASE_URL: ${{ secrets.ZAI_BASE_URL }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
+          ZAI_CHAT_ID: ${{ secrets.ZAI_CHAT_ID }}
+          ZAI_USER_ID: ${{ secrets.ZAI_USER_ID }}
+          ZAI_TOKEN: ${{ secrets.ZAI_TOKEN }}
+          MIDTRANS_SERVER_KEY: ${{ secrets.MIDTRANS_SERVER_KEY }}
+          MIDTRANS_CLIENT_KEY: ${{ secrets.MIDTRANS_CLIENT_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_TEMPLATE_CONFIRM: ${{ secrets.RESEND_TEMPLATE_CONFIRM }}
+          RESEND_TEMPLATE_RESET: ${{ secrets.RESEND_TEMPLATE_RESET }}
+          WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+          RAPIDAPI_TRADING_ECONOMICS_KEY: ${{ secrets.RAPIDAPI_TRADING_ECONOMICS_KEY }}
+          METAAPI_TOKEN: ${{ secrets.METAAPI_TOKEN }}
+
       # ─── Install Dependencies ─────────────────────────────────────────────
       - name: 📦 Install dependencies
         run: bun install --frozen-lockfile
@@ -71,26 +157,12 @@ jobs:
 
       # ─── Build Next.js Static Export ──────────────────────────────────────
       - name: 🔨 Build Next.js (static export)
-        env:
-          # NEXT_PUBLIC_* vars are embedded at build time and needed for the app to function
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL || 'https://luxtradee.web.id' }}
-          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id' }}
-          # Non-public vars needed for build resolution (not embedded in client bundle)
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          ZAI_BASE_URL: ${{ secrets.ZAI_BASE_URL }}
-          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
-          ZAI_CHAT_ID: ${{ secrets.ZAI_CHAT_ID }}
-          ZAI_USER_ID: ${{ secrets.ZAI_USER_ID }}
-          ZAI_TOKEN: ${{ secrets.ZAI_TOKEN }}
-          MIDTRANS_SERVER_KEY: ${{ secrets.MIDTRANS_SERVER_KEY }}
-          MIDTRANS_CLIENT_KEY: ${{ secrets.MIDTRANS_CLIENT_KEY }}
         run: |
           echo "🧹 Cleaning previous build..."
           rm -rf out .next
           echo "🔨 Building Next.js with CAPACITOR_BUILD=true (static export)..."
+          echo "📐 .env contents (NEXT_PUBLIC only):"
+          grep '^NEXT_PUBLIC' .env 2>/dev/null | sed 's/=.*/=***/' || echo "  (none)"
           bun run cap:build
 
       # ─── Verify Build Output ──────────────────────────────────────────────
@@ -190,6 +262,8 @@ jobs:
           echo "| **Branch** | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Build Type** | ${{ inputs.build_type || 'apk' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Trigger** | ${{ github.event_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Env Source** | \`.env.ci\` + GitHub Secrets (optional) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Secrets Required** | **0** (all public vars in .env.ci) |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # List APK/AAB files with sizes
@@ -202,3 +276,4 @@ jobs:
           done
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "> 📥 Download artifacts from the **Artifacts** section below" >> $GITHUB_STEP_SUMMARY
+          echo "> 💡 No GitHub Secrets needed — all build vars come from \`.env.ci\`" >> $GITHUB_STEP_SUMMARY
