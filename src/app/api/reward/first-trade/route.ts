@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import { getSupabaseAdminAuthFromClient, supabaseAdmin } from '@/lib/supabase'
+import { isUserPro } from '@/lib/pro-check'
 
 /**
  * POST /api/reward/first-trade
@@ -38,8 +39,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ rewarded: false, reason: 'Profile not found' })
     }
 
-    // Already PRO (from promo or payment) — skip
-    if (p.is_pro) {
+    // Check if already PRO (from promo or payment) — using canonical isUserPro() with expiry check
+    const alreadyPro = await isUserPro(userId)
+    if (alreadyPro) {
       return NextResponse.json({ rewarded: false, reason: 'Already PRO' })
     }
 

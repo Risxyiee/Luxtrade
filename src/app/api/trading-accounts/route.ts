@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/api-auth'
+import { isUserPro } from '@/lib/pro-check'
 
 // GET - Fetch all trading accounts for authenticated user
 export async function GET(request: NextRequest) {
@@ -71,15 +72,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get user profile to check PRO status and admin role
+    // Check PRO status using canonical isUserPro() which validates expiry
+    // Also check admin role separately
     const { data: profile } = await client
       .from('profiles')
-      .select('is_pro, subscription_status, role')
+      .select('role')
       .eq('id', userId)
       .single()
 
     const isAdmin = profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN'
-    const isPro = isAdmin || profile?.is_pro || profile?.subscription_status === 'PRO' || profile?.subscription_status === 'active'
+    const proStatus = await isUserPro(userId)
+    const isPro = isAdmin || proStatus
 
     // Admin & PRO users: unlimited accounts. FREE: 1 account only.
     if (!isPro) {
@@ -89,7 +92,7 @@ export async function POST(request: NextRequest) {
         .eq('user_id', userId)
 
       if ((existingAccounts ?? 0) >= 1) {
-        console.log(`❌ [API] Account limit reached. FREE user has ${existingAccounts}, max is 1`)
+        console.log(`❌ [API] Account limit reached. FREE user has ${existingAccounts}, max is 1 (isPro=${proStatus}, isAdmin=${isAdmin})`)
         return NextResponse.json(
           {
             error: 'Account limit reached',

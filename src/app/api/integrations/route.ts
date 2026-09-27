@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { createSupabaseClient } from '@/lib/supabase/server-client'
+import { isUserPro } from '@/lib/pro-check'
 
 /**
  * API untuk mengelola integrasi trading pihak ketiga
@@ -94,16 +95,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Cek quota user
-    const { data: profile } = await getSupabaseAdmin()
-      .from('profiles')
-      .select('plan, pro_expiry')
-      .eq('id', user.id)
-      .single()
-
-    const isPro = profile?.plan === 'PRO' &&
-                  profile?.pro_expiry &&
-                  new Date(profile.pro_expiry) > new Date()
+    // Check PRO status using canonical isUserPro() which validates expiry
+    const isPro = await isUserPro(user.id)
 
     // Hitung jumlah integrasi yang sudah ada
     const { count: currentCount } = await getSupabaseAdmin()

@@ -4,8 +4,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { checkAccountQuota } from '@/lib/trading-account'
 import { createSupabaseClient } from '@/lib/supabase/server-client'
+import { isUserPro } from '@/lib/pro-check'
 
 // GET: Check account quota
 export async function GET(req: NextRequest) {
@@ -26,29 +26,41 @@ export async function GET(req: NextRequest) {
 
     console.log('🟢 [QUOTA API] User authenticated:', user.id)
 
-    // Create admin client
+    // Check PRO status using canonical isUserPro() which validates expiry
+    const isPro = await isUserPro(user.id)
+
+    // PRO users: unlimited accounts. FREE: 1 account only.
+    const maxAllowed = isPro ? 999 : 1
+
+    // Count current accounts
     const { createClient: createAdminClient } = await import('@supabase/supabase-js')
     const supabaseAdmin = createAdminClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    // Get user's subscription plan
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('subscription_plan')
-      .eq('id', user.id)
-      .single()
+    const { count, error: countError } = await supabaseAdmin
+      .from('trading_accounts')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('is_active', true)
 
-    // Check quota
-    const quota = await checkAccountQuota(user.id, profile?.subscription_plan || 'free')
+    const currentAccounts = count || 0
+    const remainingQuota = Math.max(0, maxAllowed - currentAccounts)
+    const canAddMore = remainingQuota > 0
 
-    console.log('🟢 [QUOTA API] Quota check result:', quota)
+    console.log('🟢 [QUOTA API] Quota check result:', { currentAccounts, maxAllowed, canAddMore, isPro })
 
     return NextResponse.json({
       success: true,
-      quota,
-      plan: profile?.subscription_plan || 'free',
+      quota: {
+        currentAccounts,
+        maxAllowed,
+        canAddMore,
+        remainingQuota,
+      },
+      plan: isPro ? 'PRO' : 'FREE',
+      isPro,
       userId: user.id
     })
   } catch (error) {
