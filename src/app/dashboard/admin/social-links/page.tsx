@@ -112,7 +112,8 @@ export default function AdminSocialLinksPage() {
   }
 
   useEffect(() => {
-    fetchSocialLinks()
+    const timeout = setTimeout(() => fetchSocialLinks(), 1000)
+    return () => clearTimeout(timeout)
   }, [filter])
 
   // Handle approve

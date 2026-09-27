@@ -224,7 +224,8 @@ function LeaderboardSection({ language, refreshKey }: { language: 'id' | 'en'; r
   }, [period, sortBy])
 
   useEffect(() => {
-    fetchLeaderboard()
+    const timeout = setTimeout(() => fetchLeaderboard(), 1000)
+    return () => clearTimeout(timeout)
   }, [fetchLeaderboard, refreshKey])
 
   return (

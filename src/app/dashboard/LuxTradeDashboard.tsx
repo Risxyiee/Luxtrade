@@ -460,7 +460,8 @@ function LuxTradeDashboardContent() {
     if (!authLoading) {
       setAuthChecked(true)
       if (user) {
-        fetchData()
+        const fetchDelay = setTimeout(() => fetchData(), 1000)
+        return () => { clearTimeout(timeoutId); clearTimeout(fetchDelay) }
       }
     }
 

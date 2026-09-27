@@ -58,7 +58,8 @@ export default function AchievementCenter({ userId }: AchievementCenterProps) {
   }, [userId])
 
   useEffect(() => {
-    fetchAchievements()
+    const timeout = setTimeout(() => fetchAchievements(), 1000)
+    return () => clearTimeout(timeout)
   }, [fetchAchievements])
 
   const handleClaim = async (achievementId: string) => {

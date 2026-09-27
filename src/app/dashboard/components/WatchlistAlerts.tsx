@@ -48,31 +48,37 @@ export function WatchlistAlerts({ watchlistItems }: WatchlistAlertsProps) {
   const [priceTarget, setPriceTarget] = useState('')
   const [alertType, setAlertType] = useState<'above' | 'below'>('above')
 
-  // Monitor prices
+  // Monitor prices — delayed 10s to avoid blocking PWA Network Idle
   useEffect(() => {
-    const interval = setInterval(() => {
-      watchlistItems.forEach(item => {
-        const alert = alerts[item.symbol]
-        if (!alert || !alert.isActive) return
+    let interval: ReturnType<typeof setInterval> | null = null
+    const timeout = setTimeout(() => {
+      interval = setInterval(() => {
+        watchlistItems.forEach(item => {
+          const alert = alerts[item.symbol]
+          if (!alert || !alert.isActive) return
 
-        const shouldAlert =
-          (alert.alertType === 'above' && item.price >= alert.priceTarget) ||
-          (alert.alertType === 'below' && item.price <= alert.priceTarget)
+          const shouldAlert =
+            (alert.alertType === 'above' && item.price >= alert.priceTarget) ||
+            (alert.alertType === 'below' && item.price <= alert.priceTarget)
 
-        if (shouldAlert) {
-          toast.success(
-            `🔔 Alert: ${item.symbol} is now ${alert.alertType === 'above' ? 'above' : 'below'} $${alert.priceTarget}`
-          )
-          // Auto-disable alert after triggering
-          const updated = { ...alerts }
-          updated[item.symbol] = { ...alert, isActive: false }
-          setAlerts(updated)
-          localStorage.setItem('watchlist-alerts', JSON.stringify(updated))
-        }
-      })
-    }, 5000) // Check every 5 seconds
+          if (shouldAlert) {
+            toast.success(
+              `🔔 Alert: ${item.symbol} is now ${alert.alertType === 'above' ? 'above' : 'below'} $${alert.priceTarget}`
+            )
+            // Auto-disable alert after triggering
+            const updated = { ...alerts }
+            updated[item.symbol] = { ...alert, isActive: false }
+            setAlerts(updated)
+            localStorage.setItem('watchlist-alerts', JSON.stringify(updated))
+          }
+        })
+      }, 5000) // Check every 5 seconds
+    }, 10000)
 
-    return () => clearInterval(interval)
+    return () => {
+      clearTimeout(timeout)
+      if (interval) clearInterval(interval)
+    }
   }, [alerts, watchlistItems])
 
   const handleAddAlert = () => {

@@ -65,28 +65,33 @@ export default function SystemHealthPage() {
   const router = useRouter()
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const supabase = await getClientBrowserAsync()
-      if (!supabase) return
-      const { data: { user } } = await supabase.auth.getUser()
+    let cancelled = false
+    const timeout = setTimeout(async () => {
+      if (cancelled) return
+      const checkAuth = async () => {
+        const supabase = await getClientBrowserAsync()
+        if (!supabase) return
+        const { data: { user } } = await supabase.auth.getUser()
 
-      if (!user) {
-        toast.error('Please login first')
-        router.push('/auth/login')
-        return
+        if (!user) {
+          toast.error('Please login first')
+          router.push('/auth/login')
+          return
+        }
+
+        if (!checkIsAdmin(user.id, user.email)) {
+          toast.error('Access denied. Admin only.')
+          router.push('/dashboard')
+          return
+        }
+
+        setIsAdminUser(true)
+        setCheckingAuth(false)
       }
 
-      if (!checkIsAdmin(user.id, user.email)) {
-        toast.error('Access denied. Admin only.')
-        router.push('/dashboard')
-        return
-      }
-
-      setIsAdminUser(true)
-      setCheckingAuth(false)
-    }
-
-    checkAuth()
+      checkAuth()
+    }, 1000)
+    return () => { cancelled = true; clearTimeout(timeout) }
   }, [router])
 
   const fetchHealthCheck = async () => {
@@ -111,7 +116,8 @@ export default function SystemHealthPage() {
 
   useEffect(() => {
     if (isAdminUser && !checkingAuth) {
-      fetchHealthCheck()
+      const timeout = setTimeout(() => fetchHealthCheck(), 1000)
+      return () => clearTimeout(timeout)
     }
   }, [isAdminUser, checkingAuth])
 

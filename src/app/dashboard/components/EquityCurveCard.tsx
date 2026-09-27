@@ -177,15 +177,18 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, className }: E
   const chartRef = useRef<SVGSVGElement>(null)
   const [dimensions, setDimensions] = useState({ w: 600, h: 300 })
 
-  // Fetch data
+  // Fetch data (delayed for PWA Network Idle)
   const fetchStartedRef = useRef(false)
   useEffect(() => {
     if (fetchStartedRef.current) return
     fetchStartedRef.current = true
-    fetch('/api/equity-curve')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { setData(d); setLoading(false) })
-      .catch(() => setLoading(false))
+    const timeout = setTimeout(() => {
+      fetch('/api/equity-curve')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { setData(d); setLoading(false) })
+        .catch(() => setLoading(false))
+    }, 1000)
+    return () => clearTimeout(timeout)
   }, [])
 
   // Observe container size

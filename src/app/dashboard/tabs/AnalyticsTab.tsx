@@ -35,7 +35,8 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
   useEffect(() => {
     // If we have initial data and period is 'all', skip the fetch
     if (period === 'all' && initialAnalytics) return
-    fetchAnalytics()
+    const timeout = setTimeout(() => fetchAnalytics(), 1000)
+    return () => clearTimeout(timeout)
   }, [period])
 
   const fetchAnalytics = async () => {

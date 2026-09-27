@@ -158,7 +158,8 @@ export default function AdminPanelClient() {
   }
 
   useEffect(() => {
-    fetchUsers(true) // Show toast on first load error
+    const timeout = setTimeout(() => fetchUsers(true), 1000) // Show toast on first load error
+    return () => clearTimeout(timeout)
   }, [])
 
   // Activate PRO with specific plan type

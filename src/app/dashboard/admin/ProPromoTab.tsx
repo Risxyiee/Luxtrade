@@ -127,7 +127,10 @@ export default function ProPromoTab() {
     }
   }, [])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => {
+    const timeout = setTimeout(() => fetchData(), 1000)
+    return () => clearTimeout(timeout)
+  }, [fetchData])
 
   // Auto-refresh every 10 seconds
   // Delayed by 10s to allow Network Idle for PWA audit

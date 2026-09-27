@@ -180,43 +180,48 @@ export default function AffiliateManagementPage() {
   const ADMIN_EMAILS = ['luxtradee@gmail.com']
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const supabase = await getClientBrowserAsync()
-        if (!supabase) return
-        const { data: { user } } = await supabase.auth.getUser()
+    let cancelled = false
+    const timeout = setTimeout(async () => {
+      if (cancelled) return
+      const checkAuth = async () => {
+        try {
+          const supabase = await getClientBrowserAsync()
+          if (!supabase) return
+          const { data: { user } } = await supabase.auth.getUser()
 
-        if (!user) {
-          setIsAuthorized(false)
-          setCheckingAuth(false)
-          return
-        }
+          if (!user) {
+            setIsAuthorized(false)
+            setCheckingAuth(false)
+            return
+          }
 
-        // Check admin by email (matches middleware + admin-auth.ts)
-        const email = user.email?.toLowerCase() || ''
-        if (ADMIN_EMAILS.includes(email)) {
-          setIsAuthorized(true)
-        } else {
-          // Fallback: check role in profile
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single()
-
-          if (profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN') {
+          // Check admin by email (matches middleware + admin-auth.ts)
+          const email = user.email?.toLowerCase() || ''
+          if (ADMIN_EMAILS.includes(email)) {
             setIsAuthorized(true)
           } else {
-            setIsAuthorized(false)
+            // Fallback: check role in profile
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', user.id)
+              .single()
+
+            if (profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN') {
+              setIsAuthorized(true)
+            } else {
+              setIsAuthorized(false)
+            }
           }
+        } catch {
+          setIsAuthorized(false)
+        } finally {
+          setCheckingAuth(false)
         }
-      } catch {
-        setIsAuthorized(false)
-      } finally {
-        setCheckingAuth(false)
       }
-    }
-    checkAuth()
+      checkAuth()
+    }, 1000)
+    return () => { cancelled = true; clearTimeout(timeout) }
   }, [])
 
   // ─── Fetch data ────────────────────────────────────────────────────────
