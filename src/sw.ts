@@ -314,3 +314,29 @@ sw.addEventListener('message', (event) => {
     sw.skipWaiting?.()
   }
 })
+
+// ─── Periodic Background Sync ────────────────────────────────────────────────
+// Allows the PWA to periodically sync data in the background (e.g. market prices,
+// trade updates) even when the app is not in the foreground.
+// Requires: browser support + ServiceWorkerRegistration.periodicSync permission.
+
+sw.addEventListener('periodicsync', (event: Event) => {
+  const syncEvent = event as SyncEvent & { tag: string }
+  if (syncEvent.tag === 'update-data') {
+    syncEvent.waitUntil(doPeriodicSync())
+  }
+})
+
+async function doPeriodicSync(): Promise<void> {
+  try {
+    // Fetch latest app data to keep cache fresh
+    const response = await fetch('/api/landing-stats')
+    if (response.ok) {
+      const cache = await caches.open(CACHE_NAME)
+      await cache.put('/api/landing-stats', response.clone())
+      console.log('[sw] Periodic sync: updated landing-stats cache')
+    }
+  } catch {
+    // Silent fail — will retry on next periodic sync interval
+  }
+}
