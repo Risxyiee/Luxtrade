@@ -1,0 +1,88 @@
+{
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "type": "AdaptiveCard",
+  "version": "1.5",
+  "refresh": {
+    "action": {
+      "type": "Action.Execute",
+      "verb": "refresh"
+    }
+  },
+  "body": [
+    {
+      "type": "Container",
+      "style": "default",
+      "items": [
+        {
+          "type": "ColumnSet",
+          "columns": [
+            {
+              "type": "Column",
+              "width": "auto",
+              "items": [
+                {
+                  "type": "Image",
+                  "url": "/icon-72x72.png",
+                  "size": "Small",
+                  "altText": "LuxTradee"
+                }
+              ]
+            },
+            {
+              "type": "Column",
+              "width": "stretch",
+              "verticalContentAlignment": "Center",
+              "items": [
+                {
+                  "type": "TextBlock",
+                  "text": "LuxTradee",
+                  "weight": "Bolder",
+                  "size": "Medium",
+                  "color": "Default"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Container",
+      "style": "default",
+      "items": [
+        {
+          "type": "TextBlock",
+          "text": "${title}",
+          "weight": "Bolder",
+          "size": "Large",
+          "color": "Accent",
+          "wrap": true
+        },
+        {
+          "type": "FactSet",
+          "facts": [
+            {
+              "title": "Win Rate",
+              "value": "${winRate}"
+            },
+            {
+              "title": "Today P&L",
+              "value": "${todayPnl}"
+            },
+            {
+              "title": "Trades",
+              "value": "${tradeCount}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.OpenUrl",
+      "title": "Open Dashboard",
+      "url": "/dashboard"
+    }
+  ]
+}
