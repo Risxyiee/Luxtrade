@@ -11,6 +11,14 @@
   "background_color": "#050507",
   "theme_color": "#050507",
   "scope": "/",
+  "scope_extensions": [
+    {
+      "origin": "https://*.luxtradee.web.id"
+    },
+    {
+      "origin": "https://*.supabase.co"
+    }
+  ],
   "lang": "id",
   "categories": ["finance", "productivity", "utilities"],
   "iarc_rating_id": "e84b072d-51a0-4a3b-8c55-c1a1c1a1c1a1",
