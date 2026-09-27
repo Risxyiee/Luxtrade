@@ -22,7 +22,7 @@ import { sendEmail, getDailyReminderHtml } from '@/lib/email'
  *
  * Cron: runs daily at 08:00 WIB (01:00 UTC) via Cloudflare Workers cron trigger
  */
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-static'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 

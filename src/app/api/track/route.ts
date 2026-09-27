@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-static';
 
 /**
  * POST /api/track - Analytics and telemetry tracking endpoint

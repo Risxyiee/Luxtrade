@@ -11,7 +11,7 @@ import { isUserPro } from '@/lib/pro-check'
  *
  * Called from the client after a trade is successfully created.
  */
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-static'
 
 export async function POST(request: NextRequest) {
   try {

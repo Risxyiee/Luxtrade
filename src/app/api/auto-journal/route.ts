@@ -91,7 +91,7 @@ async function optimizeImage(bytes: ArrayBuffer): Promise<{ optimizedBase64: str
 
 // ==================== MAIN API ====================
 
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-static'
 
 export async function POST(request: NextRequest) {
   const t0 = performance.now()

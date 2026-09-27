@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-static';
 import { supabaseAdmin, getSupabaseAdminAuthFromClient } from '@/lib/supabase'
 import { sendEmailFromTemplate, getConfirmationEmailHtml } from '@/lib/email'
 

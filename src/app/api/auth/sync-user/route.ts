@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-static';
 import { requireAuth } from '@/lib/api-auth'
 import { getSupabaseAdminAuthFromClient, getSupabaseAdmin } from '@/lib/supabase'
 

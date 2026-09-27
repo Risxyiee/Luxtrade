@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-static';
 import { getAIQuotaInfo } from '@/lib/ai-quota'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 

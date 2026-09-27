@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-static';
 
 // Forex symbols mapping
 const FOREX_SYMBOLS: Record<string, { from: string; to: string; basePrice: number }> = {

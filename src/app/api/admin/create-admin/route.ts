@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-static';
 
 const ADMIN_EMAIL = 'luxtradee@gmail.com'
 

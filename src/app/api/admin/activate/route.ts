@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-static';
 import { db, isDatabaseAvailable } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin-auth'
 import { sendAdminNotification } from '@/lib/admin-notify'

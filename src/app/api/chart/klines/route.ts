@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-static';
 
 // Mock data generator for fallback
 function generateMockData(symbol: string, count: number = 50) {

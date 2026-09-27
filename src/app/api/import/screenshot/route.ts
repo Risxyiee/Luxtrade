@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-static';
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import { parseMT5TradeData } from '@/lib/simple-parser'
 import { edgeCrypto } from '@/lib/edge-crypto'

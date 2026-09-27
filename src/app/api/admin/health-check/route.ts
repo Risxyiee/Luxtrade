@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-static';
 import { createClient as createSupabaseClient } from '@/lib/supabase/server';
 
 interface HealthCheckResult {

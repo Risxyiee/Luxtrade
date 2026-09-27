@@ -28,7 +28,7 @@ const EMPTY_PROMO = {
 let cache: { data: typeof EMPTY_PROMO; expiry: number } | null = null
 const CACHE_TTL = 60_000 // 60 seconds
 
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-static'
 
 export async function GET() {
   try {

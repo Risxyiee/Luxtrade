@@ -1,4 +1,5 @@
 /**
+export const dynamic = 'force-static';
  * API Route: Connect Trading Account to MetaApi
  * POST - Create MetaApi account and connect it to user's trading account
  */
