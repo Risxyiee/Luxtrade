@@ -48,16 +48,17 @@ const isDev = process.env.NODE_ENV === "development";
 const forceEnableSW = process.env.ENABLE_SW === "true";
 
 // For Capacitor static export, skip Serwist entirely (SW not needed in mobile apps)
-const swConfig = isCapacitorBuild
-  ? { disable: true }  // Service workers don't work in Capacitor
-  : {
-      swSrc: "src/sw.ts",
-      swDest: "public/sw.js",
-      cacheOnNavigation: false,
-      reloadOnOnline: true,
-      // Force-enable in production — always generate sw.js
-      // In dev, only enable when explicitly requested
-      disable: isDev && !forceEnableSW,
-    };
+// IMPORTANT: swSrc and swDest MUST always be provided — @serwist/next's Zod schema
+// validates them as required strings even when disable: true.
+const swConfig = {
+  swSrc: "src/sw.ts",
+  swDest: "public/sw.js",
+  cacheOnNavigation: false,
+  reloadOnOnline: true,
+  // Capacitor: DISABLED (service workers don't work in mobile apps)
+  // Production (including Cloudflare OpenNext): ALWAYS enabled (disable: false)
+  // Development: disabled by default unless ENABLE_SW=true
+  disable: isCapacitorBuild || (isDev && !forceEnableSW),
+};
 
 export default withSerwist(swConfig)(nextConfig);
