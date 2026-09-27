@@ -85,13 +85,16 @@ export default function AITab({
   const [aiQuota, setAiQuota] = useState<{ total: number; used: number; remaining: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Fetch AI quota for free users
+  // Fetch AI quota for free users (delayed for PWA Network Idle)
   useEffect(() => {
     if (!isPro) {
-      fetch('/api/user/ai-quota')
-        .then(res => res.json())
-        .then(data => setAiQuota(data))
-        .catch(err => console.error('Failed to fetch AI quota:', err))
+      const timeout = setTimeout(() => {
+        fetch('/api/user/ai-quota')
+          .then(res => res.json())
+          .then(data => setAiQuota(data))
+          .catch(err => console.error('Failed to fetch AI quota:', err))
+      }, 1000)
+      return () => clearTimeout(timeout)
     }
   }, [isPro])
 

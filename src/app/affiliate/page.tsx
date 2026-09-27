@@ -158,23 +158,28 @@ export default function AffiliatePage() {
 
   // ── Auth check ────────────────────────────────────────────────────
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const res = await fetch('/api/affiliate/me')
-        if (res.status === 401) {
+    let cancelled = false
+    const timeout = setTimeout(async () => {
+      if (cancelled) return
+      const checkAuth = async () => {
+        try {
+          const res = await fetch('/api/affiliate/me')
+          if (res.status === 401) {
+            router.replace('/auth/login')
+            return
+          }
+          if (!res.ok) throw new Error('Failed to fetch affiliate data')
+          const data: AffiliateMe = await res.json()
+          setAffiliateData(data)
+        } catch {
           router.replace('/auth/login')
-          return
+        } finally {
+          setAuthLoading(false)
         }
-        if (!res.ok) throw new Error('Failed to fetch affiliate data')
-        const data: AffiliateMe = await res.json()
-        setAffiliateData(data)
-      } catch {
-        router.replace('/auth/login')
-      } finally {
-        setAuthLoading(false)
       }
-    }
-    checkAuth()
+      checkAuth()
+    }, 1000)
+    return () => { cancelled = true; clearTimeout(timeout) }
   }, [router])
 
   // ── Fetch referrals ───────────────────────────────────────────────
@@ -209,10 +214,13 @@ export default function AffiliatePage() {
 
   useEffect(() => {
     if (!authLoading) {
-      fetchReferrals()
-      fetchWithdrawals()
+      const timeout = setTimeout(() => {
+        fetchReferrals()
+        fetchWithdrawals()
+      }, 1000)
+      return () => clearTimeout(timeout)
     }
-    }, [authLoading, fetchReferrals, fetchWithdrawals])
+  }, [authLoading, fetchReferrals, fetchWithdrawals])
 
     // ── WebSocket: realtime affiliate updates ──────────────────────
   useEffect(() => {

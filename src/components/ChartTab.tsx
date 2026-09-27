@@ -112,12 +112,12 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
     }
   }, [selectedSymbol, selectedInterval, hasMounted])
 
-  // Initialize chart only once - after mounting
+  // Initialize chart only once - after mounting (delayed for PWA Network Idle)
   useEffect(() => {
     if (!hasMounted) return
 
-    // Fetch initial data immediately
-    fetchData()
+    const timeout = setTimeout(() => fetchData(), 1000)
+    return () => clearTimeout(timeout)
   }, [hasMounted, fetchData])
 
   // Update chart when symbol or interval changes
