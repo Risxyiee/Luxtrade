@@ -52,23 +52,23 @@
   ],
   "screenshots": [
     {
-      "src": "/screenshot-dashboard.jpeg",
-      "sizes": "750x1396",
-      "type": "image/jpeg",
+      "src": "/screenshot-dashboard.webp",
+      "sizes": "256x500",
+      "type": "image/webp",
       "form_factor": "narrow",
       "label": "Dashboard with equity curve and analytics"
     },
     {
-      "src": "/screenshot-trades.jpeg",
-      "sizes": "1280x720",
-      "type": "image/jpeg",
+      "src": "/screenshot-trades.webp",
+      "sizes": "192x380",
+      "type": "image/webp",
       "form_factor": "wide",
       "label": "Trade log with AI analysis"
     },
     {
-      "src": "/screenshot-calendar.jpeg",
-      "sizes": "1280x720",
-      "type": "image/jpeg",
+      "src": "/screenshot-calendar.webp",
+      "sizes": "192x380",
+      "type": "image/webp",
       "form_factor": "wide",
       "label": "Economic calendar integration"
     }
