@@ -1,5 +1,4 @@
 /**
-export const dynamic = 'force-static';
  * API Route: Sync Deals from MetaApi
  * GET - Fetch deals/trades from MetaApi and sync to local database
  */

@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-export const dynamic = 'force-static';
-export async function generateStaticParams() { return []; }
 import { requireAdmin } from '@/lib/admin-auth'
 import { getAdminAuth, getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 

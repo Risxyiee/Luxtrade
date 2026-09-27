@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-export const dynamic = 'force-static';
 import { NextResponse } from 'next/server'
 
 // GET - Fetch all approved testimonials

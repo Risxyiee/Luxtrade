@@ -5,7 +5,7 @@ import { getAuthenticatedUser } from '@/lib/api-auth'
 
 // CRITICAL: Force dynamic untuk Cloudflare Workers
 // NOTE: No runtime = 'edge' - OpenNext limitation for API routes
-export const dynamic = 'force-static'
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {

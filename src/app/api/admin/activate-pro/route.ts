@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-export const dynamic = 'force-static';
 import { requireAdmin } from '@/lib/admin-auth'
 
 export async function POST(request: NextRequest) {

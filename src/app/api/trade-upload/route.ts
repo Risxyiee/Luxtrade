@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-export const dynamic = 'force-static';
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { edgeCrypto } from '@/lib/edge-crypto'

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-export const dynamic = 'force-static';
 
 // In-memory cache
 let calendarCache: { events: CalendarEvent[]; timestamp: number; unavailable?: boolean } | null = null;

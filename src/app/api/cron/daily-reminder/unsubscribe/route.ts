@@ -5,7 +5,7 @@ import { db, isDatabaseAvailable } from '@/lib/db'
  * GET /api/cron/daily-reminder/unsubscribe?uid=xxx
  * Unsubscribe page: marks user as unsubscribed from daily reminder emails.
  */
-export const dynamic = 'force-static'
+export const dynamic = 'force-dynamic'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 

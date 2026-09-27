@@ -1,5 +1,4 @@
 /**
-export const dynamic = 'force-static';
  * API Route: FxBlue Webhook
  * POST - Receive trade data from FxBlue and save to Supabase
  *

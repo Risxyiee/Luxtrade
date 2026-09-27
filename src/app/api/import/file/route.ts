@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-export const dynamic = 'force-static';
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import pdf from 'pdf-parse-fixed'
 import { edgeCrypto } from '@/lib/edge-crypto'

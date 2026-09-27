@@ -1,5 +1,4 @@
 /**
-export const dynamic = 'force-static';
  * API Route: Cleanup Stuck Trading Accounts
  * DELETE - Remove trading accounts that are stuck in PENDING status for more than 1 hour
  * This helps clean up accounts that failed MetaApi connection but weren't rolled back

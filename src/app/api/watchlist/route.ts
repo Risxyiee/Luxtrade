@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-export const dynamic = 'force-static';
 import { createClientForApi } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { isUserPro } from '@/lib/pro-check'

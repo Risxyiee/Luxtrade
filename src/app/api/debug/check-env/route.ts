@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-export const dynamic = 'force-static';
 import { getSupabaseUrl, getSupabaseAnonKey, getSupabaseServiceRoleKey, getServerClient, getSupabaseAdmin } from '@/lib/supabase'
 import { getBaseUrl } from '@/lib/supabase-browser'
 import { isDatabaseAvailable, getDatabaseUnavailableReason } from '@/lib/db'

@@ -14,7 +14,7 @@ import { db, isDatabaseAvailable } from '@/lib/db'
  * - Syncs Supabase Auth metadata
  * - Protected by CRON_SECRET (consistent with other cron endpoints)
  */
-export const dynamic = 'force-static'
+export const dynamic = 'force-dynamic'
 
 async function handleRequest(request: NextRequest) {
   const { searchParams } = new URL(request.url)
