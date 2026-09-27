@@ -60,24 +60,38 @@ export default function LuxTradeLanding() {
   const mobileCtaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const fetchWithTimeout = (url: string, timeoutMs = 5000) =>
+    let mounted = true
+    const controller = new AbortController()
+
+    const fetchWithTimeout = (url: string, timeoutMs = 3000) =>
       Promise.race([
-        fetch(url).then(res => res.ok ? res.json() : null).catch(() => null),
+        fetch(url, { signal: controller.signal }).then(res => res.ok ? res.json() : null).catch(() => null),
         new Promise<null>(resolve => setTimeout(() => resolve(null), timeoutMs)),
       ])
 
-    Promise.all([
-      fetchWithTimeout('/api/landing-stats'),
-      fetchWithTimeout('/api/promo/active'),
-    ]).then(([statsData, promoData]) => {
-      if (statsData) setLandingStats(statsData)
-      if (promoData && promoData.code) {
-        setPromoCode(promoData.code)
-        setPromoRemaining(promoData.remainingQuota)
-        setPromoMax(promoData.maxQuota)
-        setPromoActive(promoData.isActive)
-      }
-    })
+    // Delay fetches slightly to avoid blocking PWA network-idle
+    const timerId = setTimeout(() => {
+      if (!mounted) return
+      Promise.all([
+        fetchWithTimeout('/api/landing-stats'),
+        fetchWithTimeout('/api/promo/active'),
+      ]).then(([statsData, promoData]) => {
+        if (!mounted) return
+        if (statsData) setLandingStats(statsData)
+        if (promoData && promoData.code) {
+          setPromoCode(promoData.code)
+          setPromoRemaining(promoData.remainingQuota)
+          setPromoMax(promoData.maxQuota)
+          setPromoActive(promoData.isActive)
+        }
+      })
+    }, 1000)
+
+    return () => {
+      mounted = false
+      clearTimeout(timerId)
+      controller.abort()
+    }
   }, [])
 
   // Mobile sticky CTA scroll handler
