@@ -20,7 +20,7 @@ function getSupabaseAdmin(): SupabaseClient | null {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY
     if (!url || !key) {
-      console.warn('[onboarding achievement] Service role key not configured')
+      console.warn('[onboarding achievement] ⚠️ SUPABASE_SERVICE_ROLE_KEY not configured — RLS policies may block writes. Set this env var in Cloudflare for reliable achievement tracking.')
       return null
     }
     _supabaseAdmin = createClient(url, key, {
@@ -52,6 +52,21 @@ async function tableExists(client: SupabaseClient, tableName: string): Promise<b
   } catch {
     return false
   }
+}
+
+// Helper to check if an error is a table/schema/RLS issue that should be handled gracefully
+function isSchemaOrRLSError(error: { code?: string; message?: string }): boolean {
+  return (
+    error.code === '42P01' ||      // undefined_table
+    error.code === 'PGRST204' ||   // schema_cache_missing_column
+    error.code === 'PGRST205' ||   // schema_cache_missing_table
+    error.code === 'PGRST116' ||   // not_found_single
+    error.code === '42501' ||      // insufficient_privilege (RLS)
+    error.message?.includes('does not exist') ||
+    error.message?.includes('schema cache') ||
+    error.message?.includes('row-level security') ||
+    error.message?.includes('permission denied')
+  )
 }
 
 export async function POST(request: NextRequest) {
@@ -114,12 +129,11 @@ export async function POST(request: NextRequest) {
 
       if (checkError) {
         // Handle specific error codes
-        if (checkError.code === 'PGRST116') {
-          // No rows returned - user hasn't earned the achievement yet
-          alreadyEarned = false
-        } else if (checkError.code === '42P01' || checkError.code === 'PGRST204' || checkError.code === 'PGRST205') {
-          // Table doesn't exist or column doesn't exist - treat as not earned
-          console.log('[onboarding achievement] user_achievements table/column does not exist')
+        if (isSchemaOrRLSError(checkError)) {
+          // Table/column doesn't exist or RLS blocks — treat as not earned
+          if (checkError.code === '42501' || checkError.message?.includes('permission denied')) {
+            console.warn('[onboarding achievement] RLS blocked read on user_achievements — service role key may be missing')
+          }
           alreadyEarned = false
         } else {
           console.warn('[onboarding achievement] Error checking existing achievement:', checkError)
@@ -211,9 +225,13 @@ export async function POST(request: NextRequest) {
             title: 'Newcomer',
             xp_reward: 10,
           }
-        } else if (awardError.code === '42P01' || awardError.code === 'PGRST204' || awardError.code === 'PGRST205') {
-          // Table doesn't exist
-          console.log('[onboarding achievement] user_achievements table does not exist')
+        } else if (isSchemaOrRLSError(awardError)) {
+          // Table doesn't exist or RLS blocks
+          if (awardError.code === '42501' || awardError.message?.includes('permission denied') || awardError.message?.includes('row-level security')) {
+            console.warn('[onboarding achievement] RLS blocked write on user_achievements — set SUPABASE_SERVICE_ROLE_KEY env var')
+          } else {
+            console.log('[onboarding achievement] user_achievements table/column does not exist')
+          }
           userAchievement = null
         } else {
           console.warn('[onboarding achievement] Error awarding achievement:', awardError)
@@ -238,8 +256,12 @@ export async function POST(request: NextRequest) {
         .maybeSingle()
 
       if (profileError) {
-        if (profileError.code === '42P01' || profileError.code === 'PGRST204' || profileError.code === 'PGRST205') {
-          console.log('[onboarding achievement] profiles table does not exist')
+        if (isSchemaOrRLSError(profileError)) {
+          if (profileError.code === '42501' || profileError.message?.includes('permission denied')) {
+            console.warn('[onboarding achievement] RLS blocked access on profiles — set SUPABASE_SERVICE_ROLE_KEY env var')
+          } else {
+            console.log('[onboarding achievement] profiles table does not exist')
+          }
         } else {
           console.warn('[onboarding achievement] Error fetching profile:', profileError)
         }
