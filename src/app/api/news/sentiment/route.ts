@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-export const dynamic = 'force-static';
 
 // In-memory cache
 let sentimentCache: { sentiment: string; score: number; trend: string; timestamp: number } | null = null

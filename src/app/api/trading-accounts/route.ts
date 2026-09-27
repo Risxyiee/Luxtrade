@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-export const dynamic = 'force-static';
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import { isUserPro } from '@/lib/pro-check'
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { geminiChat, isGeminiAvailable } from '@/lib/gemini'
 
 // Force dynamic rendering — prevent CF Workers from caching/stale response
-export const dynamic = 'force-static'
+export const dynamic = 'force-dynamic'
 
 // System prompt for LuxTradee CS bot
 const SYSTEM_PROMPT = `Kamu adalah asisten customer service LuxTradee — jurnal trading AI untuk trader Indonesia.

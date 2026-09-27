@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-export const dynamic = 'force-static';
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { createSupabaseClient } from '@/lib/supabase/server-client'
 import { isUserPro } from '@/lib/pro-check'

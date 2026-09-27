@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-export const dynamic = 'force-static';
 import { getVapidPublicKey } from '@/lib/web-push'
 
 export async function GET() {

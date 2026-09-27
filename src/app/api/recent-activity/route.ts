@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-export const dynamic = 'force-static';
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 
 // In-memory cache, 30s TTL

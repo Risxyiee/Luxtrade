@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-export const dynamic = 'force-static';
 import { db } from '@/lib/db'
 
 export async function POST(req: NextRequest) {

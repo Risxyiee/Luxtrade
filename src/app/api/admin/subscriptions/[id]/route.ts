@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server'
-export const dynamic = 'force-static';
-export async function generateStaticParams() { return []; }
 
 const DEPRECATED_RESPONSE = {
   error: 'DEPRECATED',

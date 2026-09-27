@@ -1,6 +1,4 @@
 /**
-export const dynamic = 'force-static';
-export async function generateStaticParams() { return []; }
  * API Route: Trading Account by ID
  * GET - Get a specific trading account
  * PATCH - Update a trading account
