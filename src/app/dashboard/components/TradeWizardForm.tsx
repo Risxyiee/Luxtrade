@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -9,7 +9,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { ArrowRight, ArrowLeft, Upload, CheckCircle, Sparkles, Loader2, X, Info, FileText, HelpCircle, CreditCard } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { calculateForexProfitLoss, getPipInfo, formatTradingInput, AccountType } from '@/lib/trading-helpers'
 import { isoToDatetimeLocal, datetimeLocalToISO } from '../utils/helpers'
@@ -175,8 +174,7 @@ export default function TradeWizardForm({
   const [manualGuideOpen, setManualGuideOpen] = useState(false)
   const totalSteps = 3
 
-  const handleNext = () => {
-    // Validate current step before proceeding
+  const handleNext = useCallback(() => {
     const stepErrors = validateStep(currentStep)
 
     if (Object.keys(stepErrors).length > 0) {
@@ -189,18 +187,18 @@ export default function TradeWizardForm({
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1)
     }
-  }
+  }, [currentStep, L])
 
-  const handlePrevious = () => {
+  const handlePrevious = useCallback(() => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
     }
-  }
+  }, [currentStep])
 
-  const handleEmotionSelect = (emotion: string) => {
+  const handleEmotionSelect = useCallback((emotion: string) => {
     setSelectedEmotion(emotion)
     onFormChange('emotion', emotion)
-  }
+  }, [onFormChange])
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -251,11 +249,11 @@ export default function TradeWizardForm({
     }
   }
 
-  const handleRemoveImage = () => {
+  const handleRemoveImage = useCallback(() => {
     setUploadedImage(null)
     onFormChange('screenshot_url', '')
     toast.success(L ? 'Gambar dihapus' : 'Image removed')
-  }
+  }, [onFormChange, L])
 
   // Handle screenshot upload with AI analysis
   const handleScreenshotAnalysis = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -571,10 +569,10 @@ export default function TradeWizardForm({
 
 
 
-  const handlePriceChange = (field: 'open_price' | 'close_price', value: string) => {
+  const handlePriceChange = useCallback((field: 'open_price' | 'close_price', value: string) => {
     // Allow any decimal input
     onFormChange(field, value)
-  }
+  }, [onFormChange])
 
   const handleSave = () => {
     // Final validation before saving
@@ -663,16 +661,8 @@ export default function TradeWizardForm({
 
       {/* Step Content - Scrollable on mobile */}
       <div className="overflow-y-auto max-h-[50vh] lg:max-h-none -mx-1 px-1">
-      <AnimatePresence mode="wait">
         {currentStep === 1 && (
-          <motion.div
-            key="step1"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-4"
-          >
+          <div key="step1" className="space-y-4">
             {/* Quick Import Section - Show First in Step 1 */}
             <div className="bg-gradient-to-r from-blue-500/10 to-cyan-600/10 rounded-lg border border-lux-input-border dark:border-blue-900/30 p-4">
               <Label className="text-sm font-semibold text-cyan-300 mb-3 block flex items-center gap-2">
@@ -921,19 +911,12 @@ export default function TradeWizardForm({
                 </div>
               </div>
             </div>
-          </motion.div>
+          </div>
         )}
 
         {/* Step 2: Entry and Exit Prices */}
         {currentStep === 2 && (
-          <motion.div
-            key="step2"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-4"
-          >
+          <div key="step2" className="space-y-4">
             <div className="grid grid-cols-1 gap-4">
               <Card className={`bg-gradient-to-br from-green-500/10 to-transparent border-green-500/30 ${errors.open_price ? 'border-red-500' : ''}`}>
                 <CardContent className="p-4">
@@ -1095,19 +1078,12 @@ export default function TradeWizardForm({
                 />
               </div>
             </div>
-          </motion.div>
+          </div>
         )}
 
         {/* Step 3: Emotion & Screenshot */}
         {currentStep === 3 && (
-          <motion.div
-            key="step3"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-4"
-          >
+          <div key="step3" className="space-y-4">
             {/* Emotion Selection */}
             <div className="space-y-3">
               <Label className="text-white font-semibold flex items-center gap-2">
@@ -1188,9 +1164,8 @@ export default function TradeWizardForm({
                 onChange={(e) => onFormChange('notes', e.target.value)}
               />
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
       </div>
 
       {/* Navigation Buttons */}

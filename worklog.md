@@ -1,81 +1,20 @@
-# Capacitor Build Scripts Worklog
-
----
-Task ID: 1
-Agent: main
-Task: Audit codebase and redesign Capacitor build patch strategy
-
-Work Log:
-- Read all three existing scripts (patch, unpatch, build)
-- Audited all 155 API route files under src/app/api/
-- Found 13 API routes with force-dynamic, 0 with force-static (in committed source)
-- Found 7 dynamic [id] route directories needing generateStaticParams
-- Identified 16 routes using request.nextUrl.searchParams
-- Found src/lib/supabase/server.ts uses cookies() from next/headers — CRITICAL
-- Identified /upgrade/page.tsx as the ONLY non-API page using createClient (cookies)
-- Found 2 server-component force-dynamic pages (admin, testimonials) using getServerClient
-- Found 5 client-component force-dynamic pages (settings, system-health, etc.)
-- Middleware uses createServerClient + force-dynamic
-
-Stage Summary:
-- Root cause identified: Old patch script blindly forced ALL routes to force-static,
-  causing NEXT_STATIC_GEN_BAILOUT because cookies()/headers() cannot run during
-  static prerendering
-- New strategy: Add CAPACITOR_BUILD bailout BEFORE any dynamic API access,
-  then force-static is safe because the bailout returns static JSON first
-
 ---
 Task ID: 2
 Agent: main
-Task: Rewrite all three Capacitor build scripts
+Task: Optimize OnboardingModal performance
 
 Work Log:
-- Rewrote capacitor-patch-routes.sh with 9 selective steps:
-  1. Add CAPACITOR_BUILD bailout to ALL API handlers (runs before cookies/Supabase)
-  2. Add force-static to API routes (safe because bailout runs first)
-  3. Fix JSDoc comment placement issues
-  4. Add generateStaticParams to dynamic [id] API routes
-  5. Replace /upgrade/page.tsx with client-only version
-  6. Patch force-dynamic pages: client→remove fd, server→replace with stub
-  7. Replace middleware.ts with pass-through
-  8. Add force-static to metadata files (robots, sitemap, manifest)
-  9. Create blog/[slug]/layout.tsx with generateStaticParams
-- Rewrote capacitor-unpatch-routes.sh with:
-  - git checkout for src/app/ and src/middleware.ts
-  - Remove .cap-backup files
-  - Remove untracked blog/[slug]/layout.tsx
-  - Verify no CAPACITOR_BUILD remains
-- Rewrote capacitor-build.sh with:
-  - Precondition checks (git repo, uncommitted changes, npx)
-  - Build with CAPACITOR_BUILD=true
-  - EISDIR bug handling with manual export
-  - NEXT_STATIC_GEN_BAILOUT detection and reporting
-  - API artifact cleanup (rm -rf out/api)
-  - Service worker cleanup
-  - Output verification with key page checks
-  - ALWAYS unpatch (even on failure)
-- Updated next.config.ts to disable Serwist for Capacitor builds
+- Read OnboardingModal.tsx to understand current animation configuration
+- Reduced progress bar animation duration from 0.5s to 0.2s
+- Simplified icon animation: removed scale (0.8→1), kept only opacity (0→1), reduced duration from 0.3s to 0.15s
+- Simplified description animation: removed y-slide (10→0), kept only opacity (0→1), reduced duration from 0.3s to 0.15s, removed delay (0.1s → 0s)
+- Added willChange: 'opacity' to icon and description motion elements
+- Added willChange: 'width' to progress bar motion element
+- Verified all changes preserve component props interface and step navigation logic
 
 Stage Summary:
-- All three scripts rewritten with robust error handling
-- next.config.ts: Serwist disabled when CAPACITOR_BUILD=true
-- Round-trip test PASSED: patch → verify → unpatch → verify clean
-- 155 API routes patched, 0 CAPACITOR_BUILD/force-static remains after unpatch
-
----
-Task ID: 3
-Agent: main
-Task: Verify build logic and source code safety
-
-Work Log:
-- Ran full round-trip test: patch → unpatch → verify
-- Confirmed 205 CAPACITOR_BUILD references added during patch
-- Confirmed 155 force-static added during patch
-- Confirmed ZERO CAPACITOR_BUILD/force-static/generateStaticParams after unpatch
-- Verified committed source only has force-dynamic (for Cloudflare)
-- Verified next.config.ts is correct (output: 'export' only when CAPACITOR_BUILD=true)
-
-Stage Summary:
-- Build scripts are safe: no source code pollution after unpatch
-- Cloudflare deployment untouched: only force-dynamic in committed source
-- All API routes, Supabase connections, auth routes are intact
+- All 4 animation optimizations applied successfully
+- Total step transition time reduced from ~0.6s (0.3s icon + 0.3s desc with 0.1s delay) to ~0.15s (both animate in parallel at 0.15s)
+- Removed expensive scale and y-translate transforms, keeping only lightweight opacity transitions
+- Added will-change hints for GPU compositing optimization on all animated elements
+- No changes to component API, props interface, or step navigation logic
