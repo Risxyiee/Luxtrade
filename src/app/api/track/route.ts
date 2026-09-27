@@ -21,17 +21,13 @@ export async function POST(request: NextRequest) {
       timestamp = new Date().toISOString()
     } = body
 
-    // Validate required fields
-    if (!event) {
-      return NextResponse.json(
-        { error: 'Event name is required' },
-        { status: 400 }
-      )
-    }
+    // Derive event name: explicit event > action > page > 'page_view'
+    // This makes the endpoint resilient to clients that send action/page without event
+    const eventName = event || action || (page ? `view_${page}` : null) || 'page_view'
 
     // Log tracking data (in production, this would go to analytics service)
     // Using console.info for analytics logs to distinguish from regular logs
-    console.info(`[Track] ${event}`, {
+    console.info(`[Track] ${eventName}`, {
       userId,
       sessionId,
       page,
@@ -40,16 +36,11 @@ export async function POST(request: NextRequest) {
       timestamp
     })
 
-    // In a real implementation, you would:
-    // 1. Store in Supabase analytics table
-    // 2. Send to external analytics service (Google Analytics, Mixpanel, etc.)
-    // 3. Aggregate for dashboard reporting
-
     // For now, silently acknowledge the tracking event
     return NextResponse.json({
       success: true,
       tracked: true,
-      event,
+      event: eventName,
       timestamp
     })
 

@@ -61,12 +61,17 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (error) {
-      // Table doesn't exist or no preferences found - return default preferences
-      if (
-        error.code === '42P01' ||
-        error.message.includes('does not exist') ||
-        error.code === 'PGRST116'
-      ) {
+      // Table doesn't exist, schema cache error, or no preferences found
+      // Return default preferences for ALL errors (graceful degradation)
+      const isTableError =
+        error.code === '42P01' || // undefined_table
+        error.code === 'PGRST116' || // not_found_single
+        error.code === 'PGRST205' || // schema_cache_missing_table
+        error.code === 'PGRST204' || // schema_cache_missing_column
+        error.message?.includes('does not exist') ||
+        error.message?.includes('schema cache')
+
+      if (isTableError || !data) {
         const defaultPreferences = {
           emailDigest: 'daily' as const,
           tradeAlerts: {
@@ -154,15 +159,22 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error('Notification preferences creation error:', error)
-      // If table doesn't exist, return success with local data
-      if (error.code === '42P01' || error.message.includes('does not exist')) {
+      // If table doesn't exist or schema cache error, return success with local data
+      const isTableError =
+        error.code === '42P01' ||
+        error.code === 'PGRST205' ||
+        error.code === 'PGRST204' ||
+        error.message?.includes('does not exist') ||
+        error.message?.includes('schema cache')
+
+      if (isTableError) {
         return NextResponse.json({
           success: true,
           preferences: body,
           message: 'Preferences saved locally (table not available)',
         })
       }
+      console.error('Notification preferences creation error:', error)
       return NextResponse.json({ error: 'Failed to create preferences', detail: error.message }, { status: 500 })
     }
 
@@ -264,8 +276,15 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ success: true, preferences: frontendPreferences, created: true })
       }
 
-      // If table doesn't exist
-      if (error.code === '42P01' || error.message.includes('does not exist')) {
+      // If table doesn't exist or schema cache error
+      const isTableError =
+        error.code === '42P01' ||
+        error.code === 'PGRST205' ||
+        error.code === 'PGRST204' ||
+        error.message?.includes('does not exist') ||
+        error.message?.includes('schema cache')
+
+      if (isTableError) {
         return NextResponse.json({
           success: true,
           preferences: body,
