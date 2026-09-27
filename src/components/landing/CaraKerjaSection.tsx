@@ -25,7 +25,7 @@ const steps = {
       desc: 'Pantau win-rate, profit factor, dan kurva equity kamu secara real-time tanpa perlu pusing bikin rumus Excel sendiri.',
       rightSide: false,
       visual: 'analytics',
-      img: '/screenshot-calendar.jpeg',
+      img: '/screenshot-calendar.webp',
       floatingCards: [
         { label: 'Win Rate', value: '50.0%', color: 'text-emerald-400', position: 'top-8 left-8' },
         { label: 'Profit Factor', value: '2.34', color: 'text-cyan-400', position: 'bottom-8 right-8' },
@@ -37,7 +37,7 @@ const steps = {
       desc: 'Catat kondisi psikologis, sesi market (London/New York), dan alasan setup sebelum tombol eksekusi ditekan.',
       rightSide: true,
       visual: 'journal',
-      img: '/screenshot-trades.jpeg',
+      img: '/screenshot-trades.webp',
       floatingCards: [
         { label: 'Tag: gold', value: '', color: 'text-emerald-400', position: 'top-8 right-8', tag: true },
       ],
@@ -72,7 +72,7 @@ const steps = {
       desc: 'Monitor your win rate, profit factor, and equity curve in real-time without needing to build Excel formulas yourself.',
       rightSide: false,
       visual: 'analytics',
-      img: '/screenshot-calendar.jpeg',
+      img: '/screenshot-calendar.webp',
       floatingCards: [
         { label: 'Win Rate', value: '50.0%', color: 'text-emerald-400', position: 'top-8 left-8' },
         { label: 'Profit Factor', value: '2.34', color: 'text-cyan-400', position: 'bottom-8 right-8' },
@@ -84,7 +84,7 @@ const steps = {
       desc: 'Record your psychological state, market session (London/New York), and setup reasoning before hitting the execute button.',
       rightSide: true,
       visual: 'journal',
-      img: '/screenshot-trades.jpeg',
+      img: '/screenshot-trades.webp',
       floatingCards: [
         { label: 'Tag: gold', value: '', color: 'text-emerald-400', position: 'top-8 right-8', tag: true },
       ],
