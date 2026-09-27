@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 import withSerwist from "@serwist/next";
 
+// ─── Static Export Mode ─────────────────────────────────────────────────────
+// Set CAPACITOR_BUILD=true to enable static export (output: 'export') for
+// Capacitor Android/iOS builds. The Cloudflare deployment uses opennextjs-cloudflare
+// which does NOT need static export.
+const isCapacitorBuild = process.env.CAPACITOR_BUILD === 'true';
+
 const nextConfig: NextConfig = {
   compiler: {
     removeConsole: false,
@@ -23,6 +29,9 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+
+  // Enable static export for Capacitor (generates 'out/' directory)
+  ...(isCapacitorBuild ? { output: 'export' as const } : {}),
 
   generateBuildId: async () => {
     return 'luxtrade-v1'

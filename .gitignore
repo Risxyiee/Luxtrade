@@ -99,3 +99,15 @@ sakura-docs.json
 
 # Mini services build artifacts
 mini-services/*/node_modules/
+# TWA backup (replaced by Capacitor)
+/android-twa-backup/
+
+# Android build artifacts
+android/.gradle/
+android/build/
+android/app/build/
+
+# iOS build artifacts
+ios/build/
+ios/Pods/
+ios/App/App/public/
