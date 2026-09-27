@@ -217,7 +217,7 @@ export default function HeroSection({ language = 'id' }: HeroSectionProps) {
           transition={{ duration: 0.6, delay: 0.4 }}
         >
           <div className="phone-mockup glow-bg-luxury animate-float-lux">
-            <Image src="/screenshot-dashboard.webp" alt="Dashboard LuxTradee" width={300} height={600} priority />
+            <Image src="/screenshot-dashboard-mobile.webp" alt="Dashboard LuxTradee" width={300} height={586} priority />
           </div>
         </motion.div>
       </div>
