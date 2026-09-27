@@ -8,27 +8,28 @@ export async function GET() {
   const raw = await readFile(manifestPath, 'utf-8')
   const manifest = JSON.parse(raw)
 
-  // Resolve Supabase origin from environment variable
+  // Resolve Supabase origin — prefer hardcoded known origin, then env var, then wildcard
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const knownSupabaseOrigin = 'https://klxkdrfsfcoankbaoejn.supabase.co'
 
   const scopeExtensions: { origin: string }[] = [
     { origin: 'https://*.luxtradee.web.id' },
+    { origin: knownSupabaseOrigin },
   ]
 
+  // Also add env var origin if it differs from the known one
   if (supabaseUrl) {
     try {
       const url = new URL(supabaseUrl)
-      // Exact Supabase project origin (e.g. https://abcdefghij.supabase.co)
-      scopeExtensions.push({ origin: url.origin })
+      if (url.origin !== knownSupabaseOrigin) {
+        scopeExtensions.push({ origin: url.origin })
+      }
     } catch {
-      // Fallback to wildcard if env var is malformed
-      scopeExtensions.push({ origin: 'https://*.supabase.co' })
+      // Ignore malformed env var — known origin already covers it
     }
-  } else {
-    // No env var — wildcard covers any Supabase project
-    scopeExtensions.push({ origin: 'https://*.supabase.co' })
   }
 
+  // Replace static scope_extensions with runtime-resolved ones
   manifest.scope_extensions = scopeExtensions
 
   return new NextResponse(JSON.stringify(manifest, null, 2), {
