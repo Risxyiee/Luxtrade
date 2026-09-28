@@ -8,7 +8,7 @@ interface WatchlistHandlersProps {
   setAddWatchlistOpen: (open: boolean) => void
   saving: boolean
   setSaving: (saving: boolean) => void
-  fetchData: () => void
+  fetchData: (isRefresh?: boolean) => void
 }
 
 export const createWatchlistHandlers = ({
@@ -40,7 +40,7 @@ export const createWatchlistHandlers = ({
         toast.success('Added to watchlist!')
         setAddWatchlistOpen(false)
         setWatchlistForm({ symbol: '', name: '', target_price: '', notes: '' })
-        fetchData()
+        fetchData(true)
       } else {
         toast.error(data.error || 'Failed to add')
       }
@@ -56,7 +56,7 @@ export const createWatchlistHandlers = ({
       const res = await fetch(`/api/watchlist?id=${id}`, { method: 'DELETE' })
       if (res.ok) {
         toast.success('Removed from watchlist!')
-        fetchData()
+        fetchData(true)
       }
     } catch {
       toast.error('Failed to remove')

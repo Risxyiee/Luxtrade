@@ -301,3 +301,30 @@ Stage Summary:
 - Integration: EconomicCalendarWidget now renders in Dashboard overview, sidebar shows lock for free users, cron endpoint for server-side notifications
 - Files changed: 6 files (API route, Tab, Widget, DashboardTab, SidebarNav, new cron endpoint)
 - Push: fd4dcab9 on main
+
+---
+Task ID: 1
+Agent: Main
+Task: Fix all reported bugs: trade transaction delay, onboarding inconsistency, economic calendar slow data, market news slow data
+
+Work Log:
+- Fixed fetchData() in LuxTradeDashboard.tsx: Changed Promise.all to use .catch(() => null) so one API failure doesn't block all others from updating UI
+- Fixed fetchData() type signature: Added isRefresh parameter so post-mutation refresh doesn't cause full loading flash
+- Removed 1s artificial fetch delay on initial data load
+- Updated all handlers (tradeHandlers, journalHandlers, watchlistHandlers) to use fetchData(true) for refresh mode
+- Updated DashboardModals fetchData calls to use refresh mode
+- Fixed onboarding race condition: Removed dependency on `loading` state and renamed ref to `onboardingCheckedRef`. The old code waited for loading to finish before checking onboarding, causing it to show inconsistently
+- Removed 800ms delay before showing onboarding overlay
+- Fixed EconomicCalendarTab: Removed 3s fetch delay, data now loads immediately
+- Fixed EconomicCalendarWidget: Removed 5s fetch delay, data now loads immediately
+- Fixed MarketNewsTab: Removed 10s fetch delay, data now loads immediately
+- Fixed WatchlistTab: Removed 10s price polling delay, data now loads immediately
+- Lint passes clean
+
+Stage Summary:
+- Trade/Watchlist transactions now appear immediately in history (no loading flash on refresh)
+- Onboarding now reliably shows for first-time users (no race condition with data loading)
+- Economic calendar data appears immediately (was 3-5s delay before)
+- Market news data appears immediately (was 10s delay before)
+- Watchlist price polling starts immediately (was 10s delay before)
+- All fetch errors are now isolated per API endpoint (one failure doesn't block others)

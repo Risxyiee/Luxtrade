@@ -8,7 +8,7 @@ interface JournalHandlersProps {
   setAddJournalOpen: (open: boolean) => void
   saving: boolean
   setSaving: (saving: boolean) => void
-  fetchData: () => void
+  fetchData: (isRefresh?: boolean) => void
 }
 
 export const createJournalHandlers = ({
@@ -40,7 +40,7 @@ export const createJournalHandlers = ({
         toast.success('Journal entry added!')
         setAddJournalOpen(false)
         setJournalForm({ title: '', content: '', mood: '', market_condition: '' })
-        fetchData()
+        fetchData(true)
       } else {
         toast.error(data.error || 'Failed to add entry')
       }
@@ -58,7 +58,7 @@ export const createJournalHandlers = ({
       const res = await fetch(`/api/journal?id=${id}`, { method: 'DELETE' })
       if (res.ok) {
         toast.success('Entry deleted!')
-        fetchData()
+        fetchData(true)
       }
     } catch {
       toast.error('Failed to delete entry')

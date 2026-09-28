@@ -367,75 +367,88 @@ function LuxTradeDashboardContent() {
     }
   }, [])
 
-  // Fetch all data
-  const fetchData = useCallback(async () => {
-    setLoading(true)
+  // Fetch all data — each API is independent; one failure should not block others
+  // Set isRefresh=true when called after a mutation (add/edit/delete) to avoid full loading flash
+  const fetchData = useCallback(async (isRefresh?: boolean) => {
+    if (!isRefresh) setLoading(true)
     try {
+      // Fetch all in parallel but handle each independently so one failure
+      // doesn't prevent the others from updating the UI
       const [tradesRes, analyticsRes, journalRes, watchlistRes, accountsRes] = await Promise.all([
-        fetch('/api/trades'),
-        fetch('/api/analytics'),
-        fetch('/api/journal'),
-        fetch('/api/watchlist'),
-        fetch('/api/trading-accounts'),
+        fetch('/api/trades').catch(() => null),
+        fetch('/api/analytics').catch(() => null),
+        fetch('/api/journal').catch(() => null),
+        fetch('/api/watchlist').catch(() => null),
+        fetch('/api/trading-accounts').catch(() => null),
       ])
 
-      if (tradesRes.ok) {
-        const data = await tradesRes.json()
-        setTrades(data.trades || [])
+      // Process trades (most critical — must update immediately)
+      if (tradesRes?.ok) {
+        try {
+          const data = await tradesRes.json()
+          setTrades(data.trades || [])
+        } catch { /* keep existing trades */ }
       }
 
-      if (analyticsRes.ok) {
-        const data = await analyticsRes.json()
-        // API returns flat analytics fields directly
-        setAnalytics(data)
+      // Process analytics
+      if (analyticsRes?.ok) {
+        try {
+          const data = await analyticsRes.json()
+          setAnalytics(data)
+        } catch { /* keep existing analytics */ }
       }
 
-      if (journalRes.ok) {
-        const data = await journalRes.json()
-        setJournalEntries(data.entries || [])
+      // Process journal
+      if (journalRes?.ok) {
+        try {
+          const data = await journalRes.json()
+          setJournalEntries(data.entries || [])
+        } catch { /* keep existing journal */ }
       }
 
-      if (watchlistRes.ok) {
-        const data = await watchlistRes.json()
-        setWatchlistItems(data.items || [])
+      // Process watchlist
+      if (watchlistRes?.ok) {
+        try {
+          const data = await watchlistRes.json()
+          setWatchlistItems(data.items || [])
+        } catch { /* keep existing watchlist */ }
       }
 
-      if (accountsRes.ok) {
-        const data = await accountsRes.json()
-        let accounts = data.accounts || []
+      // Process accounts
+      if (accountsRes?.ok) {
+        try {
+          const data = await accountsRes.json()
+          let accounts = data.accounts || []
 
-        // If user has no accounts, create a default one
-        if (accounts.length === 0) {
-          // No trading accounts found, creating default
-          const ensureRes = await fetch('/api/trading-accounts/ensure-default', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            credentials: 'include'
-          })
-          if (ensureRes.ok) {
-            const ensureData = await ensureRes.json()
-            accounts = [ensureData.account]
-          // Default account created
+          // If user has no accounts, create a default one
+          if (accounts.length === 0) {
+            const ensureRes = await fetch('/api/trading-accounts/ensure-default', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include'
+            })
+            if (ensureRes.ok) {
+              const ensureData = await ensureRes.json()
+              accounts = [ensureData.account]
+            }
           }
-        }
 
-        setTradingAccounts(accounts)
+          setTradingAccounts(accounts)
 
-        // Auto-select default account for new trades
-        if (accounts.length > 0) {
-          const defaultAccount = accounts.find((acc: any) => acc.is_default) || accounts[0]
-          setFormData(prev => ({
-            ...prev,
-            account_id: defaultAccount.id,
-            account_type: defaultAccount.account_type
-          }))
-        }
+          // Auto-select default account for new trades
+          if (accounts.length > 0) {
+            const defaultAccount = accounts.find((acc: any) => acc.is_default) || accounts[0]
+            setFormData(prev => ({
+              ...prev,
+              account_id: defaultAccount.id,
+              account_type: defaultAccount.account_type
+            }))
+          }
+        } catch { /* keep existing accounts */ }
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
-      toast.error('Gagal memuat data dashboard. Coba refresh halaman.')
+      if (!isRefresh) toast.error('Gagal memuat data dashboard. Coba refresh halaman.')
     } finally {
       setLoading(false)
       setChartAnimated(true)
@@ -460,40 +473,40 @@ function LuxTradeDashboardContent() {
     if (!authLoading) {
       setAuthChecked(true)
       if (user) {
-        const fetchDelay = setTimeout(() => fetchData(), 1000)
-        return () => { clearTimeout(timeoutId); clearTimeout(fetchDelay) }
+        // Fetch data immediately — no artificial delay
+        fetchData()
+        return () => clearTimeout(timeoutId)
       }
     }
 
     return () => clearTimeout(timeoutId)
   }, [authLoading, user, fetchData])
 
-  // Check onboarding for first-time users (after auth + initial fetch)
-  const authCheckedRef = useRef(false)
+  // Check onboarding for first-time users — runs once after auth is ready
+  const onboardingCheckedRef = useRef(false)
   useEffect(() => {
-    if (authCheckedRef.current) return
+    if (onboardingCheckedRef.current) return
     if (authLoading || !user) return
-    if (loading) return // wait for first fetch to finish
-    authCheckedRef.current = true
+    onboardingCheckedRef.current = true
 
     // Check API for onboarding status (database-backed)
+    // Do NOT wait for loading (data fetch) — this caused race condition
+    // where onboarding wouldn't show if data fetch was slow
     fetch('/api/onboarding', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         if (!data.completed) {
-          const timer = setTimeout(() => setShowOnboarding(true), 800)
-          return () => clearTimeout(timer)
+          setShowOnboarding(true)
         }
       })
       .catch(() => {
         // Fallback to localStorage
         const onboardingDone = localStorage.getItem('luxtrade_onboarding_done')
         if (!onboardingDone) {
-          const timer = setTimeout(() => setShowOnboarding(true), 800)
-          return () => clearTimeout(timer)
+          setShowOnboarding(true)
         }
       })
-  }, [authLoading, user, loading])
+  }, [authLoading, user])
 
   // Event listener for demo data modal
   useEffect(() => {

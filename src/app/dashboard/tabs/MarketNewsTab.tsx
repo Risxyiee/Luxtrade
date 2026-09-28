@@ -53,13 +53,10 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
   }, [])
 
   useEffect(() => {
-    // Delay by 10s to allow Network Idle for PWA audit
-    const delayTimeout = setTimeout(() => {
-      fetchNews()
-      intervalRef.current = setInterval(fetchNews, 30 * 60 * 1000)
-    }, 10000)
+    // Fetch immediately — no artificial delay for news data
+    fetchNews()
+    intervalRef.current = setInterval(fetchNews, 30 * 60 * 1000)
     return () => {
-      clearTimeout(delayTimeout)
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
   }, [fetchNews])
