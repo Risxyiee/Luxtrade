@@ -27,6 +27,12 @@ const EquityCurveCard = dynamic(() => import('../components/EquityCurveCard'), {
   loading: () => <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border border-lux-border dark:border-blue-500/20"><CardContent className="py-16 flex items-center justify-center"><Loader2 className="w-6 h-6 text-blue-400 animate-spin" /></CardContent></Card>
 })
 
+// Economic Calendar Widget - lazy loaded for performance
+const EconomicCalendarWidget = dynamic(() => import('../components/EconomicCalendarWidget'), {
+  ssr: false,
+  loading: () => <Card className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-blue-900/30"><CardHeader className="pb-3"><div className="h-4 w-32 bg-white/10 rounded animate-pulse" /></CardHeader><CardContent className="pt-0"><div className="h-32 bg-white/5 rounded animate-pulse" /></CardContent></Card>
+})
+
 import {
   calculateConsecutiveStreaks,
   calculateActiveStreak,
@@ -445,6 +451,14 @@ function DashboardTab({
           />
         </div>
       )}
+
+      {/* ============================================ */}
+      {/* 3.5 HIGH-IMPACT ECONOMIC CALENDAR WIDGET      */}
+      {/* ============================================ */}
+      <EconomicCalendarWidget
+        language={language}
+        onViewAll={() => window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'economic-calendar' }))}
+      />
 
       {/* ============================================ */}
       {/* 4. PERFORMANCE TOGGLE (Today / Weekly)        */}
