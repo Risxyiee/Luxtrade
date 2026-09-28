@@ -102,10 +102,42 @@ export async function createClientForApi(request: NextRequest) {
   // Create a fresh response that we can set cookies on.
   let response = NextResponse.next({ request: { headers: request.headers } })
 
+  // Cloudflare Workers fix: request.cookies may be empty even when
+  // the Cookie header is present. Parse the raw header as fallback.
+  const rawCookieHeader = request.headers.get('cookie')
+  const parsedCookieNames = request.cookies.getAll().map(c => c.name)
+  const sbCookiePrefix = 'sb-' + url.split('//')[1].split('.')[0]
+  const hasSbCookie = parsedCookieNames.some(n => n.startsWith(sbCookiePrefix))
+
+  // If Next.js parsed cookies are missing Supabase cookies but the raw header exists,
+  // we need manual parsing (common in Cloudflare Workers / opennextjs-cloudflare)
+  const needsManualParse = !hasSbCookie && !!rawCookieHeader
+
+  if (needsManualParse) {
+    console.warn('[createClientForApi] request.cookies missing Supabase cookies, falling back to raw Cookie header parsing')
+  }
+
+  /** Parse a cookie value from the raw Cookie header string */
+  function getCookieFromHeader(name: string): string | undefined {
+    if (!rawCookieHeader) return undefined
+    const prefix = name + '='
+    for (const part of rawCookieHeader.split(';')) {
+      const trimmed = part.trimStart()
+      if (trimmed.startsWith(prefix)) {
+        return trimmed.slice(prefix.length)
+      }
+    }
+    return undefined
+  }
+
   const supabase = createServerClient(url, key, {
     cookies: {
       get(name: string) {
-        return request.cookies.get(name)?.value
+        // Try Next.js parsed cookies first
+        const parsed = request.cookies.get(name)?.value
+        if (parsed) return parsed
+        // Fallback: parse raw Cookie header (Cloudflare Workers fix)
+        return getCookieFromHeader(name)
       },
       async set(name: string, value: string, options: CookieOptions) {
         try {
