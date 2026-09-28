@@ -70,8 +70,7 @@ export default function AccountsTab({ language = 'id' }: { language?: 'id' | 'en
   }
 
   useEffect(() => {
-    const timeout = setTimeout(() => fetchAccounts(), 1000)
-    return () => clearTimeout(timeout)
+    fetchAccounts()
   }, [])
 
   // Close dropdown when clicking outside

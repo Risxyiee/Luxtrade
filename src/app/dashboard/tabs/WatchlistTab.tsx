@@ -98,6 +98,7 @@ export default function WatchlistTab({
       await Promise.all(uniqueSymbols.map(async (symbol) => {
         try {
           const res = await fetch(`/api/forex?symbol=${symbol}&limit=1`)
+          if (!res.ok) return
           const data = await res.json()
           if (data.success && data.data?.length > 0) {
             priceMap[symbol] = data.data[data.data.length - 1].close

@@ -224,8 +224,7 @@ function LeaderboardSection({ language, refreshKey }: { language: 'id' | 'en'; r
   }, [period, sortBy])
 
   useEffect(() => {
-    const timeout = setTimeout(() => fetchLeaderboard(), 1000)
-    return () => clearTimeout(timeout)
+    fetchLeaderboard()
   }, [fetchLeaderboard, refreshKey])
 
   return (
@@ -427,12 +426,16 @@ function ShareTradeSection({
       const res = await fetch('/api/community/share-trade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ tradeId, includeAnalytics }),
       })
       if (res.ok) {
         const data: SharedTradeResponse = await res.json()
         setShareCode(data.shareCode)
         toast.success(t('linkCopied', language))
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        toast.error((errorData as any).error || t('error', language))
       }
     } catch {
       toast.error(t('error', language))
@@ -443,10 +446,14 @@ function ShareTradeSection({
 
   const handleCopyLink = () => {
     if (!shareCode) return
-    navigator.clipboard.writeText(`${window.location.origin}/shared/${shareCode}`)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-    toast.success(t('linkCopied', language))
+    try {
+      navigator.clipboard.writeText(`${window.location.origin}/shared/${shareCode}`)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+      toast.success(t('linkCopied', language))
+    } catch {
+      toast.error(t('error', language))
+    }
   }
 
   const handleLookup = async () => {
@@ -455,7 +462,7 @@ function ShareTradeSection({
     setLookupError('')
     setSharedView(null)
     try {
-      const res = await fetch(`/api/community/share-trade?code=${lookupCode.trim().toUpperCase()}`)
+      const res = await fetch(`/api/community/share-trade?code=${lookupCode.trim().toUpperCase()}`, { credentials: 'include' })
       if (res.ok) {
         const data = await res.json()
         setSharedView(data)
@@ -735,7 +742,7 @@ function PublicProfileSection({
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const res = await fetch('/api/community/public-profile')
+        const res = await fetch('/api/community/public-profile', { credentials: 'include' })
         if (res.ok) {
           const data = await res.json()
           setIsPublic(data.publicProfile)
@@ -755,6 +762,7 @@ function PublicProfileSection({
       const res = await fetch('/api/community/public-profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ publicProfile: checked }),
       })
       if (res.ok) {
@@ -765,6 +773,8 @@ function PublicProfileSection({
           : (language === 'id' ? 'Profil publik dinonaktifkan' : 'Public profile disabled')
         )
         onPublicProfileToggled?.()
+      } else {
+        toast.error(t('error', language))
       }
     } catch {
       toast.error(t('error', language))

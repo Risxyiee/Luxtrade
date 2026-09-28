@@ -53,13 +53,15 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
   }, [])
 
   useEffect(() => {
+    // Skip fetch for non-PRO users — they see paywall, not data
+    if (!isPro) return
     // Fetch immediately — no artificial delay for news data
     fetchNews()
     intervalRef.current = setInterval(fetchNews, 30 * 60 * 1000)
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
-  }, [fetchNews])
+  }, [fetchNews, isPro])
 
   if (!isPro) {
     return (

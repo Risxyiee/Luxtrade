@@ -35,8 +35,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
   useEffect(() => {
     // If we have initial data and period is 'all', skip the fetch
     if (period === 'all' && initialAnalytics) return
-    const timeout = setTimeout(() => fetchAnalytics(), 1000)
-    return () => clearTimeout(timeout)
+    fetchAnalytics()
   }, [period])
 
   const fetchAnalytics = async () => {
@@ -45,6 +44,7 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
       const res = await fetch(`/api/analytics?period=${period}`, {
         credentials: 'include'
       })
+      if (!res.ok) throw new Error('Failed to fetch analytics')
       const data = await res.json()
       setAnalytics(data)
     } catch (error) {
