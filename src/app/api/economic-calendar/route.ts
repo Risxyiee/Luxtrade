@@ -29,6 +29,7 @@ const CACHE_DURATION = 30 * 60 * 1000; // 30 min
 // ─── TradingEconomics RapidAPI ────────────────────────────────────────────────
 const TE_API_HOST = 'trading-econmics-scraper.p.rapidapi.com';
 const TE_CALENDAR_ENDPOINT = 'https://trading-econmics-scraper.p.rapidapi.com/get_calendar_events';
+const TE_NEWS_ENDPOINT = 'https://trading-econmics-scraper.p.rapidapi.com/get_trading_economics_news';
 
 function getTeApiKey(): string {
   return process.env.RAPIDAPI_KEY || process.env.RAPIDAPI_TRADING_ECONOMICS_KEY || '';
@@ -132,7 +133,105 @@ async function fetchTECalendar(): Promise<CalendarEvent[]> {
     console.warn('[EconCalendar] TE Strategy 3 failed: ' + msg);
   }
 
+  // Strategy 4: Use the NEWS endpoint (which works!) to derive calendar events
+  // News from TradingEconomics contains economic event data with dates/times/importance
+  try {
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1;
+    const day = today.getDate();
+    const url4 = `${TE_NEWS_ENDPOINT}?year=${year}&month=${month}&day=${day}`;
+    const res4 = await fetch(url4, { headers, signal: AbortSignal.timeout(15000) });
+
+    if (res4.ok) {
+      const data = await res4.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const events = newsToCalendarEvents(data);
+        if (events.length > 0) {
+          console.log('[EconCalendar] TE Strategy 4 (news→calendar) derived ' + events.length + ' events from ' + data.length + ' news items');
+          return events;
+        }
+      }
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn('[EconCalendar] TE Strategy 4 failed: ' + msg);
+  }
+
   throw new Error('All TE calendar strategies failed');
+}
+
+/**
+ * Convert TradingEconomics news items into calendar events.
+ * News articles about economic indicators contain date/time/importance
+ * that can be repurposed as calendar events.
+ */
+function newsToCalendarEvents(newsItems: Record<string, unknown>[]): CalendarEvent[] {
+  // Keywords that indicate this news IS about an economic event/indicator
+  const EVENT_KEYWORDS = [
+    'cpi', 'inflation', 'gdp', 'pmi', 'nfp', 'nonfarm', 'non-farm',
+    'interest rate', 'rate decision', 'fomc', 'fed ', 'ecb', 'boj', 'boe',
+    'retail sales', 'jobless claims', 'unemployment', 'employment change',
+    'consumer sentiment', 'consumer confidence', 'producer price', 'ppi',
+    'trade balance', 'industrial production', 'housing starts', 'building permits',
+    'durable goods', 'factory orders', 'leading indicators',
+    'payroll', 'wage', 'income', 'spending',
+    'manufacturing', 'services pmi', 'composite pmi',
+  ];
+
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+
+  const events: CalendarEvent[] = [];
+
+  for (const item of newsItems) {
+    const title = ((item.title as string) || '').toLowerCase();
+    const category = ((item.category as string) || '').toLowerCase();
+
+    // Check if this news item is about an economic event
+    const isEconEvent = EVENT_KEYWORDS.some(kw => title.includes(kw)) ||
+      category.includes('interest rate') ||
+      category.includes('inflation') ||
+      category.includes('employment') ||
+      category.includes('consumer') ||
+      category.includes('balance of trade');
+
+    if (!isEconEvent) continue;
+
+    const date = (item.date as string) || todayStr;
+    const time = (item.time as string) || '08:30'; // Default US market time
+    const country = (item.country as string) || '';
+    const currency = mapCountryToCurrency(country);
+    const importance = (item.importance as string) || '2';
+    const eventTitle = (item.title as string) || 'Economic Event';
+
+    // Avoid duplicates
+    const dedupeKey = currency + '-' + date + '-' + eventTitle.substring(0, 30);
+    if (events.some(e => (e.currency + '-' + e.date + '-' + e.event.substring(0, 30)) === dedupeKey)) continue;
+
+    events.push({
+      id: 'ten-' + events.length + '-' + currency + '-' + date,
+      date,
+      time,
+      dateTime: buildDateTime(date, time),
+      currency,
+      impact: mapTeImportance(importance),
+      event: eventTitle,
+      actual: item.actual as string | undefined,
+      forecast: (item.forecast as string) || '',
+      previous: (item.previous as string) || '',
+    });
+  }
+
+  // Sort by impact (high first) then date
+  const impactOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  events.sort((a, b) => {
+    const aImp = impactOrder[a.impact] ?? 99;
+    const bImp = impactOrder[b.impact] ?? 99;
+    if (aImp !== bImp) return aImp - bImp;
+    return a.dateTime.localeCompare(b.dateTime);
+  });
+
+  return events;
 }
 
 function mapTEEvents(data: Record<string, unknown>[], fallbackDate: string): CalendarEvent[] {
@@ -292,7 +391,8 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
       console.log('[EconCalendar] Trying TradingEconomics RapidAPI (key found: ' + teKey.substring(0, 6) + '...)');
       const events = await fetchTECalendar();
       console.log('[EconCalendar] ✓ Fetched ' + events.length + ' events from TradingEconomics');
-      return { events, source: 'TradingEconomics', unavailable: false };
+      const source = events.some(e => e.id.startsWith('ten-')) ? 'TradingEconomics (via News)' : 'TradingEconomics';
+      return { events, source, unavailable: false };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[EconCalendar] ✗ TE calendar failed: ' + msg);
