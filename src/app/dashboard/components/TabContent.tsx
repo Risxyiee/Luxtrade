@@ -70,6 +70,7 @@ interface TabContentProps {
   chartAnimated: boolean
   hasMounted: boolean
   tradingAccounts?: any[]
+  fetchData?: (isRefresh?: boolean) => void
 }
 
 export default function TabContent({
@@ -110,6 +111,7 @@ export default function TabContent({
   chartAnimated,
   hasMounted,
   tradingAccounts,
+  fetchData,
 }: TabContentProps) {
   return (
     <div className="w-full px-2 sm:px-4 lg:px-6 pb-24">
@@ -149,7 +151,7 @@ export default function TabContent({
           )}
 
           {activeTab === 'accounts' && (
-            <AccountsTab language={language} />
+            <AccountsTab language={language} fetchData={fetchData} />
           )}
 
           {activeTab === 'journal' && (
