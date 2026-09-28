@@ -28,7 +28,6 @@ const CACHE_DURATION = 30 * 60 * 1000; // 30 min
 
 // ─── TradingEconomics RapidAPI ────────────────────────────────────────────────
 const TE_API_HOST = 'trading-econmics-scraper.p.rapidapi.com';
-const TE_CALENDAR_ENDPOINT = 'https://trading-econmics-scraper.p.rapidapi.com/get_calendar_events';
 const TE_NEWS_ENDPOINT = 'https://trading-econmics-scraper.p.rapidapi.com/get_trading_economics_news';
 
 function getTeApiKey(): string {
@@ -67,16 +66,15 @@ function mapCountryToCurrency(country: string): string {
   return map[country] || country.substring(0, 3).toUpperCase();
 }
 
-// ─── TE Calendar: Multi-strategy fetch ────────────────────────────────────────
+// ─── Fetch TradingEconomics NEWS endpoint and convert to calendar events ──────
 async function fetchTECalendar(): Promise<CalendarEvent[]> {
   const apiKey = getTeApiKey();
   if (!apiKey) throw new Error('No API key');
 
   const today = new Date();
-  const start = new Date(today); start.setDate(today.getDate() - 1);
-  const end = new Date(today); end.setDate(today.getDate() + 7);
-  const startDate = start.toISOString().split('T')[0];
-  const endDate = end.toISOString().split('T')[0];
+  const year = today.getFullYear();
+  const month = today.getMonth() + 1;
+  const day = today.getDate();
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -84,73 +82,24 @@ async function fetchTECalendar(): Promise<CalendarEvent[]> {
     'x-rapidapi-key': apiKey,
   };
 
-  // Strategy 1: start_date/end_date params
-  try {
-    const url = `${TE_CALENDAR_ENDPOINT}?country=all&importance=3,2,1&start_date=${startDate}&end_date=${endDate}`;
-    const res = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        console.log('[EconCalendar] TE Strategy 1 (start_date/end_date): ' + data.length + ' events');
-        return mapTECalendarEvents(data, startDate);
-      }
-    } else {
-      console.warn('[EconCalendar] TE Strategy 1: HTTP ' + res.status);
-    }
-  } catch (e) { console.warn('[EconCalendar] TE Strategy 1 failed: ' + (e instanceof Error ? e.message : e)); }
+  // Use NEWS endpoint (known working) to derive calendar events
+  const url = `${TE_NEWS_ENDPOINT}?year=${year}&month=${month}&day=${day}`;
+  const res = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
+  if (!res.ok) {
+    if (res.status === 429) throw new Error('TradingEconomics rate limit (429)');
+    throw new Error('TradingEconomics returned ' + res.status);
+  }
 
-  // Strategy 2: year/month/day params (same as news endpoint)
-  const year = today.getFullYear();
-  const month = today.getMonth() + 1;
-  const day = today.getDate();
-  try {
-    const url = `${TE_CALENDAR_ENDPOINT}?year=${year}&month=${month}&day=${day}`;
-    const res = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        console.log('[EconCalendar] TE Strategy 2 (year/month/day): ' + data.length + ' events');
-        return mapTECalendarEvents(data, startDate);
-      }
-    } else {
-      console.warn('[EconCalendar] TE Strategy 2: HTTP ' + res.status);
-    }
-  } catch (e) { console.warn('[EconCalendar] TE Strategy 2 failed: ' + (e instanceof Error ? e.message : e)); }
+  const data = await res.json();
+  if (!Array.isArray(data) || data.length === 0) {
+    throw new Error('TradingEconomics returned empty data');
+  }
 
-  // Strategy 3: Use NEWS endpoint (known working) to derive calendar events
-  try {
-    const url = `${TE_NEWS_ENDPOINT}?year=${year}&month=${month}&day=${day}`;
-    const res = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        const events = newsToCalendarEvents(data);
-        if (events.length > 0) {
-          console.log('[EconCalendar] TE Strategy 3 (news→calendar): ' + events.length + ' events from ' + data.length + ' news');
-          return events;
-        }
-      }
-    }
-  } catch (e) { console.warn('[EconCalendar] TE Strategy 3 failed: ' + (e instanceof Error ? e.message : e)); }
+  const events = newsToCalendarEvents(data);
+  if (events.length === 0) throw new Error('No economic events found in news data');
 
-  throw new Error('All TE calendar strategies failed');
-}
-
-function mapTECalendarEvents(data: Record<string, unknown>[], fallbackDate: string): CalendarEvent[] {
-  return data.map((item, i) => {
-    const date = (item.date as string) || fallbackDate;
-    const time = (item.time as string) || '00:00';
-    const currency = mapCountryToCurrency((item.country as string) || '');
-    return {
-      id: 'te-' + i + '-' + currency + '-' + date + '-' + time,
-      date, time, dateTime: buildDateTime(date, time),
-      currency, impact: mapTeImportance((item.importance as string) || '1'),
-      event: (item.event as string) || 'Unknown Event',
-      actual: item.actual as string | undefined,
-      forecast: (item.forecast as string) || '',
-      previous: (item.previous as string) || '',
-    };
-  });
+  console.log('[EconCalendar] TE News→Calendar: ' + events.length + ' events from ' + data.length + ' news');
+  return events;
 }
 
 // ─── News → Calendar Events converter ────────────────────────────────────────
@@ -241,73 +190,6 @@ function newsToCalendarEvents(newsItems: Record<string, unknown>[]): CalendarEve
   return events;
 }
 
-// ─── Finnhub Calendar (fallback #1) ──────────────────────────────────────────
-async function fetchFinnhubCalendar(): Promise<CalendarEvent[]> {
-  const apiKey = process.env.FINNHUB_API_KEY;
-  if (!apiKey) throw new Error('No Finnhub key');
-
-  const res = await fetch('https://finnhub.io/api/v1/calendar/economic?token=' + apiKey, {
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!res.ok) throw new Error('Finnhub returned ' + res.status);
-
-  const data = await res.json();
-  const events: unknown[] = data?.economicCalendar || [];
-  if (!Array.isArray(events)) throw new Error('Invalid Finnhub data');
-
-  return events.map((item: Record<string, unknown>, i: number) => {
-    const date = (item.date as string) || '';
-    const time = (item.time as string) || '';
-    const currency = ((item.country as string) || '').substring(0, 3).toUpperCase();
-    return {
-      id: 'fh-' + i + '-' + currency + '-' + date,
-      date, time, dateTime: buildDateTime(date, time),
-      currency: currency || 'USD',
-      impact: item.impact === 'high' ? 'high' : item.impact === 'medium' ? 'medium' : 'low',
-      event: (item.event as string) || 'Economic Event',
-      actual: item.actual?.toString(),
-      forecast: item.forecast?.toString() || '',
-      previous: (item.prev as string)?.toString() || '',
-    };
-  });
-}
-
-// ─── Alpha Vantage Calendar (fallback #2) ─────────────────────────────────────
-async function fetchAlphaVantageCalendar(): Promise<CalendarEvent[]> {
-  const apiKey = process.env.ALPHAVANTAGE_API_KEY;
-  if (!apiKey) throw new Error('No Alpha Vantage key');
-
-  const res = await fetch(
-    `https://www.alphavantage.co/query?function=ECONOMIC_CALENDAR&apikey=${apiKey}`,
-    { signal: AbortSignal.timeout(10000) }
-  );
-  if (!res.ok) throw new Error('Alpha Vantage returned ' + res.status);
-
-  const data = await res.json();
-  const events: unknown[] = data?.data || data?.events || [];
-  if (!Array.isArray(events)) throw new Error('Invalid Alpha Vantage data');
-
-  return events.map((item: Record<string, unknown>, i: number) => {
-    const date = (item.date as string) || '';
-    const time = (item.time as string) || '';
-    const currency = ((item.country as string) || '').substring(0, 3).toUpperCase();
-    const importance = (item.importance as string) || (item.priority as string) || '1';
-    let impact: 'high' | 'medium' | 'low' = 'low';
-    if (importance === '3' || importance === 'HIGH' || importance === 'high') impact = 'high';
-    else if (importance === '2' || importance === 'MEDIUM' || importance === 'medium') impact = 'medium';
-
-    return {
-      id: 'av-' + i + '-' + currency + '-' + date,
-      date, time, dateTime: buildDateTime(date, time),
-      currency: currency || 'USD', impact,
-      event: (item.event as string) || (item.name as string) || 'Economic Event',
-      actual: item.actual?.toString(),
-      forecast: item.forecast?.toString() || '',
-      previous: item.prev?.toString() || (item.previous as string)?.toString() || '',
-    };
-  });
-}
-
 // ─── Helper: Build ISO datetime ───────────────────────────────────────────────
 function buildDateTime(date: string, time: string): string {
   try {
@@ -374,46 +256,23 @@ function getSampleEvents(): CalendarEvent[] {
 async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source: string; unavailable: boolean }> {
   const teKey = getTeApiKey();
 
-  // 1. TradingEconomics (multi-strategy: calendar endpoint → news endpoint)
+  // 1. TradingEconomics News → Calendar Events (the only strategy that works)
   if (teKey) {
     try {
-      console.log('[EconCalendar] Trying TradingEconomics RapidAPI (key: ' + teKey.substring(0, 6) + '...)');
+      console.log('[EconCalendar] Trying TradingEconomics News→Calendar (key: ' + teKey.substring(0, 6) + '...)');
       const events = await fetchTECalendar();
-      const source = events.some(e => e.id.startsWith('ten-')) ? 'TradingEconomics (News)' : 'TradingEconomics';
-      console.log('[EconCalendar] ✓ ' + events.length + ' events from ' + source);
-      return { events, source, unavailable: false };
+      console.log('[EconCalendar] ✓ ' + events.length + ' events from TradingEconomics (News)');
+      return { events, source: 'TradingEconomics (News)', unavailable: false };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[EconCalendar] ✗ TE failed: ' + msg);
+      console.error('[EconCalendar] ✗ TE News failed: ' + msg);
     }
   } else {
     console.warn('[EconCalendar] RAPIDAPI_KEY not set, skipping TradingEconomics');
   }
 
-  // 2. Finnhub
-  if (process.env.FINNHUB_API_KEY) {
-    try {
-      const events = await fetchFinnhubCalendar();
-      console.log('[EconCalendar] ✓ ' + events.length + ' events from Finnhub');
-      return { events, source: 'Finnhub', unavailable: false };
-    } catch (err: unknown) {
-      console.error('[EconCalendar] ✗ Finnhub: ' + (err instanceof Error ? err.message : err));
-    }
-  }
-
-  // 3. Alpha Vantage
-  if (process.env.ALPHAVANTAGE_API_KEY) {
-    try {
-      const events = await fetchAlphaVantageCalendar();
-      console.log('[EconCalendar] ✓ ' + events.length + ' events from Alpha Vantage');
-      return { events, source: 'Alpha Vantage', unavailable: false };
-    } catch (err: unknown) {
-      console.error('[EconCalendar] ✗ Alpha Vantage: ' + (err instanceof Error ? err.message : err));
-    }
-  }
-
-  // 4. Sample data
-  console.warn('[EconCalendar] Using sample data (no API keys or all sources failed)');
+  // 2. Sample data
+  console.warn('[EconCalendar] Using sample data (no API key or TE News failed)');
   return { events: getSampleEvents(), source: 'Sample Data', unavailable: false };
 }
 
