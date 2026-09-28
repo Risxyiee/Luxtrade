@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "rm -rf .open-next .next && opennextjs-cloudflare build && find .open-next/assets -type f \\( -name '*.apk' -o -name '*.mov' -o -name '*.mp4' -o -name '*.webm' \\) -size +10M -delete 2>/dev/null; find .open-next/assets -name 'demo-tutorial.mp4' -delete 2>/dev/null; echo '✅ Build complete — large assets purged from .open-next/assets'",
+    "build": "rm -rf .open-next .next && opennextjs-cloudflare build && node -e \"const fs=require('fs'),path=require('path');const d='.open-next/assets';if(!fs.existsSync(d))process.exit(0);const rm=[];function walk(p){for(const f of fs.readdirSync(p)){const fp=path.join(p,f);const s=fs.statSync(fp);if(s.isDirectory())walk(fp);else if(f.endsWith('.mp4')||f.endsWith('.mov')||f.endsWith('.apk')||f.endsWith('.webm')){if(s.size>10*1024*1024||f==='demo-tutorial.mp4'){rm.push(fp);fs.unlinkSync(fp)}}}}walk(d);if(rm.length)console.log('🗑 Purged '+rm.length+' large assets:',rm);else console.log('✅ No oversized assets found')\"",
     "build:clean": "rm -rf .open-next .next node_modules/.cache && opennextjs-cloudflare build",
     "prebuild": "echo '🧹 Cleaning cache...'",
+    "predeploy": "node -e \"const fs=require('fs'),path=require('path');const d='.open-next/assets';if(!fs.existsSync(d))process.exit(0);const rm=[];function walk(p){for(const f of fs.readdirSync(p)){const fp=path.join(p,f);const s=fs.statSync(fp);if(s.isDirectory())walk(fp);else if(f.endsWith('.mp4')||f.endsWith('.mov')||f.endsWith('.apk')||f.endsWith('.webm')){if(s.size>10*1024*1024||f==='demo-tutorial.mp4'){rm.push(fp);fs.unlinkSync(fp)}}}}walk(d);if(rm.length)console.log('🗑 Pre-deploy: purged '+rm.length+' large assets');else console.log('✅ Pre-deploy: no oversized assets')\"",
+    "deploy": "npx wrangler deploy",
     "lint": "eslint .",
     "clean": "rm -rf .open-next .next node_modules/.cache",
     "db:push": "prisma db push",

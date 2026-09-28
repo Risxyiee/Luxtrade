@@ -8,12 +8,13 @@ const config = defineCloudflareConfig({
     ]
   },
   // Exclude large static assets from Workers deployment
-  // These are served from R2 or external CDN instead
+  // Cloudflare Workers has a 25 MiB per-asset limit
+  // Large videos should be served from R2/CDN instead
   assets: {
     exclude: [
       "*.apk",
+      "*.mov",
       "demo-tutorial.mp4",
-      "*.mov"
     ]
   }
 } as any);
