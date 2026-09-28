@@ -354,3 +354,22 @@ Stage Summary:
 - PerformanceChart equity calculation bug fixed
 - AITab now respects user language preference
 - PRO API quota no longer wasted on free users
+---
+Task ID: 1
+Agent: main
+Task: Remove broken get_calendar_events endpoint, use only economic news, push to GitHub
+
+Work Log:
+- Analyzed /api/economic-calendar/route.ts: found 3 strategies, Strategy 1 & 2 use broken get_calendar_events, Strategy 3 uses working get_trading_economics_news
+- Analyzed /api/news/calendar/route.ts: also uses broken get_calendar_events
+- Analyzed /api/cron/econ-calendar-notify/route.ts: calls /api/economic-calendar (no direct RapidAPI call)
+- Rewrote /api/economic-calendar/route.ts: removed all get_calendar_events calls, Finnhub, Alpha Vantage fallbacks; only uses get_trading_economics_news → newsToCalendarEvents
+- Deleted /api/news/calendar/route.ts (and its directory)
+- Lint passed clean
+- Committed: "refactor: remove broken get_calendar_events endpoint, use only get_trading_economics_news"
+- Pushed to GitHub: bc986b0c (main → main)
+
+Stage Summary:
+- Calendar events now derived 100% from working TradingEconomics news endpoint
+- Removed 395 lines of broken/unused code (2 strategies, Finnhub, AlphaVantage, news/calendar route)
+- Cron notify endpoint works unchanged (calls /api/economic-calendar which now uses news→calendar)
