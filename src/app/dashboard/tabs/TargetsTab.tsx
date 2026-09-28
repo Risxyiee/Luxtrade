@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useMotionSafe } from '@/hooks/use-motion-safe'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -55,6 +56,7 @@ const TARGETS_KEY = 'luxtradee-targets'
 
 // Component
 function TargetsTab({ isPro, onUpgrade, language, analytics, trades }: TargetsTabProps) {
+  const { repeatCount } = useMotionSafe()
   // Editable target state
   const [customTargets, setCustomTargets] = useState(DEFAULT_TARGETS)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -116,7 +118,7 @@ function TargetsTab({ isPro, onUpgrade, language, analytics, trades }: TargetsTa
     return (
       <Card className="bg-gradient-to-br from-blue-500/10 to-blue-400/10 border-blue-500/30">
         <CardContent className="py-8 text-center">
-          <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: Infinity }}>
+          <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: repeatCount }}>
             <Lock className="w-12 h-12 mx-auto mb-4 text-blue-400" />
           </motion.div>
           <h3 className="text-lg font-bold text-blue-400 mb-2">{language === "id" ? "Target - Fitur PRO" : "Targets - PRO Feature"}</h3>

@@ -908,3 +908,38 @@ button, a, [role="button"], [type="button"], [type="submit"] {
   transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ============================================
+   MOBILE PERFORMANCE: Disable heavy animations
+   ============================================ */
+
+/* Disable infinite CSS animations on mobile to save GPU/battery */
+@media (max-width: 767px) {
+  .animate-float-lux,
+  .animate-pulse,
+  .animate-spin,
+  .radar-pulse,
+  .progress-fill {
+    animation: none !important;
+  }
+
+  /* Reduce blur effects on mobile */
+  .backdrop-blur-xl,
+  .backdrop-blur-2xl,
+  .backdrop-blur-\[24px\] {
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
+}
+
+/* Respect user's reduced-motion preference globally */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+

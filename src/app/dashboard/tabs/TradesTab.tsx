@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { Activity, Search, Download, View as ViewIcon, Edit, Trash2, RefreshCw, Clock, Target, Tag, Link2, Image as ImageIcon, Copy, FileDown, ChevronDown, Plus, Upload } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { motion } from 'framer-motion'
+import { useMotionSafe } from '@/hooks/use-motion-safe'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -37,6 +38,7 @@ function TradesTab({
   onDuplicate,
   language = 'id'
 }: TradesTabProps) {
+  const { repeatCount } = useMotionSafe()
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'BUY' | 'SELL'>('all')
   const [filterSession, setFilterSession] = useState<'all' | 'London' | 'New York' | 'Asia'>('all')
@@ -327,7 +329,7 @@ function TradesTab({
               <motion.div
                 className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-400/10 border border-blue-500/20 flex items-center justify-center"
                 animate={{ y: [0, -5, 0] }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
+                transition={{ duration: 3, repeat: repeatCount, ease: 'easeInOut', delay: 0.2 }}
               >
                 <Upload className="w-7 h-7 lg:w-8 lg:h-8 text-blue-400" />
               </motion.div>
@@ -336,7 +338,7 @@ function TradesTab({
               <motion.div
                 className="w-20 h-20 lg:w-24 lg:h-24 rounded-3xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/20 flex items-center justify-center shadow-lg shadow-amber-500/10"
                 animate={{ y: [0, -7, 0] }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
+                transition={{ duration: 3, repeat: repeatCount, ease: 'easeInOut', delay: 0.4 }}
               >
                 <Plus className="w-10 h-10 lg:w-12 lg:h-12 text-amber-400" />
               </motion.div>
@@ -345,7 +347,7 @@ function TradesTab({
               <motion.div
                 className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-blue-400/20 to-blue-500/10 border border-blue-400/20 flex items-center justify-center"
                 animate={{ y: [0, -5, 0] }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }}
+                transition={{ duration: 3, repeat: repeatCount, ease: 'easeInOut', delay: 0.6 }}
               >
                 <Activity className="w-7 h-7 lg:w-8 lg:h-8 text-blue-400" />
               </motion.div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion } from 'framer-motion'
+import { useMotionSafe } from '@/hooks/use-motion-safe'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -51,6 +52,7 @@ function calculateConsecutiveStreaks(trades: Trade[], type: 'win' | 'lose'): num
 
 // Component
 function PsychologyTab({ isPro, onUpgrade, trades, language = 'id' }: PsychologyTabProps) {
+  const { repeatCount } = useMotionSafe()
   // Calculate psychology metrics from trades
   const winningTrades = trades.filter(t => t.profit_loss >= 0)
   const losingTrades = trades.filter(t => t.profit_loss < 0)
@@ -102,7 +104,7 @@ function PsychologyTab({ isPro, onUpgrade, trades, language = 'id' }: Psychology
           <CardContent className="py-8 text-center">
             <motion.div
               animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
+              transition={{ duration: 2, repeat: repeatCount }}
             >
               <Lock className="w-12 h-12 mx-auto mb-4 text-blue-400" />
             </motion.div>

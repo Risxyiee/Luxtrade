@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useMotionSafe } from '@/hooks/use-motion-safe'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils-currency'
@@ -27,6 +28,7 @@ export const RecentTrades: React.FC<RecentTradesProps> = ({
   onEdit,
   maxTrades = 5
 }) => {
+  const { repeatCount } = useMotionSafe()
   const displayTrades = trades.slice(0, maxTrades)
 
   if (displayTrades.length === 0) return null
@@ -56,9 +58,9 @@ export const RecentTrades: React.FC<RecentTradesProps> = ({
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <motion.div
-                    className={`w-2 h-2 rounded-full shrink-0 ${trade.profit_loss >= 0 ? 'bg-emerald-400' : 'bg-red-400'}`}
+                    className={`w-2 h-2 rounded-full shrink-0 hidden sm:block ${trade.profit_loss >= 0 ? 'bg-emerald-400' : 'bg-red-400'}`}
                     animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 2, repeat: Infinity, delay: index * 0.2 }}
+                    transition={{ duration: 2, repeat: repeatCount, delay: index * 0.2 }}
                   />
                   <span className="font-bold truncate">{trade.symbol}</span>
                   <Badge variant={trade.type === 'BUY' ? 'default' : 'destructive'} className="text-xs shrink-0">

@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useMotionSafe } from '@/hooks/use-motion-safe'
 import { authFetch } from '@/lib/api-fetch'
 
 // Extended interface with affiliate fields
@@ -57,6 +58,7 @@ const quickActions = [
 ]
 
 export default function AdminPanelClient() {
+  const { repeatCount } = useMotionSafe()
   const [users, setUsers] = useState<UserProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -348,7 +350,7 @@ export default function AdminPanelClient() {
         <div className="text-center">
           <motion.div
             animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            transition={{ duration: 1, repeat: repeatCount, ease: "linear" }}
           >
             <Loader2 className="w-10 h-10 text-blue-500 mx-auto mb-4" />
           </motion.div>

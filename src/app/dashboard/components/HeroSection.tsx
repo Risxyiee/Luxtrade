@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useMotionSafe } from '@/hooks/use-motion-safe'
 import { Card, CardContent, CardTitle } from '@/components/ui/card'
 import { Sparkles, TrendingUp, Target, Activity, Trophy } from 'lucide-react'
 
@@ -23,6 +24,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   language,
   profile
 }) => {
+  const { repeatCount, isMobile } = useMotionSafe()
   return (
     <motion.div
       initial={{ opacity: 0, y: -20 }}
@@ -32,7 +34,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     >
       <Card className="relative overflow-hidden bg-gradient-to-br from-blue-600/15 via-blue-600/10 to-amber-500/10 backdrop-blur-md border border-blue-500/20 transition-all duration-500 hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10">
         {/* Animated Background Patterns - Premium Glowing Orbs */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none hidden md:block">
           <motion.div
             className="absolute -top-24 -right-24 w-64 h-64 bg-blue-500/15 rounded-full blur-3xl"
             animate={{
@@ -43,7 +45,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             }}
             transition={{
               duration: 6,
-              repeat: Infinity,
+              repeat: repeatCount,
               ease: "easeInOut"
             }}
           />
@@ -57,7 +59,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             }}
             transition={{
               duration: 7,
-              repeat: Infinity,
+              repeat: repeatCount,
               ease: "easeInOut",
               delay: 0.5
             }}
@@ -70,7 +72,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             }}
             transition={{
               duration: 5,
-              repeat: Infinity,
+              repeat: repeatCount,
               ease: "easeInOut",
               delay: 1
             }}
@@ -89,7 +91,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 <div className="flex items-center gap-2 mb-2">
                   <motion.div
                     animate={{ rotate: [0, 360] }}
-                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                    transition={{ duration: 20, repeat: repeatCount, ease: "linear" }}
                   >
                     <Sparkles className="w-5 h-5 text-amber-400" />
                   </motion.div>
