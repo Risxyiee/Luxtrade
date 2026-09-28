@@ -211,11 +211,10 @@ function LeaderboardSection({ language, refreshKey }: { language: 'id' | 'en'; r
     setLoading(true)
     try {
       const params = new URLSearchParams({ period, sortBy, refresh: '1' })
-      const res = await fetch(`/api/community/leaderboard?${params}`)
-      if (res.ok) {
-        const data = await res.json()
-        setLeaderboard(data.leaderboard || [])
-      }
+      const res = await fetch(`/api/community/leaderboard?${params}`, { credentials: 'include' })
+      if (!res.ok) throw new Error('Failed to fetch leaderboard')
+      const data = await res.json()
+      setLeaderboard(data.leaderboard || [])
     } catch {
       // Silently fail
     } finally {
@@ -446,8 +445,21 @@ function ShareTradeSection({
 
   const handleCopyLink = () => {
     if (!shareCode) return
+    const link = `${window.location.origin}/shared/${shareCode}`
     try {
-      navigator.clipboard.writeText(`${window.location.origin}/shared/${shareCode}`)
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link)
+      } else {
+        // Fallback for browsers without clipboard API
+        const textarea = document.createElement('textarea')
+        textarea.value = link
+        textarea.style.position = 'fixed'
+        textarea.style.opacity = '0'
+        document.body.appendChild(textarea)
+        textarea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+      }
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
       toast.success(t('linkCopied', language))

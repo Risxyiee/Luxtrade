@@ -200,22 +200,18 @@ export default function AdminPanelClient() {
   }
 
   // Auto-refresh every 60 seconds (only when tab is visible)
-  // Delayed by 10s to allow Network Idle for PWA audit
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   useEffect(() => {
-    const delayTimeout = setTimeout(() => {
+    if (document.visibilityState === 'visible') {
+      fetchUsers()
+    }
+    intervalRef.current = setInterval(() => {
       if (document.visibilityState === 'visible') {
         fetchUsers()
       }
-      intervalRef.current = setInterval(() => {
-        if (document.visibilityState === 'visible') {
-          fetchUsers()
-        }
-      }, 60000)
-    }, 10000)
+    }, 60000)
 
     return () => {
-      clearTimeout(delayTimeout)
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
   }, [])

@@ -70,16 +70,11 @@ export default function ConnectionsPage() {
     return headers
   }, [])
 
-  // Redirect to login if not authenticated (with delay to prevent flicker)
+  // Redirect to login if not authenticated
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!authLoading && !user && !session) {
-        console.log('🔴 [DEBUG] Not authenticated, redirecting to login')
-        router.push('/auth/login')
-      }
-    }, 1000) // Wait 1 second before redirecting
-
-    return () => clearTimeout(timer)
+    if (!authLoading && !user && !session) {
+      router.push('/auth/login')
+    }
   }, [user, authLoading, session, router])
 
   // Fetch user's connected accounts on mount
