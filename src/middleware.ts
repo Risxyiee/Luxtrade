@@ -68,15 +68,40 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next()
     }
 
+    // Cloudflare Workers fix: request.cookies may be empty even when
+    // the Cookie header is present. Parse the raw header as fallback.
+    const rawCookieHeader = request.headers.get('cookie')
+
+    /** Parse all cookies from the raw Cookie header string */
+    function parseCookiesFromHeader(): { name: string; value: string }[] {
+      if (!rawCookieHeader) return []
+      return rawCookieHeader.split(';').map(part => {
+        const trimmed = part.trimStart()
+        const eqIndex = trimmed.indexOf('=')
+        if (eqIndex === -1) return { name: trimmed, value: '' }
+        return { name: trimmed.slice(0, eqIndex), value: trimmed.slice(eqIndex + 1) }
+      })
+    }
+
+    const parsedCookies = request.cookies.getAll()
+    const headerCookies = rawCookieHeader ? parseCookiesFromHeader() : []
+    // Merge: Next.js parsed cookies first, then header-parsed cookies as fallback
+    const allCookies = [...parsedCookies]
+    for (const hc of headerCookies) {
+      if (!allCookies.some(pc => pc.name === hc.name)) {
+        allCookies.push(hc)
+      }
+    }
+
+    console.log('[Middleware] Cookies:', allCookies.map(c => ({ name: c.name, hasValue: !!c.value, len: c.value?.length })))
+
     const supabase = createServerClient(
       supabaseUrl,
       supabaseKey,
       {
         cookies: {
           getAll() {
-            const cookies = request.cookies.getAll()
-            console.log('[Middleware] Cookies:', cookies.map(c => ({ name: c.name, hasValue: !!c.value, len: c.value?.length })))
-            return cookies
+            return allCookies
           },
           setAll(cookiesToSet) {
             cookiesToSet.forEach(({ name: ckName, value: ckValue }) => {
