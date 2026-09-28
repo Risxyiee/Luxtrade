@@ -97,7 +97,7 @@ export default function EconomicCalendarWidget({ language, onViewAll }: Economic
 
   const fetchCalendar = useCallback(async () => {
     try {
-      const res = await fetch('/api/economic-calendar?impact=high&currency=USD&tz=' + encodeURIComponent(userOffset))
+      const res = await fetch('/api/economic-calendar?impact=high&currency=USD&tz=' + encodeURIComponent(userOffset), { credentials: 'include' })
       if (res.ok) {
         const data = await res.json()
         setEvents((data.events || []).slice(0, 5))

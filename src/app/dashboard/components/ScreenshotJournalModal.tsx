@@ -142,6 +142,7 @@ export default function ScreenshotJournalModal({
       const res = await fetch('/api/screenshot-journal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           imageBase64,
           mimeType

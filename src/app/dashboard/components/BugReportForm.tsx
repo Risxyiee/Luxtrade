@@ -109,6 +109,7 @@ export function BugReportForm({ open, onClose }: BugReportFormProps) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
+        credentials: 'include',
         body: JSON.stringify({
           description: description.trim(),
           screenshotUrl

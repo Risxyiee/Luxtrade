@@ -40,7 +40,7 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
     setNewsLoading(true)
     setUnavailableMsg(null)
     try {
-      const res = await fetch('/api/news?format=full')
+      const res = await fetch('/api/news?format=full', { credentials: 'include' })
       if (res.ok) {
         const data = await res.json()
         setNews(data.news || [])

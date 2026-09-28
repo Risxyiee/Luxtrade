@@ -186,6 +186,7 @@ export default function ScreenshotJournalDialog({
 
         const res = await fetch('/api/screenshot-journal', {
           method: 'POST',
+          credentials: 'include',
           body: formData,
           signal: controller.signal,
         })
@@ -249,6 +250,7 @@ export default function ScreenshotJournalDialog({
         const tradeRes = await fetch('/api/trades', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             symbol: editTrade.symbol,
             type: editTrade.type,
@@ -274,6 +276,7 @@ export default function ScreenshotJournalDialog({
         const journalRes = await fetch('/api/journal', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             title: editJournal.title,
             content: editJournal.content,

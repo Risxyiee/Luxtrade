@@ -90,7 +90,7 @@ export default function AITab({
   // Fetch AI quota for free users
   useEffect(() => {
     if (!isPro) {
-      fetch('/api/user/ai-quota')
+      fetch('/api/user/ai-quota', { credentials: 'include' })
         .then(res => res.ok ? res.json() : null)
         .then(data => { if (data) setAiQuota(data) })
         .catch(err => console.error('Failed to fetch AI quota:', err))

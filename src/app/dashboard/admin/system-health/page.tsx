@@ -95,7 +95,7 @@ export default function SystemHealthPage() {
   const fetchHealthCheck = async () => {
     try {
       setRefreshing(true)
-      const response = await fetch('/api/admin/health-check')
+      const response = await fetch('/api/admin/health-check', { credentials: 'include' })
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
