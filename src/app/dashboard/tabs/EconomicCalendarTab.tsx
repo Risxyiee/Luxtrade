@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { CalendarDays, RefreshCw, Crown, AlertTriangle, Bell, BellOff, Clock, TrendingUp } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import { CalendarDays, RefreshCw, Crown, AlertTriangle, Bell, BellOff, Clock, Globe, Zap } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface CalendarEvent {
@@ -27,20 +28,63 @@ interface EconomicCalendarTabProps {
   onUpgrade?: () => void
 }
 
+// ─── Timezone Detection ───────────────────────────────────────────────────────
+function getUserTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone
+  } catch {
+    return 'UTC'
+  }
+}
+
+function getUserUtcOffset(): string {
+  try {
+    const offset = new Date().getTimezoneOffset()
+    const sign = offset <= 0 ? '+' : '-'
+    const hours = Math.floor(Math.abs(offset) / 60)
+    const minutes = Math.abs(offset) % 60
+    return `UTC${sign}${hours}${minutes > 0 ? ':' + String(minutes).padStart(2, '0') : ''}`
+  } catch {
+    return 'UTC'
+  }
+}
+
+/** Convert a UTC dateTime string to the user's local time string */
+function toLocalTime(utcDateTime: string): string {
+  try {
+    const d = new Date(utcDateTime)
+    if (isNaN(d.getTime())) return ''
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+  } catch {
+    return ''
+  }
+}
+
+/** Convert a UTC dateTime to local date string YYYY-MM-DD */
+function toLocalDate(utcDateTime: string): string {
+  try {
+    const d = new Date(utcDateTime)
+    if (isNaN(d.getTime())) return ''
+    return d.toISOString().split('T')[0]
+  } catch {
+    return ''
+  }
+}
+
 // ─── Countdown Hook ───────────────────────────────────────────────────────────
-function useCountdown(targetDate: string): string {
-  const [countdown, setCountdown] = useState('')
+function useCountdown(targetDate: string): { text: string; diffMs: number } {
+  const [result, setResult] = useState<{ text: string; diffMs: number }>({ text: '', diffMs: 0 })
 
   useEffect(() => {
     const target = new Date(targetDate).getTime()
-    if (isNaN(target)) { setCountdown(''); return }
+    if (isNaN(target)) { setResult({ text: '', diffMs: 0 }); return }
 
     const update = () => {
       const now = Date.now()
       const diff = target - now
 
       if (diff <= 0) {
-        setCountdown('LIVE')
+        setResult({ text: 'LIVE', diffMs: 0 })
         return
       }
 
@@ -48,16 +92,19 @@ function useCountdown(targetDate: string): string {
       const minutes = Math.floor((diff % 3600000) / 60000)
       const seconds = Math.floor((diff % 60000) / 1000)
 
+      let text = ''
       if (hours > 24) {
         const days = Math.floor(hours / 24)
-        setCountdown(days + 'd ' + (hours % 24) + 'h')
+        text = days + 'd ' + (hours % 24) + 'h'
       } else if (hours > 0) {
-        setCountdown(hours + 'h ' + minutes + 'm')
+        text = hours + 'h ' + minutes + 'm'
       } else if (minutes > 0) {
-        setCountdown(minutes + 'm ' + seconds + 's')
+        text = minutes + 'm ' + seconds + 's'
       } else {
-        setCountdown(seconds + 's')
+        text = seconds + 's'
       }
+
+      setResult({ text, diffMs: diff })
     }
 
     update()
@@ -65,22 +112,47 @@ function useCountdown(targetDate: string): string {
     return () => clearInterval(interval)
   }, [targetDate])
 
-  return countdown
+  return result
 }
 
 // ─── Countdown Display Component ──────────────────────────────────────────────
 function EventCountdown({ dateTime, language }: { dateTime: string; language: 'id' | 'en' }) {
-  const countdown = useCountdown(dateTime)
-  const isLive = countdown === 'LIVE'
-  const isUrgent = countdown.includes('m ') && !countdown.includes('h ') && !countdown.includes('d ')
+  const { text, diffMs } = useCountdown(dateTime)
+  const isLive = text === 'LIVE'
+  const isUrgent = diffMs > 0 && diffMs < 15 * 60 * 1000 && !isLive // Under 15 min
+  const isClose = diffMs > 0 && diffMs < 60 * 60 * 1000 && !isLive // Under 1 hour
 
   return (
-    <span className={`text-[10px] font-mono ${
-      isLive ? 'text-red-400 font-bold' : isUrgent ? 'text-amber-400' : 'text-gray-500'
+    <span className={`text-[10px] font-mono whitespace-nowrap ${
+      isLive ? 'text-red-400 font-bold' : isUrgent ? 'text-amber-400 font-bold animate-pulse' : isClose ? 'text-amber-400/80' : 'text-gray-500'
     }`}>
-      {isLive ? '🔴 LIVE' : countdown ? '⏱ ' + countdown : ''}
+      {isLive ? '🔴 LIVE' : text ? '⏱ ' + text : ''}
     </span>
   )
+}
+
+// ─── Push Notification Scheduler ─────────────────────────────────────────────
+function scheduleBrowserNotification(title: string, body: string, dateTime: string) {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return
+    const targetTime = new Date(dateTime).getTime()
+    const now = Date.now()
+    // Notify 15 minutes before
+    const notifyAt = targetTime - 15 * 60 * 1000
+    const delay = notifyAt - now
+    if (delay <= 0 || delay > 24 * 60 * 60 * 1000) return // Skip if past or > 24h
+    setTimeout(() => {
+      try {
+        new Notification(title, {
+          body,
+          icon: '/icon-192x192.png',
+          badge: '/icon-72x72.png',
+          tag: 'econ-cal-' + dateTime,
+          requireInteraction: true,
+        })
+      } catch { /* Notification might fail in some contexts */ }
+    }, delay)
+  } catch { /* silent */ }
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -93,42 +165,78 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
   const [source, setSource] = useState<string>('')
   const [unavailableMsg, setUnavailableMsg] = useState<string | null>(null)
   const [notifyEnabled, setNotifyEnabled] = useState(false)
+  const [showLocalTime, setShowLocalTime] = useState(true)
   const [now, setNow] = useState<string>('')
+  const [serverNow, setServerNow] = useState<string>('')
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const scheduledRef = useRef<Set<string>>(new Set())
 
-  // Load notification preference from localStorage
+  // Timezone
+  const userTz = useMemo(() => getUserTimezone(), [])
+  const userOffset = useMemo(() => getUserUtcOffset(), [])
+
+  // Load preferences from localStorage
   useEffect(() => {
     setNotifyEnabled(localStorage.getItem('econ_cal_notify') === 'true')
+    setShowLocalTime(localStorage.getItem('econ_cal_local_time') !== 'false')
   }, [])
+
+  // Request notification permission when enabling
+  useEffect(() => {
+    if (notifyEnabled && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then(perm => {
+        if (perm !== 'granted') {
+          setNotifyEnabled(false)
+          localStorage.setItem('econ_cal_notify', 'false')
+        }
+      })
+    }
+  }, [notifyEnabled])
 
   const fetchCalendar = useCallback(async () => {
     setCalLoading(true)
     setUnavailableMsg(null)
     try {
-      const res = await fetch('/api/economic-calendar')
+      const res = await fetch('/api/economic-calendar?tz=' + encodeURIComponent(userOffset))
       if (res.ok) {
         const data = await res.json()
         setEvents(data.events || [])
         setLastFetched(data.fetchedAt || '')
         setSource(data.source || '')
         setNow(data.now || '')
+        setServerNow(data.now || '')
         if (data.unavailable) {
           setUnavailableMsg(data.message || 'Calendar data temporarily unavailable.')
         }
       }
     } catch { /* keep existing */ } finally { setCalLoading(false) }
-  }, [])
+  }, [userOffset])
 
   useEffect(() => {
     const delayTimeout = setTimeout(() => {
       fetchCalendar()
       intervalRef.current = setInterval(fetchCalendar, 30 * 60 * 1000)
-    }, 5000)
+    }, 3000) // Reduced from 5s for faster initial load
     return () => {
       clearTimeout(delayTimeout)
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
   }, [fetchCalendar])
+
+  // Schedule browser notifications for upcoming high-impact USD events
+  useEffect(() => {
+    if (!notifyEnabled) return
+    events.forEach(evt => {
+      if (evt.impact === 'high' && evt.currency === 'USD' && evt.dateTime && !scheduledRef.current.has(evt.id)) {
+        scheduledRef.current.add(evt.id)
+        scheduleBrowserNotification(
+          `⚠️ High-Impact USD Event in 15 min`,
+          `${evt.event} at ${evt.time} UTC — Get ready!`,
+          evt.dateTime
+        )
+      }
+    })
+  }, [events, notifyEnabled])
 
   // Notification toggle
   const toggleNotify = useCallback(() => {
@@ -136,6 +244,13 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
     setNotifyEnabled(next)
     localStorage.setItem('econ_cal_notify', String(next))
   }, [notifyEnabled])
+
+  // Local time toggle
+  const toggleLocalTime = useCallback(() => {
+    const next = !showLocalTime
+    setShowLocalTime(next)
+    localStorage.setItem('econ_cal_local_time', String(next))
+  }, [showLocalTime])
 
   // Unique currencies
   const currencies = useMemo(() => {
@@ -152,33 +267,41 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
     return result
   }, [events, calFilter, currencyFilter])
 
-  // Group by date
+  // Group by date — use local date when showLocalTime is on
   const eventsByDate = useMemo(() => {
     return filtered.reduce((acc, evt) => {
-      const dayKey = evt.date || 'Unknown'
+      const dayKey = showLocalTime && evt.dateTime
+        ? toLocalDate(evt.dateTime) || evt.date
+        : evt.date || 'Unknown'
       if (!acc[dayKey]) acc[dayKey] = []
       acc[dayKey].push(evt)
       return acc
     }, {} as Record<string, CalendarEvent[]>)
-  }, [filtered])
+  }, [filtered, showLocalTime])
 
   const sortedDates = useMemo(() => Object.keys(eventsByDate).sort(), [eventsByDate])
 
   const highCount = events.filter(e => e.impact === 'high').length
   const medCount = events.filter(e => e.impact === 'medium').length
+  const nextHighImpact = useMemo(() => {
+    const nowMs = Date.now()
+    return events
+      .filter(e => e.impact === 'high' && new Date(e.dateTime).getTime() > nowMs)
+      .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime())[0] || null
+  }, [events])
 
   // ─── Paywall for free users ──────────────────────────────────────────────
   if (!isPro) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-4">
-          <Crown className="w-8 h-8 text-white" />
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center mb-4">
+          <CalendarDays className="w-8 h-8 text-white" />
         </div>
         <h3 className="text-xl font-bold text-white mb-2">{language === 'id' ? 'Fitur Premium' : 'Premium Feature'}</h3>
         <p className="text-lux-text-secondary dark:text-gray-400 text-center max-w-sm mb-6">
           {language === 'id' ? 'Kalender ekonomi hanya tersedia untuk pengguna PRO' : 'Economic calendar is only available for PRO users'}
         </p>
-        <button onClick={onUpgrade} className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity">
+        <button onClick={onUpgrade} className="px-6 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity">
           {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
         </button>
       </div>
@@ -206,8 +329,12 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
     fetching: L ? 'Mengambil kalender ekonomi...' : 'Fetching economic calendar...',
     notifyOn: L ? 'Notifikasi Aktif' : 'Notifications On',
     notifyOff: L ? 'Notifikasi Mati' : 'Notifications Off',
-    notifyHint: L ? 'Kamu akan mendapat notifikasi 15 menit sebelum event USD berdampak tinggi' : 'You will get notified 15 min before high-impact USD events',
+    notifyHint: L ? 'Notifikasi 15 menit sebelum event USD berdampak tinggi' : 'Notified 15 min before high-impact USD events',
     countdown: L ? 'Hitung Mundur' : 'Countdown',
+    localTime: L ? 'Waktu Lokal' : 'Local Time',
+    utcTime: L ? 'Waktu UTC' : 'UTC Time',
+    nextEvent: L ? 'Event Berikutnya' : 'Next Event',
+    inLabel: L ? 'dalam' : 'in',
   }
 
   const impactConfig = {
@@ -229,7 +356,22 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
   }
 
   const isToday = (dateStr: string) => {
-    return dateStr === new Date().toISOString().split('T')[0]
+    const todayStr = new Date().toISOString().split('T')[0]
+    return dateStr === todayStr
+  }
+
+  /** Get display time for an event */
+  const getDisplayTime = (evt: CalendarEvent) => {
+    if (showLocalTime && evt.dateTime) {
+      const local = toLocalTime(evt.dateTime)
+      if (local) return local
+    }
+    return evt.time || '--:--'
+  }
+
+  const getTimeSuffix = () => {
+    if (showLocalTime) return userOffset
+    return 'UTC'
   }
 
   return (
@@ -240,6 +382,14 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
           <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
           <span className="text-xs text-lux-text-muted dark:text-gray-500">
             {source ? (L ? 'Sumber: ' : 'Source: ') + source : (L ? 'Memuat...' : 'Loading...')}
+          </span>
+        </div>
+
+        {/* Timezone display */}
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+          <Globe className="w-3.5 h-3.5 text-gray-400" />
+          <span className="text-xs text-lux-text-muted dark:text-gray-500">
+            {showLocalTime ? userTz : 'UTC'}
           </span>
         </div>
 
@@ -258,13 +408,41 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
         {notifyEnabled && (
           <span className="text-[10px] text-blue-400/70">{t.notifyHint}</span>
         )}
+
+        {/* Local/UTC Time Toggle */}
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-white/[0.02] border-white/[0.05]">
+          <Clock className="w-3.5 h-3.5 text-gray-400" />
+          <span className="text-xs text-gray-400">{showLocalTime ? t.localTime : t.utcTime}</span>
+          <Switch
+            checked={showLocalTime}
+            onCheckedChange={toggleLocalTime}
+            className="scale-75 data-[state=checked]:bg-blue-500"
+          />
+        </div>
       </div>
+
+      {/* Next High-Impact Event Banner */}
+      {nextHighImpact && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-red-500/10 via-red-500/5 to-transparent border border-red-500/20">
+          <Zap className="w-5 h-5 text-red-400 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-red-400 uppercase">{t.nextEvent}</span>
+              <span className="text-sm">{getCurrencyFlag(nextHighImpact.currency)}</span>
+            </div>
+            <p className="text-sm font-medium text-white truncate">{nextHighImpact.event}</p>
+          </div>
+          <div className="flex-shrink-0">
+            <EventCountdown dateTime={nextHighImpact.dateTime} language={language} />
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <CalendarDays className="w-5 h-5 text-blue-400" />
+            <CalendarDays className="w-5 h-5 text-red-400" />
             {t.title}
           </h2>
           <p className="text-sm text-lux-text-muted dark:text-gray-500 mt-1">{t.subtitle}</p>
@@ -309,7 +487,9 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
               onClick={() => setCalFilter(f)}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
                 calFilter === f
-                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                  ? f === 'high'
+                    ? 'bg-red-500/20 text-red-300 border border-red-500/40'
+                    : 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
                   : 'bg-lux-surface-hover dark:bg-white/[0.03] text-lux-text-secondary dark:text-gray-400 border border-lux-border dark:border-white/[0.06] hover:bg-lux-surface-hover dark:bg-white/[0.06] hover:text-lux-text-primary dark:text-gray-300'
               }`}
             >
@@ -377,9 +557,9 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
             <div key={dateKey}>
               {/* Date header */}
               <div className="flex items-center gap-2 mb-3">
-                <div className={`w-2 h-2 rounded-full ${isToday(dateKey) ? 'bg-blue-500 animate-pulse' : 'bg-white/20'}`} />
+                <div className={`w-2 h-2 rounded-full ${isToday(dateKey) ? 'bg-red-500 animate-pulse' : 'bg-white/20'}`} />
                 <h3 className="text-sm font-bold text-lux-text-primary dark:text-gray-300 uppercase tracking-wider">
-                  {formatDate(dateKey)}{isToday(dateKey) ? ' (Today)' : ''}
+                  {formatDate(dateKey)}{isToday(dateKey) ? ` (${L ? 'Hari Ini' : 'Today'})` : ''}
                 </h3>
                 <span className="text-xs text-gray-600">({eventsByDate[dateKey].length} {t.events})</span>
               </div>
@@ -387,8 +567,8 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
               {/* Desktop Table View */}
               <div className="hidden md:block">
                 {/* Table Header */}
-                <div className="grid grid-cols-[60px_40px_1fr_70px_70px_70px_70px] gap-2 px-3 py-2 text-[10px] font-bold text-gray-600 uppercase tracking-wider border-b border-white/[0.06]">
-                  <span>{t.waktu}</span>
+                <div className="grid grid-cols-[70px_36px_1fr_70px_70px_70px_70px] gap-2 px-3 py-2 text-[10px] font-bold text-gray-600 uppercase tracking-wider border-b border-white/[0.06]">
+                  <span>{t.waktu} ({getTimeSuffix()})</span>
                   <span></span>
                   <span>{t.mataUang} / Event</span>
                   <span className="text-right">{t.aktual}</span>
@@ -397,7 +577,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
                   <span className="text-right">{t.countdown}</span>
                 </div>
 
-                {/* Table Rows — no motion.div, instant render */}
+                {/* Table Rows */}
                 <div className="grid gap-1 mt-1">
                   {eventsByDate[dateKey].map((evt, idx) => {
                     const cfg = impactConfig[evt.impact]
@@ -405,10 +585,10 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
                     return (
                       <div
                         key={evt.id || idx}
-                        className={`grid grid-cols-[60px_40px_1fr_70px_70px_70px_70px] gap-2 items-center px-3 py-2.5 rounded-lg border ${cfg.bg} ${isNextHighImpact ? 'ring-1 ring-red-500/20 ' + cfg.glow : ''} hover:bg-white/[0.02] transition-colors`}
+                        className={`grid grid-cols-[70px_36px_1fr_70px_70px_70px_70px] gap-2 items-center px-3 py-2.5 rounded-lg border ${cfg.bg} ${isNextHighImpact ? 'ring-1 ring-red-500/20 ' + cfg.glow : ''} hover:bg-white/[0.02] transition-colors`}
                       >
                         {/* Time */}
-                        <span className="text-xs font-mono text-lux-text-secondary dark:text-gray-400">{evt.time || '--:--'}</span>
+                        <span className="text-xs font-mono text-lux-text-secondary dark:text-gray-400">{getDisplayTime(evt)}</span>
                         {/* Flag */}
                         <span className="text-base">{getCurrencyFlag(evt.currency)}</span>
                         {/* Event Name */}
@@ -424,15 +604,15 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
                         </div>
                         {/* Actual */}
                         <div className="text-right">
-                          {evt.actual ? <span className="text-xs font-mono text-white font-medium">{evt.actual}</span> : <span className="text-xs text-gray-600">—</span>}
+                          {evt.actual ? <span className="text-xs font-mono text-white font-medium">{evt.actual}</span> : <span className="text-xs text-gray-600">&mdash;</span>}
                         </div>
                         {/* Forecast */}
                         <div className="text-right">
-                          {evt.forecast ? <span className="text-xs font-mono text-amber-400/80">{evt.forecast}</span> : <span className="text-xs text-gray-600">—</span>}
+                          {evt.forecast ? <span className="text-xs font-mono text-amber-400/80">{evt.forecast}</span> : <span className="text-xs text-gray-600">&mdash;</span>}
                         </div>
                         {/* Previous */}
                         <div className="text-right">
-                          {evt.previous ? <span className="text-xs font-mono text-lux-text-secondary dark:text-gray-400">{evt.previous}</span> : <span className="text-xs text-gray-600">—</span>}
+                          {evt.previous ? <span className="text-xs font-mono text-lux-text-secondary dark:text-gray-400">{evt.previous}</span> : <span className="text-xs text-gray-600">&mdash;</span>}
                         </div>
                         {/* Countdown */}
                         <div className="text-right">
@@ -459,7 +639,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
                         <div className="text-lg flex-shrink-0">{getCurrencyFlag(evt.currency)}</div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-mono text-lux-text-secondary dark:text-gray-400">{evt.time || '--:--'}</span>
+                            <span className="text-xs font-mono text-lux-text-secondary dark:text-gray-400">{getDisplayTime(evt)}</span>
                             <Badge variant="outline" className={`${cfg.badge} text-[9px] px-1.5 py-0 border-0`}>{cfg.label}</Badge>
                             {isNextHighImpact && notifyEnabled && <Bell className="w-3 h-3 text-blue-400" />}
                           </div>

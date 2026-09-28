@@ -22,7 +22,7 @@ interface CacheEntry {
   unavailable?: boolean;
 }
 
-// ─── In-Memory Cache ──────────────────────────────────────────────────────────
+// ─── In-Memory Cache (fallback when KV not available) ────────────────────────
 let calendarCache: CacheEntry | null = null;
 const CACHE_DURATION = 30 * 60 * 1000; // 30 min
 
@@ -72,25 +72,30 @@ async function fetchTECalendar(): Promise<CalendarEvent[]> {
     signal: AbortSignal.timeout(15000),
   });
 
-  if (!response.ok) throw new Error('TE returned ' + response.status);
+  if (!response.ok) {
+    if (response.status === 429) throw new Error('TradingEconomics rate limit (429)');
+    throw new Error('TE returned ' + response.status);
+  }
   const data = await response.json();
   if (!Array.isArray(data)) throw new Error('Invalid TE data');
 
-  return data.map((item: any, i: number) => {
-    const date = item.date || startDate;
-    const time = item.time || '00:00';
-    const currency = mapCountryToCurrency(item.country || '');
+  return data.map((item: Record<string, unknown>, i: number) => {
+    const date = (item.date as string) || startDate;
+    const time = (item.time as string) || '00:00';
+    const currency = mapCountryToCurrency((item.country as string) || '');
     return {
       id: 'te-' + i + '-' + currency + '-' + date + '-' + time,
       date, time, dateTime: buildDateTime(date, time),
-      currency, impact: mapTeImportance(item.importance || '1'),
-      event: item.event || 'Unknown Event',
-      actual: item.actual, forecast: item.forecast || '', previous: item.previous || '',
+      currency, impact: mapTeImportance((item.importance as string) || '1'),
+      event: (item.event as string) || 'Unknown Event',
+      actual: item.actual as string | undefined,
+      forecast: (item.forecast as string) || '',
+      previous: (item.previous as string) || '',
     };
   });
 }
 
-// ─── Finnhub Calendar (fallback) ─────────────────────────────────────────────
+// ─── Finnhub Calendar (fallback #1) ──────────────────────────────────────────
 async function fetchFinnhubCalendar(): Promise<CalendarEvent[]> {
   const apiKey = process.env.FINNHUB_API_KEY;
   if (!apiKey) throw new Error('No Finnhub key');
@@ -101,21 +106,59 @@ async function fetchFinnhubCalendar(): Promise<CalendarEvent[]> {
   if (!res.ok) throw new Error('Finnhub returned ' + res.status);
 
   const data = await res.json();
-  const events: any[] = data?.economicCalendar || [];
+  const events: unknown[] = data?.economicCalendar || [];
   if (!Array.isArray(events)) throw new Error('Invalid Finnhub data');
 
-  return events.map((item: any, i: number) => {
-    const date = item.date || '';
-    const time = item.time || '';
-    const currency = (item.country || '').substring(0, 3).toUpperCase();
+  return events.map((item: Record<string, unknown>, i: number) => {
+    const date = (item.date as string) || '';
+    const time = (item.time as string) || '';
+    const currency = ((item.country as string) || '').substring(0, 3).toUpperCase();
     return {
       id: 'fh-' + i + '-' + currency + '-' + date,
       date, time, dateTime: buildDateTime(date, time),
       currency: currency || 'USD',
       impact: item.impact === 'high' ? 'high' : item.impact === 'medium' ? 'medium' : 'low',
-      event: item.event || 'Economic Event',
-      actual: item.actual?.toString(), forecast: item.forecast?.toString() || '',
-      previous: item.prev?.toString() || '',
+      event: (item.event as string) || 'Economic Event',
+      actual: item.actual?.toString(),
+      forecast: item.forecast?.toString() || '',
+      previous: (item.prev as string)?.toString() || '',
+    };
+  });
+}
+
+// ─── Alpha Vantage Calendar (fallback #2) ─────────────────────────────────────
+async function fetchAlphaVantageCalendar(): Promise<CalendarEvent[]> {
+  const apiKey = process.env.ALPHAVANTAGE_API_KEY;
+  if (!apiKey) throw new Error('No Alpha Vantage key');
+
+  const res = await fetch(
+    `https://www.alphavantage.co/query?function=ECONOMIC_CALENDAR&apikey=${apiKey}`,
+    { signal: AbortSignal.timeout(10000) }
+  );
+  if (!res.ok) throw new Error('Alpha Vantage returned ' + res.status);
+
+  const data = await res.json();
+  const events: unknown[] = data?.data || data?.events || [];
+  if (!Array.isArray(events)) throw new Error('Invalid Alpha Vantage data');
+
+  return events.map((item: Record<string, unknown>, i: number) => {
+    const date = (item.date as string) || '';
+    const time = (item.time as string) || '';
+    const currency = ((item.country as string) || '').substring(0, 3).toUpperCase();
+    const importance = (item.importance as string) || (item.priority as string) || '1';
+    let impact: 'high' | 'medium' | 'low' = 'low';
+    if (importance === '3' || importance === 'HIGH' || importance === 'high') impact = 'high';
+    else if (importance === '2' || importance === 'MEDIUM' || importance === 'medium') impact = 'medium';
+
+    return {
+      id: 'av-' + i + '-' + currency + '-' + date,
+      date, time, dateTime: buildDateTime(date, time),
+      currency: currency || 'USD',
+      impact,
+      event: (item.event as string) || (item.name as string) || 'Economic Event',
+      actual: item.actual?.toString(),
+      forecast: item.forecast?.toString() || '',
+      previous: item.prev?.toString() || (item.previous as string)?.toString() || '',
     };
   });
 }
@@ -190,8 +233,9 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
       const events = await fetchTECalendar();
       console.log('[EconCalendar] Fetched ' + events.length + ' events from TradingEconomics');
       return { events, source: 'TradingEconomics', unavailable: false };
-    } catch (err: any) {
-      console.info('[EconCalendar] TE failed: ' + err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.info('[EconCalendar] TE failed: ' + msg);
     }
   }
 
@@ -201,14 +245,55 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
       const events = await fetchFinnhubCalendar();
       console.log('[EconCalendar] Fetched ' + events.length + ' events from Finnhub');
       return { events, source: 'Finnhub', unavailable: false };
-    } catch (err: any) {
-      console.info('[EconCalendar] Finnhub failed: ' + err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.info('[EconCalendar] Finnhub failed: ' + msg);
     }
   }
 
-  // 3. Sample data
-  console.info('[EconCalendar] Using sample data');
+  // 3. Alpha Vantage
+  if (process.env.ALPHAVANTAGE_API_KEY) {
+    try {
+      const events = await fetchAlphaVantageCalendar();
+      console.log('[EconCalendar] Fetched ' + events.length + ' events from Alpha Vantage');
+      return { events, source: 'Alpha Vantage', unavailable: false };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.info('[EconCalendar] Alpha Vantage failed: ' + msg);
+    }
+  }
+
+  // 4. Sample data
+  console.info('[EconCalendar] Using sample data (no API keys configured or all failed)');
   return { events: getSampleEvents(), source: 'Sample Data', unavailable: false };
+}
+
+// ─── KV Cache helpers ─────────────────────────────────────────────────────────
+async function getKVCache(request: NextRequest): Promise<CacheEntry | null> {
+  try {
+    const { getCloudflareEnv } = await import('@/lib/cloudflare-bindings');
+    const env = getCloudflareEnv(request as unknown as Request);
+    const kv = env?.luxtradee_kv;
+    if (!kv) return null;
+    const raw = await kv.get('economic_calendar_cache', 'text');
+    if (!raw) return null;
+    return JSON.parse(raw) as CacheEntry;
+  } catch {
+    return null;
+  }
+}
+
+async function setKVCache(request: NextRequest, entry: CacheEntry): Promise<void> {
+  try {
+    const { getCloudflareEnv } = await import('@/lib/cloudflare-bindings');
+    const env = getCloudflareEnv(request as unknown as Request);
+    const kv = env?.luxtradee_kv;
+    if (!kv) return;
+    // TTL: 30 minutes
+    await kv.put('economic_calendar_cache', JSON.stringify(entry), { expirationTtl: 1800 });
+  } catch {
+    // KV not available, in-memory cache still works
+  }
 }
 
 // ─── GET Handler ─────────────────────────────────────────────────────────────
@@ -217,28 +302,58 @@ export async function GET(request: NextRequest) {
   const forceRefresh = searchParams.get('refresh') === 'true';
   const impactFilter = searchParams.get('impact');
   const currencyFilter = searchParams.get('currency');
+  const timezone = searchParams.get('tz'); // Client timezone offset e.g. "+07:00"
+
+  const now = new Date();
+  const serverTime = now.toISOString();
 
   try {
-    // Check cache
+    // 1. Try KV cache first (Cloudflare Workers)
+    if (!forceRefresh) {
+      const kvEntry = await getKVCache(request);
+      if (kvEntry && Date.now() - kvEntry.timestamp < CACHE_DURATION) {
+        let events = kvEntry.events;
+        if (impactFilter) events = events.filter(e => e.impact === impactFilter);
+        if (currencyFilter) events = events.filter(e => e.currency === currencyFilter);
+
+        return NextResponse.json({
+          success: true, cached: true, cacheSource: 'kv', events,
+          totalAvailable: kvEntry.events.length,
+          source: kvEntry.source,
+          fetchedAt: new Date(kvEntry.timestamp).toISOString(),
+          now: serverTime,
+          timezone: timezone || null,
+          unavailable: kvEntry.unavailable || false,
+          message: kvEntry.unavailable ? 'Calendar data temporarily unavailable.' : undefined,
+        });
+      }
+    }
+
+    // 2. Try in-memory cache
     if (!forceRefresh && calendarCache && Date.now() - calendarCache.timestamp < CACHE_DURATION) {
       let events = calendarCache.events;
       if (impactFilter) events = events.filter(e => e.impact === impactFilter);
       if (currencyFilter) events = events.filter(e => e.currency === currencyFilter);
 
       return NextResponse.json({
-        success: true, cached: true, events,
+        success: true, cached: true, cacheSource: 'memory', events,
         totalAvailable: calendarCache.events.length,
         source: calendarCache.source,
         fetchedAt: new Date(calendarCache.timestamp).toISOString(),
-        now: new Date().toISOString(),
+        now: serverTime,
+        timezone: timezone || null,
         unavailable: calendarCache.unavailable || false,
         message: calendarCache.unavailable ? 'Calendar data temporarily unavailable.' : undefined,
       });
     }
 
-    // Fetch fresh data
+    // 3. Fetch fresh data
     const { events: allEvents, source, unavailable } = await fetchCalendarEvents();
-    calendarCache = { events: allEvents, timestamp: Date.now(), source, unavailable };
+    const newCache: CacheEntry = { events: allEvents, timestamp: Date.now(), source, unavailable };
+    calendarCache = newCache;
+
+    // Also store in KV for cross-isolate consistency
+    await setKVCache(request, newCache);
 
     let events = allEvents;
     if (impactFilter) events = events.filter(e => e.impact === impactFilter);
@@ -248,13 +363,15 @@ export async function GET(request: NextRequest) {
       success: true, cached: false, events,
       totalAvailable: allEvents.length, source,
       fetchedAt: new Date().toISOString(),
-      now: new Date().toISOString(),
+      now: serverTime,
+      timezone: timezone || null,
       unavailable,
       message: unavailable ? 'Calendar data temporarily unavailable.' : undefined,
     });
   } catch (error) {
     console.error('[EconCalendar] API error:', error);
 
+    // Return stale cache if available
     if (calendarCache && calendarCache.events.length > 0) {
       let events = calendarCache.events;
       if (impactFilter) events = events.filter(e => e.impact === impactFilter);
@@ -264,16 +381,19 @@ export async function GET(request: NextRequest) {
         totalAvailable: calendarCache.events.length,
         source: calendarCache.source + ' (stale)',
         fetchedAt: new Date(calendarCache.timestamp).toISOString(),
-        now: new Date().toISOString(),
+        now: serverTime,
+        timezone: timezone || null,
         message: 'Using cached data (fresh data unavailable)',
       });
     }
 
+    // Ultimate fallback: sample data
     const sampleEvents = getSampleEvents();
     return NextResponse.json({
       success: true, cached: false, events: sampleEvents,
       totalAvailable: sampleEvents.length, source: 'Sample Data (fallback)',
-      fetchedAt: new Date().toISOString(), now: new Date().toISOString(),
+      fetchedAt: new Date().toISOString(), now: serverTime,
+      timezone: timezone || null,
       unavailable: true,
       message: 'Calendar data temporarily unavailable. Showing sample data.',
     });

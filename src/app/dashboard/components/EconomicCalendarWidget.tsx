@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { CalendarDays, RefreshCw, AlertTriangle, Clock, TrendingUp } from 'lucide-react'
+import { CalendarDays, RefreshCw, AlertTriangle, Zap } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface CalendarEvent {
@@ -22,6 +22,29 @@ interface CalendarEvent {
 interface EconomicCalendarWidgetProps {
   language: 'id' | 'en'
   onViewAll?: () => void
+}
+
+// ─── Timezone Helpers ─────────────────────────────────────────────────────────
+function getUserUtcOffset(): string {
+  try {
+    const offset = new Date().getTimezoneOffset()
+    const sign = offset <= 0 ? '+' : '-'
+    const hours = Math.floor(Math.abs(offset) / 60)
+    const minutes = Math.abs(offset) % 60
+    return `UTC${sign}${hours}${minutes > 0 ? ':' + String(minutes).padStart(2, '0') : ''}`
+  } catch {
+    return 'UTC'
+  }
+}
+
+function toLocalTime(utcDateTime: string): string {
+  try {
+    const d = new Date(utcDateTime)
+    if (isNaN(d.getTime())) return ''
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+  } catch {
+    return ''
+  }
 }
 
 // ─── Countdown Hook ───────────────────────────────────────────────────────────
@@ -57,7 +80,7 @@ function MiniCountdown({ dateTime }: { dateTime: string }) {
   const isUrgent = !countdown.includes('h') && !countdown.includes('d') && countdown.includes('m') && !isLive
 
   return (
-    <span className={`text-[10px] font-mono ${isLive ? 'text-red-400 font-bold' : isUrgent ? 'text-amber-400' : 'text-gray-500'}`}>
+    <span className={`text-[10px] font-mono ${isLive ? 'text-red-400 font-bold' : isUrgent ? 'text-amber-400 animate-pulse' : 'text-gray-500'}`}>
       {isLive ? '🔴 LIVE' : countdown ? '⏱ ' + countdown : ''}
     </span>
   )
@@ -68,24 +91,25 @@ export default function EconomicCalendarWidget({ language, onViewAll }: Economic
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const userOffset = useMemo(() => getUserUtcOffset(), [])
 
   const L = language === 'id'
 
   const fetchCalendar = useCallback(async () => {
     try {
-      const res = await fetch('/api/economic-calendar?impact=high&currency=USD')
+      const res = await fetch('/api/economic-calendar?impact=high&currency=USD&tz=' + encodeURIComponent(userOffset))
       if (res.ok) {
         const data = await res.json()
         setEvents((data.events || []).slice(0, 5))
       }
     } catch { /* silent */ } finally { setLoading(false) }
-  }, [])
+  }, [userOffset])
 
   useEffect(() => {
     const delay = setTimeout(() => {
       fetchCalendar()
       intervalRef.current = setInterval(fetchCalendar, 30 * 60 * 1000)
-    }, 8000)
+    }, 5000) // Delayed for dashboard performance
     return () => {
       clearTimeout(delay)
       if (intervalRef.current) clearInterval(intervalRef.current)
@@ -97,6 +121,14 @@ export default function EconomicCalendarWidget({ language, onViewAll }: Economic
     return flags[c] || '🌐'
   }
 
+  // Find next upcoming event
+  const nextEvent = useMemo(() => {
+    const nowMs = Date.now()
+    return events
+      .filter(e => new Date(e.dateTime).getTime() > nowMs)
+      .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime())[0] || null
+  }, [events])
+
   return (
     <Card className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-blue-900/30">
       <CardHeader className="pb-3">
@@ -106,9 +138,7 @@ export default function EconomicCalendarWidget({ language, onViewAll }: Economic
             {L ? 'Event Berdampak Tinggi' : 'High-Impact Events'}
           </CardTitle>
           <div className="flex items-center gap-1">
-            <Badge className="bg-red-500/20 text-red-400 text-[9px] border-0">
-              {L ? 'HIGH' : 'HIGH'}
-            </Badge>
+            <Badge className="bg-red-500/20 text-red-400 text-[9px] border-0">HIGH</Badge>
             {onViewAll && (
               <button
                 onClick={onViewAll}
@@ -132,7 +162,18 @@ export default function EconomicCalendarWidget({ language, onViewAll }: Economic
           </div>
         ) : (
           <div className="space-y-2">
-            {events.map((evt, idx) => (
+            {/* Next Event Highlight */}
+            {nextEvent && (
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20 mb-2">
+                <Zap className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-red-400 font-bold uppercase">{L ? 'Segera!' : 'Up Next!'}</p>
+                  <p className="text-xs font-medium text-white truncate">{nextEvent.event}</p>
+                </div>
+                <MiniCountdown dateTime={nextEvent.dateTime} />
+              </div>
+            )}
+            {events.filter(e => e.id !== nextEvent?.id).map((evt, idx) => (
               <div
                 key={evt.id || idx}
                 className="flex items-center gap-2 p-2 rounded-lg bg-red-500/5 border border-red-500/10 hover:bg-red-500/10 transition-colors"
@@ -141,7 +182,9 @@ export default function EconomicCalendarWidget({ language, onViewAll }: Economic
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-white truncate">{evt.event}</p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] font-mono text-gray-500">{evt.time} UTC</span>
+                    <span className="text-[10px] font-mono text-gray-500">
+                      {toLocalTime(evt.dateTime) || evt.time} {userOffset}
+                    </span>
                     {evt.forecast && (
                       <span className="text-[10px] text-amber-400/70">F: {evt.forecast}</span>
                     )}
