@@ -82,11 +82,10 @@ export default function ConnectionsPage() {
     return () => clearTimeout(timer)
   }, [user, authLoading, session, router])
 
-  // Fetch user's connected accounts on mount (delayed for PWA Network Idle)
+  // Fetch user's connected accounts on mount
   useEffect(() => {
     console.log('🚀 [DEBUG] ConnectionsPage mounted')
-    const timeout = setTimeout(() => fetchConnectedAccounts(), 1000)
-    return () => clearTimeout(timeout)
+    fetchConnectedAccounts()
   }, [])
 
   // Simulate sync progress when syncing

@@ -128,26 +128,18 @@ export default function ProPromoTab() {
   }, [])
 
   useEffect(() => {
-    const timeout = setTimeout(() => fetchData(), 1000)
-    return () => clearTimeout(timeout)
+    fetchData()
   }, [fetchData])
 
   // Auto-refresh every 10 seconds
-  // Delayed by 10s to allow Network Idle for PWA audit
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   useEffect(() => {
-    const delayTimeout = setTimeout(() => {
+    intervalRef.current = setInterval(() => {
       if (document.visibilityState === 'visible') {
         fetchData()
       }
-      intervalRef.current = setInterval(() => {
-        if (document.visibilityState === 'visible') {
-          fetchData()
-        }
-      }, 10_000)
-    }, 10000)
+    }, 10_000)
     return () => {
-      clearTimeout(delayTimeout)
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
   }, [fetchData])

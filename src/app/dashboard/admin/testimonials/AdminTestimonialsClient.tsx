@@ -63,8 +63,7 @@ export default function AdminTestimonialsClient() {
   }, [filter])
 
   useEffect(() => {
-    const timeout = setTimeout(() => fetchTestimonials(), 1000)
-    return () => clearTimeout(timeout)
+    fetchTestimonials()
   }, [fetchTestimonials])
 
   const handleAction = async (id: string, action: string) => {

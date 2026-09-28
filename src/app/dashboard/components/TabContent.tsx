@@ -217,6 +217,7 @@ export default function TabContent({
               onAnalyzeChart={onAnalyzeChart}
               isPro={isPro}
               onUpgrade={() => setPlanSelectionModalOpen(true)}
+              language={language}
             />
           )}
 

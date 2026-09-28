@@ -116,8 +116,7 @@ export default function SystemHealthPage() {
 
   useEffect(() => {
     if (isAdminUser && !checkingAuth) {
-      const timeout = setTimeout(() => fetchHealthCheck(), 1000)
-      return () => clearTimeout(timeout)
+      fetchHealthCheck()
     }
   }, [isAdminUser, checkingAuth])
 

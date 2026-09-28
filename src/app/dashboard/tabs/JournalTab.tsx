@@ -525,6 +525,7 @@ function JournalTab({
       setAnalyticsLoading(true)
       try {
         const res = await fetch('/api/journal?analytics=true')
+        if (!res.ok) throw new Error('Failed to fetch journal analytics')
         const data = await res.json()
         if (data.analytics) setJournalAnalytics(data.analytics)
       } catch {}
