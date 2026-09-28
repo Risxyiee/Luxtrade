@@ -129,6 +129,7 @@ export async function POST(request: NextRequest) {
     const { data: account, error: insertError } = await client
       .from('trading_accounts')
       .insert([{
+        id: crypto.randomUUID(),
         user_id: userId,
         name: String(body.name),
         broker: body.broker ? String(body.broker) : null,

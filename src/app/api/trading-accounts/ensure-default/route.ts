@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
     // Create a default account
     console.log('[API] Creating default account for user:', userId)
     const { data: defaultAccount, error: createError } = await admin.from('trading_accounts').insert({
+      id: crypto.randomUUID(),
       user_id: userId,
       name: 'Default Account',
       broker: 'Unknown',

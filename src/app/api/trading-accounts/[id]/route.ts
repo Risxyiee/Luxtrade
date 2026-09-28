@@ -151,14 +151,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Cannot delete the last account. At least 1 account is required.' }, { status: 400 })
     }
 
-    // Count trades and journals linked to this account
+    // Count trades linked to this account
     const { count: tradesCount } = await admin
       .from('trades')
-      .select('id', { count: 'exact', head: true })
-      .eq('account_id', params.id)
-
-    const { count: journalsCount } = await admin
-      .from('journal_entries')
       .select('id', { count: 'exact', head: true })
       .eq('account_id', params.id)
 
@@ -166,12 +161,6 @@ export async function DELETE(
     if (tradesCount && tradesCount > 0) {
       await admin.from('trades').delete().eq('account_id', params.id)
       console.log(`[Delete Account] Deleted ${tradesCount} trades linked to account ${params.id}`)
-    }
-
-    // Delete linked journals (cascade)
-    if (journalsCount && journalsCount > 0) {
-      await admin.from('journal_entries').delete().eq('account_id', params.id)
-      console.log(`[Delete Account] Deleted ${journalsCount} journals linked to account ${params.id}`)
     }
 
     // Delete the account
@@ -194,10 +183,9 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: `Trading account "${accountToDelete.name}" deleted${tradesCount ? ` along with ${tradesCount} trades` : ''}${journalsCount ? ` and ${journalsCount} journals` : ''}${accountToDelete.is_default ? '. A new default account has been set.' : ''}`,
+      message: `Trading account "${accountToDelete.name}" deleted${tradesCount ? ` along with ${tradesCount} trades` : ''}${accountToDelete.is_default ? '. A new default account has been set.' : ''}`,
       newDefaultAccountId,
       deletedTrades: tradesCount || 0,
-      deletedJournals: journalsCount || 0,
     })
   } catch (error) {
     console.error('Error deleting trading account:', error)

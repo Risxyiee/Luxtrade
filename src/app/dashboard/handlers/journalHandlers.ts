@@ -32,6 +32,7 @@ export const createJournalHandlers = ({
       const res = await fetch('/api/journal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(journalForm)
       })
       
@@ -55,7 +56,7 @@ export const createJournalHandlers = ({
     if (!confirm('Delete this journal entry?')) return
 
     try {
-      const res = await fetch(`/api/journal?id=${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/journal?id=${id}`, { method: 'DELETE', credentials: 'include' })
       if (res.ok) {
         toast.success('Entry deleted!')
         fetchData(true)
