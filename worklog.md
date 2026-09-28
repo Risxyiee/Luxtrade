@@ -255,3 +255,49 @@ Stage Summary:
 - The subscription_status column can be stale - the canonical check uses is_pro + (subscription_until || pro_expiry) > now
 - All 7 broken APIs now use isUserPro() from src/lib/pro-check.ts as single source of truth
 - ESLint passes, TypeScript compiles
+---
+Task ID: 1
+Agent: Main Agent
+Task: Implement High-Impact Economic Calendar & News Feed module with API integration, filtering, countdown timers, and push notifications
+
+Work Log:
+- Explored existing Economic Calendar implementation (API route, Tab component, Widget component)
+- Identified gaps: no Alpha Vantage fallback, no KV caching, no timezone support, notification toggle was UI-only (no real push), Widget was orphaned, sidebar proOnly inconsistency
+- Enhanced backend API (/api/economic-calendar) with Alpha Vantage 3rd fallback, Cloudflare KV caching, timezone parameter, better TypeScript typing
+- Enhanced EconomicCalendarTab with: real-time timezone conversion, UTC/Local toggle, next high-impact event banner, Browser Notification API scheduling, improved countdown with urgency levels
+- Enhanced EconomicCalendarWidget with: "Up Next!" banner, local timezone, lazy loading
+- Integrated EconomicCalendarWidget into DashboardTab between Stats Grid and Performance section
+- Fixed sidebar proOnly: true for Economic Calendar (matches tab paywall)
+- Created /api/cron/econ-calendar-notify endpoint for server-side push notifications 15 min before high-impact USD events
+- All code passes lint (bun run lint)
+- Pushed to GitHub successfully (commit b797e62b)
+
+Stage Summary:
+- Backend: 3-tier API cascade (TradingEconomics → Finnhub → Alpha Vantage → Sample), KV + in-memory dual caching, timezone-aware server time
+- Frontend: Full timezone conversion with Intl.DateTimeFormat, UTC/Local toggle, next-event banner, browser notification scheduling, improved countdown UX
+- Integration: EconomicCalendarWidget now renders in Dashboard overview, sidebar shows lock for free users, cron endpoint for server-side notifications
+- Files changed: 6 files (API route, Tab, Widget, DashboardTab, SidebarNav, new cron endpoint)
+- Push: fd4dcab9 on main
+---
+Task ID: 1
+Agent: Main Agent
+Task: Implement High-Impact Economic Calendar & News Feed module with API integration, filtering, countdown timers, and push notifications
+
+Work Log:
+- Explored existing Economic Calendar implementation (API route, Tab component, Widget component)
+- Identified gaps: no Alpha Vantage fallback, no KV caching, no timezone support, notification toggle was UI-only (no real push), Widget was orphaned, sidebar proOnly inconsistency
+- Enhanced backend API (/api/economic-calendar) with Alpha Vantage 3rd fallback, Cloudflare KV caching, timezone parameter, better TypeScript typing
+- Enhanced EconomicCalendarTab with: real-time timezone conversion, UTC/Local toggle, next high-impact event banner, Browser Notification API scheduling, improved countdown with urgency levels
+- Enhanced EconomicCalendarWidget with: "Up Next!" banner, local timezone, lazy loading
+- Integrated EconomicCalendarWidget into DashboardTab between Stats Grid and Performance section
+- Fixed sidebar proOnly: true for Economic Calendar (matches tab paywall)
+- Created /api/cron/econ-calendar-notify endpoint for server-side push notifications 15 min before high-impact USD events
+- All code passes lint (bun run lint)
+- Pushed to GitHub successfully (commit b797e62b)
+
+Stage Summary:
+- Backend: 3-tier API cascade (TradingEconomics → Finnhub → Alpha Vantage → Sample), KV + in-memory dual caching, timezone-aware server time
+- Frontend: Full timezone conversion with Intl.DateTimeFormat, UTC/Local toggle, next-event banner, browser notification scheduling, improved countdown UX
+- Integration: EconomicCalendarWidget now renders in Dashboard overview, sidebar shows lock for free users, cron endpoint for server-side notifications
+- Files changed: 6 files (API route, Tab, Widget, DashboardTab, SidebarNav, new cron endpoint)
+- Push: fd4dcab9 on main
