@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { motion } from 'framer-motion'
+import { useMotionSafe } from '@/hooks/use-motion-safe'
 
 export interface Analytics {
   totalTrades: number
@@ -77,6 +78,7 @@ export default function AITab({
   onAnalyzeChart,
   language = 'id'
 }: AITabProps) {
+  const { repeatCount, isMobile } = useMotionSafe()
   const hasEnoughTrades = analytics && analytics.totalTrades >= 5
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const [selectedTradeForAnalysis, setSelectedTradeForAnalysis] = useState<Trade | null>(null)
@@ -118,7 +120,7 @@ export default function AITab({
               <>
                 <motion.div
                   animate={{ scale: [1, 1.1, 1] }}
-                  transition={{ duration: 2, repeat: Infinity }}
+                  transition={{ duration: 2, repeat: repeatCount }}
                 >
                   <Lock className="w-12 h-12 mx-auto mb-4 text-red-400" />
                 </motion.div>
@@ -138,7 +140,7 @@ export default function AITab({
               <>
                 <motion.div
                   animate={{ scale: [1, 1.05, 1] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
+                  transition={{ duration: 1.5, repeat: repeatCount }}
                 >
                   <Brain className="w-12 h-12 mx-auto mb-4 text-blue-400" />
                 </motion.div>
@@ -179,7 +181,7 @@ export default function AITab({
             <motion.div
               className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-400/20 flex items-center justify-center"
               animate={{ rotate: [0, 5, -5, 0] }}
-              transition={{ duration: 4, repeat: Infinity }}
+              transition={{ duration: 4, repeat: repeatCount }}
             >
               <Brain className="w-5 h-5 text-blue-400" />
             </motion.div>
@@ -410,17 +412,17 @@ export default function AITab({
                       <motion.span
                         className="w-2 h-2 bg-blue-400 rounded-full"
                         animate={{ opacity: [0.4, 1, 0.4] }}
-                        transition={{ duration: 1, repeat: Infinity, delay: 0 }}
+                        transition={{ duration: 1, repeat: repeatCount, delay: 0 }}
                       />
                       <motion.span
                         className="w-2 h-2 bg-blue-400 rounded-full"
                         animate={{ opacity: [0.4, 1, 0.4] }}
-                        transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
+                        transition={{ duration: 1, repeat: repeatCount, delay: 0.2 }}
                       />
                       <motion.span
                         className="w-2 h-2 bg-blue-400 rounded-full"
                         animate={{ opacity: [0.4, 1, 0.4] }}
-                        transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
+                        transition={{ duration: 1, repeat: repeatCount, delay: 0.4 }}
                       />
                     </div>
                   </div>

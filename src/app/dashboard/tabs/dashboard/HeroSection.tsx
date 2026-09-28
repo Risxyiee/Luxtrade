@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useMotionSafe } from '@/hooks/use-motion-safe'
 import { Sparkles, TrendingUp, Target, Activity, Trophy } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import type { Analytics, Trade } from '@/types'
@@ -13,6 +14,7 @@ interface HeroSectionProps {
 }
 
 export default function HeroSection({ analytics, trades, language, profile }: HeroSectionProps) {
+  const { repeatCount, isMobile } = useMotionSafe()
   const hasData = trades.length > 0
 
   return (
@@ -24,7 +26,7 @@ export default function HeroSection({ analytics, trades, language, profile }: He
     >
       <Card className="relative overflow-hidden bg-gradient-to-br from-blue-600/15 via-blue-600/10 to-amber-500/10 backdrop-blur-md border border-blue-500/20 transition-all duration-500 hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/10">
         {/* Animated Background Patterns - Premium Glowing Orbs */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none hidden md:block">
           <motion.div
             className="absolute -top-24 -right-24 w-64 h-64 bg-blue-500/15 rounded-full blur-3xl"
             animate={{
@@ -35,7 +37,7 @@ export default function HeroSection({ analytics, trades, language, profile }: He
             }}
             transition={{
               duration: 6,
-              repeat: Infinity,
+              repeat: repeatCount,
               ease: "easeInOut"
             }}
           />
@@ -49,7 +51,7 @@ export default function HeroSection({ analytics, trades, language, profile }: He
             }}
             transition={{
               duration: 7,
-              repeat: Infinity,
+              repeat: repeatCount,
               ease: "easeInOut",
               delay: 0.5
             }}
@@ -62,7 +64,7 @@ export default function HeroSection({ analytics, trades, language, profile }: He
             }}
             transition={{
               duration: 5,
-              repeat: Infinity,
+              repeat: repeatCount,
               ease: "easeInOut",
               delay: 1
             }}
@@ -81,7 +83,7 @@ export default function HeroSection({ analytics, trades, language, profile }: He
                 <div className="flex items-center gap-2 mb-2">
                   <motion.div
                     animate={{ rotate: [0, 360] }}
-                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                    transition={{ duration: 20, repeat: repeatCount, ease: "linear" }}
                   >
                     <Sparkles className="w-5 h-5 text-amber-400" />
                   </motion.div>

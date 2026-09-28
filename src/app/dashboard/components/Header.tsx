@@ -87,7 +87,7 @@ const Header = memo(function Header({
   
   return (
     <header className="h-16 border-b border-lux-border dark:border-blue-500/15 flex items-center justify-between px-4 lg:px-5
-      bg-lux-bg-tertiary/80 dark:bg-[#050507]/80 backdrop-blur-[24px] dark:shadow-[0_1px_0_0_rgba(59,130,246,0.08),0_8px_32px_-8px_rgba(59,130,246,0.06)] sticky top-0 z-30 relative">
+      bg-lux-bg-tertiary/80 dark:bg-[#050507]/80 backdrop-blur-md dark:shadow-[0_1px_0_0_rgba(59,130,246,0.08),0_8px_32px_-8px_rgba(59,130,246,0.06)] sticky top-0 z-30">
 
       {/* Subtle bottom glow line — 1px cyan/blue gradient */}
       <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent pointer-events-none" />

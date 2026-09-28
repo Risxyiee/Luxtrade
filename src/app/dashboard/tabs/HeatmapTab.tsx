@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion } from 'framer-motion'
+import { useMotionSafe } from '@/hooks/use-motion-safe'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -32,6 +33,7 @@ interface HeatmapTabProps {
 
 // Component
 function HeatmapTab({ isPro, onUpgrade, trades, language = 'id' }: HeatmapTabProps) {
+  const { repeatCount } = useMotionSafe()
   // Calculate heatmap data by day and session
   const dayNames = language === 'id'
     ? ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
@@ -81,7 +83,7 @@ function HeatmapTab({ isPro, onUpgrade, trades, language = 'id' }: HeatmapTabPro
           <CardContent className="py-8 text-center">
             <motion.div
               animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
+              transition={{ duration: 2, repeat: repeatCount }}
             >
               <Lock className="w-12 h-12 mx-auto mb-4 text-blue-400" />
             </motion.div>

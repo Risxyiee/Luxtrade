@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { motion } from 'framer-motion'
+import { useMotionSafe } from '@/hooks/use-motion-safe'
 import { formatCurrency } from '@/lib/utils-currency'
 import ActivityFeed from '@/components/ActivityFeed'
 import { useConfetti } from '@/hooks/useConfetti'
@@ -203,6 +204,7 @@ function DashboardTab({
   profile,
   tradingAccounts
 }: DashboardTabProps) {
+  const { repeatCount, isMobile } = useMotionSafe()
   const hasData = trades.length > 0
   const todayPerf = getTodayPerformance(trades)
   const weeklyPerf = getWeeklyPerformance(trades)
@@ -270,7 +272,7 @@ function DashboardTab({
       >
         <Card className="relative overflow-hidden bg-gradient-to-br from-blue-600/15 via-blue-600/10 to-amber-500/10 backdrop-blur-md border border-lux-border dark:border-blue-500/20">
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <motion.div className="absolute -top-12 -right-12 w-40 h-40 bg-blue-500/15 rounded-full blur-3xl" animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 6, repeat: Infinity }} />
+            <motion.div className="absolute -top-12 -right-12 w-40 h-40 bg-blue-500/15 rounded-full blur-3xl hidden md:block" animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 6, repeat: repeatCount }} />
           </div>
           <CardContent className="relative p-5 lg:p-6">
             <div className="flex items-center gap-4">
@@ -282,7 +284,7 @@ function DashboardTab({
                   <span className="text-xs font-semibold text-blue-300 uppercase tracking-wider">
                     {language === 'id' ? 'Selamat Datang' : 'Welcome Back'}
                   </span>
-                  <motion.div animate={{ rotate: [0, 360] }} transition={{ duration: 20, repeat: Infinity, ease: "linear" }}>
+                  <motion.div animate={{ rotate: [0, 360] }} transition={{ duration: 20, repeat: repeatCount, ease: "linear" }}>
                     <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                   </motion.div>
                 </div>
@@ -507,7 +509,7 @@ function DashboardTab({
                 {trades.slice(0, 5).map((trade, index) => (
                   <motion.div key={trade.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-all cursor-pointer group" onClick={() => onView(trade)} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }} whileHover={{ x: 4 }}>
                     <div className="flex items-center gap-3">
-                      <motion.div className={`w-2 h-2 rounded-full ${trade.profit_loss >= 0 ? 'bg-emerald-400' : 'bg-red-400'}`} animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 2, repeat: Infinity, delay: index * 0.2 }} />
+                      <motion.div className={`w-2 h-2 rounded-full hidden sm:block ${trade.profit_loss >= 0 ? 'bg-emerald-400' : 'bg-red-400'}`} animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 2, repeat: repeatCount, delay: index * 0.2 }} />
                       <span className="font-bold">{trade.symbol}</span>
                       <Badge variant={trade.type === 'BUY' ? 'default' : 'destructive'} className="text-xs">{trade.type}</Badge>
                       <span className="text-xs text-lux-text-muted dark:text-gray-500 hidden sm:inline">{trade.session || '-'}</span>
@@ -587,7 +589,7 @@ function DashboardTab({
                 <motion.div
                   className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-400/10 border border-blue-500/20 flex items-center justify-center"
                   animate={{ y: [0, -6, 0] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0 }}
+                  transition={{ duration: 3, repeat: repeatCount, ease: 'easeInOut', delay: 0 }}
                 >
                   <BarChart3 className="w-7 h-7 lg:w-8 lg:h-8 text-blue-400" />
                 </motion.div>
@@ -596,7 +598,7 @@ function DashboardTab({
                 <motion.div
                   className="w-20 h-20 lg:w-24 lg:h-24 rounded-3xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/20 flex items-center justify-center shadow-lg shadow-amber-500/10"
                   animate={{ y: [0, -8, 0] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
+                  transition={{ duration: 3, repeat: repeatCount, ease: 'easeInOut', delay: 0.3 }}
                 >
                   <TrendingUp className="w-10 h-10 lg:w-12 lg:h-12 text-amber-400" />
                 </motion.div>
@@ -605,7 +607,7 @@ function DashboardTab({
                 <motion.div
                   className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/10 border border-cyan-500/20 flex items-center justify-center"
                   animate={{ y: [0, -6, 0] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }}
+                  transition={{ duration: 3, repeat: repeatCount, ease: 'easeInOut', delay: 0.6 }}
                 >
                   <Target className="w-7 h-7 lg:w-8 lg:h-8 text-cyan-400" />
                 </motion.div>
