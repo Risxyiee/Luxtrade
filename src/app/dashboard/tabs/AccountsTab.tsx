@@ -25,7 +25,7 @@ interface TradingAccount {
   created_at: string
 }
 
-export default function AccountsTab({ language = 'id' }: { language?: 'id' | 'en' }) {
+export default function AccountsTab({ language = 'id', fetchData }: { language?: 'id' | 'en'; fetchData?: (isRefresh?: boolean) => void }) {
   const [accounts, setAccounts] = useState<TradingAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [addAccountOpen, setAddAccountOpen] = useState(false)
@@ -128,6 +128,8 @@ export default function AccountsTab({ language = 'id' }: { language?: 'id' | 'en
       }
 
       fetchAccounts()
+      // Also refresh parent state so sidebar/dashboard stats update immediately
+      if (fetchData) fetchData(true)
     } catch (error: any) {
       console.error('Error deleting account:', error)
       if (error.message?.includes('Cannot delete default account')) {
@@ -272,7 +274,11 @@ export default function AccountsTab({ language = 'id' }: { language?: 'id' | 'en
       <AddAccountForm
         open={addAccountOpen}
         onOpenChange={setAddAccountOpen}
-        onSuccess={fetchAccounts}
+        onSuccess={() => {
+          fetchAccounts()
+          // Also refresh parent state so sidebar/dashboard stats update immediately
+          if (fetchData) fetchData(true)
+        }}
       />
 
       {/* Delete Confirmation Dialog */}

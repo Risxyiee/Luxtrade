@@ -382,12 +382,17 @@ function LuxTradeDashboardContent() {
         fetch('/api/trading-accounts', { credentials: 'include' }).catch(() => null),
       ])
 
+      // Track failed sub-fetches during refresh (for user feedback)
+      let failedRefreshParts: string[] = []
+
       // Process trades (most critical — must update immediately)
       if (tradesRes?.ok) {
         try {
           const data = await tradesRes.json()
           setTrades(data.trades || [])
         } catch { /* keep existing trades */ }
+      } else if (isRefresh) {
+        failedRefreshParts.push('trades')
       }
 
       // Process analytics
@@ -396,6 +401,8 @@ function LuxTradeDashboardContent() {
           const data = await analyticsRes.json()
           setAnalytics(data)
         } catch { /* keep existing analytics */ }
+      } else if (isRefresh) {
+        failedRefreshParts.push('analytics')
       }
 
       // Process journal
@@ -404,6 +411,8 @@ function LuxTradeDashboardContent() {
           const data = await journalRes.json()
           setJournalEntries(data.entries || [])
         } catch { /* keep existing journal */ }
+      } else if (isRefresh) {
+        failedRefreshParts.push('journal')
       }
 
       // Process watchlist
@@ -412,6 +421,8 @@ function LuxTradeDashboardContent() {
           const data = await watchlistRes.json()
           setWatchlistItems(data.items || [])
         } catch { /* keep existing watchlist */ }
+      } else if (isRefresh) {
+        failedRefreshParts.push('watchlist')
       }
 
       // Process accounts
@@ -454,6 +465,14 @@ function LuxTradeDashboardContent() {
             })
           }
         } catch { /* keep existing accounts */ }
+      } else if (isRefresh) {
+        failedRefreshParts.push('accounts')
+      }
+
+      // If refresh partially failed, notify user so they know to retry
+      if (isRefresh && failedRefreshParts.length > 0) {
+        console.warn('Refresh partially failed for:', failedRefreshParts)
+        toast.warning('Data refresh incomplete. Try refreshing the page.', { duration: 3000 })
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
@@ -954,6 +973,7 @@ function LuxTradeDashboardContent() {
           chartAnimated={chartAnimated}
           hasMounted={true}
           tradingAccounts={tradingAccounts}
+          fetchData={fetchData}
         />
       </main>
 
