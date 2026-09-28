@@ -27,7 +27,8 @@ let calendarCache: CacheEntry | null = null;
 const CACHE_DURATION = 30 * 60 * 1000; // 30 min
 
 // ─── TradingEconomics RapidAPI ────────────────────────────────────────────────
-const TE_ENDPOINT = 'https://trading-econmics-scraper.p.rapidapi.com/get_calendar_events';
+const TE_API_HOST = 'trading-econmics-scraper.p.rapidapi.com';
+const TE_CALENDAR_ENDPOINT = 'https://trading-econmics-scraper.p.rapidapi.com/get_calendar_events';
 
 function getTeApiKey(): string {
   return process.env.RAPIDAPI_KEY || process.env.RAPIDAPI_TRADING_ECONOMICS_KEY || '';
@@ -62,25 +63,81 @@ async function fetchTECalendar(): Promise<CalendarEvent[]> {
   const startDate = start.toISOString().split('T')[0];
   const endDate = end.toISOString().split('T')[0];
 
-  const url = `${TE_ENDPOINT}?country=all&importance=3,2,1&start_date=${startDate}&end_date=${endDate}`;
-  const response = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      'x-rapidapi-host': 'trading-econmics-scraper.p.rapidapi.com',
-      'x-rapidapi-key': apiKey,
-    },
-    signal: AbortSignal.timeout(15000),
-  });
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-rapidapi-host': TE_API_HOST,
+    'x-rapidapi-key': apiKey,
+  };
 
-  if (!response.ok) {
-    if (response.status === 429) throw new Error('TradingEconomics rate limit (429)');
-    throw new Error('TE returned ' + response.status);
+  // Strategy 1: Try with start_date/end_date params
+  try {
+    const url1 = `${TE_CALENDAR_ENDPOINT}?country=all&importance=3,2,1&start_date=${startDate}&end_date=${endDate}`;
+    const res1 = await fetch(url1, { headers, signal: AbortSignal.timeout(15000) });
+
+    if (res1.ok) {
+      const data = await res1.json();
+      if (Array.isArray(data) && data.length > 0) {
+        console.log('[EconCalendar] TE Strategy 1 (start_date/end_date) returned ' + data.length + ' events');
+        return mapTEEvents(data, startDate);
+      }
+      console.warn('[EconCalendar] TE Strategy 1 returned empty/non-array, trying next...');
+    } else {
+      const body = await res1.text().catch(() => '');
+      console.warn(`[EconCalendar] TE Strategy 1 returned ${res1.status}: ${body.substring(0, 200)}`);
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn('[EconCalendar] TE Strategy 1 failed: ' + msg);
   }
-  const data = await response.json();
-  if (!Array.isArray(data)) throw new Error('Invalid TE data');
 
-  return data.map((item: Record<string, unknown>, i: number) => {
-    const date = (item.date as string) || startDate;
+  // Strategy 2: Try with year/month/day params (same as news endpoint)
+  const year = today.getFullYear();
+  const month = today.getMonth() + 1;
+  const day = today.getDate();
+
+  try {
+    const url2 = `${TE_CALENDAR_ENDPOINT}?year=${year}&month=${month}&day=${day}`;
+    const res2 = await fetch(url2, { headers, signal: AbortSignal.timeout(15000) });
+
+    if (res2.ok) {
+      const data = await res2.json();
+      if (Array.isArray(data) && data.length > 0) {
+        console.log('[EconCalendar] TE Strategy 2 (year/month/day) returned ' + data.length + ' events');
+        return mapTEEvents(data, startDate);
+      }
+      console.warn('[EconCalendar] TE Strategy 2 returned empty/non-array');
+    } else {
+      const body = await res2.text().catch(() => '');
+      console.warn(`[EconCalendar] TE Strategy 2 returned ${res2.status}: ${body.substring(0, 200)}`);
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn('[EconCalendar] TE Strategy 2 failed: ' + msg);
+  }
+
+  // Strategy 3: Try with no params at all (some endpoints return defaults)
+  try {
+    const url3 = `${TE_CALENDAR_ENDPOINT}`;
+    const res3 = await fetch(url3, { headers, signal: AbortSignal.timeout(15000) });
+
+    if (res3.ok) {
+      const data = await res3.json();
+      if (Array.isArray(data) && data.length > 0) {
+        console.log('[EconCalendar] TE Strategy 3 (no params) returned ' + data.length + ' events');
+        return mapTEEvents(data, startDate);
+      }
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn('[EconCalendar] TE Strategy 3 failed: ' + msg);
+  }
+
+  throw new Error('All TE calendar strategies failed');
+}
+
+function mapTEEvents(data: Record<string, unknown>[], fallbackDate: string): CalendarEvent[] {
+  return data.map((item, i) => {
+    const date = (item.date as string) || fallbackDate;
     const time = (item.time as string) || '00:00';
     const currency = mapCountryToCurrency((item.country as string) || '');
     return {
@@ -227,27 +284,32 @@ function getSampleEvents(): CalendarEvent[] {
 
 // ─── Fetch with Cascade Fallback ─────────────────────────────────────────────
 async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source: string; unavailable: boolean }> {
-  // 1. TradingEconomics
-  if (getTeApiKey()) {
+  const teKey = getTeApiKey();
+
+  // 1. TradingEconomics (with multi-strategy)
+  if (teKey) {
     try {
+      console.log('[EconCalendar] Trying TradingEconomics RapidAPI (key found: ' + teKey.substring(0, 6) + '...)');
       const events = await fetchTECalendar();
-      console.log('[EconCalendar] Fetched ' + events.length + ' events from TradingEconomics');
+      console.log('[EconCalendar] ✓ Fetched ' + events.length + ' events from TradingEconomics');
       return { events, source: 'TradingEconomics', unavailable: false };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.info('[EconCalendar] TE failed: ' + msg);
+      console.error('[EconCalendar] ✗ TE calendar failed: ' + msg);
     }
+  } else {
+    console.warn('[EconCalendar] RAPIDAPI_KEY not set, skipping TradingEconomics');
   }
 
   // 2. Finnhub
   if (process.env.FINNHUB_API_KEY) {
     try {
       const events = await fetchFinnhubCalendar();
-      console.log('[EconCalendar] Fetched ' + events.length + ' events from Finnhub');
+      console.log('[EconCalendar] ✓ Fetched ' + events.length + ' events from Finnhub');
       return { events, source: 'Finnhub', unavailable: false };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.info('[EconCalendar] Finnhub failed: ' + msg);
+      console.error('[EconCalendar] ✗ Finnhub failed: ' + msg);
     }
   }
 
@@ -255,16 +317,16 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
   if (process.env.ALPHAVANTAGE_API_KEY) {
     try {
       const events = await fetchAlphaVantageCalendar();
-      console.log('[EconCalendar] Fetched ' + events.length + ' events from Alpha Vantage');
+      console.log('[EconCalendar] ✓ Fetched ' + events.length + ' events from Alpha Vantage');
       return { events, source: 'Alpha Vantage', unavailable: false };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.info('[EconCalendar] Alpha Vantage failed: ' + msg);
+      console.error('[EconCalendar] ✗ Alpha Vantage failed: ' + msg);
     }
   }
 
   // 4. Sample data
-  console.info('[EconCalendar] Using sample data (no API keys configured or all failed)');
+  console.warn('[EconCalendar] Using sample data (no API keys configured or all failed)');
   return { events: getSampleEvents(), source: 'Sample Data', unavailable: false };
 }
 
