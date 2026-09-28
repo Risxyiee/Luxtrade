@@ -106,12 +106,10 @@ export default function EconomicCalendarWidget({ language, onViewAll }: Economic
   }, [userOffset])
 
   useEffect(() => {
-    const delay = setTimeout(() => {
-      fetchCalendar()
-      intervalRef.current = setInterval(fetchCalendar, 30 * 60 * 1000)
-    }, 5000) // Delayed for dashboard performance
+    // Fetch immediately — no artificial delay for widget data
+    fetchCalendar()
+    intervalRef.current = setInterval(fetchCalendar, 30 * 60 * 1000)
     return () => {
-      clearTimeout(delay)
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
   }, [fetchCalendar])

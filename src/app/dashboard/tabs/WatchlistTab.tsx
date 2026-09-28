@@ -132,14 +132,11 @@ export default function WatchlistTab({
       })
     }
 
-    // Delay polling by 10s to allow Network Idle for PWA audit
-    const delayTimeout = setTimeout(() => {
-      pollPrices() // Initial poll
-      intervalRef.current = setInterval(pollPrices, 60000) // Every 60s
-    }, 10000)
+    // Poll prices immediately — no artificial delay
+    pollPrices()
+    intervalRef.current = setInterval(pollPrices, 60000) // Every 60s
 
     return () => {
-      clearTimeout(delayTimeout)
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
   }, [items, alertItems, language])

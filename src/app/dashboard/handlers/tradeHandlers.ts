@@ -19,7 +19,7 @@ interface TradeHandlersProps {
   isFreeUser: boolean
   FREE_TRADE_LIMIT: number
   getAuthHeaders: () => Record<string, string>
-  fetchData: () => void
+  fetchData: (isRefresh?: boolean) => void
 }
 
 export const createTradeHandlers = ({
@@ -169,7 +169,7 @@ export const createTradeHandlers = ({
         toast.success('Trade added successfully!')
         setAddTradeOpen(false)
         setFormData(emptyFormData)
-        fetchData()
+        fetchData(true) // Refresh data without full loading flash
 
         // Check for unlocked achievements
         if (data.unlockedAchievements && data.unlockedAchievements.length > 0) {
@@ -250,7 +250,7 @@ export const createTradeHandlers = ({
         setEditTradeOpen(false)
         setSelectedTrade(null)
         setFormData(emptyFormData)
-        fetchData()
+        fetchData(true) // Refresh data without full loading flash
       } else {
         toast.error(data.error || 'Failed to update trade')
       }
@@ -275,7 +275,7 @@ export const createTradeHandlers = ({
         toast.success('Trade deleted successfully!')
         setDeleteTradeOpen(false)
         setSelectedTrade(null)
-        fetchData()
+        fetchData(true) // Refresh data without full loading flash
       } else {
         const data = await res.json()
         toast.error(data.error || 'Failed to delete trade')

@@ -213,12 +213,10 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
   }, [userOffset])
 
   useEffect(() => {
-    const delayTimeout = setTimeout(() => {
-      fetchCalendar()
-      intervalRef.current = setInterval(fetchCalendar, 30 * 60 * 1000)
-    }, 3000) // Reduced from 5s for faster initial load
+    // Fetch immediately — no artificial delay for calendar data
+    fetchCalendar()
+    intervalRef.current = setInterval(fetchCalendar, 30 * 60 * 1000)
     return () => {
-      clearTimeout(delayTimeout)
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
   }, [fetchCalendar])

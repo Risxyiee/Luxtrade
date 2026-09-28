@@ -90,7 +90,7 @@ interface DashboardModalsProps {
   proTrialCount: number
   language: 'id' | 'en'
   tradingAccounts?: any[]
-  fetchData?: () => void
+  fetchData?: (isRefresh?: boolean) => void
   handleSignOut?: () => void
 }
 
@@ -562,7 +562,7 @@ const DashboardModals = memo(function DashboardModals({
               onNumberInput={handleNumberInput as any}
               onSave={handleAddTrade}
               onCancel={() => { setAddTradeOpen(false); setFormData(emptyFormData) }}
-              onAutoJournalSuccess={() => { setAddTradeOpen(false); setFormData(emptyFormData); fetchData() }}
+              onAutoJournalSuccess={() => { setAddTradeOpen(false); setFormData(emptyFormData); fetchData(true) }}
               saving={saving}
               tradingAccounts={tradingAccounts}
               language={language}
@@ -577,7 +577,7 @@ const DashboardModals = memo(function DashboardModals({
         onOpenChange={setAddAccountOpen}
         onSuccess={() => {
           // Refresh data after adding account
-          if (fetchData) fetchData()
+          if (fetchData) fetchData(true)
         }}
       />
 
