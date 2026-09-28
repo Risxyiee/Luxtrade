@@ -156,6 +156,7 @@ export const createTradeHandlers = ({
       const res = await fetch('/api/trades', {
         method: 'POST',
         headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify(payload),
       })
 
@@ -224,6 +225,7 @@ export const createTradeHandlers = ({
       const res = await fetch('/api/trades', {
         method: 'PUT',
         headers: getAuthHeaders(),
+        credentials: 'include',
         body: JSON.stringify({
           id: selectedTrade.id,
           symbol: formData.symbol.toUpperCase(),
@@ -269,6 +271,7 @@ export const createTradeHandlers = ({
       const res = await fetch(`/api/trades?id=${selectedTrade.id}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
+        credentials: 'include',
       })
 
       if (res.ok) {

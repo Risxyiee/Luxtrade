@@ -55,6 +55,10 @@ NEXT_PUBLIC_SUPABASE_URL = "https://klxkdrfsfcoankbaoejn.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtseGtkcmZzZmNvYW5rYmFvZWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzY0MTAsImV4cCI6MjA4NTk1MjQxMH0.4Yv9JesMXWEy4phu2D-Yw9rkbq0l8z9kz-sRwFZerQ0"
 NEXT_PUBLIC_SITE_URL = "https://luxtradee.web.id"
 MIDTRANS_IS_PRODUCTION = "true"
+# RapidAPI key for Economic Calendar & Market News
+# Set the actual key via: wrangler secret put RAPIDAPI_KEY
+# Then also set FINNHUB_API_KEY and ALPHAVANTAGE_API_KEY as secrets for fallback sources
+RAPIDAPI_KEY = ""
 
 # Observability
 [observability]

@@ -436,13 +436,22 @@ function LuxTradeDashboardContent() {
           setTradingAccounts(accounts)
 
           // Auto-select default account for new trades
+          // Only set if not already selected (first load) or during refresh
+          // to avoid overwriting user's in-progress edit
           if (accounts.length > 0) {
             const defaultAccount = accounts.find((acc: any) => acc.is_default) || accounts[0]
-            setFormData(prev => ({
-              ...prev,
-              account_id: defaultAccount.id,
-              account_type: defaultAccount.account_type
-            }))
+            setFormData(prev => {
+              // If user already has an account selected that still exists, keep it
+              const currentAccountStillExists = prev.account_id && accounts.some((acc: any) => acc.id === prev.account_id)
+              if (currentAccountStillExists && isRefresh) {
+                return prev // Don't overwrite during refresh
+              }
+              return {
+                ...prev,
+                account_id: defaultAccount.id,
+                account_type: defaultAccount.account_type
+              }
+            })
           }
         } catch { /* keep existing accounts */ }
       }
