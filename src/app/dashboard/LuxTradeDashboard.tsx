@@ -375,11 +375,11 @@ function LuxTradeDashboardContent() {
       // Fetch all in parallel but handle each independently so one failure
       // doesn't prevent the others from updating the UI
       const [tradesRes, analyticsRes, journalRes, watchlistRes, accountsRes] = await Promise.all([
-        fetch('/api/trades').catch(() => null),
-        fetch('/api/analytics').catch(() => null),
-        fetch('/api/journal').catch(() => null),
-        fetch('/api/watchlist').catch(() => null),
-        fetch('/api/trading-accounts').catch(() => null),
+        fetch('/api/trades', { credentials: 'include' }).catch(() => null),
+        fetch('/api/analytics', { credentials: 'include' }).catch(() => null),
+        fetch('/api/journal', { credentials: 'include' }).catch(() => null),
+        fetch('/api/watchlist', { credentials: 'include' }).catch(() => null),
+        fetch('/api/trading-accounts', { credentials: 'include' }).catch(() => null),
       ])
 
       // Process trades (most critical — must update immediately)
@@ -456,7 +456,7 @@ function LuxTradeDashboardContent() {
   }, [])
 
   const handleLoadSampleData = useCallback(async () => {
-    const res = await fetch('/api/sample-data', { method: 'POST' })
+    const res = await fetch('/api/sample-data', { method: 'POST', credentials: 'include' })
     if (res.ok) {
       fetchData()
     }
@@ -664,6 +664,7 @@ function LuxTradeDashboardContent() {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ type: 'performance_tips', language, data: analytics })
       })
       
@@ -686,6 +687,7 @@ function LuxTradeDashboardContent() {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ type: 'market_insight', language, data: {} })
       })
       
@@ -712,6 +714,7 @@ function LuxTradeDashboardContent() {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           type: 'chat',
           language,
@@ -745,6 +748,7 @@ function LuxTradeDashboardContent() {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           type: 'trade_analysis',
           language,
@@ -787,6 +791,7 @@ function LuxTradeDashboardContent() {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ type: 'chart_analysis', language, data: { imageData } })
       })
       const data = await res.json()
@@ -815,6 +820,7 @@ function LuxTradeDashboardContent() {
       const res = await fetch('/api/ai/recommendations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ trades: filteredTrades, analytics, language })
       })
 

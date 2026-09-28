@@ -182,7 +182,7 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, className }: E
   useEffect(() => {
     if (fetchStartedRef.current) return
     fetchStartedRef.current = true
-    fetch('/api/equity-curve')
+    fetch('/api/equity-curve', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(d => { setData(d); setLoading(false) })
       .catch(() => setLoading(false))

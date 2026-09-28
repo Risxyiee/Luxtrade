@@ -49,7 +49,7 @@ export default function AdminTestimonialsClient() {
     setIsLoading(true)
     try {
       const statusParam = filter === 'all' ? '' : `&status=${filter}`
-      const res = await fetch(`/api/admin/testimonials?limit=100${statusParam}`)
+      const res = await fetch(`/api/admin/testimonials?limit=100${statusParam}`, { credentials: 'include' })
       const data = await res.json()
       if (data.success) {
         setTestimonials(data.testimonials)
@@ -72,6 +72,7 @@ export default function AdminTestimonialsClient() {
       const res = await fetch('/api/admin/testimonials', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ id, action }),
       })
       const data = await res.json()
@@ -94,7 +95,7 @@ export default function AdminTestimonialsClient() {
     if (!confirm('Hapus testimoni ini? Aksi ini tidak bisa dibatalkan.')) return
     setActionLoading(id)
     try {
-      const res = await fetch(`/api/admin/testimonials?id=${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/admin/testimonials?id=${id}`, { method: 'DELETE', credentials: 'include' })
       const data = await res.json()
       if (data.success) {
         setTestimonials(prev => prev.filter(t => t.id !== id))

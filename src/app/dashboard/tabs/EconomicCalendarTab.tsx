@@ -197,7 +197,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
     setCalLoading(true)
     setUnavailableMsg(null)
     try {
-      const res = await fetch('/api/economic-calendar?tz=' + encodeURIComponent(userOffset))
+      const res = await fetch('/api/economic-calendar?tz=' + encodeURIComponent(userOffset), { credentials: 'include' })
       if (res.ok) {
         const data = await res.json()
         setEvents(data.events || [])

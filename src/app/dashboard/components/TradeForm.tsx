@@ -113,6 +113,7 @@ function TradeForm({
 
       const res = await fetch('/api/trade-upload', {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       })
 
@@ -154,6 +155,7 @@ function TradeForm({
 
       const res = await fetch('/api/import/file', {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       })
 

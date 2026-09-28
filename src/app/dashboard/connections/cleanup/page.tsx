@@ -23,6 +23,7 @@ export default function CleanupPage() {
     try {
       const response = await fetch('/api/trading-accounts/cleanup', {
         method: 'DELETE',
+        credentials: 'include',
       })
 
       if (!response.ok) {

@@ -17,7 +17,7 @@ export function AIQuotaIndicator({ isPro }: AIQuotaIndicatorProps) {
 
   const fetchAIQuota = async () => {
     try {
-      const res = await fetch('/api/user/ai-quota')
+      const res = await fetch('/api/user/ai-quota', { credentials: 'include' })
       if (res.ok) {
         const data = await res.json()
         setQuota(data)

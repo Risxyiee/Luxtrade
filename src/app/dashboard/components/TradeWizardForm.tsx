@@ -300,6 +300,7 @@ export default function TradeWizardForm({
         try {
           res = await fetch('/api/analyze-screenshot', {
             method: 'POST',
+            credentials: 'include',
             body: fd,
             signal: controller.signal,
           })
@@ -397,6 +398,7 @@ export default function TradeWizardForm({
         try {
           res = await fetch('/api/auto-journal', {
             method: 'POST',
+            credentials: 'include',
             body: reqFormData,
             signal: controller.signal,
           })
@@ -495,6 +497,7 @@ export default function TradeWizardForm({
 
       const res = await fetch('/api/import/file', {
         method: 'POST',
+        credentials: 'include',
         body: mt5FormData,
       })
 
