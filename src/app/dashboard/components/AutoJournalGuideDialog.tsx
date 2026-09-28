@@ -104,7 +104,7 @@ const getTranslations = (lang: Language, mode: 'auto' | 'manual') => ({
           desc: lang === 'id'
             ? 'Screenshot detail trade seperti ini yang paling bagus. Semua data terlihat jelas.'
             : 'A trade detail screenshot like this is best. All data is clearly visible.',
-          image: '/images/guide/auto-journal-example.jpeg',
+          image: '/images/guide/auto-journal-example-v2.jpeg',
           alt: lang === 'id'
             ? 'Contoh screenshot MT5 untuk auto-journal'
             : 'Example MT5 screenshot for auto-journal',
@@ -116,7 +116,7 @@ const getTranslations = (lang: Language, mode: 'auto' | 'manual') => ({
           desc: lang === 'id'
             ? 'Screenshot detail trade dari MT4/MT5. Ini yang kamu upload.'
             : 'Screenshot trade detail from MT4/MT5. This is what you upload.',
-          image: '/images/guide/auto-journal-example.jpeg',
+          image: '/images/guide/auto-journal-example-v2.jpeg',
           alt: lang === 'id'
             ? 'Screenshot MT5 yang di-upload'
             : 'MT5 screenshot to upload',
