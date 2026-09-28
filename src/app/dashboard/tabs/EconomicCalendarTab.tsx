@@ -1,16 +1,17 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { motion } from 'framer-motion'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { CalendarDays, RefreshCw, Crown, Lock, AlertTriangle } from 'lucide-react'
+import { CalendarDays, RefreshCw, Crown, AlertTriangle, Bell, BellOff, Clock, TrendingUp } from 'lucide-react'
 
-// Interface
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface CalendarEvent {
+  id: string
   date: string
   time: string
+  dateTime: string
   currency: string
   impact: 'high' | 'medium' | 'low'
   event: string
@@ -26,51 +27,121 @@ interface EconomicCalendarTabProps {
   onUpgrade?: () => void
 }
 
-// Component
+// ─── Countdown Hook ───────────────────────────────────────────────────────────
+function useCountdown(targetDate: string): string {
+  const [countdown, setCountdown] = useState('')
+
+  useEffect(() => {
+    const target = new Date(targetDate).getTime()
+    if (isNaN(target)) { setCountdown(''); return }
+
+    const update = () => {
+      const now = Date.now()
+      const diff = target - now
+
+      if (diff <= 0) {
+        setCountdown('LIVE')
+        return
+      }
+
+      const hours = Math.floor(diff / 3600000)
+      const minutes = Math.floor((diff % 3600000) / 60000)
+      const seconds = Math.floor((diff % 60000) / 1000)
+
+      if (hours > 24) {
+        const days = Math.floor(hours / 24)
+        setCountdown(days + 'd ' + (hours % 24) + 'h')
+      } else if (hours > 0) {
+        setCountdown(hours + 'h ' + minutes + 'm')
+      } else if (minutes > 0) {
+        setCountdown(minutes + 'm ' + seconds + 's')
+      } else {
+        setCountdown(seconds + 's')
+      }
+    }
+
+    update()
+    const interval = setInterval(update, 1000)
+    return () => clearInterval(interval)
+  }, [targetDate])
+
+  return countdown
+}
+
+// ─── Countdown Display Component ──────────────────────────────────────────────
+function EventCountdown({ dateTime, language }: { dateTime: string; language: 'id' | 'en' }) {
+  const countdown = useCountdown(dateTime)
+  const isLive = countdown === 'LIVE'
+  const isUrgent = countdown.includes('m ') && !countdown.includes('h ') && !countdown.includes('d ')
+
+  return (
+    <span className={`text-[10px] font-mono ${
+      isLive ? 'text-red-400 font-bold' : isUrgent ? 'text-amber-400' : 'text-gray-500'
+    }`}>
+      {isLive ? '🔴 LIVE' : countdown ? '⏱ ' + countdown : ''}
+    </span>
+  )
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTabProps) {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [calLoading, setCalLoading] = useState(true)
   const [calFilter, setCalFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all')
   const [currencyFilter, setCurrencyFilter] = useState<string>('all')
   const [lastFetched, setLastFetched] = useState<string>('')
+  const [source, setSource] = useState<string>('')
   const [unavailableMsg, setUnavailableMsg] = useState<string | null>(null)
+  const [notifyEnabled, setNotifyEnabled] = useState(false)
+  const [now, setNow] = useState<string>('')
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Load notification preference from localStorage
+  useEffect(() => {
+    setNotifyEnabled(localStorage.getItem('econ_cal_notify') === 'true')
+  }, [])
 
   const fetchCalendar = useCallback(async () => {
     setCalLoading(true)
     setUnavailableMsg(null)
     try {
-      const res = await fetch('/api/news/calendar')
+      const res = await fetch('/api/economic-calendar')
       if (res.ok) {
         const data = await res.json()
         setEvents(data.events || [])
         setLastFetched(data.fetchedAt || '')
+        setSource(data.source || '')
+        setNow(data.now || '')
         if (data.unavailable) {
-          setUnavailableMsg(data.message || 'Data kalender ekonomi sedang tidak tersedia.')
+          setUnavailableMsg(data.message || 'Calendar data temporarily unavailable.')
         }
       }
     } catch { /* keep existing */ } finally { setCalLoading(false) }
   }, [])
 
   useEffect(() => {
-    // Delay by 10s to allow Network Idle for PWA audit
     const delayTimeout = setTimeout(() => {
       fetchCalendar()
-      intervalRef.current = setInterval(fetchCalendar, 60 * 60 * 1000)
-    }, 10000)
+      intervalRef.current = setInterval(fetchCalendar, 30 * 60 * 1000)
+    }, 5000)
     return () => {
       clearTimeout(delayTimeout)
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
   }, [fetchCalendar])
 
-  // Get unique currencies
+  // Notification toggle
+  const toggleNotify = useCallback(() => {
+    const next = !notifyEnabled
+    setNotifyEnabled(next)
+    localStorage.setItem('econ_cal_notify', String(next))
+  }, [notifyEnabled])
+
+  // Unique currencies
   const currencies = useMemo(() => {
     const unique = [...new Set(events.map(e => e.currency))]
-    return unique.sort((a, b) => {
-      const priority: Record<string, number> = { USD: 0, EUR: 1, GBP: 2, JPY: 3, AUD: 4, CAD: 5, CHF: 6, NZD: 7, CNY: 8, IDR: 9 }
-      return (priority[a] ?? 99) - (priority[b] ?? 99)
-    })
+    const priority: Record<string, number> = { USD: 0, EUR: 1, GBP: 2, JPY: 3, AUD: 4, CAD: 5, CHF: 6, NZD: 7, CNY: 8, IDR: 9 }
+    return unique.sort((a, b) => (priority[a] ?? 99) - (priority[b] ?? 99))
   }, [events])
 
   // Filtering
@@ -81,28 +152,22 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
     return result
   }, [events, calFilter, currencyFilter])
 
-  // Group by day
-  const eventsByDay = useMemo(() => {
+  // Group by date
+  const eventsByDate = useMemo(() => {
     return filtered.reduce((acc, evt) => {
-      const day = evt.date || 'Other'
-      if (!acc[day]) acc[day] = []
-      acc[day].push(evt)
+      const dayKey = evt.date || 'Unknown'
+      if (!acc[dayKey]) acc[dayKey] = []
+      acc[dayKey].push(evt)
       return acc
     }, {} as Record<string, CalendarEvent[]>)
   }, [filtered])
 
-  const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-  const sortedDays = useMemo(() => {
-    return Object.keys(eventsByDay).sort((a, b) => {
-      const ai = dayOrder.indexOf(a)
-      const bi = dayOrder.indexOf(b)
-      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
-    })
-  }, [eventsByDay])
+  const sortedDates = useMemo(() => Object.keys(eventsByDate).sort(), [eventsByDate])
 
   const highCount = events.filter(e => e.impact === 'high').length
   const medCount = events.filter(e => e.impact === 'medium').length
 
+  // ─── Paywall for free users ──────────────────────────────────────────────
   if (!isPro) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -110,7 +175,9 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
           <Crown className="w-8 h-8 text-white" />
         </div>
         <h3 className="text-xl font-bold text-white mb-2">{language === 'id' ? 'Fitur Premium' : 'Premium Feature'}</h3>
-        <p className="text-lux-text-secondary dark:text-gray-400 text-center max-w-sm mb-6">{language === 'id' ? 'Kalender ekonomi hanya tersedia untuk pengguna PRO' : 'Economic calendar is only available for PRO users'}</p>
+        <p className="text-lux-text-secondary dark:text-gray-400 text-center max-w-sm mb-6">
+          {language === 'id' ? 'Kalender ekonomi hanya tersedia untuk pengguna PRO' : 'Economic calendar is only available for PRO users'}
+        </p>
         <button onClick={onUpgrade} className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity">
           {language === 'id' ? 'Upgrade ke PRO' : 'Upgrade to PRO'}
         </button>
@@ -118,41 +185,35 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
     )
   }
 
-  const labels = {
-    id: {
-      title: 'Kalender Ekonomi',
-      subtitle: 'Jadwal event ekonomi berdampak dari Investing.com',
-      source: 'Data dari Investing.com Economic Calendar',
-      high: 'Dampak Tinggi', medium: 'Dampak Sedang', low: 'Dampak Rendah',
-      all: 'Semua', allCurrencies: 'Semua Mata Uang',
-      noEvents: 'Belum ada jadwal event',
-      refresh: 'Refresh', lastUpdated: 'Terakhir diperbarui',
-      waktu: 'Waktu', mataUang: 'Mata Uang',
-      perkiraan: 'Perkiraan', sebelumnya: 'Sebelumnya', aktual: 'Aktual',
-      events: 'event', fetching: 'Mengambil kalender ekonomi...',
-      highEvents: 'Event berdampak tinggi minggu ini',
-    },
-    en: {
-      title: 'Economic Calendar',
-      subtitle: 'High-impact economic events from Investing.com',
-      source: 'Data from Investing.com Economic Calendar',
-      high: 'High Impact', medium: 'Medium Impact', low: 'Low Impact',
-      all: 'All', allCurrencies: 'All Currencies',
-      noEvents: 'No events available',
-      refresh: 'Refresh', lastUpdated: 'Last updated',
-      waktu: 'Time', mataUang: 'Currency',
-      perkiraan: 'Forecast', sebelumnya: 'Previous', aktual: 'Actual',
-      events: 'events', fetching: 'Fetching economic calendar...',
-      highEvents: 'High-impact events this week',
-    }
+  const L = language === 'id'
+  const t = {
+    title: L ? 'Kalender Ekonomi' : 'Economic Calendar',
+    subtitle: L ? 'Jadwal event ekonomi berdampak tinggi' : 'High-impact economic events schedule',
+    high: L ? 'Dampak Tinggi' : 'High Impact',
+    medium: L ? 'Dampak Sedang' : 'Medium Impact',
+    low: L ? 'Dampak Rendah' : 'Low Impact',
+    all: L ? 'Semua' : 'All',
+    allCurrencies: L ? 'Semua Mata Uang' : 'All Currencies',
+    noEvents: L ? 'Belum ada jadwal event' : 'No events available',
+    refresh: L ? 'Refresh' : 'Refresh',
+    lastUpdated: L ? 'Terakhir diperbarui' : 'Last updated',
+    waktu: L ? 'Waktu' : 'Time',
+    mataUang: L ? 'Mata Uang' : 'Currency',
+    perkiraan: L ? 'Perkiraan' : 'Forecast',
+    sebelumnya: L ? 'Sebelumnya' : 'Previous',
+    aktual: L ? 'Aktual' : 'Actual',
+    events: L ? 'event' : 'events',
+    fetching: L ? 'Mengambil kalender ekonomi...' : 'Fetching economic calendar...',
+    notifyOn: L ? 'Notifikasi Aktif' : 'Notifications On',
+    notifyOff: L ? 'Notifikasi Mati' : 'Notifications Off',
+    notifyHint: L ? 'Kamu akan mendapat notifikasi 15 menit sebelum event USD berdampak tinggi' : 'You will get notified 15 min before high-impact USD events',
+    countdown: L ? 'Hitung Mundur' : 'Countdown',
   }
 
-  const t = labels[language]
-
   const impactConfig = {
-    high: { bg: 'bg-red-500/10 border-red-500/30', badge: 'bg-red-500/20 text-red-400', dot: 'bg-red-500', label: t.high },
-    medium: { bg: 'bg-amber-500/10 border-amber-500/30', badge: 'bg-amber-500/20 text-amber-400', dot: 'bg-amber-500', label: t.medium },
-    low: { bg: 'bg-emerald-500/10 border-emerald-500/30', badge: 'bg-emerald-500/20 text-emerald-400', dot: 'bg-emerald-500', label: t.low },
+    high: { bg: 'bg-red-500/10 border-red-500/30', badge: 'bg-red-500/20 text-red-400', dot: 'bg-red-500', label: t.high, glow: 'shadow-red-500/20' },
+    medium: { bg: 'bg-amber-500/10 border-amber-500/30', badge: 'bg-amber-500/20 text-amber-400', dot: 'bg-amber-500', label: t.medium, glow: '' },
+    low: { bg: 'bg-emerald-500/10 border-emerald-500/30', badge: 'bg-emerald-500/20 text-emerald-400', dot: 'bg-emerald-500', label: t.low, glow: '' },
   }
 
   const getCurrencyFlag = (c: string) => {
@@ -160,12 +221,43 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
     return flags[c] || '🌐'
   }
 
+  const formatDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr + 'T00:00:00Z')
+      return d.toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    } catch { return dateStr }
+  }
+
+  const isToday = (dateStr: string) => {
+    return dateStr === new Date().toISOString().split('T')[0]
+  }
+
   return (
     <div className="space-y-6">
-      {/* Source Badge */}
-      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.05] w-fit">
-        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-        <span className="text-xs text-lux-text-muted dark:text-gray-500">{t.source}</span>
+      {/* Source & Notification Badge Row */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+          <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+          <span className="text-xs text-lux-text-muted dark:text-gray-500">
+            {source ? (L ? 'Sumber: ' : 'Source: ') + source : (L ? 'Memuat...' : 'Loading...')}
+          </span>
+        </div>
+
+        {/* Notification Toggle */}
+        <button
+          onClick={toggleNotify}
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
+            notifyEnabled
+              ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+              : 'bg-white/[0.02] border-white/[0.05] text-gray-500'
+          }`}
+        >
+          {notifyEnabled ? <Bell className="w-3.5 h-3.5" /> : <BellOff className="w-3.5 h-3.5" />}
+          <span className="text-xs font-medium">{notifyEnabled ? t.notifyOn : t.notifyOff}</span>
+        </button>
+        {notifyEnabled && (
+          <span className="text-[10px] text-blue-400/70">{t.notifyHint}</span>
+        )}
       </div>
 
       {/* Header */}
@@ -238,7 +330,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
           >
             {t.allCurrencies}
           </button>
-          {currencies.slice(0, 8).map(c => (
+          {currencies.slice(0, 10).map(c => (
             <button
               key={c}
               onClick={() => setCurrencyFilter(c)}
@@ -278,43 +370,42 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
         </div>
       )}
 
-      {/* Calendar Events grouped by day */}
-      {!calLoading && sortedDays.length > 0 && (
+      {/* Calendar Events grouped by date */}
+      {!calLoading && sortedDates.length > 0 && (
         <div className="space-y-6">
-          {sortedDays.map(day => (
-            <div key={day}>
-              {/* Day header */}
+          {sortedDates.map(dateKey => (
+            <div key={dateKey}>
+              {/* Date header */}
               <div className="flex items-center gap-2 mb-3">
-                <div className={`w-2 h-2 rounded-full ${
-                  day === dayOrder[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1] ? 'bg-blue-500 animate-pulse' : 'bg-white/20'
-                }`} />
-                <h3 className="text-sm font-bold text-lux-text-primary dark:text-gray-300 uppercase tracking-wider">{day}</h3>
-                <span className="text-xs text-gray-600">({eventsByDay[day].length} {t.events})</span>
+                <div className={`w-2 h-2 rounded-full ${isToday(dateKey) ? 'bg-blue-500 animate-pulse' : 'bg-white/20'}`} />
+                <h3 className="text-sm font-bold text-lux-text-primary dark:text-gray-300 uppercase tracking-wider">
+                  {formatDate(dateKey)}{isToday(dateKey) ? ' (Today)' : ''}
+                </h3>
+                <span className="text-xs text-gray-600">({eventsByDate[dateKey].length} {t.events})</span>
               </div>
 
-              {/* Events list - Desktop Table View */}
+              {/* Desktop Table View */}
               <div className="hidden md:block">
                 {/* Table Header */}
-                <div className="grid grid-cols-[60px_40px_1fr_80px_80px_80px] gap-2 px-3 py-2 text-[10px] font-bold text-gray-600 uppercase tracking-wider border-b border-white/[0.06]">
+                <div className="grid grid-cols-[60px_40px_1fr_70px_70px_70px_70px] gap-2 px-3 py-2 text-[10px] font-bold text-gray-600 uppercase tracking-wider border-b border-white/[0.06]">
                   <span>{t.waktu}</span>
                   <span></span>
                   <span>{t.mataUang} / Event</span>
                   <span className="text-right">{t.aktual}</span>
                   <span className="text-right">{t.perkiraan}</span>
                   <span className="text-right">{t.sebelumnya}</span>
+                  <span className="text-right">{t.countdown}</span>
                 </div>
 
-                {/* Table Rows */}
+                {/* Table Rows — no motion.div, instant render */}
                 <div className="grid gap-1 mt-1">
-                  {eventsByDay[day].map((evt, idx) => {
+                  {eventsByDate[dateKey].map((evt, idx) => {
                     const cfg = impactConfig[evt.impact]
+                    const isNextHighImpact = evt.impact === 'high' && evt.currency === 'USD'
                     return (
-                      <motion.div
-                        key={`${evt.event}-${idx}`}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.15, delay: idx * 0.02 }}
-                        className={`grid grid-cols-[60px_40px_1fr_80px_80px_80px] gap-2 items-center px-3 py-2.5 rounded-lg border ${cfg.bg} hover:bg-white/[0.02] transition-all`}
+                      <div
+                        key={evt.id || idx}
+                        className={`grid grid-cols-[60px_40px_1fr_70px_70px_70px_70px] gap-2 items-center px-3 py-2.5 rounded-lg border ${cfg.bg} ${isNextHighImpact ? 'ring-1 ring-red-500/20 ' + cfg.glow : ''} hover:bg-white/[0.02] transition-colors`}
                       >
                         {/* Time */}
                         <span className="text-xs font-mono text-lux-text-secondary dark:text-gray-400">{evt.time || '--:--'}</span>
@@ -325,6 +416,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
                           <div className="flex items-center gap-2">
                             <Badge variant="outline" className={`${cfg.badge} text-[9px] px-1.5 py-0 border-0 flex-shrink-0`}>{cfg.label}</Badge>
                             <span className="text-[11px] font-mono text-lux-text-muted dark:text-gray-500 flex-shrink-0">{evt.currency}</span>
+                            {isNextHighImpact && notifyEnabled && <Bell className="w-3 h-3 text-blue-400 flex-shrink-0" />}
                           </div>
                           <p className={`text-sm font-medium mt-0.5 truncate ${evt.impact === 'high' ? 'text-white' : 'text-lux-text-primary dark:text-gray-200'}`}>
                             {evt.event}
@@ -332,45 +424,35 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
                         </div>
                         {/* Actual */}
                         <div className="text-right">
-                          {evt.actual ? (
-                            <span className="text-xs font-mono text-white font-medium">{evt.actual}</span>
-                          ) : (
-                            <span className="text-xs text-gray-600">—</span>
-                          )}
+                          {evt.actual ? <span className="text-xs font-mono text-white font-medium">{evt.actual}</span> : <span className="text-xs text-gray-600">—</span>}
                         </div>
                         {/* Forecast */}
                         <div className="text-right">
-                          {evt.forecast ? (
-                            <span className="text-xs font-mono text-amber-400/80">{evt.forecast}</span>
-                          ) : (
-                            <span className="text-xs text-gray-600">—</span>
-                          )}
+                          {evt.forecast ? <span className="text-xs font-mono text-amber-400/80">{evt.forecast}</span> : <span className="text-xs text-gray-600">—</span>}
                         </div>
                         {/* Previous */}
                         <div className="text-right">
-                          {evt.previous ? (
-                            <span className="text-xs font-mono text-lux-text-secondary dark:text-gray-400">{evt.previous}</span>
-                          ) : (
-                            <span className="text-xs text-gray-600">—</span>
-                          )}
+                          {evt.previous ? <span className="text-xs font-mono text-lux-text-secondary dark:text-gray-400">{evt.previous}</span> : <span className="text-xs text-gray-600">—</span>}
                         </div>
-                      </motion.div>
+                        {/* Countdown */}
+                        <div className="text-right">
+                          <EventCountdown dateTime={evt.dateTime} language={language} />
+                        </div>
+                      </div>
                     )
                   })}
                 </div>
               </div>
 
-              {/* Events list - Mobile Card View */}
+              {/* Mobile Card View */}
               <div className="md:hidden grid gap-2 ml-1 border-l border-white/[0.06] pl-4">
-                {eventsByDay[day].map((evt, idx) => {
+                {eventsByDate[dateKey].map((evt, idx) => {
                   const cfg = impactConfig[evt.impact]
+                  const isNextHighImpact = evt.impact === 'high' && evt.currency === 'USD'
                   return (
-                    <motion.div
-                      key={`${evt.event}-m-${idx}`}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.15, delay: idx * 0.03 }}
-                      className={`rounded-lg border p-3 ${cfg.bg} relative`}
+                    <div
+                      key={evt.id || 'm-' + idx}
+                      className={`rounded-lg border p-3 ${cfg.bg} ${isNextHighImpact ? 'ring-1 ring-red-500/20' : ''} relative`}
                     >
                       <div className={`absolute -left-[21px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-[#060810] ${cfg.dot}`} />
                       <div className="flex items-center gap-3">
@@ -379,6 +461,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-xs font-mono text-lux-text-secondary dark:text-gray-400">{evt.time || '--:--'}</span>
                             <Badge variant="outline" className={`${cfg.badge} text-[9px] px-1.5 py-0 border-0`}>{cfg.label}</Badge>
+                            {isNextHighImpact && notifyEnabled && <Bell className="w-3 h-3 text-blue-400" />}
                           </div>
                           <p className={`text-sm font-medium truncate ${evt.impact === 'high' ? 'text-white' : 'text-lux-text-primary dark:text-gray-200'}`}>
                             {evt.event}
@@ -388,9 +471,13 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
                             {evt.forecast && <span className="text-lux-text-muted dark:text-gray-500">{t.perkiraan}: <span className="text-amber-400/80 font-mono">{evt.forecast}</span></span>}
                             {evt.previous && <span className="text-lux-text-muted dark:text-gray-500">{t.sebelumnya}: <span className="text-lux-text-secondary dark:text-gray-400 font-mono">{evt.previous}</span></span>}
                           </div>
+                          {/* Countdown on mobile */}
+                          <div className="mt-1.5">
+                            <EventCountdown dateTime={evt.dateTime} language={language} />
+                          </div>
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   )
                 })}
               </div>
