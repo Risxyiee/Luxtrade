@@ -28,10 +28,10 @@ export async function GET() {
       { src: "/icon-192x192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
     ],
     screenshots: [
-      { src: "/screenshot-dashboard-mobile-v2.webp", sizes: "1080x1920", type: "image/webp", form_factor: "narrow", label: "Dashboard mobile view with equity curve and analytics" },
-      { src: "/screenshot-dashboard-v2.webp", sizes: "1080x1920", type: "image/webp", form_factor: "wide", label: "Dashboard desktop view with equity curve and analytics" },
-      { src: "/screenshot-trades-v2.webp", sizes: "1080x1920", type: "image/webp", form_factor: "wide", label: "Trade log with AI analysis" },
-      { src: "/screenshot-calendar-v2.webp", sizes: "1080x1920", type: "image/webp", form_factor: "wide", label: "Economic calendar integration" },
+      { src: "/screenshot-dashboard-mobile-v2.png", sizes: "1080x1920", type: "image/png", form_factor: "narrow", label: "Dashboard mobile view with equity curve and analytics" },
+      { src: "/screenshot-dashboard-v2.png", sizes: "1080x1920", type: "image/png", form_factor: "wide", label: "Dashboard desktop view with equity curve and analytics" },
+      { src: "/screenshot-trades-v2.png", sizes: "1080x1920", type: "image/png", form_factor: "wide", label: "Trade log with AI analysis" },
+      { src: "/screenshot-calendar-v2.png", sizes: "1080x1920", type: "image/png", form_factor: "wide", label: "Economic calendar integration" },
     ],
     shortcuts: [
       { name: "Log Trade", short_name: "Trade", url: "/dashboard?action=log-trade", icons: [{ src: "/icon-192x192.png", sizes: "192x192", type: "image/png" }] },
