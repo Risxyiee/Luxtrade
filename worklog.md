@@ -552,3 +552,25 @@ Stage Summary:
 - Users can get help without leaving the dashboard
 - Escalation to human admin via Telegram @Risxyiee is always available
 - Both landing page and dashboard CS bots work independently with separate sessions
+---
+Task ID: sw-pwa-enhancement
+Agent: Main
+Task: Service Worker & PWA Enhancement — VAPID keys, widget-data APIs, env config
+
+Work Log:
+- Audited entire PWA/SW setup: manifest, sw.ts, serwist config, components, push notifications
+- Verified ServiceWorkerRegistration.tsx syntax is actually valid (interfaces at module scope, not inside component)
+- Verified PushSubscription Prisma model already has @@map("push_subscriptions")
+- Generated VAPID keys using web-push library
+- Created scripts/generate-vapid-keys.js for future key generation
+- Added VAPID keys to .env (production), .env.ci (public key), .env.example (with docs)
+- Created /api/widget-data/summary route — total trades, win rate, plan info for PWA widget
+- Created /api/widget-data/equity route — equity curve data points for PWA widget
+- Created /api/widget-data/winrate route — win/loss stats for PWA widget
+- All new routes use Supabase auth to personalize widget data per user
+
+Stage Summary:
+- Push notifications now functional with VAPID keys configured
+- PWA widget data endpoints implemented (summary, equity, winrate)
+- .env.example now documents all VAPID env vars
+- Service Worker setup is comprehensive: precaching, offline fallback, background sync, push, periodic sync
