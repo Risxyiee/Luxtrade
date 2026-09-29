@@ -61,6 +61,7 @@ const menuItems = [
   { id: 'heatmap', label: 'Market Heatmap', labelId: 'Pasar Heatmap' },
   { id: 'analytics', label: 'Analytics', labelId: 'Analitik' },
   { id: 'targets', label: 'Targets', labelId: 'Target' },
+  { id: 'propfirm', label: 'Prop Firm', labelId: 'Prop Firm' },
   { id: 'ai', label: 'AI Insights', labelId: 'Insight AI' },
   { id: 'score', label: 'Trading Score', labelId: 'Skor Trading' },
   { id: 'report', label: 'Weekly Report', labelId: 'Laporan Mingguan' },

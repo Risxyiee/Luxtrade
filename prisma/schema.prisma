@@ -46,6 +46,7 @@ model Profile {
   socialLinks       SocialLink[]
   paymentOrders     PaymentOrder[]
   sharedTrades      SharedTrade[]
+  propFirmRules     PropFirmRule[]
 
   @@map("profiles")
 }
@@ -474,4 +475,65 @@ model PushSubscription {
   @@unique([endpoint])
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+// ─── Prop Firm Challenge Tracking ──────────────────────────────────────────────
+// Tracks drawdown limits, daily drawdown, profit targets, challenge phase
+// for prop firm traders (FTMO, MFF, FundedNext, etc.)
+
+model PropFirmRule {
+  id                String    @id @default(uuid())
+  user_id           String    @map("user_id")
+  account_id        String?   @map("account_id")    // optional: link to specific TradingAccount
+
+  // Prop firm info
+  firm_name         String    @map("firm_name")      // e.g. "FTMO", "MFF", "FundedNext"
+  challenge_size    Float     @default(0) @map("challenge_size")  // e.g. 100000
+  phase             String    @default("phase1") @map("phase")    // phase1, phase2, funded
+
+  // Drawdown Rules
+  max_drawdown      Float     @default(0) @map("max_drawdown")          // overall max drawdown ($)
+  max_daily_drawdown Float    @default(0) @map("max_daily_drawdown")    // daily max drawdown ($)
+  daily_drawdown_type String  @default("relative") @map("daily_drawdown_type") // "relative" (% of start) or "absolute" ($)
+
+  // Profit Targets
+  profit_target     Float     @default(0) @map("profit_target")         // profit target for current phase ($)
+  profit_target_percent Float  @default(0) @map("profit_target_percent") // profit target as % of challenge size
+
+  // Trading Rules
+  min_trading_days  Int       @default(0) @map("min_trading_days")      // minimum trading days required
+  max_daily_trades  Int       @default(0) @map("max_daily_trades")      // 0 = unlimited
+  max_position_size Float     @default(0) @map("max_position_size")     // 0 = unlimited
+  allow_news_trading Boolean  @default(true) @map("allow_news_trading")
+  allow_weekend_trading Boolean @default(true) @map("allow_weekend_trading")
+  allow_overnight   Boolean   @default(true) @map("allow_overnight")
+
+  // Funded account settings
+  profit_split      Float     @default(80) @map("profit_split")         // e(80) = trader gets 80%
+  payout_frequency  String    @default("biweekly") @map("payout_frequency") // biweekly, monthly
+
+  // Current tracking (auto-calculated from trades)
+  current_balance   Float     @default(0) @map("current_balance")       // tracked from trades
+  current_drawdown  Float     @default(0) @map("current_drawdown")      // current overall DD from peak
+  peak_balance      Float     @default(0) @map("peak_balance")          // highest balance reached
+  days_traded       Int       @default(0) @map("days_traded")           // trading days in current phase
+  current_pnl       Float     @default(0) @map("current_pnl")           // net PnL in current phase
+
+  // Status
+  is_active         Boolean   @default(true) @map("is_active")
+  is_violated       Boolean   @default(false) @map("is_violated")       // rule breached?
+  violation_type    String?   @map("violation_type")                    // "daily_dd", "max_dd", etc.
+  challenge_passed  Boolean   @default(false) @map("challenge_passed")
+  challenge_failed  Boolean   @default(false) @map("challenge_failed")
+
+  start_date        DateTime? @map("start_date")
+  end_date          DateTime? @map("end_date")
+  created_at        DateTime  @default(now()) @map("created_at")
+  updated_at        DateTime  @updatedAt @map("updated_at")
+
+  user              Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([account_id])
+  @@map("prop_firm_rules")
 }
