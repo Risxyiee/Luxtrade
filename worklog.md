@@ -373,3 +373,34 @@ Stage Summary:
 - Calendar events now derived 100% from working TradingEconomics news endpoint
 - Removed 395 lines of broken/unused code (2 strategies, Finnhub, AlphaVantage, news/calendar route)
 - Cron notify endpoint works unchanged (calls /api/economic-calendar which now uses news→calendar)
+---
+Task ID: 2
+Agent: main
+Task: Add multi-account dashboard with account switcher in header
+
+Work Log:
+- Explored dashboard architecture: LuxTradeDashboard already had selectedAccountId + filteredTrades but NO UI switcher
+- Header component received tradingAccounts/selectedAccountId props but rendered nothing for account switching
+- Analytics API already supported account_id query param
+- Added account switcher dropdown in Header.tsx:
+  - Wallet icon + account name + ChevronDown dropdown
+  - "All Accounts" option (null selectedAccountId = combined view)
+  - Individual accounts with currency flag emojis
+  - "Add Account" quick action at bottom
+  - Outside-click to close, selected state highlight with Check icon
+  - Only shows when 2+ accounts exist
+- Updated LuxTradeDashboard.tsx:
+  - selectedAccountId initialized from localStorage (persists across reloads)
+  - handleSetSelectedAccountId callback saves to localStorage
+  - Analytics fetch includes account_id query param
+  - Effect re-fetches analytics when selectedAccountId changes
+- Updated TabContent.tsx: passes selectedAccountId prop through to AnalyticsTab
+- Updated AnalyticsTab.tsx: accepts selectedAccountId, includes in fetch URL params
+- Lint passes clean
+- Committed and pushed: 744f9b15 (main → main)
+
+Stage Summary:
+- Dashboard now has per-account isolation: trades, analytics, PnL all filter by selected account
+- Account switcher appears in header when user has 2+ trading accounts
+- Selection persists via localStorage across page reloads
+- Analytics API already supported account_id filter - just needed frontend plumbing
