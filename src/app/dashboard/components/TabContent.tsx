@@ -71,6 +71,7 @@ interface TabContentProps {
   hasMounted: boolean
   tradingAccounts?: any[]
   fetchData?: (isRefresh?: boolean) => void
+  selectedAccountId?: string | null
 }
 
 export default function TabContent({
@@ -112,6 +113,7 @@ export default function TabContent({
   hasMounted,
   tradingAccounts,
   fetchData,
+  selectedAccountId,
 }: TabContentProps) {
   return (
     <div className="w-full px-2 sm:px-4 lg:px-6 pb-24">
@@ -182,7 +184,7 @@ export default function TabContent({
           )}
 
           {activeTab === 'analytics' && (
-            <AnalyticsTab language={language} initialAnalytics={analytics} />
+            <AnalyticsTab language={language} initialAnalytics={analytics} selectedAccountId={selectedAccountId} />
           )}
 
           {activeTab === 'ai' && (

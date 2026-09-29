@@ -9,6 +9,7 @@ import { TrendingUp, TrendingDown, Target, Clock, DollarSign, Activity, ArrowDow
 interface AnalyticsTabProps {
   language: 'id' | 'en'
   initialAnalytics?: any | null // Pre-fetched from parent (period='all')
+  selectedAccountId?: string | null // Account filter from header switcher
 }
 
 const COLORS = ['#3b82f6', '#f59e0b', '#22c55e', '#3b82f6', '#06b6d4']
@@ -26,7 +27,7 @@ const getRatioBg = (value: number, goodThreshold = 2, midThreshold = 1) => {
   return 'from-red-500/15 to-red-600/5 border-red-500/30'
 }
 
-export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTabProps) {
+export default function AnalyticsTab({ language, initialAnalytics, selectedAccountId }: AnalyticsTabProps) {
   const [analytics, setAnalytics] = useState<any>(initialAnalytics || null)
   const [loading, setLoading] = useState(!initialAnalytics)
   const [period, setPeriod] = useState('all')
@@ -36,12 +37,15 @@ export default function AnalyticsTab({ language, initialAnalytics }: AnalyticsTa
     // If we have initial data and period is 'all', skip the fetch
     if (period === 'all' && initialAnalytics) return
     fetchAnalytics()
-  }, [period])
+  }, [period, selectedAccountId])
 
   const fetchAnalytics = async () => {
     try {
       setLoading(true)
-      const res = await fetch(`/api/analytics?period=${period}`, {
+      const params = new URLSearchParams()
+      params.set('period', period)
+      if (selectedAccountId) params.set('account_id', selectedAccountId)
+      const res = await fetch(`/api/analytics?${params.toString()}`, {
         credentials: 'include'
       })
       if (!res.ok) throw new Error('Failed to fetch analytics')

@@ -1,8 +1,9 @@
 'use client'
 
-import { memo, useState, useMemo, useEffect } from 'react'
+import { memo, useState, useMemo, useEffect, useRef } from 'react'
 import {
-  Menu, RefreshCw, LogOut, Keyboard, Settings, Sparkles
+  Menu, RefreshCw, LogOut, Keyboard, Settings, Sparkles,
+  ChevronDown, Wallet, Plus, Check
 } from 'lucide-react'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import dynamic from 'next/dynamic'
@@ -20,6 +21,16 @@ import type { TradeAlertPreferences } from '@/lib/trade-alerts'
 
 // Lazy-loaded to reduce initial bundle
 const NotificationCenter = dynamic(() => import('@/components/NotificationCenter').then(m => ({ default: m.default })), { ssr: false })
+
+// Currency flag emoji helper
+function getAccountFlag(currency: string): string {
+  const flags: Record<string, string> = {
+    USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧', JPY: '🇯🇵', AUD: '🇦🇺',
+    CAD: '🇨🇦', CHF: '🇨🇭', NZD: '🇳🇿', IDR: '🇮🇩', SGD: '🇸🇬',
+    CNY: '🇨🇳', KRW: '🇰🇷', INR: '🇮🇳', BRL: '🇧🇷', MXN: '🇲🇽',
+  }
+  return flags[currency] || '💰'
+}
 
 interface HeaderProps {
   sidebarOpen: boolean
@@ -66,6 +77,25 @@ const Header = memo(function Header({
   const [notifPrefsOpen, setNotifPrefsOpen] = useState(false)
   const [notifPreferences, setNotifPreferences] = useState<Partial<TradeAlertPreferences> | undefined>()
   const [aiQuotaInfo, setAiQuotaInfo] = useState<{ total: number; used: number; remaining: number; isPro: boolean } | null>(null)
+  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setAccountDropdownOpen(false)
+      }
+    }
+    if (accountDropdownOpen) document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [accountDropdownOpen])
+
+  // Find currently selected account name
+  const selectedAccount = useMemo(() => {
+    if (!selectedAccountId) return null
+    return tradingAccounts.find((acc: any) => acc.id === selectedAccountId) || null
+  }, [selectedAccountId, tradingAccounts])
 
   // Fetch AI quota info on mount (for free users)
   useEffect(() => {
@@ -114,6 +144,62 @@ const Header = memo(function Header({
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
+
+      {/* Account Switcher — between title and right controls */}
+      {tradingAccounts.length > 1 && (
+        <div ref={dropdownRef} className="relative ml-2 sm:ml-3">
+          <button
+            onClick={() => setAccountDropdownOpen(!accountDropdownOpen)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-lux-border dark:border-blue-500/20 bg-lux-bg-card dark:bg-white/5 hover:bg-lux-surface-hover dark:hover:bg-white/10 transition-colors text-sm"
+          >
+            <Wallet className="w-3.5 h-3.5 text-blue-400" />
+            <span className="text-xs sm:text-sm font-medium text-lux-text-primary dark:text-white truncate max-w-[120px]">
+              {selectedAccount?.name || (language === 'id' ? 'Semua Akun' : 'All Accounts')}
+            </span>
+            <ChevronDown className={`w-3 h-3 text-lux-text-muted dark:text-gray-400 transition-transform ${accountDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {accountDropdownOpen && (
+            <div className="absolute top-full left-0 mt-1.5 w-56 rounded-xl border border-lux-border dark:border-blue-500/20 bg-lux-bg-card dark:bg-[#0a0c12] shadow-xl shadow-black/30 z-50 py-1 overflow-hidden">
+              {/* All Accounts option */}
+              <button
+                onClick={() => { setSelectedAccountId(null); setAccountDropdownOpen(false) }}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${!selectedAccountId ? 'bg-blue-500/15 text-blue-300' : 'text-lux-text-secondary dark:text-gray-300 hover:bg-white/5'}`}
+              >
+                <Wallet className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1 text-left truncate">{language === 'id' ? 'Semua Akun' : 'All Accounts'}</span>
+                {!selectedAccountId && <Check className="w-3.5 h-3.5 text-blue-400" />}
+              </button>
+
+              <div className="h-px bg-lux-border dark:bg-blue-500/10 my-1" />
+
+              {/* Individual accounts */}
+              {tradingAccounts.map((acc: any) => (
+                <button
+                  key={acc.id}
+                  onClick={() => { setSelectedAccountId(acc.id); setAccountDropdownOpen(false) }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${selectedAccountId === acc.id ? 'bg-blue-500/15 text-blue-300' : 'text-lux-text-secondary dark:text-gray-300 hover:bg-white/5'}`}
+                >
+                  <span className="text-sm flex-shrink-0">{getAccountFlag(acc.currency)}</span>
+                  <span className="flex-1 text-left truncate font-medium">{acc.name}</span>
+                  {selectedAccountId === acc.id && <Check className="w-3.5 h-3.5 text-blue-400" />}
+                </button>
+              ))}
+
+              <div className="h-px bg-lux-border dark:bg-blue-500/10 my-1" />
+
+              {/* Add Account button */}
+              <button
+                onClick={() => { setAddAccountOpen(true); setAccountDropdownOpen(false) }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{language === 'id' ? 'Tambah Akun' : 'Add Account'}</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Center spacer */}
       <div className="flex-1" />
