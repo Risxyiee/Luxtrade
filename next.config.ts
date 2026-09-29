@@ -28,6 +28,7 @@ const nextConfig: NextConfig = {
 
   images: {
     unoptimized: true,
+    qualities: [100],
   },
 
   // Enable static export for Capacitor (generates 'out/' directory)

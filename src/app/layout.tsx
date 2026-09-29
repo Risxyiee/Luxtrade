@@ -95,19 +95,18 @@ export default function RootLayout({
             `,
           }}
         />
-        {/* Service Worker Registration — inline for Lighthouse HTML parsing detection */}
+        {/* Service Worker Registration — inline for Lighthouse/PWABuilder HTML parsing detection */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               if('serviceWorker' in navigator){
                 window.addEventListener('load',function(){
-                  setTimeout(function(){
-                    navigator.serviceWorker.register('/sw.js',{scope:'/',updateViaCache:'none'}).then(function(reg){
-                      console.log('[SW] Registered via layout, scope:',reg.scope);
-                    }).catch(function(err){
-                      console.warn('[SW] Registration failed:',err);
-                    });
-                  }, 5000);
+                  navigator.serviceWorker.register('/sw.js',{scope:'/',updateViaCache:'none'}).then(function(reg){
+                    console.log('[SW] Registered, scope:',reg.scope);
+                    reg.update();
+                  }).catch(function(err){
+                    console.warn('[SW] Registration failed:',err);
+                  });
                 });
               }
             `,
