@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { checkWebhookAlerts } from '@/app/api/webhook/_lib/alert-after-trade'
 
 interface FxBlueTrade {
   id: string | number
@@ -186,6 +187,9 @@ export async function POST(req: NextRequest) {
     }
 
     console.log('✅ [FXBLUE WEBHOOK] Trade created successfully')
+
+    // Fire-and-forget: check PropFirm alerts for this user
+    checkWebhookAlerts(supabaseAdmin, tradingAccount.user_id).catch(() => {})
 
     return NextResponse.json({
       success: true,
