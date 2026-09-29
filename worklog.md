@@ -518,3 +518,37 @@ Stage Summary:
 - All core pages load without server errors
 - No runtime errors in the code we fixed
 - Dev server running stable on port 3000
+---
+Task ID: dashboard-cs-bot
+Agent: Main
+Task: Integrate CS Bot into Dashboard as Customer Support
+
+Work Log:
+- Read existing CSBotWidget.tsx (landing page CS bot) and /api/chat/route.ts
+- Created new /api/chat/support/route.ts — dedicated dashboard CS API with:
+  - Supabase auth integration to detect logged-in user
+  - Personalized system prompt with user context (name, email, plan)
+  - Enhanced system prompt with full dashboard features list
+  - Separate conversation store (30 msg limit for dashboard vs 20 for landing)
+  - Same escalation logic to Telegram @Risxyiee
+- Created DashboardCSBotWidget.tsx component with:
+  - Headphones icon (different from landing page MessageCircle icon)
+  - Minimize/maximize functionality (compact bar mode)
+  - Personalized welcome message using userName prop
+  - Quick action buttons (upgrade PRO, tech issue, billing, features)
+  - Unread counter when minimized
+  - "Online" status indicator with pulse
+  - Direct Telegram escalation link at bottom
+  - Tooltip on floating button ("Need help?")
+  - Same glass-morphism design as landing page CS bot
+- Integrated DashboardCSBotWidget into LuxTradeDashboard.tsx:
+  - Passes language, userName (from profile or email), and isPro
+  - Renders after all modals, before closing </ContextGuideProvider>
+
+Stage Summary:
+- Dashboard now has a dedicated CS/Support chat bot (separate from landing page CS bot)
+- The bot knows the user's name and plan (FREE/PRO) for personalized support
+- System prompt includes full dashboard feature list for better support
+- Users can get help without leaving the dashboard
+- Escalation to human admin via Telegram @Risxyiee is always available
+- Both landing page and dashboard CS bots work independently with separate sessions

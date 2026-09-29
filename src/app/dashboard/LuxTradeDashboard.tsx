@@ -27,6 +27,7 @@ import Header from './components/Header'
 import DashboardModals from './components/DashboardModals'
 import TabContent from './components/TabContent'
 import DemoDataModal from './components/DemoDataModal'
+import DashboardCSBotWidget from '@/components/dashboard/DashboardCSBotWidget'
 
 
 // Extracted Utils & Hooks
@@ -1099,6 +1100,12 @@ function LuxTradeDashboardContent() {
         language={language}
         tradingAccounts={tradingAccounts}
         fetchData={fetchData}
+      />
+    {/* Dashboard CS Support Bot */}
+      <DashboardCSBotWidget
+        language={language}
+        userName={profile?.full_name || user?.email?.split('@')[0]}
+        isPro={isPro}
       />
     </div>
     </ContextGuideProvider>
