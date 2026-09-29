@@ -186,6 +186,7 @@ interface DashboardTabProps {
   isPro: boolean
   profile?: any
   tradingAccounts?: any[]
+  selectedAccountId?: string | null
 }
 
 function DashboardTab({
@@ -202,7 +203,8 @@ function DashboardTab({
   language,
   isPro,
   profile,
-  tradingAccounts
+  tradingAccounts,
+  selectedAccountId
 }: DashboardTabProps) {
   const { repeatCount, isMobile } = useMotionSafe()
   const hasData = trades.length > 0
@@ -361,6 +363,7 @@ function DashboardTab({
           <EquityCurveCard
             language={language}
             tradingAccounts={tradingAccounts}
+            selectedAccountId={selectedAccountId}
           />
         </motion.div>
       )}

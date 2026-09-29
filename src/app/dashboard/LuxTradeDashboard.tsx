@@ -162,6 +162,9 @@ function LuxTradeDashboardContent() {
   }, [])
 
   // Re-fetch analytics when selectedAccountId changes (not on mount — fetchData already does it)
+  // NOTE: With selectedAccountId now in fetchData's deps, fetchData itself will re-fetch
+  // with the correct account. This effect is still useful as a targeted analytics-only refetch
+  // on account switch without a full data reload.
   const prevAccountIdRef = useRef<string | null>(null)
   useEffect(() => {
     if (prevAccountIdRef.current === null) {
@@ -515,7 +518,15 @@ function LuxTradeDashboardContent() {
       setLoading(false)
       setChartAnimated(true)
     }
-  }, [])
+  }, [selectedAccountId])
+
+  // BUG FIX: Clear stale selectedAccountId when the referenced account is deleted
+  useEffect(() => {
+    if (selectedAccountId && tradingAccounts.length > 0 && !tradingAccounts.some(acc => acc.id === selectedAccountId)) {
+      setSelectedAccountId(null)
+      try { localStorage.removeItem('luxtrade_selected_account_id') } catch {}
+    }
+  }, [tradingAccounts, selectedAccountId])
 
   const handleLoadSampleData = useCallback(async () => {
     const res = await fetch('/api/sample-data', { method: 'POST', credentials: 'include' })
@@ -670,7 +681,7 @@ function LuxTradeDashboardContent() {
     setFormData,
     selectedTrade,
     setSelectedTrade,
-    trades,
+    trades: filteredTrades,
     setTrades,
     setAddTradeOpen,
     setEditTradeOpen,
@@ -1009,6 +1020,7 @@ function LuxTradeDashboardContent() {
           tradingAccounts={tradingAccounts}
           fetchData={fetchData}
           selectedAccountId={selectedAccountId}
+          setSelectedAccountId={handleSetSelectedAccountId}
         />
       </main>
 

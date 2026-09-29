@@ -94,7 +94,8 @@ export const createImportHandlers = ({
       const res = await fetch('/api/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trades: csvPreview })
+        body: JSON.stringify({ trades: csvPreview }),
+        credentials: 'include'
       })
       
       const data = await res.json()
@@ -148,7 +149,8 @@ export const createImportHandlers = ({
       const res = await fetch('/api/import', {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ trades: smartImportPreview.trades })
+        body: JSON.stringify({ trades: smartImportPreview.trades }),
+        credentials: 'include'
       })
       
       const data = await res.json()
@@ -211,7 +213,8 @@ export const createImportHandlers = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64: base64 }),
-        signal: controller.signal
+        signal: controller.signal,
+        credentials: 'include'
       })
 
       clearTimeout(timeoutId)
@@ -309,7 +312,8 @@ export const createImportHandlers = ({
           fileBase64: base64, 
           fileType: file.type,
           fileName: file.name 
-        })
+        }),
+        credentials: 'include'
       })
       
       const data = await res.json()
@@ -351,7 +355,8 @@ export const createImportHandlers = ({
       const res = await fetch('/api/import', {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ trades: importedTrades })
+        body: JSON.stringify({ trades: importedTrades }),
+        credentials: 'include'
       })
       
       const data = await res.json()

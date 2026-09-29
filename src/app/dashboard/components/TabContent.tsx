@@ -72,6 +72,7 @@ interface TabContentProps {
   tradingAccounts?: any[]
   fetchData?: (isRefresh?: boolean) => void
   selectedAccountId?: string | null
+  setSelectedAccountId?: (id: string | null) => void
 }
 
 export default function TabContent({
@@ -114,6 +115,7 @@ export default function TabContent({
   tradingAccounts,
   fetchData,
   selectedAccountId,
+  setSelectedAccountId,
 }: TabContentProps) {
   return (
     <div className="w-full px-2 sm:px-4 lg:px-6 pb-24">
@@ -136,6 +138,7 @@ export default function TabContent({
               isPro={isPro}
               profile={profile}
               tradingAccounts={tradingAccounts}
+              selectedAccountId={selectedAccountId}
             />
           )}
 
@@ -153,7 +156,7 @@ export default function TabContent({
           )}
 
           {activeTab === 'accounts' && (
-            <AccountsTab language={language} fetchData={fetchData} />
+            <AccountsTab language={language} fetchData={fetchData} selectedAccountId={selectedAccountId} setSelectedAccountId={setSelectedAccountId} />
           )}
 
           {activeTab === 'journal' && (

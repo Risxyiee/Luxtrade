@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // In-memory cache
 let fullNewsCache: { items: FullNewsItem[]; timestamp: number } | null = null;
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+const CACHE_DURATION_RATE_LIMITED = 60 * 60 * 1000; // 60 min when rate limited
 
 // TradingEconomics RapidAPI config
 const TE_API_HOST = 'trading-econmics-scraper.p.rapidapi.com';
@@ -129,7 +130,9 @@ async function fetchTradingEconomicsNews(): Promise<FullNewsItem[]> {
   if (!response.ok) {
     // 429 = rate limit, don't retry immediately
     if (response.status === 429) {
-      throw new Error('TradingEconomics rate limit (429)');
+      const err = new Error('TradingEconomics rate limit (429)');
+      (err as any).isRateLimit = true;
+      throw err;
     }
     throw new Error(`TradingEconomics returned ${response.status}`);
   }
@@ -280,7 +283,13 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
       const items = await fetchTradingEconomicsNews();
       if (items.length > 0) return items;
     } catch (err: any) {
-      console.warn(`[News] TradingEconomics failed: ${err.message}, falling back to Bloomberg...`);
+      const isRateLimit = err?.isRateLimit === true;
+      if (isRateLimit) {
+        console.warn('[News] ⚠️ TradingEconomics rate limited (429) — falling back to RSS with extended cache');
+        (fetchFullNews as any)._lastRateLimited = true;
+      } else {
+        console.warn(`[News] TradingEconomics failed: ${err.message}, falling back to Bloomberg...`);
+      }
     }
   } else {
     console.info('[News] RAPIDAPI_TRADING_ECONOMICS_KEY not set, using Bloomberg RSS');
@@ -309,56 +318,120 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
   throw new Error('All news sources failed');
 }
 
+// ==================== Helper functions ====================
+
+function impactEmoji(type: string): string {
+  switch (type) {
+    case 'high': return '🔴';
+    case 'medium': return '🟡';
+    case 'low': return '🟢';
+    case 'tip': return '💡';
+    default: return '⚪';
+  }
+}
+
+function getRandomTip(): { title: string; type: 'low' } {
+  const tips = [
+    { title: '💡 TIP: Selalu gunakan Stop Loss untuk mengelola risiko', type: 'low' as const },
+    { title: '💡 TIP: Jangan overtrade — kualitas lebih penting dari kuantitas', type: 'low' as const },
+    { title: '💡 TIP: Perhatikan economic calendar sebelum open posisi', type: 'low' as const },
+    { title: '💡 TIP: Risk-to-reward ratio minimal 1:2 untuk entry yang baik', type: 'low' as const },
+  ];
+  return tips[Math.floor(Math.random() * tips.length)];
+}
+
+// ==================== KV Cache helpers ====================
+
+interface NewsCacheEntry {
+  items: FullNewsItem[];
+  timestamp: number;
+}
+
+async function getNewsKVCache(request: NextRequest): Promise<NewsCacheEntry | null> {
+  try {
+    const { getCloudflareEnv } = await import('@/lib/cloudflare-bindings');
+    const env = getCloudflareEnv(request as unknown as Request);
+    const kv = env?.luxtradee_kv;
+    if (!kv) return null;
+    const raw = await kv.get('news_cache', 'text');
+    if (!raw) return null;
+    return JSON.parse(raw) as NewsCacheEntry;
+  } catch {
+    return null;
+  }
+}
+
+async function setNewsKVCache(request: NextRequest, entry: NewsCacheEntry, ttlMs?: number): Promise<void> {
+  try {
+    const { getCloudflareEnv } = await import('@/lib/cloudflare-bindings');
+    const env = getCloudflareEnv(request as unknown as Request);
+    const kv = env?.luxtradee_kv;
+    if (!kv) return;
+    await kv.put('news_cache', JSON.stringify(entry), { expirationTtl: Math.ceil((ttlMs || CACHE_DURATION) / 1000) });
+  } catch {
+    // KV not available, in-memory cache still works
+  }
+}
+
 // ==================== API ROUTE ====================
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const format = searchParams.get('format') || 'ticker';
+  const forceRefresh = searchParams.get('refresh') === 'true';
 
   try {
-    // Check cache
-    if (fullNewsCache && Date.now() - fullNewsCache.timestamp < CACHE_DURATION) {
+    // 1. Try KV cache first (Cloudflare Workers)
+    if (!forceRefresh) {
+      const kvEntry = await getNewsKVCache(request);
+      if (kvEntry && Date.now() - kvEntry.timestamp < CACHE_DURATION) {
+        const cachedItems = kvEntry.items;
+        if (format === 'full') {
+          return NextResponse.json({
+            success: true, cached: true, cacheSource: 'kv',
+            news: cachedItems.slice(0, 30),
+            fetchedAt: new Date(kvEntry.timestamp).toISOString(),
+            totalSources: cachedItems.length,
+          });
+        }
+        const newsItems = cachedItems.slice(0, 12);
+        const tickerItems: TickerNewsItem[] = newsItems.map(item => ({
+          text: `${impactEmoji(item.type)} ${item.title} — ${item.source.split('·')[0].trim()}`,
+          type: item.type, url: item.url,
+        }));
+        tickerItems.push({ text: getRandomTip().title, type: 'tip', url: '' });
+        return NextResponse.json({
+          success: true, cached: true, cacheSource: 'kv',
+          news: tickerItems,
+          fetchedAt: new Date(kvEntry.timestamp).toISOString(),
+          totalSources: cachedItems.length,
+        });
+      }
+    }
+
+    // 2. Check in-memory cache
+    if (!forceRefresh && fullNewsCache && Date.now() - fullNewsCache.timestamp < CACHE_DURATION) {
       console.log('[News] Returning cached news');
       const cachedItems = fullNewsCache.items;
 
       if (format === 'full') {
         return NextResponse.json({
-          success: true,
-          cached: true,
+          success: true, cached: true, cacheSource: 'memory',
           news: cachedItems.slice(0, 30),
           fetchedAt: new Date(fullNewsCache.timestamp).toISOString(),
           totalSources: cachedItems.length,
         });
       }
 
-      // Ticker format — also return from cache
       const newsItems = cachedItems.slice(0, 12);
-      const tips = [
-        { title: '💡 TIP: Selalu gunakan Stop Loss untuk mengelola risiko', type: 'low' as const },
-        { title: '💡 TIP: Jangan overtrade — kualitas lebih penting dari kuantitas', type: 'low' as const },
-        { title: '💡 TIP: Perhatikan economic calendar sebelum open posisi', type: 'low' as const },
-        { title: '💡 TIP: Risk-to-reward ratio minimal 1:2 untuk entry yang baik', type: 'low' as const },
-      ];
-      const randomTip = tips[Math.floor(Math.random() * tips.length)];
-      const impactEmoji = (type: string) => {
-        switch (type) {
-          case 'high': return '🔴';
-          case 'medium': return '🟡';
-          case 'low': return '🟢';
-          case 'tip': return '💡';
-          default: return '⚪';
-        }
-      };
       const tickerItems: TickerNewsItem[] = newsItems.map(item => ({
         text: `${impactEmoji(item.type)} ${item.title} — ${item.source.split('·')[0].trim()}`,
-        type: item.type,
-        url: item.url,
+        type: item.type, url: item.url,
       }));
-      tickerItems.push({ text: randomTip.title, type: 'tip', url: '' });
+      tickerItems.push({ text: getRandomTip().title, type: 'tip', url: '' });
 
       return NextResponse.json({
-        success: true,
-        cached: true,
+        success: true, cached: true, cacheSource: 'memory',
         news: tickerItems,
         fetchedAt: new Date(fullNewsCache.timestamp).toISOString(),
         totalSources: cachedItems.length,
@@ -367,58 +440,41 @@ export async function GET(request: NextRequest) {
 
     // Fetch fresh data
     const allResults = await fetchFullNews();
+    const isRateLimited = (fetchFullNews as any)._lastRateLimited === true;
+    const cacheTTL = isRateLimited ? CACHE_DURATION_RATE_LIMITED : CACHE_DURATION;
 
-    // Update cache
-    fullNewsCache = {
-      items: allResults,
-      timestamp: Date.now(),
-    };
+    // Update caches
+    const newCache: NewsCacheEntry = { items: allResults, timestamp: Date.now() };
+    fullNewsCache = newCache;
+    await setNewsKVCache(request, newCache, cacheTTL);
+    if (isRateLimited) delete (fetchFullNews as any)._lastRateLimited;
 
     console.log(`[News] Fetched ${allResults.length} news items`);
 
     if (format === 'full') {
       return NextResponse.json({
-        success: true,
-        cached: false,
+        success: true, cached: false,
         news: allResults.slice(0, 30),
         fetchedAt: new Date().toISOString(),
         totalSources: allResults.length,
+        rateLimited: isRateLimited || undefined,
       });
     }
 
     // Legacy ticker format
     const newsItems = allResults.slice(0, 12);
-    const tips = [
-      { title: '💡 TIP: Selalu gunakan Stop Loss untuk mengelola risiko', type: 'low' as const },
-      { title: '💡 TIP: Jangan overtrade — kualitas lebih penting dari kuantitas', type: 'low' as const },
-      { title: '💡 TIP: Perhatikan economic calendar sebelum open posisi', type: 'low' as const },
-      { title: '💡 TIP: Risk-to-reward ratio minimal 1:2 untuk entry yang baik', type: 'low' as const },
-    ];
-    const randomTip = tips[Math.floor(Math.random() * tips.length)];
-
-    const impactEmoji = (type: string) => {
-      switch (type) {
-        case 'high': return '🔴';
-        case 'medium': return '🟡';
-        case 'low': return '🟢';
-        case 'tip': return '💡';
-        default: return '⚪';
-      }
-    };
-
     const tickerItems: TickerNewsItem[] = newsItems.map(item => ({
       text: `${impactEmoji(item.type)} ${item.title} — ${item.source.split('·')[0].trim()}`,
-      type: item.type,
-      url: item.url,
+      type: item.type, url: item.url,
     }));
-    tickerItems.push({ text: randomTip.title, type: 'tip', url: '' });
+    tickerItems.push({ text: getRandomTip().title, type: 'tip', url: '' });
 
     return NextResponse.json({
-      success: true,
-      cached: false,
+      success: true, cached: false,
       news: tickerItems,
       fetchedAt: new Date().toISOString(),
       totalSources: allResults.length,
+      rateLimited: isRateLimited || undefined,
     });
   } catch (error) {
     console.error('[News] API error:', error);

@@ -46,7 +46,13 @@ export async function POST(request: NextRequest) {
     }
 
     const bytes = await image.arrayBuffer()
-    const base64Image = btoa(String.fromCharCode(...new Uint8Array(bytes)))
+    // Convert Uint8Array to base64 without stack overflow on large images
+    const chunks: string[] = []
+    const buffer = new Uint8Array(bytes)
+    for (let i = 0; i < buffer.length; i += 8192) {
+      chunks.push(String.fromCharCode(...buffer.subarray(i, i + 8192)))
+    }
+    const base64Image = btoa(chunks.join(''))
     const mimeType = image.type || 'image/jpeg'
 
     const text = await geminiVision(question, base64Image, mimeType, {
