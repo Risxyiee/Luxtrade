@@ -24,7 +24,8 @@ interface CacheEntry {
 
 // ─── In-Memory Cache (fallback when KV not available) ────────────────────────
 let calendarCache: CacheEntry | null = null;
-const CACHE_DURATION = 30 * 60 * 1000; // 30 min
+const CACHE_DURATION = 30 * 60 * 1000; // 30 min normal
+const CACHE_DURATION_RATE_LIMITED = 60 * 60 * 1000; // 60 min when rate limited
 
 // ─── TradingEconomics RapidAPI ────────────────────────────────────────────────
 const TE_API_HOST = 'trading-econmics-scraper.p.rapidapi.com';
@@ -86,7 +87,11 @@ async function fetchTECalendar(): Promise<CalendarEvent[]> {
   const url = `${TE_NEWS_ENDPOINT}?year=${year}&month=${month}&day=${day}`;
   const res = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
   if (!res.ok) {
-    if (res.status === 429) throw new Error('TradingEconomics rate limit (429)');
+    if (res.status === 429) {
+      const err = new Error('TradingEconomics rate limit (429)');
+      (err as any).isRateLimit = true;
+      throw err;
+    }
     throw new Error('TradingEconomics returned ' + res.status);
   }
 
@@ -253,7 +258,7 @@ function getSampleEvents(): CalendarEvent[] {
 }
 
 // ─── Fetch with Cascade Fallback ─────────────────────────────────────────────
-async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source: string; unavailable: boolean }> {
+async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source: string; unavailable: boolean; rateLimited?: boolean }> {
   const teKey = getTeApiKey();
 
   // 1. TradingEconomics News → Calendar Events (the only strategy that works)
@@ -265,6 +270,11 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
       return { events, source: 'TradingEconomics (News)', unavailable: false };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      const isRateLimit = (err as any)?.isRateLimit === true;
+      if (isRateLimit) {
+        console.warn('[EconCalendar] ⚠️ Rate limited (429) — returning cached/sample data with extended cache');
+        return { events: getSampleEvents(), source: 'Sample Data (rate limited)', unavailable: false, rateLimited: true };
+      }
       console.error('[EconCalendar] ✗ TE News failed: ' + msg);
     }
   } else {
@@ -291,13 +301,13 @@ async function getKVCache(request: NextRequest): Promise<CacheEntry | null> {
   }
 }
 
-async function setKVCache(request: NextRequest, entry: CacheEntry): Promise<void> {
+async function setKVCache(request: NextRequest, entry: CacheEntry, ttlMs?: number): Promise<void> {
   try {
     const { getCloudflareEnv } = await import('@/lib/cloudflare-bindings');
     const env = getCloudflareEnv(request as unknown as Request);
     const kv = env?.luxtradee_kv;
     if (!kv) return;
-    await kv.put('economic_calendar_cache', JSON.stringify(entry), { expirationTtl: 1800 });
+    await kv.put('economic_calendar_cache', JSON.stringify(entry), { expirationTtl: Math.ceil((ttlMs || CACHE_DURATION) / 1000) });
   } catch {
     // KV not available, in-memory cache still works
   }
@@ -355,10 +365,14 @@ export async function GET(request: NextRequest) {
     }
 
     // 3. Fetch fresh data
-    const { events: allEvents, source, unavailable } = await fetchCalendarEvents();
+    const { events: allEvents, source, unavailable, rateLimited } = await fetchCalendarEvents();
+
+    // Use extended cache TTL when rate limited to reduce API calls
+    const cacheTTL = rateLimited ? CACHE_DURATION_RATE_LIMITED : CACHE_DURATION;
     const newCache: CacheEntry = { events: allEvents, timestamp: Date.now(), source, unavailable };
     calendarCache = newCache;
-    await setKVCache(request, newCache);
+    // On rate limit, cache with longer TTL in KV
+    await setKVCache(request, newCache, cacheTTL);
 
     let events = allEvents;
     if (impactFilter) events = events.filter(e => e.impact === impactFilter);
@@ -371,7 +385,10 @@ export async function GET(request: NextRequest) {
       now: serverTime,
       timezone: timezone || null,
       unavailable,
-      message: unavailable ? 'Calendar data temporarily unavailable.' : undefined,
+      rateLimited: rateLimited || undefined,
+      message: rateLimited
+        ? 'API rate limited. Showing sample data. Try again later.'
+        : unavailable ? 'Calendar data temporarily unavailable.' : undefined,
     });
   } catch (error) {
     console.error('[EconCalendar] API error:', error);
