@@ -25,7 +25,6 @@ const TargetsTab = dynamic(() => import('../tabs/TargetsTab').then(m => ({ defau
 const MarketNewsTab = dynamic(() => import('../tabs/MarketNewsTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const EconomicCalendarTab = dynamic(() => import('../tabs/EconomicCalendarTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const CommunityTab = dynamic(() => import('../tabs/CommunityTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
-const PropFirmTab = dynamic(() => import('../tabs/PropFirmTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 
 // Lazy-loaded feature components
 const TradingScore = dynamic(() => import('@/components/TradingScore').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
@@ -265,10 +264,6 @@ export default function TabContent({
               profile={profile}
               onAddTradeOpen={setAddTradeOpen}
             />
-          )}
-
-          {activeTab === 'propfirm' && (
-            <PropFirmTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} language={language} trades={trades} hasMetaApi={!!profile?.has_metaapi} hasWebhook={!!profile?.has_webhook} />
           )}
     </div>
   )

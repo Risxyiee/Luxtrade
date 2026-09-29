@@ -3,7 +3,7 @@
 import {
   BarChart3, Activity, Calendar, BookOpen, Eye,
   Newspaper, CalendarDays, Trophy, Target, Grid3X3, PieChart,
-  Brain, FileText, Flame, Heart, Lock, Users, CreditCard, Shield
+  Brain, FileText, Flame, Heart, Lock, Users, CreditCard
 } from 'lucide-react'
 
 const menuCategories: Record<string, { label: string; proType?: string }> = {
@@ -28,7 +28,6 @@ const menuItems = [
   { id: 'heatmap', label: 'Market Heatmap', labelId: 'Pasar Heatmap', icon: Grid3X3, category: 'alat', proOnly: true, proType: 'gold' },
   { id: 'analytics', label: 'Analytics', labelId: 'Analitik', icon: PieChart, category: 'alat', proOnly: true, proType: 'gold' },
   { id: 'targets', label: 'Targets', labelId: 'Target', icon: Target, category: 'alat', proOnly: true, proType: 'gold' },
-  { id: 'propfirm', label: 'Prop Firm', labelId: 'Prop Firm', icon: Shield, category: 'alat', proOnly: true, proType: 'gold' },
 
   { id: 'ai', label: 'AI Insights', labelId: 'Insight AI', icon: Brain, category: 'lanjutan', proOnly: true, proType: 'cyan' },
   { id: 'score', label: 'Trading Score', labelId: 'Skor Trading', icon: Trophy, category: 'lanjutan', proOnly: true, proType: 'cyan' },
