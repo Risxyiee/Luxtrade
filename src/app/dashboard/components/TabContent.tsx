@@ -268,7 +268,7 @@ export default function TabContent({
           )}
 
           {activeTab === 'propfirm' && (
-            <PropFirmTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} language={language} trades={trades} />
+            <PropFirmTab isPro={isPro} onUpgrade={() => setPlanSelectionModalOpen(true)} language={language} trades={trades} hasMetaApi={!!profile?.has_metaapi} hasWebhook={!!profile?.has_webhook} />
           )}
     </div>
   )

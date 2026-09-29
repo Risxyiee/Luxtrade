@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
+import { Switch } from '@/components/ui/switch'
 import {
   Dialog,
   DialogContent,
@@ -45,6 +46,14 @@ import {
   DollarSign,
   Percent,
   CheckCircle2,
+  Bell,
+  BellOff,
+  Radio,
+  Camera,
+  Link2,
+  Calculator,
+  Info,
+  Clock,
 } from 'lucide-react'
 
 // ==================== TYPES ====================
@@ -54,6 +63,8 @@ interface PropFirmTabProps {
   onUpgrade: () => void
   language: 'id' | 'en'
   trades?: any[]
+  hasMetaApi?: boolean
+  hasWebhook?: boolean
 }
 
 interface PropFirmRule {
@@ -71,6 +82,7 @@ interface PropFirmRule {
   profit_split: number
   start_date: string
   account_id: string | null
+  is_active: boolean
   is_violated: boolean
   current_drawdown: number
   current_daily_drawdown: number
@@ -78,6 +90,10 @@ interface PropFirmRule {
   peak_balance: number
   progress_percent: number
   days_traded: number
+  alert_threshold_warning: number
+  alert_threshold_danger: number
+  alert_push_enabled: boolean
+  alert_webhook_enabled: boolean
   created_at: string
   updated_at: string
 }
@@ -141,8 +157,8 @@ interface ChallengeFormData {
 
 const t = (key: string, language: 'id' | 'en'): string => {
   const texts: Record<string, Record<'id' | 'en', string>> = {
-    title: { id: 'Pelacak Prop Firm', en: 'Prop Firm Tracker' },
-    subtitle: { id: 'Pantau challenge prop firm Anda & hindari pelanggaran', en: 'Track your prop firm challenges & avoid violations' },
+    title: { id: 'Early Warning System', en: 'Early Warning System' },
+    subtitle: { id: 'LuxTrade memperingatkan SEBELUM Anda breach — prop firm ga kasih ini', en: 'LuxTrade warns you BEFORE you breach — prop firms don\'t give you this' },
     proFeature: { id: 'Prop Firm Tracker - Fitur PRO', en: 'Prop Firm Tracker - PRO Feature' },
     proDesc: { id: 'Pantau challenge, drawdown, dan profit target prop firm Anda', en: 'Track prop firm challenges, drawdown, and profit targets' },
     upgrade: { id: 'Upgrade ke PRO', en: 'Upgrade to PRO' },
@@ -200,6 +216,38 @@ const t = (key: string, language: 'id' | 'en'): string => {
     targetReached: { id: 'Target tercapai!', en: 'Target reached!' },
     daysMin: { id: 'hari (min.', en: 'days (min.' },
     ddMax: { id: 'dari maks', en: 'of max' },
+    // ===== NEW: Early Warning System =====
+    statusSafe: { id: '✅ Semua aman — DD di bawah 50% batas', en: '✅ All clear — DD below 50% of limit' },
+    statusCaution: { id: '⚠️ Perhatian — DD mendekati batas (50-80%)', en: '⚠️ Caution — DD approaching limit (50-80%)' },
+    statusDanger: { id: '🚨 BAHAYA — DD melebihi 80% batas! HENTI TRADING!', en: '🚨 DANGER — DD exceeds 80% of limit! STOP TRADING!' },
+    statusBreached: { id: '❌ CHALLENGE GAGAL — DD melebihi batas prop firm', en: '❌ CHALLENGE FAILED — DD exceeded prop firm limit' },
+    predictionTitle: { id: 'Kalkulator Prediksi DD', en: 'DD Prediction Calculator' },
+    predictionDesc: { id: '"Kalau saya loss $X di trade berikutnya..."', en: '"If I lose $X on the next trade..."' },
+    predictionInput: { id: 'Loss amount ($)', en: 'Loss amount ($)' },
+    predictionResult: { id: 'DD Anda bakal jadi', en: 'Your DD would become' },
+    predictionOfLimit: { id: 'dari batas', en: 'of limit' },
+    predictionSafe: { id: 'AMAN', en: 'SAFE' },
+    predictionWarning: { id: 'WARNING', en: 'WARNING' },
+    predictionDanger: { id: 'BAHAYA', en: 'DANGER' },
+    predictionBreach: { id: 'BREACH!', en: 'BREACH!' },
+    dailyDdReset: { id: 'Daily DD direset setiap hari pada 00:00 server time', en: 'Daily DD resets daily at 00:00 server time' },
+    remainingDailyDd: { id: 'Sisa daily DD sebelum breach', en: 'Remaining daily DD before breach' },
+    alertSettings: { id: 'Pengaturan Alert', en: 'Alert Settings' },
+    alertPush80: { id: 'Kirim push notification kalau DD > 80%', en: 'Send push notification when DD > 80%' },
+    alertPush95: { id: 'Kirim push notification kalau DD > 95%', en: 'Send push notification when DD > 95%' },
+    alertWebhook: { id: 'Auto-warning saat trade masuk via webhook', en: 'Auto-warning when trade arrives via webhook' },
+    tradeSourceMetaApi: { id: '🔄 Auto-sync via MetaApi', en: '🔄 Auto-sync via MetaApi' },
+    tradeSourceWebhook: { id: '🔔 Real-time via Webhook', en: '🔔 Real-time via Webhook' },
+    tradeSourceManual: { id: '📸 Manual via Screenshot', en: '📸 Manual via Screenshot' },
+    setupPrompt: { id: '⚠️ Biar PropFirm tracker otomatis, hubungkan broker Anda:', en: '⚠️ To make PropFirm tracker automatic, connect your broker:' },
+    connectMetaApi: { id: 'Hubungkan MetaApi', en: 'Connect MetaApi' },
+    setupWebhook: { id: 'Setup Webhook', en: 'Setup Webhook' },
+    setupManualNote: { id: 'Kalau ga di-connect, Anda harus manual input trade untuk drawdown tracking.', en: 'If not connected, you must manually input trades for drawdown tracking.' },
+    autoSynced: { id: 'Auto-synced', en: 'Auto-synced' },
+    webhookUrl: { id: 'Webhook URL', en: 'Webhook URL' },
+    lastUpdated: { id: 'Terakhir diperbarui', en: 'Last updated' },
+    overallStatus: { id: 'Status Keseluruhan', en: 'Overall Status' },
+    selectRuleForPrediction: { id: 'Pilih challenge untuk prediksi', en: 'Select challenge for prediction' },
   }
   return texts[key]?.[language] ?? key
 }
@@ -235,9 +283,9 @@ const getDrawdownStrokeColor = (percent: number): string => {
   return '#22c55e'
 }
 
-const getDrawdownBgColor = (percent: number): string => {
-  if (percent > 80) return 'from-red-500/15 to-red-600/5'
-  if (percent > 50) return 'from-amber-500/15 to-amber-600/5'
+const getDrawdownBgColor = (percent4Bg: number): string => {
+  if (percent4Bg > 80) return 'from-red-500/15 to-red-600/5'
+  if (percent4Bg > 50) return 'from-amber-500/15 to-amber-600/5'
   return 'from-emerald-500/15 to-emerald-600/5'
 }
 
@@ -322,7 +370,6 @@ function CircularGauge({
     <div className="flex flex-col items-center gap-1">
       <div className="relative" style={{ width: size, height: size }}>
         <svg width={size} height={size} className="transform -rotate-90">
-          {/* Background circle */}
           <circle
             cx={size / 2}
             cy={size / 2}
@@ -331,7 +378,6 @@ function CircularGauge({
             stroke="rgba(255,255,255,0.08)"
             strokeWidth={strokeWidth}
           />
-          {/* Progress circle */}
           <motion.circle
             cx={size / 2}
             cy={size / 2}
@@ -346,7 +392,6 @@ function CircularGauge({
             transition={{ duration: 1, ease: 'easeOut' }}
           />
         </svg>
-        {/* Center text */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className={`text-xs font-bold ${getDrawdownColor(percent)}`}>
             {formatPercent(percent)}
@@ -363,9 +408,57 @@ function CircularGauge({
   )
 }
 
+// ==================== STATUS BANNER ====================
+
+function StatusBanner({ rules, language }: { rules: PropFirmRule[]; language: 'id' | 'en' }) {
+  if (rules.length === 0) return null
+
+  // Determine overall worst status
+  let worstStatus: 'safe' | 'caution' | 'danger' | 'breached' = 'safe'
+
+  for (const rule of rules) {
+    if (rule.is_violated) {
+      worstStatus = 'breached'
+      break
+    }
+    const maxDdAmt = (rule.max_drawdown / 100) * rule.challenge_size
+    const ddPct = maxDdAmt > 0 ? (rule.current_drawdown / maxDdAmt) * 100 : 0
+    const maxDailyDdAmt = (rule.max_daily_drawdown / 100) * rule.challenge_size
+    const dailyDdPct = maxDailyDdAmt > 0 ? (rule.current_daily_drawdown / maxDailyDdAmt) * 100 : 0
+    const worstDd = Math.max(ddPct, dailyDdPct)
+
+    if (worstDd >= 80) {
+      worstStatus = 'danger'
+    } else if (worstDd >= 50 && worstStatus !== 'danger') {
+      worstStatus = 'caution'
+    }
+  }
+
+  const statusConfig = {
+    safe: { bg: 'bg-emerald-500/10 border-emerald-500/30', text: 'text-emerald-400', label: t('statusSafe', language) },
+    caution: { bg: 'bg-amber-500/10 border-amber-500/30', text: 'text-amber-400', label: t('statusCaution', language) },
+    danger: { bg: 'bg-red-500/10 border-red-500/30', text: 'text-red-400', label: t('statusDanger', language) },
+    breached: { bg: 'bg-red-600/15 border-red-500/50', text: 'text-red-400', label: t('statusBreached', language) },
+  }
+
+  const config = statusConfig[worstStatus]
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`border rounded-lg px-4 py-3 ${config.bg}`}
+    >
+      <p className={`text-sm font-semibold ${config.text} ${worstStatus === 'danger' || worstStatus === 'breached' ? 'animate-pulse' : ''}`}>
+        {config.label}
+      </p>
+    </motion.div>
+  )
+}
+
 // ==================== MAIN COMPONENT ====================
 
-export default function PropFirmTab({ isPro, onUpgrade, language, trades }: PropFirmTabProps) {
+export default function PropFirmTab({ isPro, onUpgrade, language, trades, hasMetaApi, hasWebhook }: PropFirmTabProps) {
   // State
   const [rules, setRules] = useState<PropFirmRule[]>([])
   const [templates, setTemplates] = useState<Record<string, PropFirmTemplate>>({})
@@ -380,6 +473,15 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
   const [submitting, setSubmitting] = useState(false)
   const initialCalcDone = useRef(false)
 
+  // New: Early Warning System state
+  const [predictionLoss, setPredictionLoss] = useState<number>(0)
+  const [selectedPredictionRule, setSelectedPredictionRule] = useState<string>('')
+  const [lastSyncTime, setLastSyncTime] = useState<string>('')
+  const [alertSettingsMap, setAlertSettingsMap] = useState<Record<string, { warning: number; danger: number; pushEnabled: boolean; webhookEnabled: boolean }>>({})
+
+  // Track trades for auto-recalculate
+  const tradesLengthRef = useRef(0)
+
   // ==================== FETCH RULES ====================
   const fetchRules = useCallback(async () => {
     try {
@@ -388,6 +490,7 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
       if (!res.ok) throw new Error('Failed to fetch')
       const data = await res.json()
       setRules(data.rules ?? [])
+      setLastSyncTime(new Date().toISOString())
     } catch {
       toast.error(t('fetchError', language))
     } finally {
@@ -404,7 +507,43 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
       setTemplates(data.templates ?? {})
       setTemplateFirms(data.firms ?? [])
     } catch {
-      // Non-fatal, templates are optional
+      // Non-fatal
+    }
+  }, [])
+
+  // ==================== FETCH ALERT SETTINGS ====================
+  const fetchAlertSettings = useCallback(async (ruleId: string) => {
+    try {
+      const res = await authFetch(`/api/prop-firm/alert-settings?ruleId=${ruleId}`)
+      if (!res.ok) return
+      const data = await res.json()
+      if (data.settings) {
+        setAlertSettingsMap(prev => ({
+          ...prev,
+          [ruleId]: {
+            warning: data.settings.alertThresholdWarning,
+            danger: data.settings.alertThresholdDanger,
+            pushEnabled: data.settings.alertPushEnabled,
+            webhookEnabled: data.settings.alertWebhookEnabled,
+          },
+        }))
+      }
+    } catch {
+      // Non-fatal
+    }
+  }, [])
+
+  // ==================== SAVE ALERT SETTINGS ====================
+  const saveAlertSetting = useCallback(async (ruleId: string, field: string, value: boolean | number) => {
+    try {
+      const body: Record<string, unknown> = { ruleId }
+      body[field] = value
+      await authFetch('/api/prop-firm/alert-settings', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      })
+    } catch {
+      // Non-fatal
     }
   }, [])
 
@@ -420,7 +559,6 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
       const data = await res.json()
       const calc: CalculationResult = data.calculation
 
-      // Update the rule in local state with calculated values
       setRules(prev =>
         prev.map(r =>
           r.id === ruleId
@@ -449,7 +587,7 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
     }
   }, [language])
 
-  // ==================== AUTO-CALCULATE ON MOUNT ====================
+  // ==================== AUTO-CALCULATE ON MOUNT & TRADES CHANGE ====================
   useEffect(() => {
     fetchRules()
     fetchTemplates()
@@ -458,11 +596,27 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
   useEffect(() => {
     if (initialCalcDone.current || loading || rules.length === 0) return
     initialCalcDone.current = true
-    // Auto-calculate all rules on mount
     rules.forEach(rule => {
       calculateRule(rule.id)
+      fetchAlertSettings(rule.id)
     })
-  }, [rules, loading, calculateRule])
+    // Set first rule as default for prediction
+    if (rules.length > 0 && !selectedPredictionRule) {
+      setSelectedPredictionRule(rules[0].id)
+    }
+  }, [rules, loading, calculateRule, fetchAlertSettings, selectedPredictionRule])
+
+  // Auto-recalculate when trades change
+  useEffect(() => {
+    const currentLength = trades?.length ?? 0
+    if (currentLength !== tradesLengthRef.current && initialCalcDone.current && rules.length > 0) {
+      tradesLengthRef.current = currentLength
+      rules.forEach(rule => {
+        calculateRule(rule.id)
+      })
+      setLastSyncTime(new Date().toISOString())
+    }
+  }, [trades, rules, calculateRule])
 
   // ==================== TEMPLATE HANDLER ====================
   const handleTemplateSelect = useCallback(
@@ -494,13 +648,11 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  // When challenge size or drawdown percents change, auto-calc dollar amounts
   const maxDdAmount = (formData.max_drawdown / 100) * formData.challenge_size
   const maxDailyDdAmount = (formData.max_daily_drawdown / 100) * formData.challenge_size
   const profitTargetValue =
     formData.profit_target ?? (formData.profit_target_percent / 100) * formData.challenge_size
 
-  // When phase changes and template is selected, update profit target percent
   const handlePhaseChange = (phase: number) => {
     updateForm('phase', phase)
     if (selectedTemplate && templates[selectedTemplate]) {
@@ -510,7 +662,7 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
     }
   }
 
-  // ==================== SUBMIT (CREATE / UPDATE) ====================
+  // ==================== SUBMIT ====================
   const handleSubmit = async () => {
     if (!formData.firm_name.trim()) {
       toast.error(t('firmName', language) + ' required')
@@ -539,7 +691,6 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
       }
 
       if (editRule) {
-        // PATCH
         const res = await authFetch(`/api/prop-firm/${editRule.id}`, {
           method: 'PATCH',
           body: JSON.stringify(payload),
@@ -547,7 +698,6 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
         if (!res.ok) throw new Error('Failed to update')
         toast.success(t('updateSuccess', language))
       } else {
-        // POST
         const res = await authFetch('/api/prop-firm', {
           method: 'POST',
           body: JSON.stringify(payload),
@@ -556,7 +706,6 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
         toast.success(t('createSuccess', language))
       }
 
-      // Close modal and refresh
       setShowAddModal(false)
       setEditRule(null)
       setFormData(defaultFormData())
@@ -611,7 +760,7 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
     setSelectedTemplate('')
   }
 
-  // ==================== COMPUTED VALUES FOR RULES ====================
+  // ==================== COMPUTED VALUES ====================
   const getRuleDdPercent = (rule: PropFirmRule): number => {
     const maxDdAmt = (rule.max_drawdown / 100) * rule.challenge_size
     return maxDdAmt > 0 ? Math.min((rule.current_drawdown / maxDdAmt) * 100, 100) : 0
@@ -630,6 +779,31 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
 
   const getRuleCurrentPnl = (rule: PropFirmRule): number => {
     return rule.current_balance - rule.challenge_size
+  }
+
+  // ===== PREDICTION CALCULATOR =====
+  const predictionResult = useMemo(() => {
+    if (!selectedPredictionRule || predictionLoss <= 0) return null
+    const rule = rules.find(r => r.id === selectedPredictionRule)
+    if (!rule) return null
+
+    const maxDdAmt = (rule.max_drawdown / 100) * rule.challenge_size
+    const newDrawdown = rule.current_drawdown + predictionLoss
+    const newDdPercent = maxDdAmt > 0 ? (newDrawdown / maxDdAmt) * 100 : 0
+
+    let status: 'safe' | 'warning' | 'danger' | 'breach' = 'safe'
+    if (newDdPercent >= 100) status = 'breach'
+    else if (newDdPercent >= 80) status = 'danger'
+    else if (newDdPercent >= 50) status = 'warning'
+
+    return { newDrawdown, newDdPercent, status }
+  }, [selectedPredictionRule, predictionLoss, rules])
+
+  // ===== TRADE SOURCE INDICATOR =====
+  const getTradeSourceLabel = (language: 'id' | 'en'): string => {
+    if (hasMetaApi) return t('tradeSourceMetaApi', language)
+    if (hasWebhook) return t('tradeSourceWebhook', language)
+    return t('tradeSourceManual', language)
   }
 
   // ==================== PAYWALL ====================
@@ -670,10 +844,7 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
         <div className="h-8 w-48 bg-white/5 rounded animate-pulse" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2].map(i => (
-            <Card
-              key={i}
-              className="bg-[#0d1117] border border-white/[0.08]"
-            >
+            <Card key={i} className="bg-[#0d1117] border border-white/[0.08]">
               <CardContent className="p-6">
                 <div className="h-4 w-32 bg-white/10 rounded animate-pulse mb-4" />
                 <div className="h-8 w-24 bg-white/10 rounded animate-pulse mb-3" />
@@ -689,7 +860,6 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
   // ==================== FORM MODAL CONTENT ====================
   const formModalContent = (
     <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1 custom-scrollbar">
-      {/* Template Selector (only for Add) */}
       {!editRule && templateFirms.length > 0 && (
         <div>
           <Label className="text-gray-300 text-xs mb-1.5 block">
@@ -715,11 +885,8 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
         </div>
       )}
 
-      {/* Firm Name */}
       <div>
-        <Label className="text-gray-300 text-xs mb-1.5 block">
-          {t('firmName', language)} *
-        </Label>
+        <Label className="text-gray-300 text-xs mb-1.5 block">{t('firmName', language)} *</Label>
         <Input
           value={formData.firm_name}
           onChange={e => updateForm('firm_name', e.target.value)}
@@ -728,11 +895,8 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
         />
       </div>
 
-      {/* Challenge Size */}
       <div>
-        <Label className="text-gray-300 text-xs mb-1.5 block">
-          {t('challengeSize', language)}
-        </Label>
+        <Label className="text-gray-300 text-xs mb-1.5 block">{t('challengeSize', language)}</Label>
         <div className="flex gap-2 items-center">
           <Input
             type="number"
@@ -740,7 +904,6 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
             onChange={e => updateForm('challenge_size', Number(e.target.value))}
             className="bg-white/5 border-white/[0.08] text-gray-200 flex-1"
           />
-          {/* Size presets from template */}
           {!editRule && selectedTemplate && templates[selectedTemplate] && (
             <div className="flex gap-1 flex-wrap">
               {templates[selectedTemplate].challenge_sizes.map(size => (
@@ -764,173 +927,75 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
         </div>
       </div>
 
-      {/* Phase */}
       <div>
-        <Label className="text-gray-300 text-xs mb-1.5 block">
-          {t('phase', language)}
-        </Label>
-        <Select
-          value={String(formData.phase)}
-          onValueChange={v => handlePhaseChange(Number(v))}
-        >
+        <Label className="text-gray-300 text-xs mb-1.5 block">{t('phase', language)}</Label>
+        <Select value={String(formData.phase)} onValueChange={v => handlePhaseChange(Number(v))}>
           <SelectTrigger className="w-full bg-white/5 border-white/[0.08] text-gray-200">
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="bg-[#161b22] border-white/[0.08]">
-            <SelectItem value="1" className="text-gray-200 focus:bg-white/10 focus:text-white">
-              {t('phase1', language)}
-            </SelectItem>
-            <SelectItem value="2" className="text-gray-200 focus:bg-white/10 focus:text-white">
-              {t('phase2', language)}
-            </SelectItem>
-            <SelectItem value="3" className="text-gray-200 focus:bg-white/10 focus:text-white">
-              {t('funded', language)}
-            </SelectItem>
+            <SelectItem value="1" className="text-gray-200 focus:bg-white/10 focus:text-white">{t('phase1', language)}</SelectItem>
+            <SelectItem value="2" className="text-gray-200 focus:bg-white/10 focus:text-white">{t('phase2', language)}</SelectItem>
+            <SelectItem value="3" className="text-gray-200 focus:bg-white/10 focus:text-white">{t('funded', language)}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Max Drawdown */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <Label className="text-gray-300 text-xs mb-1.5 block">
-            {t('maxDrawdown', language)}
-          </Label>
-          <Input
-            type="number"
-            step="0.1"
-            value={formData.max_drawdown}
-            onChange={e => updateForm('max_drawdown', Number(e.target.value))}
-            className="bg-white/5 border-white/[0.08] text-gray-200"
-          />
-          <p className="text-[10px] text-gray-500 mt-1">
-            = {formatCurrency(maxDdAmount)}
-          </p>
+          <Label className="text-gray-300 text-xs mb-1.5 block">{t('maxDrawdown', language)}</Label>
+          <Input type="number" step="0.1" value={formData.max_drawdown} onChange={e => updateForm('max_drawdown', Number(e.target.value))} className="bg-white/5 border-white/[0.08] text-gray-200" />
+          <p className="text-[10px] text-gray-500 mt-1">= {formatCurrency(maxDdAmount)}</p>
         </div>
         <div>
-          <Label className="text-gray-300 text-xs mb-1.5 block">
-            {t('maxDailyDrawdown', language)}
-          </Label>
-          <Input
-            type="number"
-            step="0.1"
-            value={formData.max_daily_drawdown}
-            onChange={e => updateForm('max_daily_drawdown', Number(e.target.value))}
-            className="bg-white/5 border-white/[0.08] text-gray-200"
-          />
-          <p className="text-[10px] text-gray-500 mt-1">
-            = {formatCurrency(maxDailyDdAmount)}
-          </p>
+          <Label className="text-gray-300 text-xs mb-1.5 block">{t('maxDailyDrawdown', language)}</Label>
+          <Input type="number" step="0.1" value={formData.max_daily_drawdown} onChange={e => updateForm('max_daily_drawdown', Number(e.target.value))} className="bg-white/5 border-white/[0.08] text-gray-200" />
+          <p className="text-[10px] text-gray-500 mt-1">= {formatCurrency(maxDailyDdAmount)}</p>
         </div>
       </div>
 
-      {/* Daily DD Type */}
       <div>
-        <Label className="text-gray-300 text-xs mb-1.5 block">
-          {t('dailyDdType', language)}
-        </Label>
-        <Select
-          value={formData.daily_drawdown_type}
-          onValueChange={v => updateForm('daily_drawdown_type', v)}
-        >
-          <SelectTrigger className="w-full bg-white/5 border-white/[0.08] text-gray-200">
-            <SelectValue />
-          </SelectTrigger>
+        <Label className="text-gray-300 text-xs mb-1.5 block">{t('dailyDdType', language)}</Label>
+        <Select value={formData.daily_drawdown_type} onValueChange={v => updateForm('daily_drawdown_type', v)}>
+          <SelectTrigger className="w-full bg-white/5 border-white/[0.08] text-gray-200"><SelectValue /></SelectTrigger>
           <SelectContent className="bg-[#161b22] border-white/[0.08]">
-            <SelectItem value="relative" className="text-gray-200 focus:bg-white/10 focus:text-white">
-              {t('relative', language)}
-            </SelectItem>
-            <SelectItem value="absolute" className="text-gray-200 focus:bg-white/10 focus:text-white">
-              {t('absolute', language)}
-            </SelectItem>
+            <SelectItem value="relative" className="text-gray-200 focus:bg-white/10 focus:text-white">{t('relative', language)}</SelectItem>
+            <SelectItem value="absolute" className="text-gray-200 focus:bg-white/10 focus:text-white">{t('absolute', language)}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Profit Target */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <Label className="text-gray-300 text-xs mb-1.5 block">
-            {t('profitTargetPercent', language)}
-          </Label>
-          <Input
-            type="number"
-            step="0.1"
-            value={formData.profit_target_percent}
-            onChange={e => updateForm('profit_target_percent', Number(e.target.value))}
-            className="bg-white/5 border-white/[0.08] text-gray-200"
-          />
+          <Label className="text-gray-300 text-xs mb-1.5 block">{t('profitTargetPercent', language)}</Label>
+          <Input type="number" step="0.1" value={formData.profit_target_percent} onChange={e => updateForm('profit_target_percent', Number(e.target.value))} className="bg-white/5 border-white/[0.08] text-gray-200" />
         </div>
         <div>
-          <Label className="text-gray-300 text-xs mb-1.5 block">
-            {t('profitTarget', language)}
-          </Label>
-          <Input
-            type="number"
-            value={formData.profit_target ?? ''}
-            placeholder={formatCurrency(profitTargetValue)}
-            onChange={e =>
-              updateForm('profit_target', e.target.value ? Number(e.target.value) : null)
-            }
-            className="bg-white/5 border-white/[0.08] text-gray-200 placeholder:text-gray-600"
-          />
-          <p className="text-[10px] text-gray-500 mt-1">
-            {language === 'id' ? 'Kosongkan = auto dari %' : 'Empty = auto from %'}
-          </p>
+          <Label className="text-gray-300 text-xs mb-1.5 block">{t('profitTarget', language)}</Label>
+          <Input type="number" value={formData.profit_target ?? ''} placeholder={formatCurrency(profitTargetValue)} onChange={e => updateForm('profit_target', e.target.value ? Number(e.target.value) : null)} className="bg-white/5 border-white/[0.08] text-gray-200 placeholder:text-gray-600" />
+          <p className="text-[10px] text-gray-500 mt-1">{language === 'id' ? 'Kosongkan = auto dari %' : 'Empty = auto from %'}</p>
         </div>
       </div>
 
-      {/* Min Trading Days & Profit Split */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <Label className="text-gray-300 text-xs mb-1.5 block">
-            {t('minTradingDays', language)}
-          </Label>
-          <Input
-            type="number"
-            value={formData.min_trading_days}
-            onChange={e => updateForm('min_trading_days', Number(e.target.value))}
-            className="bg-white/5 border-white/[0.08] text-gray-200"
-          />
+          <Label className="text-gray-300 text-xs mb-1.5 block">{t('minTradingDays', language)}</Label>
+          <Input type="number" value={formData.min_trading_days} onChange={e => updateForm('min_trading_days', Number(e.target.value))} className="bg-white/5 border-white/[0.08] text-gray-200" />
         </div>
         <div>
-          <Label className="text-gray-300 text-xs mb-1.5 block">
-            {t('profitSplit', language)}
-          </Label>
-          <Input
-            type="number"
-            step="1"
-            value={formData.profit_split}
-            onChange={e => updateForm('profit_split', Number(e.target.value))}
-            className="bg-white/5 border-white/[0.08] text-gray-200"
-          />
+          <Label className="text-gray-300 text-xs mb-1.5 block">{t('profitSplit', language)}</Label>
+          <Input type="number" step="1" value={formData.profit_split} onChange={e => updateForm('profit_split', Number(e.target.value))} className="bg-white/5 border-white/[0.08] text-gray-200" />
         </div>
       </div>
 
-      {/* Start Date */}
       <div>
-        <Label className="text-gray-300 text-xs mb-1.5 block">
-          {t('startDate', language)}
-        </Label>
-        <Input
-          type="date"
-          value={formData.start_date}
-          onChange={e => updateForm('start_date', e.target.value)}
-          className="bg-white/5 border-white/[0.08] text-gray-200"
-        />
+        <Label className="text-gray-300 text-xs mb-1.5 block">{t('startDate', language)}</Label>
+        <Input type="date" value={formData.start_date} onChange={e => updateForm('start_date', e.target.value)} className="bg-white/5 border-white/[0.08] text-gray-200" />
       </div>
 
-      {/* Account */}
       <div>
-        <Label className="text-gray-300 text-xs mb-1.5 block">
-          {t('account', language)}
-        </Label>
-        <Input
-          value={formData.account_id}
-          onChange={e => updateForm('account_id', e.target.value)}
-          placeholder={language === 'id' ? 'ID akun trading (opsional)' : 'Trading account ID (optional)'}
-          className="bg-white/5 border-white/[0.08] text-gray-200 placeholder:text-gray-600"
-        />
+        <Label className="text-gray-300 text-xs mb-1.5 block">{t('account', language)}</Label>
+        <Input value={formData.account_id} onChange={e => updateForm('account_id', e.target.value)} placeholder={language === 'id' ? 'ID akun trading (opsional)' : 'Trading account ID (optional)'} className="bg-white/5 border-white/[0.08] text-gray-200 placeholder:text-gray-600" />
       </div>
     </div>
   )
@@ -946,19 +1011,165 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
             {t('title', language)}
           </h2>
           <p className="text-sm text-gray-500 mt-1">{t('subtitle', language)}</p>
+          {lastSyncTime && (
+            <p className="text-[11px] text-gray-600 mt-0.5 flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {t('autoSynced', language)}: {new Date(lastSyncTime).toLocaleTimeString()}
+            </p>
+          )}
         </div>
         <Button
-          onClick={() => {
-            setFormData(defaultFormData())
-            setSelectedTemplate('')
-            setShowAddModal(true)
-          }}
+          onClick={() => { setFormData(defaultFormData()); setSelectedTemplate(''); setShowAddModal(true) }}
           className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white shadow-lg shadow-cyan-500/20"
         >
           <Plus className="w-4 h-4 mr-2" />
           {t('addChallenge', language)}
         </Button>
       </div>
+
+      {/* ===== REAL-TIME STATUS BANNER ===== */}
+      <StatusBanner rules={rules} language={language} />
+
+      {/* ===== SETUP PROMPT (if no auto-import) ===== */}
+      {!hasMetaApi && !hasWebhook && rules.length > 0 && (
+        <Card className="bg-amber-500/5 border border-amber-500/20">
+          <CardContent className="p-4">
+            <p className="text-sm text-amber-400 font-medium mb-3">{t('setupPrompt', language)}</p>
+            <div className="flex flex-wrap gap-2 mb-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10 text-xs"
+                onClick={() => window.location.href = '/dashboard/connections'}
+              >
+                <Link2 className="w-3.5 h-3.5 mr-1.5" />
+                {t('connectMetaApi', language)}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10 text-xs"
+                onClick={() => {
+                  const url = `${window.location.origin}/api/webhook/trading`
+                  navigator.clipboard.writeText(url).then(() => {
+                    toast.success(language === 'id' ? 'URL webhook disalin!' : 'Webhook URL copied!')
+                  })
+                }}
+              >
+                <Radio className="w-3.5 h-3.5 mr-1.5" />
+                {t('setupWebhook', language)}
+              </Button>
+            </div>
+            <p className="text-[11px] text-gray-500">{t('setupManualNote', language)}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ===== DD PREDICTION CALCULATOR ===== */}
+      {rules.length > 0 && (
+        <Card className="bg-[#0d1117] border border-white/[0.08]">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-white flex items-center gap-2">
+              <Calculator className="w-4 h-4 text-amber-400" />
+              {t('predictionTitle', language)}
+            </CardTitle>
+            <p className="text-[11px] text-gray-500">{t('predictionDesc', language)}</p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex gap-3 items-end flex-wrap">
+              <div className="flex-1 min-w-[140px]">
+                <Label className="text-gray-400 text-[11px] mb-1 block">{t('selectRuleForPrediction', language)}</Label>
+                <Select value={selectedPredictionRule} onValueChange={setSelectedPredictionRule}>
+                  <SelectTrigger className="w-full bg-white/5 border-white/[0.08] text-gray-200 text-xs h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#161b22] border-white/[0.08]">
+                    {rules.filter(r => !r.is_violated).map(rule => (
+                      <SelectItem key={rule.id} value={rule.id} className="text-gray-200 focus:bg-white/10 focus:text-white text-xs">
+                        {rule.firm_name} — {formatCurrencyFull(rule.challenge_size)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-32">
+                <Label className="text-gray-400 text-[11px] mb-1 block">{t('predictionInput', language)}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={predictionLoss || ''}
+                  onChange={e => setPredictionLoss(Math.max(0, Number(e.target.value)))}
+                  placeholder="$0"
+                  className="bg-white/5 border-white/[0.08] text-gray-200 h-8 text-xs"
+                />
+              </div>
+            </div>
+            {predictionResult && (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`rounded-lg px-3 py-2 border ${
+                  predictionResult.status === 'breach' ? 'bg-red-500/10 border-red-500/30' :
+                  predictionResult.status === 'danger' ? 'bg-red-500/5 border-red-500/20' :
+                  predictionResult.status === 'warning' ? 'bg-amber-500/5 border-amber-500/20' :
+                  'bg-emerald-500/5 border-emerald-500/20'
+                }`}
+              >
+                <p className="text-xs text-gray-300">
+                  {t('predictionResult', language)}{' '}
+                  <span className={`font-bold ${
+                    predictionResult.status === 'breach' ? 'text-red-400' :
+                    predictionResult.status === 'danger' ? 'text-red-400' :
+                    predictionResult.status === 'warning' ? 'text-amber-400' :
+                    'text-emerald-400'
+                  }`}>
+                    {formatCurrency(predictionResult.newDrawdown)} ({predictionResult.newDdPercent.toFixed(1)}% {t('predictionOfLimit', language)})
+                  </span>
+                  {' — '}
+                  <span className={`font-bold ${
+                    predictionResult.status === 'breach' ? 'text-red-400' :
+                    predictionResult.status === 'danger' ? 'text-red-400' :
+                    predictionResult.status === 'warning' ? 'text-amber-400' :
+                    'text-emerald-400'
+                  }`}>
+                    {(() => {
+                      const statusKey = predictionResult.status === 'safe' ? 'predictionSafe'
+                        : predictionResult.status === 'warning' ? 'predictionWarning'
+                        : predictionResult.status === 'danger' ? 'predictionDanger'
+                        : 'predictionBreach'
+                      return t(statusKey, language)
+                    })()}
+                  </span>
+                </p>
+              </motion.div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ===== DAILY DD RESET INFO ===== */}
+      {rules.length > 0 && (
+        <Card className="bg-[#0d1117] border border-white/[0.08]">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-2">
+              <Info className="w-4 h-4 text-gray-500 mt-0.5 shrink-0" />
+              <div className="space-y-1">
+                <p className="text-xs text-gray-400">{t('dailyDdReset', language)}</p>
+                {rules.filter(r => !r.is_violated).map(rule => {
+                  const maxDailyDdAmt = (rule.max_daily_drawdown / 100) * rule.challenge_size
+                  const remaining = Math.max(0, maxDailyDdAmt - rule.current_daily_drawdown)
+                  return (
+                    <p key={rule.id} className="text-[11px] text-gray-500">
+                      {rule.firm_name}: {t('remainingDailyDd', language)} = <span className={remaining < maxDailyDdAmt * 0.2 ? 'text-red-400 font-medium' : 'text-emerald-400'}>{formatCurrency(remaining)}</span>
+                    </p>
+                  )
+                })}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Active Challenges */}
       <div>
@@ -976,11 +1187,7 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
               <Shield className="w-12 h-12 mx-auto mb-4 text-gray-600" />
               <p className="text-gray-500 text-sm">{t('noChallenges', language)}</p>
               <Button
-                onClick={() => {
-                  setFormData(defaultFormData())
-                  setSelectedTemplate('')
-                  setShowAddModal(true)
-                }}
+                onClick={() => { setFormData(defaultFormData()); setSelectedTemplate(''); setShowAddModal(true) }}
                 variant="outline"
                 className="mt-4 border-white/[0.08] text-cyan-400 hover:bg-cyan-500/10"
               >
@@ -999,10 +1206,10 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
                 const currentPnl = getRuleCurrentPnl(rule)
                 const maxDdAmt = (rule.max_drawdown / 100) * rule.challenge_size
                 const maxDailyDdAmt = (rule.max_daily_drawdown / 100) * rule.challenge_size
-                const profitTarget =
-                  rule.profit_target ?? (rule.profit_target_percent / 100) * rule.challenge_size
+                const profitTarget = rule.profit_target ?? (rule.profit_target_percent / 100) * rule.challenge_size
                 const phaseColors = getPhaseColor(rule.phase)
                 const isCalculating = calculatingIds.has(rule.id)
+                const alertSettings = alertSettingsMap[rule.id]
 
                 return (
                   <motion.div
@@ -1014,113 +1221,64 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
                   >
                     <Card
                       className={`bg-[#0d1117] border backdrop-blur-sm overflow-hidden ${
-                        rule.is_violated
-                          ? 'border-red-500/50 animate-pulse'
-                          : `border-white/[0.08]`
+                        rule.is_violated ? 'border-red-500/50 animate-pulse' : 'border-white/[0.08]'
                       }`}
                     >
                       {/* Violation Banner */}
                       {rule.is_violated && (
                         <div className="bg-red-500/20 border-b border-red-500/30 px-4 py-2 flex items-center gap-2">
                           <AlertTriangle className="w-4 h-4 text-red-400" />
-                          <span className="text-xs font-bold text-red-400">
-                            {t('violation', language)}
-                          </span>
+                          <span className="text-xs font-bold text-red-400">{t('violation', language)}</span>
                         </div>
                       )}
 
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <CardTitle className="text-base font-bold text-white">
-                              {rule.firm_name}
-                            </CardTitle>
-                            <Badge
-                              className={`${phaseColors.bg} ${phaseColors.text} ${phaseColors.border} border text-[10px]`}
-                            >
+                            <CardTitle className="text-base font-bold text-white">{rule.firm_name}</CardTitle>
+                            <Badge className={`${phaseColors.bg} ${phaseColors.text} ${phaseColors.border} border text-[10px]`}>
                               {getPhaseLabel(rule.phase, language)}
                             </Badge>
                             {rule.is_violated && (
                               <Badge className="bg-red-500/20 text-red-400 border-red-500/30 border text-[10px] animate-pulse">
-                                <AlertTriangle className="w-3 h-3 mr-0.5" />
-                                VIOLATION
+                                <AlertTriangle className="w-3 h-3 mr-0.5" /> VIOLATION
                               </Badge>
                             )}
                           </div>
-                          <span className="text-lg font-bold text-white">
-                            {formatCurrencyFull(rule.challenge_size)}
-                          </span>
+                          <span className="text-lg font-bold text-white">{formatCurrencyFull(rule.challenge_size)}</span>
                         </div>
+                        {/* Trade Source Indicator */}
+                        <p className="text-[10px] text-gray-600 mt-1">{getTradeSourceLabel(language)}</p>
                       </CardHeader>
 
                       <CardContent className="space-y-4">
                         {/* Gauges Row */}
                         <div className="flex items-center justify-around gap-2">
-                          {/* Drawdown Gauge */}
-                          <CircularGauge
-                            value={rule.current_drawdown}
-                            max={maxDdAmt}
-                            size={80}
-                            strokeWidth={6}
-                            label={t('drawdown', language)}
-                            language={language}
-                          />
-
-                          {/* Daily Drawdown Gauge */}
-                          <CircularGauge
-                            value={rule.current_daily_drawdown}
-                            max={maxDailyDdAmt}
-                            size={80}
-                            strokeWidth={6}
-                            label={t('dailyDrawdown', language)}
-                            language={language}
-                          />
-
+                          <CircularGauge value={rule.current_drawdown} max={maxDdAmt} size={80} strokeWidth={6} label={t('drawdown', language)} language={language} />
+                          <CircularGauge value={rule.current_daily_drawdown} max={maxDailyDdAmt} size={80} strokeWidth={6} label={t('dailyDrawdown', language)} language={language} />
                           {/* Profit Target Progress */}
                           <div className="flex flex-col items-center gap-1">
                             <div className="relative w-20 h-20">
                               <svg width={80} height={80} className="transform -rotate-90">
-                                <circle
-                                  cx={40}
-                                  cy={40}
-                                  r={34}
-                                  fill="none"
-                                  stroke="rgba(255,255,255,0.08)"
-                                  strokeWidth={6}
-                                />
+                                <circle cx={40} cy={40} r={34} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={6} />
                                 <motion.circle
-                                  cx={40}
-                                  cy={40}
-                                  r={34}
-                                  fill="none"
+                                  cx={40} cy={40} r={34} fill="none"
                                   stroke={profitPercent > 70 ? '#22c55e' : '#06b6d4'}
-                                  strokeWidth={6}
-                                  strokeLinecap="round"
+                                  strokeWidth={6} strokeLinecap="round"
                                   strokeDasharray={2 * Math.PI * 34}
-                                  initial={{
-                                    strokeDashoffset: 2 * Math.PI * 34,
-                                  }}
-                                  animate={{
-                                    strokeDashoffset:
-                                      2 * Math.PI * 34 -
-                                      (profitPercent / 100) * 2 * Math.PI * 34,
-                                  }}
+                                  initial={{ strokeDashoffset: 2 * Math.PI * 34 }}
+                                  animate={{ strokeDashoffset: 2 * Math.PI * 34 - (profitPercent / 100) * 2 * Math.PI * 34 }}
                                   transition={{ duration: 1, ease: 'easeOut' }}
                                 />
                               </svg>
                               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className={`text-xs font-bold ${getProfitColor(profitPercent)}`}>
-                                  {formatPercent(profitPercent)}
-                                </span>
+                                <span className={`text-xs font-bold ${getProfitColor(profitPercent)}`}>{formatPercent(profitPercent)}</span>
                               </div>
                             </div>
-                            <span className="text-[10px] text-gray-500 text-center leading-tight">
-                              {t('profitProgress', language)}
-                            </span>
+                            <span className="text-[10px] text-gray-500 text-center leading-tight">{t('profitProgress', language)}</span>
                             {profitPercent >= 100 && (
                               <span className="text-[9px] text-emerald-400 font-medium flex items-center gap-0.5">
-                                <CheckCircle2 className="w-3 h-3" />
-                                {t('targetReached', language)}
+                                <CheckCircle2 className="w-3 h-3" />{t('targetReached', language)}
                               </span>
                             )}
                           </div>
@@ -1129,9 +1287,7 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
                         {/* Profit Progress Bar */}
                         <div>
                           <div className="flex items-center justify-between text-[11px] mb-1">
-                            <span className="text-gray-500">
-                              {t('profitProgress', language)}
-                            </span>
+                            <span className="text-gray-500">{t('profitProgress', language)}</span>
                             <span className={getProfitColor(profitPercent)}>
                               {formatCurrency(Math.max(currentPnl, 0))} / {formatCurrency(profitTarget)}{' '}
                               <span className="text-gray-500">({t('ofTarget', language)})</span>
@@ -1149,46 +1305,28 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
 
                         {/* Drawdown Bars */}
                         <div className="grid grid-cols-2 gap-3">
-                          {/* Overall DD bar */}
                           <div>
                             <div className="flex items-center justify-between text-[11px] mb-1">
                               <span className="text-gray-500">{t('drawdown', language)}</span>
-                              <span className={getDrawdownColor(ddPercent)}>
-                                {formatCurrency(rule.current_drawdown)} / {formatCurrency(maxDdAmt)}
-                              </span>
+                              <span className={getDrawdownColor(ddPercent)}>{formatCurrency(rule.current_drawdown)} / {formatCurrency(maxDdAmt)}</span>
                             </div>
                             <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
                               <motion.div
-                                className={`h-full rounded-full ${
-                                  ddPercent > 80
-                                    ? 'bg-red-500'
-                                    : ddPercent > 50
-                                    ? 'bg-amber-500'
-                                    : 'bg-emerald-500'
-                                }`}
+                                className={`h-full rounded-full ${ddPercent > 80 ? 'bg-red-500' : ddPercent > 50 ? 'bg-amber-500' : 'bg-emerald-500'}`}
                                 initial={{ width: 0 }}
                                 animate={{ width: `${Math.min(ddPercent, 100)}%` }}
                                 transition={{ duration: 0.8, ease: 'easeOut' }}
                               />
                             </div>
                           </div>
-                          {/* Daily DD bar */}
                           <div>
                             <div className="flex items-center justify-between text-[11px] mb-1">
                               <span className="text-gray-500">{t('dailyDrawdown', language)}</span>
-                              <span className={getDrawdownColor(dailyDdPercent)}>
-                                {formatCurrency(rule.current_daily_drawdown)} / {formatCurrency(maxDailyDdAmt)}
-                              </span>
+                              <span className={getDrawdownColor(dailyDdPercent)}>{formatCurrency(rule.current_daily_drawdown)} / {formatCurrency(maxDailyDdAmt)}</span>
                             </div>
                             <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
                               <motion.div
-                                className={`h-full rounded-full ${
-                                  dailyDdPercent > 80
-                                    ? 'bg-red-500'
-                                    : dailyDdPercent > 50
-                                    ? 'bg-amber-500'
-                                    : 'bg-emerald-500'
-                                }`}
+                                className={`h-full rounded-full ${dailyDdPercent > 80 ? 'bg-red-500' : dailyDdPercent > 50 ? 'bg-amber-500' : 'bg-emerald-500'}`}
                                 initial={{ width: 0 }}
                                 animate={{ width: `${Math.min(dailyDdPercent, 100)}%` }}
                                 transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -1199,74 +1337,69 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
 
                         {/* Stats Row */}
                         <div className="grid grid-cols-3 gap-2 pt-1">
-                          {/* Current PnL */}
                           <div className="text-center">
-                            <p className="text-[10px] text-gray-500 mb-0.5">
-                              {t('currentPnl', language)}
-                            </p>
-                            <p
-                              className={`text-sm font-bold ${
-                                currentPnl >= 0 ? 'text-emerald-400' : 'text-red-400'
-                              }`}
-                            >
-                              {currentPnl >= 0 ? '+' : ''}
-                              {formatCurrency(currentPnl)}
+                            <p className="text-[10px] text-gray-500 mb-0.5">{t('currentPnl', language)}</p>
+                            <p className={`text-sm font-bold ${currentPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                              {currentPnl >= 0 ? '+' : ''}{formatCurrency(currentPnl)}
                             </p>
                           </div>
-                          {/* Days Traded */}
                           <div className="text-center">
-                            <p className="text-[10px] text-gray-500 mb-0.5">
-                              {t('daysTraded', language)}
-                            </p>
+                            <p className="text-[10px] text-gray-500 mb-0.5">{t('daysTraded', language)}</p>
                             <p className="text-sm font-bold text-white">
-                              {rule.days_traded}{' '}
-                              <span className="text-[10px] text-gray-500">
-                                ({t('daysMin', language)} {rule.min_trading_days})
-                              </span>
+                              {rule.days_traded} <span className="text-[10px] text-gray-500">({t('daysMin', language)} {rule.min_trading_days})</span>
                             </p>
                           </div>
-                          {/* Profit Split */}
                           <div className="text-center">
-                            <p className="text-[10px] text-gray-500 mb-0.5">
-                              {t('profitSplit', language)}
-                            </p>
-                            <p className="text-sm font-bold text-cyan-400">
-                              {rule.profit_split}%
-                            </p>
+                            <p className="text-[10px] text-gray-500 mb-0.5">{t('profitSplit', language)}</p>
+                            <p className="text-sm font-bold text-cyan-400">{rule.profit_split}%</p>
+                          </div>
+                        </div>
+
+                        {/* ===== ALERT SETTINGS (per rule) ===== */}
+                        <div className="border-t border-white/[0.06] pt-3 space-y-2">
+                          <p className="text-[10px] text-gray-500 font-semibold flex items-center gap-1">
+                            <Bell className="w-3 h-3" /> {t('alertSettings', language)}
+                          </p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-gray-400">{t('alertPush80', language)}</span>
+                            <Switch
+                              checked={alertSettings?.pushEnabled ?? true}
+                              onCheckedChange={(v) => {
+                                saveAlertSetting(rule.id, 'alert_push_enabled', v)
+                                setAlertSettingsMap(prev => ({
+                                  ...prev,
+                                  [rule.id]: { ...prev[rule.id], pushEnabled: v }
+                                }))
+                              }}
+                              className="scale-75 origin-right"
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-gray-400">{t('alertWebhook', language)}</span>
+                            <Switch
+                              checked={alertSettings?.webhookEnabled ?? true}
+                              onCheckedChange={(v) => {
+                                saveAlertSetting(rule.id, 'alert_webhook_enabled', v)
+                                setAlertSettingsMap(prev => ({
+                                  ...prev,
+                                  [rule.id]: { ...prev[rule.id], webhookEnabled: v }
+                                }))
+                              }}
+                              className="scale-75 origin-right"
+                            />
                           </div>
                         </div>
 
                         {/* Action Buttons */}
                         <div className="flex items-center gap-2 pt-1 border-t border-white/[0.06]">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="flex-1 text-gray-400 hover:text-cyan-400 hover:bg-cyan-500/10 text-xs h-8"
-                            onClick={() => calculateRule(rule.id)}
-                            disabled={isCalculating}
-                          >
-                            {isCalculating ? (
-                              <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-                            ) : (
-                              <RefreshCw className="w-3.5 h-3.5 mr-1" />
-                            )}
+                          <Button variant="ghost" size="sm" className="flex-1 text-gray-400 hover:text-cyan-400 hover:bg-cyan-500/10 text-xs h-8" onClick={() => calculateRule(rule.id)} disabled={isCalculating}>
+                            {isCalculating ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />}
                             {t('refresh', language)}
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="flex-1 text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 text-xs h-8"
-                            onClick={() => openEdit(rule)}
-                          >
-                            <Edit2 className="w-3.5 h-3.5 mr-1" />
-                            {t('editChallenge', language)}
+                          <Button variant="ghost" size="sm" className="flex-1 text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 text-xs h-8" onClick={() => openEdit(rule)}>
+                            <Edit2 className="w-3.5 h-3.5 mr-1" />{t('editChallenge', language)}
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-gray-400 hover:text-red-400 hover:bg-red-500/10 text-xs h-8 px-2"
-                            onClick={() => setDeleteConfirmId(rule.id)}
-                          >
+                          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-red-400 hover:bg-red-500/10 text-xs h-8 px-2" onClick={() => setDeleteConfirmId(rule.id)}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
@@ -1294,23 +1427,11 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
           </DialogHeader>
           {formModalContent}
           <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={closeModals}
-              className="border-white/[0.08] text-gray-400 hover:text-white hover:bg-white/5"
-            >
+            <Button variant="outline" onClick={closeModals} className="border-white/[0.08] text-gray-400 hover:text-white hover:bg-white/5">
               {t('cancel', language)}
             </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
-            >
-              {submitting ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4 mr-2" />
-              )}
+            <Button onClick={handleSubmit} disabled={submitting} className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white">
+              {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
               {t('create', language)}
             </Button>
           </DialogFooter>
@@ -1331,23 +1452,11 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
           </DialogHeader>
           {formModalContent}
           <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={closeModals}
-              className="border-white/[0.08] text-gray-400 hover:text-white hover:bg-white/5"
-            >
+            <Button variant="outline" onClick={closeModals} className="border-white/[0.08] text-gray-400 hover:text-white hover:bg-white/5">
               {t('cancel', language)}
             </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
-            >
-              {submitting ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Edit2 className="w-4 h-4 mr-2" />
-              )}
+            <Button onClick={handleSubmit} disabled={submitting} className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white">
+              {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Edit2 className="w-4 h-4 mr-2" />}
               {t('save', language)}
             </Button>
           </DialogFooter>
@@ -1367,18 +1476,10 @@ export default function PropFirmTab({ isPro, onUpgrade, language, trades }: Prop
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteConfirmId(null)}
-              className="border-white/[0.08] text-gray-400 hover:text-white hover:bg-white/5"
-            >
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)} className="border-white/[0.08] text-gray-400 hover:text-white hover:bg-white/5">
               {t('cancel', language)}
             </Button>
-            <Button
-              variant="destructive"
-              onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
-              className="bg-red-500 hover:bg-red-600 text-white"
-            >
+            <Button variant="destructive" onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)} className="bg-red-500 hover:bg-red-600 text-white">
               <Trash2 className="w-4 h-4 mr-2" />
               {t('deleteChallenge', language)}
             </Button>

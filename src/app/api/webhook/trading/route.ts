@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { checkWebhookAlerts } from '@/app/api/webhook/_lib/alert-after-trade'
 
 /**
  * Universal Trading Webhook Endpoint
@@ -359,6 +360,9 @@ export async function POST(req: NextRequest) {
         console.log('[WEBHOOK] Trade created:', result.id)
       }
 
+      // Fire-and-forget: check PropFirm alerts for this user
+      checkWebhookAlerts(getSupabaseAdmin(), parsedTrade.user_id).catch(() => {})
+
       return NextResponse.json({
         success: true,
         message: 'Trade processed successfully',
@@ -442,6 +446,12 @@ export async function POST(req: NextRequest) {
       }
 
       results.push(result)
+    }
+
+    // Fire-and-forget: check PropFirm alerts for users that got new trades
+    const uniqueUserIds = [...new Set(results.filter(r => r?.user_id).map(r => r.user_id))]
+    for (const uid of uniqueUserIds) {
+      checkWebhookAlerts(getSupabaseAdmin(), uid).catch(() => {})
     }
 
     return NextResponse.json({
