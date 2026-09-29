@@ -574,3 +574,35 @@ Stage Summary:
 - PWA widget data endpoints implemented (summary, equity, winrate)
 - .env.example now documents all VAPID env vars
 - Service Worker setup is comprehensive: precaching, offline fallback, background sync, push, periodic sync
+---
+Task ID: prop-firm-tracker
+Agent: Main
+Task: Build Prop Firm Challenge Tracker — drawdown, daily DD, profit target, challenge phase
+
+Work Log:
+- Added PropFirmRule model to Prisma schema with full prop firm tracking fields
+- Added propFirmRules relation to Profile model
+- Created 4 API routes:
+  - /api/prop-firm (GET list, POST create)
+  - /api/prop-firm/[id] (PATCH update, DELETE)
+  - /api/prop-firm/templates (GET pre-configured firms: FTMO, MFF, FundedNext, The5ers, SurgeTrader)
+  - /api/prop-firm/calculate (POST drawdown calculation from trades)
+- Built PropFirmTab component (1391 lines) with:
+  - SVG circular gauges for drawdown, daily DD, profit target
+  - Template selector with auto-fill from pre-configured firms
+  - Challenge cards with violation detection and warning
+  - Edit/Delete modals, refresh calculation
+  - Phase badges (Phase 1, Phase 2, Funded)
+  - Full bilingual support (id/en)
+  - PRO-gated with paywall
+- Integrated into dashboard:
+  - TabContent.tsx: lazy-loaded import + render block
+  - SidebarNav.tsx: menu item with Shield icon in 'alat' category
+  - LuxTradeDashboard.tsx: menu item for header navigation
+
+Stage Summary:
+- Dashboard now has a full Prop Firm Challenge Tracker tab
+- Tracks: max drawdown, daily drawdown, profit target, challenge phase, profit split
+- Pre-configured templates for 5 major prop firms
+- Auto-calculates drawdown from trades with violation detection
+- PRO feature (gold category)
