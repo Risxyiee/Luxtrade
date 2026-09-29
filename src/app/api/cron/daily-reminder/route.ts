@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, isDatabaseAvailable } from '@/lib/db'
+import { Prisma } from '@prisma/client'
 import { sendEmail, getDailyReminderHtml } from '@/lib/email'
 
 /**
@@ -40,9 +41,9 @@ function getDayName(): string {
 }
 
 async function getTargetUsers(targetUid?: string): Promise<TargetUser[]> {
-  const uidFilter = targetUid ? `AND p.id = '${targetUid}'` : ''
+  const uidFilter = targetUid ? Prisma.sql`AND p.id = ${targetUid}` : Prisma.empty
 
-  const rows: any[] = await db.$queryRawUnsafe(`
+  const rows: any[] = await db.$queryRaw`
     SELECT
       p.id AS user_id,
       p.email,
@@ -79,8 +80,7 @@ async function getTargetUsers(targetUid?: string): Promise<TargetUser[]> {
           AND drl2.unsubscribed = true
       )
       ${uidFilter}
-    ORDER BY p.streak_count DESC;
-  `)
+    ORDER BY p.streak_count DESC;`
 
   return rows.map((r: any) => ({
     user_id: r.user_id,

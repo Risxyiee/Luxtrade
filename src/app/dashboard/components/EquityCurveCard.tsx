@@ -25,6 +25,7 @@ interface EquityData {
 interface EquityCurveCardProps {
   language?: 'id' | 'en'
   tradingAccounts?: any[]
+  selectedAccountId?: string | null
   className?: string
 }
 
@@ -168,7 +169,7 @@ function Tooltip({
 
 // ==================== MAIN COMPONENT ====================
 
-function EquityCurveCardInner({ language = 'id', tradingAccounts, className }: EquityCurveCardProps) {
+function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccountId, className }: EquityCurveCardProps) {
   const [data, setData] = useState<EquityData | null>(null)
   const [loading, setLoading] = useState(true)
   const [hoveredPoint, setHoveredPoint] = useState<{ x: number; y: number; data: { date: string; equity: number } } | null>(null)
@@ -177,16 +178,17 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, className }: E
   const chartRef = useRef<SVGSVGElement>(null)
   const [dimensions, setDimensions] = useState({ w: 600, h: 300 })
 
-  // Fetch data immediately
-  const fetchStartedRef = useRef(false)
+  // Fetch data (re-fetch when selectedAccountId changes)
   useEffect(() => {
-    if (fetchStartedRef.current) return
-    fetchStartedRef.current = true
-    fetch('/api/equity-curve', { credentials: 'include' })
+    setLoading(true)
+    const url = selectedAccountId
+      ? `/api/equity-curve?account_id=${selectedAccountId}`
+      : '/api/equity-curve'
+    fetch(url, { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(d => { setData(d); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [])
+  }, [selectedAccountId])
 
   // Observe container size
   useEffect(() => {

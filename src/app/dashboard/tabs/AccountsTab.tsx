@@ -25,11 +25,10 @@ interface TradingAccount {
   created_at: string
 }
 
-export default function AccountsTab({ language = 'id', fetchData }: { language?: 'id' | 'en'; fetchData?: (isRefresh?: boolean) => void }) {
+export default function AccountsTab({ language = 'id', fetchData, selectedAccountId, setSelectedAccountId }: { language?: 'id' | 'en'; fetchData?: (isRefresh?: boolean) => void; selectedAccountId?: string | null; setSelectedAccountId?: (id: string | null) => void }) {
   const [accounts, setAccounts] = useState<TradingAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [addAccountOpen, setAddAccountOpen] = useState(false)
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [accountToDelete, setAccountToDelete] = useState<TradingAccount | null>(null)
@@ -124,7 +123,7 @@ export default function AccountsTab({ language = 'id', fetchData }: { language?:
 
       // If deleted account was selected, clear selection
       if (selectedAccountId === accountToDelete.id) {
-        setSelectedAccountId(null)
+        if (setSelectedAccountId) setSelectedAccountId(null)
       }
 
       fetchAccounts()
@@ -172,7 +171,7 @@ export default function AccountsTab({ language = 'id', fetchData }: { language?:
                   {/* All Accounts Option */}
                   <button
                     onClick={() => {
-                      setSelectedAccountId(null)
+                      if (setSelectedAccountId) setSelectedAccountId(null)
                       setAccountDropdownOpen(false)
                       toast.success(language === 'id' ? 'Semua akun dipilih' : 'All accounts selected')
                     }}
@@ -198,7 +197,7 @@ export default function AccountsTab({ language = 'id', fetchData }: { language?:
                       }`}
                     >
                       <div className={`flex-1 flex items-center gap-3 cursor-pointer`} onClick={() => {
-                        setSelectedAccountId(account.id)
+                        if (setSelectedAccountId) setSelectedAccountId(account.id)
                         setAccountDropdownOpen(false)
                         toast.success(language === 'id' ? `Beralih ke ${account.name}` : `Switched to ${account.name}`)
                       }}>

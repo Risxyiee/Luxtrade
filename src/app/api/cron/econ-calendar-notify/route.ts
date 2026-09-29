@@ -84,18 +84,18 @@ export async function GET(request: NextRequest) {
     // we send to all Pro users since this is a critical market event alert
     const proUsers = await db.profile.findMany({
       where: {
-        plan: { in: ['pro', 'lifetime'] },
+        plan: { in: ['PRO', 'LIFETIME'] },
       },
-      select: { user_id: true },
+      select: { id: true },
     })
 
-    const userIds = proUsers.map(u => u.user_id).filter(Boolean)
+    const userIds = proUsers.map(u => u.id).filter(Boolean)
     if (userIds.length === 0) {
       return NextResponse.json({ success: true, notified: 0, message: 'No Pro users found' })
     }
 
     // 5. Send push notifications for each upcoming event
-    const results = []
+    const results: { event: string; success?: boolean; error?: string; notified?: number; [key: string]: any }[] = []
     for (const evt of upcomingEvents) {
       try {
         const pushRes = await fetch(`${siteUrl}/api/push/send-batch`, {
