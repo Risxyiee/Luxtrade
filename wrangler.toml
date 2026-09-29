@@ -5,8 +5,8 @@ compatibility_flags = ["nodejs_compat", "streams_enable_constructors"]
 # Prevent wrangler from overriding dashboard environment variables
 keep_vars = true
 
-# OpenNext Cloudflare configuration
-main = ".open-next/worker.js"
+# OpenNext Cloudflare configuration — custom entry wraps worker.js with scheduled() cron handler
+main = "worker-entry.ts"
 assets = { directory = ".open-next/assets", binding = "ASSETS" }
 
 # ─── Cloudflare Bindings ─────────────────────────────────────────────────────
