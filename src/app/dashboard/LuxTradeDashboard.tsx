@@ -134,7 +134,15 @@ function LuxTradeDashboardContent() {
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([])
   const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([])
   const [tradingAccounts, setTradingAccounts] = useState<any[]>([])
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(() => {
+    // Restore from localStorage on mount
+    if (typeof window !== 'undefined') {
+      try {
+        return localStorage.getItem('luxtrade_selected_account_id')
+      } catch { return null }
+    }
+    return null
+  })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -143,6 +151,32 @@ function LuxTradeDashboardContent() {
     if (!selectedAccountId) return trades
     return trades.filter(trade => trade.account_id === selectedAccountId)
   }, [trades, selectedAccountId])
+
+  // Persist selectedAccountId to localStorage and re-fetch analytics on change
+  const handleSetSelectedAccountId = useCallback((id: string | null) => {
+    setSelectedAccountId(id)
+    try {
+      if (id) localStorage.setItem('luxtrade_selected_account_id', id)
+      else localStorage.removeItem('luxtrade_selected_account_id')
+    } catch {}
+  }, [])
+
+  // Re-fetch analytics when selectedAccountId changes (not on mount — fetchData already does it)
+  const prevAccountIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (prevAccountIdRef.current === null) {
+      prevAccountIdRef.current = selectedAccountId
+      return // Skip first mount
+    }
+    if (prevAccountIdRef.current !== selectedAccountId) {
+      prevAccountIdRef.current = selectedAccountId
+      // Re-fetch analytics with new account filter
+      fetch(`/api/analytics${selectedAccountId ? '?account_id=' + selectedAccountId : ''}`, { credentials: 'include' })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => { if (data) setAnalytics(data) })
+        .catch(() => {})
+    }
+  }, [selectedAccountId])
   
   // Form states - separate state to prevent re-renders
   const [formData, setFormData] = useState<TradeFormData>(emptyFormData)
@@ -376,7 +410,7 @@ function LuxTradeDashboardContent() {
       // doesn't prevent the others from updating the UI
       const [tradesRes, analyticsRes, journalRes, watchlistRes, accountsRes] = await Promise.all([
         fetch('/api/trades', { credentials: 'include' }).catch(() => null),
-        fetch('/api/analytics', { credentials: 'include' }).catch(() => null),
+        fetch(`/api/analytics${selectedAccountId ? '?account_id=' + selectedAccountId : ''}`, { credentials: 'include' }).catch(() => null),
         fetch('/api/journal', { credentials: 'include' }).catch(() => null),
         fetch('/api/watchlist', { credentials: 'include' }).catch(() => null),
         fetch('/api/trading-accounts', { credentials: 'include' }).catch(() => null),
@@ -927,7 +961,7 @@ function LuxTradeDashboardContent() {
           language={language}
           tradingAccounts={tradingAccounts}
           selectedAccountId={selectedAccountId}
-          setSelectedAccountId={setSelectedAccountId}
+          setSelectedAccountId={handleSetSelectedAccountId}
           setAddAccountOpen={setIsAddAccountOpen}
           setAddTradeOpen={setAddTradeOpen}
           isAdmin={isAdmin}
@@ -974,6 +1008,7 @@ function LuxTradeDashboardContent() {
           hasMounted={true}
           tradingAccounts={tradingAccounts}
           fetchData={fetchData}
+          selectedAccountId={selectedAccountId}
         />
       </main>
 
