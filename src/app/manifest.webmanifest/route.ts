@@ -115,28 +115,43 @@ export async function GET() {
     prefer_related_applications: false,
   }
 
-  // Resolve Supabase origin — prefer hardcoded known origin, then env var, then wildcard
+  // ─── Scope Extensions ──────────────────────────────────────────────────────
+  // Per W3C spec: each entry must be a full origin (NO wildcards).
+  // These origins are considered in-scope for the PWA.
+  // Navigation to these domains stays within the PWA window
+  // (no browser address bar shown inside standalone mode).
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const knownSupabaseOrigin = 'https://klxkdrfsfcoankbaoejn.supabase.co'
 
   const scopeExtensions: { origin: string }[] = [
-    { origin: 'https://*.luxtradee.web.id' },
-    { origin: knownSupabaseOrigin },
+    // Primary production domain
+    { origin: 'https://luxtradee.web.id' },
+    // Cloudflare Workers preview domain
+    { origin: 'https://luxtradee.pages.dev' },
+    // Supabase Auth & API (redirects after OAuth login)
+    { origin: 'https://klxkdrfsfcoankbaoejn.supabase.co' },
+    // Google OAuth redirect
+    { origin: 'https://accounts.google.com' },
+    // Midtrans payment gateway (redirects during checkout)
+    { origin: 'https://app.sandbox.midtrans.com' },
+    { origin: 'https://app.midtrans.com' },
+    // Discord OAuth
+    { origin: 'https://discord.com' },
   ]
 
-  // Also add env var origin if it differs from the known one
+  // Add Supabase URL from env var if it differs from the known one
   if (supabaseUrl) {
     try {
       const url = new URL(supabaseUrl)
-      if (url.origin !== knownSupabaseOrigin) {
-        scopeExtensions.push({ origin: url.origin })
+      const envOrigin = url.origin
+      if (!scopeExtensions.some(e => e.origin === envOrigin)) {
+        scopeExtensions.push({ origin: envOrigin })
       }
     } catch {
-      // Ignore malformed env var — known origin already covers it
+      // Ignore malformed env var
     }
   }
 
-  // Replace static scope_extensions with runtime-resolved ones
   manifest.scope_extensions = scopeExtensions
 
   return new NextResponse(JSON.stringify(manifest, null, 2), {
