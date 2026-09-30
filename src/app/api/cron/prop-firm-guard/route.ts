@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, isDatabaseAvailable } from '@/lib/db'
+import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { sendEmail, getPropFirmAlertHtml } from '@/lib/email'
 import { sendPushToUser } from '@/lib/web-push'
 
@@ -71,61 +71,61 @@ interface ChallengeWithUser {
   userName: string | null
 }
 
-async function getActiveChallenges(targetUid?: string): Promise<ChallengeWithUser[]> {
-  const where: any = {
-    isActive: true,
-    isBreached: false,
-  }
+async function getActiveChallenges(admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>, targetUid?: string): Promise<ChallengeWithUser[]> {
+  let query = admin
+    .from('prop_firm_challenges')
+    .select('*')
+    .eq('is_active', true)
+    .eq('is_breached', false)
+
   if (targetUid) {
-    where.userId = targetUid
+    query = query.eq('user_id', targetUid)
   }
 
-  const challenges = await db.propFirmChallenge.findMany({
-    where,
-    include: {
-      user: {
-        select: { email: true, name: true },
-      },
-    },
-  })
+  const { data: challenges, error } = await query
+
+  if (error) {
+    console.error('[prop-firm-guard] getActiveChallenges error:', error)
+    return []
+  }
 
   // Also get profile email as fallback
   const results: ChallengeWithUser[] = []
 
-  for (const ch of challenges) {
-    let userEmail = ch.user.email
-    let userName = ch.user.name
+  for (const ch of challenges || []) {
+    let userEmail: string | null = null
+    let userName: string | null = null
 
-    // Fallback: try profile email
-    if (!userEmail) {
-      const profile = await db.profile.findUnique({
-        where: { id: ch.userId },
-        select: { email: true, full_name: true },
-      })
-      userEmail = profile?.email || null
-      userName = userName || profile?.full_name || null
-    }
+    // Fetch user email from profiles
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', ch.user_id)
+      .maybeSingle()
+
+    userEmail = profile?.email || null
+    userName = profile?.full_name || null
 
     results.push({
       id: ch.id,
-      userId: ch.userId,
-      tradingAccountId: ch.tradingAccountId,
-      firmName: ch.firmName,
-      challengePhase: ch.challengePhase,
-      accountSize: ch.accountSize,
-      maxDailyLoss: ch.maxDailyLoss,
-      maxTotalDD: ch.maxTotalDD,
-      profitTarget: ch.profitTarget,
-      currentBalance: ch.currentBalance,
-      dailyPL: ch.dailyPL,
-      totalPL: ch.totalPL,
-      currentDailyDD: ch.currentDailyDD,
-      currentTotalDD: ch.currentTotalDD,
-      currentProgress: ch.currentProgress,
-      alertAtPercent: ch.alertAtPercent,
-      lastAlertAt: ch.lastAlertAt,
-      isBreached: ch.isBreached,
-      breachReason: ch.breachReason,
+      userId: ch.user_id,
+      tradingAccountId: ch.trading_account_id,
+      firmName: ch.firm_name,
+      challengePhase: ch.challenge_phase,
+      accountSize: ch.account_size,
+      maxDailyLoss: ch.max_daily_loss,
+      maxTotalDD: ch.max_total_dd,
+      profitTarget: ch.profit_target,
+      currentBalance: ch.current_balance,
+      dailyPL: ch.daily_pl,
+      totalPL: ch.total_pl,
+      currentDailyDD: ch.current_daily_dd,
+      currentTotalDD: ch.current_total_dd,
+      currentProgress: ch.current_progress,
+      alertAtPercent: ch.alert_at_percent,
+      lastAlertAt: ch.last_alert_at,
+      isBreached: ch.is_breached,
+      breachReason: ch.breach_reason,
       userEmail,
       userName,
     })
@@ -138,43 +138,45 @@ async function getActiveChallenges(targetUid?: string): Promise<ChallengeWithUse
  * Calculate daily P/L for a challenge's trades today.
  * Uses the tradingAccountId if set, otherwise all user trades.
  */
-async function calculateDailyPL(challenge: ChallengeWithUser): Promise<number> {
+async function calculateDailyPL(admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>, challenge: ChallengeWithUser): Promise<number> {
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
 
-  const where: any = {
-    user_id: challenge.userId,
-    close_time: { gte: todayStart },
-  }
+  let query = admin
+    .from('trades')
+    .select('profit_loss')
+    .eq('user_id', challenge.userId)
+    .gte('close_time', todayStart.toISOString())
+
   if (challenge.tradingAccountId) {
-    where.account_id = challenge.tradingAccountId
+    query = query.eq('account_id', challenge.tradingAccountId)
   }
 
-  const result = await db.trade.aggregate({
-    where,
-    _sum: { profit_loss: true },
-  })
+  const { data: trades } = await query
 
-  return result._sum.profit_loss || 0
+  if (!trades || trades.length === 0) return 0
+
+  return trades.reduce((sum: number, t: any) => sum + (Number(t.profit_loss) || 0), 0)
 }
 
 /**
  * Calculate total P/L for all trades in this challenge.
  */
-async function calculateTotalPL(challenge: ChallengeWithUser): Promise<number> {
-  const where: any = {
-    user_id: challenge.userId,
-  }
+async function calculateTotalPL(admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>, challenge: ChallengeWithUser): Promise<number> {
+  let query = admin
+    .from('trades')
+    .select('profit_loss')
+    .eq('user_id', challenge.userId)
+
   if (challenge.tradingAccountId) {
-    where.account_id = challenge.tradingAccountId
+    query = query.eq('account_id', challenge.tradingAccountId)
   }
 
-  const result = await db.trade.aggregate({
-    where,
-    _sum: { profit_loss: true },
-  })
+  const { data: trades } = await query
 
-  return result._sum.profit_loss || 0
+  if (!trades || trades.length === 0) return 0
+
+  return trades.reduce((sum: number, t: any) => sum + (Number(t.profit_loss) || 0), 0)
 }
 
 /**
@@ -201,6 +203,7 @@ function getAlertInfo(
 }
 
 async function sendAlert(
+  admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
   challenge: ChallengeWithUser,
   alertType: 'daily_dd' | 'total_dd' | 'breach' | 'profit_target',
   severity: 'warning' | 'urgent' | 'breach' | 'success',
@@ -254,13 +257,13 @@ async function sendAlert(
 
   // Send push notification
   try {
-    const pushSubs = await db.pushSubscription.findMany({
-      where: { userId: challenge.userId },
-      select: { endpoint: true, p256dh: true, auth: true },
-    })
+    const { data: pushSubs } = await admin
+      .from('push_subscriptions')
+      .select('endpoint, p256dh, auth')
+      .eq('user_id', challenge.userId)
 
-    if (pushSubs.length > 0) {
-      await sendPushToUser(pushSubs, {
+    if (pushSubs && pushSubs.length > 0) {
+      await sendPushToUser(pushSubs as any, {
         title: severity === 'breach'
           ? 'Challenge Breached!'
           : severity === 'success'
@@ -304,12 +307,13 @@ async function handleRequest(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  if (!isDatabaseAvailable()) {
-    return NextResponse.json({ error: 'Database not available' }, { status: 503 })
+  const admin = getSupabaseAdmin()
+  if (!admin) {
+    return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
   }
 
   try {
-    const challenges = await getActiveChallenges(targetUid)
+    const challenges = await getActiveChallenges(admin, targetUid)
 
     if (challenges.length === 0) {
       return NextResponse.json({
@@ -351,8 +355,8 @@ async function handleRequest(request: NextRequest) {
 
       try {
         // Calculate current P/L
-        const dailyPL = await calculateDailyPL(challenge)
-        const totalPL = await calculateTotalPL(challenge)
+        const dailyPL = await calculateDailyPL(admin, challenge)
+        const totalPL = await calculateTotalPL(admin, challenge)
 
         // Calculate DD percentages relative to account size
         const maxDailyLossDollar = challenge.maxDailyLoss
@@ -380,6 +384,7 @@ async function handleRequest(request: NextRequest) {
           const roomLeftDollar = maxDailyLossDollar - Math.abs(dailyLoss)
 
           const alertSent = await sendAlert(
+            admin,
             challenge,
             dailyDDAlert.severity === 'breach' ? 'breach' : 'daily_dd',
             dailyDDAlert.severity,
@@ -395,22 +400,26 @@ async function handleRequest(request: NextRequest) {
 
           if (dailyDDAlert.severity === 'breach') {
             breached = true
-            await db.propFirmChallenge.update({
-              where: { id: challenge.id },
-              data: {
-                isBreached: true,
-                breachReason: `Daily drawdown breached: ${currentDailyDDPercent.toFixed(1)}% exceeds ${dailyDDLimitPercent.toFixed(1)}% limit`,
-                breachedAt: new Date(),
-                currentDailyDD: currentDailyDDPercent,
-                dailyPL: dailyPL,
-                currentTotalDD: currentTotalDDPercent,
-                totalPL: totalPL,
-                currentProgress: progressPercent,
-                currentBalance: challenge.accountSize + totalPL,
-                lastAlertAt: new Date(),
-                updatedAt: new Date(),
-              },
-            })
+            const { error: updateError } = await admin
+              .from('prop_firm_challenges')
+              .update({
+                is_breached: true,
+                breach_reason: `Daily drawdown breached: ${currentDailyDDPercent.toFixed(1)}% exceeds ${dailyDDLimitPercent.toFixed(1)}% limit`,
+                breached_at: new Date().toISOString(),
+                current_daily_dd: currentDailyDDPercent,
+                daily_pl: dailyPL,
+                current_total_dd: currentTotalDDPercent,
+                total_pl: totalPL,
+                current_progress: progressPercent,
+                current_balance: challenge.accountSize + totalPL,
+                last_alert_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', challenge.id)
+
+            if (updateError) {
+              console.error('[prop-firm-guard] Daily DD breach update error:', updateError)
+            }
           }
         }
 
@@ -422,6 +431,7 @@ async function handleRequest(request: NextRequest) {
             const roomLeftDollar = maxTotalDDDollar - Math.abs(totalLoss)
 
             const alertSent = await sendAlert(
+              admin,
               challenge,
               totalDDAlert.severity === 'breach' ? 'breach' : 'total_dd',
               totalDDAlert.severity,
@@ -437,22 +447,26 @@ async function handleRequest(request: NextRequest) {
 
             if (totalDDAlert.severity === 'breach') {
               breached = true
-              await db.propFirmChallenge.update({
-                where: { id: challenge.id },
-                data: {
-                  isBreached: true,
-                  breachReason: `Total drawdown breached: ${currentTotalDDPercent.toFixed(1)}% exceeds ${totalDDLimitPercent.toFixed(1)}% limit`,
-                  breachedAt: new Date(),
-                  currentDailyDD: currentDailyDDPercent,
-                  dailyPL: dailyPL,
-                  currentTotalDD: currentTotalDDPercent,
-                  totalPL: totalPL,
-                  currentProgress: progressPercent,
-                  currentBalance: challenge.accountSize + totalPL,
-                  lastAlertAt: new Date(),
-                  updatedAt: new Date(),
-                },
-              })
+              const { error: updateError } = await admin
+                .from('prop_firm_challenges')
+                .update({
+                  is_breached: true,
+                  breach_reason: `Total drawdown breached: ${currentTotalDDPercent.toFixed(1)}% exceeds ${totalDDLimitPercent.toFixed(1)}% limit`,
+                  breached_at: new Date().toISOString(),
+                  current_daily_dd: currentDailyDDPercent,
+                  daily_pl: dailyPL,
+                  current_total_dd: currentTotalDDPercent,
+                  total_pl: totalPL,
+                  current_progress: progressPercent,
+                  current_balance: challenge.accountSize + totalPL,
+                  last_alert_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', challenge.id)
+
+              if (updateError) {
+                console.error('[prop-firm-guard] Total DD breach update error:', updateError)
+              }
             }
           }
         }
@@ -463,6 +477,7 @@ async function handleRequest(request: NextRequest) {
 
           // Send profit target alert
           const alertSent = await sendAlert(
+            admin,
             challenge,
             'profit_target',
             'success',
@@ -479,19 +494,23 @@ async function handleRequest(request: NextRequest) {
 
         // Update challenge state (if not already updated by breach)
         if (!breached) {
-          await db.propFirmChallenge.update({
-            where: { id: challenge.id },
-            data: {
-              currentDailyDD: currentDailyDDPercent,
-              dailyPL: dailyPL,
-              currentTotalDD: currentTotalDDPercent,
-              totalPL: totalPL,
-              currentProgress: Math.min(progressPercent, 100),
-              currentBalance: challenge.accountSize + totalPL,
-              lastAlertAt: alertsSent.length > 0 ? new Date() : challenge.lastAlertAt,
-              updatedAt: new Date(),
-            },
-          })
+          const { error: updateError } = await admin
+            .from('prop_firm_challenges')
+            .update({
+              current_daily_dd: currentDailyDDPercent,
+              daily_pl: dailyPL,
+              current_total_dd: currentTotalDDPercent,
+              total_pl: totalPL,
+              current_progress: Math.min(progressPercent, 100),
+              current_balance: challenge.accountSize + totalPL,
+              last_alert_at: alertsSent.length > 0 ? new Date().toISOString() : challenge.lastAlertAt?.toISOString() || null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', challenge.id)
+
+          if (updateError) {
+            console.error('[prop-firm-guard] State update error:', updateError)
+          }
         }
 
         results.push({
