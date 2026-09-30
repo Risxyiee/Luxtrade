@@ -10,8 +10,11 @@ const TE_API_HOST = 'trading-economics-scraper.p.rapidapi.com';
 const TE_ENDPOINT = 'https://trading-economics-scraper.p.rapidapi.com/get_trading_economics_news';
 
 // Lazy-read API key at request time (CF Workers env vars not available at module load)
+// In CF Workers, secrets are on (request).env, not process.env
+let _cfEnv: any = null;
+
 function getTeApiKey(): string {
-  return process.env.RAPIDAPI_KEY || process.env.RAPIDAPI_TRADING_ECONOMICS_KEY || '';
+  return process.env.RAPIDAPI_KEY || _cfEnv?.RAPIDAPI_KEY || process.env.RAPIDAPI_TRADING_ECONOMICS_KEY || _cfEnv?.RAPIDAPI_TRADING_ECONOMICS_KEY || '';
 }
 
 // Bloomberg RSS (free fallback, no key needed)
@@ -320,7 +323,7 @@ async function fetchDailyFXNews(): Promise<FullNewsItem[]> {
 const FINNHUB_NEWS_URL = 'https://finnhub.io/api/v1/news';
 
 function getFinnhubApiKey(): string {
-  return process.env.FINNHUB_API_KEY || '';
+  return process.env.FINNHUB_API_KEY || _cfEnv?.FINNHUB_API_KEY || '';
 }
 
 async function fetchFinnhubNews(): Promise<FullNewsItem[]> {
@@ -504,6 +507,9 @@ async function setNewsKVCache(request: NextRequest, entry: NewsCacheEntry, ttlMs
 // ==================== API ROUTE ====================
 
 export async function GET(request: NextRequest) {
+  // Expose CF Workers env vars (secrets) to API key helpers
+  _cfEnv = (request as any).env || null;
+
   const { searchParams } = new URL(request.url);
   const format = searchParams.get('format') || 'ticker';
   const forceRefresh = searchParams.get('refresh') === 'true';
