@@ -498,6 +498,90 @@ async function fetchFinnhubCalendar(): Promise<CalendarEvent[]> {
   return events;
 }
 
+// ─── ForexFactory RSS (FREE, no API key needed) ────────────────────────────
+async function fetchForexFactoryRSS(): Promise<CalendarEvent[]> {
+  // ForexFactory calendar page - free, no key, real economic calendar data
+  const url = 'https://www.forexfactory.com/calendar';
+
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
+        'Accept': 'text/html',
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!res.ok) throw new Error('ForexFactory returned ' + res.status);
+
+    const html = await res.text();
+
+    const events: CalendarEvent[] = [];
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+
+    // Parse ForexFactory calendar table rows
+    const rowRegex = /<tr[^>]*class="calendar[^"]*row"[^>]*>([\s\S]*?)<\/tr>/gi;
+    let rowMatch;
+
+    while ((rowMatch = rowRegex.exec(html)) !== null && events.length < 50) {
+      const rowHtml = rowMatch[1];
+
+      // Extract currency
+      const currencyMatch = rowHtml.match(/class="calendar[^"]*currency"[^>]*>(\w+)</i);
+      const currency = currencyMatch ? currencyMatch[1].trim() : '';
+
+      // Extract event title
+      const titleMatch = rowHtml.match(/class="calendar[^"]*event"[^>]*>([\s\S]*?)<\/sp/i);
+      const eventTitle = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, '').trim() : '';
+
+      // Extract impact
+      const impactMatch = rowHtml.match(/impact[_-]?(high|medium|low)/i);
+      const impact: 'high' | 'medium' | 'low' = impactMatch ? impactMatch[1].toLowerCase() as 'high' | 'medium' | 'low' : 'low';
+
+      // Extract forecast
+      const forecastMatch = rowHtml.match(/class="calendar[^"]*forecast"[^>]*>([\s\S]*?)</i);
+      const forecast = forecastMatch ? forecastMatch[1].replace(/<[^>]*>/g, '').trim() : '';
+
+      // Extract previous
+      const previousMatch = rowHtml.match(/class="calendar[^"]*previous"[^>]*>([\s\S]*?)</i);
+      const previous = previousMatch ? previousMatch[1].replace(/<[^>]*>/g, '').trim() : '';
+
+      // Extract actual
+      const actualMatch = rowHtml.match(/class="calendar[^"]*actual"[^>]*>([\s\S]*?)</i);
+      const actual = actualMatch ? actualMatch[1].replace(/<[^>]*>/g, '').trim() : undefined;
+
+      if (!currency || !eventTitle || currency.length > 4) continue;
+
+      // Dedupe
+      const dedupeKey = currency + '-' + todayStr + '-' + eventTitle.substring(0, 30);
+      if (events.some(e => (e.currency + '-' + e.date + '-' + e.event.substring(0, 30)) === dedupeKey)) continue;
+
+      events.push({
+        id: 'ff-' + events.length + '-' + currency + '-' + todayStr,
+        date: todayStr,
+        time: '08:30',
+        dateTime: buildDateTime(todayStr, '08:30'),
+        currency,
+        impact,
+        event: eventTitle,
+        actual: actual || undefined,
+        forecast,
+        previous,
+      });
+    }
+
+    const impactOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+    events.sort((a, b) => (impactOrder[a.impact] ?? 99) - (impactOrder[b.impact] ?? 99));
+
+    console.log('[EconCalendar] ForexFactory: ' + events.length + ' events');
+    return events;
+  } catch (err: any) {
+    console.warn('[EconCalendar] ForexFactory parse error:', err.message);
+    return [];
+  }
+}
+
 // ─── Fetch with Cascade Fallback ─────────────────────────────────────────────
 async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source: string; unavailable: boolean; rateLimited?: boolean }> {
   const teKey = getTeApiKey();
@@ -568,13 +652,25 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     const msg = err instanceof Error ? err.message : String(err);
     const isRateLimit = (err as any)?.isRateLimit === true;
     if (isRateLimit) {
-      console.warn('[EconCalendar] ⚠️ Rate limited (429) on Finnhub — no more sources');
+      console.warn('[EconCalendar] ⚠️ Rate limited (429) on Finnhub — trying RSS');
     } else {
-      console.warn('[EconCalendar] ✗ Finnhub failed: ' + msg);
+      console.warn('[EconCalendar] ✗ Finnhub failed: ' + msg + ' — trying RSS');
     }
   }
 
-  // 5. All real data sources failed — return empty with unavailable flag
+  // 5. ForexFactory RSS (COMPLETELY FREE, no API key needed)
+  try {
+    console.log('[EconCalendar] Trying ForexFactory RSS...');
+    const events = await fetchForexFactoryRSS();
+    if (events.length > 0) {
+      console.log('[EconCalendar] ✓ ' + events.length + ' events from ForexFactory RSS');
+      return { events, source: 'ForexFactory RSS', unavailable: false };
+    }
+  } catch (err: unknown) {
+    console.warn('[EconCalendar] ✗ ForexFactory RSS failed: ' + (err instanceof Error ? err.message : String(err)));
+  }
+
+  // 6. All real data sources failed — return empty with unavailable flag
   console.error('[EconCalendar] ❌ All real data sources failed — returning empty');
   return { events: [], source: 'Unavailable', unavailable: true };
 }

@@ -58,9 +58,14 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
 
     if (error) {
-      // Gracefully handle missing table (migration not yet applied)
-      if (error.message?.includes('Could not find the table') || error.code === '42P01') {
-        console.warn('[prop-firm-guard] Table prop_firm_challenges not found — returning empty')
+      // Gracefully handle missing table (migration not yet applied) or permission denied (RLS not configured)
+      if (
+        error.message?.includes('Could not find the table') ||
+        error.code === '42P01' ||
+        error.code === '42501' ||
+        error.message?.includes('permission denied')
+      ) {
+        console.warn('[prop-firm-guard] Table prop_firm_challenges not accessible:', error.code, error.message)
         return NextResponse.json({ challenges: [] })
       }
       console.error('[prop-firm-guard] GET query error:', error)
@@ -162,7 +167,7 @@ export async function POST(request: NextRequest) {
 
     if (countError) {
       // Gracefully handle missing table
-      if (countError.message?.includes('Could not find the table') || countError.code === '42P01') {
+      if (countError.message?.includes('Could not find the table') || countError.code === '42P01' || countError.code === '42501' || countError.message?.includes('permission denied')) {
         return NextResponse.json({ error: 'Prop Firm feature is not yet available. Please try again later.' }, { status: 503 })
       }
       console.error('[prop-firm-guard] POST count error:', countError)
@@ -194,7 +199,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (insertError) {
-      if (insertError.message?.includes('Could not find the table') || insertError.code === '42P01') {
+      if (insertError.message?.includes('Could not find the table') || insertError.code === '42P01' || insertError.code === '42501' || insertError.message?.includes('permission denied')) {
         return NextResponse.json({ error: 'Prop Firm feature is not yet available. Please try again later.' }, { status: 503 })
       }
       console.error('[prop-firm-guard] POST insert error:', insertError)
