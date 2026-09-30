@@ -683,31 +683,97 @@ function JournalTab({
       {/* Streak & Daily Prompt Banner */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Streak Card */}
-        <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/5 border-amber-500/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
-                <span className="text-2xl">{quickStreak > 0 ? '🔥' : '💤'}</span>
-              </div>
-              <div>
-                <p className="text-sm text-amber-300/70">{language === 'id' ? 'Streak Jurnal' : 'Journal Streak'}</p>
-                <p className="text-2xl font-bold text-amber-400">
-                  {quickStreak} {quickStreak === 1 ? (language === 'id' ? 'hari' : 'day') : (language === 'id' ? 'hari' : 'days')}
-                </p>
-                <p className="text-xs text-amber-300/50">
-                  {hasTodayEntry
-                    ? (language === 'id' ? '✅ Sudah journaling hari ini!' : '✅ Journaled today!')
-                    : (language === 'id' ? '📝 Belum journaling hari ini' : "📝 Haven't journaled today")}
-                </p>
-              </div>
-            </div>
-            {quickStreak >= 7 && (
-              <div className="mt-3 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                <p className="text-xs text-blue-300 font-medium">🏆 {quickStreak} {language === 'id' ? 'hari' : 'day'} streak! {language === 'id' ? 'Konsisten adalah kunci trader sukses.' : 'Consistency is the key to successful trading.'}</p>
-              </div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/5 border-amber-500/20 overflow-hidden relative">
+            {/* Animated background glow */}
+            {quickStreak >= 3 && (
+              <div className="absolute -top-8 -right-8 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl animate-pulse" />
             )}
-          </CardContent>
-        </Card>
+            <CardContent className="p-4 relative">
+              <div className="flex items-center gap-4">
+                <motion.div
+                  className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30 flex-shrink-0"
+                  animate={quickStreak > 0 ? { scale: [1, 1.08, 1] } : {}}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  <span className="text-2xl">{quickStreak > 0 ? '🔥' : '💤'}</span>
+                </motion.div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-amber-300/60 uppercase tracking-wider">{language === 'id' ? 'Streak Jurnal' : 'Journal Streak'}</p>
+                  <div className="flex items-baseline gap-1.5 mt-0.5">
+                    <motion.p
+                      key={quickStreak}
+                      className="text-3xl font-bold text-amber-400 tabular-nums"
+                      initial={{ y: 8, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ duration: 0.25 }}
+                    >
+                      {quickStreak}
+                    </motion.p>
+                    <span className="text-sm text-amber-300/70">
+                      {quickStreak === 1 ? (language === 'id' ? 'hari' : 'day') : (language === 'id' ? 'hari' : 'days')}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    {hasTodayEntry ? (
+                      <>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 text-[11px] font-medium">
+                          ✅ {language === 'id' ? 'Sudah journaling hari ini' : 'Journaled today'}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300/70 text-[11px] font-medium">
+                          📝 {language === 'id' ? 'Belum journaling hari ini' : "Haven't journaled today"}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={onAdd}
+                          className="h-6 px-2 text-[10px] text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 -ml-1"
+                        >
+                          {language === 'id' ? 'Tulis' : 'Write'} →
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {/* Streak milestones */}
+              {quickStreak >= 3 && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="mt-3"
+                >
+                  <div className="flex items-center gap-2">
+                    {/* Streak bar */}
+                    <div className="flex-1 h-1.5 bg-amber-500/10 rounded-full overflow-hidden">
+                      <motion.div
+                        className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.min((quickStreak / 30) * 100, 100)}%` }}
+                        transition={{ duration: 0.8, ease: "easeOut" }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-amber-300/50 tabular-nums">{quickStreak}/30</span>
+                  </div>
+                </motion.div>
+              )}
+              {quickStreak >= 7 && (
+                <div className="mt-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                  <p className="text-xs text-blue-300 font-medium">
+                    🏆 {quickStreak} {language === 'id' ? 'hari' : 'day'} streak! {language === 'id' ? 'Konsisten adalah kunci trader sukses.' : 'Consistency is the key to successful trading.'}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Daily Prompt Card */}
         <Card className="bg-gradient-to-br from-blue-500/10 to-blue-400/5 border-lux-border dark:border-blue-500/20">

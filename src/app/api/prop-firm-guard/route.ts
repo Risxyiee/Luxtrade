@@ -113,9 +113,9 @@ export async function POST(request: NextRequest) {
 
     // Validate firm name
     const validFirms = ['FTMO', 'MFF', 'TFT', 'FundedNext', 'SurgeTrader', 'Custom']
-    if (!validFirms.includes(firmName)) {
+    if (!validFirms.includes(firmName) && firmName.length < 2) {
       return NextResponse.json(
-        { error: `Invalid firm name. Must be one of: ${validFirms.join(', ')}` },
+        { error: 'firmName must be at least 2 characters' },
         { status: 400 }
       )
     }
@@ -288,6 +288,10 @@ export async function PATCH(request: NextRequest) {
 
     if (updates.accountSize !== undefined) {
       data.account_size = updates.accountSize
+    }
+
+    if (updates.currentBalance !== undefined) {
+      data.current_balance = updates.currentBalance
     }
 
     if (updates.isActive !== undefined) {

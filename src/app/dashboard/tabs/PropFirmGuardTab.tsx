@@ -24,6 +24,7 @@ const FIRM_PRESETS: Record<string, { maxDailyLoss: number; maxTotalDD: number; p
   TFT: { maxDailyLoss: 4.5, maxTotalDD: 9, profitTarget: 8 },
   FundedNext: { maxDailyLoss: 5, maxTotalDD: 10, profitTarget: 10 },
   SurgeTrader: { maxDailyLoss: 3, maxTotalDD: 6, profitTarget: 10 },
+  Custom: { maxDailyLoss: 5, maxTotalDD: 10, profitTarget: 10 },
 }
 
 const ACCOUNT_SIZES = [10000, 25000, 50000, 100000, 200000, 500000]
@@ -157,9 +158,19 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
 
   // Add form state
   const [formFirm, setFormFirm] = useState('FTMO')
+  const [formCustomFirmName, setFormCustomFirmName] = useState('')
   const [formAccountSize, setFormAccountSize] = useState(100000)
   const [formPhase, setFormPhase] = useState('phase1')
   const [formAlertPercent, setFormAlertPercent] = useState(40)
+
+  // Edit form state
+  const [editFirmName, setEditFirmName] = useState('')
+  const [editAccountSize, setEditAccountSize] = useState(0)
+  const [editCurrentBalance, setEditCurrentBalance] = useState(0)
+  const [editMaxDailyLoss, setEditMaxDailyLoss] = useState(0)
+  const [editMaxTotalDD, setEditMaxTotalDD] = useState(0)
+  const [editProfitTarget, setEditProfitTarget] = useState(0)
+  const [editAlertPercent, setEditAlertPercent] = useState(40)
 
   // Bilingual labels
   const t = (id: string, en: string) => language === 'id' ? id : en
@@ -203,7 +214,8 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
   // Create challenge
   const handleCreate = async () => {
     try {
-      const preset = FIRM_PRESETS[formFirm]
+      const effectiveFirmName = formFirm === 'Custom' ? (formCustomFirmName.trim() || 'Custom') : formFirm
+      const preset = FIRM_PRESETS[formFirm] || FIRM_PRESETS['Custom']
       const maxDailyLoss = (preset.maxDailyLoss / 100) * formAccountSize
       const maxTotalDD = (preset.maxTotalDD / 100) * formAccountSize
       const profitTarget = (preset.profitTarget / 100) * formAccountSize
@@ -213,7 +225,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          firmName: formFirm,
+          firmName: effectiveFirmName,
           accountSize: formAccountSize,
           challengePhase: formPhase,
           maxDailyLoss,
@@ -303,6 +315,51 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
     }
   }
 
+  // Open edit dialog with challenge data
+  const openEditDialog = (ch: Challenge) => {
+    setSelectedChallenge(ch)
+    setEditFirmName(ch.firmName)
+    setEditAccountSize(ch.accountSize)
+    setEditCurrentBalance(ch.currentBalance)
+    setEditMaxDailyLoss(ch.maxDailyLoss)
+    setEditMaxTotalDD(ch.maxTotalDD)
+    setEditProfitTarget(ch.profitTarget)
+    setEditAlertPercent(ch.alertAtPercent)
+    setEditDialogOpen(true)
+  }
+
+  // Save edit
+  const handleSaveEdit = async () => {
+    if (!selectedChallenge) return
+    try {
+      const res = await fetch('/api/prop-firm-guard', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          id: selectedChallenge.id,
+          firmName: editFirmName,
+          accountSize: editAccountSize,
+          maxDailyLoss: editMaxDailyLoss,
+          maxTotalDD: editMaxTotalDD,
+          profitTarget: editProfitTarget,
+          alertAtPercent: editAlertPercent,
+          currentBalance: editCurrentBalance,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to update')
+      }
+      toast.success(t('Challenge berhasil diupdate!', 'Challenge updated!'))
+      setEditDialogOpen(false)
+      setSelectedChallenge(null)
+      fetchChallenges()
+    } catch (err: any) {
+      toast.error(err.message || t('Gagal mengupdate', 'Failed to update'))
+    }
+  }
+
   // ─── Render ─────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -344,6 +401,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
             size="sm"
             onClick={() => {
               setFormFirm('FTMO')
+              setFormCustomFirmName('')
               setFormAccountSize(100000)
               setFormPhase('phase1')
               setFormAlertPercent(40)
@@ -459,6 +517,14 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                         {t('Reset', 'Reset')}
                       </Button>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEditDialog(ch)}
+                      className="text-amber-400 hover:text-amber-300 h-7"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -658,6 +724,15 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                   </button>
                 ))}
               </div>
+              {/* Custom firm name input */}
+              {formFirm === 'Custom' && (
+                <Input
+                  value={formCustomFirmName}
+                  onChange={(e) => setFormCustomFirmName(e.target.value)}
+                  placeholder={t('Nama prop firm custom...', 'Custom prop firm name...')}
+                  className="bg-gray-800 border-gray-700 text-white text-sm mt-2"
+                />
+              )}
             </div>
 
             {/* Account Size */}
@@ -732,9 +807,14 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                 {t('Aturan Challenge', 'Challenge Rules')}
               </div>
               {(() => {
-                const preset = FIRM_PRESETS[formFirm]
+                const preset = FIRM_PRESETS[formFirm] || FIRM_PRESETS['Custom']
+                const effectiveName = formFirm === 'Custom' ? (formCustomFirmName.trim() || 'Custom') : formFirm
                 return (
                   <>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-400">{t('Nama', 'Name')}</span>
+                      <span className="text-amber-400">{effectiveName}</span>
+                    </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-gray-400">{t('Max DD Harian', 'Max Daily DD')}</span>
                       <span className="text-white">{preset.maxDailyLoss}% (${((preset.maxDailyLoss / 100) * formAccountSize).toLocaleString()})</span>
@@ -758,6 +838,133 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
             >
               <Shield className="w-4 h-4 mr-2" />
               {t('Buat Challenge', 'Create Challenge')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Edit Challenge Dialog ──────────────────────────────────── */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="bg-gray-900 border-gray-800 max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Edit2 className="w-4 h-4 text-amber-400" />
+              {t('Edit Challenge', 'Edit Challenge')}
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {t('Sesuaikan aturan, saldo, dan nama prop firm', 'Customize rules, balance, and prop firm name')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* Firm Name */}
+            <div className="space-y-2">
+              <Label className="text-xs text-gray-400">{t('Nama Prop Firm', 'Prop Firm Name')}</Label>
+              <Input
+                value={editFirmName}
+                onChange={(e) => setEditFirmName(e.target.value)}
+                className="bg-gray-800 border-gray-700 text-white text-sm"
+                placeholder="FTMO, MFF, atau nama custom..."
+              />
+              <p className="text-[10px] text-gray-500">{t('Bisa diisi nama apapun, termasuk nama custom', 'Can be any name, including custom names')}</p>
+            </div>
+
+            {/* Account Size */}
+            <div className="space-y-2">
+              <Label className="text-xs text-gray-400">{t('Ukuran Akun ($)', 'Account Size ($)')}</Label>
+              <Input
+                type="number"
+                value={editAccountSize}
+                onChange={(e) => setEditAccountSize(Number(e.target.value))}
+                className="bg-gray-800 border-gray-700 text-white text-sm"
+                min={0}
+              />
+            </div>
+
+            {/* Current Balance */}
+            <div className="space-y-2">
+              <Label className="text-xs text-gray-400">{t('Saldo Saat Ini ($)', 'Current Balance ($)')}</Label>
+              <Input
+                type="number"
+                value={editCurrentBalance}
+                onChange={(e) => setEditCurrentBalance(Number(e.target.value))}
+                className="bg-gray-800 border-gray-700 text-white text-sm"
+              />
+              <p className="text-[10px] text-gray-500">{t('Saldo terakhir akun challenge kamu', 'Your challenge account current balance')}</p>
+            </div>
+
+            {/* Max Daily Loss */}
+            <div className="space-y-2">
+              <Label className="text-xs text-gray-400">{t('Max Daily Loss ($)', 'Max Daily Loss ($)')}</Label>
+              <Input
+                type="number"
+                value={editMaxDailyLoss}
+                onChange={(e) => setEditMaxDailyLoss(Number(e.target.value))}
+                className="bg-gray-800 border-gray-700 text-white text-sm"
+                min={0}
+              />
+              <p className="text-[10px] text-gray-500">
+                {editAccountSize > 0
+                  ? `${t('Batas harian', 'Daily limit')}: ${(editMaxDailyLoss / editAccountSize * 100).toFixed(1)}% ${t('dari saldo', 'of balance')}`
+                  : ''}
+              </p>
+            </div>
+
+            {/* Max Total DD */}
+            <div className="space-y-2">
+              <Label className="text-xs text-gray-400">{t('Max Total Drawdown ($)', 'Max Total Drawdown ($)')}</Label>
+              <Input
+                type="number"
+                value={editMaxTotalDD}
+                onChange={(e) => setEditMaxTotalDD(Number(e.target.value))}
+                className="bg-gray-800 border-gray-700 text-white text-sm"
+                min={0}
+              />
+              <p className="text-[10px] text-gray-500">
+                {editAccountSize > 0
+                  ? `${t('Batas total', 'Total limit')}: ${(editMaxTotalDD / editAccountSize * 100).toFixed(1)}% ${t('dari saldo', 'of balance')}`
+                  : ''}
+              </p>
+            </div>
+
+            {/* Profit Target */}
+            <div className="space-y-2">
+              <Label className="text-xs text-gray-400">{t('Target Profit ($)', 'Profit Target ($)')}</Label>
+              <Input
+                type="number"
+                value={editProfitTarget}
+                onChange={(e) => setEditProfitTarget(Number(e.target.value))}
+                className="bg-gray-800 border-gray-700 text-white text-sm"
+                min={0}
+              />
+              <p className="text-[10px] text-gray-500">
+                {editAccountSize > 0
+                  ? `${t('Target', 'Target')}: ${(editProfitTarget / editAccountSize * 100).toFixed(1)}% ${t('dari saldo', 'of balance')}`
+                  : ''}
+              </p>
+            </div>
+
+            {/* Alert Threshold */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-gray-400">{t('Threshold Alert', 'Alert Threshold')}</Label>
+                <span className="text-xs text-amber-400 font-medium">{editAlertPercent}%</span>
+              </div>
+              <Slider
+                value={[editAlertPercent]}
+                min={10}
+                max={90}
+                step={5}
+                onValueChange={([val]) => setEditAlertPercent(val)}
+                className="[&_[role=slider]]:bg-amber-500"
+              />
+            </div>
+
+            <Button
+              onClick={handleSaveEdit}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-black font-semibold"
+            >
+              <Edit2 className="w-4 h-4 mr-2" />
+              {t('Simpan Perubahan', 'Save Changes')}
             </Button>
           </div>
         </DialogContent>
