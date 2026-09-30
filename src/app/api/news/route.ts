@@ -6,8 +6,8 @@ const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 const CACHE_DURATION_RATE_LIMITED = 60 * 60 * 1000; // 60 min when rate limited
 
 // TradingEconomics RapidAPI config
-const TE_API_HOST = 'trading-econmics-scraper.p.rapidapi.com';
-const TE_ENDPOINT = 'https://trading-econmics-scraper.p.rapidapi.com/get_trading_economics_news';
+const TE_API_HOST = 'trading-economics-scraper.p.rapidapi.com';
+const TE_ENDPOINT = 'https://trading-economics-scraper.p.rapidapi.com/get_trading_economics_news';
 
 // Lazy-read API key at request time (CF Workers env vars not available at module load)
 function getTeApiKey(): string {

@@ -606,3 +606,25 @@ Stage Summary:
 - Pre-configured templates for 5 major prop firms
 - Auto-calculates drawdown from trades with violation detection
 - PRO feature (gold category)
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix TradingEconomics RapidAPI hostname typo, add proper Calendar endpoint, fix forex env vars, add FCSAPI source
+
+Work Log:
+- Fixed typo in RapidAPI hostname: `trading-econmics-scraper` → `trading-economics-scraper` (missing 'o' in economics) in both /api/news/route.ts and /api/economic-calendar/route.ts
+- Added TradingEconomics Calendar endpoint (`get_trading_economics_calendar`) as PRIMARY source for economic calendar — this endpoint returns actual/forecast/previous data unlike the News endpoint
+- Renamed `fetchTECalendar()` → `fetchTECalendarFromNews()` for clarity
+- Added new `fetchTECalendarDirect()` that calls the proper Calendar endpoint
+- Added FCSAPI.com as a free fallback source for economic calendar data (works without API key, with key gives more)
+- Updated `fetchCalendarEvents()` cascade: TE Calendar → TE News→Calendar → FCSAPI → Sample data
+- Fixed forex API env var reading: changed from module-load-time `const TWELVE_DATA_KEY = process.env.TWELVE_DATA_API_KEY` to lazy-read functions `getTwelveDataKey()` / `getAlphaVantageKey()` for Cloudflare Workers compatibility
+- Added debug logging to forex route for API key detection
+- Lint passed clean
+
+Stage Summary:
+- ROOT CAUSE: TradingEconomics RapidAPI hostname had a typo (missing 'o' in economics) causing ALL RapidAPI calls to fail, falling back to sample/mock data
+- Economic Calendar now has 4-source cascade: TE Calendar → TE News→Calendar → FCSAPI → Sample
+- News API hostname fixed — should now return real TradingEconomics news
+- Forex API keys now lazy-read for CF Workers compatibility
+- All code changes pass lint

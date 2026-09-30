@@ -18,9 +18,13 @@ const FOREX_SYMBOLS: Record<string, { from: string; to: string; basePrice: numbe
   'USDCHF': { from: 'USD', to: 'CHF', basePrice: 0.8820, decimals: 5 },
 }
 
-// API keys
-const ALPHA_VANTAGE_KEY = process.env.ALPHA_VANTAGE_API_KEY || ''
-const TWELVE_DATA_KEY = process.env.TWELVE_DATA_API_KEY || ''
+// API keys — lazy-read at request time (CF Workers env vars not available at module load)
+function getAlphaVantageKey(): string {
+  return process.env.ALPHA_VANTAGE_API_KEY || ''
+}
+function getTwelveDataKey(): string {
+  return process.env.TWELVE_DATA_API_KEY || ''
+}
 
 // ── In-memory cache (5 min TTL) ──────────────────────────────────────
 interface CacheEntry { data: any[]; timestamp: number; source: string }
@@ -45,6 +49,7 @@ function setCache(key: string, data: any[], source: string) {
 
 // ── Twelve Data API (FREE: 800 req/day, intraday!) ──────────────────
 async function fetchTwelveData(symbol: string, interval: string, limit: number): Promise<any[] | null> {
+  const TWELVE_DATA_KEY = getTwelveDataKey()
   if (!TWELVE_DATA_KEY || TWELVE_DATA_KEY.length < 10) return null
 
   const info = FOREX_SYMBOLS[symbol]
@@ -83,6 +88,7 @@ async function fetchTwelveData(symbol: string, interval: string, limit: number):
 
 // ── Alpha Vantage API (FREE: 25 req/day, daily only) ────────────────
 async function fetchAlphaVantage(symbol: string, limit: number): Promise<any[] | null> {
+  const ALPHA_VANTAGE_KEY = getAlphaVantageKey()
   if (!ALPHA_VANTAGE_KEY || ALPHA_VANTAGE_KEY === 'demo' || ALPHA_VANTAGE_KEY.length < 10) return null
 
   const info = FOREX_SYMBOLS[symbol]
@@ -189,9 +195,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Try Twelve Data first (best: intraday + free)
+    const tdKey = getTwelveDataKey()
+    console.log(`[Forex] Symbol=${validSymbol} Interval=${interval} TwelveData=${tdKey ? 'key:' + tdKey.substring(0, 6) + '...' : 'NOT SET'}`)
     const tdData = await fetchTwelveData(validSymbol, interval, limit)
     if (tdData && tdData.length > 0) {
       setCache(cacheKey, tdData, 'twelvedata')
+      console.log(`[Forex] ✓ ${tdData.length} candles from TwelveData`)
       return NextResponse.json({
         success: true,
         symbol: validSymbol,
@@ -202,9 +211,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Try Alpha Vantage (daily only)
+    const avKey = getAlphaVantageKey()
+    if (avKey) console.log(`[Forex] TwelveData failed, trying AlphaVantage (key: ${avKey.substring(0, 6)}...)`)
     const avData = await fetchAlphaVantage(validSymbol, limit)
     if (avData && avData.length > 0) {
       setCache(cacheKey, avData, 'alphavantage')
+      console.log(`[Forex] ✓ ${avData.length} candles from AlphaVantage`)
       return NextResponse.json({
         success: true,
         symbol: validSymbol,
@@ -216,6 +228,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fallback: realistic mock
+    console.warn(`[Forex] ⚠️ All real APIs failed for ${validSymbol}, using mock data`)
     const mockData = generateMockData(validSymbol, interval, limit)
     setCache(cacheKey, mockData, 'mock')
 
