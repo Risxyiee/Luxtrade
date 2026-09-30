@@ -2090,3 +2090,201 @@ export function getDailyReminderHtml(params: {
     </html>
   `
 }
+
+/**
+ * Prop Firm Guard Alert Email HTML
+ * Sent when drawdown approaches or breaches prop firm limits.
+ */
+export interface PropFirmAlertParams {
+  name: string
+  firmName: string
+  accountSize: number
+  challengePhase: string
+  alertType: 'daily_dd' | 'total_dd' | 'breach' | 'profit_target'
+  severity: 'warning' | 'urgent' | 'breach' | 'success'
+  currentDDPercent: number
+  ddLimitPercent: number
+  roomLeftPercent: number
+  roomLeftDollar: number
+  ctaUrl: string
+}
+
+export function getPropFirmAlertHtml(params: PropFirmAlertParams): string {
+  const {
+    name,
+    firmName,
+    accountSize,
+    challengePhase,
+    alertType,
+    severity,
+    currentDDPercent,
+    ddLimitPercent,
+    roomLeftPercent,
+    roomLeftDollar,
+    ctaUrl,
+  } = params
+
+  // Color scheme based on severity
+  const colors: Record<string, { bg: string; text: string; border: string; accent: string; icon: string }> = {
+    warning: { bg: '#1a1500', text: '#f59e0b', border: '#d97706', accent: '#fbbf24', icon: '⚠️' },
+    urgent: { bg: '#1a0d00', text: '#f97316', border: '#ea580c', accent: '#fb923c', icon: '🚨' },
+    breach: { bg: '#1a0000', text: '#ef4444', border: '#dc2626', accent: '#f87171', icon: '🚫' },
+    success: { bg: '#001a0d', text: '#22c55e', border: '#16a34a', accent: '#4ade80', icon: '🎉' },
+  }
+  const c = colors[severity]
+
+  // Phase labels
+  const phaseLabels: Record<string, string> = {
+    phase1: 'Phase 1',
+    phase2: 'Phase 2',
+    funded: 'Funded',
+  }
+  const phaseLabel = phaseLabels[challengePhase] || challengePhase
+
+  // Alert type labels
+  const alertTypeLabels: Record<string, { en: string; id: string }> = {
+    daily_dd: { en: 'Daily Drawdown', id: 'Drawdown Harian' },
+    total_dd: { en: 'Total Drawdown', id: 'Total Drawdown' },
+    breach: { en: 'CHALLENGE BREACHED', id: 'CHALLENGE GAGAL' },
+    profit_target: { en: 'Profit Target Reached!', id: 'Target Profit Tercapai!' },
+  }
+  const alertLabel = alertTypeLabels[alertType]
+
+  // DD progress bar width
+  const ddBarWidth = Math.min((currentDDPercent / ddLimitPercent) * 100, 100)
+
+  // Suggestions
+  const suggestions = severity === 'breach'
+    ? [
+        'Challenge ini sudah breached — jangan tambah trade baru.',
+        'Review semua trade dan evaluasi apa yang salah.',
+        'Pertimbangkan untuk mulai challenge baru dengan rencana yang lebih baik.',
+      ]
+    : severity === 'success'
+    ? [
+        'Selamat! Lanjutkan ke phase berikutnya.',
+        'Review strategi yang berhasil untuk diulang.',
+        'Maintain discipline — jangan overtrade.',
+      ]
+    : [
+        'Kurangi ukuran posisi (reduce position size).',
+        'Tutup semua trade hari ini (close all trades for today).',
+        'Pindah ke demo dulu untuk review (switch to demo).',
+        'Review trading plan kamu sebelum lanjut.',
+      ]
+
+  const subjectLine = severity === 'breach'
+    ? 'CHALLENGE BREACHED'
+    : severity === 'success'
+    ? 'PROFIT TARGET REACHED!'
+    : severity === 'urgent'
+    ? 'URGENT: Drawdown Critical!'
+    : 'Drawdown Warning'
+
+  return `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subjectLine} — LuxTradee Prop Firm Guard</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #080b12; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding: 32px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 520px; background-color: #0a0c14; border: 1px solid ${c.border}33; border-radius: 16px; overflow: hidden;">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 28px 28px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: center; background: ${c.bg};">
+              <div style="font-size: 32px; margin-bottom: 8px;">${c.icon}</div>
+              <h1 style="margin: 0; color: ${c.text}; font-size: 20px; font-weight: 700; letter-spacing: 0.02em;">${subjectLine}</h1>
+              <p style="margin: 6px 0 0; color: ${c.accent}; font-size: 13px; font-weight: 600;">${alertLabel.id}</p>
+            </td>
+          </tr>
+          <!-- Account Info -->
+          <tr>
+            <td style="padding: 20px 28px 12px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 12px 16px;">
+                <tr>
+                  <td style="padding: 8px 16px; color: #94a3b8; font-size: 13px;">Firm</td>
+                  <td style="padding: 8px 16px; color: #e2e8f0; font-size: 13px; font-weight: 600; text-align: right;">${firmName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 16px; color: #94a3b8; font-size: 13px;">Account Size</td>
+                  <td style="padding: 8px 16px; color: #e2e8f0; font-size: 13px; font-weight: 600; text-align: right;">$${accountSize.toLocaleString()}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 16px; color: #94a3b8; font-size: 13px;">Phase</td>
+                  <td style="padding: 8px 16px; color: ${c.accent}; font-size: 13px; font-weight: 600; text-align: right;">${phaseLabel}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Drawdown Info -->
+          <tr>
+            <td style="padding: 8px 28px 20px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding: 4px 0; color: #94a3b8; font-size: 13px;">Current Drawdown</td>
+                  <td style="padding: 4px 0; color: ${c.text}; font-size: 15px; font-weight: 700; text-align: right;">${currentDDPercent.toFixed(1)}%</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; color: #94a3b8; font-size: 13px;">DD Limit</td>
+                  <td style="padding: 4px 0; color: #64748b; font-size: 13px; text-align: right;">${ddLimitPercent.toFixed(1)}%</td>
+                </tr>
+                <!-- Progress bar -->
+                <tr>
+                  <td colspan="2" style="padding: 10px 0 6px;">
+                    <div style="width: 100%; height: 10px; background: rgba(255,255,255,0.06); border-radius: 5px; overflow: hidden;">
+                      <div style="width: ${ddBarWidth}%; height: 100%; background: ${c.text}; border-radius: 5px;"></div>
+                    </div>
+                  </td>
+                </tr>
+                ${severity !== 'success' ? `
+                <tr>
+                  <td style="padding: 4px 0; color: #94a3b8; font-size: 13px;">Room Left</td>
+                  <td style="padding: 4px 0; color: ${roomLeftPercent < 20 ? '#ef4444' : roomLeftPercent < 40 ? '#f97316' : '#22c55e'}; font-size: 13px; font-weight: 600; text-align: right;">${roomLeftPercent.toFixed(1)}% ($${roomLeftDollar.toFixed(0)})</td>
+                </tr>
+                ` : ''}
+              </table>
+            </td>
+          </tr>
+          <!-- Suggestions -->
+          <tr>
+            <td style="padding: 0 28px 20px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: rgba(255,255,255,0.03); border-radius: 10px; padding: 14px 18px;">
+                <tr>
+                  <td style="padding: 4px 18px 10px; color: #e2e8f0; font-size: 13px; font-weight: 600;">
+                    ${severity === 'success' ? '💡 Tips Lanjutan' : '💡 Saran Action'}
+                  </td>
+                </tr>
+                ${suggestions.map(s => `
+                <tr>
+                  <td style="padding: 5px 18px; color: #94a3b8; font-size: 12px; line-height: 1.5;">
+                    • ${s}
+                  </td>
+                </tr>
+                `).join('')}
+              </table>
+            </td>
+          </tr>
+          <!-- CTA Button -->
+          <tr>
+            <td style="padding: 0 28px 24px; text-align: center;">
+              <a href="${ctaUrl}" style="display: inline-block; padding: 12px 32px; background: ${c.text}; color: #080b12; font-size: 14px; font-weight: 700; border-radius: 10px; text-decoration: none; letter-spacing: 0.02em;">View Dashboard</a>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 16px 28px; border-top: 1px solid rgba(255,255,255,0.05); text-align: center;">
+              <p style="margin: 0; color: #4b5563; font-size: 12px;">LuxTradee Prop Firm Guard</p>
+              <p style="margin: 4px 0 0; color: #374151; font-size: 11px;">Alert ini dikirim berdasarkan pengaturan drawdown alert kamu.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}

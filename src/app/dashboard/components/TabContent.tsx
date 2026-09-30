@@ -27,6 +27,7 @@ const EconomicCalendarTab = dynamic(() => import('../tabs/EconomicCalendarTab').
 const CommunityTab = dynamic(() => import('../tabs/CommunityTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const ChartTab = dynamic(() => import('@/components/ChartTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const OnboardingTab = dynamic(() => import('../tabs/OnboardingTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const PropFirmGuardTab = dynamic(() => import('../tabs/PropFirmGuardTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 
 // Lazy-loaded feature components
 const TradingScore = dynamic(() => import('@/components/TradingScore').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
@@ -279,6 +280,10 @@ export default function TabContent({
 
           {activeTab === 'chart' && (
             <ChartTab isPro={isPro} />
+          )}
+
+          {activeTab === 'propfirm' && (
+            <PropFirmGuardTab language={language} />
           )}
     </div>
   )

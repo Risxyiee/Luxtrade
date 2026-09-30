@@ -1,20 +1,16 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { createChart, ColorType, CrosshairMode, LineStyle, IChartApi, ISeriesApi, CandlestickSeries, type CandlestickData } from 'lightweight-charts'
 
 interface CandlestickChartProps {
   data: CandlestickData[]
   containerClassName?: string
-  chartOptions?: any
-  seriesOptions?: any
 }
 
 function CandlestickChartInner({
   data,
   containerClassName = '',
-  chartOptions = {},
-  seriesOptions = {},
 }: CandlestickChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -24,163 +20,104 @@ function CandlestickChartInner({
   const [chartReady, setChartReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Stable chart options — never recreated
+  const chartOptions = useMemo(() => ({
+    layout: {
+      background: { type: ColorType.Solid, color: 'transparent' },
+      textColor: '#ffffff',
+    },
+    grid: {
+      vertLines: { color: 'rgba(255,255,255, 0.05)', style: LineStyle.Dotted },
+      horLines: { color: 'rgba(255,255,255, 0.05)', style: LineStyle.Dotted },
+    },
+    crosshair: {
+      mode: CrosshairMode.Normal,
+      vertLine: { color: 'rgba(224, 227, 235, 0.1)', width: 1, style: LineStyle.Dashed, labelBackgroundColor: '#1f2937' },
+      horLine: { color: 'rgba(224, 227, 235, 0.1)', width: 1, style: LineStyle.Dashed, labelBackgroundColor: '#1f2937' },
+    },
+    rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.1)' },
+    timeScale: { borderColor: 'rgba(255, 255, 255, 0.1)', timeVisible: true, secondsVisible: false },
+    handleScroll: true,
+    handleScale: true,
+  }), [])
+
+  const seriesOptions = useMemo(() => ({
+    upColor: '#10b981',
+    downColor: '#ef4444',
+    borderDownColor: '#ef4444',
+    borderUpColor: '#10b981',
+    wickDownColor: '#ef4444',
+    wickUpColor: '#10b981',
+  }), [])
+
   // Mount tracking
   useEffect(() => {
-    console.log('[CandlestickChart] Component mounting...')
-    // Use setTimeout to avoid synchronous setState in effect
-    const timer = setTimeout(() => {
-      setMounted(true)
-    }, 0)
-
-    return () => {
-      clearTimeout(timer)
-      console.log('[CandlestickChart] Component unmounting')
-    }
+    const timer = setTimeout(() => setMounted(true), 0)
+    return () => clearTimeout(timer)
   }, [])
 
-  // Create chart and series
+  // Create chart once
   useEffect(() => {
-    if (!mounted || !chartContainerRef.current) {
-      console.log('[CandlestickChart] Skipping chart creation', { mounted, hasContainer: !!chartContainerRef.current })
-      return
-    }
+    if (!mounted || !chartContainerRef.current) return
 
     const container = chartContainerRef.current
 
-    // Small delay to ensure container has dimensions
     const timeoutId = setTimeout(() => {
       if (!container.clientWidth || container.clientWidth < 100) {
-        console.warn('[CandlestickChart] Container width not ready')
-        setError('Container not ready. Please reload the page.')
+        setError('Container not ready')
         return
       }
 
       try {
-        console.log('[CandlestickChart] Creating chart...')
-
-        // Create chart instance
         const chart = createChart(container, {
           width: container.clientWidth,
           height: 400,
-          layout: {
-            background: { type: ColorType.Solid, color: 'transparent' },
-            textColor: '#ffffff',
-          },
-          grid: {
-            vertLines: {
-              color: 'rgba(255,255,255, 0.05)',
-              style: LineStyle.Dotted,
-            },
-            horzLines: {
-              color: 'rgba(255,255,255, 0.05)',
-              style: LineStyle.Dotted,
-            },
-          },
-          crosshair: {
-            mode: CrosshairMode.Normal,
-            vertLine: {
-              color: 'rgba(224, 227, 235, 0.1)',
-              width: 1,
-              style: LineStyle.Dashed,
-              labelBackgroundColor: '#1f2937',
-            },
-            horzLine: {
-              color: 'rgba(224, 227, 235, 0.1)',
-              width: 1,
-              style: LineStyle.Dashed,
-              labelBackgroundColor: '#1f2937',
-            },
-          },
-          rightPriceScale: {
-            borderColor: 'rgba(255, 255, 255, 0.1)',
-          },
-          timeScale: {
-            borderColor: 'rgba(255, 255, 255, 0.1)',
-            timeVisible: true,
-            secondsVisible: false,
-          },
-          handleScroll: true,
-          handleScale: true,
           ...chartOptions
         })
-
         chartRef.current = chart
-        console.log('[CandlestickChart] Chart instance created')
 
-        // Add candlestick series
-        console.log('[CandlestickChart] Adding candlestick series...')
-        const series = chart.addSeries(CandlestickSeries, {
-          upColor: '#10b981',
-          downColor: '#ef4444',
-          borderDownColor: '#ef4444',
-          borderUpColor: '#10b981',
-          wickDownColor: '#ef4444',
-          wickUpColor: '#10b981',
-          ...seriesOptions
-        })
-
+        const series = chart.addSeries(CandlestickSeries, seriesOptions)
         seriesRef.current = series
-        console.log('[CandlestickChart] ✅ Chart created successfully')
         setChartReady(true)
 
-        // Handle resize
         const handleResize = () => {
           if (chartRef.current && chartContainerRef.current) {
-            const newWidth = chartContainerRef.current.clientWidth || 800
-            chartRef.current.applyOptions({ width: newWidth, height: 400 })
+            chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth || 800, height: 400 })
           }
         }
-
         handleResizeRef.current = handleResize
         window.addEventListener('resize', handleResize)
-
       } catch (err) {
-        console.error('[CandlestickChart] ❌ Error creating chart:', err)
         setError(err instanceof Error ? err.message : String(err))
       }
     }, 100)
 
-    // Cleanup
     return () => {
       clearTimeout(timeoutId)
-      console.log('[CandlestickChart] Cleanup...')
       if (handleResizeRef.current) {
         window.removeEventListener('resize', handleResizeRef.current)
         handleResizeRef.current = null
       }
       if (chartRef.current) {
-        try {
-          chartRef.current.remove()
-          console.log('[CandlestickChart] Chart removed')
-        } catch (e) {
-          console.error('[CandlestickChart] Error removing chart:', e)
-        }
+        try { chartRef.current.remove() } catch {}
         chartRef.current = null
       }
-      if (seriesRef.current) {
-        seriesRef.current = null
-      }
+      seriesRef.current = null
       setChartReady(false)
     }
   }, [mounted, chartOptions, seriesOptions])
 
-  // Update data when it changes
+  // Update data only — stable ref to avoid re-renders
+  const dataRef = useRef(data)
+  dataRef.current = data
+
   useEffect(() => {
-    if (!mounted || !seriesRef.current) {
-      console.log('[CandlestickChart] Skipping data update', { mounted, hasSeries: !!seriesRef.current })
-      return
-    }
-
-    console.log('[CandlestickChart] Updating chart data...')
-
-    if (!data || data.length === 0) {
-      console.warn('[CandlestickChart] No data to update')
-      return
-    }
+    if (!chartReady || !seriesRef.current) return
+    if (!data || data.length === 0) return
 
     try {
-      const validData = data.filter((kline: CandlestickData) => {
-        return (
+      const validData = data
+        .filter((kline: CandlestickData) =>
           typeof kline.time === 'number' && kline.time > 0 &&
           typeof kline.open === 'number' && kline.open > 0 &&
           typeof kline.high === 'number' && kline.high > 0 &&
@@ -188,36 +125,18 @@ function CandlestickChartInner({
           typeof kline.close === 'number' && kline.close > 0 &&
           kline.high >= kline.low
         )
-      }).sort((a, b) => {
-        const timeA = typeof a.time === 'number' ? a.time : typeof a.time === 'string' ? new Date(a.time).getTime() : 0
-        const timeB = typeof b.time === 'number' ? b.time : typeof b.time === 'string' ? new Date(b.time).getTime() : 0
-        return timeA - timeB
-      })
+        .sort((a, b) => (a.time as number) - (b.time as number))
 
-      if (validData.length === 0) {
-        console.error('[CandlestickChart] No valid data after filtering')
-        // Use setTimeout to avoid synchronous setState in effect
-        setTimeout(() => {
-          setError('No valid data available')
-        }, 0)
-        return
-      }
-
+      if (validData.length === 0) return
       seriesRef.current.setData(validData)
-      console.log(`✅ [CandlestickChart] Chart updated with ${validData.length} candles`)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err)
-      console.error('[CandlestickChart] ❌ Error updating chart data:', err)
-      // Use setTimeout to avoid synchronous setState in effect
-      setTimeout(() => {
-        setError(errorMessage)
-      }, 0)
+      setError(err instanceof Error ? err.message : String(err))
     }
-  }, [mounted, data])
+  }, [chartReady, data])
 
   if (!mounted) {
     return (
-      <div className={containerClassName} style={{ height: '400px', minHeight: '400px' }} suppressHydrationWarning={true}>
+      <div className={containerClassName} style={{ height: '400px', minHeight: '400px' }} suppressHydrationWarning>
         <div className="flex items-center justify-center h-full">
           <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
         </div>
@@ -229,50 +148,23 @@ function CandlestickChartInner({
     <div
       ref={chartContainerRef}
       className={containerClassName}
-      style={{
-        height: '400px',
-        minHeight: '400px',
-        backgroundColor: '#070a10',
-        position: 'relative'
-      }}
-      suppressHydrationWarning={true}
+      style={{ height: '400px', minHeight: '400px', backgroundColor: '#070a10', position: 'relative' }}
+      suppressHydrationWarning
     >
-      {/* Loading state */}
       {!chartReady && !error && (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          textAlign: 'center',
-          color: '#9ca3af',
-          padding: '20px'
-        }}>
-          <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-          <p>Initializing chart...</p>
+        <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+          <div className="text-center">
+            <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+            <p className="text-sm">Loading chart...</p>
+          </div>
         </div>
       )}
-
-      {/* Error state */}
       {error && (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          textAlign: 'center',
-          color: '#ef4444',
-          padding: '20px',
-          maxWidth: '80%'
-        }}>
-          <p className="mb-2 font-semibold">Chart Error</p>
-          <p className="text-sm text-white/60">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-3 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
-          >
-            Reload Page
-          </button>
+        <div className="absolute inset-0 flex items-center justify-center text-red-400">
+          <div className="text-center p-5">
+            <p className="mb-2 font-semibold">Chart Error</p>
+            <p className="text-sm text-white/60">{error}</p>
+          </div>
         </div>
       )}
     </div>

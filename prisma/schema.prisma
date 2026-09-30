@@ -96,6 +96,7 @@ model User {
   updatedAt         DateTime  @updatedAt
 
   subscriptions     UserSubscription[]
+  propFirmChallenges PropFirmChallenge[]
 
   @@map("users")
 }
@@ -459,6 +460,47 @@ model SharedTrade {
   @@index([userId])
   @@index([shareCode])
   @@map("shared_trades")
+}
+
+model PropFirmChallenge {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  tradingAccountId String? @map("trading_account_id")
+
+  // Challenge info
+  firmName        String   @map("firm_name")        // FTMO, MFF, TFT, FundedNext, SurgeTrader
+  challengePhase  String   @default("phase1") @map("challenge_phase") // phase1, phase2, funded
+  accountSize     Float   @map("account_size")       // 100000, 50000 etc
+
+  // Rules
+  maxDailyLoss    Float   @map("max_daily_loss")     // 5% of account = 5000 for $100k
+  maxTotalDD      Float   @map("max_total_dd")       // 10% of account = 10000 for $100k
+  profitTarget    Float   @map("profit_target")      // 10% for phase1 = 10000
+
+  // Current state (calculated from trades)
+  currentBalance  Float   @default(0) @map("current_balance")
+  dailyPL         Float   @default(0) @map("daily_pl")
+  totalPL         Float   @default(0) @map("total_pl")
+  currentDailyDD  Float   @default(0) @map("current_daily_dd")   // percentage
+  currentTotalDD  Float   @default(0) @map("current_total_dd")   // percentage
+  currentProgress Float   @default(0) @map("current_progress")   // % toward profit target
+
+  // Alert settings
+  alertAtPercent  Float   @default(40) @map("alert_at_percent")   // Alert when DD reaches 40% of limit
+  lastAlertAt     DateTime? @map("last_alert_at")
+  isBreached      Boolean  @default(false) @map("is_breached")
+  breachReason    String?  @map("breach_reason")
+  breachedAt      DateTime? @map("breached_at")
+
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isActive])
+  @@map("prop_firm_challenges")
 }
 
 model PushSubscription {
