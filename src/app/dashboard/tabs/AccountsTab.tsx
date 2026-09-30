@@ -49,9 +49,10 @@ export default function AccountsTab({ language = 'id', fetchData, selectedAccoun
   const fetchAccounts = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/trading-accounts', {
+      const response = await fetch(`/api/trading-accounts?_t=${Date.now()}`, {
         headers: getAuthHeaders(),
-        credentials: 'include'
+        credentials: 'include',
+        cache: 'no-store',
       })
 
       if (!response.ok) {

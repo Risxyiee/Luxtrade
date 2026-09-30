@@ -5,12 +5,45 @@ import { isUserPro } from '@/lib/pro-check'
 import { checkAchievementsAfterTrade } from '@/lib/achievement-checker'
 import { edgeCrypto } from '@/lib/edge-crypto'
 
+export const dynamic = 'force-dynamic'
+
 // Invalidate analytics cache after mutations (dynamic import to avoid circular deps)
 async function invalidateAnalytics(userId: string) {
   try {
     const { invalidateAnalyticsCache } = await import('@/app/api/analytics/route')
     invalidateAnalyticsCache(userId)
   } catch { /* best effort */ }
+}
+
+// Update account current_balance after trade mutations
+async function updateAccountBalance(client: any, accountId: string | null) {
+  if (!accountId) return
+  try {
+    // Get initial balance
+    const { data: account } = await client
+      .from('trading_accounts')
+      .select('initial_balance')
+      .eq('id', accountId)
+      .single()
+
+    if (!account) return
+
+    // Sum all P/L for this account
+    const { data: trades } = await client
+      .from('trades')
+      .select('profit_loss')
+      .eq('account_id', accountId)
+
+    const totalPL = (trades || []).reduce((sum: number, t: any) => sum + (t.profit_loss || 0), 0)
+    const newBalance = (account.initial_balance || 0) + totalPL
+
+    await client
+      .from('trading_accounts')
+      .update({ current_balance: newBalance, updated_at: new Date().toISOString() })
+      .eq('id', accountId)
+  } catch (err) {
+    console.warn('[updateAccountBalance] Failed:', err)
+  }
 }
 
 // Free user trade limit - 10 trades per month
@@ -249,6 +282,9 @@ export async function POST(request: NextRequest) {
     // Invalidate analytics cache so dashboard shows fresh data immediately
     invalidateAnalytics(userId)
 
+    // Update account current_balance so saldo/equity stays in sync
+    updateAccountBalance(client, tradeData.account_id)
+
     // Check achievements (non-critical, uses Prisma internally — only on POST, not GET)
     // Run in background — don't block the response
     const achievementPromise = checkAchievementsAfterTrade(userId).catch(() => [] as any[])
@@ -349,6 +385,9 @@ export async function PUT(request: NextRequest) {
     // Invalidate analytics cache so dashboard shows fresh data immediately
     invalidateAnalytics(user.id)
 
+    // Update account current_balance so saldo/equity stays in sync
+    updateAccountBalance(client, updateData.account_id || existingTrade.account_id || null)
+
     return NextResponse.json({ trade })
   } catch (err) {
     return NextResponse.json(
@@ -379,6 +418,14 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
+    // Get the trade's account_id before deleting (so we can update balance)
+    const { data: tradeToDelete } = await client
+      .from('trades')
+      .select('account_id')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+
     // Verify ownership + delete in one query (RLS also enforces this)
     const { error } = await client
       .from('trades')
@@ -395,6 +442,9 @@ export async function DELETE(request: NextRequest) {
 
     // Invalidate analytics cache so dashboard shows fresh data immediately
     invalidateAnalytics(user.id)
+
+    // Update account current_balance so saldo/equity stays in sync
+    updateAccountBalance(client, tradeToDelete?.account_id || null)
 
     return NextResponse.json({ success: true })
   } catch (err) {

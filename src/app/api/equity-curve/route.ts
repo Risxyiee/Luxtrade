@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import { createClientForApi } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+
 const MAX_POINTS = 80
 const DEFAULT_BALANCE = 10000
 
@@ -105,6 +107,10 @@ export async function GET(request: NextRequest) {
     const initialBalance = account
       ? (account.initial_balance || DEFAULT_BALANCE)
       : DEFAULT_BALANCE
+    // Use current_balance from account if available (user may have set it manually)
+    const accountCurrentBalance = account
+      ? (account.current_balance || account.initial_balance || DEFAULT_BALANCE)
+      : DEFAULT_BALANCE
 
     const dateFilter = buildPeriodFilter(period)
 
@@ -158,7 +164,7 @@ export async function GET(request: NextRequest) {
 
     const currentBalance = fullCurve.length > 0
       ? fullCurve[fullCurve.length - 1].equity
-      : initialBalance
+      : accountCurrentBalance
 
     const totalPL = currentBalance - initialBalance
     const maxDrawdown = finalPeak > 0

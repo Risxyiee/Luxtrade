@@ -179,16 +179,25 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccoun
   const [dimensions, setDimensions] = useState({ w: 600, h: 300 })
 
   // Fetch data (re-fetch when selectedAccountId or tradingAccounts changes)
+  // Also listen for custom refresh events from parent after mutations
+  const [refreshKey, setRefreshKey] = useState(0)
+  useEffect(() => {
+    const handler = () => setRefreshKey(k => k + 1)
+    window.addEventListener('luxtrade:refresh-equity', handler)
+    return () => window.removeEventListener('luxtrade:refresh-equity', handler)
+  }, [])
+
   useEffect(() => {
     setLoading(true)
+    const bustTs = `_t=${Date.now()}`
     const url = selectedAccountId
-      ? `/api/equity-curve?account_id=${selectedAccountId}`
-      : '/api/equity-curve'
-    fetch(url, { credentials: 'include' })
+      ? `/api/equity-curve?account_id=${selectedAccountId}&${bustTs}`
+      : `/api/equity-curve?${bustTs}`
+    fetch(url, { credentials: 'include', cache: 'no-store' })
       .then(r => r.ok ? r.json() : null)
       .then(d => { setData(d); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [selectedAccountId, tradingAccounts])
+  }, [selectedAccountId, tradingAccounts, refreshKey])
 
   // Observe container size
   useEffect(() => {
