@@ -2,20 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-// Forex symbols mapping with realistic current prices
-const FOREX_SYMBOLS: Record<string, { from: string; to: string; basePrice: number; decimals: number }> = {
-  'XAUUSD': { from: 'XAU', to: 'USD', basePrice: 3260.00, decimals: 2 },
-  'XAGUSD': { from: 'XAG', to: 'USD', basePrice: 32.80, decimals: 3 },
-  'EURUSD': { from: 'EUR', to: 'USD', basePrice: 1.1150, decimals: 5 },
-  'GBPUSD': { from: 'GBP', to: 'USD', basePrice: 1.2740, decimals: 5 },
-  'USDJPY': { from: 'USD', to: 'JPY', basePrice: 149.80, decimals: 3 },
-  'EURGBP': { from: 'EUR', to: 'GBP', basePrice: 0.8750, decimals: 5 },
-  'EURJPY': { from: 'EUR', to: 'JPY', basePrice: 166.95, decimals: 3 },
-  'GBPJPY': { from: 'GBP', to: 'JPY', basePrice: 190.85, decimals: 3 },
-  'AUDUSD': { from: 'AUD', to: 'USD', basePrice: 0.6350, decimals: 5 },
-  'NZDUSD': { from: 'NZD', to: 'USD', basePrice: 0.5880, decimals: 5 },
-  'USDCAD': { from: 'USD', to: 'CAD', basePrice: 1.3750, decimals: 5 },
-  'USDCHF': { from: 'USD', to: 'CHF', basePrice: 0.8820, decimals: 5 },
+// Forex symbols mapping with decimal precision (NO hardcoded prices)
+const FOREX_SYMBOLS: Record<string, { from: string; to: string; decimals: number }> = {
+  'XAUUSD': { from: 'XAU', to: 'USD', decimals: 2 },
+  'XAGUSD': { from: 'XAG', to: 'USD', decimals: 3 },
+  'EURUSD': { from: 'EUR', to: 'USD', decimals: 5 },
+  'GBPUSD': { from: 'GBP', to: 'USD', decimals: 5 },
+  'USDJPY': { from: 'USD', to: 'JPY', decimals: 3 },
+  'EURGBP': { from: 'EUR', to: 'GBP', decimals: 5 },
+  'EURJPY': { from: 'EUR', to: 'JPY', decimals: 3 },
+  'GBPJPY': { from: 'GBP', to: 'JPY', decimals: 3 },
+  'AUDUSD': { from: 'AUD', to: 'USD', decimals: 5 },
+  'NZDUSD': { from: 'NZD', to: 'USD', decimals: 5 },
+  'USDCAD': { from: 'USD', to: 'CAD', decimals: 5 },
+  'USDCHF': { from: 'USD', to: 'CHF', decimals: 5 },
 }
 
 // API keys — lazy-read at request time (CF Workers env vars not available at module load)
@@ -128,47 +128,73 @@ async function fetchAlphaVantage(symbol: string, limit: number): Promise<any[] |
   }
 }
 
-// ── Realistic mock data (when all APIs fail) ────────────────────────
-function generateMockData(symbol: string, interval: string, count: number): any[] {
-  const info = FOREX_SYMBOLS[symbol] || FOREX_SYMBOLS['EURUSD']
-  const d = info.decimals
+// ── Yahoo Finance (FREE, no API key needed, reliable) ────────────────
+async function fetchYahooFinance(symbol: string, interval: string, limit: number): Promise<any[] | null> {
+  const info = FOREX_SYMBOLS[symbol]
+  if (!info) return null
 
-  // Interval to ms mapping
-  const intervalMs: Record<string, number> = {
-    '1m': 60_000, '5m': 300_000, '15m': 900_000,
-    '30m': 1_800_000, '1h': 3_600_000, '4h': 14_400_000, '1d': 86_400_000,
+  // Yahoo Finance symbol format: EURUSD=X, XAUUSD=X
+  const yahooSymbol = `${info.from}${info.to}=X`
+
+  // Map interval to Yahoo Finance format
+  const yahooIntervalMap: Record<string, string> = {
+    '5m': '5m', '15m': '15m', '30m': '30m', '1h': '1h', '4h': '4h', '1d': '1d',
   }
-  const stepMs = intervalMs[interval] || intervalMs['15m']
+  const yahooInterval = yahooIntervalMap[interval] || '15m'
+  // Yahoo range based on interval and limit
+  const rangeMap: Record<string, string> = {
+    '5m': '1d', '15m': '5d', '30m': '5d', '1h': '10d', '4h': '30d', '1d': '6mo',
+  }
+  const range = rangeMap[interval] || '5d'
 
-  const data: any[] = []
-  let timestamp = Date.now() - (count * stepMs)
-  let price = info.basePrice
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=${yahooInterval}&range=${range}`
 
-  // Volatility per interval (more realistic)
-  const vol = interval === '1d' ? 0.003 : interval === '4h' ? 0.0015 : interval === '1h' ? 0.001 : 0.0005
-
-  for (let i = 0; i < count; i++) {
-    const change = (Math.random() - 0.5) * 2 * vol * price
-    const open = price
-    const close = price + change
-    const wickUp = Math.random() * Math.abs(change) * 0.5
-    const wickDown = Math.random() * Math.abs(change) * 0.5
-    const high = Math.max(open, close) + wickUp
-    const low = Math.min(open, close) - wickDown
-
-    data.push({
-      time: Math.floor(timestamp / 1000),
-      open: parseFloat(open.toFixed(d)),
-      high: parseFloat(high.toFixed(d)),
-      low: parseFloat(low.toFixed(d)),
-      close: parseFloat(close.toFixed(d)),
+  try {
+    const controller = new AbortController()
+    const tid = setTimeout(() => controller.abort(), 10000)
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
+      },
+      signal: controller.signal,
     })
+    clearTimeout(tid)
 
-    price = close
-    timestamp += stepMs
+    if (!res.ok) return null
+
+    const json = await res.json()
+    const result = json?.chart?.result?.[0]
+    if (!result) return null
+
+    const timestamps = result.timestamp || []
+    const quote = result.indicators?.quote?.[0]
+    if (!quote || !timestamps.length) return null
+
+    const candles: any[] = []
+    for (let i = 0; i < timestamps.length; i++) {
+      const open = quote.open?.[i]
+      const high = quote.high?.[i]
+      const low = quote.low?.[i]
+      const close = quote.close?.[i]
+      // Skip candles with null values
+      if (open == null || high == null || low == null || close == null) continue
+      if (high < low || open <= 0) continue
+      candles.push({
+        time: timestamps[i],
+        open: parseFloat(open.toFixed(info.decimals)),
+        high: parseFloat(high.toFixed(info.decimals)),
+        low: parseFloat(low.toFixed(info.decimals)),
+        close: parseFloat(close.toFixed(info.decimals)),
+      })
+    }
+
+    if (candles.length === 0) return null
+    // Return only the requested limit
+    return candles.slice(-limit).sort((a, b) => a.time - b.time)
+  } catch (err: any) {
+    console.warn(`[Forex] Yahoo Finance error for ${symbol}: ${err.message}`)
+    return null
   }
-
-  return data.sort((a, b) => a.time - b.time)
 }
 
 // ── Main handler ────────────────────────────────────────────────────
@@ -191,8 +217,11 @@ export async function GET(request: NextRequest) {
         interval,
         data: cached.data,
         source: cached.source + '-cache',
+        fetchedAt: new Date(cached.timestamp).toISOString(),
       })
     }
+
+    const errors: string[] = []
 
     // Try Twelve Data first (best: intraday + free)
     const tdKey = getTwelveDataKey()
@@ -207,7 +236,13 @@ export async function GET(request: NextRequest) {
         interval,
         data: tdData,
         source: 'twelvedata',
+        fetchedAt: new Date().toISOString(),
       })
+    }
+    if (!tdKey || tdKey.length < 10) {
+      errors.push('TwelveData: API key not configured')
+    } else {
+      errors.push('TwelveData: no data returned')
     }
 
     // Try Alpha Vantage (daily only)
@@ -224,34 +259,57 @@ export async function GET(request: NextRequest) {
         data: avData,
         source: 'alphavantage',
         note: 'Intraday not available — showing daily data',
+        fetchedAt: new Date().toISOString(),
       })
     }
+    if (avKey && avKey.length >= 10) {
+      errors.push('AlphaVantage: no data returned')
+    } else {
+      errors.push('AlphaVantage: API key not configured')
+    }
 
-    // Fallback: realistic mock
-    console.warn(`[Forex] ⚠️ All real APIs failed for ${validSymbol}, using mock data`)
-    const mockData = generateMockData(validSymbol, interval, limit)
-    setCache(cacheKey, mockData, 'mock')
+    // Try Yahoo Finance (free, no key needed)
+    console.log(`[Forex] AlphaVantage failed, trying Yahoo Finance...`)
+    const yfData = await fetchYahooFinance(validSymbol, interval, limit)
+    if (yfData && yfData.length > 0) {
+      setCache(cacheKey, yfData, 'yahoo-finance')
+      console.log(`[Forex] ✓ ${yfData.length} candles from Yahoo Finance`)
+      return NextResponse.json({
+        success: true,
+        symbol: validSymbol,
+        interval,
+        data: yfData,
+        source: 'yahoo-finance',
+        fetchedAt: new Date().toISOString(),
+      })
+    }
+    errors.push('Yahoo Finance: no data returned')
 
+    // ALL LIVE SOURCES FAILED — return honest "unavailable" response (NO mock data)
+    console.error(`[Forex] ❌ All live API sources failed for ${validSymbol}: ${errors.join('; ')}`)
     return NextResponse.json({
-      success: true,
+      success: false,
       symbol: validSymbol,
       interval,
-      data: mockData,
-      source: 'mock',
-      note: 'Add TWELVE_DATA_API_KEY or ALPHA_VANTAGE_API_KEY for real market data',
-    })
+      data: [],
+      source: 'unavailable',
+      unavailable: true,
+      message: `Data live untuk ${validSymbol} sedang tidak dapat diakses. Semua sumber API gagal: ${errors.join(', ')}. Coba beberapa menit lagi.`,
+      errors,
+      fetchedAt: new Date().toISOString(),
+    }, { status: 503 })
   } catch (error) {
-    const symbol = new URL(request.url).searchParams.get('symbol') || 'EURUSD'
-    const interval = new URL(request.url).searchParams.get('interval') || '15m'
-    const mockData = generateMockData(symbol, interval, 20)
-
+    console.error(`[Forex] ❌ Unhandled error:`, error)
     return NextResponse.json({
-      success: true,
-      symbol,
-      interval,
-      data: mockData,
-      source: 'mock-fallback',
+      success: false,
+      symbol: new URL(request.url).searchParams.get('symbol') || 'EURUSD',
+      interval: new URL(request.url).searchParams.get('interval') || '15m',
+      data: [],
+      source: 'unavailable',
+      unavailable: true,
+      message: 'Data live sedang tidak dapat diakses. Terjadi kesalahan internal. Coba beberapa menit lagi.',
       error: error instanceof Error ? error.message : String(error),
-    })
+      fetchedAt: new Date().toISOString(),
+    }, { status: 503 })
   }
 }

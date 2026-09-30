@@ -670,3 +670,34 @@ Stage Summary:
 - TRADE_EXTRACTION_PROMPT now supports any platform/language
 - buildTradeAndJournalPrompt now includes multilingual detection
 - Gemini API can now auto-journal from any trading platform screenshot
+---
+Task ID: 2
+Agent: Main
+Task: Remove all dummy/mock/hardcoded data from website — enforce live data only
+
+Work Log:
+- Removed generateMockData() from /api/forex/route.ts
+- Removed all hardcoded basePrice values from FOREX_SYMBOLS
+- Added Yahoo Finance as live fallback (free, no API key needed)
+- When all APIs fail, returns honest "unavailable" response (503) — NO mock data
+- Removed generateMockData() from /api/chart/klines/route.ts
+- Added CoinGecko OHLC and CoinCap as live crypto fallbacks
+- Verified /api/economic-calendar already returns unavailable when APIs fail (no mock)
+- Verified /api/news already uses only live sources (TradingEconomics, Reuters, Bloomberg RSS)
+- Created new /src/lib/live-market.ts — unified live price fetcher
+- Supports: TwelveData, Yahoo Finance, Binance, CoinGecko
+- 2-minute price cache for real-time feel
+- Never returns fake data — returns null if all sources fail
+- Updated /api/ai/chat/route.ts — AI Financial Assistant with live market context
+- Auto-detects price queries (harga, price, berapa, etc.)
+- Fetches specific prices when user asks about an asset
+- Injects live market data into Gemini system prompt
+- Strict ANTI-DUMMY DATA rules in system prompt
+- All APIs now include fetchedAt timestamp for transparency
+- Lint passes clean
+
+Stage Summary:
+- Zero mock/dummy data generators remain in the codebase
+- All APIs return honest "unavailable" when live sources fail
+- AI chat now has real-time market data context
+- Live data sources: TwelveData, Yahoo Finance, Binance, CoinGecko, CoinCap, Alpha Vantage, TradingEconomics, Reuters, Bloomberg
