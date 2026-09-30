@@ -339,20 +339,37 @@ export async function analyzeWithFallback(
 
 /**
  * Trade-specific extraction prompt
- * Optimized for MT4/MT5 trading screenshots and trade detail panels
+ * UNIVERSAL: Supports MT4/MT5, cTrader, TradingView, DxTrade, Match-Trade,
+ *            proprietary mobile apps, and any trading platform screenshot.
  */
-export const TRADE_EXTRACTION_PROMPT = `You are an expert at reading trading platform screenshots and extracting trade information.
+export const TRADE_EXTRACTION_PROMPT = `You are an expert at reading trading platform screenshots and extracting trade information from ANY trading platform.
 
 Analyze this trading screenshot and extract ALL trade information visible.
-The screenshot could be:
-1. A trade history table (MT4/MT5 list view) showing multiple or single trades
-2. A trading chart with trade markers/entry-exit points
-3. A trade details/summary panel
-4. Any combination of the above
+The screenshot could come from ANY platform, including but not limited to:
+1. MetaTrader 4/5 (MT4/MT5) — trade history, account history, deal list
+2. cTrader — position details, trade history
+3. TradingView — chart with trade markers, strategy tester results
+4. DxTrade / Match-Trade / Prop firm dashboards
+5. Any proprietary mobile trading app (Android/iOS)
+6. Any custom trading dashboard or trade result screen
+7. Any language (English, Indonesian, Arabic, Chinese, etc.)
+
+CRITICAL: This may be in ANY language. Recognize these common multilingual patterns:
+- "JUAL" / "VENDA" / "VERKAUF" = SELL
+- "BELI" / "COMPRA" / "KAUF" = BUY
+- "Harga Buka" / "Precio Apertura" / "Preis Öffnung" = Open Price
+- "Harga Tutup" / "Precio Cierre" / "Preis Schließung" = Close Price
+- "Perubahan" / "Cambio" / "Änderung" = Change/Pips
+- "Waktu" / "Tiempo" / "Zeit" = Time
+- "Untung" / "Lucro" / "Gewinn" = Profit
+- "Rugi" / "Pérdida" / "Verlust" = Loss
+- "Batas Rugi" / "Stop Kerugian" = Stop Loss
+- "Ambil Untung" / "Tomar Ganancia" = Take Profit
+- Any label next to a currency pair (XAUUSD, EURUSD, etc.) is likely the symbol
 
 Extract these fields:
 - symbol: Currency pair or asset name (e.g., XAUUSD, EURUSD, GBPJPY, BTC/USD)
-- type: "buy" or "sell" (lowercase)
+- type: "buy" or "sell" (lowercase) — translate from any language if needed
 - openPrice: Opening/entry price as number
 - closePrice: Closing/exit price as number
 - profitLoss: Profit/loss amount as number (negative for loss, e.g., -99.75)
@@ -366,25 +383,33 @@ Extract these fields:
 RULES:
 1. Return ONLY valid JSON, no markdown, no explanation, no backticks
 2. All prices must be numbers not strings
-3. type must be exactly "buy" or "sell" (lowercase)
+3. type must be exactly "buy" or "sell" (lowercase) — ALWAYS translate to English
 4. If a field is not visible in the screenshot, use null (not undefined, not empty string)
-5. For dates like "2026.06.23 06:04:10" convert to "2026-06-23 06:04:10"
-6. For profit shown as "-99.75" or "$ -1995" or "-1995 (-0.48%)", extract just the number: -99.75
-7. Look for:
-   - S/L (stop loss), TP (take profit) labels
-   - Entry and exit prices on chart
-   - Bid/ask prices on table rows
-   - Timestamps near prices
+5. For dates like "2026.06.23 06:04:10" or "30/09/2026 04:10:43" convert to "2026-06-23 06:04:10"
+6. For profit shown as "-99.75" or "$ -1995" or "-1995 (-0.48%)" or "38.45 USD", extract just the number: -99.75 or 38.45
+7. Look for patterns in ANY layout:
+   - S/L, SL, Stop Loss, Batas Rugi labels → stopLoss
+   - TP, T/P, Take Profit, Ambil Untung labels → takeProfit
+   - Entry/Open/Buka/Apertura prices → openPrice
+   - Exit/Close/Tutup/Cierre prices → closePrice
+   - Profit/Loss/Untung/Rugi/P&L labels → profitLoss
+   - Lot/Volume/Size labels → volume
+   - Ticket/Order/# labels → ticketNumber
 8. If it's a chart, look for:
    - Horizontal lines marking entry, stop loss, take profit
-   - Labels with "BUY" or "SELL"
-   - Timestamps on the bottom
-   - Price levels on the right
+   - Labels with "BUY", "SELL", "JUAL", "BELI" or up/down arrows
+   - Timestamps on the bottom axis
+   - Price levels on the right axis
 9. If multiple trades visible, extract ONLY the most recent or active one
 10. For profit calculation, if entry is 4140.35 and exit is 4120.40, the difference is -19.95
+11. Recognize the platform and adapt: each platform has a different layout, but the data is the same
+12. Look for color cues: green/profit colors often indicate profit, red/loss colors indicate loss
+13. If text is in a non-English language, still extract the NUMBERS correctly and translate type to English
 
 Example outputs:
 {"symbol":"XAUUSD","type":"buy","openPrice":4140.35,"closePrice":4120.40,"profitLoss":-99.75,"openTime":"2026-06-23 06:04:10","closeTime":"2026-06-23 07:59:11","stopLoss":4120.40,"takeProfit":4182.15,"volume":0.05,"ticketNumber":"918673848"}
+
+{"symbol":"XAUUSD","type":"sell","openPrice":4181.14,"closePrice":4173.36,"profitLoss":38.45,"openTime":"2026-09-30 03:00:00","closeTime":"2026-09-30 04:10:43","stopLoss":null,"takeProfit":null,"volume":null,"ticketNumber":null}
 
 {"symbol":"EURUSD","type":"sell","openPrice":1.0875,"closePrice":1.0850,"profitLoss":250,"openTime":"2026-06-23 10:30:00","closeTime":"2026-06-23 11:45:00","stopLoss":1.0900,"takeProfit":1.0825,"volume":0.1,"ticketNumber":null}
 
@@ -442,11 +467,27 @@ export function buildTradeAndJournalPrompt(lang: 'id' | 'en' = 'id'): string {
     ? `\nIMPORTANT: All text fields (journalTitle, journalContent, tags) MUST be written in Bahasa Indonesia. Trade data fields (symbol, type, prices, dates) tetap apa adanya sesuai screenshot.`
     : `\nAll journal text fields should be written in English.`
 
-  return `You are an expert trading analyst. Analyze this trading screenshot and return a SINGLE JSON object with TWO parts.
+  return `You are an expert trading analyst. Analyze this trading screenshot from ANY platform and return a SINGLE JSON object with TWO parts.
+
+This screenshot could come from ANY trading platform (MT4/MT5, cTrader, TradingView, DxTrade, proprietary mobile apps, custom dashboards, etc.) and may be in ANY language (English, Indonesian, Arabic, Chinese, etc.).
+
+CRITICAL: Recognize multilingual trading terms:
+- "JUAL" / "VENDA" / "VERKAUF" = SELL → type: "sell"
+- "BELI" / "COMPRA" / "KAUF" = BUY → type: "buy"
+- "Harga Buka" / "Precio Apertura" = Open Price → openPrice
+- "Harga Tutup" / "Precio Cierre" = Close Price → closePrice
+- "Perubahan" / "Cambio" = Change/Pips
+- "Waktu" / "Tiempo" = Time
+- "Untung" / "Lucro" = Profit → profitLoss
+- "Rugi" / "Pérdida" = Loss → profitLoss (negative)
+- "Batas Rugi" = Stop Loss → stopLoss
+- "Ambil Untung" = Take Profit → takeProfit
+- Green/teal numbers often = profit; Red/pink numbers often = loss
+- Any label next to a currency pair (XAUUSD, EURUSD, etc.) = symbol
 
 PART 1 — Extract trade data:
 - symbol: Currency pair (e.g., XAUUSD, EURUSD)
-- type: "buy" or "sell" (lowercase)
+- type: "buy" or "sell" (lowercase) — ALWAYS translate to English
 - openPrice: Entry price (number)
 - closePrice: Exit price (number)
 - profitLoss: P/L amount (number, negative for loss)
@@ -462,14 +503,21 @@ ${part2Header}
 RULES:
 1. Return ONLY a single JSON object, no markdown, no explanation, no backticks
 2. All prices must be numbers
-3. type must be exactly "buy" or "sell"
+3. type must be exactly "buy" or "sell" (English) — translate from any language
 4. Missing fields → null
 ${rule5}
 6. Tags must be lowercase, comma-separated
 7. If multiple trades visible, analyze the most recent one
+8. For dates like "30/09/2026 04:10:43" convert to "2026-09-30 04:10:43"
+9. For profit shown as "38.45 USD" extract just the number: 38.45
+10. Recognize color cues: green/teal = profit, red/pink = loss
+11. Adapt to any platform layout — the data is always the same, just presented differently
 ${languageInstruction}
 
-Example:
+Example (Indonesian platform screenshot):
+{"symbol":"XAUUSD","type":"sell","openPrice":4181.14,"closePrice":4173.36,"profitLoss":38.45,"openTime":"2026-09-30 03:00:00","closeTime":"2026-09-30 04:10:43","stopLoss":null,"takeProfit":null,"volume":null,"ticketNumber":null,"journalTitle":"${titleExample}","journalContent":"${contentExample}","mood":"confident","marketCondition":"trending","tags":"${tagsExample}","setupType":"breakout"}
+
+Example (MT5 English screenshot):
 {"symbol":"XAUUSD","type":"buy","openPrice":4140.35,"closePrice":4120.40,"profitLoss":-99.75,"openTime":"2026-06-23 06:04:10","closeTime":"2026-06-23 07:59:11","stopLoss":4120.40,"takeProfit":4182.15,"volume":0.05,"ticketNumber":"918673848","journalTitle":"${titleExample}","journalContent":"${contentExample}","mood":"nervous","marketCondition":"ranging","tags":"${tagsExample}","setupType":"breakout"}
 
 Return the JSON now:`
