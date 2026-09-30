@@ -728,3 +728,28 @@ Stage Summary:
 - First-trade reward check is now non-blocking (fire-and-forget)
 - Browser Cache-Control changed to no-store for analytics
 - All changes compile and lint clean
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix all issues - real API data, H1/H4 timeframes, instant UI, no dummy data
+
+Work Log:
+- Verified all previous fixes (schema, vision, live-market, AI chat) are in place
+- ChartTab: Changed default interval from 15m to 1h, removed 5m/15m, added 1w, increased candle limit to 100
+- Forex API: Added 1w interval support (TwelveData: 1week, Yahoo: 1wk), increased limit to 200, default 1h
+- Klines API: Added 1w support via Binance 1W, default 1h, limit 200
+- Indicators API: Changed default from 15m to 1h
+- LuxtradeMiniChart: Default 1h, removed 10-second fetch delay for instant chart loading, 60s refresh
+- Economic Calendar: Removed getSampleEvents() dummy data function entirely, added Finnhub free API as step 4 fallback
+- News API: Added Finnhub free API (60 calls/min) as fallback step 3 after Bloomberg RSS
+- Crypto chart page: Default 1h, intervals changed to 1h/4h/1d
+- All lint checks pass
+- All changes pushed to GitHub
+
+Stage Summary:
+- Chart default timeframe: 15m → 1h, available: 1h/4h/1d/1w
+- Economic calendar cascade: TE Calendar → TE News → FCSAPI → Finnhub → honest empty
+- News cascade: TradingEconomics → Reuters RSS → Bloomberg RSS → Finnhub → honest empty
+- No dummy/mock data anywhere in the codebase
+- Mini chart loads instantly (removed 10s delay)
+- Forex API supports up to 200 candles
