@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import { isUserPro } from '@/lib/pro-check'
 
+// Invalidate analytics cache after mutations (dynamic import to avoid circular deps)
+async function invalidateAnalytics(userId: string) {
+  try {
+    const { invalidateAnalyticsCache } = await import('@/app/api/analytics/route')
+    invalidateAnalyticsCache(userId)
+  } catch { /* best effort */ }
+}
+
 // GET - Fetch all trading accounts for authenticated user
 export async function GET(request: NextRequest) {
   try {
@@ -175,6 +183,10 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('✅ [API] Trading account created successfully:', account.id)
+
+    // Invalidate analytics cache so dashboard shows fresh data immediately
+    invalidateAnalytics(userId)
+
     return NextResponse.json({ account })
   } catch (err) {
     console.error('❌ [API /api/trading-accounts POST] Error:', err)

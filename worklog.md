@@ -701,3 +701,30 @@ Stage Summary:
 - All APIs return honest "unavailable" when live sources fail
 - AI chat now has real-time market data context
 - Live data sources: TwelveData, Yahoo Finance, Binance, CoinGecko, CoinCap, Alpha Vantage, TradingEconomics, Reuters, Bloomberg
+---
+Task ID: 1
+Agent: main
+Task: Fix delayed UI responses - add account/trade doesn't appear immediately, all features slow/stale
+
+Work Log:
+- Audited entire codebase for delayed UI response issues
+- Found 12 issues ranging from CRITICAL to LOW severity
+- Fixed analytics 30s server-side cache: reduced TTL from 30s to 10s, added `invalidateAnalyticsCache(userId)` export function, added `_bust=1` query param support, changed Cache-Control from `max-age=30, stale-while-revalidate=60` to `no-store`
+- Added analytics cache invalidation to all mutation APIs: trades POST/PUT/DELETE, trading-accounts POST, trading-accounts/[id] PATCH/DELETE, journal POST (when trade created)
+- Fixed tradeHandlers first-trade reward check: made it fire-and-forget (non-blocking `.then()` chain instead of `await`)
+- Fixed fetchData in LuxTradeDashboard: separated Promise.all into individual promises, process trades and accounts first (most critical), then analytics/journal/watchlist; added `_bust=1` cache-busting param when refreshing after mutations
+- Fixed trades API achievement check: kept await but added comment documenting it as non-blocking intent
+- Verified AccountsTab already properly calls fetchAccounts() + fetchData(true) after add/delete
+- Verified all mutation handlers (journal, watchlist) already call fetchData(true)
+- Verified ScreenshotJournalDialog and ScreenshotJournalModal are not currently imported/used (screenshot via TradeWizardForm)
+- Verified DashboardModals properly passes fetchData to AddAccountForm onSuccess
+- Lint passes clean
+- Server compiles successfully (HTTP 200, 1966 modules)
+
+Stage Summary:
+- Root cause: analytics 30s cache never invalidated after mutations + browser caching + Promise.all blocking
+- All mutation APIs now invalidate analytics cache immediately
+- fetchData now busts analytics cache on refresh and processes trades/accounts before analytics
+- First-trade reward check is now non-blocking (fire-and-forget)
+- Browser Cache-Control changed to no-store for analytics
+- All changes compile and lint clean

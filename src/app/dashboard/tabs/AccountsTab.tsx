@@ -45,7 +45,7 @@ export default function AccountsTab({ language = 'id', fetchData, selectedAccoun
     return { 'Content-Type': 'application/json' }
   }
 
-  // Fetch accounts
+  // Fetch accounts — only used for local refresh, parent also fetches via fetchData()
   const fetchAccounts = async () => {
     try {
       setLoading(true)
@@ -68,6 +68,7 @@ export default function AccountsTab({ language = 'id', fetchData, selectedAccoun
     }
   }
 
+  // Fetch accounts on mount
   useEffect(() => {
     fetchAccounts()
   }, [])
