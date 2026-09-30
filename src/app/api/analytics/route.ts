@@ -19,12 +19,21 @@ async function getUserWithSession(request: NextRequest) {
   return { user: null, client: cookieClient }
 }
 
-// In-memory cache keyed by userId+period (30s TTL)
+// In-memory cache keyed by userId+period (10s TTL — short to avoid stale data after mutations)
 const analyticsCache = new Map<string, { data: any; expiry: number }>()
-const CACHE_TTL = 30_000 // 30 seconds
+const CACHE_TTL = 10_000 // 10 seconds — short enough that mutations feel instant
 
 function getCacheKey(userId: string, period: string, accountId: string | null) {
   return `${userId}:${period}:${accountId || 'all'}`
+}
+
+/** Invalidate all cached analytics for a given user (call after trade/account mutations) */
+export function invalidateAnalyticsCache(userId: string) {
+  for (const key of analyticsCache.keys()) {
+    if (key.startsWith(`${userId}:`)) {
+      analyticsCache.delete(key)
+    }
+  }
 }
 
 // Compute basic analytics for free users (no advanced PRO features)
@@ -108,13 +117,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ...basicData, isFreeUser: true })
     }
 
-    // Check cache first
+    // Check cache first (unless client explicitly asks to bust it)
+    const bustCache = searchParams.get('_bust') === '1'
     const cacheKey = getCacheKey(userId, period, accountId)
-    const cached = analyticsCache.get(cacheKey)
-    if (cached && cached.expiry > Date.now()) {
-      return NextResponse.json(cached.data, {
-        headers: { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=60' },
-      })
+    if (!bustCache) {
+      const cached = analyticsCache.get(cacheKey)
+      if (cached && cached.expiry > Date.now()) {
+        return NextResponse.json(cached.data, {
+          headers: { 'Cache-Control': 'no-store' },
+        })
+      }
     }
 
     // Build date filter
@@ -362,7 +374,7 @@ export async function GET(request: NextRequest) {
     analyticsCache.set(cacheKey, { data: responseData, expiry: Date.now() + CACHE_TTL })
 
     return NextResponse.json(responseData, {
-      headers: { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=60' },
+      headers: { 'Cache-Control': 'no-store' },
     })
   } catch (err) {
     console.error('Analytics API error:', err)

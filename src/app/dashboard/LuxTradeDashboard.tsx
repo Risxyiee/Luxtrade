@@ -411,20 +411,27 @@ function LuxTradeDashboardContent() {
   const fetchData = useCallback(async (isRefresh?: boolean) => {
     if (!isRefresh) setLoading(true)
     try {
-      // Fetch all in parallel but handle each independently so one failure
-      // doesn't prevent the others from updating the UI
-      const [tradesRes, analyticsRes, journalRes, watchlistRes, accountsRes] = await Promise.all([
-        fetch(`/api/trades${selectedAccountId ? '?account_id=' + selectedAccountId : ''}`, { credentials: 'include' }).catch(() => null),
-        fetch(`/api/analytics${selectedAccountId ? '?account_id=' + selectedAccountId : ''}`, { credentials: 'include' }).catch(() => null),
-        fetch('/api/journal', { credentials: 'include' }).catch(() => null),
-        fetch('/api/watchlist', { credentials: 'include' }).catch(() => null),
-        fetch('/api/trading-accounts', { credentials: 'include' }).catch(() => null),
-      ])
+      // When refreshing after a mutation, bust the analytics cache to get fresh data
+      const bustParam = isRefresh ? '&_bust=1' : ''
+      const accountIdParam = selectedAccountId ? `account_id=${selectedAccountId}` : ''
+      const accountIdWithBust = accountIdParam ? `${accountIdParam}${bustParam}` : ''
+
+      // Fetch all in parallel — each resolves independently
+      // Using individual .catch() so one failure doesn't block others
+      const tradesPromise = fetch(`/api/trades${accountIdParam ? '?' + accountIdParam : ''}`, { credentials: 'include' }).catch(() => null)
+      const analyticsPromise = fetch(`/api/analytics${accountIdWithBust ? '?' + accountIdWithBust : (isRefresh ? '?_bust=1' : '')}`, { credentials: 'include' }).catch(() => null)
+      const journalPromise = fetch('/api/journal', { credentials: 'include' }).catch(() => null)
+      const watchlistPromise = fetch('/api/watchlist', { credentials: 'include' }).catch(() => null)
+      const accountsPromise = fetch('/api/trading-accounts', { credentials: 'include' }).catch(() => null)
+
+      // Process each response as soon as it arrives — don't wait for all to complete
+      // This makes trades and accounts appear instantly without waiting for slow analytics
 
       // Track failed sub-fetches during refresh (for user feedback)
       let failedRefreshParts: string[] = []
 
       // Process trades (most critical — must update immediately)
+      const tradesRes = await tradesPromise
       if (tradesRes?.ok) {
         try {
           const data = await tradesRes.json()
@@ -434,37 +441,8 @@ function LuxTradeDashboardContent() {
         failedRefreshParts.push('trades')
       }
 
-      // Process analytics
-      if (analyticsRes?.ok) {
-        try {
-          const data = await analyticsRes.json()
-          setAnalytics(data)
-        } catch { /* keep existing analytics */ }
-      } else if (isRefresh) {
-        failedRefreshParts.push('analytics')
-      }
-
-      // Process journal
-      if (journalRes?.ok) {
-        try {
-          const data = await journalRes.json()
-          setJournalEntries(data.entries || [])
-        } catch { /* keep existing journal */ }
-      } else if (isRefresh) {
-        failedRefreshParts.push('journal')
-      }
-
-      // Process watchlist
-      if (watchlistRes?.ok) {
-        try {
-          const data = await watchlistRes.json()
-          setWatchlistItems(data.items || [])
-        } catch { /* keep existing watchlist */ }
-      } else if (isRefresh) {
-        failedRefreshParts.push('watchlist')
-      }
-
-      // Process accounts
+      // Process accounts (second most critical — needed for trade form)
+      const accountsRes = await accountsPromise
       if (accountsRes?.ok) {
         try {
           const data = await accountsRes.json()
@@ -506,6 +484,39 @@ function LuxTradeDashboardContent() {
         } catch { /* keep existing accounts */ }
       } else if (isRefresh) {
         failedRefreshParts.push('accounts')
+      }
+
+      // Process analytics (can be slower — update when ready)
+      const analyticsRes = await analyticsPromise
+      if (analyticsRes?.ok) {
+        try {
+          const data = await analyticsRes.json()
+          setAnalytics(data)
+        } catch { /* keep existing analytics */ }
+      } else if (isRefresh) {
+        failedRefreshParts.push('analytics')
+      }
+
+      // Process journal
+      const journalRes = await journalPromise
+      if (journalRes?.ok) {
+        try {
+          const data = await journalRes.json()
+          setJournalEntries(data.entries || [])
+        } catch { /* keep existing journal */ }
+      } else if (isRefresh) {
+        failedRefreshParts.push('journal')
+      }
+
+      // Process watchlist
+      const watchlistRes = await watchlistPromise
+      if (watchlistRes?.ok) {
+        try {
+          const data = await watchlistRes.json()
+          setWatchlistItems(data.items || [])
+        } catch { /* keep existing watchlist */ }
+      } else if (isRefresh) {
+        failedRefreshParts.push('watchlist')
       }
 
       // If refresh partially failed, notify user so they know to retry

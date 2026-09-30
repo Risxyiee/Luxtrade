@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import { isUserPro, countUserJournalsThisMonth, FREE_JOURNAL_LIMIT } from '@/lib/pro-check'
 
+// Invalidate analytics cache after mutations (dynamic import to avoid circular deps)
+async function invalidateAnalytics(userId: string) {
+  try {
+    const { invalidateAnalyticsCache } = await import('@/app/api/analytics/route')
+    invalidateAnalyticsCache(userId)
+  } catch { /* best effort */ }
+}
+
 // In-memory rate limiter for POST
 const journalRateLimitMap = new Map<string, { count: number; resetAt: number }>()
 const JOURNAL_RATE_LIMIT_WINDOW_MS = 60_000
@@ -148,6 +156,8 @@ export async function POST(request: NextRequest) {
         // Don't fail the journal creation if trade fails, just log it
       } else {
         console.log('✅ Trade created and linked to journal:', journalData.id)
+        // Invalidate analytics cache so dashboard shows fresh data immediately
+        invalidateAnalytics(user.id)
       }
     }
 

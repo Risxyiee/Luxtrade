@@ -9,6 +9,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 
+// Invalidate analytics cache after mutations (dynamic import to avoid circular deps)
+async function invalidateAnalytics(userId: string) {
+  try {
+    const { invalidateAnalyticsCache } = await import('@/app/api/analytics/route')
+    invalidateAnalyticsCache(userId)
+  } catch { /* best effort */ }
+}
+
 // GET: Fetch a specific trading account
 export async function GET(
   req: NextRequest,
@@ -100,6 +108,9 @@ export async function PATCH(
       .select()
       .single()
 
+    // Invalidate analytics cache so dashboard shows fresh data immediately
+    invalidateAnalytics(authUser.id)
+
     return NextResponse.json({ success: true, data: updatedAccount })
   } catch (error) {
     console.error('Error updating trading account:', error)
@@ -180,6 +191,9 @@ export async function DELETE(
         await admin.from('trading_accounts').update({ is_default: true }).eq('id', remainingAccounts[0].id)
       }
     }
+
+    // Invalidate analytics cache so dashboard shows fresh data immediately
+    invalidateAnalytics(authUser.id)
 
     return NextResponse.json({
       success: true,

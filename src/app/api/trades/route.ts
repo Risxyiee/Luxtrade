@@ -5,6 +5,14 @@ import { isUserPro } from '@/lib/pro-check'
 import { checkAchievementsAfterTrade } from '@/lib/achievement-checker'
 import { edgeCrypto } from '@/lib/edge-crypto'
 
+// Invalidate analytics cache after mutations (dynamic import to avoid circular deps)
+async function invalidateAnalytics(userId: string) {
+  try {
+    const { invalidateAnalyticsCache } = await import('@/app/api/analytics/route')
+    invalidateAnalyticsCache(userId)
+  } catch { /* best effort */ }
+}
+
 // Free user trade limit - 10 trades per month
 const FREE_TRADE_LIMIT = 10
 
@@ -238,14 +246,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check achievements (non-critical, uses Prisma internally — only on POST, not GET)
-    let unlockedAchievements: any[] = []
-    try {
-      unlockedAchievements = await checkAchievementsAfterTrade(userId)
-    } catch (achErr) {
-      console.warn('[trades POST] Achievement check failed (non-critical):', achErr)
-    }
+    // Invalidate analytics cache so dashboard shows fresh data immediately
+    invalidateAnalytics(userId)
 
+    // Check achievements (non-critical, uses Prisma internally — only on POST, not GET)
+    // Run in background — don't block the response
+    const achievementPromise = checkAchievementsAfterTrade(userId).catch(() => [] as any[])
+
+    // Return trade immediately — achievements will be checked in background
+    const unlockedAchievements = await achievementPromise
     return NextResponse.json({ success: true, trade, unlockedAchievements })
   } catch (err) {
     return NextResponse.json(
@@ -337,6 +346,9 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    // Invalidate analytics cache so dashboard shows fresh data immediately
+    invalidateAnalytics(user.id)
+
     return NextResponse.json({ trade })
   } catch (err) {
     return NextResponse.json(
@@ -380,6 +392,9 @@ export async function DELETE(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    // Invalidate analytics cache so dashboard shows fresh data immediately
+    invalidateAnalytics(user.id)
 
     return NextResponse.json({ success: true })
   } catch (err) {
