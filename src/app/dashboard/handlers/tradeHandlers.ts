@@ -49,20 +49,23 @@ export const createTradeHandlers = ({
     // Validate required fields with specific error messages
     const errors: string[] = []
 
-    if (!formData.symbol || formData.symbol.length < 3) {
-      errors.push('Symbol must be at least 3 characters')
+    // Trim symbol to avoid whitespace issues
+    const trimmedSymbol = (formData.symbol || '').trim()
+
+    if (!trimmedSymbol || trimmedSymbol.length < 2) {
+      errors.push('Symbol minimal 2 karakter (contoh: EU, XAU)')
     }
     if (!formData.type || !['BUY', 'SELL'].includes(formData.type)) {
-      errors.push('Trade type is required')
+      errors.push('Trade type is required (BUY/SELL)')
     }
     if (!formData.lot_size || parseFloat(formData.lot_size) <= 0) {
-      errors.push('Lot size must be greater than 0')
+      errors.push('Lot size harus lebih dari 0')
     }
     if (!formData.open_price || parseFloat(formData.open_price) <= 0) {
-      errors.push('Entry price must be greater than 0')
+      errors.push('Entry price harus lebih dari 0')
     }
     if (!formData.account_id) {
-      errors.push('Trading account is required')
+      errors.push('Pilih akun trading terlebih dahulu')
     }
 
     if (errors.length > 0) {
@@ -93,7 +96,7 @@ export const createTradeHandlers = ({
     setSaving(true)
     try {
       const payload: any = {
-        symbol: formData.symbol.toUpperCase(),
+        symbol: trimmedSymbol.toUpperCase(),
         type: formData.type,
         lot_size: parseFloat(formData.lot_size),
         open_price: parseFloat(formData.open_price),
