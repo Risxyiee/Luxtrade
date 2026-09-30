@@ -265,7 +265,7 @@ export default function AccountsTab({ language = 'id', fetchData, selectedAccoun
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <TradingAccountList accounts={accounts} loading={loading} onRefresh={fetchAccounts} />
+          <TradingAccountList accounts={accounts} loading={loading} onRefresh={fetchAccounts} onParentRefresh={fetchData ? () => fetchData(true) : undefined} />
         </CardContent>
       </Card>
 
