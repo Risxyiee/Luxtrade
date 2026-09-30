@@ -76,6 +76,7 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = request.nextUrl
   const period = searchParams.get('period') || 'all'
+  const accountId = searchParams.get('account_id') || null
 
   try {
     const result = await createClientForApi(request)
@@ -84,16 +85,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Server error' }, { status: 500 })
     }
 
-    const { data: accounts } = await supabase
+    // Fetch the relevant trading account (specific or default)
+    let accountQuery = supabase
       .from('trading_accounts')
-      .select('initial_balance')
+      .select('id, initial_balance, current_balance')
       .eq('user_id', user.id)
-      .eq('is_default', true)
       .eq('is_active', true)
-      .limit(1)
 
-    const initialBalance = accounts && accounts.length > 0
-      ? (accounts[0].initial_balance || DEFAULT_BALANCE)
+    if (accountId) {
+      accountQuery = accountQuery.eq('id', accountId)
+    } else {
+      accountQuery = accountQuery.eq('is_default', true)
+    }
+    accountQuery = accountQuery.limit(1)
+
+    const { data: accounts } = await accountQuery
+
+    const account = accounts && accounts.length > 0 ? accounts[0] : null
+    const initialBalance = account
+      ? (account.initial_balance || DEFAULT_BALANCE)
       : DEFAULT_BALANCE
 
     const dateFilter = buildPeriodFilter(period)
@@ -106,6 +116,11 @@ export async function GET(request: NextRequest) {
 
     if (dateFilter) {
       query = query.gte('close_time', dateFilter)
+    }
+
+    // Filter by account_id if specified
+    if (accountId) {
+      query = query.eq('account_id', accountId)
     }
 
     const { data: trades, error: tradesError } = await query

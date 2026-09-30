@@ -183,9 +183,12 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
 
       // Use forex API for all forex symbols
       // Higher timeframes need more data points for meaningful display
-      const limitMap: Record<string, number> = { '1h': 100, '4h': 60, '1d': 60, '1w': 30 }
+      // M5/M15: shorter cache for fresh candles
+      const limitMap: Record<string, number> = { '5m': 100, '15m': 100, '1h': 100, '4h': 60, '1d': 60, '1w': 30 }
       const fetchLimit = limitMap[interval] || 100
-      const apiUrl = `/api/forex?symbol=${symbol}&interval=${interval}&limit=${fetchLimit}`
+      // M5/M15: add timestamp to bust cache so we always get fresh candles
+      const bustCache = (interval === '5m' || interval === '15m') ? `&_t=${Date.now()}` : ''
+      const apiUrl = `/api/forex?symbol=${symbol}&interval=${interval}&limit=${fetchLimit}${bustCache}`
       console.log('[LUXCHART] Fetching from:', apiUrl)
 
       const res = await fetch(apiUrl)

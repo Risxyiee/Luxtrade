@@ -26,14 +26,21 @@ function getTwelveDataKey(): string {
   return process.env.TWELVE_DATA_API_KEY || ''
 }
 
-// ── In-memory cache (5 min TTL) ──────────────────────────────────────
+// ── In-memory cache with per-interval TTL ────────────────────────────
 interface CacheEntry { data: any[]; timestamp: number; source: string }
 const cache = new Map<string, CacheEntry>()
-const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+const CACHE_TTL_DEFAULT = 5 * 60 * 1000 // 5 minutes
+const CACHE_TTL_SHORT = 1 * 60 * 1000 // 1 minute for M5/M15 (fresher data)
 
-function getCached(key: string): CacheEntry | null {
+function getCacheTtl(interval: string): number {
+  // Short timeframes need shorter cache for fresh data
+  if (interval === '5m' || interval === '15m') return CACHE_TTL_SHORT
+  return CACHE_TTL_DEFAULT
+}
+
+function getCached(key: string, interval: string): CacheEntry | null {
   const entry = cache.get(key)
-  if (entry && Date.now() - entry.timestamp < CACHE_TTL) return entry
+  if (entry && Date.now() - entry.timestamp < getCacheTtl(interval)) return entry
   cache.delete(key)
   return null
 }
@@ -211,8 +218,8 @@ export async function GET(request: NextRequest) {
     const validSymbol = FOREX_SYMBOLS[symbol] ? symbol : 'EURUSD'
     const cacheKey = `${validSymbol}:${interval}:${limit}`
 
-    // Check cache first
-    const cached = getCached(cacheKey)
+    // Check cache first (use interval-aware TTL)
+    const cached = getCached(cacheKey, interval)
     if (cached) {
       return NextResponse.json({
         success: true,
