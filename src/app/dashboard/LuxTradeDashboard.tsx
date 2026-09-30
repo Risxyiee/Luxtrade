@@ -172,10 +172,11 @@ function LuxTradeDashboardContent() {
     }
     if (prevAccountIdRef.current !== selectedAccountId) {
       prevAccountIdRef.current = selectedAccountId
-      // Re-fetch both analytics AND trades with new account filter
+      // Re-fetch both analytics AND trades with new account filter (bust cache)
+      const bustTs = `_t=${Date.now()}`
       Promise.all([
-        fetch(`/api/analytics${selectedAccountId ? '?account_id=' + selectedAccountId : ''}`, { credentials: 'include' }).then(res => res.ok ? res.json() : null).catch(() => null),
-        fetch(`/api/trades${selectedAccountId ? '?account_id=' + selectedAccountId : ''}`, { credentials: 'include' }).then(res => res.ok ? res.json() : null).catch(() => null),
+        fetch(`/api/analytics${selectedAccountId ? '?account_id=' + selectedAccountId + '&' + bustTs : '?' + bustTs}`, { credentials: 'include', cache: 'no-store' }).then(res => res.ok ? res.json() : null).catch(() => null),
+        fetch(`/api/trades${selectedAccountId ? '?account_id=' + selectedAccountId + '&' + bustTs : '?' + bustTs}`, { credentials: 'include', cache: 'no-store' }).then(res => res.ok ? res.json() : null).catch(() => null),
       ]).then(([analyticsData, tradesData]) => {
         if (analyticsData) setAnalytics(analyticsData)
         if (tradesData) setTrades(tradesData.trades || [])
@@ -418,11 +419,18 @@ function LuxTradeDashboardContent() {
 
       // Fetch all in parallel — each resolves independently
       // Using individual .catch() so one failure doesn't block others
-      const tradesPromise = fetch(`/api/trades${accountIdParam ? '?' + accountIdParam : ''}`, { credentials: 'include' }).catch(() => null)
-      const analyticsPromise = fetch(`/api/analytics${accountIdWithBust ? '?' + accountIdWithBust : (isRefresh ? '?_bust=1' : '')}`, { credentials: 'include' }).catch(() => null)
-      const journalPromise = fetch('/api/journal', { credentials: 'include' }).catch(() => null)
-      const watchlistPromise = fetch('/api/watchlist', { credentials: 'include' }).catch(() => null)
-      const accountsPromise = fetch('/api/trading-accounts', { credentials: 'include' }).catch(() => null)
+      // When refreshing after mutation (isRefresh), add cache-busting to ALL fetches
+      // so Next.js doesn't return stale cached responses
+      const tradesBust = isRefresh ? `?${accountIdParam ? accountIdParam + '&' : ''}_t=${Date.now()}` : (accountIdParam ? '?' + accountIdParam : '')
+      const accountsBust = isRefresh ? '?_t=' + Date.now() : ''
+      const journalBust = isRefresh ? '?_t=' + Date.now() : ''
+      const watchlistBust = isRefresh ? '?_t=' + Date.now() : ''
+
+      const tradesPromise = fetch(`/api/trades${tradesBust}`, { credentials: 'include', cache: isRefresh ? 'no-store' : undefined }).catch(() => null)
+      const analyticsPromise = fetch(`/api/analytics${accountIdWithBust ? '?' + accountIdWithBust : (isRefresh ? '?_bust=1' : '')}`, { credentials: 'include', cache: isRefresh ? 'no-store' : undefined }).catch(() => null)
+      const journalPromise = fetch(`/api/journal${journalBust}`, { credentials: 'include', cache: isRefresh ? 'no-store' : undefined }).catch(() => null)
+      const watchlistPromise = fetch(`/api/watchlist${watchlistBust}`, { credentials: 'include', cache: isRefresh ? 'no-store' : undefined }).catch(() => null)
+      const accountsPromise = fetch(`/api/trading-accounts${accountsBust}`, { credentials: 'include', cache: isRefresh ? 'no-store' : undefined }).catch(() => null)
 
       // Process each response as soon as it arrives — don't wait for all to complete
       // This makes trades and accounts appear instantly without waiting for slow analytics
@@ -530,6 +538,10 @@ function LuxTradeDashboardContent() {
     } finally {
       setLoading(false)
       setChartAnimated(true)
+      // Dispatch equity curve refresh after mutation so EquityCurveCard re-fetches
+      if (isRefresh) {
+        try { window.dispatchEvent(new CustomEvent('luxtrade:refresh-equity')) } catch {}
+      }
     }
   }, [selectedAccountId])
 

@@ -9,6 +9,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 
+export const dynamic = 'force-dynamic'
+
 // Invalidate analytics cache after mutations (dynamic import to avoid circular deps)
 async function invalidateAnalytics(userId: string) {
   try {

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedUser } from '@/lib/api-auth'
 import { isUserPro } from '@/lib/pro-check'
 
+export const dynamic = 'force-dynamic'
+
 // Invalidate analytics cache after mutations (dynamic import to avoid circular deps)
 async function invalidateAnalytics(userId: string) {
   try {
