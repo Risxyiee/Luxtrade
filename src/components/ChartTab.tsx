@@ -38,7 +38,7 @@ const symbols = [
   { symbol: 'USDCHF', name: 'USD/CHF', icon: '🇺🇸🇨🇭' },
 ]
 
-const intervals = ['5m', '15m', '1h', '4h', '1d']
+const intervals = ['1h', '4h', '1d', '1w']
 
 interface ChartTabProps {
   isPro?: boolean
@@ -47,7 +47,7 @@ interface ChartTabProps {
 export default function ChartTab({ isPro = false }: ChartTabProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [selectedSymbol, setSelectedSymbol] = useState('XAUUSD')
-  const [selectedInterval, setSelectedInterval] = useState('15m')
+  const [selectedInterval, setSelectedInterval] = useState('1h')
   const [chartError, setChartError] = useState<string | null>(null)
   const [chartData, setChartData] = useState<CandlestickData[]>([])
 
@@ -65,7 +65,10 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
     setChartError(null)
 
     try {
-      const res = await fetch(`/api/forex?symbol=${symbol}&interval=${interval}&limit=20`)
+      // Higher timeframes need more candles for meaningful analysis
+      const limitMap: Record<string, number> = { '1h': 100, '4h': 100, '1d': 100, '1w': 52 }
+      const limit = limitMap[interval] || 100
+      const res = await fetch(`/api/forex?symbol=${symbol}&interval=${interval}&limit=${limit}`)
 
       // Stale check
       if (thisRequestId !== requestIdRef.current) return

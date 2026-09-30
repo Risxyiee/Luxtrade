@@ -268,10 +268,63 @@ async function fetchReutersNews(): Promise<FullNewsItem[]> {
   return parseBloombergRss(xml); // Same XML structure
 }
 
+// ==================== FALLBACK 3: Finnhub Market News (FREE: 60 calls/min) ====================
+
+const FINNHUB_NEWS_URL = 'https://finnhub.io/api/v1/news';
+
+function getFinnhubApiKey(): string {
+  return process.env.FINNHUB_API_KEY || '';
+}
+
+async function fetchFinnhubNews(): Promise<FullNewsItem[]> {
+  const apiKey = getFinnhubApiKey();
+  if (!apiKey) throw new Error('FINNHUB_API_KEY not configured');
+
+  // Finnhub market news for forex category
+  const url = `${FINNHUB_NEWS_URL}?category=forex&token=${apiKey}`;
+
+  const response = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!response.ok) {
+    if (response.status === 429) {
+      const err = new Error('Finnhub rate limit (429)');
+      (err as any).isRateLimit = true;
+      throw err;
+    }
+    throw new Error(`Finnhub returned ${response.status}`);
+  }
+
+  const data = await response.json();
+  if (!Array.isArray(data) || data.length === 0) {
+    throw new Error('Finnhub returned empty data');
+  }
+
+  const items: FullNewsItem[] = data
+    .filter((item: any) => item.headline && item.url)
+    .slice(0, 30)
+    .map((item: any) => ({
+      title: item.headline,
+      source: item.source || 'Finnhub',
+      url: item.url,
+      snippet: (item.summary || '').substring(0, 200) + ((item.summary || '').length > 200 ? '...' : ''),
+      date: item.datetime ? new Date(item.datetime * 1000).toISOString() : new Date().toISOString(),
+      type: classifyImpact(item.headline, item.summary || ''),
+    }));
+
+  // Sort by date (newest first)
+  items.sort((a, b) => b.date.localeCompare(a.date));
+
+  console.log(`[News] Finnhub returned ${items.length} articles`);
+  return items;
+}
+
 // ==================== MAIN FETCH LOGIC ====================
 
 /**
- * Fetch news with cascade: TradingEconomics → Bloomberg RSS → unavailable
+ * Fetch news with cascade: TradingEconomics → Reuters RSS → Bloomberg RSS → Finnhub → unavailable
  */
 async function fetchFullNews(): Promise<FullNewsItem[]> {
   const apiKey = getTeApiKey();
@@ -288,20 +341,19 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
         console.warn('[News] ⚠️ TradingEconomics rate limited (429) — falling back to RSS with extended cache');
         (fetchFullNews as any)._lastRateLimited = true;
       } else {
-        console.warn(`[News] TradingEconomics failed: ${err.message}, falling back to Bloomberg...`);
+        console.warn(`[News] TradingEconomics failed: ${err.message}, falling back to RSS...`);
       }
     }
   } else {
-    console.info('[News] RAPIDAPI_TRADING_ECONOMICS_KEY not set, using Bloomberg RSS');
+    console.info('[News] RAPIDAPI_TRADING_ECONOMICS_KEY not set, trying RSS');
   }
 
-  // FALLBACK: Reuters RSS (free, more reliable than Bloomberg on CF Workers)
+  // FALLBACK 1: Reuters RSS (free, more reliable than Bloomberg on CF Workers)
   try {
     console.log('[News] Fetching from Reuters Markets RSS...');
     const items = await fetchReutersNews();
     if (items.length > 0) return items;
   } catch (err: any) {
-    // Silent warning for external API failures
     console.info(`[News] Reuters RSS unavailable, trying Bloomberg...`);
   }
 
@@ -311,8 +363,19 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
     const items = await fetchBloombergNews();
     if (items.length > 0) return items;
   } catch (err: any) {
-    // Silent info for fallback failures
-    console.info('[News] External news sources unavailable, using cached data if available');
+    console.info('[News] Bloomberg RSS unavailable, trying Finnhub...');
+  }
+
+  // FALLBACK 3: Finnhub (FREE, 60 calls/min, real market news)
+  const finnhubKey = getFinnhubApiKey();
+  if (finnhubKey) {
+    try {
+      console.log('[News] Fetching from Finnhub...');
+      const items = await fetchFinnhubNews();
+      if (items.length > 0) return items;
+    } catch (err: any) {
+      console.info(`[News] Finnhub unavailable: ${err.message}`);
+    }
   }
 
   throw new Error('All news sources failed');

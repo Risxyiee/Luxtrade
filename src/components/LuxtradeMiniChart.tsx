@@ -25,7 +25,7 @@ interface LuxtradeMiniChartProps {
   symbol?: string  // Added symbol prop
 }
 
-export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = '15m', symbol = 'XAUUSD' }: LuxtradeMiniChartProps) {
+export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = '1h', symbol = 'XAUUSD' }: LuxtradeMiniChartProps) {
   // Refs for chart and data - NO re-renders from these
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -182,7 +182,10 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
       setChartError(false)
 
       // Use forex API for all forex symbols
-      const apiUrl = `/api/forex?symbol=${symbol}&interval=${interval}&limit=50`
+      // Higher timeframes need more data points for meaningful display
+      const limitMap: Record<string, number> = { '1h': 100, '4h': 60, '1d': 60, '1w': 30 }
+      const fetchLimit = limitMap[interval] || 100
+      const apiUrl = `/api/forex?symbol=${symbol}&interval=${interval}&limit=${fetchLimit}`
       console.log('[LUXCHART] Fetching from:', apiUrl)
 
       const res = await fetch(apiUrl)
@@ -322,24 +325,21 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
   useEffect(() => {
     if (!mounted || !isCreatedRef.current) return
 
-    console.log('[LUXCHART] 🚀 Starting data fetch (delayed 10s for Network Idle)')
+    console.log('[LUXCHART] 🚀 Starting data fetch immediately')
 
     // Clear previous interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
     }
 
-    // Delay by 10s to allow Network Idle for PWA audit
-    const delayTimeout = setTimeout(() => {
+    // Fetch immediately for better UX (was 10s delay which made chart appear empty)
+    fetchKlines()
+    intervalRef.current = setInterval(() => {
+      console.log('[LUXCHART] 🔄 Scheduled refresh')
       fetchKlines()
-      intervalRef.current = setInterval(() => {
-        console.log('[LUXCHART] 🔄 Scheduled refresh')
-        fetchKlines()
-      }, 30000)
-    }, 10000)
+    }, 60000) // Refresh every 60s for H1/H4
 
     return () => {
-      clearTimeout(delayTimeout)
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
         intervalRef.current = null
