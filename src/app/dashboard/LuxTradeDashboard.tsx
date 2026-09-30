@@ -147,11 +147,9 @@ function LuxTradeDashboardContent() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  // Filter trades based on selected account
-  const filteredTrades = useMemo(() => {
-    if (!selectedAccountId) return trades
-    return trades.filter(trade => trade.account_id === selectedAccountId)
-  }, [trades, selectedAccountId])
+  // Trades are now filtered server-side by account_id in fetchData()
+  // filteredTrades is kept as an alias for backwards compatibility with downstream components
+  const filteredTrades = trades
 
   // Persist selectedAccountId to localStorage and re-fetch analytics on change
   const handleSetSelectedAccountId = useCallback((id: string | null) => {
@@ -162,9 +160,9 @@ function LuxTradeDashboardContent() {
     } catch {}
   }, [])
 
-  // Re-fetch analytics when selectedAccountId changes (not on mount — fetchData already does it)
+  // Re-fetch analytics + trades when selectedAccountId changes (not on mount — fetchData already does it)
   // NOTE: With selectedAccountId now in fetchData's deps, fetchData itself will re-fetch
-  // with the correct account. This effect is still useful as a targeted analytics-only refetch
+  // with the correct account. This effect is still useful as a targeted refetch
   // on account switch without a full data reload.
   const prevAccountIdRef = useRef<string | null>(null)
   useEffect(() => {
@@ -174,11 +172,14 @@ function LuxTradeDashboardContent() {
     }
     if (prevAccountIdRef.current !== selectedAccountId) {
       prevAccountIdRef.current = selectedAccountId
-      // Re-fetch analytics with new account filter
-      fetch(`/api/analytics${selectedAccountId ? '?account_id=' + selectedAccountId : ''}`, { credentials: 'include' })
-        .then(res => res.ok ? res.json() : null)
-        .then(data => { if (data) setAnalytics(data) })
-        .catch(() => {})
+      // Re-fetch both analytics AND trades with new account filter
+      Promise.all([
+        fetch(`/api/analytics${selectedAccountId ? '?account_id=' + selectedAccountId : ''}`, { credentials: 'include' }).then(res => res.ok ? res.json() : null).catch(() => null),
+        fetch(`/api/trades${selectedAccountId ? '?account_id=' + selectedAccountId : ''}`, { credentials: 'include' }).then(res => res.ok ? res.json() : null).catch(() => null),
+      ]).then(([analyticsData, tradesData]) => {
+        if (analyticsData) setAnalytics(analyticsData)
+        if (tradesData) setTrades(tradesData.trades || [])
+      })
     }
   }, [selectedAccountId])
   
@@ -413,7 +414,7 @@ function LuxTradeDashboardContent() {
       // Fetch all in parallel but handle each independently so one failure
       // doesn't prevent the others from updating the UI
       const [tradesRes, analyticsRes, journalRes, watchlistRes, accountsRes] = await Promise.all([
-        fetch('/api/trades', { credentials: 'include' }).catch(() => null),
+        fetch(`/api/trades${selectedAccountId ? '?account_id=' + selectedAccountId : ''}`, { credentials: 'include' }).catch(() => null),
         fetch(`/api/analytics${selectedAccountId ? '?account_id=' + selectedAccountId : ''}`, { credentials: 'include' }).catch(() => null),
         fetch('/api/journal', { credentials: 'include' }).catch(() => null),
         fetch('/api/watchlist', { credentials: 'include' }).catch(() => null),

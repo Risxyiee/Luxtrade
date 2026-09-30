@@ -29,9 +29,10 @@ interface TradingAccountListProps {
   accounts: TradingAccount[]
   loading: boolean
   onRefresh: () => void
+  onParentRefresh?: () => void // fetchData from parent dashboard for full state sync
 }
 
-export default function TradingAccountList({ accounts, loading, onRefresh }: TradingAccountListProps) {
+export default function TradingAccountList({ accounts, loading, onRefresh, onParentRefresh }: TradingAccountListProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [accountToDelete, setAccountToDelete] = useState<TradingAccount | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -97,6 +98,8 @@ export default function TradingAccountList({ accounts, loading, onRefresh }: Tra
       setDeleteDialogOpen(false)
       setAccountToDelete(null)
       onRefresh()
+      // Also refresh parent dashboard state (trades, analytics, sidebar)
+      if (onParentRefresh) onParentRefresh()
     } catch (error: any) {
       console.error('Error deleting account:', error)
       if (error.message?.includes('Cannot delete default account') || error.message?.includes('Cannot delete the last account')) {
