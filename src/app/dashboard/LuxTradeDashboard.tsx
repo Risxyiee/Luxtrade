@@ -1022,6 +1022,7 @@ function LuxTradeDashboardContent() {
           fetchData={fetchData}
           selectedAccountId={selectedAccountId}
           setSelectedAccountId={handleSetSelectedAccountId}
+          setActiveTab={setActiveTab}
         />
       </main>
 
