@@ -30,9 +30,13 @@ const CACHE_DURATION = 10 * 60 * 1000; // 10 min
 const CACHE_DURATION_RATE_LIMITED = 30 * 60 * 1000; // 30 min when rate limited
 
 // ─── API Key Helpers ────────────────────────────────────────────────────────
-function getFinnhubKey(): string { return process.env.FINNHUB_API_KEY || ''; }
-function getRapidApiKey(): string { return process.env.RAPIDAPI_KEY || process.env.RAPIDAPI_TRADING_ECONOMICS_KEY || ''; }
-function getFcsApiKey(): string { return process.env.FCSAPI_KEY || ''; }
+// In CF Workers, secrets are on (request).env, not process.env
+// We store the request reference so helpers can access CF env
+let _cfEnv: any = null;
+
+function getFinnhubKey(): string { return process.env.FINNHUB_API_KEY || _cfEnv?.FINNHUB_API_KEY || ''; }
+function getRapidApiKey(): string { return process.env.RAPIDAPI_KEY || _cfEnv?.RAPIDAPI_KEY || process.env.RAPIDAPI_TRADING_ECONOMICS_KEY || _cfEnv?.RAPIDAPI_TRADING_ECONOMICS_KEY || ''; }
+function getFcsApiKey(): string { return process.env.FCSAPI_KEY || _cfEnv?.FCSAPI_KEY || ''; }
 
 // ─── Helper: Build ISO datetime ────────────────────────────────────────────
 function buildDateTime(date: string, time: string): string {
@@ -482,6 +486,9 @@ async function setKVCache(request: NextRequest, entry: CacheEntry, ttlMs?: numbe
 
 // ─── GET Handler ────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
+  // Expose CF Workers env vars (secrets) to API key helpers
+  _cfEnv = (request as any).env || null;
+
   const { searchParams } = new URL(request.url);
   const forceRefresh = searchParams.get('refresh') === 'true';
   const impactFilter = searchParams.get('impact');

@@ -59,6 +59,10 @@ MIDTRANS_IS_PRODUCTION = "true"
 # Set the actual key via: wrangler secret put RAPIDAPI_KEY
 # Then also set FINNHUB_API_KEY and ALPHAVANTAGE_API_KEY as secrets for fallback sources
 RAPIDAPI_KEY = ""
+FINNHUB_API_KEY = ""
+ALPHAVANTAGE_API_KEY = ""
+FCSAPI_KEY = ""
+RAPIDAPI_TRADING_ECONOMICS_KEY = ""
 
 # Observability
 [observability]
