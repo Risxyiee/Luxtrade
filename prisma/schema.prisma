@@ -86,7 +86,7 @@ model MissionProgress {
 }
 
 model User {
-  id                String    @id @default(uuid())
+  id                String    @id @default(uuid()) @db.Uuid
   email             String    @unique
   name              String?
   emailVerified     DateTime?
@@ -102,8 +102,8 @@ model User {
 }
 
 model UserSubscription {
-  id                String    @id @default(uuid())
-  userId            String    @map("user_id")
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
   plan              String
   status            String    @default("active")
   startDate         DateTime  @default(now()) @map("start_date")
@@ -463,8 +463,8 @@ model SharedTrade {
 }
 
 model PropFirmChallenge {
-  id              String   @id @default(uuid())
-  userId          String   @map("user_id")
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
   tradingAccountId String? @map("trading_account_id")
 
   // Challenge info
