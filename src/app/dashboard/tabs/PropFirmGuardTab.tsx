@@ -173,11 +173,11 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
       const data = await res.json()
       setChallenges(data.challenges || [])
     } catch {
-      toast.error(t('Gagal memuat data challenge', 'Failed to load challenges'))
+      toast.error(language === 'id' ? 'Gagal memuat data challenge' : 'Failed to load challenges')
     } finally {
       setLoading(false)
     }
-  }, [t])
+  }, [language])
 
   useEffect(() => { fetchChallenges() }, [fetchChallenges])
 
