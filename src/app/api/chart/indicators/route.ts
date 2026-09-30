@@ -4,7 +4,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const symbol = searchParams.get('symbol') || 'BTCUSDT'
-    const interval = searchParams.get('interval') || '15m'
+    const interval = searchParams.get('interval') || '1h'
     const limit = searchParams.get('limit') || '150'
 
     console.log('🎯 Calculating Luxtrade indicators...')

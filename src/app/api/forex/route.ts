@@ -56,7 +56,10 @@ async function fetchTwelveData(symbol: string, interval: string, limit: number):
   if (!info) return null
 
   // Map interval to Twelve Data format
-  const tdInterval = interval === '1d' ? '1day' : interval // 5m, 15m, 1h, 4h, 1day
+  const tdIntervalMap: Record<string, string> = {
+    '5m': '5min', '15m': '15min', '30m': '30min', '1h': '1h', '4h': '4h', '1d': '1day', '1w': '1week',
+  }
+  const tdInterval = tdIntervalMap[interval] || interval
 
   const url = `https://api.twelvedata.com/time_series?symbol=${info.from}/${info.to}&interval=${tdInterval}&outputsize=${limit}&apikey=${TWELVE_DATA_KEY}`
 
@@ -138,12 +141,12 @@ async function fetchYahooFinance(symbol: string, interval: string, limit: number
 
   // Map interval to Yahoo Finance format
   const yahooIntervalMap: Record<string, string> = {
-    '5m': '5m', '15m': '15m', '30m': '30m', '1h': '1h', '4h': '4h', '1d': '1d',
+    '5m': '5m', '15m': '15m', '30m': '30m', '1h': '1h', '4h': '4h', '1d': '1d', '1w': '1wk',
   }
-  const yahooInterval = yahooIntervalMap[interval] || '15m'
+  const yahooInterval = yahooIntervalMap[interval] || '1h'
   // Yahoo range based on interval and limit
   const rangeMap: Record<string, string> = {
-    '5m': '1d', '15m': '5d', '30m': '5d', '1h': '10d', '4h': '30d', '1d': '6mo',
+    '5m': '1d', '15m': '5d', '30m': '5d', '1h': '10d', '4h': '30d', '1d': '6mo', '1w': '1y',
   }
   const range = rangeMap[interval] || '5d'
 
@@ -202,8 +205,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const symbol = searchParams.get('symbol') || 'EURUSD'
-    const interval = searchParams.get('interval') || '15m'
-    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50)
+    const interval = searchParams.get('interval') || '1h'
+    const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 200)
 
     const validSymbol = FOREX_SYMBOLS[symbol] ? symbol : 'EURUSD'
     const cacheKey = `${validSymbol}:${interval}:${limit}`
@@ -303,7 +306,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: false,
       symbol: new URL(request.url).searchParams.get('symbol') || 'EURUSD',
-      interval: new URL(request.url).searchParams.get('interval') || '15m',
+      interval: new URL(request.url).searchParams.get('interval') || '1h',
       data: [],
       source: 'unavailable',
       unavailable: true,

@@ -43,7 +43,7 @@ export default function LuxtradeChart() {
   const [subscription, setSubscription] = useState<string>('FREE')
   const [signals, setSignals] = useState<IndicatorSignal[]>([])
   const [selectedSymbol, setSelectedSymbol] = useState('BTCUSDT')
-  const [selectedInterval, setSelectedInterval] = useState('15m')
+  const [selectedInterval, setSelectedInterval] = useState('1h')
 
   // Mount guard
   useEffect(() => {
@@ -306,7 +306,7 @@ export default function LuxtradeChart() {
             ))}
           </div>
           <div className="flex gap-2">
-            {['5m', '15m', '1h', '4h'].map((interval) => (
+            {['1h', '4h', '1d'].map((interval) => (
               <Button
                 key={interval}
                 size="sm"

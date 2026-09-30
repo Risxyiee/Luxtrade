@@ -24,7 +24,9 @@ function setCache(key: string, data: any[], source: string) {
 
 // ── Binance API (FREE, no key needed, crypto only) ──────────────────
 async function fetchBinanceKlines(symbol: string, interval: string, limit: number): Promise<any[] | null> {
-  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
+  // Map 1w to Binance's 1W interval format
+  const binanceInterval = interval === '1w' ? '1W' : interval
+  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${binanceInterval}&limit=${limit}`
 
   try {
     const controller = new AbortController()
@@ -189,8 +191,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const symbol = searchParams.get('symbol') || 'BTCUSDT'
-    const interval = searchParams.get('interval') || '15m'
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const interval = searchParams.get('interval') || '1h'
+    const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 200)
 
     const cacheKey = `${symbol}:${interval}:${limit}`
 
@@ -279,7 +281,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: false,
       symbol: new URL(request.url).searchParams.get('symbol') || 'BTCUSDT',
-      interval: new URL(request.url).searchParams.get('interval') || '15m',
+      interval: new URL(request.url).searchParams.get('interval') || '1h',
       data: [],
       source: 'unavailable',
       unavailable: true,
