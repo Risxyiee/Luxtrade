@@ -753,3 +753,24 @@ Stage Summary:
 - No dummy/mock data anywhere in the codebase
 - Mini chart loads instantly (removed 10s delay)
 - Forex API supports up to 200 candles
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix all 4 user-reported issues + prop-firm-guard error
+
+Work Log:
+- Fixed prop_firm_challenges permission denied (42501) - added graceful handling in GET, POST count, POST insert
+- Fixed delete trade not showing immediately - added optimistic update (remove from local state before API call)
+- Fixed delete account not showing immediately - added optimistic update (remove from local state before API call)
+- Fixed analytics saldo not following selected account - when accountId is provided, use that account's initial_balance instead of always using default account
+- Added ForexFactory RSS as completely FREE fallback for economic calendar (no API key needed)
+- Economic calendar cascade now: TE Calendar → TE News → FCSAPI → Finnhub → ForexFactory RSS → empty
+- Added M5 and M15 back to chart tab with cache-busting (_t timestamp) for fresh candles
+- Chart intervals: m5, m15, 1h, 4h, 1d, 1w (m5/m15 mapped to 5m/15m API format)
+
+Stage Summary:
+- prop-firm-guard 500 error fixed (graceful 42501 handling)
+- Delete trade/account now shows instantly via optimistic update
+- Saldo/equity now follows selected account, not always default
+- Economic calendar has 5 fallback sources including free ForexFactory RSS
+- M5/M15 timeframes restored with fresh data guarantee

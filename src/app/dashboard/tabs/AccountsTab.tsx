@@ -107,7 +107,16 @@ export default function AccountsTab({ language = 'id', fetchData, selectedAccoun
 
     setDeleting(true)
     try {
-      const response = await fetch(`/api/trading-accounts/${accountToDelete.id}`, {
+      // Optimistic update: remove from local state immediately
+      const deletedId = accountToDelete.id
+      setAccounts(prev => prev.filter(a => a.id !== deletedId))
+
+      // If deleted account was selected, clear selection immediately
+      if (selectedAccountId === deletedId) {
+        if (setSelectedAccountId) setSelectedAccountId(null)
+      }
+
+      const response = await fetch(`/api/trading-accounts/${deletedId}`, {
         method: 'DELETE',
         credentials: 'include'
       })
@@ -115,6 +124,7 @@ export default function AccountsTab({ language = 'id', fetchData, selectedAccoun
       const data = await response.json()
 
       if (!response.ok) {
+        // Revert optimistic update on failure
         throw new Error(data.error || 'Failed to delete account')
       }
 
@@ -122,15 +132,14 @@ export default function AccountsTab({ language = 'id', fetchData, selectedAccoun
       setDeleteDialogOpen(false)
       setAccountToDelete(null)
 
-      // If deleted account was selected, clear selection
-      if (selectedAccountId === accountToDelete.id) {
-        if (setSelectedAccountId) setSelectedAccountId(null)
-      }
-
+      // Refresh both local and parent state
       fetchAccounts()
       // Also refresh parent state so sidebar/dashboard stats update immediately
       if (fetchData) fetchData(true)
     } catch (error: any) {
+      // Revert optimistic update on error by re-fetching
+      fetchAccounts()
+      if (fetchData) fetchData(true)
       console.error('Error deleting account:', error)
       if (error.message?.includes('Cannot delete default account')) {
         toast.error(language === 'id' ? 'Tidak bisa menghapus akun default. Setel akun lain sebagai default terlebih dahulu.' : 'Cannot delete the default account. Set another account as default first.')

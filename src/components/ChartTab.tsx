@@ -38,7 +38,7 @@ const symbols = [
   { symbol: 'USDCHF', name: 'USD/CHF', icon: '🇺🇸🇨🇭' },
 ]
 
-const intervals = ['1h', '4h', '1d', '1w']
+const intervals = ['m5', 'm15', '1h', '4h', '1d', '1w']
 
 interface ChartTabProps {
   isPro?: boolean
@@ -65,10 +65,14 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
     setChartError(null)
 
     try {
-      // Higher timeframes need more candles for meaningful analysis
-      const limitMap: Record<string, number> = { '1h': 100, '4h': 100, '1d': 100, '1w': 52 }
+      // Higher timeframes need more candles; M5/M15 need cache-busting for fresh data
+      const limitMap: Record<string, number> = { 'm5': 100, 'm15': 100, '1h': 100, '4h': 100, '1d': 100, '1w': 52 }
       const limit = limitMap[interval] || 100
-      const res = await fetch(`/api/forex?symbol=${symbol}&interval=${interval}&limit=${limit}`)
+      // M5/M15: add timestamp to bust cache so we always get fresh candles
+      const bustCache = (interval === 'm5' || interval === 'm15') ? `&_t=${Date.now()}` : ''
+      // Map m5/m15 to API format (5m/15m)
+      const apiInterval = interval === 'm5' ? '5m' : interval === 'm15' ? '15m' : interval
+      const res = await fetch(`/api/forex?symbol=${symbol}&interval=${apiInterval}&limit=${limit}${bustCache}`)
 
       // Stale check
       if (thisRequestId !== requestIdRef.current) return

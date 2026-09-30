@@ -159,17 +159,27 @@ export async function GET(request: NextRequest) {
 
     const { data: trades } = await tradesQuery.order('close_time', { ascending: true })
 
-    // ─── Fetch user's default trading account for initial balance ───
+    // ─── Fetch user's trading account for initial balance ───
+    // If accountId is specified, use that account; otherwise use default
     let startBalance = 10000
     try {
-      const { data: account } = await client
+      let accountQuery = client
         .from('trading_accounts')
         .select('initial_balance')
         .eq('user_id', userId)
         .eq('is_active', true)
-        .order('is_default', { ascending: false })
-        .order('created_at', { ascending: true })
-        .limit(1)
+
+      if (accountId) {
+        // Use the specifically selected account
+        accountQuery = accountQuery.eq('id', accountId)
+      } else {
+        // Use the default account
+        accountQuery = accountQuery.order('is_default', { ascending: false })
+        accountQuery = accountQuery.order('created_at', { ascending: true })
+      }
+      accountQuery = accountQuery.limit(1)
+
+      const { data: account } = await accountQuery
 
       if (account && account.length > 0 && account[0].initial_balance > 0) {
         startBalance = account[0].initial_balance
