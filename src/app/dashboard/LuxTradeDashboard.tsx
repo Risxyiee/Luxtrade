@@ -152,12 +152,21 @@ function LuxTradeDashboardContent() {
   const filteredTrades = trades
 
   // Persist selectedAccountId to localStorage and re-fetch analytics on change
+  // ALSO sync formData.account_id so new trades/auto-journal go to the right account
   const handleSetSelectedAccountId = useCallback((id: string | null) => {
     setSelectedAccountId(id)
     try {
       if (id) localStorage.setItem('luxtrade_selected_account_id', id)
       else localStorage.removeItem('luxtrade_selected_account_id')
     } catch {}
+    // CRITICAL FIX: Sync the selected account to formData so trades/auto-journal
+    // are saved to the account the user selected in the header, not the default
+    if (id) {
+      setFormData(prev => ({
+        ...prev,
+        account_id: id,
+      }))
+    }
   }, [])
 
   // Re-fetch analytics + trades when selectedAccountId changes (not on mount — fetchData already does it)
@@ -471,17 +480,28 @@ function LuxTradeDashboardContent() {
 
           setTradingAccounts(accounts)
 
-          // Auto-select default account for new trades
-          // Only set if not already selected (first load) or during refresh
-          // to avoid overwriting user's in-progress edit
+          // Auto-select account for new trades
+          // Priority: selectedAccountId (from header switcher) > existing selection > default account
+          // CRITICAL: Never overwrite with default if user has explicitly selected an account
           if (accounts.length > 0) {
             const defaultAccount = accounts.find((acc: any) => acc.is_default) || accounts[0]
             setFormData(prev => {
+              // If selectedAccountId is set (user switched in header), use that
+              if (selectedAccountId && accounts.some((acc: any) => acc.id === selectedAccountId)) {
+                if (prev.account_id === selectedAccountId) return prev // Already correct
+                const selAcc = accounts.find((acc: any) => acc.id === selectedAccountId)
+                return {
+                  ...prev,
+                  account_id: selectedAccountId,
+                  account_type: selAcc?.account_type || prev.account_type
+                }
+              }
               // If user already has an account selected that still exists, keep it
               const currentAccountStillExists = prev.account_id && accounts.some((acc: any) => acc.id === prev.account_id)
-              if (currentAccountStillExists && isRefresh) {
-                return prev // Don't overwrite during refresh
+              if (currentAccountStillExists) {
+                return prev // Don't overwrite user's selection
               }
+              // Fallback: set to default account
               return {
                 ...prev,
                 account_id: defaultAccount.id,
