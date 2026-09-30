@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -37,6 +37,10 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
   const [chartError, setChartError] = useState<string | null>(null)
   const [chartData, setChartData] = useState<CandlestickData[]>([])
 
+  // Ref to prevent double-fetch in StrictMode
+  const hasFetchedRef = useRef(false)
+  const fetchingRef = useRef(false)
+
   // Forex symbols only
   const symbols = [
     // Gold & Metals
@@ -63,84 +67,52 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
     setHasMounted(true)
   }, [])
 
-  // Fetch chart data
+  // Single fetch function — uses refs to read latest state, no deps needed
   const fetchData = useCallback(async () => {
-    if (!hasMounted) return
-
+    if (!hasMounted || fetchingRef.current) return
+    fetchingRef.current = true
     setIsLoadingData(true)
     setChartError(null)
 
     try {
-      // Use Forex API for all symbols
       const apiUrl = `/api/forex?symbol=${selectedSymbol}&interval=${selectedInterval}&limit=50`
-
-      console.log(`🔄 Fetching from Forex API: ${apiUrl}`)
-
       const response = await fetch(apiUrl)
 
-      console.log(`📡 API Response status: ${response.status}`)
-
       if (!response.ok) {
-        throw new Error(`Failed to fetch data from Forex API (HTTP ${response.status})`)
+        throw new Error(`Failed to fetch data (HTTP ${response.status})`)
       }
 
       const result = await response.json()
-      console.log('[ChartTab] API response:', result)
-
-      // Extract data safely from response
       const apiData = result?.data || []
       const apiSuccess = result?.success !== undefined ? result.success : true
 
       if (apiSuccess && apiData.length > 0) {
         setChartData(apiData)
-        console.log(`✅ Loaded ${apiData.length} candles for ${selectedSymbol}`)
       } else if (result.error) {
         throw new Error(result.error)
       } else {
         throw new Error('No data returned from API')
       }
-
-      // Show note if using mock data
-      if (result.note) {
-        console.log('ℹ️  Note:', result.note)
-      }
     } catch (error) {
-      console.error('❌ Error fetching chart data:', error)
       setChartError(error instanceof Error ? error.message : 'Failed to load chart data')
     } finally {
       setIsLoadingData(false)
+      fetchingRef.current = false
     }
   }, [selectedSymbol, selectedInterval, hasMounted])
 
-  // Initialize chart only once - after mounting (delayed for PWA Network Idle)
+  // Single effect: fetch on mount and when symbol/interval changes
   useEffect(() => {
     if (!hasMounted) return
 
-    const timeout = setTimeout(() => fetchData(), 1000)
-    return () => clearTimeout(timeout)
-  }, [hasMounted, fetchData])
-
-  // Update chart when symbol or interval changes
-  useEffect(() => {
-    if (hasMounted) {
-      console.log(`🔄 Updating chart for ${selectedSymbol} ${selectedInterval}`)
-      setChartError(null)
-      setChartData([]) // Clear previous data
+    // Debounce to avoid rapid re-fetches
+    const timeout = setTimeout(() => {
+      hasFetchedRef.current = true
       fetchData()
-    }
-  }, [selectedSymbol, selectedInterval, fetchData, hasMounted])
+    }, 300)
 
-  // Debug: Show chart status
-  useEffect(() => {
-    console.log('📊 Chart status:', {
-      hasMounted,
-      isLoadingData,
-      chartError,
-      selectedSymbol,
-      selectedInterval,
-      dataLength: chartData.length,
-    })
-  }, [hasMounted, isLoadingData, chartError, selectedSymbol, selectedInterval, chartData])
+    return () => clearTimeout(timeout)
+  }, [hasMounted, selectedSymbol, selectedInterval, fetchData])
 
   // Show loading state if not mounted yet
   if (!hasMounted) {
@@ -161,7 +133,7 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
             Trading Chart
           </h2>
           <p className="text-white/60">
-            Real-time chart - {selectedSymbol} ({selectedInterval})
+            {selectedSymbol} ({selectedInterval})
           </p>
         </div>
         <Button
@@ -220,11 +192,10 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
             ))}
           </div>
         </div>
-
       </div>
 
       {/* Interval Selector */}
-      <div className="flex gap-2 items-center">
+      <div className="flex gap-2 items-center flex-wrap">
         <span className="text-white/60 text-sm">Timeframe:</span>
         {intervals.map((interval) => (
           <Button
@@ -240,7 +211,7 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
       </div>
 
       {/* Chart */}
-      <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg p-4 relative overflow-hidden">
+      <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg p-4 relative overflow-hidden min-h-[400px]">
         {chartError && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#070a10]/90 rounded-lg z-10">
             <AlertTriangle className="w-12 h-12 text-red-400 mb-3" />
@@ -265,23 +236,33 @@ export default function ChartTab({ isPro = false }: ChartTabProps) {
           </div>
         )}
 
-        <CandlestickChart
-          data={chartData as any}
-          containerClassName="w-full"
-        />
+        {chartData.length > 0 ? (
+          <CandlestickChart
+            data={chartData as any}
+            containerClassName="w-full"
+          />
+        ) : (
+          !isLoadingData && !chartError && (
+            <div className="flex items-center justify-center h-[400px] text-white/40">
+              Select a symbol to load chart
+            </div>
+          )
+        )}
       </div>
 
       {/* Info */}
-      <div className="flex gap-4">
+      <div className="flex gap-4 flex-wrap">
         <Badge className="bg-blue-500/20 text-cyan-400">
           {selectedSymbol}
         </Badge>
         <Badge className="bg-emerald-500/20 text-emerald-400">
           {selectedInterval} timeframe
         </Badge>
-        <Badge className="bg-cyan-500/20 text-cyan-400">
-          50 candles
-        </Badge>
+        {chartData.length > 0 && (
+          <Badge className="bg-cyan-500/20 text-cyan-400">
+            {chartData.length} candles
+          </Badge>
+        )}
       </div>
     </div>
   )
