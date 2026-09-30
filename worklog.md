@@ -650,3 +650,23 @@ Stage Summary:
 - Cascade: TE Calendar → TE News→Calendar → FCSAPI → empty (unavailable)
 - prop_firm_challenges missing table now returns [] instead of 58 errors
 - Rate limit (429) from TradingEconomics now properly falls through to FCSAPI
+---
+Task ID: 1
+Agent: Main
+Task: Upgrade AI auto-journal to support any trading platform (not just MT5)
+
+Work Log:
+- Identified the root cause: TRADE_EXTRACTION_PROMPT and buildTradeAndJournalPrompt were hardcoded for MT4/MT5 only
+- Added multilingual trading term recognition (Indonesian, Spanish, German, Arabic, etc.)
+- Added support for: MT4/MT5, cTrader, TradingView, DxTrade, Match-Trade, proprietary mobile apps, custom dashboards
+- Added color cue recognition (green/teal = profit, red/pink = loss)
+- Added flexible date format parsing (DD/MM/YYYY and YYYY.MM.DD)
+- Added Indonesian example output to the prompt
+- Tested with IMG_8914.jpeg (non-MT5 screenshot in Indonesian) — SUCCESS
+- All trade data extracted correctly: XAUUSD sell, open 4181.14, close 4173.36, profit 38.45
+
+Stage Summary:
+- Updated src/lib/aiml-vision.ts with universal prompts
+- TRADE_EXTRACTION_PROMPT now supports any platform/language
+- buildTradeAndJournalPrompt now includes multilingual detection
+- Gemini API can now auto-journal from any trading platform screenshot
