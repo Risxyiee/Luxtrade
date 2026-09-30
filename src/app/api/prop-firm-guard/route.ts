@@ -58,6 +58,11 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
 
     if (error) {
+      // Gracefully handle missing table (migration not yet applied)
+      if (error.message?.includes('Could not find the table') || error.code === '42P01') {
+        console.warn('[prop-firm-guard] Table prop_firm_challenges not found — returning empty')
+        return NextResponse.json({ challenges: [] })
+      }
       console.error('[prop-firm-guard] GET query error:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
@@ -156,6 +161,10 @@ export async function POST(request: NextRequest) {
       .eq('is_active', true)
 
     if (countError) {
+      // Gracefully handle missing table
+      if (countError.message?.includes('Could not find the table') || countError.code === '42P01') {
+        return NextResponse.json({ error: 'Prop Firm feature is not yet available. Please try again later.' }, { status: 503 })
+      }
       console.error('[prop-firm-guard] POST count error:', countError)
       return NextResponse.json({ error: countError.message }, { status: 500 })
     }
@@ -185,6 +194,9 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (insertError) {
+      if (insertError.message?.includes('Could not find the table') || insertError.code === '42P01') {
+        return NextResponse.json({ error: 'Prop Firm feature is not yet available. Please try again later.' }, { status: 503 })
+      }
       console.error('[prop-firm-guard] POST insert error:', insertError)
       return NextResponse.json({ error: insertError.message }, { status: 500 })
     }

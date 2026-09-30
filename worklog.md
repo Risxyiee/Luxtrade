@@ -628,3 +628,25 @@ Stage Summary:
 - News API hostname fixed — should now return real TradingEconomics news
 - Forex API keys now lazy-read for CF Workers compatibility
 - All code changes pass lint
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix all real data issues - remove sample data, fix 429 handling, fix DB errors
+
+Work Log:
+- Analyzed Cloudflare Workers production logs from user
+- Found TradingEconomics RapidAPI returns 429 (rate limited) - this is the REAL cause
+- Found economic calendar on 429 goes straight to sample data without trying FCSAPI
+- Found 58x "Could not find the table 'public.prop_firm_challenges'" errors
+- Found Gemini AI "User location is not supported" errors (Indonesia)
+- Removed ALL getSampleEvents() fallbacks from economic-calendar route
+- Changed final fallback from sample data to empty array with unavailable=true
+- Added graceful handling for missing prop_firm_challenges table (returns empty instead of 500)
+- Updated rate-limited messages to not mention "sample data"
+- All changes pass lint
+
+Stage Summary:
+- NO MORE SAMPLE DATA anywhere in economic calendar
+- Cascade: TE Calendar → TE News→Calendar → FCSAPI → empty (unavailable)
+- prop_firm_challenges missing table now returns [] instead of 58 errors
+- Rate limit (429) from TradingEconomics now properly falls through to FCSAPI

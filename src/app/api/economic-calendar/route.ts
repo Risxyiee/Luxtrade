@@ -470,9 +470,9 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     console.warn('[EconCalendar] ✗ FCSAPI failed: ' + (err instanceof Error ? err.message : String(err)));
   }
 
-  // 4. Sample data (last resort)
-  console.warn('[EconCalendar] All sources failed — using sample data');
-  return { events: getSampleEvents(), source: 'Sample Data', unavailable: false };
+  // 4. No more sample data — return empty with unavailable flag
+  console.error('[EconCalendar] ❌ All real data sources failed — returning empty');
+  return { events: [], source: 'Unavailable', unavailable: true };
 }
 
 // ─── KV Cache helpers ─────────────────────────────────────────────────────────
@@ -576,7 +576,7 @@ export async function GET(request: NextRequest) {
       unavailable,
       rateLimited: rateLimited || undefined,
       message: rateLimited
-        ? 'API rate limited. Showing sample data. Try again later.'
+        ? 'API rate limited. Retrying with alternative sources.'
         : unavailable ? 'Calendar data temporarily unavailable.' : undefined,
     });
   } catch (error) {
@@ -596,13 +596,12 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const sampleEvents = getSampleEvents();
     return NextResponse.json({
-      success: true, cached: false, events: sampleEvents,
-      totalAvailable: sampleEvents.length, source: 'Sample Data (fallback)',
+      success: true, cached: false, events: [],
+      totalAvailable: 0, source: 'Unavailable',
       fetchedAt: new Date().toISOString(), now: serverTime,
       timezone: timezone || null, unavailable: true,
-      message: 'Calendar data temporarily unavailable. Showing sample data.',
+      message: 'Calendar data temporarily unavailable. Please try again in a few minutes.',
     });
   }
 }
