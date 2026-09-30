@@ -306,7 +306,7 @@ export default function LuxtradeChart() {
             ))}
           </div>
           <div className="flex gap-2">
-            {['1h', '4h', '1d'].map((interval) => (
+            {['5m', '15m', '1h', '4h', '1d'].map((interval) => (
               <Button
                 key={interval}
                 size="sm"

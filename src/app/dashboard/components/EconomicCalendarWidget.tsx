@@ -97,10 +97,15 @@ export default function EconomicCalendarWidget({ language, onViewAll }: Economic
 
   const fetchCalendar = useCallback(async () => {
     try {
-      const res = await fetch('/api/economic-calendar?impact=high&currency=USD&tz=' + encodeURIComponent(userOffset), { credentials: 'include' })
+      // Fetch high-impact events for major currencies (not just USD)
+      const res = await fetch('/api/economic-calendar?impact=high&tz=' + encodeURIComponent(userOffset), { credentials: 'include' })
       if (res.ok) {
         const data = await res.json()
-        setEvents((data.events || []).slice(0, 5))
+        const allEvents = data.events || []
+        // Filter to major currencies and take top 5
+        const majorCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD']
+        const filtered = allEvents.filter((e: CalendarEvent) => majorCurrencies.includes(e.currency))
+        setEvents(filtered.slice(0, 5))
       }
     } catch { /* silent */ } finally { setLoading(false) }
   }, [userOffset])

@@ -178,7 +178,7 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccoun
   const chartRef = useRef<SVGSVGElement>(null)
   const [dimensions, setDimensions] = useState({ w: 600, h: 300 })
 
-  // Fetch data (re-fetch when selectedAccountId changes)
+  // Fetch data (re-fetch when selectedAccountId or tradingAccounts changes)
   useEffect(() => {
     setLoading(true)
     const url = selectedAccountId
@@ -188,7 +188,7 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccoun
       .then(r => r.ok ? r.json() : null)
       .then(d => { setData(d); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [selectedAccountId])
+  }, [selectedAccountId, tradingAccounts])
 
   // Observe container size
   useEffect(() => {

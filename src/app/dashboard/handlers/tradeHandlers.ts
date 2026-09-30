@@ -267,9 +267,7 @@ export const createTradeHandlers = ({
 
     setSaving(true)
     try {
-      // Optimistic update: remove from local state immediately
       const tradeIdToDelete = selectedTrade.id
-      setTrades(prev => prev.filter(t => t.id !== tradeIdToDelete))
 
       const res = await fetch(`/api/trades?id=${tradeIdToDelete}`, {
         method: 'DELETE',
@@ -278,20 +276,22 @@ export const createTradeHandlers = ({
       })
 
       if (res.ok) {
+        // Remove from local state immediately after confirmed server delete
+        setTrades(prev => prev.filter(t => t.id !== tradeIdToDelete))
         toast.success('Trade deleted successfully!')
         setDeleteTradeOpen(false)
         setSelectedTrade(null)
-        fetchData(true) // Refresh data without full loading flash
+        // Force full refresh to ensure all derived data (analytics, equity, etc.) is updated
+        fetchData(true)
       } else {
-        // Revert optimistic update on failure
+        // Server delete failed — keep local state, show error
         const data = await res.json()
         toast.error(data.error || 'Failed to delete trade')
-        fetchData(true) // Re-fetch to restore correct state
+        fetchData(true) // Re-fetch to ensure consistency
       }
     } catch (error) {
-      // Revert on error
       toast.error('Failed to delete trade')
-      fetchData(true) // Re-fetch to restore correct state
+      fetchData(true) // Re-fetch to ensure consistency
     } finally {
       setSaving(false)
     }
