@@ -85,3 +85,26 @@ Stage Summary:
 - Next.js cache cleared
 - Lint passes
 - Dev server compiles and serves pages correctly
+---
+Task ID: 1
+Agent: main
+Task: Fix trade symbol validation bug, polish journal streak, make prop-firm guard fully editable
+
+Work Log:
+- Fixed symbol input onChange: removed aggressive .trim() that broke cursor position during typing, now uses .toUpperCase().replace(/\s/g, '')
+- Fixed symbol validation: split into two checks (empty vs too short) with clearer error messages
+- Polished journal streak card with framer-motion animations: scale-in entrance, pulsing fire emoji, number counter animation, pill-style status badges, inline "Write →" button, streak progress bar (x/30), milestone glow effect
+- Added full edit capability to PropFirmGuardTab: edit dialog with fields for firm name, account size, current balance, max daily loss, max total DD, profit target, alert threshold
+- Added "Custom" firm preset so users can enter any prop firm name
+- Added custom firm name input field that appears when "Custom" is selected in Add dialog
+- Added edit button (pencil icon) to each challenge card header
+- Updated API PATCH handler to support currentBalance updates
+- Relaxed firm name validation on POST: allows custom names (min 2 chars) instead of strict preset list
+- Added firmName display in preset info preview when adding challenge
+
+Stage Summary:
+- Symbol validation fixed: no more cursor issues, 2-char minimum works properly
+- Journal streak polished: animated, smooth, with progress bar and quick action button
+- Prop-firm guard fully editable: all fields (name, balance, rules) can be edited after creation
+- Custom firm names supported in both Add and Edit dialogs
+- All changes pass lint and compile successfully

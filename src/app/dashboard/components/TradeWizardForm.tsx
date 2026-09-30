@@ -537,8 +537,10 @@ export default function TradeWizardForm({
       if (step === 1) {
         // Validate symbol, type, lot_size, account_id
         const trimmedSymbol = (formData.symbol || '').trim()
-        if (!trimmedSymbol || trimmedSymbol.length < 2) {
-          stepErrors.symbol = L ? 'Symbol minimal 2 karakter (contoh: EU, XAU)' : 'Symbol must be at least 2 characters'
+        if (!trimmedSymbol) {
+          stepErrors.symbol = L ? 'Symbol wajib diisi' : 'Symbol is required'
+        } else if (trimmedSymbol.length < 2) {
+          stepErrors.symbol = L ? 'Symbol minimal 2 karakter (contoh: EU, XAU, EURUSD)' : 'Symbol must be at least 2 characters (e.g. EU, XAU, EURUSD)'
         }
         if (!formData.type || !['BUY', 'SELL'].includes(formData.type)) {
           stepErrors.type = L ? 'Pilih tipe trade' : 'Please select a trade type'
@@ -787,7 +789,8 @@ export default function TradeWizardForm({
                   className={`bg-lux-input-bg dark:bg-[#070a10] border-lux-input-border dark:border-blue-900/30 mt-2 text-white uppercase ${errors.symbol ? 'border-red-500' : ''}`}
                   value={formData.symbol}
                   onChange={(e) => {
-                    const val = e.target.value.trim().toUpperCase()
+                    // Allow natural typing — only uppercase, no aggressive trim during input
+                    const val = e.target.value.toUpperCase().replace(/\s/g, '')
                     onFormChange('symbol', val)
                     if (errors.symbol) setErrors({ ...errors, symbol: '' })
                   }}
