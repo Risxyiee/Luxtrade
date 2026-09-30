@@ -1,195 +1,244 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Forex symbols mapping
-const FOREX_SYMBOLS: Record<string, { from: string; to: string; basePrice: number }> = {
-  'XAUUSD': { from: 'XAU', to: 'USD', basePrice: 2350.00 },  // Gold
-  'XAGUSD': { from: 'XAG', to: 'USD', basePrice: 28.50 },   // Silver
-  'EURUSD': { from: 'EUR', to: 'USD', basePrice: 1.0850 },
-  'GBPUSD': { from: 'GBP', to: 'USD', basePrice: 1.2650 },
-  'USDJPY': { from: 'USD', to: 'JPY', basePrice: 148.50 },
-  'EURGBP': { from: 'EUR', to: 'GBP', basePrice: 0.8550 },
-  'EURJPY': { from: 'EUR', to: 'JPY', basePrice: 161.20 },
-  'GBPJPY': { from: 'GBP', to: 'JPY', basePrice: 188.50 },
-  'AUDUSD': { from: 'AUD', to: 'USD', basePrice: 0.6550 },
-  'NZDUSD': { from: 'NZD', to: 'USD', basePrice: 0.6120 },
-  'USDCAD': { from: 'USD', to: 'CAD', basePrice: 1.3650 },
-  'USDCHF': { from: 'USD', to: 'CHF', basePrice: 0.8950 },
+export const dynamic = 'force-dynamic'
+
+// Forex symbols mapping with realistic current prices
+const FOREX_SYMBOLS: Record<string, { from: string; to: string; basePrice: number; decimals: number }> = {
+  'XAUUSD': { from: 'XAU', to: 'USD', basePrice: 3260.00, decimals: 2 },
+  'XAGUSD': { from: 'XAG', to: 'USD', basePrice: 32.80, decimals: 3 },
+  'EURUSD': { from: 'EUR', to: 'USD', basePrice: 1.1150, decimals: 5 },
+  'GBPUSD': { from: 'GBP', to: 'USD', basePrice: 1.2740, decimals: 5 },
+  'USDJPY': { from: 'USD', to: 'JPY', basePrice: 149.80, decimals: 3 },
+  'EURGBP': { from: 'EUR', to: 'GBP', basePrice: 0.8750, decimals: 5 },
+  'EURJPY': { from: 'EUR', to: 'JPY', basePrice: 166.95, decimals: 3 },
+  'GBPJPY': { from: 'GBP', to: 'JPY', basePrice: 190.85, decimals: 3 },
+  'AUDUSD': { from: 'AUD', to: 'USD', basePrice: 0.6350, decimals: 5 },
+  'NZDUSD': { from: 'NZD', to: 'USD', basePrice: 0.5880, decimals: 5 },
+  'USDCAD': { from: 'USD', to: 'CAD', basePrice: 1.3750, decimals: 5 },
+  'USDCHF': { from: 'USD', to: 'CHF', basePrice: 0.8820, decimals: 5 },
 }
 
-// Alpha Vantage API (Free tier - 25 requests/day)
-const ALPHA_VANTAGE_API_KEY = process.env.ALPHA_VANTAGE_API_KEY || ''
+// API keys
+const ALPHA_VANTAGE_KEY = process.env.ALPHA_VANTAGE_API_KEY || ''
+const TWELVE_DATA_KEY = process.env.TWELVE_DATA_API_KEY || ''
 
-// Mock data generator for forex
-function generateMockForexData(symbol: string, count: number = 50) {
+// ── In-memory cache (5 min TTL) ──────────────────────────────────────
+interface CacheEntry { data: any[]; timestamp: number; source: string }
+const cache = new Map<string, CacheEntry>()
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
+function getCached(key: string): CacheEntry | null {
+  const entry = cache.get(key)
+  if (entry && Date.now() - entry.timestamp < CACHE_TTL) return entry
+  cache.delete(key)
+  return null
+}
+
+function setCache(key: string, data: any[], source: string) {
+  cache.set(key, { data, timestamp: Date.now(), source })
+  // Prune old entries
+  if (cache.size > 100) {
+    const oldest = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp)[0]
+    if (oldest) cache.delete(oldest[0])
+  }
+}
+
+// ── Twelve Data API (FREE: 800 req/day, intraday!) ──────────────────
+async function fetchTwelveData(symbol: string, interval: string, limit: number): Promise<any[] | null> {
+  if (!TWELVE_DATA_KEY || TWELVE_DATA_KEY.length < 10) return null
+
+  const info = FOREX_SYMBOLS[symbol]
+  if (!info) return null
+
+  // Map interval to Twelve Data format
+  const tdInterval = interval === '1d' ? '1day' : interval // 5m, 15m, 1h, 4h, 1day
+
+  const url = `https://api.twelvedata.com/time_series?symbol=${info.from}/${info.to}&interval=${tdInterval}&outputsize=${limit}&apikey=${TWELVE_DATA_KEY}`
+
+  try {
+    const controller = new AbortController()
+    const tid = setTimeout(() => controller.abort(), 10000)
+    const res = await fetch(url, { signal: controller.signal })
+    clearTimeout(tid)
+
+    if (!res.ok) return null
+
+    const json = await res.json()
+    if (json.status === 'error' || !json.values || json.values.length === 0) return null
+
+    return json.values
+      .map((v: any) => ({
+        time: Math.floor(new Date(v.datetime).getTime() / 1000),
+        open: parseFloat(v.open),
+        high: parseFloat(v.high),
+        low: parseFloat(v.low),
+        close: parseFloat(v.close),
+      }))
+      .filter((k: any) => k.time > 0 && k.high >= k.low && k.open > 0)
+      .sort((a: any, b: any) => a.time - b.time)
+  } catch {
+    return null
+  }
+}
+
+// ── Alpha Vantage API (FREE: 25 req/day, daily only) ────────────────
+async function fetchAlphaVantage(symbol: string, limit: number): Promise<any[] | null> {
+  if (!ALPHA_VANTAGE_KEY || ALPHA_VANTAGE_KEY === 'demo' || ALPHA_VANTAGE_KEY.length < 10) return null
+
+  const info = FOREX_SYMBOLS[symbol]
+  if (!info) return null
+
+  const url = `https://www.alphavantage.co/query?function=FX_DAILY&from_symbol=${info.from}&to_symbol=${info.to}&apikey=${ALPHA_VANTAGE_KEY}&outputsize=compact`
+
+  try {
+    const controller = new AbortController()
+    const tid = setTimeout(() => controller.abort(), 10000)
+    const res = await fetch(url, { signal: controller.signal })
+    clearTimeout(tid)
+
+    if (!res.ok) return null
+
+    const text = await res.text()
+    if (text.includes('Thank you for using Alpha Vantage')) return null
+
+    const data = JSON.parse(text)
+    if (data['Error Message'] || !data['Time Series FX (Daily)']) return null
+
+    const timeSeries = data['Time Series FX (Daily)']
+    return Object.entries(timeSeries)
+      .slice(0, limit)
+      .reverse()
+      .map(([date, values]: [string, any]) => ({
+        time: Math.floor(new Date(date).getTime() / 1000),
+        open: parseFloat(values['1. open']),
+        high: parseFloat(values['2. high']),
+        low: parseFloat(values['3. low']),
+        close: parseFloat(values['4. close']),
+      }))
+      .filter((k: any) => k.time > 0 && k.high >= k.low && k.open > 0)
+      .sort((a: any, b: any) => a.time - b.time)
+  } catch {
+    return null
+  }
+}
+
+// ── Realistic mock data (when all APIs fail) ────────────────────────
+function generateMockData(symbol: string, interval: string, count: number): any[] {
+  const info = FOREX_SYMBOLS[symbol] || FOREX_SYMBOLS['EURUSD']
+  const d = info.decimals
+
+  // Interval to ms mapping
+  const intervalMs: Record<string, number> = {
+    '1m': 60_000, '5m': 300_000, '15m': 900_000,
+    '30m': 1_800_000, '1h': 3_600_000, '4h': 14_400_000, '1d': 86_400_000,
+  }
+  const stepMs = intervalMs[interval] || intervalMs['15m']
+
   const data: any[] = []
-  let timestamp = Date.now() - (count * 15 * 60 * 1000) // Start from count*15min ago
+  let timestamp = Date.now() - (count * stepMs)
+  let price = info.basePrice
 
-  // Get symbol info or default to EURUSD
-  const symbolInfo = FOREX_SYMBOLS[symbol] || FOREX_SYMBOLS['EURUSD']
-  let basePrice = symbolInfo.basePrice
+  // Volatility per interval (more realistic)
+  const vol = interval === '1d' ? 0.003 : interval === '4h' ? 0.0015 : interval === '1h' ? 0.001 : 0.0005
 
   for (let i = 0; i < count; i++) {
-    // Generate realistic OHLC data with lower volatility for forex
-    const volatility = basePrice * 0.001 // 0.1% volatility for forex (more stable)
-    const open = basePrice
-    const high = basePrice + Math.random() * volatility
-    const low = basePrice - Math.random() * volatility
-    const close = basePrice + (Math.random() - 0.5) * volatility
+    const change = (Math.random() - 0.5) * 2 * vol * price
+    const open = price
+    const close = price + change
+    const wickUp = Math.random() * Math.abs(change) * 0.5
+    const wickDown = Math.random() * Math.abs(change) * 0.5
+    const high = Math.max(open, close) + wickUp
+    const low = Math.min(open, close) - wickDown
 
     data.push({
-      time: Math.floor(timestamp / 1000), // Convert to seconds
-      open: parseFloat(open.toFixed(5)),
-      high: parseFloat(high.toFixed(5)),
-      low: parseFloat(low.toFixed(5)),
-      close: parseFloat(close.toFixed(5)),
+      time: Math.floor(timestamp / 1000),
+      open: parseFloat(open.toFixed(d)),
+      high: parseFloat(high.toFixed(d)),
+      low: parseFloat(low.toFixed(d)),
+      close: parseFloat(close.toFixed(d)),
     })
 
-    // Update base price for next candle
-    basePrice = close
-    timestamp += 15 * 60 * 1000 // Add 15 minutes
+    price = close
+    timestamp += stepMs
   }
 
-  // Sort by time to ensure ascending order
   return data.sort((a, b) => a.time - b.time)
 }
 
+// ── Main handler ────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const symbol = searchParams.get('symbol') || 'EURUSD'
     const interval = searchParams.get('interval') || '15m'
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50)
 
-    // Validate symbol
-    if (!FOREX_SYMBOLS[symbol]) {
-      console.warn(`⚠️ Unknown symbol: ${symbol}, using EURUSD as default`)
-    }
+    const validSymbol = FOREX_SYMBOLS[symbol] ? symbol : 'EURUSD'
+    const cacheKey = `${validSymbol}:${interval}:${limit}`
 
-    const symbolInfo = FOREX_SYMBOLS[symbol] || FOREX_SYMBOLS['EURUSD']
-
-    // Check if we should use real API or mock data
-    const useRealAPI = ALPHA_VANTAGE_API_KEY && ALPHA_VANTAGE_API_KEY !== 'demo' && ALPHA_VANTAGE_API_KEY.length > 10
-
-    if (useRealAPI) {
-      try {
-        // Alpha Vantage Forex API - Daily data only
-        const avUrl = `https://www.alphavantage.co/query?function=FX_DAILY&from_symbol=${symbolInfo.from}&to_symbol=${symbolInfo.to}&apikey=${ALPHA_VANTAGE_API_KEY}&outputsize=compact`
-
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
-
-        const response = await fetch(avUrl, { signal: controller.signal })
-        clearTimeout(timeoutId)
-
-        if (!response.ok) {
-          throw new Error(`Alpha Vantage API error: ${response.status}`)
-        }
-
-        const text = await response.text()
-
-        // Check rate limit or error messages
-        if (text.includes('Thank you for using Alpha Vantage')) {
-          console.warn('⚠️ Alpha Vantage rate limit reached')
-          throw new Error('Rate limit exceeded')
-        }
-
-        const data = JSON.parse(text)
-
-        if (data['Error Message']) {
-          console.warn('Alpha Vantage returned error:', data['Error Message'])
-          throw new Error(data['Error Message'])
-        }
-
-        if (!data['Time Series FX (Daily)']) {
-          console.warn('⚠️ No Time Series data from Alpha Vantage')
-          throw new Error('No data available')
-        }
-
-        // Transform Alpha Vantage data to OHLC format
-        const timeSeries = data['Time Series FX (Daily)']
-        const ohlcData = Object.entries(timeSeries)
-          .slice(0, limit)
-          .reverse() // Alpha Vantage returns newest first
-          .map(([date, values]: [string, any]) => {
-            const timestamp = new Date(date).getTime() / 1000
-            const open = parseFloat(values['1. open'])
-            const high = parseFloat(values['2. high'])
-            const low = parseFloat(values['3. low'])
-            const close = parseFloat(values['4. close'])
-
-            return {
-              time: Math.floor(timestamp),
-              open: isNaN(open) ? 0 : open,
-              high: isNaN(high) ? 0 : high,
-              low: isNaN(low) ? 0 : low,
-              close: isNaN(close) ? 0 : close,
-            }
-          })
-          .filter((kline) => {
-            // Filter invalid data
-            return (
-              kline.time > 0 &&
-              kline.high >= kline.low &&
-              !isNaN(kline.open) &&
-              !isNaN(kline.high) &&
-              !isNaN(kline.low) &&
-              !isNaN(kline.close)
-            )
-          })
-          .sort((a, b) => a.time - b.time) // Ensure ascending order
-
-        return NextResponse.json({
-          success: true,
-          symbol,
-          interval,
-          data: ohlcData,
-          source: 'alphavantage',
-        })
-      } catch (avError: any) {
-        console.warn('⚠️ Alpha Vantage API failed:', avError.message)
-
-        // Fallback to mock data
-        const mockData = generateMockForexData(symbol, limit)
-
-        return NextResponse.json({
-          success: true,
-          symbol,
-          interval,
-          data: mockData,
-          source: 'mock',
-          note: avError.message,
-        })
-      }
-    } else {
-      // Use mock data (no API key provided)
-      const mockData = generateMockForexData(symbol, limit)
-
+    // Check cache first
+    const cached = getCached(cacheKey)
+    if (cached) {
       return NextResponse.json({
         success: true,
-        symbol,
+        symbol: validSymbol,
         interval,
-        data: mockData,
-        source: 'mock',
-        note: 'Set ALPHA_VANTAGE_API_KEY in .env for real data',
+        data: cached.data,
+        source: cached.source + '-cache',
       })
     }
-  } catch (error) {
-    console.error('❌ Error fetching forex data:', error)
 
-    // Final fallback - always return mock data
-    const symbol = new URL(request.url).searchParams.get('symbol') || 'EURUSD'
-    const mockData = generateMockForexData(symbol, 50)
-
-    return NextResponse.json(
-      {
+    // Try Twelve Data first (best: intraday + free)
+    const tdData = await fetchTwelveData(validSymbol, interval, limit)
+    if (tdData && tdData.length > 0) {
+      setCache(cacheKey, tdData, 'twelvedata')
+      return NextResponse.json({
         success: true,
-        symbol,
-        interval: '15m',
-        data: mockData,
-        source: 'mock-fallback',
-        error: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
-    )
+        symbol: validSymbol,
+        interval,
+        data: tdData,
+        source: 'twelvedata',
+      })
+    }
+
+    // Try Alpha Vantage (daily only)
+    const avData = await fetchAlphaVantage(validSymbol, limit)
+    if (avData && avData.length > 0) {
+      setCache(cacheKey, avData, 'alphavantage')
+      return NextResponse.json({
+        success: true,
+        symbol: validSymbol,
+        interval,
+        data: avData,
+        source: 'alphavantage',
+        note: 'Intraday not available — showing daily data',
+      })
+    }
+
+    // Fallback: realistic mock
+    const mockData = generateMockData(validSymbol, interval, limit)
+    setCache(cacheKey, mockData, 'mock')
+
+    return NextResponse.json({
+      success: true,
+      symbol: validSymbol,
+      interval,
+      data: mockData,
+      source: 'mock',
+      note: 'Add TWELVE_DATA_API_KEY or ALPHA_VANTAGE_API_KEY for real market data',
+    })
+  } catch (error) {
+    const symbol = new URL(request.url).searchParams.get('symbol') || 'EURUSD'
+    const interval = new URL(request.url).searchParams.get('interval') || '15m'
+    const mockData = generateMockData(symbol, interval, 20)
+
+    return NextResponse.json({
+      success: true,
+      symbol,
+      interval,
+      data: mockData,
+      source: 'mock-fallback',
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 }
