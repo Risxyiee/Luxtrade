@@ -25,6 +25,8 @@ const TargetsTab = dynamic(() => import('../tabs/TargetsTab').then(m => ({ defau
 const MarketNewsTab = dynamic(() => import('../tabs/MarketNewsTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const EconomicCalendarTab = dynamic(() => import('../tabs/EconomicCalendarTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 const CommunityTab = dynamic(() => import('../tabs/CommunityTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const ChartTab = dynamic(() => import('@/components/ChartTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
+const OnboardingTab = dynamic(() => import('../tabs/OnboardingTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
 
 // Lazy-loaded feature components
 const TradingScore = dynamic(() => import('@/components/TradingScore').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
@@ -72,7 +74,7 @@ interface TabContentProps {
   tradingAccounts?: any[]
   fetchData?: (isRefresh?: boolean) => void
   selectedAccountId?: string | null
-  setSelectedAccountId?: (id: string | null) => void
+  setActiveTab?: (tab: string) => void
 }
 
 export default function TabContent({
@@ -116,11 +118,20 @@ export default function TabContent({
   fetchData,
   selectedAccountId,
   setSelectedAccountId,
+  setActiveTab,
 }: TabContentProps) {
   return (
     <div className="w-full px-2 sm:px-4 lg:px-6 pb-24">
           {/* Push notification setup banner — shows once per session */}
           <PushNotificationSetup />
+
+          {activeTab === 'onboarding' && (
+            <OnboardingTab
+              language={language}
+              setActiveTab={setActiveTab}
+              setAddTradeOpen={setAddTradeOpen}
+            />
+          )}
 
           {activeTab === 'dashboard' && (
             <DashboardTab
@@ -264,6 +275,10 @@ export default function TabContent({
               profile={profile}
               onAddTradeOpen={setAddTradeOpen}
             />
+          )}
+
+          {activeTab === 'chart' && (
+            <ChartTab isPro={isPro} />
           )}
     </div>
   )
