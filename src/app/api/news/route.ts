@@ -17,6 +17,12 @@ function getTeApiKey(): string {
 // Bloomberg RSS (free fallback, no key needed)
 const BLOOMBERG_RSS = 'https://feeds.bloomberg.com/markets/news.rss';
 
+// ForexFactory RSS (free, forex-focused)
+const FOREXFACTORY_RSS = 'https://www.forexfactory.com/rss';
+
+// DailyFX RSS (free, forex-focused by IG)
+const DAILYFX_RSS = 'https://www.dailyfx.com/feeds/market-news';
+
 interface FullNewsItem {
   title: string;
   source: string;
@@ -268,6 +274,47 @@ async function fetchReutersNews(): Promise<FullNewsItem[]> {
   return parseBloombergRss(xml); // Same XML structure
 }
 
+// ==================== FALLBACK 2b: ForexFactory News (FREE, forex-focused) ====================
+
+async function fetchForexFactoryNews(): Promise<FullNewsItem[]> {
+  const response = await fetch(FOREXFACTORY_RSS, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
+      'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`ForexFactory RSS returned ${response.status}`);
+  }
+
+  const xml = await response.text();
+  const items = parseBloombergRss(xml);
+  // Mark source as ForexFactory
+  return items.map(item => ({ ...item, source: 'ForexFactory' }));
+}
+
+// ==================== FALLBACK 2c: DailyFX News (FREE, forex-focused) ====================
+
+async function fetchDailyFXNews(): Promise<FullNewsItem[]> {
+  const response = await fetch(DAILYFX_RSS, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
+      'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`DailyFX RSS returned ${response.status}`);
+  }
+
+  const xml = await response.text();
+  const items = parseBloombergRss(xml);
+  return items.map(item => ({ ...item, source: 'DailyFX' }));
+}
+
 // ==================== FALLBACK 3: Finnhub Market News (FREE: 60 calls/min) ====================
 
 const FINNHUB_NEWS_URL = 'https://finnhub.io/api/v1/news';
@@ -324,7 +371,7 @@ async function fetchFinnhubNews(): Promise<FullNewsItem[]> {
 // ==================== MAIN FETCH LOGIC ====================
 
 /**
- * Fetch news with cascade: TradingEconomics → Reuters RSS → Bloomberg RSS → Finnhub → unavailable
+ * Fetch news with cascade: TradingEconomics → Finnhub → ForexFactory RSS → DailyFX RSS → Reuters RSS → Bloomberg RSS → unavailable
  */
 async function fetchFullNews(): Promise<FullNewsItem[]> {
   const apiKey = getTeApiKey();
@@ -341,32 +388,14 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
         console.warn('[News] ⚠️ TradingEconomics rate limited (429) — falling back to RSS with extended cache');
         (fetchFullNews as any)._lastRateLimited = true;
       } else {
-        console.warn(`[News] TradingEconomics failed: ${err.message}, falling back to RSS...`);
+        console.warn(`[News] TradingEconomics failed: ${err.message}, falling back...`);
       }
     }
   } else {
-    console.info('[News] RAPIDAPI_TRADING_ECONOMICS_KEY not set, trying RSS');
+    console.info('[News] RAPIDAPI_TRADING_ECONOMICS_KEY not set, trying Finnhub');
   }
 
-  // FALLBACK 1: Reuters RSS (free, more reliable than Bloomberg on CF Workers)
-  try {
-    console.log('[News] Fetching from Reuters Markets RSS...');
-    const items = await fetchReutersNews();
-    if (items.length > 0) return items;
-  } catch (err: any) {
-    console.info(`[News] Reuters RSS unavailable, trying Bloomberg...`);
-  }
-
-  // FALLBACK 2: Bloomberg RSS
-  try {
-    console.log('[News] Fetching from Bloomberg Markets RSS...');
-    const items = await fetchBloombergNews();
-    if (items.length > 0) return items;
-  } catch (err: any) {
-    console.info('[News] Bloomberg RSS unavailable, trying Finnhub...');
-  }
-
-  // FALLBACK 3: Finnhub (FREE, 60 calls/min, real market news)
+  // FALLBACK 1: Finnhub (FREE, 60 calls/min, real market news) — try early because it's most reliable
   const finnhubKey = getFinnhubApiKey();
   if (finnhubKey) {
     try {
@@ -376,6 +405,42 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
     } catch (err: any) {
       console.info(`[News] Finnhub unavailable: ${err.message}`);
     }
+  }
+
+  // FALLBACK 2: ForexFactory RSS (free, forex-focused — most relevant for traders)
+  try {
+    console.log('[News] Fetching from ForexFactory RSS...');
+    const items = await fetchForexFactoryNews();
+    if (items.length > 0) return items;
+  } catch (err: any) {
+    console.info(`[News] ForexFactory RSS unavailable, trying DailyFX...`);
+  }
+
+  // FALLBACK 3: DailyFX RSS (free, forex-focused by IG)
+  try {
+    console.log('[News] Fetching from DailyFX RSS...');
+    const items = await fetchDailyFXNews();
+    if (items.length > 0) return items;
+  } catch (err: any) {
+    console.info(`[News] DailyFX RSS unavailable, trying Reuters...`);
+  }
+
+  // FALLBACK 4: Reuters RSS (free, more reliable than Bloomberg on CF Workers)
+  try {
+    console.log('[News] Fetching from Reuters Markets RSS...');
+    const items = await fetchReutersNews();
+    if (items.length > 0) return items;
+  } catch (err: any) {
+    console.info(`[News] Reuters RSS unavailable, trying Bloomberg...`);
+  }
+
+  // FALLBACK 5: Bloomberg RSS
+  try {
+    console.log('[News] Fetching from Bloomberg Markets RSS...');
+    const items = await fetchBloombergNews();
+    if (items.length > 0) return items;
+  } catch (err: any) {
+    console.info('[News] Bloomberg RSS unavailable');
   }
 
   throw new Error('All news sources failed');

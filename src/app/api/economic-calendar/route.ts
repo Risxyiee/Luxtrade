@@ -209,6 +209,154 @@ async function fetchMyFXBookCalendar(): Promise<CalendarEvent[]> {
   return sortEvents(events);
 }
 
+// ─── 3b. TradingEconomics Calendar (RapidAPI, same key as news) ──────────────
+async function fetchTECalendar(): Promise<CalendarEvent[]> {
+  const apiKey = getRapidApiKey();
+  if (!apiKey) throw new Error('No RAPIDAPI_KEY');
+
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  // Get this week's data
+  const endDate = new Date(today);
+  endDate.setDate(endDate.getDate() + 7);
+  const endStr = endDate.toISOString().split('T')[0];
+
+  const url = `https://trading-economics-scraper.p.rapidapi.com/get_calendar?country=United%20States,United%20Kingdom,Euro%20Zone,Japan,Australia,Canada,Switzerland,New%20Zealand&importance=3,2,1&start_date=${todayStr}&end_date=${endStr}`;
+
+  const res = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      'x-rapidapi-host': 'trading-economics-scraper.p.rapidapi.com',
+      'x-rapidapi-key': apiKey,
+    },
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!res.ok) {
+    if (res.status === 429) { const e = new Error('Rate limited'); (e as any).isRateLimit = true; throw e; }
+    throw new Error('TE Calendar returned ' + res.status);
+  }
+
+  const data = await res.json();
+  if (!Array.isArray(data) || data.length === 0) throw new Error('Empty data');
+
+  const countryToCurrency: Record<string, string> = {
+    'United States': 'USD', 'United Kingdom': 'GBP', 'Euro Zone': 'EUR', 'Japan': 'JPY',
+    'Australia': 'AUD', 'Canada': 'CAD', 'Switzerland': 'CHF', 'New Zealand': 'NZD',
+  };
+
+  const events: CalendarEvent[] = [];
+  for (const item of data) {
+    const countryName = item.country || '';
+    const currency = countryToCurrency[countryName] || (item.currency || '').toUpperCase();
+    if (!currency || currency.length > 4) continue;
+
+    const impStr = String(item.importance || item.priority || '').toLowerCase();
+    const impact: 'high' | 'medium' | 'low' = impStr === '3' || impStr === 'high' ? 'high' : impStr === '2' || impStr === 'medium' ? 'medium' : 'low';
+    const eventTitle = item.event || item.indicator || item.title || 'Economic Event';
+    const eventDate = (item.date || todayStr).split('T')[0];
+    const eventTime = item.time || '08:30';
+
+    const dedupeKey = currency + '-' + eventDate + '-' + eventTitle.substring(0, 30);
+    if (events.some(e => (e.currency + '-' + e.date + '-' + e.event.substring(0, 30)) === dedupeKey)) continue;
+
+    events.push({
+      id: 'te-' + events.length + '-' + currency + '-' + eventDate,
+      date: eventDate, time: eventTime,
+      dateTime: buildDateTime(eventDate, eventTime),
+      currency, impact, event: eventTitle,
+      actual: item.actual != null ? String(item.actual) : undefined,
+      forecast: item.forecast != null ? String(item.forecast) : '',
+      previous: item.previous != null ? String(item.previous) : '',
+    });
+  }
+
+  console.log('[EconCalendar] TradingEconomics: ' + events.length + ' events');
+  return sortEvents(events);
+}
+
+// ─── 3c. Investing.com Calendar via scraping (FREE, no API key) ─────────────
+async function fetchInvestingCalendar(): Promise<CalendarEvent[]> {
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+
+  // Use the allorigins CORS proxy to fetch Investing.com economic calendar
+  const investingUrl = 'https://www.investing.com/economic-calendar/';
+  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(investingUrl)}`;
+
+  const res = await fetch(proxyUrl, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)' },
+    signal: AbortSignal.timeout(12000),
+  });
+
+  if (!res.ok) throw new Error('Investing proxy returned ' + res.status);
+
+  const html = await res.text();
+
+  // Parse the HTML table for economic events
+  const events: CalendarEvent[] = [];
+  const currencyMap: Record<string, string> = {
+    'USD': 'USD', 'EUR': 'EUR', 'GBP': 'GBP', 'JPY': 'JPY',
+    'AUD': 'AUD', 'CAD': 'CAD', 'CHF': 'CHF', 'NZD': 'NZD',
+    'CNY': 'CNY', 'KRW': 'KRW',
+  };
+
+  // Try to extract event rows from the HTML
+  const rowRegex = /<tr[^>]*data-event-id[^>]*>([\s\S]*?)<\/tr>/gi;
+  let rowMatch;
+
+  while ((rowMatch = rowRegex.exec(html)) !== null && events.length < 80) {
+    const rowHtml = rowMatch[1];
+
+    // Extract currency
+    const currMatch = rowHtml.match(/class="[^"]*flagCur[^"]*"[^>]*>([A-Z]{3})<\/span>/i)
+      || rowHtml.match(/>(USD|EUR|GBP|JPY|AUD|CAD|CHF|NZD)</i);
+    const currency = currMatch ? currencyMap[currMatch[1]] || currMatch[1] : '';
+    if (!currency) continue;
+
+    // Extract event name
+    const nameMatch = rowHtml.match(/class="[^"]*event[^"]*"[^>]*>([^<]+)/i)
+      || rowHtml.match(/<td[^>]*>\s*<a[^>]*>([^<]+)/i);
+    const eventTitle = nameMatch ? nameMatch[1].trim() : '';
+    if (!eventTitle || eventTitle.length < 3) continue;
+
+    // Extract impact
+    const highImp = rowHtml.includes('highVol') || rowHtml.includes('highImp') || rowHtml.match(/class="[^"]*sentiment[^"]*bullish[^"]*3/i);
+    const medImp = rowHtml.includes('medVol') || rowHtml.includes('medImp') || rowHtml.match(/class="[^"]*sentiment[^"]*bullish[^"]*2/i);
+    const impact: 'high' | 'medium' | 'low' = highImp ? 'high' : medImp ? 'medium' : 'low';
+
+    // Extract date/time
+    const timeMatch = rowHtml.match(/(\d{2}:\d{2})/);
+    const eventTime = timeMatch ? timeMatch[1] : '08:30';
+
+    // Extract actual/forecast/previous
+    const tdValues: string[] = [];
+    const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+    let tdMatch;
+    while ((tdMatch = tdRegex.exec(rowHtml)) !== null) {
+      const val = tdMatch[1].replace(/<[^>]*>/g, '').trim();
+      tdValues.push(val);
+    }
+
+    const dedupeKey = currency + '-' + todayStr + '-' + eventTitle.substring(0, 30);
+    if (events.some(e => (e.currency + '-' + e.date + '-' + e.event.substring(0, 30)) === dedupeKey)) continue;
+
+    events.push({
+      id: 'inv-' + events.length + '-' + currency + '-' + todayStr,
+      date: todayStr, time: eventTime,
+      dateTime: buildDateTime(todayStr, eventTime),
+      currency, impact, event: eventTitle,
+      actual: tdValues[0] || undefined,
+      forecast: tdValues[1] || '',
+      previous: tdValues[2] || '',
+    });
+  }
+
+  if (events.length === 0) throw new Error('No events parsed from Investing.com');
+  console.log('[EconCalendar] Investing.com: ' + events.length + ' events');
+  return sortEvents(events);
+}
+
 // ─── 4. Fallback Calendar (guaranteed, no API needed) ─────────────────────
 async function fetchFallbackCalendar(): Promise<CalendarEvent[]> {
   const today = new Date();
@@ -254,7 +402,7 @@ async function fetchFallbackCalendar(): Promise<CalendarEvent[]> {
 async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source: string; unavailable: boolean }> {
   const errors: string[] = [];
 
-  // 1. Finnhub (has API key? try it)
+  // 1. Finnhub (FREE tier: 60 calls/min)
   if (getFinnhubKey()) {
     try {
       const events = await fetchFinnhubCalendar();
@@ -265,7 +413,18 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     }
   }
 
-  // 2. FCSAPI (try with or without key)
+  // 2. TradingEconomics Calendar (RapidAPI)
+  if (getRapidApiKey()) {
+    try {
+      const events = await fetchTECalendar();
+      if (events.length > 0) return { events, source: 'TradingEconomics (Live)', unavailable: false };
+    } catch (err: any) {
+      errors.push('TE: ' + err.message);
+      console.warn('[EconCalendar] TradingEconomics failed:', err.message);
+    }
+  }
+
+  // 3. FCSAPI (try with or without key)
   try {
     const events = await fetchFcsApiCalendar();
     if (events.length > 0) return { events, source: 'FCSAPI (Live)', unavailable: false };
@@ -274,7 +433,7 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     console.warn('[EconCalendar] FCSAPI failed:', err.message);
   }
 
-  // 3. MyFXBook (free, no key)
+  // 4. MyFXBook (free, no key)
   try {
     const events = await fetchMyFXBookCalendar();
     if (events.length > 0) return { events, source: 'MyFXBook (Live)', unavailable: false };
@@ -283,7 +442,16 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     console.warn('[EconCalendar] MyFXBook failed:', err.message);
   }
 
-  // 4. Fallback (guaranteed, no external call)
+  // 5. Investing.com (free, via CORS proxy)
+  try {
+    const events = await fetchInvestingCalendar();
+    if (events.length > 0) return { events, source: 'Investing.com (Live)', unavailable: false };
+  } catch (err: any) {
+    errors.push('Investing: ' + err.message);
+    console.warn('[EconCalendar] Investing.com failed:', err.message);
+  }
+
+  // 6. Fallback (guaranteed, no external call)
   console.warn('[EconCalendar] All live APIs failed, using fallback schedule. Errors:', errors.join('; '));
   const events = await fetchFallbackCalendar();
   return { events, source: 'Fallback Schedule', unavailable: false };
