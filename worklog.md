@@ -108,3 +108,32 @@ Stage Summary:
 - Prop-firm guard fully editable: all fields (name, balance, rules) can be edited after creation
 - Custom firm names supported in both Add and Edit dialogs
 - All changes pass lint and compile successfully
+
+---
+Task ID: 2
+Agent: main
+Task: Fix journal edit/delete, watchlist delete, notification email+news alerts, streak colors
+
+Work Log:
+- Added Edit button (pencil icon) to journal entry cards - always visible
+- Made journal Delete button always visible (removed opacity-0 hover trick)
+- Changed streak card from amber/orange to blue/cyan to match dashboard theme
+- Changed streak progress bar to blue→cyan gradient
+- Changed streak milestone badge to cyan color
+- Made watchlist Delete button always visible
+- Made watchlist Alert toggle button always visible (removed opacity-0)
+- Made NotificationCenter delete button always visible
+- Added 'news' notification type with Newspaper icon and blue background
+- Added news alert fetching for Pro users (high-impact news from /api/news)
+- Added fire-and-forget email alert trigger in tradeHandlers after trade save
+- Trade save now calls /api/notifications/send-alert with big_win or big_loss type
+- Pushed all changes to GitHub (commit 9f4c39ed)
+
+Stage Summary:
+- Journal entries now have visible Edit + Delete buttons
+- Watchlist items have visible Delete + Alert toggle buttons
+- Notification delete buttons always visible
+- Email alerts fire automatically after trade save (big_win/big_loss)
+- News alerts appear in notification center for Pro users
+- Streak card uses blue/cyan dashboard color scheme
+- All changes compiled and lint clean
