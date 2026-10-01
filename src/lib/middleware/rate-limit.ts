@@ -41,7 +41,7 @@ export function withRateLimit(
     const identifier = config.identifier || ip
 
     try {
-      const env = getCloudflareEnv(request)
+      const env = await getCloudflareEnv()
 
       // Check rate limit
       const rateLimitResult = await checkRateLimit(env, identifier, limit, window)

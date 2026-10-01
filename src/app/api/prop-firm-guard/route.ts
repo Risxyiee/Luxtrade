@@ -278,7 +278,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: fetchError.message }, { status: 500 })
     }
 
-    if (!existing || existing.user_id !== user.id) {
+    if (!existing || String(existing.user_id) !== String(user.id)) {
       return NextResponse.json({ error: 'Challenge not found' }, { status: 404 })
     }
 
@@ -431,7 +431,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: fetchError.message }, { status: 500 })
     }
 
-    if (!existing || existing.user_id !== user.id) {
+    if (!existing || String(existing.user_id) !== String(user.id)) {
       return NextResponse.json({ error: 'Challenge not found' }, { status: 404 })
     }
 

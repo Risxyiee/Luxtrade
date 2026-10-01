@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     // Validate required fields
-    const requiredFields = ['symbol', 'type', 'open_price', 'lot_size', 'profit_loss', 'open_time', 'close_time']
+    const requiredFields = ['symbol', 'type', 'open_price', 'lot_size', 'open_time', 'close_time']
     const missingFields = requiredFields.filter(field => !body[field] && body[field] !== 0)
 
     if (missingFields.length > 0) {
@@ -212,6 +212,14 @@ export async function POST(request: NextRequest) {
         { error: `Missing required fields: ${missingFields.join(', ')}` },
         { status: 400 }
       )
+    }
+
+    // Default profit_loss and close_price to 0 if not provided (open positions)
+    if (body.profit_loss === undefined || body.profit_loss === null || body.profit_loss === '') {
+      body.profit_loss = 0
+    }
+    if (body.close_price === undefined || body.close_price === null || body.close_price === '') {
+      body.close_price = 0
     }
 
     // Check PRO status BEFORE creating trade
@@ -231,16 +239,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Create trade via Supabase
+    // Helper: safe parseFloat that returns 0 for NaN/undefined (guards NOT NULL columns)
+    const safeFloat = (val: any, fallback = 0): number => {
+      const n = parseFloat(String(val))
+      return isNaN(n) ? fallback : n
+    }
+
     const tradeData = {
       id: edgeCrypto.randomUUID(),
       user_id: userId,
       account_id: body.account_id ? String(body.account_id) : null,
       symbol: String(body.symbol).toUpperCase(),
       type: String(body.type),
-      open_price: parseFloat(String(body.open_price)),
-      close_price: parseFloat(String(body.close_price)),
-      lot_size: parseFloat(String(body.lot_size)),
-      profit_loss: parseFloat(String(body.profit_loss)),
+      open_price: safeFloat(body.open_price),
+      close_price: safeFloat(body.close_price),
+      lot_size: safeFloat(body.lot_size),
+      profit_loss: safeFloat(body.profit_loss),
       open_time: body.open_time ? new Date(String(body.open_time)).toISOString() : new Date().toISOString(),
       close_time: body.close_time ? new Date(String(body.close_time)).toISOString() : new Date().toISOString(),
       session: body.session ? String(body.session) : null,
@@ -250,10 +264,10 @@ export async function POST(request: NextRequest) {
       emotion: body.emotion ? String(body.emotion) : null,
       setup_type: body.setup_type ? String(body.setup_type) : null,
       tags: body.tags ? JSON.stringify(body.tags) : null,
-      stop_loss: body.stop_loss != null && body.stop_loss !== '' ? parseFloat(String(body.stop_loss)) : null,
-      take_profit: body.take_profit != null && body.take_profit !== '' ? parseFloat(String(body.take_profit)) : null,
+      stop_loss: body.stop_loss != null && body.stop_loss !== '' ? safeFloat(body.stop_loss, 0) : null,
+      take_profit: body.take_profit != null && body.take_profit !== '' ? safeFloat(body.take_profit, 0) : null,
       ticket_number: body.ticket_number ? String(body.ticket_number) : null,
-      risk_reward_ratio: body.risk_reward_ratio ? parseFloat(String(body.risk_reward_ratio)) : null,
+      risk_reward_ratio: body.risk_reward_ratio ? safeFloat(body.risk_reward_ratio, 0) : null,
       trade_duration: body.trade_duration ? parseInt(String(body.trade_duration)) : null,
       linked_journal_id: body.linked_journal_id ? String(body.linked_journal_id) : null,
       created_at: new Date().toISOString(),
@@ -269,9 +283,21 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       console.error('[trades POST] Insert error:', insertError)
       if (insertError.code === '23503') {
+        // Foreign key violation — provide specific guidance
+        const hint = insertError.message?.includes('account_id')
+          ? 'Trading account not found. Please refresh and try again.'
+          : 'Profile not found. Please refresh and try again.'
         return NextResponse.json(
-          { error: 'Profile not found. Please refresh and try again.' },
+          { error: hint },
           { status: 400 }
+        )
+      }
+      if (insertError.code === '42501') {
+        // RLS policy violation — this is the UUID vs TEXT mismatch bug
+        console.error('[trades POST] RLS policy violation — likely auth.uid() type mismatch. user_id:', userId)
+        return NextResponse.json(
+          { error: 'Permission denied. Please try again or contact support.' },
+          { status: 403 }
         )
       }
       return NextResponse.json(

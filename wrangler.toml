@@ -56,13 +56,17 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOi
 NEXT_PUBLIC_SITE_URL = "https://luxtradee.web.id"
 MIDTRANS_IS_PRODUCTION = "true"
 # RapidAPI key for Economic Calendar & Market News
-# Set the actual key via: wrangler secret put RAPIDAPI_KEY
-# Then also set FINNHUB_API_KEY and ALPHAVANTAGE_API_KEY as secrets for fallback sources
-RAPIDAPI_KEY = ""
-FINNHUB_API_KEY = ""
-ALPHAVANTAGE_API_KEY = ""
-FCSAPI_KEY = ""
-RAPIDAPI_TRADING_ECONOMICS_KEY = ""
+# Set the actual keys via: wrangler secret put FINNHUB_API_KEY
+#   wrangler secret put RAPIDAPI_KEY
+#   wrangler secret put ALPHAVANTAGE_API_KEY
+# NOTE: Do NOT set empty strings for secrets in [vars] — that overrides the
+# secret set via `wrangler secret put` with an empty value, making the key
+# inaccessible. Remove these lines entirely and only use `wrangler secret put`.
+# FINNHUB_API_KEY = ""
+# ALPHAVANTAGE_API_KEY = ""
+# FCSAPI_KEY = ""
+# RAPIDAPI_KEY = ""
+# RAPIDAPI_TRADING_ECONOMICS_KEY = ""
 
 # Observability
 [observability]

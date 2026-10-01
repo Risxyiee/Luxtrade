@@ -46,6 +46,8 @@ model Profile {
   socialLinks       SocialLink[]
   paymentOrders     PaymentOrder[]
   sharedTrades      SharedTrade[]
+  subscriptions     UserSubscription[]
+  propFirmChallenges PropFirmChallenge[]
 
   @@map("profiles")
 }
@@ -86,7 +88,7 @@ model MissionProgress {
 }
 
 model User {
-  id                String    @id @default(uuid()) @db.Uuid
+  id                String    @id @default(uuid())
   email             String    @unique
   name              String?
   emailVerified     DateTime?
@@ -95,15 +97,12 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  subscriptions     UserSubscription[]
-  propFirmChallenges PropFirmChallenge[]
-
   @@map("users")
 }
 
 model UserSubscription {
-  id                String    @id @default(uuid()) @db.Uuid
-  userId            String    @map("user_id") @db.Uuid
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
   plan              String
   status            String    @default("active")
   startDate         DateTime  @default(now()) @map("start_date")
@@ -113,7 +112,7 @@ model UserSubscription {
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt   @map("updated_at")
 
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
   promoCode         PromoCode? @relation(fields: [promoCodeId], references: [id])
 
   @@index([userId])
@@ -463,8 +462,8 @@ model SharedTrade {
 }
 
 model PropFirmChallenge {
-  id              String   @id @default(uuid()) @db.Uuid
-  userId          String   @map("user_id") @db.Uuid
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
   tradingAccountId String? @map("trading_account_id")
 
   // Challenge info
@@ -498,7 +497,7 @@ model PropFirmChallenge {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([isActive])

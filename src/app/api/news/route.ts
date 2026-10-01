@@ -9,12 +9,42 @@ const CACHE_DURATION_RATE_LIMITED = 60 * 60 * 1000; // 60 min when rate limited
 const TE_API_HOST = 'trading-economics-scraper.p.rapidapi.com';
 const TE_ENDPOINT = 'https://trading-economics-scraper.p.rapidapi.com/get_trading_economics_news';
 
-// Lazy-read API key at request time (CF Workers env vars not available at module load)
-// In CF Workers, secrets are on (request).env, not process.env
-let _cfEnv: any = null;
+/**
+ * Get an API key from environment variables.
+ *
+ * In OpenNext/CF Workers, the init.js template populates process.env from
+ * the CF env (secrets + [vars]) at request time via populateProcessEnv().
+ * So process.env.FOO works for both secrets and vars.
+ *
+ * We also try getCloudflareContext().env as a fallback for edge runtimes
+ * where process.env may not be populated yet.
+ */
+async function getEnvVar(key: string): Promise<string> {
+  // 1. process.env — works when OpenNext's populateProcessEnv has run
+  const fromProcess = process.env[key];
+  if (fromProcess && fromProcess.length > 0) return fromProcess;
 
-function getTeApiKey(): string {
-  return process.env.RAPIDAPI_KEY || _cfEnv?.RAPIDAPI_KEY || process.env.RAPIDAPI_TRADING_ECONOMICS_KEY || _cfEnv?.RAPIDAPI_TRADING_ECONOMICS_KEY || '';
+  // 2. getCloudflareContext().env — works in CF Workers edge runtime
+  try {
+    const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+    const ctx = getCloudflareContext();
+    const fromCtx = ctx?.env?.[key];
+    if (fromCtx && typeof fromCtx === 'string' && fromCtx.length > 0) return fromCtx;
+  } catch {
+    // @opennextjs/cloudflare not available (local dev without wrangler)
+  }
+
+  return '';
+}
+
+// Cached env vars per request (resolved lazily on first key access)
+let _envCache: Record<string, string> | null = null;
+
+async function getTeApiKey(): Promise<string> {
+  _envCache ??= {};
+  _envCache.RAPIDAPI_KEY ??= await getEnvVar('RAPIDAPI_KEY');
+  _envCache.RAPIDAPI_TRADING_ECONOMICS_KEY ??= await getEnvVar('RAPIDAPI_TRADING_ECONOMICS_KEY');
+  return _envCache.RAPIDAPI_KEY || _envCache.RAPIDAPI_TRADING_ECONOMICS_KEY || '';
 }
 
 // ==================== RSS FEED URLs ====================
@@ -116,7 +146,7 @@ interface TEResponse {
 }
 
 async function fetchTradingEconomicsNews(): Promise<FullNewsItem[]> {
-  const apiKey = getTeApiKey();
+  const apiKey = await getTeApiKey();
   if (!apiKey) {
     throw new Error('RAPIDAPI_TRADING_ECONOMICS_KEY not configured');
   }
@@ -178,12 +208,14 @@ async function fetchTradingEconomicsNews(): Promise<FullNewsItem[]> {
 
 const FINNHUB_NEWS_URL = 'https://finnhub.io/api/v1/news';
 
-function getFinnhubApiKey(): string {
-  return process.env.FINNHUB_API_KEY || _cfEnv?.FINNHUB_API_KEY || '';
+async function getFinnhubApiKey(): Promise<string> {
+  _envCache ??= {};
+  _envCache.FINNHUB_API_KEY ??= await getEnvVar('FINNHUB_API_KEY');
+  return _envCache.FINNHUB_API_KEY || '';
 }
 
 async function fetchFinnhubNews(): Promise<FullNewsItem[]> {
-  const apiKey = getFinnhubApiKey();
+  const apiKey = await getFinnhubApiKey();
   if (!apiKey) throw new Error('FINNHUB_API_KEY not configured');
 
   const url = `${FINNHUB_NEWS_URL}?category=forex&token=${apiKey}`;
@@ -344,7 +376,7 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
   let primarySource = '';
 
   // PRIMARY: TradingEconomics RapidAPI (forex-focused, with importance)
-  const teKey = getTeApiKey();
+  const teKey = await getTeApiKey();
   if (teKey) {
     try {
       console.log('[News] Fetching from TradingEconomics RapidAPI...');
@@ -367,7 +399,7 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
   }
 
   // FALLBACK 1: Finnhub (FREE, 60 calls/min, real market news)
-  const finnhubKey = getFinnhubApiKey();
+  const finnhubKey = await getFinnhubApiKey();
   if (finnhubKey) {
     try {
       console.log('[News] Fetching from Finnhub...');
@@ -491,11 +523,14 @@ interface NewsCacheEntry {
   timestamp: number;
 }
 
-async function getNewsKVCache(request: NextRequest): Promise<NewsCacheEntry | null> {
+async function getNewsKVCache(): Promise<NewsCacheEntry | null> {
   try {
-    const { getCloudflareEnv } = await import('@/lib/cloudflare-bindings');
-    const env = getCloudflareEnv(request as unknown as Request);
-    const kv = env?.luxtradee_kv;
+    let kv: any = null;
+    try {
+      const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+      const ctx = getCloudflareContext();
+      kv = (ctx as any)?.env?.luxtradee_kv;
+    } catch {}
     if (!kv) return null;
     const raw = await kv.get('news_cache', 'text');
     if (!raw) return null;
@@ -514,11 +549,14 @@ async function getNewsKVCache(request: NextRequest): Promise<NewsCacheEntry | nu
   }
 }
 
-async function setNewsKVCache(request: NextRequest, entry: NewsCacheEntry, ttlMs?: number): Promise<void> {
+async function setNewsKVCache(entry: NewsCacheEntry, ttlMs?: number): Promise<void> {
   try {
-    const { getCloudflareEnv } = await import('@/lib/cloudflare-bindings');
-    const env = getCloudflareEnv(request as unknown as Request);
-    const kv = env?.luxtradee_kv;
+    let kv: any = null;
+    try {
+      const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+      const ctx = getCloudflareContext();
+      kv = (ctx as any)?.env?.luxtradee_kv;
+    } catch {}
     if (!kv) return;
     await kv.put('news_cache', JSON.stringify(entry), { expirationTtl: Math.ceil((ttlMs || CACHE_DURATION) / 1000) });
   } catch {
@@ -529,8 +567,8 @@ async function setNewsKVCache(request: NextRequest, entry: NewsCacheEntry, ttlMs
 // ==================== API ROUTE ====================
 
 export async function GET(request: NextRequest) {
-  // Expose CF Workers env vars (secrets) to API key helpers
-  _cfEnv = (request as any).env || null;
+  // Reset env cache for each request (secrets may differ per request in theory)
+  _envCache = null;
 
   const { searchParams } = new URL(request.url);
   const format = searchParams.get('format') || 'ticker';
@@ -539,7 +577,7 @@ export async function GET(request: NextRequest) {
   try {
     // 1. Try KV cache first (Cloudflare Workers)
     if (!forceRefresh) {
-      const kvEntry = await getNewsKVCache(request);
+      const kvEntry = await getNewsKVCache();
       if (kvEntry && Date.now() - kvEntry.timestamp < CACHE_DURATION) {
         const cachedItems = kvEntry.items;
         if (format === 'full') {
@@ -608,7 +646,7 @@ export async function GET(request: NextRequest) {
     // Update caches
     const newCache: NewsCacheEntry = { items: allResults, timestamp: Date.now() };
     fullNewsCache = newCache;
-    await setNewsKVCache(request, newCache, cacheTTL);
+    await setNewsKVCache(newCache, cacheTTL);
     if (isRateLimited) delete (fetchFullNews as any)._lastRateLimited;
 
     console.log(`[News] Fetched ${allResults.length} news items`);

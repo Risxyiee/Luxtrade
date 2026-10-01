@@ -66,16 +66,30 @@ export interface CloudflareBindings {
 // ─── Get Environment ─────────────────────────────────────────────────────────
 
 /**
- * Get Cloudflare env with bindings from Next.js request context.
- * In OpenNext/CF Workers, bindings are on (request as any).env
+ * Get Cloudflare env with bindings.
+ *
+ * In OpenNext/CF Workers, the official way to access bindings is via
+ * getCloudflareContext() from @opennextjs/cloudflare, which uses
+ * AsyncLocalStorage to store the env from the worker fetch handler.
+ *
+ * The old approach of (request as any).env does NOT work in OpenNext
+ * because the Request object is recreated by Next.js middleware and
+ * loses the .env property attached by the CF fetch handler.
  */
-export function getCloudflareEnv(request: Request): CloudflareBindings {
-  return (request as any).env ?? {}
+export async function getCloudflareEnv(): Promise<CloudflareBindings> {
+  try {
+    const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+    const ctx = getCloudflareContext();
+    return (ctx?.env ?? {}) as CloudflareBindings;
+  } catch {
+    // @opennextjs/cloudflare not available (local dev without wrangler)
+    return {} as CloudflareBindings;
+  }
 }
 
-/** Shorthand: get typed bindings from request */
-export function getBindings(request: Request): CloudflareBindings {
-  return getCloudflareEnv(request)
+/** Shorthand: get typed bindings */
+export async function getBindings(): Promise<CloudflareBindings> {
+  return getCloudflareEnv()
 }
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
