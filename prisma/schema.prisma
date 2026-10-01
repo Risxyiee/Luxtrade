@@ -476,6 +476,8 @@ model PropFirmChallenge {
   maxDailyLoss    Float   @map("max_daily_loss")     // 5% of account = 5000 for $100k
   maxTotalDD      Float   @map("max_total_dd")       // 10% of account = 10000 for $100k
   profitTarget    Float   @map("profit_target")      // 10% for phase1 = 10000
+  consistencyRule Float   @default(0) @map("consistency_rule")  // Consistency rule % (e.g. 30 means best day can't exceed 30% of total profit)
+  bestDayPL       Float   @default(0) @map("best_day_pl")       // Best single day P/L amount
 
   // Current state (calculated from trades)
   currentBalance  Float   @default(0) @map("current_balance")

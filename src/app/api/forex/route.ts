@@ -68,7 +68,11 @@ async function fetchTwelveData(symbol: string, interval: string, limit: number):
   }
   const tdInterval = tdIntervalMap[interval] || interval
 
-  const url = `https://api.twelvedata.com/time_series?symbol=${info.from}/${info.to}&interval=${tdInterval}&outputsize=${limit}&apikey=${TWELVE_DATA_KEY}`
+  // For commodity pairs (XAU, XAG), TwelveData uses the symbol directly
+  const isCommodity = info.from === 'XAU' || info.from === 'XAG'
+  const tdSymbol = isCommodity ? `${info.from}/${info.to}` : `${info.from}/${info.to}`
+
+  const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(tdSymbol)}&interval=${tdInterval}&outputsize=${limit}&apikey=${TWELVE_DATA_KEY}`
 
   try {
     const controller = new AbortController()
@@ -89,7 +93,13 @@ async function fetchTwelveData(symbol: string, interval: string, limit: number):
         low: parseFloat(v.low),
         close: parseFloat(v.close),
       }))
-      .filter((k: any) => k.time > 0 && k.high >= k.low && k.open > 0)
+      .filter((k: any) => {
+        if (k.time <= 0 || k.high < k.low || k.open <= 0) return false
+        // Sanity check for commodity pairs
+        if (info.from === 'XAU' && k.close < 100) return false
+        if (info.from === 'XAG' && k.close < 5) return false
+        return true
+      })
       .sort((a: any, b: any) => a.time - b.time)
   } catch {
     return null
@@ -104,7 +114,15 @@ async function fetchAlphaVantage(symbol: string, limit: number): Promise<any[] |
   const info = FOREX_SYMBOLS[symbol]
   if (!info) return null
 
-  const url = `https://www.alphavantage.co/query?function=FX_DAILY&from_symbol=${info.from}&to_symbol=${info.to}&apikey=${ALPHA_VANTAGE_KEY}&outputsize=compact`
+  // For commodity pairs (XAU/XAG), Alpha Vantage uses the commodity function
+  const isCommodity = info.from === 'XAU' || info.from === 'XAG'
+  const avFunction = isCommodity ? 'TIME_SERIES_DAILY' : 'FX_DAILY'
+  // For commodities, symbol format is different
+  const avUrl = isCommodity
+    ? `https://www.alphavantage.co/query?function=${avFunction}&symbol=${info.from}${info.to}&apikey=${ALPHA_VANTAGE_KEY}&outputsize=compact`
+    : `https://www.alphavantage.co/query?function=${avFunction}&from_symbol=${info.from}&to_symbol=${info.to}&apikey=${ALPHA_VANTAGE_KEY}&outputsize=compact`
+
+  const url = avUrl
 
   try {
     const controller = new AbortController()
@@ -118,9 +136,14 @@ async function fetchAlphaVantage(symbol: string, limit: number): Promise<any[] |
     if (text.includes('Thank you for using Alpha Vantage')) return null
 
     const data = JSON.parse(text)
-    if (data['Error Message'] || !data['Time Series FX (Daily)']) return null
+    if (data['Error Message']) return null
 
-    const timeSeries = data['Time Series FX (Daily)']
+    // Commodity pairs use 'Time Series (Daily)', forex uses 'Time Series FX (Daily)'
+    const isCommodity = info.from === 'XAU' || info.from === 'XAG'
+    const timeSeriesKey = isCommodity ? 'Time Series (Daily)' : 'Time Series FX (Daily)'
+    if (!data[timeSeriesKey]) return null
+
+    const timeSeries = data[timeSeriesKey]
     return Object.entries(timeSeries)
       .slice(0, limit)
       .reverse()
@@ -131,7 +154,14 @@ async function fetchAlphaVantage(symbol: string, limit: number): Promise<any[] |
         low: parseFloat(values['3. low']),
         close: parseFloat(values['4. close']),
       }))
-      .filter((k: any) => k.time > 0 && k.high >= k.low && k.open > 0)
+      .filter((k: any) => {
+        if (k.time <= 0 || k.high < k.low || k.open <= 0) return false
+        // Sanity check: XAU/USD should be > 100, XAG/USD > 10
+        // If a commodity API returns a price in the wrong range, the data is bad
+        if (isCommodity && info.from === 'XAU' && k.close < 100) return false
+        if (isCommodity && info.from === 'XAG' && k.close < 5) return false
+        return true
+      })
       .sort((a: any, b: any) => a.time - b.time)
   } catch {
     return null
@@ -189,6 +219,11 @@ async function fetchYahooFinance(symbol: string, interval: string, limit: number
       // Skip candles with null values
       if (open == null || high == null || low == null || close == null) continue
       if (high < low || open <= 0) continue
+      // Sanity check: XAU/USD should be > 100, XAG/USD > 5
+      // Reject bad data from APIs that don't handle commodities correctly
+      const isCommodity = info.from === 'XAU' || info.from === 'XAG'
+      if (isCommodity && info.from === 'XAU' && close < 100) continue
+      if (isCommodity && info.from === 'XAG' && close < 5) continue
       candles.push({
         time: timestamps[i],
         open: parseFloat(open.toFixed(info.decimals)),

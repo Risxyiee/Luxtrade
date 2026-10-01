@@ -120,8 +120,10 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
     <div className="space-y-6">
       {/* Source Badge */}
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.05] w-fit">
-        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-        <span className="text-xs text-lux-text-muted dark:text-gray-500">{t.investingSource}</span>
+        <div className={`w-2 h-2 rounded-full ${unavailableMsg ? 'bg-amber-500' : 'bg-blue-500 animate-pulse'}`} />
+        <span className="text-xs text-lux-text-muted dark:text-gray-500">
+          {unavailableMsg ? (language === 'id' ? 'Berita tidak tersedia' : 'News unavailable') : t.investingSource}
+        </span>
       </div>
 
       {/* Header */}

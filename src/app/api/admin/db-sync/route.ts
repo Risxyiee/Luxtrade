@@ -119,6 +119,13 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
+-- === PROP_FIRM_CHALLENGES COLUMN ADDITIONS (idempotent) ===
+DO $$ BEGIN
+  ALTER TABLE prop_firm_challenges ADD COLUMN IF NOT EXISTS consistency_rule FLOAT DEFAULT 0;
+  ALTER TABLE prop_firm_challenges ADD COLUMN IF NOT EXISTS best_day_pl FLOAT DEFAULT 0;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
 -- === INDEXES (idempotent) ===
 CREATE UNIQUE INDEX IF NOT EXISTS "profiles_email_verify_token_key" ON "profiles"("email_verify_token");
 CREATE UNIQUE INDEX IF NOT EXISTS "profiles_my_referral_code_key" ON "profiles"("my_referral_code");
@@ -165,6 +172,7 @@ export async function POST(request: NextRequest) {
       summary: {
         tablesChecked: 6,
         profileColumnsChecked: 8,
+        propFirmChallengeColumnsChecked: 2,
         indexesChecked: 4,
       },
     })
