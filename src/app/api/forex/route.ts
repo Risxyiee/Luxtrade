@@ -19,15 +19,33 @@ const FOREX_SYMBOLS: Record<string, { from: string; to: string; decimals: number
 }
 
 // ── CF Workers env vars ──────────────────────────────────────────────
-// In CF Workers, secrets are on (request).env, not process.env
-// We set this at request time (see GET handler)
-let _cfEnv: any = null
+// In OpenNext/CF Workers, the init.js template populates process.env from
+// the CF env (secrets + [vars]) at request time via populateProcessEnv().
+// So process.env.FOO works for both secrets and vars.
+// We also try getCloudflareContext().env as a fallback.
+let _envCache: Record<string, string> | null = null
 
-function getAlphaVantageKey(): string {
-  return process.env.ALPHA_VANTAGE_API_KEY || _cfEnv?.ALPHA_VANTAGE_API_KEY || ''
+async function getEnvVar(key: string): Promise<string> {
+  const fromProcess = process.env[key]
+  if (fromProcess && fromProcess.length > 0) return fromProcess
+  try {
+    const { getCloudflareContext } = await import('@opennextjs/cloudflare')
+    const ctx = getCloudflareContext()
+    const fromCtx = ctx?.env?.[key]
+    if (fromCtx && typeof fromCtx === 'string' && fromCtx.length > 0) return fromCtx
+  } catch {}
+  return ''
 }
-function getTwelveDataKey(): string {
-  return process.env.TWELVE_DATA_API_KEY || _cfEnv?.TWELVE_DATA_API_KEY || ''
+
+async function getAlphaVantageKey(): Promise<string> {
+  _envCache ??= {}
+  _envCache.ALPHA_VANTAGE_API_KEY ??= await getEnvVar('ALPHA_VANTAGE_API_KEY')
+  return _envCache.ALPHA_VANTAGE_API_KEY || ''
+}
+async function getTwelveDataKey(): Promise<string> {
+  _envCache ??= {}
+  _envCache.TWELVE_DATA_API_KEY ??= await getEnvVar('TWELVE_DATA_API_KEY')
+  return _envCache.TWELVE_DATA_API_KEY || ''
 }
 
 // ── In-memory cache with per-interval TTL ────────────────────────────
@@ -62,11 +80,14 @@ function setCache(key: string, data: any[], source: string) {
 }
 
 // ── KV cache helpers (cross-isolate cache on CF Workers) ─────────────
-async function getForexKVCache(request: NextRequest, key: string): Promise<CacheEntry | null> {
+async function getForexKVCache(key: string): Promise<CacheEntry | null> {
   try {
-    const { getCloudflareEnv } = await import('@/lib/cloudflare-bindings')
-    const env = getCloudflareEnv(request as unknown as Request)
-    const kv = env?.luxtradee_kv
+    let kv: any = null
+    try {
+      const { getCloudflareContext } = await import('@opennextjs/cloudflare')
+      const ctx = getCloudflareContext()
+      kv = (ctx as any)?.env?.luxtradee_kv
+    } catch {}
     if (!kv) return null
     const raw = await kv.get(`forex:${key}`, 'text')
     if (!raw) return null
@@ -76,11 +97,14 @@ async function getForexKVCache(request: NextRequest, key: string): Promise<Cache
   }
 }
 
-async function setForexKVCache(request: NextRequest, key: string, data: any[], source: string, ttlSeconds: number): Promise<void> {
+async function setForexKVCache(key: string, data: any[], source: string, ttlSeconds: number): Promise<void> {
   try {
-    const { getCloudflareEnv } = await import('@/lib/cloudflare-bindings')
-    const env = getCloudflareEnv(request as unknown as Request)
-    const kv = env?.luxtradee_kv
+    let kv: any = null
+    try {
+      const { getCloudflareContext } = await import('@opennextjs/cloudflare')
+      const ctx = getCloudflareContext()
+      kv = (ctx as any)?.env?.luxtradee_kv
+    } catch {}
     if (!kv) return
     const entry: CacheEntry = { data, timestamp: Date.now(), source }
     await kv.put(`forex:${key}`, JSON.stringify(entry), { expirationTtl: ttlSeconds })
@@ -89,9 +113,51 @@ async function setForexKVCache(request: NextRequest, key: string, data: any[], s
   }
 }
 
+// ── Twelve Data Real-time Price (for watchlist polling) ─────────────
+async function fetchTwelveDataPrice(symbol: string): Promise<any[] | null> {
+  const TWELVE_DATA_KEY = await getTwelveDataKey()
+  if (!TWELVE_DATA_KEY || TWELVE_DATA_KEY.length < 10) return null
+
+  const info = FOREX_SYMBOLS[symbol]
+  if (!info) return null
+
+  const tdSymbol = `${info.from}/${info.to}`
+  const url = `https://api.twelvedata.com/price?symbol=${encodeURIComponent(tdSymbol)}&apikey=${TWELVE_DATA_KEY}`
+
+  try {
+    const controller = new AbortController()
+    const tid = setTimeout(() => controller.abort(), 10000)
+    const res = await fetch(url, { signal: controller.signal })
+    clearTimeout(tid)
+
+    if (!res.ok) return null
+
+    const json = await res.json()
+    if (json.status === 'error' || !json.price) return null
+
+    const price = parseFloat(json.price)
+    if (isNaN(price) || price <= 0) return null
+
+    // Sanity check for commodity pairs
+    if (info.from === 'XAU' && price < 100) return null
+    if (info.from === 'XAG' && price < 5) return null
+
+    // Return as a single-candle array compatible with the existing format
+    return [{
+      time: Math.floor(Date.now() / 1000),
+      open: price,
+      high: price,
+      low: price,
+      close: parseFloat(price.toFixed(info.decimals)),
+    }]
+  } catch {
+    return null
+  }
+}
+
 // ── Twelve Data API (FREE: 800 req/day, intraday!) ──────────────────
 async function fetchTwelveData(symbol: string, interval: string, limit: number): Promise<any[] | null> {
-  const TWELVE_DATA_KEY = getTwelveDataKey()
+  const TWELVE_DATA_KEY = await getTwelveDataKey()
   if (!TWELVE_DATA_KEY || TWELVE_DATA_KEY.length < 10) return null
 
   const info = FOREX_SYMBOLS[symbol]
@@ -142,7 +208,7 @@ async function fetchTwelveData(symbol: string, interval: string, limit: number):
 
 // ── Alpha Vantage API (FREE: 25 req/day, daily only) ────────────────
 async function fetchAlphaVantage(symbol: string, limit: number): Promise<any[] | null> {
-  const ALPHA_VANTAGE_KEY = getAlphaVantageKey()
+  const ALPHA_VANTAGE_KEY = await getAlphaVantageKey()
   if (!ALPHA_VANTAGE_KEY || ALPHA_VANTAGE_KEY === 'demo' || ALPHA_VANTAGE_KEY.length < 10) return null
 
   const info = FOREX_SYMBOLS[symbol]
@@ -304,8 +370,8 @@ async function fetchYahooFinance(symbol: string, interval: string, limit: number
 
 // ── Main handler ────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
-  // Expose CF Workers env vars (secrets) to API key helpers
-  _cfEnv = (request as any).env || null
+  // Reset env cache for each request
+  _envCache = null
 
   try {
     const { searchParams } = new URL(request.url)
@@ -322,46 +388,80 @@ export async function GET(request: NextRequest) {
     const kvTtlSeconds = isPriceCheck ? 30 : (interval === '5m' || interval === '15m') ? 60 : 300
 
     // Check in-memory cache first (unless nocache is set)
+    // For price checks with nocache, always skip cache to get freshest data
     if (!nocache) {
       const cached = getCached(cacheKey, interval, limit)
       if (cached) {
-        return NextResponse.json({
-          success: true,
-          symbol: validSymbol,
-          interval,
-          data: cached.data,
-          source: cached.source + '-memcache',
-          fetchedAt: new Date(cached.timestamp).toISOString(),
-          stale: isPriceCheck && (Date.now() - cached.timestamp > 15000), // Mark as stale if > 15s for price checks
-        })
+        // For price checks, mark as stale if data is >15s old
+        // so the client knows to treat it as less reliable
+        const age = Date.now() - cached.timestamp
+        if (isPriceCheck && age > 15000) {
+          // Cache is stale for a price check — don't return it, fetch fresh
+          cache.delete(cacheKey)
+        } else {
+          return NextResponse.json({
+            success: true,
+            symbol: validSymbol,
+            interval,
+            data: cached.data,
+            source: cached.source + '-memcache',
+            fetchedAt: new Date(cached.timestamp).toISOString(),
+            stale: false,
+          })
+        }
       }
 
       // Check KV cache (cross-isolate on CF Workers)
-      const kvCached = await getForexKVCache(request, cacheKey)
+      const kvCached = await getForexKVCache(cacheKey)
       if (kvCached && Date.now() - kvCached.timestamp < getCacheTtl(interval, limit)) {
-        // Populate in-memory cache from KV
-        setCache(cacheKey, kvCached.data, kvCached.source)
-        return NextResponse.json({
-          success: true,
-          symbol: validSymbol,
-          interval,
-          data: kvCached.data,
-          source: kvCached.source + '-kvcache',
-          fetchedAt: new Date(kvCached.timestamp).toISOString(),
-          stale: isPriceCheck && (Date.now() - kvCached.timestamp > 15000),
-        })
+        const kvAge = Date.now() - kvCached.timestamp
+        if (isPriceCheck && kvAge > 15000) {
+          // KV cache is stale for a price check — don't return it
+        } else {
+          // Populate in-memory cache from KV
+          setCache(cacheKey, kvCached.data, kvCached.source)
+          return NextResponse.json({
+            success: true,
+            symbol: validSymbol,
+            interval,
+            data: kvCached.data,
+            source: kvCached.source + '-kvcache',
+            fetchedAt: new Date(kvCached.timestamp).toISOString(),
+            stale: false,
+          })
+        }
       }
     }
 
     const errors: string[] = []
 
-    // Try Twelve Data first (best: intraday + free)
-    const tdKey = getTwelveDataKey()
+    // For price checks (limit=1), try real-time /price endpoint first
+    // This avoids the stale-candle issue where /time_series returns
+    // the last COMPLETED candle (up to 1h stale for 1h interval).
+    if (isPriceCheck) {
+      const tdPriceData = await fetchTwelveDataPrice(validSymbol)
+      if (tdPriceData && tdPriceData.length > 0) {
+        // Don't cache real-time price with the same key as time_series
+        // (it would pollute the chart cache with a single live tick)
+        console.log(`[Forex] ✓ Real-time price from TwelveData /price`)
+        return NextResponse.json({
+          success: true,
+          symbol: validSymbol,
+          interval,
+          data: tdPriceData,
+          source: 'twelvedata-price',
+          fetchedAt: new Date().toISOString(),
+        })
+      }
+    }
+
+    // Try Twelve Data time_series (best: intraday + free)
+    const tdKey = await getTwelveDataKey()
     console.log(`[Forex] Symbol=${validSymbol} Interval=${interval} Limit=${limit} Nocache=${nocache} TwelveData=${tdKey ? 'key:' + tdKey.substring(0, 6) + '...' : 'NOT SET'}`)
     const tdData = await fetchTwelveData(validSymbol, interval, limit)
     if (tdData && tdData.length > 0) {
       setCache(cacheKey, tdData, 'twelvedata')
-      await setForexKVCache(request, cacheKey, tdData, 'twelvedata', kvTtlSeconds)
+      await setForexKVCache(cacheKey, tdData, 'twelvedata', kvTtlSeconds)
       console.log(`[Forex] ✓ ${tdData.length} candles from TwelveData`)
       return NextResponse.json({
         success: true,
@@ -379,12 +479,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Try Alpha Vantage (daily only)
-    const avKey = getAlphaVantageKey()
+    const avKey = await getAlphaVantageKey()
     if (avKey) console.log(`[Forex] TwelveData failed, trying AlphaVantage (key: ${avKey.substring(0, 6)}...)`)
     const avData = await fetchAlphaVantage(validSymbol, limit)
     if (avData && avData.length > 0) {
       setCache(cacheKey, avData, 'alphavantage')
-      await setForexKVCache(request, cacheKey, avData, 'alphavantage', kvTtlSeconds)
+      await setForexKVCache(cacheKey, avData, 'alphavantage', kvTtlSeconds)
       console.log(`[Forex] ✓ ${avData.length} candles from AlphaVantage`)
       return NextResponse.json({
         success: true,
@@ -407,7 +507,7 @@ export async function GET(request: NextRequest) {
     const yfData = await fetchYahooFinance(validSymbol, interval, limit)
     if (yfData && yfData.length > 0) {
       setCache(cacheKey, yfData, 'yahoo-finance')
-      await setForexKVCache(request, cacheKey, yfData, 'yahoo-finance', kvTtlSeconds)
+      await setForexKVCache(cacheKey, yfData, 'yahoo-finance', kvTtlSeconds)
       console.log(`[Forex] ✓ ${yfData.length} candles from Yahoo Finance`)
       return NextResponse.json({
         success: true,

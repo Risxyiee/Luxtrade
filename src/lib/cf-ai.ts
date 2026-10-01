@@ -41,11 +41,10 @@ export interface CFChatOptions {
  * Generate text using Workers AI (chat completion style).
  */
 export async function cfChat(
-  request: Request,
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
   options: CFChatOptions = {}
 ): Promise<string | null> {
-  const env = getCloudflareEnv(request)
+  const env = await getCloudflareEnv()
   if (!env?.ai_luxtrade) return null
 
   const model = options.model ?? CF_AI_MODELS.chat
@@ -78,10 +77,9 @@ export interface SentimentResult {
  * Useful for: trade journal mood detection, news sentiment.
  */
 export async function cfSentiment(
-  request: Request,
   text: string
 ): Promise<SentimentResult | null> {
-  const env = getCloudflareEnv(request)
+  const env = await getCloudflareEnv()
   if (!env?.ai_luxtrade) return null
 
   try {
@@ -110,11 +108,10 @@ export async function cfSentiment(
  * Used for Vectorize semantic search on trade journals.
  */
 export async function cfEmbed(
-  request: Request,
   text: string,
   model: string = CF_AI_MODELS.embedding
 ): Promise<number[] | null> {
-  const env = getCloudflareEnv(request)
+  const env = await getCloudflareEnv()
   if (!env?.ai_luxtrade) return null
 
   try {
@@ -133,10 +130,9 @@ export async function cfEmbed(
  * Useful for: detecting trade chart screenshots vs non-chart images.
  */
 export async function cfClassifyImage(
-  request: Request,
   imageBuffer: ArrayBuffer
 ): Promise<Array<{ label: string; score: number }> | null> {
-  const env = getCloudflareEnv(request)
+  const env = await getCloudflareEnv()
   if (!env?.ai_luxtrade) return null
 
   try {

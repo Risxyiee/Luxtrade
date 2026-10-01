@@ -12,8 +12,8 @@ import { getCloudflareEnv, type CloudflareBindings } from './cloudflare-bindings
 /**
  * Check if Browser Rendering binding is available.
  */
-export function isBrowserAvailable(request: Request): boolean {
-  const env = getCloudflareEnv(request)
+export async function isBrowserAvailable(): Promise<boolean> {
+  const env = await getCloudflareEnv()
   return !!env?.ai_run
 }
 
@@ -22,7 +22,6 @@ export function isBrowserAvailable(request: Request): boolean {
  * Returns the PDF as an ArrayBuffer.
  */
 export async function generatePDF(
-  request: Request,
   url: string,
   options: {
     format?: 'A4' | 'Letter'
@@ -31,7 +30,7 @@ export async function generatePDF(
     margin?: { top?: string; bottom?: string; left?: string; right?: string }
   } = {}
 ): Promise<ArrayBuffer | null> {
-  const env = getCloudflareEnv(request)
+  const env = await getCloudflareEnv()
   if (!env?.ai_run) return null
 
   try {
@@ -65,7 +64,6 @@ export async function generatePDF(
  * Returns the screenshot as an ArrayBuffer (PNG by default).
  */
 export async function takeScreenshot(
-  request: Request,
   url: string,
   options: {
     width?: number
@@ -74,7 +72,7 @@ export async function takeScreenshot(
     type?: 'png' | 'jpeg'
   } = {}
 ): Promise<ArrayBuffer | null> {
-  const env = getCloudflareEnv(request)
+  const env = await getCloudflareEnv()
   if (!env?.ai_run) return null
 
   try {

@@ -32,15 +32,14 @@ export interface VectorizeSearchResult {
  * Insert a trade/journal entry into the vector index.
  */
 export async function indexTradeEntry(
-  request: Request,
   id: string,
   text: string,
   metadata?: Record<string, string>
 ): Promise<boolean> {
-  const env = getCloudflareEnv(request)
+  const env = await getCloudflareEnv()
   if (!env?.VECTORIZE_INDEX) return false
 
-  const values = await cfEmbed(request, text)
+  const values = await cfEmbed(text)
   if (!values) return false
 
   try {
@@ -61,15 +60,14 @@ export async function indexTradeEntry(
  * Returns top-K most similar entries with scores.
  */
 export async function searchSimilarTrades(
-  request: Request,
   query: string,
   topK: number = 5,
   namespace?: string
 ): Promise<VectorizeSearchResult[]> {
-  const env = getCloudflareEnv(request)
+  const env = await getCloudflareEnv()
   if (!env?.VECTORIZE_INDEX) return []
 
-  const queryVector = await cfEmbed(request, query)
+  const queryVector = await cfEmbed(query)
   if (!queryVector) return []
 
   try {
@@ -94,10 +92,9 @@ export async function searchSimilarTrades(
  * Delete entries from the vector index by ID.
  */
 export async function deleteVectorEntries(
-  request: Request,
   ids: string[]
 ): Promise<boolean> {
-  const env = getCloudflareEnv(request)
+  const env = await getCloudflareEnv()
   if (!env?.VECTORIZE_INDEX) return false
 
   try {

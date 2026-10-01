@@ -18,8 +18,8 @@ export interface KVCacheOptions {
  * Get a value from KV cache.
  * Returns null if not found or expired.
  */
-export async function kvGet<T>(request: Request, key: string): Promise<T | null> {
-  const env = getCloudflareEnv(request)
+export async function kvGet<T>(key: string): Promise<T | null> {
+  const env = await getCloudflareEnv()
   const kv = env.luxtradee_kv
 
   if (!kv) return null
@@ -37,12 +37,11 @@ export async function kvGet<T>(request: Request, key: string): Promise<T | null>
  * Set a value in KV cache with optional TTL.
  */
 export async function kvSet(
-  request: Request,
   key: string,
   value: any,
   options: KVCacheOptions = {}
 ): Promise<boolean> {
-  const env = getCloudflareEnv(request)
+  const env = await getCloudflareEnv()
   const kv = env.luxtradee_kv
 
   if (!kv) return false
@@ -59,8 +58,8 @@ export async function kvSet(
 /**
  * Delete a key from KV cache.
  */
-export async function kvDelete(request: Request, key: string): Promise<boolean> {
-  const env = getCloudflareEnv(request)
+export async function kvDelete(key: string): Promise<boolean> {
+  const env = await getCloudflareEnv()
   const kv = env.luxtradee_kv
 
   if (!kv) return false
@@ -78,16 +77,15 @@ export async function kvDelete(request: Request, key: string): Promise<boolean> 
  * Perfect for API responses that are expensive to compute.
  */
 export async function kvGetOrSet<T>(
-  request: Request,
   key: string,
   compute: () => Promise<T>,
   options: KVCacheOptions = {}
 ): Promise<T> {
-  const cached = await kvGet<T>(request, key)
+  const cached = await kvGet<T>(key)
   if (cached !== null) return cached
 
   const value = await compute()
-  await kvSet(request, key, value, options)
+  await kvSet(key, value, options)
   return value
 }
 
@@ -95,11 +93,10 @@ export async function kvGetOrSet<T>(
  * List keys in KV namespace with optional prefix filter.
  */
 export async function kvList(
-  request: Request,
   prefix?: string,
   limit: number = 100
 ): Promise<string[]> {
-  const env = getCloudflareEnv(request)
+  const env = await getCloudflareEnv()
   const kv = env.luxtradee_kv
 
   if (!kv) return []

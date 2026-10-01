@@ -30,13 +30,40 @@ const CACHE_DURATION = 10 * 60 * 1000; // 10 min
 const CACHE_DURATION_RATE_LIMITED = 30 * 60 * 1000; // 30 min when rate limited
 
 // ─── API Key Helpers ────────────────────────────────────────────────────────
-// In CF Workers, secrets are on (request).env, not process.env
-// We store the request reference so helpers can access CF env
-let _cfEnv: any = null;
+// In OpenNext/CF Workers, the init.js template populates process.env from
+// the CF env (secrets + [vars]) at request time via populateProcessEnv().
+// So process.env.FOO works for both secrets and vars.
+// We also try getCloudflareContext().env as a fallback.
+let _envCache: Record<string, string> | null = null;
 
-function getFinnhubKey(): string { return process.env.FINNHUB_API_KEY || _cfEnv?.FINNHUB_API_KEY || ''; }
-function getRapidApiKey(): string { return process.env.RAPIDAPI_KEY || _cfEnv?.RAPIDAPI_KEY || process.env.RAPIDAPI_TRADING_ECONOMICS_KEY || _cfEnv?.RAPIDAPI_TRADING_ECONOMICS_KEY || ''; }
-function getFcsApiKey(): string { return process.env.FCSAPI_KEY || _cfEnv?.FCSAPI_KEY || ''; }
+async function getEnvVar(key: string): Promise<string> {
+  const fromProcess = process.env[key];
+  if (fromProcess && fromProcess.length > 0) return fromProcess;
+  try {
+    const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+    const ctx = getCloudflareContext();
+    const fromCtx = ctx?.env?.[key];
+    if (fromCtx && typeof fromCtx === 'string' && fromCtx.length > 0) return fromCtx;
+  } catch {}
+  return '';
+}
+
+async function getFinnhubKey(): Promise<string> {
+  _envCache ??= {};
+  _envCache.FINNHUB_API_KEY ??= await getEnvVar('FINNHUB_API_KEY');
+  return _envCache.FINNHUB_API_KEY || '';
+}
+async function getRapidApiKey(): Promise<string> {
+  _envCache ??= {};
+  _envCache.RAPIDAPI_KEY ??= await getEnvVar('RAPIDAPI_KEY');
+  _envCache.RAPIDAPI_TRADING_ECONOMICS_KEY ??= await getEnvVar('RAPIDAPI_TRADING_ECONOMICS_KEY');
+  return _envCache.RAPIDAPI_KEY || _envCache.RAPIDAPI_TRADING_ECONOMICS_KEY || '';
+}
+async function getFcsApiKey(): Promise<string> {
+  _envCache ??= {};
+  _envCache.FCSAPI_KEY ??= await getEnvVar('FCSAPI_KEY');
+  return _envCache.FCSAPI_KEY || '';
+}
 
 // ─── Helper: Build ISO datetime ────────────────────────────────────────────
 function buildDateTime(date: string, time: string): string {
@@ -66,7 +93,7 @@ function sortEvents(events: CalendarEvent[]): CalendarEvent[] {
 
 // ─── 1. Finnhub Calendar (FREE tier: 60 calls/min) ────────────────────────
 async function fetchFinnhubCalendar(): Promise<CalendarEvent[]> {
-  const apiKey = getFinnhubKey();
+  const apiKey = await getFinnhubKey();
   if (!apiKey) throw new Error('No FINNHUB_API_KEY');
 
   const url = `https://finnhub.io/api/v1/calendar/economic?token=${apiKey}`;
@@ -127,7 +154,7 @@ async function fetchFinnhubCalendar(): Promise<CalendarEvent[]> {
 
 // ─── 2. FCSAPI.com Calendar ────────────────────────────────────────────────
 async function fetchFcsApiCalendar(): Promise<CalendarEvent[]> {
-  const fcsKey = getFcsApiKey();
+  const fcsKey = await getFcsApiKey();
   const today = new Date();
   const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const url = fcsKey ? `https://fcsapi.com/api-v3/forex/economic_calendar?date=${dateStr}&key=${fcsKey}` : `https://fcsapi.com/api-v3/forex/economic_calendar?date=${dateStr}`;
@@ -215,7 +242,7 @@ async function fetchMyFXBookCalendar(): Promise<CalendarEvent[]> {
 
 // ─── 3b. TradingEconomics Calendar (RapidAPI, same key as news) ──────────────
 async function fetchTECalendar(): Promise<CalendarEvent[]> {
-  const apiKey = getRapidApiKey();
+  const apiKey = await getRapidApiKey();
   if (!apiKey) throw new Error('No RAPIDAPI_KEY');
 
   const today = new Date();
@@ -407,7 +434,7 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
   const errors: string[] = [];
 
   // 1. Finnhub (FREE tier: 60 calls/min)
-  if (getFinnhubKey()) {
+  if (await getFinnhubKey()) {
     try {
       const events = await fetchFinnhubCalendar();
       if (events.length > 0) return { events, source: 'Finnhub (Live)', unavailable: false };
@@ -418,7 +445,7 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
   }
 
   // 2. TradingEconomics Calendar (RapidAPI)
-  if (getRapidApiKey()) {
+  if (await getRapidApiKey()) {
     try {
       const events = await fetchTECalendar();
       if (events.length > 0) return { events, source: 'TradingEconomics (Live)', unavailable: false };
@@ -462,11 +489,14 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
 }
 
 // ─── KV Cache helpers ──────────────────────────────────────────────────────
-async function getKVCache(request: NextRequest): Promise<CacheEntry | null> {
+async function getKVCache(): Promise<CacheEntry | null> {
   try {
-    const { getCloudflareEnv } = await import('@/lib/cloudflare-bindings');
-    const env = getCloudflareEnv(request as unknown as Request);
-    const kv = env?.luxtradee_kv;
+    let kv: any = null;
+    try {
+      const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+      const ctx = getCloudflareContext();
+      kv = (ctx as any)?.env?.luxtradee_kv;
+    } catch {}
     if (!kv) return null;
     const raw = await kv.get('economic_calendar_cache', 'text');
     if (!raw) return null;
@@ -474,11 +504,14 @@ async function getKVCache(request: NextRequest): Promise<CacheEntry | null> {
   } catch { return null; }
 }
 
-async function setKVCache(request: NextRequest, entry: CacheEntry, ttlMs?: number): Promise<void> {
+async function setKVCache(entry: CacheEntry, ttlMs?: number): Promise<void> {
   try {
-    const { getCloudflareEnv } = await import('@/lib/cloudflare-bindings');
-    const env = getCloudflareEnv(request as unknown as Request);
-    const kv = env?.luxtradee_kv;
+    let kv: any = null;
+    try {
+      const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+      const ctx = getCloudflareContext();
+      kv = (ctx as any)?.env?.luxtradee_kv;
+    } catch {}
     if (!kv) return;
     await kv.put('economic_calendar_cache', JSON.stringify(entry), { expirationTtl: Math.ceil((ttlMs || CACHE_DURATION) / 1000) });
   } catch { /* KV not available */ }
@@ -486,8 +519,8 @@ async function setKVCache(request: NextRequest, entry: CacheEntry, ttlMs?: numbe
 
 // ─── GET Handler ────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
-  // Expose CF Workers env vars (secrets) to API key helpers
-  _cfEnv = (request as any).env || null;
+  // Reset env cache for each request
+  _envCache = null;
 
   const { searchParams } = new URL(request.url);
   const forceRefresh = searchParams.get('refresh') === 'true';
@@ -500,7 +533,7 @@ export async function GET(request: NextRequest) {
   try {
     // 1. Try KV cache
     if (!forceRefresh) {
-      const kvEntry = await getKVCache(request);
+      const kvEntry = await getKVCache();
       if (kvEntry && Date.now() - kvEntry.timestamp < CACHE_DURATION) {
         let events = kvEntry.events;
         if (impactFilter) events = events.filter(e => e.impact === impactFilter);
@@ -535,7 +568,7 @@ export async function GET(request: NextRequest) {
     const cacheTTL = (unavailable && allEvents.length === 0) ? 60 * 1000 : CACHE_DURATION;
     const newCache: CacheEntry = { events: allEvents, timestamp: Date.now(), source, unavailable };
     calendarCache = newCache;
-    await setKVCache(request, newCache, cacheTTL);
+    await setKVCache(newCache, cacheTTL);
 
     let events = allEvents;
     if (impactFilter) events = events.filter(e => e.impact === impactFilter);
