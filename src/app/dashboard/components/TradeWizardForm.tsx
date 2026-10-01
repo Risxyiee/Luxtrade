@@ -187,7 +187,7 @@ export default function TradeWizardForm({
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1)
     }
-  }, [currentStep, L])
+  }, [currentStep, L, formData])
 
   const handlePrevious = useCallback(() => {
     if (currentStep > 1) {

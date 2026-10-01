@@ -123,8 +123,8 @@ export default function WatchlistTab({
             })
             // Toast notification
             const msg = language === 'id'
-              ? `🎯 ${item.symbol} — Target ${item.target_price} tercapai! Harga: ${price.toFixed(item.symbol.includes('JPY') ? 3 : 5)}`
-              : `🎯 ${item.symbol} — Target ${item.target_price} reached! Price: ${price.toFixed(item.symbol.includes('JPY') ? 3 : 5)}`
+              ? `🎯 ${item.symbol} — Target ${item.target_price} tercapai! Harga: ${price >= 100 ? price.toFixed(2) : price.toFixed(item.symbol.includes('JPY') ? 3 : 5)}`
+              : `🎯 ${item.symbol} — Target ${item.target_price} reached! Price: ${price >= 100 ? price.toFixed(2) : price.toFixed(item.symbol.includes('JPY') ? 3 : 5)}`
             toast.success(msg, { duration: 8000 })
             // Auto-disable alert after trigger
             toggleAlert(item.id)
@@ -232,7 +232,7 @@ export default function WatchlistTab({
                     {currentPrices[item.symbol] != null && (
                       <div className="mb-1">
                         <span className="text-xs text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Harga: ' : 'Price: '}</span>
-                        <span className="text-sm font-mono text-blue-400">{currentPrices[item.symbol].toFixed(item.symbol.includes('JPY') ? 3 : 5)}</span>
+                        <span className="text-sm font-mono text-blue-400">{currentPrices[item.symbol] >= 100 ? currentPrices[item.symbol].toFixed(2) : currentPrices[item.symbol].toFixed(item.symbol.includes('JPY') ? 3 : 5)}</span>
                       </div>
                     )}
                     {item.target_price && (

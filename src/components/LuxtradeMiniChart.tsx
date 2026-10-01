@@ -373,7 +373,7 @@ export default function LuxtradeMiniChart({ isPro, demoMode = false, interval = 
         ) : uiPrice !== null ? (
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold text-white">
-              {uiPrice.toFixed(2)}
+              {uiPrice >= 100 ? uiPrice.toFixed(2) : uiPrice.toFixed(uiPrice >= 1 ? 5 : 4)}
             </span>
             <span className={`text-xs font-medium ${uiPriceChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {uiPriceChange >= 0 ? '+' : ''}{uiPriceChange.toFixed(2)}%

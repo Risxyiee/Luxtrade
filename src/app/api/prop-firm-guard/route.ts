@@ -185,24 +185,52 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data, error: insertError } = await admin
+    // Try insert with new columns first; if they don't exist yet, retry without them
+    const insertWithNewCols = {
+      user_id: user.id,
+      firm_name: firmName,
+      challenge_phase: phase,
+      account_size: accountSize,
+      max_daily_loss: maxDailyLoss,
+      max_total_dd: maxTotalDD,
+      profit_target: profitTarget,
+      trading_account_id: tradingAccountId || null,
+      alert_at_percent: alertAtPercent || 40,
+      current_balance: accountSize,
+      consistency_rule: consistencyRule || 0,
+      best_day_pl: bestDayPL || 0,
+    }
+
+    const insertWithoutNewCols = {
+      user_id: user.id,
+      firm_name: firmName,
+      challenge_phase: phase,
+      account_size: accountSize,
+      max_daily_loss: maxDailyLoss,
+      max_total_dd: maxTotalDD,
+      profit_target: profitTarget,
+      trading_account_id: tradingAccountId || null,
+      alert_at_percent: alertAtPercent || 40,
+      current_balance: accountSize,
+    }
+
+    let { data, error: insertError } = await admin
       .from('prop_firm_challenges')
-      .insert({
-        user_id: user.id,
-        firm_name: firmName,
-        challenge_phase: phase,
-        account_size: accountSize,
-        max_daily_loss: maxDailyLoss,
-        max_total_dd: maxTotalDD,
-        profit_target: profitTarget,
-        trading_account_id: tradingAccountId || null,
-        alert_at_percent: alertAtPercent || 40,
-        current_balance: accountSize,
-        consistency_rule: consistencyRule || 0,
-        best_day_pl: bestDayPL || 0,
-      })
+      .insert(insertWithNewCols)
       .select()
       .single()
+
+    // If insert failed due to missing columns, retry without them
+    if (insertError && (insertError.message?.includes('consistency_rule') || insertError.message?.includes('best_day_pl') || insertError.code === '42703')) {
+      console.warn('[prop-firm-guard] POST: consistency_rule/best_day_pl columns not found, retrying without them')
+      const retryResult = await admin
+        .from('prop_firm_challenges')
+        .insert(insertWithoutNewCols)
+        .select()
+        .single()
+      data = retryResult.data
+      insertError = retryResult.error
+    }
 
     if (insertError) {
       if (insertError.message?.includes('Could not find the table') || insertError.code === '42P01' || insertError.code === '42501' || insertError.message?.includes('permission denied')) {
@@ -327,12 +355,28 @@ export async function PATCH(request: NextRequest) {
       data.breached_at = null
     }
 
-    const { data: updated, error: updateError } = await admin
+    let { data: updated, error: updateError } = await admin
       .from('prop_firm_challenges')
       .update(data)
       .eq('id', id)
       .select()
       .single()
+
+    // If update failed due to missing columns (consistency_rule / best_day_pl), retry without them
+    if (updateError && (updateError.message?.includes('consistency_rule') || updateError.message?.includes('best_day_pl') || updateError.code === '42703')) {
+      console.warn('[prop-firm-guard] PATCH: consistency_rule/best_day_pl columns not found, retrying without them')
+      const safeData = { ...data }
+      delete safeData.consistency_rule
+      delete safeData.best_day_pl
+      const retryResult = await admin
+        .from('prop_firm_challenges')
+        .update(safeData)
+        .eq('id', id)
+        .select()
+        .single()
+      updated = retryResult.data
+      updateError = retryResult.error
+    }
 
     if (updateError) {
       console.error('[prop-firm-guard] PATCH update error:', updateError)
