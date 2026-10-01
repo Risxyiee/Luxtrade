@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -173,6 +173,24 @@ export default function TradeWizardForm({
   const [guideOpen, setGuideOpen] = useState(false)
   const [manualGuideOpen, setManualGuideOpen] = useState(false)
   const totalSteps = 3
+
+  // Auto-select account_id when tradingAccounts become available and none is selected
+  useEffect(() => {
+    if (!formData.account_id && tradingAccounts.length > 0) {
+      const defaultAccount = tradingAccounts.find(acc => acc.is_default) || tradingAccounts[0]
+      if (defaultAccount) {
+        console.log('[TradeWizardForm] Auto-selecting account:', defaultAccount.id, defaultAccount.name)
+        onFormChange('account_id', defaultAccount.id)
+        onFormChange('account_type', defaultAccount.account_type)
+        // Clear account_id error if present
+        if (errors.account_id) setErrors(prev => {
+          const next = { ...prev }
+          delete next.account_id
+          return next
+        })
+      }
+    }
+  }, [tradingAccounts, formData.account_id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleNext = useCallback(() => {
     const stepErrors = validateStep(currentStep)
@@ -549,8 +567,11 @@ export default function TradeWizardForm({
         if (!formData.lot_size || lot <= 0) {
           stepErrors.lot_size = L ? 'Ukuran lot tidak valid' : 'Invalid lot size'
         }
-        if (!formData.account_id) {
-          stepErrors.account_id = L ? 'Pilih akun trading' : 'Please select a trading account'
+        if (!formData.account_id && tradingAccounts.length > 0) {
+          // Don't block validation if accounts exist — handleSave will auto-select
+          // Only show error if user explicitly has no accounts at all
+        } else if (!formData.account_id && tradingAccounts.length === 0) {
+          stepErrors.account_id = L ? 'Belum ada akun trading. Buat akun dulu.' : 'No trading accounts found. Please create one first.'
         }
       } else if (step === 2) {
         // Validate open_price (required), close_price and profit_loss (optional for open positions)
@@ -599,9 +620,17 @@ export default function TradeWizardForm({
     setErrors({})
 
     // Validate account_id is set (required for multi-account system)
+    // Try to auto-select default account if not set
     if (!formData.account_id) {
-      toast.error(L ? 'Pilih akun trading' : 'Please select a trading account')
-      return
+      if (tradingAccounts.length > 0) {
+        const defaultAccount = tradingAccounts.find(acc => acc.is_default) || tradingAccounts[0]
+        onFormChange('account_id', defaultAccount.id)
+        onFormChange('account_type', defaultAccount.account_type)
+        console.log('[handleSave] Auto-selected account:', defaultAccount.id)
+      } else {
+        toast.error(L ? 'Pilih akun trading' : 'Please select a trading account')
+        return
+      }
     }
 
     // Ensure numeric values are properly formatted
@@ -647,9 +676,11 @@ export default function TradeWizardForm({
     }
 
     // Call onSave after updating formData
+    // Use a longer delay to ensure all onFormChange state updates are flushed
+    // before onSave reads formData
     setTimeout(() => {
       onSave()
-    }, 0)
+    }, 50)
   }
 
   const progress = (currentStep / totalSteps) * 100

@@ -284,8 +284,9 @@ export async function PATCH(request: NextRequest) {
 
     // Build safe update data (snake_case for DB)
     const data: any = {}
+    console.log('[prop-firm-guard] PATCH updates:', updates)
 
-    if (updates.challengePhase) {
+    if (updates.challengePhase !== undefined) {
       const validPhases = ['phase1', 'phase2', 'funded']
       if (!validPhases.includes(updates.challengePhase)) {
         return NextResponse.json({ error: 'Invalid phase' }, { status: 400 })
@@ -355,6 +356,14 @@ export async function PATCH(request: NextRequest) {
       data.breached_at = null
     }
 
+    // Defensive: ensure we have something to update
+    if (Object.keys(data).length === 0) {
+      console.warn('[prop-firm-guard] PATCH: no fields to update after processing body:', Object.keys(updates))
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
+    }
+
+    console.log('[prop-firm-guard] PATCH DB update data:', data)
+
     let { data: updated, error: updateError } = await admin
       .from('prop_firm_challenges')
       .update(data)
@@ -384,6 +393,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const challenge = toCamelCase(updated)
+    console.log('[prop-firm-guard] PATCH success, updated fields:', Object.keys(data), 'result:', challenge)
     return NextResponse.json({ challenge })
   } catch (error: any) {
     console.error('[prop-firm-guard] PATCH error:', error)

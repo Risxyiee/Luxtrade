@@ -17,14 +17,17 @@ function getTeApiKey(): string {
   return process.env.RAPIDAPI_KEY || _cfEnv?.RAPIDAPI_KEY || process.env.RAPIDAPI_TRADING_ECONOMICS_KEY || _cfEnv?.RAPIDAPI_TRADING_ECONOMICS_KEY || '';
 }
 
-// Bloomberg RSS (free fallback, no key needed)
-const BLOOMBERG_RSS = 'https://feeds.bloomberg.com/markets/news.rss';
+// ==================== RSS FEED URLs ====================
+// RELIABLE (verified working):
+const INVESTING_RSS = 'https://www.investing.com/rss/news.rss';            // All news (200 OK)
+const INVESTING_COMMODITIES_RSS = 'https://www.investing.com/rss/news_11.rss'; // Commodities/Futures (200 OK, forex-relevant)
+const CNBC_BUSINESS_RSS = 'https://www.cnbc.com/id/10001147/device/rss/rss.html'; // Business news (200 OK)
+const BLOOMBERG_RSS = 'https://feeds.bloomberg.com/markets/news.rss';      // Markets (200 OK, follows redirect)
 
-// ForexFactory RSS (free, forex-focused)
-const FOREXFACTORY_RSS = 'https://www.forexfactory.com/rss';
-
-// DailyFX RSS (free, forex-focused by IG)
-const DAILYFX_RSS = 'https://www.dailyfx.com/feeds/market-news';
+// UNRELIABLE (dead or blocked — kept as last resort):
+// ForexFactory RSS URL is a profile page, not RSS. Calendar XML is Cloudflare-blocked.
+// DailyFX returns 403.
+// Reuters feeds.reuters.com is dead (connection refused).
 
 interface FullNewsItem {
   title: string;
@@ -53,7 +56,7 @@ function mapTeImportance(importance: string): 'high' | 'medium' | 'low' {
 }
 
 /**
- * Classify impact level based on title and snippet keywords (for Bloomberg fallback)
+ * Classify impact level based on title and snippet keywords
  */
 function classifyImpact(title: string, snippet: string): 'high' | 'medium' | 'low' {
   const text = `${title} ${snippet}`.toLowerCase();
@@ -86,6 +89,8 @@ function classifyImpact(title: string, snippet: string): 'high' | 'medium' | 'lo
     'weekly preview', 'daily outlook', 'market wrap',
     'ppi', 'retail', 'bond', 'yield', 'treasury',
     'rupee', 'yuan', 'won', 'copper', 'commodity',
+    'stock', 'shares', 'equity', 'dow', 's&p', 'nasdaq',
+    'bitcoin', 'crypto', 'etf', 'hedge fund',
   ];
 
   for (const kw of highKeywords) {
@@ -110,10 +115,6 @@ interface TEResponse {
   time: string;
 }
 
-/**
- * Fetch today's news from TradingEconomics via RapidAPI
- * Returns forex-relevant news sorted by importance (high first)
- */
 async function fetchTradingEconomicsNews(): Promise<FullNewsItem[]> {
   const apiKey = getTeApiKey();
   if (!apiKey) {
@@ -137,7 +138,6 @@ async function fetchTradingEconomicsNews(): Promise<FullNewsItem[]> {
   });
 
   if (!response.ok) {
-    // 429 = rate limit, don't retry immediately
     if (response.status === 429) {
       const err = new Error('TradingEconomics rate limit (429)');
       (err as any).isRateLimit = true;
@@ -151,13 +151,6 @@ async function fetchTradingEconomicsNews(): Promise<FullNewsItem[]> {
     throw new Error('TradingEconomics returned empty data');
   }
 
-  // Map to FullNewsItem, prioritize forex-relevant categories
-  const FOREX_RELEVANT_CATEGORIES = new Set([
-    'Currency', 'Interest Rate', 'Inflation Rate', 'Central Bank',
-    'Balance of Trade', 'Consumer Confidence', 'Employment',
-    'Producer Prices Change', 'Retail Sales', 'GDP Growth Rate',
-  ]);
-
   const items: FullNewsItem[] = data
     .filter((item) => item.title && item.url)
     .map((item) => ({
@@ -169,21 +162,11 @@ async function fetchTradingEconomicsNews(): Promise<FullNewsItem[]> {
       type: mapTeImportance(item.importance),
     }));
 
-  // Sort: forex-relevant categories first, then by importance (high→low), then by date (newest)
   const importanceOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
   items.sort((a, b) => {
-    const aForex = a.source.toLowerCase().includes('currency') ||
-      a.source.toLowerCase().includes('interest rate') ||
-      a.source.toLowerCase().includes('inflation');
-    const bForex = b.source.toLowerCase().includes('currency') ||
-      b.source.toLowerCase().includes('interest rate') ||
-      b.source.toLowerCase().includes('inflation');
-    if (aForex !== bForex) return aForex ? -1 : 1;
-
     const aImp = importanceOrder[a.type] ?? 99;
     const bImp = importanceOrder[b.type] ?? 99;
     if (aImp !== bImp) return aImp - bImp;
-
     return b.date.localeCompare(a.date);
   });
 
@@ -191,134 +174,7 @@ async function fetchTradingEconomicsNews(): Promise<FullNewsItem[]> {
   return items;
 }
 
-// ==================== FALLBACK: Bloomberg RSS ====================
-
-/**
- * Parse Bloomberg RSS XML and convert to FullNewsItem[]
- */
-function parseBloombergRss(xml: string): FullNewsItem[] {
-  const items: FullNewsItem[] = [];
-  const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
-  let match;
-
-  while ((match = itemRegex.exec(xml)) !== null) {
-    const itemXml = match[1];
-
-    const titleMatch = itemXml.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i)
-      || itemXml.match(/<title>([\s\S]*?)<\/title>/i);
-    const linkMatch = itemXml.match(/<link><!\[CDATA\[([\s\S]*?)\]\]><\/link>/i)
-      || itemXml.match(/<link>([\s\S]*?)<\/link>/i);
-    const descMatch = itemXml.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i)
-      || itemXml.match(/<description>([\s\S]*?)<\/description>/i);
-    const dateMatch = itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/i);
-
-    if (!titleMatch?.[1] || !linkMatch?.[1]) continue;
-
-    const title = titleMatch[1].trim();
-    const url = linkMatch[1].trim();
-
-    // Skip non-news items
-    if (url.includes('/news/videos/')) continue;
-    if (url.includes('/news/audio/')) continue;
-
-    let snippet = descMatch?.[1]?.trim() || '';
-    snippet = snippet.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
-    if (snippet.length > 200) snippet = snippet.substring(0, 200) + '...';
-
-    const date = dateMatch?.[1] || new Date().toISOString();
-    const type = classifyImpact(title, snippet);
-
-    items.push({ title, source: 'Bloomberg', url, snippet, date, type });
-  }
-
-  return items;
-}
-
-/**
- * Fetch news from Bloomberg Markets RSS feed
- * Free, no API key needed, no quota limit
- */
-const REUTERS_RSS = 'https://feeds.reuters.com/reuters/businessNews';
-
-async function fetchBloombergNews(): Promise<FullNewsItem[]> {
-  const response = await fetch(BLOOMBERG_RSS, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
-      'Accept': 'application/rss+xml, application/xml, text/xml, */*',
-    },
-    signal: AbortSignal.timeout(15000),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Bloomberg RSS returned ${response.status}`);
-  }
-
-  const xml = await response.text();
-  return parseBloombergRss(xml);
-}
-
-/**
- * Fetch from Reuters RSS (more CF Workers friendly than Bloomberg)
- */
-async function fetchReutersNews(): Promise<FullNewsItem[]> {
-  const response = await fetch(REUTERS_RSS, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
-      'Accept': 'application/rss+xml, application/xml, text/xml, */*',
-    },
-    signal: AbortSignal.timeout(15000),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Reuters RSS returned ${response.status}`);
-  }
-
-  const xml = await response.text();
-  return parseBloombergRss(xml); // Same XML structure
-}
-
-// ==================== FALLBACK 2b: ForexFactory News (FREE, forex-focused) ====================
-
-async function fetchForexFactoryNews(): Promise<FullNewsItem[]> {
-  const response = await fetch(FOREXFACTORY_RSS, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
-      'Accept': 'application/rss+xml, application/xml, text/xml, */*',
-    },
-    signal: AbortSignal.timeout(15000),
-  });
-
-  if (!response.ok) {
-    throw new Error(`ForexFactory RSS returned ${response.status}`);
-  }
-
-  const xml = await response.text();
-  const items = parseBloombergRss(xml);
-  // Mark source as ForexFactory
-  return items.map(item => ({ ...item, source: 'ForexFactory' }));
-}
-
-// ==================== FALLBACK 2c: DailyFX News (FREE, forex-focused) ====================
-
-async function fetchDailyFXNews(): Promise<FullNewsItem[]> {
-  const response = await fetch(DAILYFX_RSS, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
-      'Accept': 'application/rss+xml, application/xml, text/xml, */*',
-    },
-    signal: AbortSignal.timeout(15000),
-  });
-
-  if (!response.ok) {
-    throw new Error(`DailyFX RSS returned ${response.status}`);
-  }
-
-  const xml = await response.text();
-  const items = parseBloombergRss(xml);
-  return items.map(item => ({ ...item, source: 'DailyFX' }));
-}
-
-// ==================== FALLBACK 3: Finnhub Market News (FREE: 60 calls/min) ====================
+// ==================== FALLBACK: Finnhub Market News ====================
 
 const FINNHUB_NEWS_URL = 'https://finnhub.io/api/v1/news';
 
@@ -330,7 +186,6 @@ async function fetchFinnhubNews(): Promise<FullNewsItem[]> {
   const apiKey = getFinnhubApiKey();
   if (!apiKey) throw new Error('FINNHUB_API_KEY not configured');
 
-  // Finnhub market news for forex category
   const url = `${FINNHUB_NEWS_URL}?category=forex&token=${apiKey}`;
 
   const response = await fetch(url, {
@@ -364,86 +219,208 @@ async function fetchFinnhubNews(): Promise<FullNewsItem[]> {
       type: classifyImpact(item.headline, item.summary || ''),
     }));
 
-  // Sort by date (newest first)
   items.sort((a, b) => b.date.localeCompare(a.date));
 
   console.log(`[News] Finnhub returned ${items.length} articles`);
   return items;
 }
 
+// ==================== RSS PARSERS ====================
+
+/**
+ * Generic RSS XML parser — handles both CDATA and plain text elements.
+ * Works with Investing.com, Bloomberg, CNBC, SeekingAlpha, etc.
+ */
+function parseRssXml(xml: string, sourceName: string): FullNewsItem[] {
+  const items: FullNewsItem[] = [];
+  const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
+  let match;
+
+  while ((match = itemRegex.exec(xml)) !== null) {
+    const itemXml = match[1];
+
+    // Title: try CDATA first, then plain
+    const titleMatch = itemXml.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i)
+      || itemXml.match(/<title>([\s\S]*?)<\/title>/i);
+    // Link: try CDATA first, then plain
+    const linkMatch = itemXml.match(/<link><!\[CDATA\[([\s\S]*?)\]\]><\/link>/i)
+      || itemXml.match(/<link>([\s\S]*?)<\/link>/i);
+    // Description: try CDATA first, then plain
+    const descMatch = itemXml.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i)
+      || itemXml.match(/<description>([\s\S]*?)<\/description>/i);
+    // Date: pubDate or any date element
+    const dateMatch = itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/i);
+    // Author
+    const authorMatch = itemXml.match(/<dc:creator><!\[CDATA\[([\s\S]*?)\]\]><\/dc:creator>/i)
+      || itemXml.match(/<author>([\s\S]*?)<\/author>/i);
+    // Investing.com-specific: <author> tag
+    const investingAuthorMatch = itemXml.match(/<author>([\s\S]*?)<\/author>/i);
+
+    if (!titleMatch?.[1] || !linkMatch?.[1]) continue;
+
+    const title = titleMatch[1].trim();
+    const url = linkMatch[1].trim();
+
+    // Skip non-news items
+    if (url.includes('/news/videos/')) continue;
+    if (url.includes('/news/audio/')) continue;
+    if (!url.startsWith('http')) continue;
+
+    let snippet = descMatch?.[1]?.trim() || '';
+    // Strip HTML tags from snippet
+    snippet = snippet.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&#\d+;/g, ' ').trim();
+    if (snippet.length > 200) snippet = snippet.substring(0, 200) + '...';
+
+    // Parse date
+    let date = dateMatch?.[1]?.trim() || '';
+    // Investing.com uses "2026-10-01 15:18:54" format (no timezone) — treat as UTC
+    if (date && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(date)) {
+      date = date.replace(' ', 'T') + 'Z';
+    }
+    if (!date) date = new Date().toISOString();
+
+    // Build source label
+    const author = authorMatch?.[1]?.trim() || investingAuthorMatch?.[1]?.trim() || '';
+    const source = author ? `${sourceName} · ${author}` : sourceName;
+
+    const type = classifyImpact(title, snippet);
+
+    items.push({ title, source, url, snippet, date, type });
+  }
+
+  return items;
+}
+
+/**
+ * Fetch and parse an RSS feed. Returns empty array on failure (never throws).
+ */
+async function fetchRssFeed(url: string, sourceName: string, timeoutMs = 12000): Promise<FullNewsItem[]> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
+        'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+      },
+      signal: AbortSignal.timeout(timeoutMs),
+      redirect: 'follow',  // Follow redirects (Bloomberg 301→200)
+    });
+
+    if (!response.ok) {
+      console.warn(`[News] ${sourceName} RSS returned ${response.status} from ${url}`);
+      return [];
+    }
+
+    const xml = await response.text();
+
+    // Validate it looks like RSS/XML
+    if (!xml.includes('<item') && !xml.includes('<entry')) {
+      console.warn(`[News] ${sourceName} response doesn't look like RSS/XML`);
+      return [];
+    }
+
+    const items = parseRssXml(xml, sourceName);
+    console.log(`[News] ${sourceName} RSS returned ${items.length} articles`);
+    return items;
+  } catch (err: any) {
+    console.warn(`[News] ${sourceName} RSS fetch failed: ${err.message}`);
+    return [];
+  }
+}
+
 // ==================== MAIN FETCH LOGIC ====================
 
 /**
- * Fetch news with cascade: TradingEconomics → Finnhub → ForexFactory RSS → DailyFX RSS → Reuters RSS → Bloomberg RSS → unavailable
+ * Fetch news with cascade:
+ * 1. TradingEconomics RapidAPI (if key available)
+ * 2. Finnhub (if key available)
+ * 3. Investing.com All News RSS (free, reliable)
+ * 4. Investing.com Commodities RSS (free, forex-relevant)
+ * 5. Bloomberg Markets RSS (free, reliable)
+ * 6. CNBC Business RSS (free, reliable)
+ * 7. Throw if all fail
  */
 async function fetchFullNews(): Promise<FullNewsItem[]> {
-  const apiKey = getTeApiKey();
+  const collectedItems: FullNewsItem[] = [];
+  let primarySource = '';
 
   // PRIMARY: TradingEconomics RapidAPI (forex-focused, with importance)
-  if (apiKey) {
+  const teKey = getTeApiKey();
+  if (teKey) {
     try {
       console.log('[News] Fetching from TradingEconomics RapidAPI...');
       const items = await fetchTradingEconomicsNews();
-      if (items.length > 0) return items;
+      if (items.length > 0) {
+        primarySource = 'TradingEconomics';
+        return items;
+      }
     } catch (err: any) {
       const isRateLimit = err?.isRateLimit === true;
       if (isRateLimit) {
-        console.warn('[News] ⚠️ TradingEconomics rate limited (429) — falling back to RSS with extended cache');
+        console.warn('[News] TradingEconomics rate limited (429) — falling back');
         (fetchFullNews as any)._lastRateLimited = true;
       } else {
-        console.warn(`[News] TradingEconomics failed: ${err.message}, falling back...`);
+        console.warn(`[News] TradingEconomics failed: ${err.message}`);
       }
     }
   } else {
     console.info('[News] RAPIDAPI_TRADING_ECONOMICS_KEY not set, trying Finnhub');
   }
 
-  // FALLBACK 1: Finnhub (FREE, 60 calls/min, real market news) — try early because it's most reliable
+  // FALLBACK 1: Finnhub (FREE, 60 calls/min, real market news)
   const finnhubKey = getFinnhubApiKey();
   if (finnhubKey) {
     try {
       console.log('[News] Fetching from Finnhub...');
       const items = await fetchFinnhubNews();
-      if (items.length > 0) return items;
+      if (items.length > 0) {
+        primarySource = 'Finnhub';
+        return items;
+      }
     } catch (err: any) {
       console.info(`[News] Finnhub unavailable: ${err.message}`);
     }
   }
 
-  // FALLBACK 2: ForexFactory RSS (free, forex-focused — most relevant for traders)
-  try {
-    console.log('[News] Fetching from ForexFactory RSS...');
-    const items = await fetchForexFactoryNews();
-    if (items.length > 0) return items;
-  } catch (err: any) {
-    console.info(`[News] ForexFactory RSS unavailable, trying DailyFX...`);
-  }
+  // FALLBACK 2: RSS feeds — try multiple sources and MERGE results
+  // This gives us more articles than any single RSS source
+  console.log('[News] Trying free RSS feeds...');
 
-  // FALLBACK 3: DailyFX RSS (free, forex-focused by IG)
-  try {
-    console.log('[News] Fetching from DailyFX RSS...');
-    const items = await fetchDailyFXNews();
-    if (items.length > 0) return items;
-  } catch (err: any) {
-    console.info(`[News] DailyFX RSS unavailable, trying Reuters...`);
-  }
+  // Investing.com — most relevant for forex/trading
+  const investingItems = await fetchRssFeed(INVESTING_RSS, 'Investing.com');
+  if (investingItems.length > 0) collectedItems.push(...investingItems);
 
-  // FALLBACK 4: Reuters RSS (free, more reliable than Bloomberg on CF Workers)
-  try {
-    console.log('[News] Fetching from Reuters Markets RSS...');
-    const items = await fetchReutersNews();
-    if (items.length > 0) return items;
-  } catch (err: any) {
-    console.info(`[News] Reuters RSS unavailable, trying Bloomberg...`);
-  }
+  // Investing.com Commodities — forex-relevant (gold, oil, etc.)
+  const commoditiesItems = await fetchRssFeed(INVESTING_COMMODITIES_RSS, 'Investing.com');
+  if (commoditiesItems.length > 0) collectedItems.push(...commoditiesItems);
 
-  // FALLBACK 5: Bloomberg RSS
-  try {
-    console.log('[News] Fetching from Bloomberg Markets RSS...');
-    const items = await fetchBloombergNews();
-    if (items.length > 0) return items;
-  } catch (err: any) {
-    console.info('[News] Bloomberg RSS unavailable');
+  // Bloomberg Markets
+  const bloombergItems = await fetchRssFeed(BLOOMBERG_RSS, 'Bloomberg');
+  if (bloombergItems.length > 0) collectedItems.push(...bloombergItems);
+
+  // CNBC Business
+  const cnbcItems = await fetchRssFeed(CNBC_BUSINESS_RSS, 'CNBC');
+  if (cnbcItems.length > 0) collectedItems.push(...cnbcItems);
+
+  if (collectedItems.length > 0) {
+    // Deduplicate by URL (keep first occurrence = highest priority source)
+    const seen = new Set<string>();
+    const deduped = collectedItems.filter(item => {
+      if (seen.has(item.url)) return false;
+      seen.add(item.url);
+      return true;
+    });
+
+    // Sort: high impact first, then by date (newest)
+    const importanceOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+    deduped.sort((a, b) => {
+      const aImp = importanceOrder[a.type] ?? 99;
+      const bImp = importanceOrder[b.type] ?? 99;
+      if (aImp !== bImp) return aImp - bImp;
+      return b.date.localeCompare(a.date);
+    });
+
+    console.log(`[News] Merged ${deduped.length} articles from RSS feeds (from ${collectedItems.length} total before dedup)`);
+    return deduped;
   }
 
   throw new Error('All news sources failed');
@@ -471,6 +448,42 @@ function getRandomTip(): { title: string; type: 'low' } {
   return tips[Math.floor(Math.random() * tips.length)];
 }
 
+// ==================== Sample Data Detection ====================
+
+/**
+ * Detect if cached news items are stale sample/placeholder data.
+ * This catches old cached data that was generated when all sources failed.
+ */
+function isSampleData(items: FullNewsItem[]): boolean {
+  if (items.length === 0) return true; // Empty = came from "all sources failed" fallback
+
+  // Check for known placeholder patterns
+  const sampleIndicators = [
+    'sedang tidak tersedia',  // Indonesian "currently unavailable"
+    'coba beberapa menit lagi', // Indonesian "try again in a few minutes"
+    'Kunjungi TradingEconomics.com untuk berita terkini', // Old fallback text
+    'News unavailable',
+    'sample',
+    'placeholder',
+    'lorem ipsum',
+  ];
+
+  for (const item of items.slice(0, 5)) { // Check first 5 items
+    for (const indicator of sampleIndicators) {
+      if (item.title.toLowerCase().includes(indicator.toLowerCase()) ||
+          item.snippet.toLowerCase().includes(indicator.toLowerCase())) {
+        return true;
+      }
+    }
+    // Check for URLs that are empty or non-http (sign of fallback data)
+    if (!item.url || (!item.url.startsWith('http') && item.url !== '')) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // ==================== KV Cache helpers ====================
 
 interface NewsCacheEntry {
@@ -486,7 +499,16 @@ async function getNewsKVCache(request: NextRequest): Promise<NewsCacheEntry | nu
     if (!kv) return null;
     const raw = await kv.get('news_cache', 'text');
     if (!raw) return null;
-    return JSON.parse(raw) as NewsCacheEntry;
+    const entry = JSON.parse(raw) as NewsCacheEntry;
+
+    // Detect and invalidate stale sample/placeholder data
+    if (isSampleData(entry.items)) {
+      console.warn('[News] KV cache contains stale sample data — invalidating');
+      try { await kv.delete('news_cache'); } catch {}
+      return null;
+    }
+
+    return entry;
   } catch {
     return null;
   }
@@ -543,33 +565,39 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 2. Check in-memory cache
+    // 2. Check in-memory cache (also detect stale sample data)
     if (!forceRefresh && fullNewsCache && Date.now() - fullNewsCache.timestamp < CACHE_DURATION) {
-      console.log('[News] Returning cached news');
-      const cachedItems = fullNewsCache.items;
+      // Detect stale sample data in memory cache
+      if (isSampleData(fullNewsCache.items)) {
+        console.warn('[News] In-memory cache contains stale sample data — invalidating');
+        fullNewsCache = null;
+      } else {
+        console.log('[News] Returning cached news');
+        const cachedItems = fullNewsCache.items;
 
-      if (format === 'full') {
+        if (format === 'full') {
+          return NextResponse.json({
+            success: true, cached: true, cacheSource: 'memory',
+            news: cachedItems.slice(0, 30),
+            fetchedAt: new Date(fullNewsCache.timestamp).toISOString(),
+            totalSources: cachedItems.length,
+          });
+        }
+
+        const newsItems = cachedItems.slice(0, 12);
+        const tickerItems: TickerNewsItem[] = newsItems.map(item => ({
+          text: `${impactEmoji(item.type)} ${item.title} — ${item.source.split('·')[0].trim()}`,
+          type: item.type, url: item.url,
+        }));
+        tickerItems.push({ text: getRandomTip().title, type: 'tip', url: '' });
+
         return NextResponse.json({
           success: true, cached: true, cacheSource: 'memory',
-          news: cachedItems.slice(0, 30),
+          news: tickerItems,
           fetchedAt: new Date(fullNewsCache.timestamp).toISOString(),
           totalSources: cachedItems.length,
         });
       }
-
-      const newsItems = cachedItems.slice(0, 12);
-      const tickerItems: TickerNewsItem[] = newsItems.map(item => ({
-        text: `${impactEmoji(item.type)} ${item.title} — ${item.source.split('·')[0].trim()}`,
-        type: item.type, url: item.url,
-      }));
-      tickerItems.push({ text: getRandomTip().title, type: 'tip', url: '' });
-
-      return NextResponse.json({
-        success: true, cached: true, cacheSource: 'memory',
-        news: tickerItems,
-        fetchedAt: new Date(fullNewsCache.timestamp).toISOString(),
-        totalSources: cachedItems.length,
-      });
     }
 
     // Fetch fresh data
@@ -626,7 +654,7 @@ export async function GET(request: NextRequest) {
 
     const fallbackNews: TickerNewsItem[] = [
       { text: '🔴 Berita forex sedang tidak tersedia — coba beberapa menit lagi', type: 'high' as const, url: '' },
-      { text: '🟡 Kunjungi TradingEconomics.com untuk berita terkini', type: 'medium' as const, url: 'https://tradingeconomics.com' },
+      { text: '🟡 Kunjungi Investing.com untuk berita terkini', type: 'medium' as const, url: 'https://www.investing.com/news' },
       { text: '💡 TIP: Gunakan Stop Loss di setiap trade untuk proteksi modal', type: 'low' as const, url: '' },
     ];
 

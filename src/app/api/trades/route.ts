@@ -207,6 +207,7 @@ export async function POST(request: NextRequest) {
     const missingFields = requiredFields.filter(field => !body[field] && body[field] !== 0)
 
     if (missingFields.length > 0) {
+      console.warn('[trades POST] Missing required fields:', missingFields, 'body keys:', Object.keys(body))
       return NextResponse.json(
         { error: `Missing required fields: ${missingFields.join(', ')}` },
         { status: 400 }
@@ -324,7 +325,7 @@ export async function PUT(request: NextRequest) {
     // Verify trade belongs to user
     const { data: existingTrade, error: findError } = await client
       .from('trades')
-      .select('id, user_id')
+      .select('id, user_id, account_id')
       .eq('id', String(id))
       .single()
 
