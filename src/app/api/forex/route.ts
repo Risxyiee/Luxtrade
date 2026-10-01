@@ -435,6 +435,9 @@ export async function GET(request: NextRequest) {
 
     const errors: string[] = []
 
+    // Log API key status for debugging
+    console.log(`[Forex] API keys: TwelveData=${tdKey ? 'YES(' + tdKey.substring(0, 6) + '...)' : 'NOT SET'}, AlphaVantage=${(await getAlphaVantageKey()) ? 'YES' : 'NOT SET'}`)
+
     // For price checks (limit=1), try real-time /price endpoint first
     // This avoids the stale-candle issue where /time_series returns
     // the last COMPLETED candle (up to 1h stale for 1h interval).

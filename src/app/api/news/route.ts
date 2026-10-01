@@ -377,6 +377,8 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
 
   // PRIMARY: TradingEconomics RapidAPI (forex-focused, with importance)
   const teKey = await getTeApiKey();
+  const finnhubKeyCheck = await getFinnhubApiKey();
+  console.log(`[News] API keys available: TE=${teKey ? 'YES(' + teKey.substring(0, 6) + '...)' : 'NO'}, Finnhub=${finnhubKeyCheck ? 'YES(' + finnhubKeyCheck.substring(0, 6) + '...)' : 'NO'}`);
   if (teKey) {
     try {
       console.log('[News] Fetching from TradingEconomics RapidAPI...');
