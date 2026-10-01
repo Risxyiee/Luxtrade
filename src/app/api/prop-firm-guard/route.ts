@@ -35,6 +35,8 @@ function toCamelCase(row: any) {
     breachReason: row.breach_reason,
     breachedAt: row.breached_at,
     isActive: row.is_active,
+    consistencyRule: row.consistency_rule || 0,
+    bestDayPL: row.best_day_pl || 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -101,6 +103,8 @@ export async function POST(request: NextRequest) {
       profitTarget,
       tradingAccountId,
       alertAtPercent,
+      consistencyRule,
+      bestDayPL,
     } = body
 
     // Validate required fields
@@ -194,6 +198,8 @@ export async function POST(request: NextRequest) {
         trading_account_id: tradingAccountId || null,
         alert_at_percent: alertAtPercent || 40,
         current_balance: accountSize,
+        consistency_rule: consistencyRule || 0,
+        best_day_pl: bestDayPL || 0,
       })
       .select()
       .single()
@@ -292,6 +298,22 @@ export async function PATCH(request: NextRequest) {
 
     if (updates.currentBalance !== undefined) {
       data.current_balance = updates.currentBalance
+    }
+
+    if (updates.consistencyRule !== undefined) {
+      data.consistency_rule = updates.consistencyRule
+    }
+
+    if (updates.bestDayPL !== undefined) {
+      data.best_day_pl = updates.bestDayPL
+    }
+
+    if (updates.dailyPL !== undefined) {
+      data.daily_pl = updates.dailyPL
+    }
+
+    if (updates.totalPL !== undefined) {
+      data.total_pl = updates.totalPL
     }
 
     if (updates.isActive !== undefined) {

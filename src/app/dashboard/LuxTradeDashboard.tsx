@@ -744,15 +744,21 @@ function LuxTradeDashboardContent() {
   // Journal Handlers
   const {
     handleAddJournal,
+    handleEditJournalSave,
     handleDeleteJournal
   } = createJournalHandlers({
     journalForm,
     setJournalForm,
     addJournalOpen,
     setAddJournalOpen,
+    editJournalOpen,
+    setEditJournalOpen,
+    selectedJournal,
+    setSelectedJournal,
     saving,
     setSaving,
-    fetchData
+    fetchData,
+    language
   })
 
   // Watchlist Handlers
@@ -1130,6 +1136,13 @@ function LuxTradeDashboardContent() {
         journalForm={journalForm}
         setJournalForm={setJournalForm}
         handleAddJournal={handleAddJournal}
+        viewJournalOpen={viewJournalOpen}
+        setViewJournalOpen={setViewJournalOpen}
+        editJournalOpen={editJournalOpen}
+        setEditJournalOpen={setEditJournalOpen}
+        selectedJournal={selectedJournal}
+        setSelectedJournal={setSelectedJournal}
+        handleEditJournalSave={handleEditJournalSave}
 
         // Watchlist-related
         watchlistForm={watchlistForm}

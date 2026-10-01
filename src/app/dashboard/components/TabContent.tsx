@@ -75,6 +75,7 @@ interface TabContentProps {
   tradingAccounts?: any[]
   fetchData?: (isRefresh?: boolean) => void
   selectedAccountId?: string | null
+  setSelectedAccountId?: (id: string | null) => void
   setActiveTab?: (tab: string) => void
 }
 

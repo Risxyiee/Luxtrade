@@ -176,6 +176,19 @@ export async function DELETE(
       console.log(`[Delete Account] Deleted ${tradesCount} trades linked to account ${params.id}`)
     }
 
+    // Deactivate any prop firm challenges linked to this account
+    const { error: challengeUpdateError } = await admin
+      .from('prop_firm_challenges')
+      .update({ is_active: false })
+      .eq('trading_account_id', params.id)
+
+    if (challengeUpdateError) {
+      console.error('[Delete Account] Error deactivating prop firm challenges:', challengeUpdateError)
+      // Don't fail the account deletion for this
+    } else {
+      console.log(`[Delete Account] Deactivated prop firm challenges linked to account ${params.id}`)
+    }
+
     // Delete the account
     await admin.from('trading_accounts').delete().eq('id', params.id)
 

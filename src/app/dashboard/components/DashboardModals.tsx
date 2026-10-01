@@ -13,7 +13,7 @@ import { Share2, Edit, Trash2, Calendar, Clock, Plus, CreditCard } from 'lucide-
 import PaymentConfirmationModal from '@/components/PaymentConfirmationModal'
 import OnboardingModal from '@/components/landing/OnboardingModal'
 import { formatCurrency } from '@/lib/utils-currency'
-import { Trade, TradeFormData, emptyFormData } from '../utils/types'
+import { Trade, TradeFormData, emptyFormData, JournalEntry } from '../utils/types'
 import { moodOptions, marketConditions } from '../utils/helpers'
 
 // Lazy-load heavy modal children — they only render when their Dialog is open
@@ -23,6 +23,90 @@ const PaywallModal = dynamic(() => import('@/components/PaywallModal').then(m =>
 const OnboardingOverlay = dynamic(() => import('./OnboardingOverlay').then(m => ({ default: m.default })), { ssr: false })
 const TradeWizardForm = dynamic(() => import('./TradeWizardForm').then(m => ({ default: m.default })), { ssr: false })
 import AddAccountForm from './AddAccountForm'
+
+// Edit Journal Form - local component with its own state
+function EditJournalForm({ entry, saving, onSave, onCancel, language }: {
+  entry: JournalEntry
+  saving: boolean
+  onSave: (data: { title: string; content: string; mood: string; market_condition: string }) => void
+  onCancel: () => void
+  language: 'id' | 'en'
+}) {
+  const [editTitle, setEditTitle] = useState(entry.title)
+  const [editContent, setEditContent] = useState(entry.content)
+  const [editMood, setEditMood] = useState(entry.mood || '')
+  const [editMarketCondition, setEditMarketCondition] = useState(entry.market_condition || '')
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label>{language === 'id' ? 'Judul' : 'Title'} *</Label>
+        <Input
+          placeholder="Market Recap - Monday"
+          className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1"
+          value={editTitle}
+          onChange={(e) => setEditTitle(e.target.value)}
+        />
+      </div>
+      <div>
+        <Label>{language === 'id' ? 'Konten' : 'Content'} *</Label>
+        <Textarea
+          placeholder={language === 'id' ? 'Tulis pemikiran Anda...' : 'Write your thoughts...'}
+          className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1 resize-none"
+          rows={5}
+          value={editContent}
+          onChange={(e) => setEditContent(e.target.value)}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>{language === 'id' ? 'Mood' : 'Mood'}</Label>
+          <Select value={editMood} onValueChange={setEditMood}>
+            <SelectTrigger className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1">
+              <SelectValue placeholder={language === 'id' ? 'Bagaimana perasaan?' : 'How do you feel?'} />
+            </SelectTrigger>
+            <SelectContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-blue-900/30">
+              {moodOptions.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  <span className={opt.color}>{opt.label}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>{language === 'id' ? 'Kondisi Pasar' : 'Market Condition'}</Label>
+          <Select value={editMarketCondition} onValueChange={setEditMarketCondition}>
+            <SelectTrigger className="bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1">
+              <SelectValue placeholder={language === 'id' ? 'Kondisi pasar' : 'Market state'} />
+            </SelectTrigger>
+            <SelectContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-blue-900/30">
+              {marketConditions.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="flex gap-3 pt-2">
+        <Button
+          onClick={() => onSave({ title: editTitle, content: editContent, mood: editMood, market_condition: editMarketCondition })}
+          disabled={saving || !editTitle || !editContent}
+          className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600"
+        >
+          {saving ? (language === 'id' ? 'Menyimpan...' : 'Saving...') : (language === 'id' ? 'Simpan' : 'Save')}
+        </Button>
+        <Button
+          variant="outline"
+          onClick={onCancel}
+          className="border-blue-900/30"
+        >
+          {language === 'id' ? 'Batal' : 'Cancel'}
+        </Button>
+      </div>
+    </div>
+  )
+}
 
 interface DashboardModalsProps {
   // Modal states
@@ -77,6 +161,13 @@ interface DashboardModalsProps {
   journalForm: { title: string; content: string; mood: string; market_condition: string }
   setJournalForm: (form: { title: string; content: string; mood: string; market_condition: string }) => void
   handleAddJournal: () => void
+  viewJournalOpen: boolean
+  setViewJournalOpen: (open: boolean) => void
+  editJournalOpen: boolean
+  setEditJournalOpen: (open: boolean) => void
+  selectedJournal: JournalEntry | null
+  setSelectedJournal: (entry: JournalEntry | null) => void
+  handleEditJournalSave: (editData: { title: string; content: string; mood: string; market_condition: string }) => void
 
   // Watchlist-related
   watchlistForm: { symbol: string; name: string; target_price: string; notes: string }
@@ -148,6 +239,13 @@ const DashboardModals = memo(function DashboardModals({
   journalForm,
   setJournalForm,
   handleAddJournal,
+  viewJournalOpen,
+  setViewJournalOpen,
+  editJournalOpen,
+  setEditJournalOpen,
+  selectedJournal,
+  setSelectedJournal,
+  handleEditJournalSave,
 
   // Watchlist-related
   watchlistForm,
@@ -455,6 +553,53 @@ const DashboardModals = memo(function DashboardModals({
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Journal Modal */}
+      <Dialog open={viewJournalOpen} onOpenChange={(open) => { setViewJournalOpen(open); if (!open) setSelectedJournal(null); }}>
+        <DialogContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-blue-900/30 text-lux-text-primary dark:text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl">{selectedJournal?.title}</DialogTitle>
+          </DialogHeader>
+          {selectedJournal && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-xs text-lux-text-muted dark:text-gray-500">
+                <Calendar className="w-3.5 h-3.5" />
+                {new Date(selectedJournal.created_at).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </div>
+              <div className="flex gap-2">
+                {selectedJournal.mood && <Badge variant="outline" className="text-xs border-blue-500/30 text-blue-400">{selectedJournal.mood}</Badge>}
+                {selectedJournal.market_condition && <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-400">{selectedJournal.market_condition}</Badge>}
+              </div>
+              <p className="text-sm text-lux-text-secondary dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{selectedJournal.content}</p>
+              <div className="flex gap-3 pt-2">
+                <Button onClick={() => { setViewJournalOpen(false); setEditJournalOpen(true); }} className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600">
+                  <Edit className="w-4 h-4 mr-2" /> {language === 'id' ? 'Edit' : 'Edit'}
+                </Button>
+                <Button variant="outline" onClick={() => setViewJournalOpen(false)} className="border-blue-900/30">
+                  {language === 'id' ? 'Tutup' : 'Close'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Journal Modal */}
+      <Dialog open={editJournalOpen} onOpenChange={(open) => { setEditJournalOpen(open); if (!open) setSelectedJournal(null); }}>
+        <DialogContent className="bg-lux-bg-card dark:bg-[#0a0c12] border-lux-border dark:border-blue-900/30 text-lux-text-primary dark:text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl">{language === 'id' ? 'Edit Jurnal' : 'Edit Journal'}</DialogTitle>
+          </DialogHeader>
+          {selectedJournal && <EditJournalForm
+            key={selectedJournal.id}
+            entry={selectedJournal}
+            saving={saving}
+            onSave={handleEditJournalSave}
+            onCancel={() => { setEditJournalOpen(false); setSelectedJournal(null); }}
+            language={language}
+          />}
         </DialogContent>
       </Dialog>
 
