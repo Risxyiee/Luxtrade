@@ -210,7 +210,7 @@ export default function WatchlistTab({
                         {/* Alert toggle button */}
                         <button
                           onClick={() => toggleAlert(item.id)}
-                          className={`p-1.5 rounded-lg transition-all ${isAlertOn ? 'text-amber-400 bg-amber-500/15 hover:bg-amber-500/25' : 'text-lux-text-muted dark:text-gray-500 hover:text-lux-text-primary dark:text-gray-300 hover:bg-lux-surface-hover dark:hover:bg-lux-surface-hover dark:bg-white/5 opacity-0 group-hover:opacity-100'}`}
+                          className={`p-1.5 rounded-lg transition-all ${isAlertOn ? 'text-amber-400 bg-amber-500/15 hover:bg-amber-500/25' : 'text-lux-text-muted dark:text-gray-500 hover:text-lux-text-primary dark:text-gray-300 hover:bg-lux-surface-hover dark:hover:bg-lux-surface-hover dark:bg-white/5'}`}
                           title={isAlertOn ? (language === 'id' ? 'Alert ON' : 'Alert ON') : (language === 'id' ? 'Alert OFF' : 'Alert OFF')}
                         >
                           {isAlertOn ? (
@@ -222,7 +222,7 @@ export default function WatchlistTab({
                         {/* Delete button */}
                         <button
                           onClick={() => onDelete(item.id)}
-                          className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-lux-text-secondary dark:text-gray-400 hover:text-red-400 transition-all"
+                          className="p-1.5 rounded-lg hover:bg-red-500/20 text-lux-text-secondary dark:text-gray-400 hover:text-red-400 transition-all"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

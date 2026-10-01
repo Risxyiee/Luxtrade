@@ -688,53 +688,53 @@ function JournalTab({
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
         >
-          <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/5 border-amber-500/20 overflow-hidden relative">
+          <Card className="bg-gradient-to-br from-blue-500/10 to-cyan-500/5 border-blue-500/20 overflow-hidden relative">
             {/* Animated background glow */}
             {quickStreak >= 3 && (
-              <div className="absolute -top-8 -right-8 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl animate-pulse" />
+              <div className="absolute -top-8 -right-8 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl animate-pulse" />
             )}
             <CardContent className="p-4 relative">
               <div className="flex items-center gap-4">
                 <motion.div
-                  className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30 flex-shrink-0"
+                  className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-blue-500/30 flex-shrink-0"
                   animate={quickStreak > 0 ? { scale: [1, 1.08, 1] } : {}}
                   transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 >
                   <span className="text-2xl">{quickStreak > 0 ? '🔥' : '💤'}</span>
                 </motion.div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-amber-300/60 uppercase tracking-wider">{language === 'id' ? 'Streak Jurnal' : 'Journal Streak'}</p>
+                  <p className="text-xs font-medium text-blue-300/60 uppercase tracking-wider">{language === 'id' ? 'Streak Jurnal' : 'Journal Streak'}</p>
                   <div className="flex items-baseline gap-1.5 mt-0.5">
                     <motion.p
                       key={quickStreak}
-                      className="text-3xl font-bold text-amber-400 tabular-nums"
+                      className="text-3xl font-bold text-blue-400 tabular-nums"
                       initial={{ y: 8, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}
                       transition={{ duration: 0.25 }}
                     >
                       {quickStreak}
                     </motion.p>
-                    <span className="text-sm text-amber-300/70">
+                    <span className="text-sm text-blue-300/70">
                       {quickStreak === 1 ? (language === 'id' ? 'hari' : 'day') : (language === 'id' ? 'hari' : 'days')}
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 mt-1">
                     {hasTodayEntry ? (
                       <>
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 text-[11px] font-medium">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-[11px] font-medium">
                           ✅ {language === 'id' ? 'Sudah journaling hari ini' : 'Journaled today'}
                         </span>
                       </>
                     ) : (
                       <>
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300/70 text-[11px] font-medium">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-300/70 text-[11px] font-medium">
                           📝 {language === 'id' ? 'Belum journaling hari ini' : "Haven't journaled today"}
                         </span>
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={onAdd}
-                          className="h-6 px-2 text-[10px] text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 -ml-1"
+                          className="h-6 px-2 text-[10px] text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 -ml-1"
                         >
                           {language === 'id' ? 'Tulis' : 'Write'} →
                         </Button>
@@ -752,21 +752,21 @@ function JournalTab({
                 >
                   <div className="flex items-center gap-2">
                     {/* Streak bar */}
-                    <div className="flex-1 h-1.5 bg-amber-500/10 rounded-full overflow-hidden">
+                    <div className="flex-1 h-1.5 bg-blue-500/10 rounded-full overflow-hidden">
                       <motion.div
-                        className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full"
+                        className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full"
                         initial={{ width: 0 }}
                         animate={{ width: `${Math.min((quickStreak / 30) * 100, 100)}%` }}
                         transition={{ duration: 0.8, ease: "easeOut" }}
                       />
                     </div>
-                    <span className="text-[10px] text-amber-300/50 tabular-nums">{quickStreak}/30</span>
+                    <span className="text-[10px] text-blue-300/50 tabular-nums">{quickStreak}/30</span>
                   </div>
                 </motion.div>
               )}
               {quickStreak >= 7 && (
-                <div className="mt-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                  <p className="text-xs text-blue-300 font-medium">
+                <div className="mt-2 p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                  <p className="text-xs text-cyan-300 font-medium">
                     🏆 {quickStreak} {language === 'id' ? 'hari' : 'day'} streak! {language === 'id' ? 'Konsisten adalah kunci trader sukses.' : 'Consistency is the key to successful trading.'}
                   </p>
                 </div>
@@ -976,8 +976,16 @@ function JournalTab({
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-lux-text-muted dark:text-gray-500">{new Date(entry.created_at).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                     <button
+                      onClick={(e) => { e.stopPropagation(); onEdit(entry) }}
+                      className="p-1 rounded hover:bg-blue-500/20 text-lux-text-muted dark:text-gray-500 hover:text-blue-400 transition-all"
+                      title={language === 'id' ? 'Edit' : 'Edit'}
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+                    <button
                       onClick={(e) => { e.stopPropagation(); onDelete(entry.id) }}
-                      className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-lux-text-muted dark:text-gray-500 hover:text-red-400 transition-all"
+                      className="p-1 rounded hover:bg-red-500/20 text-lux-text-muted dark:text-gray-500 hover:text-red-400 transition-all"
+                      title={language === 'id' ? 'Hapus' : 'Delete'}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
