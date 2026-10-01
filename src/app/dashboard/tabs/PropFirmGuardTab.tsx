@@ -13,18 +13,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import {
   Shield, Plus, Trash2, RefreshCw, AlertTriangle, CheckCircle2,
-  XCircle, Loader2, ChevronRight, Edit2, RotateCcw
+  XCircle, Loader2, ChevronRight, Edit2, RotateCcw, TrendingUp, Star
 } from 'lucide-react'
 import { toast } from 'sonner'
 
 // ─── Firm Presets ─────────────────────────────────────────────────────
-const FIRM_PRESETS: Record<string, { maxDailyLoss: number; maxTotalDD: number; profitTarget: number }> = {
-  FTMO: { maxDailyLoss: 5, maxTotalDD: 10, profitTarget: 10 },
-  MFF: { maxDailyLoss: 5, maxTotalDD: 12, profitTarget: 10 },
-  TFT: { maxDailyLoss: 4.5, maxTotalDD: 9, profitTarget: 8 },
-  FundedNext: { maxDailyLoss: 5, maxTotalDD: 10, profitTarget: 10 },
-  SurgeTrader: { maxDailyLoss: 3, maxTotalDD: 6, profitTarget: 10 },
-  Custom: { maxDailyLoss: 5, maxTotalDD: 10, profitTarget: 10 },
+const FIRM_PRESETS: Record<string, { maxDailyLoss: number; maxTotalDD: number; profitTarget: number; consistencyRule?: number }> = {
+  FTMO: { maxDailyLoss: 5, maxTotalDD: 10, profitTarget: 10, consistencyRule: 30 },
+  MFF: { maxDailyLoss: 5, maxTotalDD: 12, profitTarget: 10, consistencyRule: 0 },
+  TFT: { maxDailyLoss: 4.5, maxTotalDD: 9, profitTarget: 8, consistencyRule: 0 },
+  FundedNext: { maxDailyLoss: 5, maxTotalDD: 10, profitTarget: 10, consistencyRule: 30 },
+  SurgeTrader: { maxDailyLoss: 3, maxTotalDD: 6, profitTarget: 10, consistencyRule: 0 },
+  Custom: { maxDailyLoss: 5, maxTotalDD: 10, profitTarget: 10, consistencyRule: 0 },
 }
 
 const ACCOUNT_SIZES = [10000, 25000, 50000, 100000, 200000, 500000]
@@ -49,6 +49,8 @@ interface Challenge {
   breachedAt: string | null
   isActive: boolean
   tradingAccountId: string | null
+  consistencyRule: number
+  bestDayPL: number
   createdAt: string
   updatedAt: string
 }
@@ -90,7 +92,7 @@ function CircularGauge({ percent, label, color, size = 80 }: {
         />
       </svg>
       <span className="text-xs font-bold" style={{ color }}>{clampedPercent.toFixed(1)}%</span>
-      <span className="text-[10px] text-gray-500">{label}</span>
+      <span className="text-[10px] text-lux-text-muted dark:text-gray-500">{label}</span>
     </div>
   )
 }
@@ -146,6 +148,69 @@ function getDDColorClass(percentOfLimit: number): string {
   return 'text-green-500'
 }
 
+// ─── Editable Field with N/A Switch ──────────────────────────────────
+function EditableFieldWithNA({
+  label,
+  value,
+  onChange,
+  enabled,
+  onEnabledChange,
+  prefix = '$',
+  suffix,
+  placeholder,
+  helperText,
+}: {
+  label: string
+  value: number
+  onChange: (val: number) => void
+  enabled: boolean
+  onEnabledChange: (val: boolean) => void
+  prefix?: string
+  suffix?: string
+  placeholder?: string
+  helperText?: string
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs text-lux-text-secondary dark:text-gray-400">{label}</Label>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-lux-text-muted dark:text-gray-500">N/A</span>
+          <Switch
+            checked={enabled}
+            onCheckedChange={onEnabledChange}
+            className="scale-75 data-[state=checked]:bg-blue-500"
+          />
+        </div>
+      </div>
+      {enabled ? (
+        <>
+          <div className="relative">
+            {prefix && (
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-lux-text-muted dark:text-gray-500">{prefix}</span>
+            )}
+            <Input
+              type="number"
+              value={value || ''}
+              onChange={(e) => onChange(Number(e.target.value))}
+              className={`bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-blue-900/30 text-white text-sm ${prefix ? 'pl-7' : ''} ${suffix ? 'pr-8' : ''}`}
+              placeholder={placeholder}
+            />
+            {suffix && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-lux-text-muted dark:text-gray-500">{suffix}</span>
+            )}
+          </div>
+          {helperText && <p className="text-[10px] text-lux-text-muted dark:text-gray-500">{helperText}</p>}
+        </>
+      ) : (
+        <div className="px-3 py-2 rounded-md bg-lux-surface-hover dark:bg-white/5 border border-lux-border dark:border-blue-900/30 text-xs text-lux-text-muted dark:text-gray-500 italic">
+          {prefix === '$' ? 'Not applicable' : 'Tidak berlaku'} / N/A
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────
 export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' | 'en' }) {
   const [challenges, setChallenges] = useState<Challenge[]>([])
@@ -171,6 +236,21 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
   const [editMaxTotalDD, setEditMaxTotalDD] = useState(0)
   const [editProfitTarget, setEditProfitTarget] = useState(0)
   const [editAlertPercent, setEditAlertPercent] = useState(40)
+  const [editConsistencyRule, setEditConsistencyRule] = useState(0)
+  const [editBestDayPL, setEditBestDayPL] = useState(0)
+  const [editDailyPL, setEditDailyPL] = useState(0)
+  const [editTotalPL, setEditTotalPL] = useState(0)
+  const [editChallengePhase, setEditChallengePhase] = useState('phase1')
+
+  // N/A toggle states for edit fields
+  const [editMaxDailyLossEnabled, setEditMaxDailyLossEnabled] = useState(true)
+  const [editMaxTotalDDEnabled, setEditMaxTotalDDEnabled] = useState(true)
+  const [editProfitTargetEnabled, setEditProfitTargetEnabled] = useState(true)
+  const [editConsistencyRuleEnabled, setEditConsistencyRuleEnabled] = useState(false)
+  const [editBestDayPLEnabled, setEditBestDayPLEnabled] = useState(true)
+  const [editDailyPLEnabled, setEditDailyPLEnabled] = useState(true)
+  const [editTotalPLEnabled, setEditTotalPLEnabled] = useState(true)
+  const [editCurrentBalanceEnabled, setEditCurrentBalanceEnabled] = useState(true)
 
   // Bilingual labels
   const t = (id: string, en: string) => language === 'id' ? id : en
@@ -219,6 +299,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
       const maxDailyLoss = (preset.maxDailyLoss / 100) * formAccountSize
       const maxTotalDD = (preset.maxTotalDD / 100) * formAccountSize
       const profitTarget = (preset.profitTarget / 100) * formAccountSize
+      const consistencyRule = preset.consistencyRule || 0
 
       const res = await fetch('/api/prop-firm-guard', {
         method: 'POST',
@@ -232,6 +313,8 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
           maxTotalDD,
           profitTarget,
           alertAtPercent: formAlertPercent,
+          consistencyRule,
+          bestDayPL: 0,
         }),
       })
 
@@ -325,6 +408,20 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
     setEditMaxTotalDD(ch.maxTotalDD)
     setEditProfitTarget(ch.profitTarget)
     setEditAlertPercent(ch.alertAtPercent)
+    setEditConsistencyRule(ch.consistencyRule || 0)
+    setEditBestDayPL(ch.bestDayPL || 0)
+    setEditDailyPL(ch.dailyPL || 0)
+    setEditTotalPL(ch.totalPL || 0)
+    setEditChallengePhase(ch.challengePhase || 'phase1')
+    // Set N/A toggles based on whether values exist
+    setEditMaxDailyLossEnabled(ch.maxDailyLoss > 0)
+    setEditMaxTotalDDEnabled(ch.maxTotalDD > 0)
+    setEditProfitTargetEnabled(ch.profitTarget > 0)
+    setEditConsistencyRuleEnabled((ch.consistencyRule || 0) > 0)
+    setEditBestDayPLEnabled(true)
+    setEditDailyPLEnabled(true)
+    setEditTotalPLEnabled(true)
+    setEditCurrentBalanceEnabled(true)
     setEditDialogOpen(true)
   }
 
@@ -340,11 +437,16 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
           id: selectedChallenge.id,
           firmName: editFirmName,
           accountSize: editAccountSize,
-          maxDailyLoss: editMaxDailyLoss,
-          maxTotalDD: editMaxTotalDD,
-          profitTarget: editProfitTarget,
+          maxDailyLoss: editMaxDailyLossEnabled ? editMaxDailyLoss : 0,
+          maxTotalDD: editMaxTotalDDEnabled ? editMaxTotalDD : 0,
+          profitTarget: editProfitTargetEnabled ? editProfitTarget : 0,
           alertAtPercent: editAlertPercent,
-          currentBalance: editCurrentBalance,
+          currentBalance: editCurrentBalanceEnabled ? editCurrentBalance : 0,
+          consistencyRule: editConsistencyRuleEnabled ? editConsistencyRule : 0,
+          bestDayPL: editBestDayPLEnabled ? editBestDayPL : 0,
+          dailyPL: editDailyPLEnabled ? editDailyPL : 0,
+          totalPL: editTotalPLEnabled ? editTotalPL : 0,
+          challengePhase: editChallengePhase,
         }),
       })
       if (!res.ok) {
@@ -364,7 +466,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        <Loader2 className="w-8 h-8 animate-spin text-lux-text-muted dark:text-gray-400" />
       </div>
     )
   }
@@ -374,14 +476,14 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-amber-500/10">
-            <Shield className="w-6 h-6 text-amber-500" />
+          <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-600/10">
+            <Shield className="w-6 h-6 text-blue-500" />
           </div>
           <div>
             <h2 className="text-lg font-bold text-white">
               {t('Prop Firm Guard', 'Prop Firm Guard')}
             </h2>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-lux-text-muted dark:text-gray-500">
               {t('Monitor drawdown & protect challenge', 'Monitor drawdown & protect challenge')}
             </p>
           </div>
@@ -392,7 +494,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
             size="sm"
             onClick={handleCheckNow}
             disabled={checking}
-            className="gap-1.5 text-xs border-gray-700 text-gray-300 hover:text-white"
+            className="gap-1.5 text-xs border-lux-border dark:border-blue-900/30 text-lux-text-secondary dark:text-gray-300 hover:text-white"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${checking ? 'animate-spin' : ''}`} />
             {t('Cek Sekarang', 'Check Now')}
@@ -407,7 +509,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
               setFormAlertPercent(40)
               setAddDialogOpen(true)
             }}
-            className="gap-1.5 text-xs bg-amber-500 hover:bg-amber-600 text-black"
+            className="gap-1.5 text-xs bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
           >
             <Plus className="w-3.5 h-3.5" />
             {t('Tambah', 'Add')}
@@ -417,13 +519,13 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
 
       {/* Empty state */}
       {challenges.length === 0 && (
-        <Card className="bg-gray-900/50 border-gray-800">
+        <Card className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30">
           <CardContent className="py-16 text-center">
             <Shield className="w-12 h-12 text-gray-600 mx-auto mb-4" />
             <h3 className="text-white font-semibold mb-2">
               {t('Belum ada challenge', 'No challenges yet')}
             </h3>
-            <p className="text-gray-500 text-sm mb-6">
+            <p className="text-lux-text-muted dark:text-gray-500 text-sm mb-6">
               {t(
                 'Tambahkan prop firm challenge untuk mulai monitoring drawdown.',
                 'Add a prop firm challenge to start monitoring drawdown.'
@@ -431,7 +533,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
             </p>
             <Button
               onClick={() => setAddDialogOpen(true)}
-              className="bg-amber-500 hover:bg-amber-600 text-black"
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
             >
               <Plus className="w-4 h-4 mr-2" />
               {t('Tambah Challenge', 'Add Challenge')}
@@ -453,7 +555,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
           return (
             <Card
               key={ch.id}
-              className={`bg-gray-900/50 border-gray-800 ${
+              className={`bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30 ${
                 ch.isBreached ? 'border-red-500/30' : dailyDDPctOfLimit >= 80 || totalDDPctOfLimit >= 80 ? 'border-orange-500/20' : ''
               }`}
             >
@@ -478,12 +580,17 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                     <div>
                       <CardTitle className="text-base text-white flex items-center gap-2">
                         {ch.firmName}
-                        <span className="text-gray-500 font-normal text-sm">
+                        <span className="text-lux-text-muted dark:text-gray-500 font-normal text-sm">
                           ${ch.accountSize.toLocaleString()}
                         </span>
                         {ch.isBreached && (
                           <Badge variant="destructive" className="text-[10px] px-1.5">
                             BREACHED
+                          </Badge>
+                        )}
+                        {ch.consistencyRule > 0 && (
+                          <Badge className="text-[10px] px-1.5 bg-blue-500/20 text-blue-400 border-blue-500/30">
+                            {t(`Konsistensi ${ch.consistencyRule}%`, `Consistency ${ch.consistencyRule}%`)}
                           </Badge>
                         )}
                       </CardTitle>
@@ -496,7 +603,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                         value={ch.challengePhase}
                         onValueChange={(val) => handlePhaseChange(ch.id, val)}
                       >
-                        <SelectTrigger className="w-[100px] h-7 text-[10px] border-gray-700 bg-gray-800">
+                        <SelectTrigger className="w-[100px] h-7 text-[10px] border-lux-border dark:border-blue-900/30 bg-lux-surface-hover dark:bg-white/5">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -511,7 +618,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                         variant="ghost"
                         size="sm"
                         onClick={() => handleResetBreach(ch.id)}
-                        className="text-[10px] h-7 text-gray-400 hover:text-white"
+                        className="text-[10px] h-7 text-lux-text-muted dark:text-gray-400 hover:text-white"
                       >
                         <RotateCcw className="w-3 h-3 mr-1" />
                         {t('Reset', 'Reset')}
@@ -562,14 +669,14 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                 {/* Daily DD Bar */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-400">
+                    <span className="text-lux-text-secondary dark:text-gray-400">
                       {t('Drawdown Harian', 'Daily Drawdown')}
                     </span>
                     <span className={getDDColorClass(dailyDDPctOfLimit)}>
                       {ch.currentDailyDD.toFixed(1)}% / {dailyDDLimitPct.toFixed(1)}%
                     </span>
                   </div>
-                  <div className="relative h-2.5 bg-gray-800 rounded-full overflow-hidden">
+                  <div className="relative h-2.5 bg-lux-surface-hover dark:bg-white/5 rounded-full overflow-hidden">
                     <div
                       className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
                       style={{
@@ -592,14 +699,14 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                 {/* Total DD Bar */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-400">
+                    <span className="text-lux-text-secondary dark:text-gray-400">
                       {t('Total Drawdown', 'Total Drawdown')}
                     </span>
                     <span className={getDDColorClass(totalDDPctOfLimit)}>
                       {ch.currentTotalDD.toFixed(1)}% / {totalDDLimitPct.toFixed(1)}%
                     </span>
                   </div>
-                  <div className="relative h-2.5 bg-gray-800 rounded-full overflow-hidden">
+                  <div className="relative h-2.5 bg-lux-surface-hover dark:bg-white/5 rounded-full overflow-hidden">
                     <div
                       className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
                       style={{
@@ -621,7 +728,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                 {/* Profit Target Bar */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-400">
+                    <span className="text-lux-text-secondary dark:text-gray-400">
                       {t('Target Profit', 'Profit Target')}
                     </span>
                     <span className="text-green-400">
@@ -636,31 +743,52 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                 </div>
 
                 {/* Stats Row */}
-                <div className="grid grid-cols-3 gap-3 pt-1">
-                  <div className="text-center p-2 rounded-lg bg-gray-800/50">
+                <div className={`grid gap-3 pt-1 ${ch.bestDayPL > 0 ? 'grid-cols-5' : 'grid-cols-4'}`}>
+                  <div className="text-center p-2 rounded-lg bg-lux-surface-hover dark:bg-white/5">
                     <div className={`text-sm font-bold ${ch.dailyPL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {ch.dailyPL >= 0 ? '+' : ''}${ch.dailyPL.toFixed(0)}
                     </div>
-                    <div className="text-[10px] text-gray-500">
+                    <div className="text-[10px] text-lux-text-muted dark:text-gray-500">
                       {t('P/L Hari Ini', 'Today P/L')}
                     </div>
                   </div>
-                  <div className="text-center p-2 rounded-lg bg-gray-800/50">
+                  <div className="text-center p-2 rounded-lg bg-lux-surface-hover dark:bg-white/5">
                     <div className={`text-sm font-bold ${ch.totalPL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {ch.totalPL >= 0 ? '+' : ''}${ch.totalPL.toFixed(0)}
                     </div>
-                    <div className="text-[10px] text-gray-500">
+                    <div className="text-[10px] text-lux-text-muted dark:text-gray-500">
                       {t('Total P/L', 'Total P/L')}
                     </div>
                   </div>
-                  <div className="text-center p-2 rounded-lg bg-gray-800/50">
+                  <div className="text-center p-2 rounded-lg bg-lux-surface-hover dark:bg-white/5">
                     <div className="text-sm font-bold text-white">
                       ${ch.currentBalance.toFixed(0)}
                     </div>
-                    <div className="text-[10px] text-gray-500">
+                    <div className="text-[10px] text-lux-text-muted dark:text-gray-500">
                       {t('Saldo', 'Balance')}
                     </div>
                   </div>
+                  {ch.bestDayPL > 0 && (
+                    <div className="text-center p-2 rounded-lg bg-lux-surface-hover dark:bg-white/5">
+                      <div className="text-sm font-bold text-green-400 flex items-center justify-center gap-1">
+                        <Star className="w-3 h-3 text-amber-400" />
+                        +${ch.bestDayPL.toFixed(0)}
+                      </div>
+                      <div className="text-[10px] text-lux-text-muted dark:text-gray-500">
+                        {t('Best Day', 'Best Day')}
+                      </div>
+                    </div>
+                  )}
+                  {ch.consistencyRule > 0 && (
+                    <div className="text-center p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                      <div className="text-sm font-bold text-blue-400">
+                        {ch.consistencyRule}%
+                      </div>
+                      <div className="text-[10px] text-lux-text-muted dark:text-gray-500">
+                        {t('Konsistensi', 'Consistency')}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Breach Reason */}
@@ -674,7 +802,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                 {/* Alert Threshold Slider */}
                 <div className="space-y-2 pt-1">
                   <div className="flex items-center justify-between">
-                    <Label className="text-[11px] text-gray-400">
+                    <Label className="text-[11px] text-lux-text-secondary dark:text-gray-400">
                       {t('Threshold Alert', 'Alert Threshold')}
                     </Label>
                     <span className="text-[11px] text-amber-400 font-medium">{ch.alertAtPercent}%</span>
@@ -696,19 +824,19 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
 
       {/* ─── Add Challenge Dialog ──────────────────────────────────── */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="bg-gray-900 border-gray-800 max-w-md">
+        <DialogContent className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30 max-w-md">
           <DialogHeader>
             <DialogTitle className="text-white">
               {t('Tambah Challenge', 'Add Challenge')}
             </DialogTitle>
-            <DialogDescription className="text-gray-400">
+            <DialogDescription className="text-lux-text-secondary dark:text-gray-400">
               {t('Pilih prop firm dan ukuran akun', 'Select prop firm and account size')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             {/* Firm Selection */}
             <div className="space-y-2">
-              <Label className="text-xs text-gray-400">{t('Prop Firm', 'Prop Firm')}</Label>
+              <Label className="text-xs text-lux-text-secondary dark:text-gray-400">{t('Prop Firm', 'Prop Firm')}</Label>
               <div className="grid grid-cols-3 gap-2">
                 {Object.keys(FIRM_PRESETS).map((firm) => (
                   <button
@@ -716,8 +844,8 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                     onClick={() => setFormFirm(firm)}
                     className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
                       formFirm === firm
-                        ? 'bg-amber-500 text-black'
-                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
+                        : 'bg-lux-surface-hover dark:bg-white/5 text-lux-text-secondary dark:text-gray-400 hover:bg-lux-surface-hover/80 dark:hover:bg-white/10'
                     }`}
                   >
                     {firm}
@@ -730,14 +858,14 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                   value={formCustomFirmName}
                   onChange={(e) => setFormCustomFirmName(e.target.value)}
                   placeholder={t('Nama prop firm custom...', 'Custom prop firm name...')}
-                  className="bg-gray-800 border-gray-700 text-white text-sm mt-2"
+                  className="bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-blue-900/30 text-white text-sm mt-2"
                 />
               )}
             </div>
 
             {/* Account Size */}
             <div className="space-y-2">
-              <Label className="text-xs text-gray-400">{t('Ukuran Akun', 'Account Size')}</Label>
+              <Label className="text-xs text-lux-text-secondary dark:text-gray-400">{t('Ukuran Akun', 'Account Size')}</Label>
               <div className="grid grid-cols-3 gap-2">
                 {ACCOUNT_SIZES.map((size) => (
                   <button
@@ -745,8 +873,8 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                     onClick={() => setFormAccountSize(size)}
                     className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
                       formAccountSize === size
-                        ? 'bg-amber-500 text-black'
-                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
+                        : 'bg-lux-surface-hover dark:bg-white/5 text-lux-text-secondary dark:text-gray-400 hover:bg-lux-surface-hover/80 dark:hover:bg-white/10'
                     }`}
                   >
                     ${size.toLocaleString()}
@@ -757,7 +885,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
 
             {/* Phase */}
             <div className="space-y-2">
-              <Label className="text-xs text-gray-400">{t('Phase', 'Phase')}</Label>
+              <Label className="text-xs text-lux-text-secondary dark:text-gray-400">{t('Phase', 'Phase')}</Label>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { value: 'phase1', label: 'Phase 1' },
@@ -769,8 +897,8 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                     onClick={() => setFormPhase(p.value)}
                     className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
                       formPhase === p.value
-                        ? 'bg-amber-500 text-black'
-                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
+                        : 'bg-lux-surface-hover dark:bg-white/5 text-lux-text-secondary dark:text-gray-400 hover:bg-lux-surface-hover/80 dark:hover:bg-white/10'
                     }`}
                   >
                     {p.label}
@@ -782,7 +910,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
             {/* Alert Threshold */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-gray-400">{t('Threshold Alert', 'Alert Threshold')}</Label>
+                <Label className="text-xs text-lux-text-secondary dark:text-gray-400">{t('Threshold Alert', 'Alert Threshold')}</Label>
                 <span className="text-xs text-amber-400 font-medium">{formAlertPercent}%</span>
               </div>
               <Slider
@@ -793,7 +921,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                 onValueChange={([val]) => setFormAlertPercent(val)}
                 className="[&_[role=slider]]:bg-amber-500"
               />
-              <p className="text-[10px] text-gray-500">
+              <p className="text-[10px] text-lux-text-muted dark:text-gray-500">
                 {t(
                   `Alert saat DD mencapai ${formAlertPercent}% dari batas`,
                   `Alert when DD reaches ${formAlertPercent}% of limit`
@@ -802,8 +930,8 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
             </div>
 
             {/* Preset Info Preview */}
-            <div className="p-3 rounded-lg bg-gray-800/50 space-y-1">
-              <div className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider mb-2">
+            <div className="p-3 rounded-lg bg-lux-surface-hover dark:bg-white/5 space-y-1">
+              <div className="text-[10px] text-lux-text-muted dark:text-gray-500 font-semibold uppercase tracking-wider mb-2">
                 {t('Aturan Challenge', 'Challenge Rules')}
               </div>
               {(() => {
@@ -812,21 +940,27 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                 return (
                   <>
                     <div className="flex justify-between text-xs">
-                      <span className="text-gray-400">{t('Nama', 'Name')}</span>
+                      <span className="text-lux-text-secondary dark:text-gray-400">{t('Nama', 'Name')}</span>
                       <span className="text-amber-400">{effectiveName}</span>
                     </div>
                     <div className="flex justify-between text-xs">
-                      <span className="text-gray-400">{t('Max DD Harian', 'Max Daily DD')}</span>
+                      <span className="text-lux-text-secondary dark:text-gray-400">{t('Max DD Harian', 'Max Daily DD')}</span>
                       <span className="text-white">{preset.maxDailyLoss}% (${((preset.maxDailyLoss / 100) * formAccountSize).toLocaleString()})</span>
                     </div>
                     <div className="flex justify-between text-xs">
-                      <span className="text-gray-400">{t('Max DD Total', 'Max Total DD')}</span>
+                      <span className="text-lux-text-secondary dark:text-gray-400">{t('Max DD Total', 'Max Total DD')}</span>
                       <span className="text-white">{preset.maxTotalDD}% (${((preset.maxTotalDD / 100) * formAccountSize).toLocaleString()})</span>
                     </div>
                     <div className="flex justify-between text-xs">
-                      <span className="text-gray-400">{t('Target Profit', 'Profit Target')}</span>
+                      <span className="text-lux-text-secondary dark:text-gray-400">{t('Target Profit', 'Profit Target')}</span>
                       <span className="text-green-400">{preset.profitTarget}% (${((preset.profitTarget / 100) * formAccountSize).toLocaleString()})</span>
                     </div>
+                    {(preset.consistencyRule || 0) > 0 && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-lux-text-secondary dark:text-gray-400">{t('Aturan Konsistensi', 'Consistency Rule')}</span>
+                        <span className="text-blue-400">{preset.consistencyRule}%</span>
+                      </div>
+                    )}
                   </>
                 )
               })()}
@@ -834,7 +968,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
 
             <Button
               onClick={handleCreate}
-              className="w-full bg-amber-500 hover:bg-amber-600 text-black font-semibold"
+              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold"
             >
               <Shield className="w-4 h-4 mr-2" />
               {t('Buat Challenge', 'Create Challenge')}
@@ -845,108 +979,164 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
 
       {/* ─── Edit Challenge Dialog ──────────────────────────────────── */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="bg-gray-900 border-gray-800 max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30 max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
-              <Edit2 className="w-4 h-4 text-amber-400" />
+              <Edit2 className="w-4 h-4 text-blue-400" />
               {t('Edit Challenge', 'Edit Challenge')}
             </DialogTitle>
-            <DialogDescription className="text-gray-400">
-              {t('Sesuaikan aturan, saldo, dan nama prop firm', 'Customize rules, balance, and prop firm name')}
+            <DialogDescription className="text-lux-text-secondary dark:text-gray-400">
+              {t('Sesuaikan semua aturan, saldo, dan nama prop firm', 'Customize all rules, balance, and prop firm name')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             {/* Firm Name */}
             <div className="space-y-2">
-              <Label className="text-xs text-gray-400">{t('Nama Prop Firm', 'Prop Firm Name')}</Label>
+              <Label className="text-xs text-lux-text-secondary dark:text-gray-400">{t('Nama Prop Firm', 'Prop Firm Name')}</Label>
               <Input
                 value={editFirmName}
                 onChange={(e) => setEditFirmName(e.target.value)}
-                className="bg-gray-800 border-gray-700 text-white text-sm"
+                className="bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-blue-900/30 text-white text-sm"
                 placeholder="FTMO, MFF, atau nama custom..."
               />
-              <p className="text-[10px] text-gray-500">{t('Bisa diisi nama apapun, termasuk nama custom', 'Can be any name, including custom names')}</p>
+              <p className="text-[10px] text-lux-text-muted dark:text-gray-500">{t('Bisa diisi nama apapun, termasuk nama custom', 'Can be any name, including custom names')}</p>
+            </div>
+
+            {/* Challenge Phase */}
+            <div className="space-y-2">
+              <Label className="text-xs text-lux-text-secondary dark:text-gray-400">{t('Phase Challenge', 'Challenge Phase')}</Label>
+              <Select value={editChallengePhase} onValueChange={setEditChallengePhase}>
+                <SelectTrigger className="bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-blue-900/30 text-white text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="phase1">Phase 1</SelectItem>
+                  <SelectItem value="phase2">Phase 2</SelectItem>
+                  <SelectItem value="funded">Funded</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-lux-text-muted dark:text-gray-500">
+                {t('Pilih phase challenge saat ini', 'Select current challenge phase')}
+              </p>
             </div>
 
             {/* Account Size */}
             <div className="space-y-2">
-              <Label className="text-xs text-gray-400">{t('Ukuran Akun ($)', 'Account Size ($)')}</Label>
-              <Input
-                type="number"
-                value={editAccountSize}
-                onChange={(e) => setEditAccountSize(Number(e.target.value))}
-                className="bg-gray-800 border-gray-700 text-white text-sm"
-                min={0}
-              />
+              <Label className="text-xs text-lux-text-secondary dark:text-gray-400">{t('Ukuran Akun ($)', 'Account Size ($)')}</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-lux-text-muted dark:text-gray-500">$</span>
+                <Input
+                  type="number"
+                  value={editAccountSize || ''}
+                  onChange={(e) => setEditAccountSize(Number(e.target.value))}
+                  className="bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-blue-900/30 text-white text-sm pl-7"
+                  min={0}
+                />
+              </div>
             </div>
 
             {/* Current Balance */}
-            <div className="space-y-2">
-              <Label className="text-xs text-gray-400">{t('Saldo Saat Ini ($)', 'Current Balance ($)')}</Label>
-              <Input
-                type="number"
-                value={editCurrentBalance}
-                onChange={(e) => setEditCurrentBalance(Number(e.target.value))}
-                className="bg-gray-800 border-gray-700 text-white text-sm"
-              />
-              <p className="text-[10px] text-gray-500">{t('Saldo terakhir akun challenge kamu', 'Your challenge account current balance')}</p>
-            </div>
+            <EditableFieldWithNA
+              label={t('Saldo Saat Ini ($)', 'Current Balance ($)')}
+              value={editCurrentBalance}
+              onChange={setEditCurrentBalance}
+              enabled={editCurrentBalanceEnabled}
+              onEnabledChange={(v) => { setEditCurrentBalanceEnabled(v); if (!v) setEditCurrentBalance(0) }}
+              prefix="$"
+              helperText={t('Saldo terakhir akun challenge kamu', 'Your challenge account current balance')}
+            />
 
             {/* Max Daily Loss */}
-            <div className="space-y-2">
-              <Label className="text-xs text-gray-400">{t('Max Daily Loss ($)', 'Max Daily Loss ($)')}</Label>
-              <Input
-                type="number"
-                value={editMaxDailyLoss}
-                onChange={(e) => setEditMaxDailyLoss(Number(e.target.value))}
-                className="bg-gray-800 border-gray-700 text-white text-sm"
-                min={0}
-              />
-              <p className="text-[10px] text-gray-500">
-                {editAccountSize > 0
-                  ? `${t('Batas harian', 'Daily limit')}: ${(editMaxDailyLoss / editAccountSize * 100).toFixed(1)}% ${t('dari saldo', 'of balance')}`
-                  : ''}
-              </p>
-            </div>
+            <EditableFieldWithNA
+              label={t('Max Daily Loss ($)', 'Max Daily Loss ($)')}
+              value={editMaxDailyLoss}
+              onChange={setEditMaxDailyLoss}
+              enabled={editMaxDailyLossEnabled}
+              onEnabledChange={(v) => { setEditMaxDailyLossEnabled(v); if (!v) setEditMaxDailyLoss(0) }}
+              prefix="$"
+              helperText={editAccountSize > 0 && editMaxDailyLossEnabled
+                ? `${t('Batas harian', 'Daily limit')}: ${(editMaxDailyLoss / editAccountSize * 100).toFixed(1)}% ${t('dari saldo', 'of balance')}`
+                : undefined}
+            />
 
             {/* Max Total DD */}
-            <div className="space-y-2">
-              <Label className="text-xs text-gray-400">{t('Max Total Drawdown ($)', 'Max Total Drawdown ($)')}</Label>
-              <Input
-                type="number"
-                value={editMaxTotalDD}
-                onChange={(e) => setEditMaxTotalDD(Number(e.target.value))}
-                className="bg-gray-800 border-gray-700 text-white text-sm"
-                min={0}
-              />
-              <p className="text-[10px] text-gray-500">
-                {editAccountSize > 0
-                  ? `${t('Batas total', 'Total limit')}: ${(editMaxTotalDD / editAccountSize * 100).toFixed(1)}% ${t('dari saldo', 'of balance')}`
-                  : ''}
-              </p>
-            </div>
+            <EditableFieldWithNA
+              label={t('Max Total Drawdown ($)', 'Max Total Drawdown ($)')}
+              value={editMaxTotalDD}
+              onChange={setEditMaxTotalDD}
+              enabled={editMaxTotalDDEnabled}
+              onEnabledChange={(v) => { setEditMaxTotalDDEnabled(v); if (!v) setEditMaxTotalDD(0) }}
+              prefix="$"
+              helperText={editAccountSize > 0 && editMaxTotalDDEnabled
+                ? `${t('Batas total', 'Total limit')}: ${(editMaxTotalDD / editAccountSize * 100).toFixed(1)}% ${t('dari saldo', 'of balance')}`
+                : undefined}
+            />
 
             {/* Profit Target */}
-            <div className="space-y-2">
-              <Label className="text-xs text-gray-400">{t('Target Profit ($)', 'Profit Target ($)')}</Label>
-              <Input
-                type="number"
-                value={editProfitTarget}
-                onChange={(e) => setEditProfitTarget(Number(e.target.value))}
-                className="bg-gray-800 border-gray-700 text-white text-sm"
-                min={0}
-              />
-              <p className="text-[10px] text-gray-500">
-                {editAccountSize > 0
-                  ? `${t('Target', 'Target')}: ${(editProfitTarget / editAccountSize * 100).toFixed(1)}% ${t('dari saldo', 'of balance')}`
-                  : ''}
-              </p>
-            </div>
+            <EditableFieldWithNA
+              label={t('Target Profit ($)', 'Profit Target ($)')}
+              value={editProfitTarget}
+              onChange={setEditProfitTarget}
+              enabled={editProfitTargetEnabled}
+              onEnabledChange={(v) => { setEditProfitTargetEnabled(v); if (!v) setEditProfitTarget(0) }}
+              prefix="$"
+              helperText={editAccountSize > 0 && editProfitTargetEnabled
+                ? `${t('Target', 'Target')}: ${(editProfitTarget / editAccountSize * 100).toFixed(1)}% ${t('dari saldo', 'of balance')}`
+                : undefined}
+            />
+
+            {/* Consistency Rule */}
+            <EditableFieldWithNA
+              label={t('Aturan Konsistensi (%)', 'Consistency Rule (%)')}
+              value={editConsistencyRule}
+              onChange={setEditConsistencyRule}
+              enabled={editConsistencyRuleEnabled}
+              onEnabledChange={(v) => { setEditConsistencyRuleEnabled(v); if (!v) setEditConsistencyRule(0) }}
+              prefix=""
+              suffix="%"
+              placeholder={t('Misal: 30', 'e.g. 30')}
+              helperText={editConsistencyRuleEnabled
+                ? t('Best day P/L tidak boleh melebihi X% dari total profit (15-50%)', 'Best day P/L must not exceed X% of total profit (15-50%)')
+                : undefined}
+            />
+
+            {/* Best Day P/L */}
+            <EditableFieldWithNA
+              label={t('Best Day P/L ($)', 'Best Day P/L ($)')}
+              value={editBestDayPL}
+              onChange={setEditBestDayPL}
+              enabled={editBestDayPLEnabled}
+              onEnabledChange={(v) => { setEditBestDayPLEnabled(v); if (!v) setEditBestDayPL(0) }}
+              prefix="$"
+              helperText={t('Profit terbaik dalam satu hari', 'Best profit in a single day')}
+            />
+
+            {/* Today P/L */}
+            <EditableFieldWithNA
+              label={t('P/L Hari Ini ($)', 'Today P/L ($)')}
+              value={editDailyPL}
+              onChange={setEditDailyPL}
+              enabled={editDailyPLEnabled}
+              onEnabledChange={(v) => { setEditDailyPLEnabled(v); if (!v) setEditDailyPL(0) }}
+              prefix="$"
+              helperText={t('Profit/loss hari ini', 'Today\'s profit/loss')}
+            />
+
+            {/* Total P/L */}
+            <EditableFieldWithNA
+              label={t('Total P/L ($)', 'Total P/L ($)')}
+              value={editTotalPL}
+              onChange={setEditTotalPL}
+              enabled={editTotalPLEnabled}
+              onEnabledChange={(v) => { setEditTotalPLEnabled(v); if (!v) setEditTotalPL(0) }}
+              prefix="$"
+              helperText={t('Total profit/loss keseluruhan', 'Overall total profit/loss')}
+            />
 
             {/* Alert Threshold */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-gray-400">{t('Threshold Alert', 'Alert Threshold')}</Label>
+                <Label className="text-xs text-lux-text-secondary dark:text-gray-400">{t('Threshold Alert', 'Alert Threshold')}</Label>
                 <span className="text-xs text-amber-400 font-medium">{editAlertPercent}%</span>
               </div>
               <Slider
@@ -961,7 +1151,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
 
             <Button
               onClick={handleSaveEdit}
-              className="w-full bg-amber-500 hover:bg-amber-600 text-black font-semibold"
+              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold"
             >
               <Edit2 className="w-4 h-4 mr-2" />
               {t('Simpan Perubahan', 'Save Changes')}
@@ -972,12 +1162,12 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
 
       {/* ─── Delete Confirmation Dialog ───────────────────────────── */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="bg-gray-900 border-gray-800 max-w-sm">
+        <DialogContent className="bg-lux-bg-card dark:bg-gradient-to-br dark:from-[#0a0c12] dark:to-[#080a14] border-lux-border dark:border-blue-900/30 max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-white">
               {t('Hapus Challenge?', 'Delete Challenge?')}
             </DialogTitle>
-            <DialogDescription className="text-gray-400">
+            <DialogDescription className="text-lux-text-secondary dark:text-gray-400">
               {selectedChallenge && (
                 <>
                   {selectedChallenge.firmName} ${selectedChallenge.accountSize.toLocaleString()}{' '}
@@ -990,7 +1180,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
             <Button
               variant="outline"
               onClick={() => { setDeleteDialogOpen(false); setSelectedChallenge(null) }}
-              className="flex-1 border-gray-700 text-gray-300"
+              className="flex-1 border-lux-border dark:border-blue-900/30 text-lux-text-secondary dark:text-gray-300"
             >
               {t('Batal', 'Cancel')}
             </Button>

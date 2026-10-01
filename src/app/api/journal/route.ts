@@ -168,6 +168,57 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// PATCH - Update journal entry
+export async function PATCH(request: NextRequest) {
+  try {
+    const { user, client, error: authError } = await getAuthenticatedUser(request)
+    if (!user || !client) {
+      return NextResponse.json({ error: authError || 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { id, ...updates } = body
+
+    if (!id) {
+      return NextResponse.json({ error: 'Entry ID is required' }, { status: 400 })
+    }
+
+    // Build safe update data
+    const data: any = {}
+    if (updates.title !== undefined) data.title = updates.title
+    if (updates.content !== undefined) data.content = updates.content
+    if (updates.mood !== undefined) data.mood = updates.mood || null
+    if (updates.market_condition !== undefined) data.market_condition = updates.market_condition || null
+    if (updates.tags !== undefined) data.tags = updates.tags || null
+    if (updates.image_url !== undefined) data.image_url = updates.image_url || null
+
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
+    }
+
+    const { data: updated, error } = await client
+      .from('journal_entries')
+      .update(data)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('[journal PATCH] Supabase error:', error)
+      return NextResponse.json({ error: 'Failed to update journal entry' }, { status: 500 })
+    }
+
+    // Invalidate analytics cache
+    invalidateAnalytics(user.id)
+
+    return NextResponse.json({ entry: updated })
+  } catch (error) {
+    console.error('[journal PATCH] Failed:', error)
+    return NextResponse.json({ error: 'Failed to update journal entry' }, { status: 500 })
+  }
+}
+
 // DELETE - Delete journal entry
 export async function DELETE(request: NextRequest) {
   try {
