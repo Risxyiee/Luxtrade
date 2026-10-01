@@ -65,6 +65,7 @@ export const createTradeHandlers = ({
       errors.push('Entry price harus lebih dari 0')
     }
     if (!formData.account_id) {
+      console.log('⚠️ [handleAddTrade] No account_id — this should have been auto-selected by TradeWizardForm')
       errors.push('Pilih akun trading terlebih dahulu')
     }
 
@@ -295,7 +296,7 @@ export const createTradeHandlers = ({
 
       if (res.ok) {
         // Remove from local state immediately after confirmed server delete
-        setTrades(prev => prev.filter(t => t.id !== tradeIdToDelete))
+        setTrades((prev: any[]) => prev.filter((t: any) => t.id !== tradeIdToDelete))
         toast.success('Trade deleted successfully!')
         setDeleteTradeOpen(false)
         setSelectedTrade(null)

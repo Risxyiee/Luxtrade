@@ -191,8 +191,11 @@ function EditableFieldWithNA({
             )}
             <Input
               type="number"
-              value={value || ''}
-              onChange={(e) => onChange(Number(e.target.value))}
+              value={value === 0 && !placeholder ? 0 : (value || '')}
+              onChange={(e) => {
+                const raw = e.target.value
+                onChange(raw === '' ? 0 : Number(raw))
+              }}
               className={`bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-blue-900/30 text-white text-sm ${prefix ? 'pl-7' : ''} ${suffix ? 'pr-8' : ''}`}
               placeholder={placeholder}
             />
@@ -255,11 +258,15 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
   // Bilingual labels
   const t = (id: string, en: string) => language === 'id' ? id : en
 
-  // Fetch challenges
+  // Fetch challenges — uses cache: 'no-store' to bypass service worker cache
+  // so that after a PATCH save, the fresh data from the server is returned
   const fetchChallenges = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/prop-firm-guard', { credentials: 'include' })
+      const res = await fetch('/api/prop-firm-guard', {
+        credentials: 'include',
+        cache: 'no-store',
+      })
       if (!res.ok) throw new Error('Failed to fetch')
       const data = await res.json()
       setChallenges(data.challenges || [])
@@ -429,35 +436,42 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
   const handleSaveEdit = async () => {
     if (!selectedChallenge) return
     try {
+      const patchBody = {
+        id: selectedChallenge.id,
+        firmName: editFirmName,
+        accountSize: editAccountSize,
+        maxDailyLoss: editMaxDailyLossEnabled ? editMaxDailyLoss : 0,
+        maxTotalDD: editMaxTotalDDEnabled ? editMaxTotalDD : 0,
+        profitTarget: editProfitTargetEnabled ? editProfitTarget : 0,
+        alertAtPercent: editAlertPercent,
+        currentBalance: editCurrentBalanceEnabled ? editCurrentBalance : 0,
+        consistencyRule: editConsistencyRuleEnabled ? editConsistencyRule : 0,
+        bestDayPL: editBestDayPLEnabled ? editBestDayPL : 0,
+        dailyPL: editDailyPLEnabled ? editDailyPL : 0,
+        totalPL: editTotalPLEnabled ? editTotalPL : 0,
+        challengePhase: editChallengePhase,
+      }
+      console.log('[PropFirmGuard] PATCH save:', patchBody)
       const res = await fetch('/api/prop-firm-guard', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          id: selectedChallenge.id,
-          firmName: editFirmName,
-          accountSize: editAccountSize,
-          maxDailyLoss: editMaxDailyLossEnabled ? editMaxDailyLoss : 0,
-          maxTotalDD: editMaxTotalDDEnabled ? editMaxTotalDD : 0,
-          profitTarget: editProfitTargetEnabled ? editProfitTarget : 0,
-          alertAtPercent: editAlertPercent,
-          currentBalance: editCurrentBalanceEnabled ? editCurrentBalance : 0,
-          consistencyRule: editConsistencyRuleEnabled ? editConsistencyRule : 0,
-          bestDayPL: editBestDayPLEnabled ? editBestDayPL : 0,
-          dailyPL: editDailyPLEnabled ? editDailyPL : 0,
-          totalPL: editTotalPLEnabled ? editTotalPL : 0,
-          challengePhase: editChallengePhase,
-        }),
+        cache: 'no-store',
+        body: JSON.stringify(patchBody),
       })
       if (!res.ok) {
         const err = await res.json()
+        console.error('[PropFirmGuard] PATCH error:', err)
         throw new Error(err.error || 'Failed to update')
       }
+      const result = await res.json()
+      console.log('[PropFirmGuard] PATCH result:', result)
       toast.success(t('Challenge berhasil diupdate!', 'Challenge updated!'))
       setEditDialogOpen(false)
       setSelectedChallenge(null)
       fetchChallenges()
     } catch (err: any) {
+      console.error('[PropFirmGuard] Save edit failed:', err)
       toast.error(err.message || t('Gagal mengupdate', 'Failed to update'))
     }
   }
@@ -1028,7 +1042,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                 <Input
                   type="number"
                   value={editAccountSize || ''}
-                  onChange={(e) => setEditAccountSize(Number(e.target.value))}
+                  onChange={(e) => setEditAccountSize(e.target.value === '' ? 0 : Number(e.target.value))}
                   className="bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-blue-900/30 text-white text-sm pl-7"
                   min={0}
                 />

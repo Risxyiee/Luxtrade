@@ -18,29 +18,36 @@ const FOREX_SYMBOLS: Record<string, { from: string; to: string; decimals: number
   'USDCHF': { from: 'USD', to: 'CHF', decimals: 5 },
 }
 
-// API keys — lazy-read at request time (CF Workers env vars not available at module load)
+// ── CF Workers env vars ──────────────────────────────────────────────
+// In CF Workers, secrets are on (request).env, not process.env
+// We set this at request time (see GET handler)
+let _cfEnv: any = null
+
 function getAlphaVantageKey(): string {
-  return process.env.ALPHA_VANTAGE_API_KEY || ''
+  return process.env.ALPHA_VANTAGE_API_KEY || _cfEnv?.ALPHA_VANTAGE_API_KEY || ''
 }
 function getTwelveDataKey(): string {
-  return process.env.TWELVE_DATA_API_KEY || ''
+  return process.env.TWELVE_DATA_API_KEY || _cfEnv?.TWELVE_DATA_API_KEY || ''
 }
 
 // ── In-memory cache with per-interval TTL ────────────────────────────
 interface CacheEntry { data: any[]; timestamp: number; source: string }
 const cache = new Map<string, CacheEntry>()
-const CACHE_TTL_DEFAULT = 5 * 60 * 1000 // 5 minutes
-const CACHE_TTL_SHORT = 1 * 60 * 1000 // 1 minute for M5/M15 (fresher data)
+const CACHE_TTL_DEFAULT = 5 * 60 * 1000   // 5 minutes (chart data)
+const CACHE_TTL_SHORT = 1 * 60 * 1000     // 1 minute for M5/M15
+const CACHE_TTL_PRICE = 30 * 1000         // 30 seconds for limit=1 (price checks)
 
-function getCacheTtl(interval: string): number {
+function getCacheTtl(interval: string, limit: number): number {
+  // Price polling (limit=1) needs the freshest data
+  if (limit <= 1) return CACHE_TTL_PRICE
   // Short timeframes need shorter cache for fresh data
   if (interval === '5m' || interval === '15m') return CACHE_TTL_SHORT
   return CACHE_TTL_DEFAULT
 }
 
-function getCached(key: string, interval: string): CacheEntry | null {
+function getCached(key: string, interval: string, limit: number): CacheEntry | null {
   const entry = cache.get(key)
-  if (entry && Date.now() - entry.timestamp < getCacheTtl(interval)) return entry
+  if (entry && Date.now() - entry.timestamp < getCacheTtl(interval, limit)) return entry
   cache.delete(key)
   return null
 }
@@ -51,6 +58,34 @@ function setCache(key: string, data: any[], source: string) {
   if (cache.size > 100) {
     const oldest = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp)[0]
     if (oldest) cache.delete(oldest[0])
+  }
+}
+
+// ── KV cache helpers (cross-isolate cache on CF Workers) ─────────────
+async function getForexKVCache(request: NextRequest, key: string): Promise<CacheEntry | null> {
+  try {
+    const { getCloudflareEnv } = await import('@/lib/cloudflare-bindings')
+    const env = getCloudflareEnv(request as unknown as Request)
+    const kv = env?.luxtradee_kv
+    if (!kv) return null
+    const raw = await kv.get(`forex:${key}`, 'text')
+    if (!raw) return null
+    return JSON.parse(raw) as CacheEntry
+  } catch {
+    return null
+  }
+}
+
+async function setForexKVCache(request: NextRequest, key: string, data: any[], source: string, ttlSeconds: number): Promise<void> {
+  try {
+    const { getCloudflareEnv } = await import('@/lib/cloudflare-bindings')
+    const env = getCloudflareEnv(request as unknown as Request)
+    const kv = env?.luxtradee_kv
+    if (!kv) return
+    const entry: CacheEntry = { data, timestamp: Date.now(), source }
+    await kv.put(`forex:${key}`, JSON.stringify(entry), { expirationTtl: ttlSeconds })
+  } catch {
+    // KV not available, skip
   }
 }
 
@@ -69,8 +104,7 @@ async function fetchTwelveData(symbol: string, interval: string, limit: number):
   const tdInterval = tdIntervalMap[interval] || interval
 
   // For commodity pairs (XAU, XAG), TwelveData uses the symbol directly
-  const isCommodity = info.from === 'XAU' || info.from === 'XAG'
-  const tdSymbol = isCommodity ? `${info.from}/${info.to}` : `${info.from}/${info.to}`
+  const tdSymbol = `${info.from}/${info.to}`
 
   const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(tdSymbol)}&interval=${tdInterval}&outputsize=${limit}&apikey=${TWELVE_DATA_KEY}`
 
@@ -139,7 +173,6 @@ async function fetchAlphaVantage(symbol: string, limit: number): Promise<any[] |
     if (data['Error Message']) return null
 
     // Commodity pairs use 'Time Series (Daily)', forex uses 'Time Series FX (Daily)'
-    const isCommodity = info.from === 'XAU' || info.from === 'XAG'
     const timeSeriesKey = isCommodity ? 'Time Series (Daily)' : 'Time Series FX (Daily)'
     if (!data[timeSeriesKey]) return null
 
@@ -157,7 +190,6 @@ async function fetchAlphaVantage(symbol: string, limit: number): Promise<any[] |
       .filter((k: any) => {
         if (k.time <= 0 || k.high < k.low || k.open <= 0) return false
         // Sanity check: XAU/USD should be > 100, XAG/USD > 10
-        // If a commodity API returns a price in the wrong range, the data is bad
         if (isCommodity && info.from === 'XAU' && k.close < 100) return false
         if (isCommodity && info.from === 'XAG' && k.close < 5) return false
         return true
@@ -173,8 +205,13 @@ async function fetchYahooFinance(symbol: string, interval: string, limit: number
   const info = FOREX_SYMBOLS[symbol]
   if (!info) return null
 
-  // Yahoo Finance symbol format: EURUSD=X, XAUUSD=X
-  const yahooSymbol = `${info.from}${info.to}=X`
+  // Yahoo Finance symbol format: EURUSD=X
+  // Commodity pairs use futures symbols: GC=F (Gold), SI=F (Silver)
+  const commodityYahooSymbols: Record<string, string> = {
+    'XAUUSD': 'GC=F',   // Gold Futures
+    'XAGUSD': 'SI=F',   // Silver Futures
+  }
+  const yahooSymbol = commodityYahooSymbols[symbol] || `${info.from}${info.to}=X`
 
   // Map interval to Yahoo Finance format
   const yahooIntervalMap: Record<string, string> = {
@@ -194,7 +231,9 @@ async function fetchYahooFinance(symbol: string, interval: string, limit: number
     const tid = setTimeout(() => controller.abort(), 10000)
     const res = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
+        // Use a realistic browser User-Agent to avoid Yahoo bot detection
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
       },
       signal: controller.signal,
     })
@@ -205,6 +244,11 @@ async function fetchYahooFinance(symbol: string, interval: string, limit: number
     const json = await res.json()
     const result = json?.chart?.result?.[0]
     if (!result) return null
+
+    // Check Yahoo's meta for trading status — skip if market is closed and data is stale
+    const meta = result.meta || {}
+    const currentPrice = meta.regularMarketPrice
+    const lastTradeTime = meta.regularMarketTime
 
     const timestamps = result.timestamp || []
     const quote = result.indicators?.quote?.[0]
@@ -220,7 +264,6 @@ async function fetchYahooFinance(symbol: string, interval: string, limit: number
       if (open == null || high == null || low == null || close == null) continue
       if (high < low || open <= 0) continue
       // Sanity check: XAU/USD should be > 100, XAG/USD > 5
-      // Reject bad data from APIs that don't handle commodities correctly
       const isCommodity = info.from === 'XAU' || info.from === 'XAG'
       if (isCommodity && info.from === 'XAU' && close < 100) continue
       if (isCommodity && info.from === 'XAG' && close < 5) continue
@@ -234,6 +277,23 @@ async function fetchYahooFinance(symbol: string, interval: string, limit: number
     }
 
     if (candles.length === 0) return null
+
+    // For limit=1 (price check), also add the latest regularMarketPrice from meta
+    // if it's more recent than the last candle. This gives us the real-time price
+    // even between candle intervals.
+    if (limit === 1 && currentPrice && lastTradeTime && currentPrice > 0) {
+      const lastCandle = candles[candles.length - 1]
+      if (lastTradeTime > lastCandle.time) {
+        candles.push({
+          time: lastTradeTime,
+          open: lastCandle.close, // Use last close as open for the live tick
+          high: Math.max(lastCandle.high, currentPrice),
+          low: Math.min(lastCandle.low, currentPrice),
+          close: parseFloat(currentPrice.toFixed(info.decimals)),
+        })
+      }
+    }
+
     // Return only the requested limit
     return candles.slice(-limit).sort((a, b) => a.time - b.time)
   } catch (err: any) {
@@ -244,36 +304,64 @@ async function fetchYahooFinance(symbol: string, interval: string, limit: number
 
 // ── Main handler ────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
+  // Expose CF Workers env vars (secrets) to API key helpers
+  _cfEnv = (request as any).env || null
+
   try {
     const { searchParams } = new URL(request.url)
     const symbol = searchParams.get('symbol') || 'EURUSD'
     const interval = searchParams.get('interval') || '1h'
     const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 200)
+    const nocache = searchParams.get('nocache') === 'true'
+    const isPriceCheck = limit <= 1
 
     const validSymbol = FOREX_SYMBOLS[symbol] ? symbol : 'EURUSD'
     const cacheKey = `${validSymbol}:${interval}:${limit}`
 
-    // Check cache first (use interval-aware TTL)
-    const cached = getCached(cacheKey, interval)
-    if (cached) {
-      return NextResponse.json({
-        success: true,
-        symbol: validSymbol,
-        interval,
-        data: cached.data,
-        source: cached.source + '-cache',
-        fetchedAt: new Date(cached.timestamp).toISOString(),
-      })
+    // Determine cache TTL for KV
+    const kvTtlSeconds = isPriceCheck ? 30 : (interval === '5m' || interval === '15m') ? 60 : 300
+
+    // Check in-memory cache first (unless nocache is set)
+    if (!nocache) {
+      const cached = getCached(cacheKey, interval, limit)
+      if (cached) {
+        return NextResponse.json({
+          success: true,
+          symbol: validSymbol,
+          interval,
+          data: cached.data,
+          source: cached.source + '-memcache',
+          fetchedAt: new Date(cached.timestamp).toISOString(),
+          stale: isPriceCheck && (Date.now() - cached.timestamp > 15000), // Mark as stale if > 15s for price checks
+        })
+      }
+
+      // Check KV cache (cross-isolate on CF Workers)
+      const kvCached = await getForexKVCache(request, cacheKey)
+      if (kvCached && Date.now() - kvCached.timestamp < getCacheTtl(interval, limit)) {
+        // Populate in-memory cache from KV
+        setCache(cacheKey, kvCached.data, kvCached.source)
+        return NextResponse.json({
+          success: true,
+          symbol: validSymbol,
+          interval,
+          data: kvCached.data,
+          source: kvCached.source + '-kvcache',
+          fetchedAt: new Date(kvCached.timestamp).toISOString(),
+          stale: isPriceCheck && (Date.now() - kvCached.timestamp > 15000),
+        })
+      }
     }
 
     const errors: string[] = []
 
     // Try Twelve Data first (best: intraday + free)
     const tdKey = getTwelveDataKey()
-    console.log(`[Forex] Symbol=${validSymbol} Interval=${interval} TwelveData=${tdKey ? 'key:' + tdKey.substring(0, 6) + '...' : 'NOT SET'}`)
+    console.log(`[Forex] Symbol=${validSymbol} Interval=${interval} Limit=${limit} Nocache=${nocache} TwelveData=${tdKey ? 'key:' + tdKey.substring(0, 6) + '...' : 'NOT SET'}`)
     const tdData = await fetchTwelveData(validSymbol, interval, limit)
     if (tdData && tdData.length > 0) {
       setCache(cacheKey, tdData, 'twelvedata')
+      await setForexKVCache(request, cacheKey, tdData, 'twelvedata', kvTtlSeconds)
       console.log(`[Forex] ✓ ${tdData.length} candles from TwelveData`)
       return NextResponse.json({
         success: true,
@@ -296,6 +384,7 @@ export async function GET(request: NextRequest) {
     const avData = await fetchAlphaVantage(validSymbol, limit)
     if (avData && avData.length > 0) {
       setCache(cacheKey, avData, 'alphavantage')
+      await setForexKVCache(request, cacheKey, avData, 'alphavantage', kvTtlSeconds)
       console.log(`[Forex] ✓ ${avData.length} candles from AlphaVantage`)
       return NextResponse.json({
         success: true,
@@ -318,6 +407,7 @@ export async function GET(request: NextRequest) {
     const yfData = await fetchYahooFinance(validSymbol, interval, limit)
     if (yfData && yfData.length > 0) {
       setCache(cacheKey, yfData, 'yahoo-finance')
+      await setForexKVCache(request, cacheKey, yfData, 'yahoo-finance', kvTtlSeconds)
       console.log(`[Forex] ✓ ${yfData.length} candles from Yahoo Finance`)
       return NextResponse.json({
         success: true,

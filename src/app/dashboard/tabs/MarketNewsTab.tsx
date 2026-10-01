@@ -15,7 +15,7 @@ interface FullNewsItem {
   snippet: string
   date: string
   type: 'high' | 'medium' | 'low'
-  isMock?: boolean
+  sourceLabel?: string
 }
 
 interface MarketNewsTabProps {
@@ -35,17 +35,26 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
   const [unavailableMsg, setUnavailableMsg] = useState<string | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Fetch news
-  const fetchNews = useCallback(async () => {
+  // Fetch news — forceRefresh bypasses cache on the server
+  const fetchNews = useCallback(async (forceRefresh = false) => {
     setNewsLoading(true)
     setUnavailableMsg(null)
     try {
-      const res = await fetch('/api/news?format=full', { credentials: 'include' })
+      const url = forceRefresh
+        ? '/api/news?format=full&refresh=true'
+        : '/api/news?format=full'
+      const res = await fetch(url, { credentials: 'include' })
       if (res.ok) {
         const data = await res.json()
-        setNews(data.news || [])
+        const raw = data.news || []
+        // Filter out fallback/unavailable placeholder items that may leak through
+        const real = raw.filter((n: FullNewsItem) =>
+          n.url && n.url.startsWith('http') &&
+          n.title && !n.title.includes('tidak tersedia')
+        )
+        setNews(real)
         setLastFetched(data.fetchedAt || '')
-        if (data.unavailable) {
+        if (data.unavailable || real.length === 0) {
           setUnavailableMsg(data.message || 'Data berita sedang tidak tersedia.')
         }
       }
@@ -141,7 +150,7 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
               {t.lastUpdated}: {new Date(lastFetched).toLocaleTimeString(language === 'id' ? 'id-ID' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
-          <Button variant="outline" size="sm" onClick={fetchNews} disabled={newsLoading} className="border-lux-border dark:border-blue-900/30 hover:bg-blue-500/10">
+          <Button variant="outline" size="sm" onClick={() => fetchNews(true)} disabled={newsLoading} className="border-lux-border dark:border-blue-900/30 hover:bg-blue-500/10">
             <RefreshCw className={`w-4 h-4 mr-1.5 ${newsLoading ? 'animate-spin' : ''}`} />
             {t.refresh}
           </Button>
@@ -187,7 +196,7 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
       {newsLoading && (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
           <RefreshCw className="w-8 h-8 animate-spin text-blue-400" />
-          <span className="text-sm text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Mengambil berita dari Bloomberg...' : 'Fetching news from Bloomberg...'}</span>
+          <span className="text-sm text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Mengambil berita pasar...' : 'Fetching market news...'}</span>
         </div>
       )}
 
@@ -213,8 +222,11 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
             const cfg = impactConfig[item.type]
             const Icon = cfg.icon
             const isExpanded = expandedId === `${item.url}-${index}`
-            const isInvesting = item.source?.toLowerCase().includes('investing')
-            const isClickable = !item.isMock && item.url
+            const sourceLower = item.source?.toLowerCase() || ''
+            const isInvesting = sourceLower.includes('investing')
+            const isBloomberg = sourceLower.includes('bloomberg')
+            const isCnbc = sourceLower.includes('cnbc')
+            const isClickable = !!item.url && item.url.startsWith('http')
             const Wrapper = isClickable ? motion.a : motion.div
             const linkProps = isClickable ? {
               href: item.url,
@@ -241,6 +253,12 @@ function MarketNewsTab({ language, isPro, onUpgrade }: MarketNewsTabProps) {
                       <span className="text-[11px] text-lux-text-muted dark:text-gray-500 font-medium">{item.source}</span>
                       {isInvesting && (
                         <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-medium">INVESTING</span>
+                      )}
+                      {isBloomberg && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-medium">BLOOMBERG</span>
+                      )}
+                      {isCnbc && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-medium">CNBC</span>
                       )}
                       {item.date && (
                         <span className="text-[11px] text-gray-600">

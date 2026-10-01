@@ -97,7 +97,7 @@ export default function WatchlistTab({
 
       await Promise.all(uniqueSymbols.map(async (symbol) => {
         try {
-          const res = await fetch(`/api/forex?symbol=${symbol}&limit=1`)
+          const res = await fetch(`/api/forex?symbol=${symbol}&limit=1&interval=1h&nocache=true`)
           if (!res.ok) return
           const data = await res.json()
           if (data.success && data.data?.length > 0) {
@@ -135,7 +135,7 @@ export default function WatchlistTab({
 
     // Poll prices immediately — no artificial delay
     pollPrices()
-    intervalRef.current = setInterval(pollPrices, 60000) // Every 60s
+    intervalRef.current = setInterval(pollPrices, 30000) // Every 30s for fresher prices
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
@@ -269,7 +269,7 @@ export default function WatchlistTab({
 
           {/* Alert notice */}
           <p className="text-xs text-lux-text-muted dark:text-gray-500 text-center mt-2">
-            🔔 {language === 'id' ? 'Alert aktif — harga dicek setiap 60 detik' : 'Alerts active — prices checked every 60s'}
+            🔔 {language === 'id' ? 'Alert aktif — harga dicek setiap 30 detik' : 'Alerts active — prices checked every 30s'}
           </p>
         </>
       )}
