@@ -2,14 +2,14 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bell, Check, CheckCheck, Trash2, TrendingUp, AlertTriangle, Gift, Crown, Wallet, Flame, ShieldAlert } from 'lucide-react'
+import { Bell, Check, CheckCheck, Trash2, TrendingUp, AlertTriangle, Gift, Crown, Wallet, Flame, ShieldAlert, Newspaper } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { generateTradeAlerts, type TradeAlertPreferences } from '@/lib/trade-alerts'
 
 interface Notification {
   id: string
-  type: 'success' | 'warning' | 'info' | 'achievement' | 'pro' | 'payout' | 'trade_alert'
+  type: 'success' | 'warning' | 'info' | 'achievement' | 'pro' | 'payout' | 'trade_alert' | 'news'
   title: string
   message: string
   timestamp: Date
@@ -27,6 +27,36 @@ interface NotificationCenterProps {
 export default function NotificationCenter({ trades = [], isPro = false, demoMode = false, notificationPreferences }: NotificationCenterProps) {
   const [isOpen, setIsOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
+  const [newsAlerts, setNewsAlerts] = useState<Notification[]>([])
+
+  // Fetch high-impact news alerts (Pro only, once per session)
+  useEffect(() => {
+    if (!isPro) return
+    const alreadyFetched = sessionStorage.getItem('luxtradee-news-fetched')
+    if (alreadyFetched) return
+
+    fetch('/api/news?format=compact&limit=3', { credentials: 'include' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.news?.length > 0) {
+          sessionStorage.setItem('luxtradee-news-fetched', '1')
+          const alerts: Notification[] = data.news
+            .filter((n: any) => n.impact === 'high' || n.importance === 'high')
+            .slice(0, 3)
+            .map((n: any, i: number) => ({
+              id: `news-${i}-${Date.now()}`,
+              type: 'news' as const,
+              title: n.title?.slice(0, 60) || 'Market News',
+              message: n.description?.slice(0, 100) || n.title?.slice(0, 100) || '',
+              timestamp: new Date(n.date || n.time || Date.now()),
+              read: i > 0,
+              severity: 'warning' as const,
+            }))
+          setNewsAlerts(alerts)
+        }
+      })
+      .catch(() => {})
+  }, [isPro])
 
   // Generate smart notifications from trade data
   const initialNotifications = useMemo(() => {
@@ -162,8 +192,12 @@ export default function NotificationCenter({ trades = [], isPro = false, demoMod
   const [notifications, setNotifications] = useState<Notification[]>(initialNotifications)
 
   useEffect(() => {
-    setNotifications(initialNotifications)
-  }, [initialNotifications])
+    // Merge trade notifications + news alerts
+    const allNotifs = [...initialNotifications, ...newsAlerts]
+    // Sort by timestamp (newest first)
+    allNotifs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+    setNotifications(allNotifs)
+  }, [initialNotifications, newsAlerts])
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -199,6 +233,7 @@ export default function NotificationCenter({ trades = [], isPro = false, demoMod
       }
     }
     switch (type) {
+      case 'news': return <Newspaper className="w-4 h-4 text-blue-400" />
       case 'success': return <TrendingUp className="w-4 h-4 text-emerald-400" />
       case 'warning': return <AlertTriangle className="w-4 h-4 text-amber-400" />
       case 'achievement': return <Gift className="w-4 h-4 text-cyan-400" />
@@ -219,6 +254,7 @@ export default function NotificationCenter({ trades = [], isPro = false, demoMod
       }
     }
     switch (type) {
+      case 'news': return 'bg-blue-500/5 hover:bg-blue-500/10'
       case 'success': return 'bg-emerald-500/5 hover:bg-emerald-500/10'
       case 'warning': return 'bg-amber-500/5 hover:bg-amber-500/10'
       case 'achievement': return 'bg-blue-500/5 hover:bg-blue-500/10'
@@ -327,7 +363,7 @@ export default function NotificationCenter({ trades = [], isPro = false, demoMod
                               e.stopPropagation()
                               deleteNotification(notif.id)
                             }}
-                            className="p-1 text-gray-600 hover:text-red-400 transition-colors rounded opacity-0 group-hover:opacity-100"
+                            className="p-1 text-gray-600 hover:text-red-400 transition-colors rounded"
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>

@@ -202,6 +202,21 @@ export const createTradeHandlers = ({
             }
           })
           .catch(() => { /* Silent — reward is best-effort */ })
+
+        // Fire-and-forget: trigger email/alert notifications for this trade
+        const pl = Number(formData.profit_loss) || 0
+        const symbol = formData.symbol || ''
+        if (pl !== 0) {
+          fetch('/api/notifications/send-alert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              type: pl > 0 ? 'big_win' : 'big_loss',
+              data: { amount: Math.abs(pl), symbol, totalPL: pl }
+            }),
+          }).catch(() => { /* Silent — notification is best-effort */ })
+        }
       } else {
         console.log('❌ [handleAddTrade] Failed to create trade:', data)
         // Show specific error message from API
