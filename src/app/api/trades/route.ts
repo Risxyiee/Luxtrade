@@ -293,10 +293,18 @@ export async function POST(request: NextRequest) {
         )
       }
       if (insertError.code === '42501') {
-        // RLS policy violation — this is the UUID vs TEXT mismatch bug
-        console.error('[trades POST] RLS policy violation — likely auth.uid() type mismatch. user_id:', userId)
+        // RLS policy violation — likely auth.uid() type mismatch (UUID vs TEXT)
+        console.error('[trades POST] RLS policy violation — auth.uid() type mismatch. user_id:', userId, 'error:', insertError.message)
         return NextResponse.json(
-          { error: 'Permission denied. Please try again or contact support.' },
+          { error: 'Permission denied. Database policy needs updating — run the FIX_ALL_TYPE_MISMATCHES.sql migration in Supabase SQL Editor.', details: insertError.message },
+          { status: 403 }
+        )
+      }
+      // Detect RLS violation from error message (Supabase sometimes doesn't set code)
+      if (insertError.message?.includes('row-level security') || insertError.message?.includes('new row violates')) {
+        console.error('[trades POST] RLS policy violation detected from message. user_id:', userId)
+        return NextResponse.json(
+          { error: 'Permission denied due to row-level security. Run FIX_ALL_TYPE_MISMATCHES.sql in Supabase SQL Editor.', details: insertError.message },
           { status: 403 }
         )
       }

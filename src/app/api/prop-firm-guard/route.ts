@@ -275,16 +275,26 @@ export async function PATCH(request: NextRequest) {
 
     if (fetchError) {
       console.error('[prop-firm-guard] PATCH fetch error:', fetchError)
+      // If the error is about type mismatch (UUID vs TEXT), give actionable message
+      if (fetchError.message?.includes('type') || fetchError.message?.includes('does not exist')) {
+        return NextResponse.json({ error: 'Database schema needs updating. Run FIX_ALL_TYPE_MISMATCHES.sql in Supabase SQL Editor.' }, { status: 500 })
+      }
       return NextResponse.json({ error: fetchError.message }, { status: 500 })
     }
 
-    if (!existing || String(existing.user_id) !== String(user.id)) {
+    if (!existing) {
+      return NextResponse.json({ error: 'Challenge not found' }, { status: 404 })
+    }
+
+    // Ownership check — compare as strings to handle both UUID and TEXT types
+    if (String(existing.user_id) !== String(user.id)) {
+      console.warn('[prop-firm-guard] PATCH ownership mismatch: DB user_id=', existing.user_id, 'auth user.id=', user.id)
       return NextResponse.json({ error: 'Challenge not found' }, { status: 404 })
     }
 
     // Build safe update data (snake_case for DB)
     const data: any = {}
-    console.log('[prop-firm-guard] PATCH updates:', updates)
+    console.log('[prop-firm-guard] PATCH updates:', JSON.stringify(updates))
 
     if (updates.challengePhase !== undefined) {
       const validPhases = ['phase1', 'phase2', 'funded']
