@@ -175,7 +175,7 @@ function EditableFieldWithNA({
       <div className="flex items-center justify-between">
         <Label className="text-xs text-lux-text-secondary dark:text-gray-400">{label}</Label>
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-lux-text-muted dark:text-gray-500">N/A</span>
+          <span className="text-[10px] text-lux-text-muted dark:text-gray-500">Active</span>
           <Switch
             checked={enabled}
             onCheckedChange={onEnabledChange}
@@ -191,7 +191,7 @@ function EditableFieldWithNA({
             )}
             <Input
               type="number"
-              value={value || ''}
+              value={value === 0 ? 0 : (value || '')}
               onChange={(e) => {
                 const raw = e.target.value
                 onChange(raw === '' ? 0 : Number(raw))
@@ -207,7 +207,7 @@ function EditableFieldWithNA({
         </>
       ) : (
         <div className="px-3 py-2 rounded-md bg-lux-surface-hover dark:bg-white/5 border border-lux-border dark:border-blue-900/30 text-xs text-lux-text-muted dark:text-gray-500 italic">
-          {prefix === '$' ? 'Not applicable' : 'Tidak berlaku'} / N/A
+          {prefix === '$' ? 'Not active' : 'Tidak aktif'}
         </div>
       )}
     </div>
@@ -249,7 +249,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
   const [editMaxDailyLossEnabled, setEditMaxDailyLossEnabled] = useState(true)
   const [editMaxTotalDDEnabled, setEditMaxTotalDDEnabled] = useState(true)
   const [editProfitTargetEnabled, setEditProfitTargetEnabled] = useState(true)
-  const [editConsistencyRuleEnabled, setEditConsistencyRuleEnabled] = useState(false)
+  const [editConsistencyRuleEnabled, setEditConsistencyRuleEnabled] = useState(true)
   const [editBestDayPLEnabled, setEditBestDayPLEnabled] = useState(true)
   const [editDailyPLEnabled, setEditDailyPLEnabled] = useState(true)
   const [editTotalPLEnabled, setEditTotalPLEnabled] = useState(true)
@@ -420,12 +420,12 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
     setEditDailyPL(ch.dailyPL || 0)
     setEditTotalPL(ch.totalPL || 0)
     setEditChallengePhase(ch.challengePhase || 'phase1')
-    // Set N/A toggles — always enable fields by default so user can edit them
-    // The N/A toggle is opt-in to DISABLE a field, not opt-out to enable it
+    // Set Active toggles — always enable fields by default so user can edit them
+    // The Active toggle is opt-in to DISABLE a field, not opt-out to enable it
     setEditMaxDailyLossEnabled(true)
     setEditMaxTotalDDEnabled(true)
     setEditProfitTargetEnabled(true)
-    setEditConsistencyRuleEnabled((ch.consistencyRule || 0) > 0)
+    setEditConsistencyRuleEnabled(true)
     setEditBestDayPLEnabled(true)
     setEditDailyPLEnabled(true)
     setEditTotalPLEnabled(true)
@@ -1042,7 +1042,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-lux-text-muted dark:text-gray-500">$</span>
                 <Input
                   type="number"
-                  value={editAccountSize || ''}
+                  value={editAccountSize === 0 ? 0 : (editAccountSize || '')}
                   onChange={(e) => setEditAccountSize(e.target.value === '' ? 0 : Number(e.target.value))}
                   className="bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-blue-900/30 text-white text-sm pl-7"
                   min={0}

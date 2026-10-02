@@ -345,7 +345,14 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (journalErr) {
-      log('⛔', `Journal create FAILED: ${journalErr.message}`)
+      log('⛔', `Journal create FAILED: ${journalErr.message} (code: ${journalErr.code})`)
+      // Provide actionable error for RLS violations
+      if (journalErr.code === '42501' || journalErr.message?.includes('row-level security') || journalErr.message?.includes('new row violates')) {
+        return NextResponse.json(
+          { error: 'Permission denied. Database policy needs updating — run FIX_ALL_TYPE_MISMATCHES.sql di Supabase SQL Editor.', detail: journalErr.message, step: 'journal_db' },
+          { status: 403 }
+        )
+      }
       return NextResponse.json(
         { error: 'Gagal menyimpan journal ke database', detail: journalErr.message, step: 'journal_db' },
         { status: 500 }
@@ -355,14 +362,38 @@ export async function POST(request: NextRequest) {
 
     // Insert trade (child — references journal via linked_journal_id)
     log('💾', 'Saving trade to database...')
+
+    // Validate & normalize symbol from AI (max 12 chars, uppercase, no spaces)
+    const rawSymbol = (ai.symbol || 'UNKNOWN').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12)
+    const finalSymbol = rawSymbol.length >= 2 ? rawSymbol : 'UNKNOWN'
+    log('🏷️', `Symbol: AI="${ai.symbol}" → normalized="${finalSymbol}"`)
+
+    // Normalize trade type
+    const rawType = (ai.type || 'buy').toUpperCase()
+    const finalType = rawType === 'SELL' ? 'SELL' : 'BUY'
+
+    // Verify account_id exists before inserting (FK constraint guard)
+    const { data: accountExists } = await client
+      .from('trading_accounts')
+      .select('id')
+      .eq('id', accountId)
+      .maybeSingle()
+    if (!accountExists) {
+      log('⛔', `Account ${accountId} not found — FK constraint would fail`)
+      return NextResponse.json(
+        { error: 'Akun trading tidak ditemukan. Refresh halaman dan pilih akun lain.', detail: `account_id ${accountId} not found`, step: 'trade_db' },
+        { status: 400 }
+      )
+    }
+
     const { data: tradeRecord, error: tradeErr } = await client
       .from('trades')
       .insert([{
         id: tradeId,
         user_id: userId,
         account_id: accountId,
-        symbol: (ai.symbol || 'UNKNOWN').toUpperCase(),
-        type: (ai.type || 'buy').toUpperCase(),
+        symbol: finalSymbol,
+        type: finalType,
         open_price: ai.openPrice ?? 0,
         close_price: ai.closePrice ?? 0,
         profit_loss: ai.profitLoss ?? 0,
@@ -387,7 +418,20 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (tradeErr) {
-      log('⛔', `Trade create FAILED: ${tradeErr.message}`)
+      log('⛔', `Trade create FAILED: ${tradeErr.message} (code: ${tradeErr.code})`)
+      // Provide actionable error messages for common failures
+      if (tradeErr.code === '23503') {
+        return NextResponse.json(
+          { error: 'Akun trading tidak valid. Refresh halaman dan coba lagi.', detail: tradeErr.message, step: 'trade_db' },
+          { status: 400 }
+        )
+      }
+      if (tradeErr.code === '42501' || tradeErr.message?.includes('row-level security') || tradeErr.message?.includes('new row violates')) {
+        return NextResponse.json(
+          { error: 'Permission denied. Run FIX_ALL_TYPE_MISMATCHES.sql di Supabase SQL Editor.', detail: tradeErr.message, step: 'trade_db' },
+          { status: 403 }
+        )
+      }
       return NextResponse.json(
         { error: 'Gagal menyimpan trade ke database', detail: tradeErr.message, step: 'trade_db' },
         { status: 500 }

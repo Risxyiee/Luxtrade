@@ -6,6 +6,24 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { toast } from 'sonner'
 
+// ── Symbol normalization (mirrors server-side aliases) ────────────────
+// Ensures watchlist symbols like "XAU" or "GOLD" are mapped to the
+// canonical API symbol ("XAUUSD") before fetching from /api/forex.
+const FOREX_SYMBOL_ALIASES: Record<string, string> = {
+  'XAU': 'XAUUSD', 'GOLD': 'XAUUSD', 'XAU/USD': 'XAUUSD',
+  'XAG': 'XAGUSD', 'SILVER': 'XAGUSD', 'XAG/USD': 'XAGUSD',
+  'EU': 'EURUSD', 'GU': 'GBPUSD', 'GJ': 'GBPJPY', 'EJ': 'EURJPY',
+  'UJ': 'USDJPY', 'AU': 'AUDUSD', 'NU': 'NZDUSD', 'UC': 'USDCAD', 'UF': 'USDCHF',
+  'EUR/USD': 'EURUSD', 'GBP/USD': 'GBPUSD', 'USD/JPY': 'USDJPY',
+  'EUR/GBP': 'EURGBP', 'EUR/JPY': 'EURJPY', 'GBP/JPY': 'GBPJPY',
+  'AUD/USD': 'AUDUSD', 'NZD/USD': 'NZDUSD', 'USD/CAD': 'USDCAD', 'USD/CHF': 'USDCHF',
+}
+
+function normalizeForexSymbol(raw: string): string {
+  const key = raw.trim().toUpperCase()
+  return FOREX_SYMBOL_ALIASES[key] || key
+}
+
 export interface WatchlistItem {
   id: string
   symbol: string
@@ -107,7 +125,8 @@ export default function WatchlistTab({
 
     await Promise.all(symbolsToFetch.map(async (symbol) => {
       try {
-        const res = await fetch(`/api/forex?symbol=${symbol}&limit=1&interval=1h&nocache=true`)
+        const apiSymbol = normalizeForexSymbol(symbol)
+        const res = await fetch(`/api/forex?symbol=${apiSymbol}&limit=1&interval=1h&nocache=true`)
         if (!res.ok) return
         const data = await res.json()
         if (data.success && data.data?.length > 0) {
@@ -146,7 +165,8 @@ export default function WatchlistTab({
       setPriceLoading(true)
       await Promise.all(uniqueSymbols.map(async (symbol) => {
         try {
-          const res = await fetch(`/api/forex?symbol=${symbol}&limit=1&interval=1h&nocache=true`)
+          const apiSymbol = normalizeForexSymbol(symbol)
+          const res = await fetch(`/api/forex?symbol=${apiSymbol}&limit=1&interval=1h&nocache=true`)
           if (!res.ok) return
           const data = await res.json()
           if (data.success && data.data?.length > 0) {
@@ -322,7 +342,9 @@ export default function WatchlistTab({
                         <span className="text-sm font-mono text-blue-400">{formatPrice(item.symbol, currentPrices[item.symbol])}</span>
                         {/* Stale indicator: price data > 60s old */}
                         {lastPriceUpdate > 0 && (Date.now() - lastPriceUpdate > 60000) && (
-                          <AlertTriangle className="w-3 h-3 text-amber-400" title={language === 'id' ? 'Data harga mungkin basi' : 'Price data may be stale'} />
+                          <span title={language === 'id' ? 'Data harga mungkin basi' : 'Price data may be stale'}>
+                            <AlertTriangle className="w-3 h-3 text-amber-400" />
+                          </span>
                         )}
                       </div>
                     ) : (
@@ -335,7 +357,7 @@ export default function WatchlistTab({
                           }
                         </span>
                       </div>
-                    )
+                    )}
                     {item.target_price && (
                       <div className="mb-2">
                         <span className="text-xs text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Target: ' : 'Target: '}</span>

@@ -18,6 +18,42 @@ const FOREX_SYMBOLS: Record<string, { from: string; to: string; decimals: number
   'USDCHF': { from: 'USD', to: 'CHF', decimals: 5 },
 }
 
+// ── Symbol aliases / normalization ────────────────────────────────────
+// Maps common abbreviations, slang, and slash-separated pairs to the
+// canonical symbol used in FOREX_SYMBOLS.
+const SYMBOL_ALIASES: Record<string, string> = {
+  // Gold
+  'XAU': 'XAUUSD', 'GOLD': 'XAUUSD', 'XAU/USD': 'XAUUSD',
+  // Silver
+  'XAG': 'XAGUSD', 'SILVER': 'XAGUSD', 'XAG/USD': 'XAGUSD',
+  // Forex shorthand (popular with traders)
+  'EU': 'EURUSD', 'GU': 'GBPUSD', 'GJ': 'GBPJPY', 'EJ': 'EURJPY',
+  'UJ': 'USDJPY', 'AU': 'AUDUSD', 'NU': 'NZDUSD', 'UC': 'USDCAD', 'UF': 'USDCHF',
+  // Slash-separated pairs
+  'EUR/USD': 'EURUSD', 'GBP/USD': 'GBPUSD', 'USD/JPY': 'USDJPY',
+  'EUR/GBP': 'EURGBP', 'EUR/JPY': 'EURJPY', 'GBP/JPY': 'GBPJPY',
+  'AUD/USD': 'AUDUSD', 'NZD/USD': 'NZDUSD', 'USD/CAD': 'USDCAD', 'USD/CHF': 'USDCHF',
+  // Crypto (for future / Yahoo fallback)
+  'BTC': 'BTCUSD', 'ETH': 'ETHUSD',
+  // Indices (pass through as-is for Yahoo fallback)
+  'US30': 'US30', 'NAS100': 'NAS100',
+}
+
+/**
+ * Normalize a raw symbol string:
+ * 1. Strip whitespace, uppercase
+ * 2. Check SYMBOL_ALIASES first
+ * 3. If already in FOREX_SYMBOLS, return as-is
+ * 4. Otherwise return the cleaned string (let caller decide what to do)
+ */
+function normalizeSymbol(rawSymbol: string): string {
+  const cleaned = rawSymbol.trim().toUpperCase()
+  if (!cleaned) return 'EURUSD' // blank → default
+  if (SYMBOL_ALIASES[cleaned]) return SYMBOL_ALIASES[cleaned]
+  if (FOREX_SYMBOLS[cleaned]) return cleaned
+  return cleaned // unknown symbol — caller must handle
+}
+
 // ── CF Workers env vars ──────────────────────────────────────────────
 // In OpenNext/CF Workers, the init.js template populates process.env from
 // the CF env (secrets + [vars]) at request time via populateProcessEnv().
@@ -450,13 +486,31 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url)
-    const symbol = searchParams.get('symbol') || 'EURUSD'
+    const rawSymbol = searchParams.get('symbol') || 'EURUSD'
     const interval = searchParams.get('interval') || '1h'
     const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 200)
     const nocache = searchParams.get('nocache') === 'true'
     const isPriceCheck = limit <= 1
 
-    const validSymbol = FOREX_SYMBOLS[symbol] ? symbol : 'EURUSD'
+    // Normalize symbol (e.g., "XAU" → "XAUUSD", "GOLD" → "XAUUSD")
+    const symbol = normalizeSymbol(rawSymbol)
+
+    // If the normalized symbol is not in FOREX_SYMBOLS, return a clear error
+    if (!FOREX_SYMBOLS[symbol]) {
+      console.warn(`[Forex] Unsupported symbol: "${rawSymbol}" → normalized to "${symbol}" — not in FOREX_SYMBOLS`)
+      return NextResponse.json({
+        success: false,
+        symbol,
+        interval,
+        data: [],
+        source: 'unsupported',
+        unavailable: true,
+        message: `Simbol "${rawSymbol}" tidak didukung. Simbol yang tersedia: ${Object.keys(FOREX_SYMBOLS).join(', ')}`,
+        errors: [`Symbol "${rawSymbol}" (normalized: "${symbol}") is not supported`],
+        fetchedAt: new Date().toISOString(),
+      }, { status: 400 })
+    }
+    const validSymbol = symbol
     const cacheKey = `${validSymbol}:${interval}:${limit}`
 
     // Determine cache TTL for KV

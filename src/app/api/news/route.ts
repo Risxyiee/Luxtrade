@@ -1,5 +1,16 @@
-import { spawn } from 'child_process';
 import { NextRequest, NextResponse } from 'next/server';
+
+// Lazy accessor for child_process.spawn — not available on Cloudflare Workers
+let _spawn: any = undefined; // undefined=not tried, null=unavailable
+function getSpawn(): any {
+  if (_spawn !== undefined) return _spawn;
+  try {
+    _spawn = require('child_process').spawn;
+  } catch {
+    _spawn = null; // CF Workers or other environments without child_process
+  }
+  return _spawn;
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -339,8 +350,10 @@ async function fetchRssFeed(url: string, sourceName: string, timeoutMs = 12000):
   try {
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
-        'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Accept': 'application/rss+xml, application/xml, text/xml, text/html, */*;',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache',
       },
       signal: AbortSignal.timeout(timeoutMs),
       redirect: 'follow',  // Follow redirects (Bloomberg 301→200)
@@ -385,11 +398,16 @@ interface WebSearchResult {
  */
 async function fetchWebSearchNews(): Promise<FullNewsItem[]> {
   try {
+    const spawnFn = getSpawn();
+    if (!spawnFn) {
+      console.warn('[News] child_process not available (CF Workers) — skipping web-search fallback');
+      return [];
+    }
     console.log('[News] Invoking z-ai-web-dev-sdk web-search...');
     // Use spawn with promise wrapper for non-blocking execution
     const newsArgsJson = JSON.stringify({ query: 'forex trading news today USD EUR GBP JPY', num: 15 });
     const result = await new Promise<string>((resolve, reject) => {
-      const proc = spawn('npx', ['z-ai-web-dev-sdk', 'function', '--name', 'web_search', '--args', newsArgsJson], {
+      const proc = spawnFn('npx', ['z-ai-web-dev-sdk', 'function', '--name', 'web_search', '--args', newsArgsJson], {
         timeout: 15000,
       });
       let stdout = '';
