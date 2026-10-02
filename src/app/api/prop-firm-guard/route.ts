@@ -221,8 +221,12 @@ export async function POST(request: NextRequest) {
       .single()
 
     // If insert failed due to missing columns, retry without them
-    if (insertError && (insertError.message?.includes('consistency_rule') || insertError.message?.includes('best_day_pl') || insertError.code === '42703')) {
-      console.warn('[prop-firm-guard] POST: consistency_rule/best_day_pl columns not found, retrying without them')
+    const missingColumnPatterns = [
+      'consistency_rule', 'best_day_pl', 'current_balance',
+      'daily_pl', 'total_pl', 'current_daily_dd', 'current_total_dd', 'current_progress',
+    ]
+    if (insertError && (insertError.code === '42703' || missingColumnPatterns.some((col) => insertError.message?.includes(col)))) {
+      console.warn('[prop-firm-guard] POST: some columns not found, retrying without optional columns')
       const retryResult = await admin
         .from('prop_firm_challenges')
         .insert(insertWithoutNewCols)
@@ -381,20 +385,75 @@ export async function PATCH(request: NextRequest) {
       .select()
       .single()
 
-    // If update failed due to missing columns (consistency_rule / best_day_pl), retry without them
-    if (updateError && (updateError.message?.includes('consistency_rule') || updateError.message?.includes('best_day_pl') || updateError.code === '42703')) {
-      console.warn('[prop-firm-guard] PATCH: consistency_rule/best_day_pl columns not found, retrying without them')
-      const safeData = { ...data }
-      delete safeData.consistency_rule
-      delete safeData.best_day_pl
-      const retryResult = await admin
-        .from('prop_firm_challenges')
-        .update(safeData)
-        .eq('id', id)
-        .select()
-        .single()
-      updated = retryResult.data
-      updateError = retryResult.error
+    // If update failed due to missing columns, progressively remove problematic columns and retry
+    // Handles: consistency_rule, best_day_pl, current_balance, daily_pl, total_pl, current_daily_dd, current_total_dd, current_progress
+    if (updateError) {
+      const missingColumnPatterns = [
+        'consistency_rule', 'best_day_pl', 'current_balance',
+        'daily_pl', 'total_pl', 'current_daily_dd', 'current_total_dd', 'current_progress',
+      ]
+      const isMissingColumnError =
+        updateError.code === '42703' ||
+        missingColumnPatterns.some((col) => updateError.message?.includes(col))
+
+      if (isMissingColumnError) {
+        // Try progressively removing columns that might not exist
+        const safeData = { ...data }
+        let removedCols: string[] = []
+
+        for (const col of missingColumnPatterns) {
+          if (updateError.message?.includes(col) && col in safeData) {
+            delete (safeData as any)[col]
+            removedCols.push(col)
+          }
+        }
+
+        // If no specific column was identified but error code indicates missing column (42703),
+        // remove all optional/new columns
+        if (removedCols.length === 0 && updateError.code === '42703') {
+          for (const col of missingColumnPatterns) {
+            if (col in safeData) {
+              delete (safeData as any)[col]
+              removedCols.push(col)
+            }
+          }
+        }
+
+        if (removedCols.length > 0) {
+          console.warn('[prop-firm-guard] PATCH: columns not found, retrying without:', removedCols.join(', '))
+          const retryResult = await admin
+            .from('prop_firm_challenges')
+            .update(safeData)
+            .eq('id', id)
+            .select()
+            .single()
+          updated = retryResult.data
+          updateError = retryResult.error
+
+          // If still failing, do a second pass removing ALL optional columns
+          if (updateError && updateError.code === '42703') {
+            const minimalData = { ...safeData }
+            let removedMore: string[] = []
+            for (const col of missingColumnPatterns) {
+              if (col in minimalData) {
+                delete (minimalData as any)[col]
+                removedMore.push(col)
+              }
+            }
+            if (removedMore.length > 0) {
+              console.warn('[prop-firm-guard] PATCH: still failing, retrying with minimal data (removed:', removedMore.join(', '), ')')
+              const retry2 = await admin
+                .from('prop_firm_challenges')
+                .update(minimalData)
+                .eq('id', id)
+                .select()
+                .single()
+              updated = retry2.data
+              updateError = retry2.error
+            }
+          }
+        }
+      }
     }
 
     if (updateError) {

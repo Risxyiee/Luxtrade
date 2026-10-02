@@ -1,4 +1,54 @@
 ---
+Task ID: 3
+Agent: main
+Task: Fix news & economic calendar to show real data instead of sample
+
+Work Log:
+- Read worklog.md: understood previous agents work (Task 5 already improved RSS + removed dead calendar endpoints)
+- Read both API routes in full: news (713 lines) and economic-calendar (639 lines)
+- Tested RSS feed reachability: Investing.com (200), Bloomberg (200), CNBC (200), Investing Forex (200), MarketWatch (200), Forexlive (403), DailyFX (403)
+- Tested z-ai-web-dev-sdk web-search: confirmed working
+- Tested web-search with various queries: forex trading news today (10 results), NFP nonfarm payrolls CPI FOMC (10 results)
+
+Changes to /api/news/route.ts:
+1. Added import execSync from child_process for web-search CLI integration
+2. Added two new RSS sources: INVESTING_FOREX_RSS (news_301.rss) and MARKETWATCH_RSS
+3. Created fetchWebSearchNews() function using z-ai-web-dev-sdk CLI as fallback
+4. Refactored RSS source fetching into a loop with error logging per source
+5. Added web-search as FALLBACK 3 (after RSS feeds, before throwing)
+6. Improved JSON extraction from CLI output: robust bracket-depth parser
+7. Added forceRefresh=true query param support (in addition to refresh=true)
+8. Added console.error for every failed source
+9. Updated cascade documentation (7 to 10 steps)
+
+Changes to /api/economic-calendar/route.ts:
+1. Added import execSync from child_process for web-search CLI integration
+2. Created fetchWebSearchCalendar() function using z-ai-web-dev-sdk CLI
+3. Added web-search as source #3 in cascade (between TradingEconomics and Fallback)
+4. Web search uses targeted query: NFP nonfarm payrolls CPI FOMC ISM PMI economic data
+5. Smart currency detection from keywords (USD, EUR, GBP, JPY, AUD, CAD, CHF, NZD, CNY)
+6. Smart impact detection (high: NFP, FOMC, CPI, GDP, etc.)
+7. Event name cleanup: removes site branding, dates, generic titles
+8. Event name enrichment: extracts specific event names from snippets
+9. Smart deduplication: normalizes Nonfarm Payrolls / Non Farm Payrolls / NFP
+10. Added forceRefresh=true query param support
+11. Changed console.warn to console.error for failed sources
+12. Added API key logging
+
+Testing Results:
+- News API: 73-76 articles from RSS feeds + web-search fallback
+- Economic Calendar: 10 events from Web Search (Live) instead of 26 fallback
+- Both APIs return real data, not sample/placeholder data
+- Lint: Clean (no errors)
+
+Stage Summary:
+- News API: Now has 6 RSS sources (was 4) + web-search fallback. Returns 73-76 real articles.
+- Economic Calendar: Uses web-search to find real events before fallback. Returns 10 real events from Web Search (Live).
+- forceRefresh: Both APIs support ?forceRefresh=true to bypass all caches.
+- Better logging: console.error for every failed source.
+- MarketWatch RSS: Returns 200 but body is not valid RSS/XML - non-blocking.
+
+---
 Task ID: 1
 Agent: main
 Task: Fix all 5 bugs in LuxTrade app + push" 
@@ -194,3 +244,93 @@ Stage Summary:
 - **Fix**: New SQL migration (20261002) adds `onboarding_steps` column, fixes RLS with `auth.uid()::text` cast, and fixes V6 FK typo
 - **Code fixes**: API routes now use `String(userId)`, OnboardingTab persists to DB, error handling improved throughout
 - **User action required**: Run `20261002_add_onboarding_steps_and_fix_rls.sql` in Supabase SQL Editor
+
+---
+Task ID: 1
+Agent: main
+Task: Fix Pro Firm Guard edit - all fields editable, not just name
+
+Work Log:
+- Analyzed PropFirmGuardTab.tsx and /api/prop-firm-guard/route.ts to identify root causes
+- Root cause 1: PATCH retry logic only handled consistency_rule and best_day_pl missing columns, not current_balance, daily_pl, total_pl, current_daily_dd, current_total_dd, current_progress
+- Root cause 2: EditableFieldWithNA component showed "0" when value=0, making it look uneditable
+- Root cause 3: openEditDialog() set enabled=false for fields with value=0 (maxDailyLoss, maxTotalDD, profitTarget), hiding the input behind N/A toggle
+- Fix 1: Extended PATCH retry logic to handle ALL potentially missing columns with progressive fallback (first pass removes specific columns mentioned in error, second pass removes all optional columns if still failing)
+- Fix 2: Extended POST retry logic similarly to handle all optional missing columns
+- Fix 3: Changed EditableFieldWithNA Input value from `value` to `value || ''` so 0 shows as empty with placeholder, making it clearly editable
+- Fix 4: Changed openEditDialog() to always enable maxDailyLoss, maxTotalDD, profitTarget fields by default (philosophy: N/A toggle is opt-in to disable, not opt-out to enable)
+- Kept consistencyRule as conditional (some firms genuinely don't have it)
+- Lint passed clean, dev server running normally
+
+Stage Summary:
+- PATCH API now has comprehensive missing-column fallback for 8 columns (consistency_rule, best_day_pl, current_balance, daily_pl, total_pl, current_daily_dd, current_total_dd, current_progress)
+- Edit dialog now shows all fields as editable by default when opened
+- Fields with value=0 now show placeholder text instead of "0", making it clear they are editable
+- All P/L fields, balance, and DD limits are always enabled; only consistency rule stays conditional
+
+---
+Task ID: 2
+Agent: main
+Task: Fix watchlist price display and alert notifications
+
+Work Log:
+- Analyzed WatchlistTab.tsx and /api/forex/route.ts to identify root causes for both issues
+- Issue 1 (XAU shows 1123 instead of ~3300+): Stale KV cache or old data. The forex API had only basic sanity checks (XAU < 100 rejected), missing a stricter threshold for clearly stale 2025 prices.
+- Issue 2 (Alerts never triggered): Alert threshold was 0.1% (too strict for volatile instruments like gold), and no cross-detection when price jumps past target between 30s polls.
+
+- Fixes applied to WatchlistTab.tsx:
+  1. Changed alert threshold from 0.1% to 0.5% — more tolerant for volatile instruments
+  2. Added cross-detection: if price crossed the target between polls (prevPrice < target && price >= target or vice versa), trigger alert even if not within 0.5%
+  3. Added previousPrices state to track previous prices for cross-detection
+  4. Improved polling interval from 30s to 15s for more responsive alerts
+  5. Changed polling to fetch ALL symbols (not just alert items) so UI shows current prices for all items
+  6. Added "Loading price..." / "Price unavailable" state when forex API returns no data
+  7. Added stale data indicator (AlertTriangle icon) when price data is > 60s old
+  8. Added manual "Refresh" button with spinning animation
+  9. Added last price update time display
+  10. Added formatPrice helper function for consistent price formatting
+  11. Added currentPricesRef for accessing latest prices inside polling interval
+
+- Fixes applied to /api/forex/route.ts:
+  1. Added validatePrice() function with strict sanity checks per symbol:
+     - XAU/USD: rejects prices < 2000 (gold is ~3000+ in 2025; 1123 would be rejected)
+     - XAG/USD: rejects prices < 10 (silver is ~30+ in 2025)
+     - JPY pairs: rejects prices < 50 (clearly stale)
+     - Non-JPY forex: rejects prices < 0.1 or > 100 (out of normal range)
+  2. Added validateCandles() function to validate arrays of candles
+  3. Updated getCached() to validate cached data before returning — invalidates cache if all candles fail sanity check
+  4. Updated getForexKVCache() to validate KV cached data before returning — skips stale KV entries
+  5. Updated fetchTwelveDataPrice() to use validatePrice() instead of basic < 100 check
+  6. Updated fetchTwelveData() filter to use validatePrice() instead of inline checks
+  7. Updated fetchAlphaVantage() filter to use validatePrice() instead of inline checks
+  8. Updated fetchYahooFinance() filter to use validatePrice() instead of inline checks
+  9. All validation uses centralized validatePrice() — consistent thresholds across all sources
+
+- Lint passed clean (no errors or warnings)
+
+Stage Summary:
+- **Issue 1 (XAU wrong price)**: Fixed by adding strict price sanity validation in forex API. XAU prices below 2000 are now rejected at every level: individual fetch functions, in-memory cache, and KV cache. The old stale price of 1123 would be caught and invalidated, forcing a fresh API fetch.
+- **Issue 2 (Alerts never triggered)**: Fixed by widening threshold from 0.1% to 0.5% and adding cross-detection logic. Now alerts fire if price is within 0.5% of target OR if price crossed the target between polls. Polling interval reduced from 30s to 15s for more responsive detection.
+- **UX improvements**: Added "Loading price..."/"Price unavailable" states, stale data warning icon, manual Refresh button, last price update timestamp, and consistent price formatting.
+---
+Task ID: 3
+Agent: main
+Task: Fix news & economic calendar to show real data instead of sample
+
+Work Log:
+- Identified that news API was falling back to sample/placeholder data because all API sources (TradingEconomics, Finnhub) required env keys not set locally
+- RSS feeds (Investing.com, Bloomberg, CNBC) work as free sources without API keys
+- Added 2 more RSS sources: Investing.com Forex-specific RSS and MarketWatch RSS
+- Added z-ai-web-dev-sdk web-search as fallback source for both news and economic calendar
+- Fixed critical bug: execSync was blocking the Node.js event loop, causing server hangs
+- Changed to spawn() with Promise wrapper for non-blocking execution
+- Fixed shell quoting issue: shell:true was breaking JSON args for z-ai-web-dev-sdk
+- Used JSON.stringify() for args to ensure proper JSON format without shell interpretation
+- Added forceRefresh=true support to both APIs
+- Added better error logging for debugging
+
+Stage Summary:
+- **News API**: Returns 72+ real articles from RSS feeds (Investing.com x3, Bloomberg, CNBC). Web search as additional fallback. No more sample/placeholder data.
+- **Economic Calendar API**: Returns 10 real events from web search (e.g., NFP, CPI, FOMC data). Falls back to static schedule only if all live sources fail.
+- **Forex API**: XAUUSD now returns real price ~4187 (not stale 1123). Price validation rejects prices < 2000 for gold.
+- **All APIs tested and working**: News returns real articles, Calendar returns real events, Forex returns real prices.
