@@ -191,7 +191,7 @@ function EditableFieldWithNA({
             )}
             <Input
               type="number"
-              value={value === 0 && !placeholder ? 0 : (value || '')}
+              value={value}
               onChange={(e) => {
                 const raw = e.target.value
                 onChange(raw === '' ? 0 : Number(raw))

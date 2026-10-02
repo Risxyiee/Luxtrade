@@ -343,7 +343,15 @@ function LuxTradeDashboardContent() {
   const handleOnboardingComplete = useCallback(() => {
     setShowOnboarding(false)
     // Mark as completed in DB and localStorage
-    fetch('/api/onboarding', { method: 'POST', credentials: 'include' }).catch(() => {})
+    fetch('/api/onboarding', { method: 'POST', credentials: 'include' })
+      .then(res => {
+        if (res.ok) {
+          console.log('[Onboarding] Marked as completed in DB')
+        } else {
+          console.warn('[Onboarding] Failed to mark completed in DB:', res.status)
+        }
+      })
+      .catch(err => console.warn('[Onboarding] Error marking completed:', err))
     localStorage.setItem('luxtrade_onboarding_done', 'true')
   }, [])
 

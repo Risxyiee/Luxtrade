@@ -55,6 +55,9 @@ export const createTradeHandlers = ({
     if (!trimmedSymbol || trimmedSymbol.length < 2) {
       errors.push('Symbol minimal 2 karakter (contoh: EU, XAU)')
     }
+    if (trimmedSymbol.length > 12) {
+      errors.push('Symbol maksimal 12 karakter')
+    }
     if (!formData.type || !['BUY', 'SELL'].includes(formData.type)) {
       errors.push('Trade type is required (BUY/SELL)')
     }

@@ -56,7 +56,7 @@ async function tableExists(client: SupabaseClient, tableName: string): Promise<b
 
 // Helper to check if an error is a table/schema/RLS issue that should be handled gracefully
 function isSchemaOrRLSError(error: { code?: string; message?: string }): boolean {
-  return (
+  return !!(
     error.code === '42P01' ||      // undefined_table
     error.code === 'PGRST204' ||   // schema_cache_missing_column
     error.code === 'PGRST205' ||   // schema_cache_missing_table
@@ -88,7 +88,8 @@ export async function POST(request: NextRequest) {
     }
 
     // SECURITY: Only allow awarding achievements to the authenticated user
-    if (userId !== user.id) {
+    // Ensure type-safe comparison (both should be strings after UUID→TEXT migration)
+    if (String(userId) !== String(user.id)) {
       return NextResponse.json(
         { error: 'Forbidden: cannot award achievements to another user' },
         { status: 403 }
@@ -123,7 +124,7 @@ export async function POST(request: NextRequest) {
       const { data: existingAchievement, error: checkError } = await clientToUse
         .from('user_achievements')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', String(userId))
         .eq('achievement_id', ONBOARDING_ACHIEVEMENT_ID)
         .maybeSingle()
 
@@ -191,7 +192,7 @@ export async function POST(request: NextRequest) {
     try {
       const clientToUse = supabaseAdmin || supabase
       const insertData: any = {
-        user_id: userId,
+        user_id: String(userId),
         achievement_id: ONBOARDING_ACHIEVEMENT_ID,
         earned_at: new Date().toISOString(),
       }
@@ -252,7 +253,7 @@ export async function POST(request: NextRequest) {
       const { data: profile, error: profileError } = await clientToUse
         .from('profiles')
         .select('total_xp')
-        .eq('id', userId)
+        .eq('id', String(userId))
         .maybeSingle()
 
       if (profileError) {
@@ -270,7 +271,7 @@ export async function POST(request: NextRequest) {
         const { error: updateError } = await clientToUse
           .from('profiles')
           .update({ total_xp: newXP })
-          .eq('id', userId)
+          .eq('id', String(userId))
 
         if (updateError) {
           console.warn('[onboarding achievement] Error updating XP:', updateError)

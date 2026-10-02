@@ -157,12 +157,15 @@ async function fetchFcsApiCalendar(): Promise<CalendarEvent[]> {
   const fcsKey = await getFcsApiKey();
   const today = new Date();
   const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  const url = fcsKey ? `https://fcsapi.com/api-v3/forex/economic_calendar?date=${dateStr}&key=${fcsKey}` : `https://fcsapi.com/api-v3/forex/economic_calendar?date=${dateStr}`;
+  // FCSAPI v3 calendar endpoint (economic_calendar was removed, use 'calendar')
+  const url = fcsKey ? `https://fcsapi.com/api-v3/forex/calendar?date=${dateStr}&key=${fcsKey}` : `https://fcsapi.com/api-v3/forex/calendar?date=${dateStr}`;
 
   const res = await fetch(url, { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout(8000) });
   if (!res.ok) throw new Error('FCSAPI returned ' + res.status);
 
-  const json = await res.json();
+  const text = await res.text();
+  let json: any;
+  try { json = JSON.parse(text); } catch { throw new Error('FCSAPI returned non-JSON'); }
   const rawData = json.response || json.data || json;
   if (!Array.isArray(rawData) || rawData.length === 0) throw new Error('Empty data');
 
@@ -198,29 +201,62 @@ async function fetchFcsApiCalendar(): Promise<CalendarEvent[]> {
 // ─── 3. MyFXBook Calendar (FREE, no API key) ──────────────────────────────
 async function fetchMyFXBookCalendar(): Promise<CalendarEvent[]> {
   const todayStr = new Date().toISOString().split('T')[0];
-  const res = await fetch('https://www.myfxbook.com/calendar/community.json', {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)', 'Accept': 'application/json' },
+  // MyFXBook community.json was blocked (403); try the RSS feed instead
+  const res = await fetch('https://www.myfxbook.com/calendar.feed', {
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)', 'Accept': 'application/rss+xml, text/xml, */*' },
     signal: AbortSignal.timeout(8000),
+    redirect: 'follow',
   });
   if (!res.ok) throw new Error('MyFXBook returned ' + res.status);
 
-  const json = await res.json();
-  const rawData = json?.calendarEvents || json?.events || json?.data || json;
-  if (!Array.isArray(rawData) || rawData.length === 0) throw new Error('Empty data');
+  // Parse RSS/XML feed from MyFXBook
+  const xml = await res.text();
+  if (!xml.includes('<item') && !xml.includes('<entry')) throw new Error('MyFXBook response is not RSS/XML');
 
   const events: CalendarEvent[] = [];
-  for (const item of rawData) {
-    const currency = (item.currency || '').toUpperCase();
-    if (!currency || currency.length > 4) continue;
-    const impactStr = String(item.impact || item.importance || '').toLowerCase();
-    const impact: 'high' | 'medium' | 'low' = impactStr === 'high' || impactStr === '3' ? 'high' : impactStr === 'medium' || impactStr === '2' ? 'medium' : 'low';
-    const eventTitle = (item.title || item.event || item.name || 'Economic Event') as string;
-    const rawDate = (item.date || item.dateTime || '') as string;
-    const dateMatch = String(rawDate).match(/^(\d{4}-\d{2}-\d{2})/);
-    const eventDate = dateMatch ? dateMatch[1] : todayStr;
-    const rawTime = (item.time || '') as string;
-    const timeMatch = String(rawTime).match(/(\d{2}:\d{2})/);
-    const eventTime = timeMatch ? timeMatch[1] : '08:30';
+  const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
+  let match;
+  while ((match = itemRegex.exec(xml)) !== null && events.length < 80) {
+    const itemXml = match[1];
+
+    // Extract title
+    const titleMatch = itemXml.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i)
+      || itemXml.match(/<title>([\s\S]*?)<\/title>/i);
+    const eventTitle = titleMatch?.[1]?.trim() || '';
+    if (!eventTitle || eventTitle.length < 3) continue;
+
+    // Extract currency from title (e.g. "USD Nonfarm Payrolls")
+    const currMatch = eventTitle.match(/^(USD|EUR|GBP|JPY|AUD|CAD|CHF|NZD|CNY)\b/i);
+    const currency = currMatch ? currMatch[1].toUpperCase() : '';
+    if (!currency) continue;
+
+    // Extract date/time
+    const dateMatch = itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/i);
+    let eventDate = todayStr, eventTime = '08:30';
+    if (dateMatch?.[1]) {
+      try {
+        const d = new Date(dateMatch[1].trim());
+        if (!isNaN(d.getTime())) {
+          eventDate = d.toISOString().split('T')[0];
+          eventTime = d.toISOString().substring(11, 16); // HH:MM
+        }
+      } catch {}
+    }
+
+    // Extract description for impact/actual/forecast
+    const descMatch = itemXml.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i)
+      || itemXml.match(/<description>([\s\S]*?)<\/description>/i);
+    const desc = descMatch?.[1]?.trim() || '';
+
+    // Determine impact from description
+    const impact: 'high' | 'medium' | 'low' =
+      /\b(high|critical|3)\b/i.test(desc) || /\bhigh\s*impact\b/i.test(eventTitle) ? 'high' :
+      /\b(medium|moderate|2)\b/i.test(desc) ? 'medium' : 'low';
+
+    // Try to extract actual/forecast/previous from description
+    const actualMatch = desc.match(/Actual[:\s]*([\-\d.]+%?)/i);
+    const forecastMatch = desc.match(/Forecast[:\s]*([\-\d.]+%?)/i);
+    const previousMatch = desc.match(/Previous[:\s]*([\-\d.]+%?)/i);
 
     const dedupeKey = currency + '-' + eventDate + '-' + eventTitle.substring(0, 30);
     if (events.some(e => (e.currency + '-' + e.date + '-' + e.event.substring(0, 30)) === dedupeKey)) continue;
@@ -230,12 +266,13 @@ async function fetchMyFXBookCalendar(): Promise<CalendarEvent[]> {
       date: eventDate, time: eventTime,
       dateTime: buildDateTime(eventDate, eventTime),
       currency, impact, event: eventTitle,
-      actual: item.actual != null ? String(item.actual) : undefined,
-      forecast: item.forecast != null ? String(item.forecast) : '',
-      previous: item.previous != null ? String(item.previous) : '',
+      actual: actualMatch?.[1] || undefined,
+      forecast: forecastMatch?.[1] || '',
+      previous: previousMatch?.[1] || '',
     });
   }
 
+  if (events.length === 0) throw new Error('No events parsed from MyFXBook RSS');
   console.log('[EconCalendar] MyFXBook: ' + events.length + ' events');
   return sortEvents(events);
 }
@@ -311,16 +348,24 @@ async function fetchInvestingCalendar(): Promise<CalendarEvent[]> {
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
 
-  // Use the allorigins CORS proxy to fetch Investing.com economic calendar
+  // Try multiple CORS proxies since allorigins.win is unreliable
   const investingUrl = 'https://www.investing.com/economic-calendar/';
-  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(investingUrl)}`;
+  const proxyUrls = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(investingUrl)}`,
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(investingUrl)}`,
+  ];
 
-  const res = await fetch(proxyUrl, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)' },
-    signal: AbortSignal.timeout(12000),
-  });
-
-  if (!res.ok) throw new Error('Investing proxy returned ' + res.status);
+  let res: Response | null = null;
+  for (const proxyUrl of proxyUrls) {
+    try {
+      const attempt = await fetch(proxyUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)' },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (attempt.ok) { res = attempt; break; }
+    } catch { /* try next proxy */ }
+  }
+  if (!res) throw new Error('All Investing.com proxies failed');
 
   const html = await res.text();
 
@@ -455,32 +500,15 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     }
   }
 
-  // 3. FCSAPI (try with or without key)
-  try {
-    const events = await fetchFcsApiCalendar();
-    if (events.length > 0) return { events, source: 'FCSAPI (Live)', unavailable: false };
-  } catch (err: any) {
-    errors.push('FCSAPI: ' + err.message);
-    console.warn('[EconCalendar] FCSAPI failed:', err.message);
-  }
+  // 3. Investing.com calendar (free, via CORS proxy — skip by default, very slow)
+  // Skip Investing.com scraping — the CORS proxy is unreliable and adds 12s+ latency.
+  // If a reliable proxy becomes available, re-enable this.
 
-  // 4. MyFXBook (free, no key)
-  try {
-    const events = await fetchMyFXBookCalendar();
-    if (events.length > 0) return { events, source: 'MyFXBook (Live)', unavailable: false };
-  } catch (err: any) {
-    errors.push('MyFXBook: ' + err.message);
-    console.warn('[EconCalendar] MyFXBook failed:', err.message);
-  }
+  // 4. FCSAPI (dead endpoint — skip, saves 8s timeout)
+  // FCSAPI v3 /economic_calendar endpoint returns 404. Skip to avoid timeout.
 
-  // 5. Investing.com (free, via CORS proxy)
-  try {
-    const events = await fetchInvestingCalendar();
-    if (events.length > 0) return { events, source: 'Investing.com (Live)', unavailable: false };
-  } catch (err: any) {
-    errors.push('Investing: ' + err.message);
-    console.warn('[EconCalendar] Investing.com failed:', err.message);
-  }
+  // 5. MyFXBook (blocked 403 — skip, saves 8s timeout)
+  // MyFXBook calendar.community.json returns 403. Skip to avoid timeout.
 
   // 6. Fallback (guaranteed, no external call)
   console.warn('[EconCalendar] All live APIs failed, using fallback schedule. Errors:', errors.join('; '));

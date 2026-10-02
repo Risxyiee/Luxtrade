@@ -529,7 +529,8 @@ export async function POST(request: NextRequest) {
     // Validate trades
     const validTrades = trades.filter(t => 
       t.symbol && 
-      t.symbol.length >= 3 &&
+      t.symbol.length >= 2 &&
+      t.symbol.length <= 12 &&
       !isNaN(t.profit_loss) &&
       t.open_price > 0
     )
