@@ -250,17 +250,13 @@ export async function extractTradeData(imageBytes: Uint8Array): Promise<Extracti
 // ==============================================================================
 
 function getSupabaseClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://klxkdrfsfcoankbaoejn.supabase.co'
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-  if (!url) {
-    console.warn('[ExtractTradeData] NEXT_PUBLIC_SUPABASE_URL not defined. Will be available at runtime.')
-    return createClient('https://klxkdrfsfcoankbaoejn.supabase.co', 'placeholder-key-for-build')
-  }
-
   if (!key) {
-    console.warn('[ExtractTradeData] SUPABASE_SERVICE_ROLE_KEY not defined. Will be available at runtime.')
-    return createClient(url, 'placeholder-key-for-build')
+    console.error('[ExtractTradeData] SUPABASE_SERVICE_ROLE_KEY not defined. Screenshot uploads will fail.')
+    // Return null to indicate misconfiguration — callers should handle this
+    return null as any
   }
 
   return createClient(url, key)

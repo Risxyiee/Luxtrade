@@ -156,8 +156,13 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
 
     if (error) {
-      console.error('[trades GET] Supabase error:', error)
-      return NextResponse.json({ trades: [], pagination: { hasNextPage: false, nextCursor: null, limit } })
+      console.error('[trades GET] Supabase error:', error.message, 'Code:', error.code)
+      return NextResponse.json({
+        trades: [],
+        pagination: { hasNextPage: false, nextCursor: null, limit },
+        error: error.message,
+        errorCode: error.code,
+      })
     }
 
     const trades = data || []
