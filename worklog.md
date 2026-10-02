@@ -131,3 +131,66 @@ Stage Summary:
 - Economic calendar tab: Was taking 17s+ due to 3 dead API endpoints (FCSAPI 404, MyFXBook 403, Investing proxy 520). Removed dead sources from cascade → now responds in 544ms with fallback data.
 - No API key changes made. With RAPIDAPI_TRADING_ECONOMICS_KEY or FINNHUB_API_KEY configured, calendar would return live data from those sources.
 - Both tabs now show real data instead of empty/loading state.
+
+---
+Task ID: 6
+Agent: sub
+Task: Fix onboarding interactive — missions don't complete
+
+Work Log:
+- Investigated entire onboarding system: 2 frontend components, 3 API routes, 2 DB tables, 2 SQL migrations
+- Found 7 root causes for missions not completing:
+
+1. **OnboardingTab progress was localStorage-only** — not persisted to database
+   - Progress lost on browser clear, different device, or incognito
+   - Created `/api/onboarding/progress` GET/POST endpoints for server-side persistence
+   - Added `onboarding_steps` JSONB column to profiles table (Prisma schema + SQL migration)
+   - OnboardingTab now loads from API first, falls back to localStorage
+   - Saves to both localStorage and API on every step toggle
+
+2. **RLS policies for user_submissions and mission_progress used `auth.uid() = user_id`**
+   - After UUID→TEXT migration, user_id is TEXT but auth.uid() returns UUID
+   - PostgreSQL cannot compare UUID = TEXT → RLS blocks ALL operations on these tables
+   - This is THE primary reason missions/achievements couldn't complete
+   - Added `auth.uid()::text = user_id` policies to 20261001 and 20261002 migrations
+   - The 20261001 migration listed user_submissions/mission_progress in its header comment but never included the actual DROP/CREATE policy blocks!
+
+3. **V6 migration had typo: `user_submission` (missing 's') in FK add**
+   - `ALTER TABLE public.user_submission ADD CONSTRAINT` → should be `user_submissions`
+   - This silently failed due to exception handler, so FK was never added
+   - Fixed in V6 SQL and added proper FK to 20261002 migration
+
+4. **`/api/missions/claim` route: mission_progress insert didn't use `String(userId)`**
+   - While user_submissions insert had `String(userId)`, mission_progress insert used raw `userId`
+   - Could cause type coercion issues with Supabase client
+   - Added RLS violation detection and specific error messages
+
+5. **`/api/achievements/onboarding` route: type mismatches on userId**
+   - All `.eq('id', userId)` calls could fail if userId was passed as non-string
+   - Fixed with `String(userId)` wrapping throughout
+   - Fixed `isSchemaOrRLSError` return type (was `boolean | undefined`, now `boolean`)
+
+6. **`/api/onboarding` route: swallowed all errors silently**
+   - Catch blocks returned `{ completed: true }` even on errors — masked real failures
+   - Added proper error logging, `export const dynamic = 'force-dynamic'`
+   - Now checks both `onboarding_completed` boolean and `onboarding_steps` array
+
+7. **OnboardingTab UX: no feedback when step completed**
+   - Added toast notification on step completion (sonner)
+   - Added syncing indicator ("Menyimpan ke server...") in footer
+   - Added userId prop to OnboardingTabProps
+
+- Created SQL migration: `supabase/migrations/20261002_add_onboarding_steps_and_fix_rls.sql`
+  - Adds onboarding_steps column to profiles
+  - Fixes RLS policies for user_submissions and mission_progress
+  - Fixes FK typo from V6 migration
+  - Includes verification checks
+- Build verified: `npx next build` succeeds with no new errors
+- Committed all changes
+
+Stage Summary:
+- **Primary root cause**: RLS policies on `user_submissions` and `mission_progress` used `auth.uid() = user_id` but `user_id` is TEXT (after UUID→TEXT migration) while `auth.uid()` returns UUID → PostgreSQL type mismatch → RLS blocks ALL operations → missions/achievements can never be inserted or read
+- **Secondary cause**: OnboardingTab progress was localStorage-only → not synced to DB → appeared to "not save" across sessions
+- **Fix**: New SQL migration (20261002) adds `onboarding_steps` column, fixes RLS with `auth.uid()::text` cast, and fixes V6 FK typo
+- **Code fixes**: API routes now use `String(userId)`, OnboardingTab persists to DB, error handling improved throughout
+- **User action required**: Run `20261002_add_onboarding_steps_and_fix_rls.sql` in Supabase SQL Editor
