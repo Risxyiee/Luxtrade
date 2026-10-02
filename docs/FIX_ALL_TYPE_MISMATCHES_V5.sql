@@ -1,27 +1,17 @@
 -- ============================================================================
 -- COMPREHENSIVE FIX: All Type Mismatches, FK Constraints, and RLS Policies
--- Date: 2026-10-01 (V4 - Robust)
+-- Date: 2026-10-01 (V5 - Bulletproof)
 -- 
 -- Run this ONCE in Supabase SQL Editor.
 -- It is IDEMPOTENT — safe to re-run if it partially fails.
 --
--- FIXES IN V4:
+-- FIXES IN V5:
+--   ✅ Step 7 GRANTs wrapped in exception handlers
+--      (V4 crashed because push_subscriptions table doesn't exist)
 --   ✅ Step 5 FK adds wrapped in exception handlers
---      (V3 crashed because social_links has no user_id column)
---   ✅ Step 6 RLS uses exception handlers too
+--   ✅ Step 6 RLS uses exception handlers
 --   ✅ Step 0a drops ALL FKs on user_id/id columns in EVERY table
 --   ✅ Step 0b drops ALL RLS policies BEFORE altering column types
---
--- Execution Order:
---   0a. Drop ALL FK constraints on columns we'll alter
---   0b. Drop ALL RLS policies on tables we'll alter
---   1.  users.id UUID → TEXT
---   2.  user_subscriptions.id, user_id UUID → TEXT
---   3.  prop_firm_challenges.id, user_id UUID → TEXT
---   4.  Any other table.user_id UUID → TEXT
---   5.  Re-add all FK constraints (TEXT → TEXT) [with error handling]
---   6.  Recreate all RLS policies (auth.uid()::text = user_id) [with error handling]
---   7.  Grants
 -- ============================================================================
 
 -- ============================================================================
@@ -32,7 +22,6 @@ DO $$
 DECLARE
   rec RECORD;
 BEGIN
-  -- Drop FKs where the child column is user_id (in any public table)
   FOR rec IN
     SELECT 
       tc.table_name,
@@ -50,7 +39,6 @@ BEGIN
     RAISE NOTICE 'Dropped FK: % on %.%', rec.constraint_name, rec.table_name, rec.column_name;
   END LOOP;
 
-  -- Drop FKs where the child column is id on tables we alter the PK of
   FOR rec IN
     SELECT 
       tc.table_name,
@@ -69,8 +57,6 @@ BEGIN
     RAISE NOTICE 'Dropped FK: % on %.%', rec.constraint_name, rec.table_name, rec.column_name;
   END LOOP;
 
-  -- Drop FKs that REFERENCE users(id), profiles(id), user_subscriptions(id), 
-  -- or prop_firm_challenges(id) from OTHER tables
   FOR rec IN
     SELECT 
       tc.table_name,
@@ -285,166 +271,133 @@ $$;
 
 -- ============================================================================
 -- STEP 5: Re-add ALL foreign key constraints (TEXT → TEXT)
---           Each FK add is wrapped in exception handler — if the table
---           doesn't have a user_id column, it skips gracefully.
+--           Each wrapped in exception handler
 -- ============================================================================
 
--- trades.user_id → profiles(id)
 DO $$ BEGIN
   ALTER TABLE public.trades ADD CONSTRAINT fk_trades_user_id
     FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
   RAISE NOTICE 'Added FK: trades.user_id → profiles(id)';
-EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'Skip FK trades.user_id: %', SQLERRM;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip FK trades: %', SQLERRM;
 END;
 $$;
 
--- trading_accounts.user_id → profiles(id)
 DO $$ BEGIN
   ALTER TABLE public.trading_accounts ADD CONSTRAINT fk_trading_accounts_user_id
     FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
   RAISE NOTICE 'Added FK: trading_accounts.user_id → profiles(id)';
-EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'Skip FK trading_accounts.user_id: %', SQLERRM;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip FK trading_accounts: %', SQLERRM;
 END;
 $$;
 
--- journal_entries.user_id → profiles(id)
 DO $$ BEGIN
   ALTER TABLE public.journal_entries ADD CONSTRAINT fk_journal_entries_user_id
     FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
   RAISE NOTICE 'Added FK: journal_entries.user_id → profiles(id)';
-EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'Skip FK journal_entries.user_id: %', SQLERRM;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip FK journal_entries: %', SQLERRM;
 END;
 $$;
 
--- watchlist.user_id → profiles(id)
 DO $$ BEGIN
   ALTER TABLE public.watchlist ADD CONSTRAINT fk_watchlist_user_id
     FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
   RAISE NOTICE 'Added FK: watchlist.user_id → profiles(id)';
-EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'Skip FK watchlist.user_id: %', SQLERRM;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip FK watchlist: %', SQLERRM;
 END;
 $$;
 
--- user_subscriptions.user_id → profiles(id)
 DO $$ BEGIN
   ALTER TABLE public.user_subscriptions ADD CONSTRAINT fk_user_subscriptions_user_id
     FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
   RAISE NOTICE 'Added FK: user_subscriptions.user_id → profiles(id)';
-EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'Skip FK user_subscriptions.user_id: %', SQLERRM;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip FK user_subscriptions: %', SQLERRM;
 END;
 $$;
 
--- prop_firm_challenges.user_id → profiles(id)
 DO $$ BEGIN
   ALTER TABLE public.prop_firm_challenges ADD CONSTRAINT fk_prop_firm_challenges_user_id
     FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
   RAISE NOTICE 'Added FK: prop_firm_challenges.user_id → profiles(id)';
-EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'Skip FK prop_firm_challenges.user_id: %', SQLERRM;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip FK prop_firm_challenges: %', SQLERRM;
 END;
 $$;
 
--- tags.user_id → profiles(id)
 DO $$ BEGIN
   ALTER TABLE public.tags ADD CONSTRAINT fk_tags_user_id
     FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
   RAISE NOTICE 'Added FK: tags.user_id → profiles(id)';
-EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'Skip FK tags.user_id: %', SQLERRM;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip FK tags: %', SQLERRM;
 END;
 $$;
 
--- weekly_goals.user_id → profiles(id)
 DO $$ BEGIN
   ALTER TABLE public.weekly_goals ADD CONSTRAINT fk_weekly_goals_user_id
     FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
   RAISE NOTICE 'Added FK: weekly_goals.user_id → profiles(id)';
-EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'Skip FK weekly_goals.user_id: %', SQLERRM;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip FK weekly_goals: %', SQLERRM;
 END;
 $$;
 
--- social_links.user_id → profiles(id)
 DO $$ BEGIN
   ALTER TABLE public.social_links ADD CONSTRAINT fk_social_links_user_id
     FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
   RAISE NOTICE 'Added FK: social_links.user_id → profiles(id)';
-EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'Skip FK social_links.user_id: %', SQLERRM;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip FK social_links: %', SQLERRM;
 END;
 $$;
 
--- payment_orders.user_id → profiles(id)
 DO $$ BEGIN
   ALTER TABLE public.payment_orders ADD CONSTRAINT fk_payment_orders_user_id
     FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
   RAISE NOTICE 'Added FK: payment_orders.user_id → profiles(id)';
-EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'Skip FK payment_orders.user_id: %', SQLERRM;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip FK payment_orders: %', SQLERRM;
 END;
 $$;
 
--- notification_preferences.user_id → profiles(id)
 DO $$ BEGIN
   ALTER TABLE public.notification_preferences ADD CONSTRAINT fk_notification_preferences_user_id
     FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
   RAISE NOTICE 'Added FK: notification_preferences.user_id → profiles(id)';
-EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'Skip FK notification_preferences.user_id: %', SQLERRM;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip FK notification_preferences: %', SQLERRM;
 END;
 $$;
 
--- user_submissions.user_id → profiles(id)
 DO $$ BEGIN
   ALTER TABLE public.user_submissions ADD CONSTRAINT fk_user_submissions_user_id
     FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
   RAISE NOTICE 'Added FK: user_submissions.user_id → profiles(id)';
-EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'Skip FK user_submissions.user_id: %', SQLERRM;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip FK user_submissions: %', SQLERRM;
 END;
 $$;
 
--- mission_progress.user_id → profiles(id)
 DO $$ BEGIN
   ALTER TABLE public.mission_progress ADD CONSTRAINT fk_mission_progress_user_id
     FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
   RAISE NOTICE 'Added FK: mission_progress.user_id → profiles(id)';
-EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'Skip FK mission_progress.user_id: %', SQLERRM;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip FK mission_progress: %', SQLERRM;
 END;
 $$;
 
--- bug_reports.user_id → profiles(id)
 DO $$ BEGIN
   ALTER TABLE public.bug_reports ADD CONSTRAINT fk_bug_reports_user_id
     FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
   RAISE NOTICE 'Added FK: bug_reports.user_id → profiles(id)';
-EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'Skip FK bug_reports.user_id: %', SQLERRM;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip FK bug_reports: %', SQLERRM;
 END;
 $$;
 
--- affiliates.user_id → profiles(id)
 DO $$ BEGIN
   ALTER TABLE public.affiliates ADD CONSTRAINT fk_affiliates_user_id
     FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
   RAISE NOTICE 'Added FK: affiliates.user_id → profiles(id)';
-EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'Skip FK affiliates.user_id: %', SQLERRM;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip FK affiliates: %', SQLERRM;
 END;
 $$;
 
 -- ============================================================================
 -- STEP 6: Recreate ALL RLS policies — auth.uid()::text = user_id
---           Each table wrapped in exception handler
 -- ============================================================================
 
--- 6a. trades
 DO $$ BEGIN
   ALTER TABLE public.trades ENABLE ROW LEVEL SECURITY;
   DROP POLICY IF EXISTS "Users can view own trades" ON public.trades;
@@ -459,7 +412,6 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Error trades RLS: %', SQLERRM;
 END $$;
 
--- 6b. trading_accounts
 DO $$ BEGIN
   ALTER TABLE public.trading_accounts ENABLE ROW LEVEL SECURITY;
   DROP POLICY IF EXISTS "Users can view own trading accounts" ON public.trading_accounts;
@@ -474,7 +426,6 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Error trading_accounts RLS: %', SQLERRM;
 END $$;
 
--- 6c. journal_entries
 DO $$ BEGIN
   ALTER TABLE public.journal_entries ENABLE ROW LEVEL SECURITY;
   DROP POLICY IF EXISTS "Users can view own journals" ON public.journal_entries;
@@ -489,7 +440,6 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Error journal_entries RLS: %', SQLERRM;
 END $$;
 
--- 6d. watchlist
 DO $$ BEGIN
   ALTER TABLE public.watchlist ENABLE ROW LEVEL SECURITY;
   DROP POLICY IF EXISTS "Users can view own watchlist" ON public.watchlist;
@@ -504,7 +454,6 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Error watchlist RLS: %', SQLERRM;
 END $$;
 
--- 6e. user_subscriptions
 DO $$ BEGIN
   ALTER TABLE public.user_subscriptions ENABLE ROW LEVEL SECURITY;
   DROP POLICY IF EXISTS "Users can view own subscriptions" ON public.user_subscriptions;
@@ -519,7 +468,6 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Error user_subscriptions RLS: %', SQLERRM;
 END $$;
 
--- 6f. prop_firm_challenges
 DO $$ BEGIN
   ALTER TABLE public.prop_firm_challenges ENABLE ROW LEVEL SECURITY;
   DROP POLICY IF EXISTS "Users can view own prop firm challenges" ON public.prop_firm_challenges;
@@ -534,7 +482,6 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Error prop_firm_challenges RLS: %', SQLERRM;
 END $$;
 
--- 6g. tags
 DO $$ BEGIN
   ALTER TABLE public.tags ENABLE ROW LEVEL SECURITY;
   DROP POLICY IF EXISTS "Users can view own tags" ON public.tags;
@@ -549,7 +496,6 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Error tags RLS: %', SQLERRM;
 END $$;
 
--- 6h. weekly_goals
 DO $$ BEGIN
   ALTER TABLE public.weekly_goals ENABLE ROW LEVEL SECURITY;
   DROP POLICY IF EXISTS "Users can view own weekly goals" ON public.weekly_goals;
@@ -564,7 +510,6 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Error weekly_goals RLS: %', SQLERRM;
 END $$;
 
--- 6i. social_links
 DO $$ BEGIN
   ALTER TABLE public.social_links ENABLE ROW LEVEL SECURITY;
   DROP POLICY IF EXISTS "Users can view own social links" ON public.social_links;
@@ -579,7 +524,6 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Error social_links RLS: %', SQLERRM;
 END $$;
 
--- 6j. payment_orders
 DO $$ BEGIN
   ALTER TABLE public.payment_orders ENABLE ROW LEVEL SECURITY;
   DROP POLICY IF EXISTS "Users can view own payment orders" ON public.payment_orders;
@@ -594,7 +538,6 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Error payment_orders RLS: %', SQLERRM;
 END $$;
 
--- 6k. notification_preferences
 DO $$ BEGIN
   ALTER TABLE public.notification_preferences ENABLE ROW LEVEL SECURITY;
   DROP POLICY IF EXISTS "Users can view own notification prefs" ON public.notification_preferences;
@@ -609,7 +552,6 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Error notification_preferences RLS: %', SQLERRM;
 END $$;
 
--- 6l. bug_reports
 DO $$ BEGIN
   ALTER TABLE public.bug_reports ENABLE ROW LEVEL SECURITY;
   DROP POLICY IF EXISTS "Users can view own bug reports" ON public.bug_reports;
@@ -625,50 +567,212 @@ EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Error bug_reports RLS: %', SQLERRM;
 END $$;
 
 -- ============================================================================
--- STEP 7: Ensure service_role has ALL on tables used by admin API
+-- STEP 7: Ensure grants for service_role and authenticated
+--           Each wrapped in exception handler in case table doesn't exist
 -- ============================================================================
 
-GRANT ALL ON TABLE public.profiles TO service_role;
-GRANT ALL ON TABLE public.users TO service_role;
-GRANT ALL ON TABLE public.prop_firm_challenges TO service_role;
-GRANT ALL ON TABLE public.user_subscriptions TO service_role;
-GRANT ALL ON TABLE public.trades TO service_role;
-GRANT ALL ON TABLE public.trading_accounts TO service_role;
-GRANT ALL ON TABLE public.journal_entries TO service_role;
-GRANT ALL ON TABLE public.watchlist TO service_role;
-GRANT ALL ON TABLE public.tags TO service_role;
-GRANT ALL ON TABLE public.weekly_goals TO service_role;
-GRANT ALL ON TABLE public.social_links TO service_role;
-GRANT ALL ON TABLE public.payment_orders TO service_role;
-GRANT ALL ON TABLE public.notification_preferences TO service_role;
-GRANT ALL ON TABLE public.bug_reports TO service_role;
-GRANT ALL ON TABLE public.affiliates TO service_role;
-GRANT ALL ON TABLE public.affiliate_referrals TO service_role;
-GRANT ALL ON TABLE public.affiliate_withdrawals TO service_role;
-GRANT ALL ON TABLE public.promo_codes TO service_role;
-GRANT ALL ON TABLE public.push_subscriptions TO service_role;
-GRANT ALL ON TABLE public.shared_trades TO service_role;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.profiles TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant profiles→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.users TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant users→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.prop_firm_challenges TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant prop_firm_challenges→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.user_subscriptions TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant user_subscriptions→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.trades TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant trades→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.trading_accounts TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant trading_accounts→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.journal_entries TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant journal_entries→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.watchlist TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant watchlist→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.tags TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant tags→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.weekly_goals TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant weekly_goals→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.social_links TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant social_links→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.payment_orders TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant payment_orders→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.notification_preferences TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant notification_preferences→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.bug_reports TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant bug_reports→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.affiliates TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant affiliates→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.affiliate_referrals TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant affiliate_referrals→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.affiliate_withdrawals TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant affiliate_withdrawals→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.promo_codes TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant promo_codes→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.push_subscriptions TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant push_subscriptions→service_role: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.shared_trades TO service_role;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant shared_trades→service_role: %', SQLERRM;
+END;
+$$;
 
-GRANT ALL ON TABLE public.profiles TO authenticated;
-GRANT ALL ON TABLE public.users TO authenticated;
-GRANT ALL ON TABLE public.prop_firm_challenges TO authenticated;
-GRANT ALL ON TABLE public.user_subscriptions TO authenticated;
-GRANT ALL ON TABLE public.trades TO authenticated;
-GRANT ALL ON TABLE public.trading_accounts TO authenticated;
-GRANT ALL ON TABLE public.journal_entries TO authenticated;
-GRANT ALL ON TABLE public.watchlist TO authenticated;
-GRANT ALL ON TABLE public.tags TO authenticated;
-GRANT ALL ON TABLE public.weekly_goals TO authenticated;
-GRANT ALL ON TABLE public.social_links TO authenticated;
-GRANT ALL ON TABLE public.payment_orders TO authenticated;
-GRANT ALL ON TABLE public.notification_preferences TO authenticated;
-GRANT ALL ON TABLE public.bug_reports TO authenticated;
-GRANT ALL ON TABLE public.affiliates TO authenticated;
-GRANT ALL ON TABLE public.affiliate_referrals TO authenticated;
-GRANT ALL ON TABLE public.affiliate_withdrawals TO authenticated;
-GRANT ALL ON TABLE public.promo_codes TO authenticated;
-GRANT ALL ON TABLE public.push_subscriptions TO authenticated;
-GRANT ALL ON TABLE public.shared_trades TO authenticated;
+-- authenticated grants
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.profiles TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant profiles→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.users TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant users→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.prop_firm_challenges TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant prop_firm_challenges→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.user_subscriptions TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant user_subscriptions→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.trades TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant trades→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.trading_accounts TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant trading_accounts→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.journal_entries TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant journal_entries→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.watchlist TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant watchlist→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.tags TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant tags→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.weekly_goals TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant weekly_goals→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.social_links TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant social_links→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.payment_orders TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant payment_orders→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.notification_preferences TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant notification_preferences→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.bug_reports TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant bug_reports→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.affiliates TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant affiliates→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.affiliate_referrals TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant affiliate_referrals→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.affiliate_withdrawals TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant affiliate_withdrawals→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.promo_codes TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant promo_codes→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.push_subscriptions TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant push_subscriptions→authenticated: %', SQLERRM;
+END;
+$$;
+DO $$ BEGIN
+  GRANT ALL ON TABLE public.shared_trades TO authenticated;
+EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip grant shared_trades→authenticated: %', SQLERRM;
+END;
+$$;
 
 -- ============================================================================
 -- VERIFICATION: Check all user_id columns are now TEXT
