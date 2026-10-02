@@ -1,37 +1,81 @@
 -- ============================================================================
 -- COMPREHENSIVE FIX: All Type Mismatches, FK Constraints, and RLS Policies
--- Date: 2026-10-01 (V2 - Fixed)
+-- Date: 2026-10-01 (V3 - Final Fix)
 -- 
 -- Run this ONCE in Supabase SQL Editor.
 -- It is IDEMPOTENT — safe to re-run if it partially fails.
 --
--- FIXES APPLIED IN V2:
---   ✅ Drop ALL RLS policies BEFORE altering column types
---      (PostgreSQL blocks ALTER TYPE on columns referenced by policies)
---   ✅ Fixed typo: cc(?)column_name → ccu.column_name
---   ✅ Fixed typo: public.tags8 → public.tags
---   ✅ Fixed typo: THEN1 → THEN
+-- FIXES IN V3:
+--   ✅ Step 0a now drops ALL FKs on user_id/id columns in EVERY table
+--      (V2 only dropped FKs referencing users(id)/profiles(id), but
+--       notification_preferences had a FK to a different table that blocked ALTER)
+--   ✅ Step 0b drops ALL RLS policies BEFORE altering column types
+--   ✅ All typos fixed: ccu.column_name, public.tags, THEN
 --
--- Original Fixes:
--- 1. users.id UUID → TEXT (to match profiles.id)
--- 2. user_subscriptions.user_id UUID → TEXT
--- 3. user_subscriptions.id UUID → TEXT  
--- 4. prop_firm_challenges.user_id UUID → TEXT
--- 5. prop_firm_challenges.id UUID → TEXT
--- 6. All FKs re-pointed to profiles(id) which is TEXT
--- 7. ALL RLS policies fixed: auth.uid()::text = user_id
--- 8. Service role grants for admin API access
+-- Execution Order:
+--   0a. Drop ALL FK constraints on columns we'll alter
+--   0b. Drop ALL RLS policies on tables we'll alter
+--   1.  users.id UUID → TEXT
+--   2.  user_subscriptions.id, user_id UUID → TEXT
+--   3.  prop_firm_challenges.id, user_id UUID → TEXT
+--   4.  Any other table.user_id UUID → TEXT
+--   5.  Re-add all FK constraints (TEXT → TEXT)
+--   6.  Recreate all RLS policies (auth.uid()::text = user_id)
+--   7.  Grants
 -- ============================================================================
 
 -- ============================================================================
--- STEP 0a: Drop ALL foreign key constraints that reference users(id) or 
---           profiles(id) — we'll recreate them after type changes
+-- STEP 0a: Drop ALL foreign key constraints on columns we are going to alter.
+--           We must drop FKs FROM user_id columns (not just those referencing
+--           users/profiles) because ALTER TYPE on user_id is blocked by any
+--           FK that depends on it, regardless of which table it references.
+--           Also drop FKs FROM id columns on users, user_subscriptions, 
+--           prop_firm_challenges since we alter those too.
 -- ============================================================================
 
 DO $$
 DECLARE
   rec RECORD;
 BEGIN
+  -- Drop FKs where the child column is user_id (in any public table)
+  FOR rec IN
+    SELECT 
+      tc.table_name,
+      tc.constraint_name,
+      kcu.column_name
+    FROM information_schema.table_constraints tc
+    JOIN information_schema.key_column_usage kcu
+      ON tc.constraint_name = kcu.constraint_name
+      AND tc.table_schema = kcu.table_schema
+    WHERE tc.constraint_type = 'FOREIGN KEY'
+      AND tc.table_schema = 'public'
+      AND kcu.column_name = 'user_id'
+  LOOP
+    EXECUTE format('ALTER TABLE public.%I DROP CONSTRAINT %I', rec.table_name, rec.constraint_name);
+    RAISE NOTICE 'Dropped FK: % on %.%', rec.constraint_name, rec.table_name, rec.column_name;
+  END LOOP;
+
+  -- Drop FKs where the child column is id on tables we alter the PK of
+  FOR rec IN
+    SELECT 
+      tc.table_name,
+      tc.constraint_name,
+      kcu.column_name
+    FROM information_schema.table_constraints tc
+    JOIN information_schema.key_column_usage kcu
+      ON tc.constraint_name = kcu.constraint_name
+      AND tc.table_schema = kcu.table_schema
+    WHERE tc.constraint_type = 'FOREIGN KEY'
+      AND tc.table_schema = 'public'
+      AND kcu.column_name = 'id'
+      AND tc.table_name IN ('users', 'user_subscriptions', 'prop_firm_challenges')
+  LOOP
+    EXECUTE format('ALTER TABLE public.%I DROP CONSTRAINT %I', rec.table_name, rec.constraint_name);
+    RAISE NOTICE 'Dropped FK: % on %.%', rec.constraint_name, rec.table_name, rec.column_name;
+  END LOOP;
+
+  -- Drop FKs that REFERENCE users(id), user_subscriptions(id), or 
+  -- prop_firm_challenges(id) from OTHER tables (since we change the PK type)
   FOR rec IN
     SELECT 
       tc.table_name,
@@ -47,15 +91,21 @@ BEGIN
     WHERE tc.constraint_type = 'FOREIGN KEY'
       AND tc.table_schema = 'public'
       AND (
-        -- FK references users(id)
         (ccu.table_name = 'users' AND ccu.column_name = 'id')
         OR
-        -- FK references profiles(id)
         (ccu.table_name = 'profiles' AND ccu.column_name = 'id')
+        OR
+        (ccu.table_name = 'user_subscriptions' AND ccu.column_name = 'id')
+        OR
+        (ccu.table_name = 'prop_firm_challenges' AND ccu.column_name = 'id')
       )
   LOOP
-    EXECUTE format('ALTER TABLE public.%I DROP CONSTRAINT %I', rec.table_name, rec.constraint_name);
-    RAISE NOTICE 'Dropped FK: % on %.%', rec.constraint_name, rec.table_name, rec.column_name;
+    BEGIN
+      EXECUTE format('ALTER TABLE public.%I DROP CONSTRAINT %I', rec.table_name, rec.constraint_name);
+      RAISE NOTICE 'Dropped ref FK: % on %.%', rec.constraint_name, rec.table_name, rec.column_name;
+    EXCEPTION WHEN OTHERS THEN
+      RAISE NOTICE 'Could not drop FK % on %: %', rec.constraint_name, rec.table_name, SQLERRM;
+    END;
   END LOOP;
 END;
 $$;
@@ -63,10 +113,9 @@ $$;
 -- ============================================================================
 -- STEP 0b: Drop ALL RLS policies that reference columns we're about to alter
 --           PostgreSQL blocks ALTER TYPE on columns used in policy definitions
---           We'll recreate them after all type changes (in Step 6)
 -- ============================================================================
 
--- Drop policies on users table (references id column)
+-- Drop ALL policies on users table
 DO $$
 DECLARE
   pol RECORD;
@@ -81,7 +130,7 @@ BEGIN
 END;
 $$;
 
--- Drop policies on user_subscriptions table (references id, user_id columns)
+-- Drop ALL policies on user_subscriptions table
 DO $$
 DECLARE
   pol RECORD;
@@ -96,7 +145,7 @@ BEGIN
 END;
 $$;
 
--- Drop policies on prop_firm_challenges table (references id, user_id columns)
+-- Drop ALL policies on prop_firm_challenges table
 DO $$
 DECLARE
   pol RECORD;
@@ -111,8 +160,8 @@ BEGIN
 END;
 $$;
 
--- Drop policies on ALL other tables that have user_id column
--- (These policies reference user_id which we may alter UUID→TEXT)
+-- Drop ALL policies on ANY table that has a user_id column
+-- (these policies likely reference user_id which we may alter UUID→TEXT)
 DO $$
 DECLARE
   pol RECORD;
@@ -125,7 +174,7 @@ BEGIN
       AND c.table_name = p.tablename
       AND c.column_name = 'user_id'
     WHERE p.schemaname = 'public'
-      AND p.tablename NOT IN ('users', 'user_subscriptions', 'prop_firm_challenges') -- already handled above
+      AND p.tablename NOT IN ('users', 'user_subscriptions', 'prop_firm_challenges')
   LOOP
     EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', pol.policyname, pol.tablename);
     RAISE NOTICE 'Dropped policy: % on %', pol.policyname, pol.tablename;
@@ -135,7 +184,6 @@ $$;
 
 -- ============================================================================
 -- STEP 1: Fix users.id type: UUID → TEXT
---         (Safe now — all policies referencing this column are dropped)
 -- ============================================================================
 
 DO $$ BEGIN
@@ -144,16 +192,10 @@ DO $$ BEGIN
     WHERE table_schema = 'public' AND table_name = 'users'
       AND column_name = 'id' AND data_type = 'uuid'
   ) THEN
-    -- Drop PK constraint first
     EXECUTE 'ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_pkey';
     EXECUTE 'ALTER TABLE public.users DROP CONSTRAINT IF EXISTS "User_pkey"';
-    
-    -- Change type
     ALTER TABLE public.users ALTER COLUMN id TYPE TEXT USING id::text;
-    
-    -- Re-add PK
     ALTER TABLE public.users ADD CONSTRAINT users_pkey PRIMARY KEY (id);
-    
     RAISE NOTICE 'users.id: UUID → TEXT (PK re-added)';
   ELSE
     RAISE NOTICE 'users.id already TEXT, skipping';
@@ -174,9 +216,7 @@ DO $$ BEGIN
   ) THEN
     EXECUTE 'ALTER TABLE public.user_subscriptions DROP CONSTRAINT IF EXISTS user_subscriptions_pkey';
     EXECUTE 'ALTER TABLE public.user_subscriptions DROP CONSTRAINT IF EXISTS "UserSubscription_pkey"';
-    
     ALTER TABLE public.user_subscriptions ALTER COLUMN id TYPE TEXT USING id::text;
-    
     ALTER TABLE public.user_subscriptions ADD CONSTRAINT user_subscriptions_pkey PRIMARY KEY (id);
     RAISE NOTICE 'user_subscriptions.id: UUID → TEXT';
   ELSE
@@ -213,9 +253,7 @@ DO $$ BEGIN
   ) THEN
     EXECUTE 'ALTER TABLE public.prop_firm_challenges DROP CONSTRAINT IF EXISTS prop_firm_challenges_pkey';
     EXECUTE 'ALTER TABLE public.prop_firm_challenges DROP CONSTRAINT IF EXISTS "PropFirmChallenge_pkey"';
-    
     ALTER TABLE public.prop_firm_challenges ALTER COLUMN id TYPE TEXT USING id::text;
-    
     ALTER TABLE public.prop_firm_challenges ADD CONSTRAINT prop_firm_challenges_pkey PRIMARY KEY (id);
     RAISE NOTICE 'prop_firm_challenges.id: UUID → TEXT';
   ELSE
@@ -241,7 +279,6 @@ $$;
 
 -- ============================================================================
 -- STEP 4: Fix any other tables with UUID user_id that should be TEXT
--- Check ALL tables for user_id columns that are UUID
 -- ============================================================================
 
 DO $$ DECLARE
@@ -253,7 +290,7 @@ BEGIN
     WHERE table_schema = 'public'
       AND column_name = 'user_id'
       AND data_type = 'uuid'
-      AND table_name NOT IN ('user_subscriptions', 'prop_firm_challenges') -- already handled
+      AND table_name NOT IN ('user_subscriptions', 'prop_firm_challenges')
   LOOP
     EXECUTE format('ALTER TABLE public.%I ALTER COLUMN user_id TYPE TEXT USING user_id::text', rec.table_name);
     RAISE NOTICE '%.user_id: UUID → TEXT', rec.table_name;
@@ -263,7 +300,7 @@ $$;
 
 -- ============================================================================
 -- STEP 5: Re-add ALL foreign key constraints (TEXT → TEXT)
--- All user_id FKs now point to profiles(id) which is TEXT
+--           All user_id FKs now point to profiles(id) which is TEXT
 -- ============================================================================
 
 DO $$ BEGIN
@@ -467,7 +504,6 @@ $$;
 
 -- ============================================================================
 -- STEP 6: Recreate ALL RLS policies — auth.uid()::text = user_id
--- For ALL tables with user_id column
 -- ============================================================================
 
 -- 6a. trades
@@ -675,7 +711,6 @@ GRANT ALL ON TABLE public.promo_codes TO service_role;
 GRANT ALL ON TABLE public.push_subscriptions TO service_role;
 GRANT ALL ON TABLE public.shared_trades TO service_role;
 
--- Ensure authenticated role can read/write too (RLS handles the filtering)
 GRANT ALL ON TABLE public.profiles TO authenticated;
 GRANT ALL ON TABLE public.users TO authenticated;
 GRANT ALL ON TABLE public.prop_firm_challenges TO authenticated;
@@ -726,12 +761,4 @@ $$;
 
 -- ============================================================================
 -- DONE!
--- ============================================================================
--- After running this SQL:
--- 1. Clear CF KV cache (wrangler kv key delete --namespace-id=<id> "news_cache")
--- 2. Push code changes: git push (will trigger CF Pages rebuild)
--- 3. Test: edit prop firm challenge → all fields should save
--- 4. Test: add a trade → should save successfully  
--- 5. Test: watchlist prices → should show real-time values
--- 6. Test: news → should show real articles, not placeholder
 -- ============================================================================
