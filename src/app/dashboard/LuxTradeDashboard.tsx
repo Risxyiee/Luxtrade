@@ -539,6 +539,13 @@ function LuxTradeDashboardContent() {
         try {
           const data = await journalRes.json()
           setJournalEntries(data.entries || [])
+          // If API returned an error field, log it (data exists but Supabase had issues)
+          if (data.error && (!data.entries || data.entries.length === 0)) {
+            console.error('[Dashboard] Journal API returned error:', data.error)
+            if (isRefresh) {
+              toast.error('Gagal memuat journal: ' + (data.error || 'Unknown error'))
+            }
+          }
         } catch { /* keep existing journal */ }
       } else if (isRefresh) {
         failedRefreshParts.push('journal')

@@ -46,10 +46,30 @@ export async function GET(request: NextRequest) {
       .eq('user_id', user.id)
 
     // Enforce trading_account_id filtering via linked trades if provided
-    // This prevents data mixing between accounts
+    // We need to first get trade IDs for the account, then filter journals by linked_journal_id
     if (tradingAccountId) {
-      // Filter journal entries that have linked trades from the specified account
-      query = query.or(`linked_trades.account_id.eq.${tradingAccountId}`)
+      // Step 1: Get all trade IDs for this account that have a linked_journal_id
+      const { data: accountTrades, error: tradesError } = await client
+        .from('trades')
+        .select('linked_journal_id')
+        .eq('account_id', tradingAccountId)
+        .not('linked_journal_id', 'is', null)
+
+      if (tradesError) {
+        console.warn('[journal GET] Error fetching trades for account filter:', tradesError)
+        // Don't block journal loading if trade filter fails — just skip the filter
+      } else if (accountTrades && accountTrades.length > 0) {
+        const journalIds = accountTrades.map((t: any) => t.linked_journal_id).filter(Boolean)
+        if (journalIds.length > 0) {
+          query = query.in('id', journalIds)
+        } else {
+          // No linked journals for this account — return empty
+          return NextResponse.json({ entries: [], analytics: null })
+        }
+      } else {
+        // No trades for this account — return empty
+        return NextResponse.json({ entries: [], analytics: null })
+      }
     }
 
     const { data, error: supabaseError } = await query
@@ -57,9 +77,14 @@ export async function GET(request: NextRequest) {
       .limit(limit)
 
     if (supabaseError) {
-      // Table doesn't exist or RLS issue — return empty instead of 500
-      console.warn('[journal GET] Supabase error:', supabaseError)
-      return NextResponse.json({ entries: [] })
+      console.error('[journal GET] Supabase error:', supabaseError.message, 'Code:', supabaseError.code)
+      // Return error info so frontend can distinguish between "no data" and "error"
+      // Still return 200 with empty entries to not break the UI, but include error info
+      return NextResponse.json({
+        entries: [],
+        error: supabaseError.message,
+        errorCode: supabaseError.code,
+      })
     }
 
     const entries = data || []
@@ -70,9 +95,13 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ entries, analytics })
-  } catch (error) {
-    console.error('[journal GET] Unexpected error:', error)
-    return NextResponse.json({ entries: [] })
+  } catch (error: any) {
+    console.error('[journal GET] Unexpected error:', error?.message || error)
+    // Return error info so frontend can show a message instead of just empty state
+    return NextResponse.json({
+      entries: [],
+      error: error?.message || 'Unexpected error fetching journal entries',
+    })
   }
 }
 
