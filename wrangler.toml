@@ -54,6 +54,8 @@ queue = "luxtradee"
 NEXT_PUBLIC_SUPABASE_URL = "https://klxkdrfsfcoankbaoejn.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtseGtkcmZzZmNvYW5rYmFvZWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzY0MTAsImV4cCI6MjA4NTk1MjQxMH0.4Yv9JesMXWEy4phu2D-Yw9rkbq0l8z9kz-sRwFZerQ0"
 NEXT_PUBLIC_SITE_URL = "https://luxtradee.web.id"
+NEXT_PUBLIC_VAPID_PUBLIC_KEY = "BNTL6FFlfUygscRgM-1grOaHx57xsGDB2Vad_rZ1oOdeW6rLtrCLqr8AOcZf5Cp0gC5cobm8NvfvCpIV5QUHCYI"
+VAPID_SUBJECT = "mailto:support@luxtradee.web.id"
 MIDTRANS_IS_PRODUCTION = "true"
 # RapidAPI key for Economic Calendar & Market News
 # Set the actual keys via: wrangler secret put FINNHUB_API_KEY
