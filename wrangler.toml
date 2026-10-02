@@ -49,26 +49,70 @@ queue = "luxtradee"
 # binding = "VECTORIZE_INDEX"
 # index_name = "luxtradee-journals"
 
-# secret environment variables
+# ══════════════════════════════════════════════════════════════════════════════
+# Environment Variables
+# ══════════════════════════════════════════════════════════════════════════════
+# NEXT_PUBLIC_* vars are client-safe and go in [vars] below.
+# Server-side secrets MUST be set via `wrangler secret put <NAME>`.
+#   NEVER put empty strings for secrets in [vars] — that overrides the
+#   secret with an empty value, making it inaccessible.
+# ══════════════════════════════════════════════════════════════════════════════
+
 [vars]
-NEXT_PUBLIC_SUPABASE_URL = "https://klxkdrfsfcoankbaoejn.supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtseGtkcmZzZmNvYW5rYmFvZWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzY0MTAsImV4cCI6MjA4NTk1MjQxMH0.4Yv9JesMXWEy4phu2D-Yw9rkbq0l8z9kz-sRwFZerQ0"
-NEXT_PUBLIC_SITE_URL = "https://luxtradee.web.id"
-NEXT_PUBLIC_VAPID_PUBLIC_KEY = "BNTL6FFlfUygscRgM-1grOaHx57xsGDB2Vad_rZ1oOdeW6rLtrCLqr8AOcZf5Cp0gC5cobm8NvfvCpIV5QUHCYI"
-VAPID_SUBJECT = "mailto:support@luxtradee.web.id"
-MIDTRANS_IS_PRODUCTION = "true"
-# RapidAPI key for Economic Calendar & Market News
-# Set the actual keys via: wrangler secret put FINNHUB_API_KEY
-#   wrangler secret put RAPIDAPI_KEY
-#   wrangler secret put ALPHAVANTAGE_API_KEY
-# NOTE: Do NOT set empty strings for secrets in [vars] — that overrides the
-# secret set via `wrangler secret put` with an empty value, making the key
-# inaccessible. Remove these lines entirely and only use `wrangler secret put`.
-# FINNHUB_API_KEY = ""
-# ALPHAVANTAGE_API_KEY = ""
-# FCSAPI_KEY = ""
-# RAPIDAPI_KEY = ""
-# RAPIDAPI_TRADING_ECONOMICS_KEY = ""
+# ─── Supabase (client-side, anon key — public, read-only) ─────────────────────
+NEXT_PUBLIC_SUPABASE_URL       = "https://klxkdrfsfcoankbaoejn.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtseGtkcmZzZmNvYW5rYmFvZWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzY0MTAsImV4cCI6MjA4NTk1MjQxMH0.4Yv9JesMXWEy4phu2D-Yw9rkbq0l8z9kz-sRwFZerQ0"
+
+# ─── App URLs ─────────────────────────────────────────────────────────────────
+NEXT_PUBLIC_SITE_URL           = "https://luxtradee.web.id"
+NEXT_PUBLIC_APP_URL            = "https://luxtradee.web.id"
+NEXT_PUBLIC_BASE_URL           = "https://luxtradee.web.id"
+
+# ─── Push Notification VAPID Keys (client-side public key, safe to expose) ────
+NEXT_PUBLIC_VAPID_PUBLIC_KEY   = "BNTL6FFlfUygscRgM-1grOaHx57xsGDB2Vad_rZ1oOdeW6rLtrCLqr8AOcZf5Cp0gC5cobm8NvfvCpIV5QUHCYI"
+VAPID_SUBJECT                  = "mailto:support@luxtradee.web.id"
+
+# ─── Payment URLs (Skrill — public checkout pages) ────────────────────────────
+NEXT_PUBLIC_SKRILL_PRO_URL     = "https://www.skrill.com/en/"
+NEXT_PUBLIC_SKRILL_LIFETIME_URL = "https://www.skrill.com/en/"
+
+# ─── Midtrans (flag only — server key is a Cloudflare secret) ─────────────────
+MIDTRANS_IS_PRODUCTION         = "true"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Server-Side Secrets — set via: wrangler secret put <NAME>
+# Do NOT add empty strings for these in [vars] — it overrides the secret!
+# ══════════════════════════════════════════════════════════════════════════════
+# wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+# wrangler secret put VAPID_PRIVATE_KEY
+# wrangler secret put RESEND_API_KEY
+# wrangler secret put RESEND_TEMPLATE_CONFIRM
+# wrangler secret put RESEND_TEMPLATE_RESET
+# wrangler secret put MIDTRANS_SERVER_KEY
+# wrangler secret put MIDTRANS_CLIENT_KEY
+# wrangler secret put CRON_SECRET
+# wrangler secret put WEBHOOK_SECRET
+# wrangler secret put METAAPI_TOKEN
+# wrangler secret put OPENAI_API_KEY
+# wrangler secret put GEMINI_API_KEY
+# wrangler secret put GOOGLE_GEMINI_API_KEY
+# wrangler secret put OPENROUTER_API_KEY
+# wrangler secret put HUGGING_FACE_API_TOKEN
+# wrangler secret put TWELVE_DATA_API_KEY
+# wrangler secret put FINNHUB_API_KEY
+# wrangler secret put RAPIDAPI_KEY
+# wrangler secret put RAPIDAPI_TRADING_ECONOMICS_KEY
+# wrangler secret put ALPHA_VANTAGE_API_KEY
+# wrangler secret put FCSAPI_KEY
+# wrangler secret put ADMIN_BOT_TOKEN
+# wrangler secret put ADMIN_CHAT_ID
+# wrangler secret put MIGRATION_TOKEN
+# wrangler secret put SKRILL_PAYMENT_URL
+# wrangler secret put ZAI_BASE_URL
+# wrangler secret put ZAI_API_KEY
+# wrangler secret put ZAI_CHAT_ID
+# wrangler secret put ZAI_USER_ID
+# wrangler secret put ZAI_TOKEN
 
 # Observability
 [observability]
