@@ -1,11 +1,18 @@
 -- ============================================================================
 -- COMPREHENSIVE FIX: All Type Mismatches, FK Constraints, and RLS Policies
--- Date: 2026-10-01 (Final)
+-- Date: 2026-10-01 (V2 - Fixed)
 -- 
 -- Run this ONCE in Supabase SQL Editor.
 -- It is IDEMPOTENT — safe to re-run if it partially fails.
 --
--- Fixes:
+-- FIXES APPLIED IN V2:
+--   ✅ Drop ALL RLS policies BEFORE altering column types
+--      (PostgreSQL blocks ALTER TYPE on columns referenced by policies)
+--   ✅ Fixed typo: cc(?)column_name → ccu.column_name
+--   ✅ Fixed typo: public.tags8 → public.tags
+--   ✅ Fixed typo: THEN1 → THEN
+--
+-- Original Fixes:
 -- 1. users.id UUID → TEXT (to match profiles.id)
 -- 2. user_subscriptions.user_id UUID → TEXT
 -- 3. user_subscriptions.id UUID → TEXT  
@@ -17,8 +24,8 @@
 -- ============================================================================
 
 -- ============================================================================
--- STEP 0: Drop ALL foreign key constraints that reference users(id) or 
---         profiles(id) — we'll recreate them after type changes
+-- STEP 0a: Drop ALL foreign key constraints that reference users(id) or 
+--           profiles(id) — we'll recreate them after type changes
 -- ============================================================================
 
 DO $$
@@ -54,11 +61,84 @@ END;
 $$;
 
 -- ============================================================================
--- STEP 1: Fix users.id type: UUID → TEXT
+-- STEP 0b: Drop ALL RLS policies that reference columns we're about to alter
+--           PostgreSQL blocks ALTER TYPE on columns used in policy definitions
+--           We'll recreate them after all type changes (in Step 6)
 -- ============================================================================
 
+-- Drop policies on users table (references id column)
 DO $$
+DECLARE
+  pol RECORD;
 BEGIN
+  FOR pol IN
+    SELECT policyname FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'users'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.users', pol.policyname);
+    RAISE NOTICE 'Dropped policy: % on users', pol.policyname;
+  END LOOP;
+END;
+$$;
+
+-- Drop policies on user_subscriptions table (references id, user_id columns)
+DO $$
+DECLARE
+  pol RECORD;
+BEGIN
+  FOR pol IN
+    SELECT policyname FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'user_subscriptions'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.user_subscriptions', pol.policyname);
+    RAISE NOTICE 'Dropped policy: % on user_subscriptions', pol.policyname;
+  END LOOP;
+END;
+$$;
+
+-- Drop policies on prop_firm_challenges table (references id, user_id columns)
+DO $$
+DECLARE
+  pol RECORD;
+BEGIN
+  FOR pol IN
+    SELECT policyname FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'prop_firm_challenges'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.prop_firm_challenges', pol.policyname);
+    RAISE NOTICE 'Dropped policy: % on prop_firm_challenges', pol.policyname;
+  END LOOP;
+END;
+$$;
+
+-- Drop policies on ALL other tables that have user_id column
+-- (These policies reference user_id which we may alter UUID→TEXT)
+DO $$
+DECLARE
+  pol RECORD;
+BEGIN
+  FOR pol IN
+    SELECT DISTINCT p.tablename, p.policyname
+    FROM pg_policies p
+    JOIN information_schema.columns c
+      ON c.table_schema = 'public'
+      AND c.table_name = p.tablename
+      AND c.column_name = 'user_id'
+    WHERE p.schemaname = 'public'
+      AND p.tablename NOT IN ('users', 'user_subscriptions', 'prop_firm_challenges') -- already handled above
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', pol.policyname, pol.tablename);
+    RAISE NOTICE 'Dropped policy: % on %', pol.policyname, pol.tablename;
+  END LOOP;
+END;
+$$;
+
+-- ============================================================================
+-- STEP 1: Fix users.id type: UUID → TEXT
+--         (Safe now — all policies referencing this column are dropped)
+-- ============================================================================
+
+DO $$ BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = 'users'
@@ -86,8 +166,7 @@ $$;
 -- ============================================================================
 
 -- 2a. user_subscriptions.id UUID → TEXT
-DO $$
-BEGIN
+DO $$ BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = 'user_subscriptions'
@@ -107,8 +186,7 @@ END;
 $$;
 
 -- 2b. user_subscriptions.user_id UUID → TEXT
-DO $$
-BEGIN
+DO $$ BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = 'user_subscriptions'
@@ -127,8 +205,7 @@ $$;
 -- ============================================================================
 
 -- 3a. prop_firm_challenges.id UUID → TEXT
-DO $$
-BEGIN
+DO $$ BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = 'prop_firm_challenges'
@@ -148,8 +225,7 @@ END;
 $$;
 
 -- 3b. prop_firm_challenges.user_id UUID → TEXT
-DO $$
-BEGIN
+DO $$ BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = 'prop_firm_challenges'
@@ -168,8 +244,7 @@ $$;
 -- Check ALL tables for user_id columns that are UUID
 -- ============================================================================
 
-DO $$
-DECLARE
+DO $$ DECLARE
   rec RECORD;
 BEGIN
   FOR rec IN
@@ -191,9 +266,7 @@ $$;
 -- All user_id FKs now point to profiles(id) which is TEXT
 -- ============================================================================
 
--- Helper function to safely add FK
-DO $$
-BEGIN
+DO $$ BEGIN
   -- trades.user_id → profiles(id)
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.table_constraints tc
@@ -393,7 +466,7 @@ END;
 $$;
 
 -- ============================================================================
--- STEP 6: Fix ALL RLS policies — auth.uid()::text = user_id
+-- STEP 6: Recreate ALL RLS policies — auth.uid()::text = user_id
 -- For ALL tables with user_id column
 -- ============================================================================
 
@@ -628,8 +701,7 @@ GRANT ALL ON TABLE public.shared_trades TO authenticated;
 -- VERIFICATION: Check all user_id columns are now TEXT
 -- ============================================================================
 
-DO $$
-DECLARE
+DO $$ DECLARE
   rec RECORD;
   uuid_count integer := 0;
 BEGIN
@@ -645,9 +717,9 @@ BEGIN
   END LOOP;
   
   IF uuid_count = 0 THEN
-    RAISE NOTICE '✅ All user_id columns are now TEXT — type mismatch fixed!';
+    RAISE NOTICE 'All user_id columns are now TEXT — type mismatch fixed!';
   ELSE
-    RAISE WARNING '⚠️ % user_id columns still UUID — manual fix needed', uuid_count;
+    RAISE WARNING '% user_id columns still UUID — manual fix needed', uuid_count;
   END IF;
 END;
 $$;
