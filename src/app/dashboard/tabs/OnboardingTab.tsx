@@ -12,9 +12,10 @@ import {
   Activity, Eye, Target, Flame, Trophy,
   Camera, Upload, Settings, Zap, Rocket,
   ArrowRight, ExternalLink, PartyPopper,
-  Lightbulb, Shield, TrendingUp
+  Lightbulb, Shield, TrendingUp, Loader2
 } from 'lucide-react'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { toast } from 'sonner'
 
 interface OnboardingStep {
   id: string
@@ -211,49 +212,96 @@ interface OnboardingTabProps {
   language?: 'id' | 'en'
   setActiveTab?: (tab: string) => void
   setAddTradeOpen?: (open: boolean) => void
+  userId?: string
 }
 
-export default function OnboardingTab({ language: langProp, setActiveTab, setAddTradeOpen }: OnboardingTabProps) {
+export default function OnboardingTab({ language: langProp, setActiveTab, setAddTradeOpen, userId }: OnboardingTabProps) {
   const { t, language: ctxLang } = useLanguage()
   const language = langProp || ctxLang
 
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set())
   const [activeStepId, setActiveStepId] = useState<string | null>(null)
   const [celebrationStep, setCelebrationStep] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [loaded, setLoaded] = useState(false)
 
-  // Load progress from localStorage
+  // Load progress from API first, then fall back to localStorage
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('luxtrade-onboarding-progress')
-      if (saved) {
-        const parsed = JSON.parse(saved) as string[]
-        setCompletedSteps(new Set(parsed))
+    const loadProgress = async () => {
+      // Try API first (server-side persistence)
+      try {
+        const res = await fetch('/api/onboarding/progress', { credentials: 'include' })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.steps && Array.isArray(data.steps) && data.steps.length > 0) {
+            setCompletedSteps(new Set(data.steps))
+            // Also cache to localStorage for offline use
+            localStorage.setItem('luxtrade-onboarding-progress', JSON.stringify(data.steps))
+            setLoaded(true)
+            return
+          }
+        }
+      } catch (err) {
+        console.warn('[OnboardingTab] Failed to load from API, falling back to localStorage:', err)
       }
-    } catch {}
+
+      // Fallback to localStorage
+      try {
+        const saved = localStorage.getItem('luxtrade-onboarding-progress')
+        if (saved) {
+          const parsed = JSON.parse(saved) as string[]
+          setCompletedSteps(new Set(parsed))
+        }
+      } catch {}
+      setLoaded(true)
+    }
+    loadProgress()
   }, [])
 
-  // Save progress
-  const saveProgress = useCallback((steps: Set<string>) => {
+  // Save progress to both localStorage and API
+  const saveProgress = useCallback(async (steps: Set<string>) => {
+    // Always save to localStorage immediately
     try {
       localStorage.setItem('luxtrade-onboarding-progress', JSON.stringify([...steps]))
     } catch {}
+
+    // Also persist to API (non-blocking)
+    try {
+      setSyncing(true)
+      const res = await fetch('/api/onboarding/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ steps: [...steps] }),
+      })
+      if (!res.ok) {
+        console.warn('[OnboardingTab] Failed to sync progress to server:', res.status)
+      }
+    } catch (err) {
+      console.warn('[OnboardingTab] Failed to sync progress to server:', err)
+    } finally {
+      setSyncing(false)
+    }
   }, [])
 
   const toggleStep = useCallback((stepId: string) => {
     setCompletedSteps(prev => {
       const next = new Set(prev)
-      if (next.has(stepId)) {
+      const wasCompleted = next.has(stepId)
+      if (wasCompleted) {
         next.delete(stepId)
       } else {
         next.add(stepId)
         // Celebration animation
         setCelebrationStep(stepId)
         setTimeout(() => setCelebrationStep(null), 1500)
+        // Show toast for completion
+        toast.success(isId ? 'Step diselesaikan! 🎉' : 'Step completed! 🎉')
       }
       saveProgress(next)
       return next
     })
-  }, [saveProgress])
+  }, [saveProgress, language])
 
   const handleAction = useCallback((step: OnboardingStep) => {
     if (step.action === 'add-trade') {
@@ -576,8 +624,8 @@ export default function OnboardingTab({ language: langProp, setActiveTab, setAdd
       <div className="flex items-center justify-between pt-2">
         <p className="text-xs text-gray-500 dark:text-gray-400">
           {isId
-            ? 'Progress disimpan otomatis di browser'
-            : 'Progress saved automatically in browser'}
+            ? (syncing ? 'Menyimpan ke server...' : 'Progress disimpan otomatis')
+            : (syncing ? 'Syncing to server...' : 'Progress saved automatically')}
         </p>
         {completedCount > 0 && (
           <Button

@@ -390,7 +390,7 @@ EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip FK notification_preferences: %', S
 END; $func$;
 
 DO $func$ BEGIN
-  ALTER TABLE public.user_submission ADD CONSTRAINT fk_user_submissions_user_id
+  ALTER TABLE public.user_submissions ADD CONSTRAINT fk_user_submissions_user_id
     FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
   RAISE NOTICE 'Added FK: user_submissions.user_id → profiles(id)';
 EXCEPTION WHEN OTHERS THEN RAISE NOTICE 'Skip FK user_submissions: %', SQLERRM;

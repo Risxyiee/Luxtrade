@@ -49,6 +49,7 @@ function TradeForm({
       case 'symbol':
         if (!value.trim()) return 'Symbol is required'
         if (value.length < 2) return 'Symbol must be at least 2 characters'
+        if (value.length > 12) return 'Symbol must be at most 12 characters'
         return ''
       case 'open_price':
         if (!value) return 'Open price is required'
@@ -273,6 +274,7 @@ function TradeForm({
             <Input
               id="symbol"
               placeholder="EURUSD"
+              maxLength={12}
               className={`bg-lux-input-bg dark:bg-[#060810] border-lux-input-border dark:border-blue-900/30 mt-1 transition-colors ${
                 getFieldStatus('symbol') === 'invalid' ? 'border-red-500/50 focus:border-red-500' :
                 getFieldStatus('symbol') === 'valid' ? 'border-emerald-500/50 focus:border-emerald-500' : ''

@@ -130,10 +130,15 @@ const quickPairs = [
   { symbol: 'EURUSD', label: 'EUR/USD', type: 'major' },
   { symbol: 'GBPUSD', label: 'GBP/USD', type: 'major' },
   { symbol: 'USDJPY', label: 'USD/JPY', type: 'major' },
+  { symbol: 'GBPJPY', label: 'GBP/JPY', type: 'major' },
+  { symbol: 'EURJPY', label: 'EUR/JPY', type: 'major' },
+  { symbol: 'AUDUSD', label: 'AUD/USD', type: 'major' },
   { symbol: 'XAUUSD', label: 'GOLD', type: 'gold' },
   { symbol: 'XAGUSD', label: 'SILVER', type: 'gold' },
   { symbol: 'BTCUSD', label: 'BTC', type: 'crypto' },
+  { symbol: 'BTCUSDT', label: 'BTC/USDT', type: 'crypto' },
   { symbol: 'ETHUSD', label: 'ETH', type: 'crypto' },
+  { symbol: 'ETHUSDT', label: 'ETH/USDT', type: 'crypto' },
   { symbol: 'US30', label: 'US30', type: 'indices' },
   { symbol: 'NAS100', label: 'NAS100', type: 'indices' },
 ]
@@ -559,6 +564,8 @@ export default function TradeWizardForm({
           stepErrors.symbol = L ? 'Symbol wajib diisi' : 'Symbol is required'
         } else if (trimmedSymbol.length < 2) {
           stepErrors.symbol = L ? 'Symbol minimal 2 karakter (contoh: EU, XAU, EURUSD)' : 'Symbol must be at least 2 characters (e.g. EU, XAU, EURUSD)'
+        } else if (trimmedSymbol.length > 12) {
+          stepErrors.symbol = L ? 'Symbol maksimal 12 karakter' : 'Symbol must be at most 12 characters'
         }
         if (!formData.type || !['BUY', 'SELL'].includes(formData.type)) {
           stepErrors.type = L ? 'Pilih tipe trade' : 'Please select a trade type'
@@ -817,6 +824,7 @@ export default function TradeWizardForm({
                 <Label className="text-lux-text-primary dark:text-white font-semibold">{L ? 'Pair Trading *' : 'Trading Pair *'}</Label>
                 <Input
                   placeholder="EURUSD"
+                  maxLength={12}
                   className={`bg-lux-input-bg dark:bg-[#070a10] border-lux-input-border dark:border-blue-900/30 mt-2 text-white uppercase ${errors.symbol ? 'border-red-500' : ''}`}
                   value={formData.symbol}
                   onChange={(e) => {

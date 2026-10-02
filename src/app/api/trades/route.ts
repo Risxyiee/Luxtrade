@@ -245,11 +245,20 @@ export async function POST(request: NextRequest) {
       return isNaN(n) ? fallback : n
     }
 
+    // Validate symbol length (allow 2-12 chars for forex, crypto, indices pairs)
+    const symbolStr = String(body.symbol).toUpperCase().trim()
+    if (symbolStr.length < 2 || symbolStr.length > 12) {
+      return NextResponse.json(
+        { error: `Symbol must be 2-12 characters. Got: "${symbolStr}" (${symbolStr.length} chars)` },
+        { status: 400 }
+      )
+    }
+
     const tradeData = {
       id: edgeCrypto.randomUUID(),
       user_id: userId,
       account_id: body.account_id ? String(body.account_id) : null,
-      symbol: String(body.symbol).toUpperCase(),
+      symbol: symbolStr,
       type: String(body.type),
       open_price: safeFloat(body.open_price),
       close_price: safeFloat(body.close_price),
@@ -390,7 +399,16 @@ export async function PUT(request: NextRequest) {
     if (updates.open_time !== undefined) updateData.open_time = new Date(String(updates.open_time)).toISOString()
     if (updates.close_time !== undefined) updateData.close_time = new Date(String(updates.close_time)).toISOString()
     // Copy string fields as-is
-    if (updates.symbol !== undefined) updateData.symbol = String(updates.symbol).toUpperCase()
+    if (updates.symbol !== undefined) {
+      const trimmed = String(updates.symbol).toUpperCase().trim()
+      if (trimmed.length < 2 || trimmed.length > 12) {
+        return NextResponse.json(
+          { error: `Symbol must be 2-12 characters. Got: "${trimmed}" (${trimmed.length} chars)` },
+          { status: 400 }
+        )
+      }
+      updateData.symbol = trimmed
+    }
     if (updates.type !== undefined) updateData.type = String(updates.type)
     if (updates.session !== undefined) updateData.session = updates.session ? String(updates.session) : null
     if (updates.notes !== undefined) updateData.notes = updates.notes ? String(updates.notes) : null

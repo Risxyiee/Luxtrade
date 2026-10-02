@@ -214,3 +214,54 @@ DO $$ BEGIN
 EXCEPTION WHEN OTHERS THEN
   RAISE NOTICE 'Error fixing payment_orders RLS: %', SQLERRM;
 END $$;
+
+-- ===== 9. user_submissions (TEXT user_id) =====
+DO $$ BEGIN
+  EXECUTE 'DROP POLICY IF EXISTS "Users can view own submissions" ON public.user_submissions';
+  EXECUTE 'DROP POLICY IF EXISTS "Users can insert own submissions" ON public.user_submissions';
+  EXECUTE 'DROP POLICY IF EXISTS "Users can update own submissions" ON public.user_submissions';
+  EXECUTE 'DROP POLICY IF EXISTS "Users can delete own submissions" ON public.user_submissions';
+
+  EXECUTE 'CREATE POLICY "Users can view own submissions" ON public.user_submissions FOR SELECT TO authenticated USING (auth.uid()::text = user_id)';
+  EXECUTE 'CREATE POLICY "Users can insert own submissions" ON public.user_submissions FOR INSERT TO authenticated WITH CHECK (auth.uid()::text = user_id)';
+  EXECUTE 'CREATE POLICY "Users can update own submissions" ON public.user_submissions FOR UPDATE TO authenticated USING (auth.uid()::text = user_id)';
+  EXECUTE 'CREATE POLICY "Users can delete own submissions" ON public.user_submissions FOR DELETE TO authenticated USING (auth.uid()::text = user_id)';
+
+  RAISE NOTICE 'Fixed RLS policies for user_submissions';
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Error fixing user_submissions RLS: %', SQLERRM;
+END $$;
+
+-- ===== 10. mission_progress (TEXT user_id) =====
+DO $$ BEGIN
+  EXECUTE 'DROP POLICY IF EXISTS "Users can view own mission progress" ON public.mission_progress';
+  EXECUTE 'DROP POLICY IF EXISTS "Users can insert own mission progress" ON public.mission_progress';
+  EXECUTE 'DROP POLICY IF EXISTS "Users can update own mission progress" ON public.mission_progress';
+  EXECUTE 'DROP POLICY IF EXISTS "Users can delete own mission progress" ON public.mission_progress';
+
+  EXECUTE 'CREATE POLICY "Users can view own mission progress" ON public.mission_progress FOR SELECT TO authenticated USING (auth.uid()::text = user_id)';
+  EXECUTE 'CREATE POLICY "Users can insert own mission progress" ON public.mission_progress FOR INSERT TO authenticated WITH CHECK (auth.uid()::text = user_id)';
+  EXECUTE 'CREATE POLICY "Users can update own mission progress" ON public.mission_progress FOR UPDATE TO authenticated USING (auth.uid()::text = user_id)';
+  EXECUTE 'CREATE POLICY "Users can delete own mission progress" ON public.mission_progress FOR DELETE TO authenticated USING (auth.uid()::text = user_id)';
+
+  RAISE NOTICE 'Fixed RLS policies for mission_progress';
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Error fixing mission_progress RLS: %', SQLERRM;
+END $$;
+
+-- ===== 11. bug_reports (TEXT user_id) =====
+DO $$ BEGIN
+  EXECUTE 'DROP POLICY IF EXISTS "Users can view own bug reports" ON public.bug_reports';
+  EXECUTE 'DROP POLICY IF EXISTS "Users can insert own bug reports" ON public.bug_reports';
+  EXECUTE 'DROP POLICY IF EXISTS "Users can update own bug reports" ON public.bug_reports';
+  EXECUTE 'DROP POLICY IF EXISTS "Users can delete own bug reports" ON public.bug_reports';
+
+  EXECUTE 'CREATE POLICY "Users can view own bug reports" ON public.bug_reports FOR SELECT TO authenticated USING (auth.uid()::text = user_id)';
+  EXECUTE 'CREATE POLICY "Users can insert own bug reports" ON public.bug_reports FOR INSERT TO authenticated WITH CHECK (auth.uid()::text = user_id)';
+  EXECUTE 'CREATE POLICY "Users can update own bug reports" ON public.bug_reports FOR UPDATE TO authenticated USING (auth.uid()::text = user_id)';
+  EXECUTE 'CREATE POLICY "Users can delete own bug reports" ON public.bug_reports FOR DELETE TO authenticated USING (auth.uid()::text = user_id)';
+
+  RAISE NOTICE 'Fixed RLS policies for bug_reports';
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Error fixing bug_reports RLS: %', SQLERRM;
+END $$;

@@ -169,6 +169,14 @@ export async function POST(request: NextRequest) {
 
     if (subError) {
       console.error('[missions/claim] Error creating submission:', subError)
+      // Check for RLS / type mismatch issues
+      if (subError.code === '42501' || subError.message?.includes('row-level security') || subError.message?.includes('permission denied')) {
+        console.error('[missions/claim] RLS violation — auth.uid()::text cast may be missing for user_submissions. Run the 20261001 migration.')
+        return NextResponse.json(
+          { error: 'Permission denied: RLS policy blocked the insert. Ensure auth.uid()::text = user_id cast is in place.', details: subError.message },
+          { status: 403 }
+        )
+      }
       return NextResponse.json(
         { error: 'Failed to create submission', details: subError.message },
         { status: 500 }
@@ -218,10 +226,13 @@ export async function POST(request: NextRequest) {
 
       if (progressError) {
         console.error('[missions/claim] Error updating mission progress:', progressError)
+        if (progressError.code === '42501' || progressError.message?.includes('row-level security')) {
+          console.error('[missions/claim] RLS violation on mission_progress update — auth.uid()::text cast may be missing. Run the 20261001 migration.')
+        }
       }
     } else {
       const { error: insertProgressError } = await admin.from('mission_progress').insert({
-        user_id: userId,
+        user_id: String(userId),
         mission_key: missionId,
         progress: 1,
         target: 1,
@@ -231,6 +242,9 @@ export async function POST(request: NextRequest) {
 
       if (insertProgressError) {
         console.error('[missions/claim] Error inserting mission progress:', insertProgressError)
+        if (insertProgressError.code === '42501' || insertProgressError.message?.includes('row-level security')) {
+          console.error('[missions/claim] RLS violation on mission_progress insert — auth.uid()::text cast may be missing. Run the 20261001 migration.')
+        }
       }
     }
 

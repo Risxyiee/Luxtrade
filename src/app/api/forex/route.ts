@@ -435,8 +435,11 @@ export async function GET(request: NextRequest) {
 
     const errors: string[] = []
 
+    // Resolve API keys early (before any source calls)
+    const tdKey = await getTwelveDataKey()
+    const avKey = await getAlphaVantageKey()
     // Log API key status for debugging
-    console.log(`[Forex] API keys: TwelveData=${tdKey ? 'YES(' + tdKey.substring(0, 6) + '...)' : 'NOT SET'}, AlphaVantage=${(await getAlphaVantageKey()) ? 'YES' : 'NOT SET'}`)
+    console.log(`[Forex] API keys: TwelveData=${tdKey ? 'YES(' + tdKey.substring(0, 6) + '...)' : 'NOT SET'}, AlphaVantage=${avKey ? 'YES' : 'NOT SET'}`)
 
     // For price checks (limit=1), try real-time /price endpoint first
     // This avoids the stale-candle issue where /time_series returns
@@ -459,7 +462,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Try Twelve Data time_series (best: intraday + free)
-    const tdKey = await getTwelveDataKey()
     console.log(`[Forex] Symbol=${validSymbol} Interval=${interval} Limit=${limit} Nocache=${nocache} TwelveData=${tdKey ? 'key:' + tdKey.substring(0, 6) + '...' : 'NOT SET'}`)
     const tdData = await fetchTwelveData(validSymbol, interval, limit)
     if (tdData && tdData.length > 0) {
@@ -482,7 +484,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Try Alpha Vantage (daily only)
-    const avKey = await getAlphaVantageKey()
     if (avKey) console.log(`[Forex] TwelveData failed, trying AlphaVantage (key: ${avKey.substring(0, 6)}...)`)
     const avData = await fetchAlphaVantage(validSymbol, limit)
     if (avData && avData.length > 0) {
