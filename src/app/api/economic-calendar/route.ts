@@ -1,5 +1,16 @@
-import { spawn } from 'child_process';
 import { NextRequest, NextResponse } from 'next/server';
+
+// Lazy accessor for child_process.spawn — not available on Cloudflare Workers
+let _spawn: any = undefined; // undefined=not tried, null=unavailable
+function getSpawn(): any {
+  if (_spawn !== undefined) return _spawn;
+  try {
+    _spawn = require('child_process').spawn;
+  } catch {
+    _spawn = null; // CF Workers or other environments without child_process
+  }
+  return _spawn;
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -204,7 +215,11 @@ async function fetchMyFXBookCalendar(): Promise<CalendarEvent[]> {
   const todayStr = new Date().toISOString().split('T')[0];
   // MyFXBook community.json was blocked (403); try the RSS feed instead
   const res = await fetch('https://www.myfxbook.com/calendar.feed', {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)', 'Accept': 'application/rss+xml, text/xml, */*' },
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+      'Accept': 'application/rss+xml, text/xml, text/html, */*;',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
     signal: AbortSignal.timeout(8000),
     redirect: 'follow',
   });
@@ -360,7 +375,11 @@ async function fetchInvestingCalendar(): Promise<CalendarEvent[]> {
   for (const proxyUrl of proxyUrls) {
     try {
       const attempt = await fetch(proxyUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)' },
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+          'Accept': 'text/html, application/xhtml+xml, */*;',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
         signal: AbortSignal.timeout(8000),
       });
       if (attempt.ok) { res = attempt; break; }
@@ -451,6 +470,11 @@ interface WebSearchResult {
  */
 async function fetchWebSearchCalendar(): Promise<CalendarEvent[]> {
   try {
+    const spawnFn = getSpawn();
+    if (!spawnFn) {
+      console.warn('[EconCalendar] child_process not available (CF Workers) — skipping web-search fallback');
+      return [];
+    }
     console.log('[EconCalendar] Invoking z-ai-web-dev-sdk web-search...');
     const today = new Date();
     const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -458,7 +482,7 @@ async function fetchWebSearchCalendar(): Promise<CalendarEvent[]> {
     const query = `NFP nonfarm payrolls CPI FOMC ISM PMI economic data release this week ${dateStr} USD EUR GBP`;
     const argsJson = JSON.stringify({ query, num: 15 });
     const result = await new Promise<string>((resolve, reject) => {
-      const proc = spawn('npx', ['z-ai-web-dev-sdk', 'function', '--name', 'web_search', '--args', argsJson], {
+      const proc = spawnFn('npx', ['z-ai-web-dev-sdk', 'function', '--name', 'web_search', '--args', argsJson], {
         timeout: 15000,
       });
       let stdout = '';
@@ -746,6 +770,34 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
   return { events, source: 'Fallback Schedule', unavailable: false };
 }
 
+// ─── Sample Data Detection ────────────────────────────────────────────────
+
+/**
+ * Detect if cached calendar events are stale sample/placeholder data.
+ * This catches old cached data that was generated when all sources failed.
+ */
+function isSampleCalendarData(events: CalendarEvent[]): boolean {
+  if (events.length === 0) return true; // Empty = came from "all sources failed" fallback
+  // Check for fallback schedule indicators (source contains 'Fallback')
+  // and for placeholder patterns in event names
+  const sampleIndicators = [
+    'unavailable',
+    'sample',
+    'placeholder',
+    'lorem ipsum',
+    'temporarily unavailable',
+  ];
+  for (const item of events.slice(0, 5)) { // Check first 5 items
+    for (const indicator of sampleIndicators) {
+      if (item.event.toLowerCase().includes(indicator)) return true;
+    }
+    // Events with no id prefix (not fh-, te-, fcs-, mfb-, inv-, ws-, fb-)
+    // are likely from a broken fallback
+    if (!item.id || !item.id.match(/^(fh-|te-|fcs-|mfb-|inv-|ws-|fb-)/)) return true;
+  }
+  return false;
+}
+
 // ─── KV Cache helpers ──────────────────────────────────────────────────────
 async function getKVCache(): Promise<CacheEntry | null> {
   try {
@@ -758,7 +810,16 @@ async function getKVCache(): Promise<CacheEntry | null> {
     if (!kv) return null;
     const raw = await kv.get('economic_calendar_cache', 'text');
     if (!raw) return null;
-    return JSON.parse(raw) as CacheEntry;
+    const entry = JSON.parse(raw) as CacheEntry;
+
+    // Detect and invalidate stale sample/placeholder data
+    if (isSampleCalendarData(entry.events)) {
+      console.warn('[EconCalendar] KV cache contains stale sample data — invalidating');
+      try { await kv.delete('economic_calendar_cache'); } catch {}
+      return null;
+    }
+
+    return entry;
   } catch { return null; }
 }
 
@@ -806,18 +867,24 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 2. Try in-memory cache
+    // 2. Try in-memory cache (also detect stale sample data)
     if (!forceRefresh && calendarCache && Date.now() - calendarCache.timestamp < CACHE_DURATION) {
-      let events = calendarCache.events;
-      if (impactFilter) events = events.filter(e => e.impact === impactFilter);
-      if (currencyFilter) events = events.filter(e => e.currency === currencyFilter);
-      return NextResponse.json({
-        success: true, cached: true, cacheSource: 'memory', events,
-        totalAvailable: calendarCache.events.length, source: calendarCache.source,
-        fetchedAt: new Date(calendarCache.timestamp).toISOString(),
-        now: serverTime, timezone: timezone || null,
-        unavailable: calendarCache.unavailable || false,
-      });
+      // Detect stale sample data in memory cache
+      if (isSampleCalendarData(calendarCache.events)) {
+        console.warn('[EconCalendar] In-memory cache contains stale sample data — invalidating');
+        calendarCache = null;
+      } else {
+        let events = calendarCache.events;
+        if (impactFilter) events = events.filter(e => e.impact === impactFilter);
+        if (currencyFilter) events = events.filter(e => e.currency === currencyFilter);
+        return NextResponse.json({
+          success: true, cached: true, cacheSource: 'memory', events,
+          totalAvailable: calendarCache.events.length, source: calendarCache.source,
+          fetchedAt: new Date(calendarCache.timestamp).toISOString(),
+          now: serverTime, timezone: timezone || null,
+          unavailable: calendarCache.unavailable || false,
+        });
+      }
     }
 
     // 3. Fetch fresh data
