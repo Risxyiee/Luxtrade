@@ -1,3 +1,4 @@
+import { spawn } from 'child_process';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic'
@@ -53,13 +54,17 @@ async function getTeApiKey(): Promise<string> {
 // RELIABLE (verified working):
 const INVESTING_RSS = 'https://www.investing.com/rss/news.rss';            // All news (200 OK)
 const INVESTING_COMMODITIES_RSS = 'https://www.investing.com/rss/news_11.rss'; // Commodities/Futures (200 OK, forex-relevant)
+const INVESTING_FOREX_RSS = 'https://www.investing.com/rss/news_301.rss';   // Forex-specific news (200 OK)
 const CNBC_BUSINESS_RSS = 'https://www.cnbc.com/id/10001147/device/rss/rss.html'; // Business news (200 OK)
 const BLOOMBERG_RSS = 'https://feeds.bloomberg.com/markets/news.rss';      // Markets (200 OK, follows redirect)
+const MARKETWATCH_RSS = 'https://feeds.feedburner.com/Marketwatch-topstories'; // MarketWatch top stories (200 OK)
 
 // UNRELIABLE (dead or blocked — kept as last resort):
 // ForexFactory RSS URL is a profile page, not RSS. Calendar XML is Cloudflare-blocked.
 // DailyFX returns 403.
+// Forexlive returns 403.
 // Reuters feeds.reuters.com is dead (connection refused).
+// FxStreet RSS returns 403.
 
 interface FullNewsItem {
   title: string;
@@ -175,11 +180,12 @@ async function fetchTradingEconomicsNews(): Promise<FullNewsItem[]> {
       (err as any).isRateLimit = true;
       throw err;
     }
-    throw new Error(`TradingEconomics returned ${response.status}`);
+    throw new Error('TradingEconomics returned ' + response.status);
   }
 
   const data: TEResponse[] = await response.json();
   if (!Array.isArray(data) || data.length === 0) {
+    console.error('[News] TradingEconomics returned empty data');
     throw new Error('TradingEconomics returned empty data');
   }
 
@@ -238,6 +244,7 @@ async function fetchFinnhubNews(): Promise<FullNewsItem[]> {
 
   const data = await response.json();
   if (!Array.isArray(data) || data.length === 0) {
+    console.error('[News] Finnhub returned empty data');
     throw new Error('Finnhub returned empty data');
   }
 
@@ -340,6 +347,7 @@ async function fetchRssFeed(url: string, sourceName: string, timeoutMs = 12000):
     });
 
     if (!response.ok) {
+      console.error(`[News] ${sourceName} RSS returned ${response.status} from ${url}`);
       console.warn(`[News] ${sourceName} RSS returned ${response.status} from ${url}`);
       return [];
     }
@@ -356,7 +364,102 @@ async function fetchRssFeed(url: string, sourceName: string, timeoutMs = 12000):
     console.log(`[News] ${sourceName} RSS returned ${items.length} articles`);
     return items;
   } catch (err: any) {
-    console.warn(`[News] ${sourceName} RSS fetch failed: ${err.message}`);
+    console.error(`[News] ${sourceName} RSS fetch failed: ${err.message}`);
+    return [];
+  }
+}
+
+// ==================== Web Search Fallback (z-ai-web-dev-sdk) ====================
+
+interface WebSearchResult {
+  url: string;
+  name: string;
+  snippet: string;
+  host_name: string;
+  date: string;
+}
+
+/**
+ * Fetch real-time forex/trading news via z-ai-web-dev-sdk web-search.
+ * This is used as a fallback when all RSS feeds and API sources fail.
+ */
+async function fetchWebSearchNews(): Promise<FullNewsItem[]> {
+  try {
+    console.log('[News] Invoking z-ai-web-dev-sdk web-search...');
+    // Use spawn with promise wrapper for non-blocking execution
+    const newsArgsJson = JSON.stringify({ query: 'forex trading news today USD EUR GBP JPY', num: 15 });
+    const result = await new Promise<string>((resolve, reject) => {
+      const proc = spawn('npx', ['z-ai-web-dev-sdk', 'function', '--name', 'web_search', '--args', newsArgsJson], {
+        timeout: 15000,
+      });
+      let stdout = '';
+      let stderr = '';
+      proc.stdout.on('data', (d) => { stdout += d; });
+      proc.stderr.on('data', (d) => { stderr += d; });
+      proc.on('close', (code) => {
+        if (code === 0) resolve(stdout);
+        else reject(new Error(`Exit code ${code}: ${stderr.slice(0, 200)}`));
+      });
+      proc.on('error', reject);
+    });
+
+    // Extract JSON from output (CLI prints emoji status lines before/after JSON)
+    // The JSON array is the main content, everything else is status messages
+    let jsonStr = '';
+    let inArray = false;
+    let bracketDepth = 0;
+    for (const line of result.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.includes('🚀') || trimmed.includes('🎉')) continue;
+      if (!inArray && trimmed.startsWith('[')) {
+        inArray = true;
+        jsonStr = trimmed;
+        bracketDepth = (trimmed.match(/\[/g) || []).length - (trimmed.match(/\]/g) || []).length;
+        if (bracketDepth === 0) break; // Single-line JSON
+        continue;
+      }
+      if (inArray) {
+        jsonStr += '\n' + line;
+        bracketDepth += (line.match(/\[/g) || []).length - (line.match(/\]/g) || []).length;
+        if (bracketDepth <= 0) break;
+      }
+    }
+
+    if (!jsonStr) {
+      console.warn('[News] Web search: no JSON found in output');
+      return [];
+    }
+
+    const data = JSON.parse(jsonStr) as WebSearchResult[];
+    if (!Array.isArray(data) || data.length === 0) {
+      console.warn('[News] Web search: empty results');
+      return [];
+    }
+
+    const items: FullNewsItem[] = data
+      .filter((r) => r.name && r.url)
+      .map((r) => ({
+        title: r.name,
+        source: r.host_name || 'Web Search',
+        url: r.url,
+        snippet: (r.snippet || '').substring(0, 200) + ((r.snippet || '').length > 200 ? '...' : ''),
+        date: r.date || new Date().toISOString(),
+        type: classifyImpact(r.name, r.snippet || ''),
+      }));
+
+    // Sort by impact then by date
+    const importanceOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+    items.sort((a, b) => {
+      const aImp = importanceOrder[a.type] ?? 99;
+      const bImp = importanceOrder[b.type] ?? 99;
+      if (aImp !== bImp) return aImp - bImp;
+      return b.date.localeCompare(a.date);
+    });
+
+    console.log(`[News] Web search returned ${items.length} articles`);
+    return items;
+  } catch (err: any) {
+    console.error(`[News] Web search failed: ${err.message}`);
     return [];
   }
 }
@@ -371,7 +474,10 @@ async function fetchRssFeed(url: string, sourceName: string, timeoutMs = 12000):
  * 4. Investing.com Commodities RSS (free, forex-relevant)
  * 5. Bloomberg Markets RSS (free, reliable)
  * 6. CNBC Business RSS (free, reliable)
- * 7. Throw if all fail
+ * 7. Investing.com Forex RSS (free, reliable)
+ * 8. MarketWatch RSS (free, reliable)
+ * 9. z-ai-web-dev-sdk web-search (real-time search)
+ * 10. Throw if all fail
  */
 async function fetchFullNews(): Promise<FullNewsItem[]> {
   const collectedItems: FullNewsItem[] = [];
@@ -420,22 +526,23 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
   // FALLBACK 2: RSS feeds — try multiple sources and MERGE results
   // This gives us more articles than any single RSS source
   console.log('[News] Trying free RSS feeds...');
+  const rssSources = [
+    { url: INVESTING_RSS, name: 'Investing.com' },
+    { url: INVESTING_COMMODITIES_RSS, name: 'Investing.com-Commodities' },
+    { url: BLOOMBERG_RSS, name: 'Bloomberg' },
+    { url: CNBC_BUSINESS_RSS, name: 'CNBC' },
+    { url: INVESTING_FOREX_RSS, name: 'Investing.com-Forex' },
+    { url: MARKETWATCH_RSS, name: 'MarketWatch' },
+  ];
 
-  // Investing.com — most relevant for forex/trading
-  const investingItems = await fetchRssFeed(INVESTING_RSS, 'Investing.com');
-  if (investingItems.length > 0) collectedItems.push(...investingItems);
-
-  // Investing.com Commodities — forex-relevant (gold, oil, etc.)
-  const commoditiesItems = await fetchRssFeed(INVESTING_COMMODITIES_RSS, 'Investing.com');
-  if (commoditiesItems.length > 0) collectedItems.push(...commoditiesItems);
-
-  // Bloomberg Markets
-  const bloombergItems = await fetchRssFeed(BLOOMBERG_RSS, 'Bloomberg');
-  if (bloombergItems.length > 0) collectedItems.push(...bloombergItems);
-
-  // CNBC Business
-  const cnbcItems = await fetchRssFeed(CNBC_BUSINESS_RSS, 'CNBC');
-  if (cnbcItems.length > 0) collectedItems.push(...cnbcItems);
+  for (const src of rssSources) {
+    const items = await fetchRssFeed(src.url, src.name);
+    if (items.length > 0) {
+      collectedItems.push(...items);
+    } else {
+      console.error(`[News] RSS source ${src.name} returned 0 items`);
+    }
+  }
 
   if (collectedItems.length > 0) {
     // Deduplicate by URL (keep first occurrence = highest priority source)
@@ -459,6 +566,15 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
     return deduped;
   }
 
+  // FALLBACK 3: z-ai-web-dev-sdk web-search (real-time search results)
+  console.log('[News] Trying web-search via z-ai-web-dev-sdk...');
+  const webSearchItems = await fetchWebSearchNews();
+  if (webSearchItems.length > 0) {
+    console.log(`[News] Web search returned ${webSearchItems.length} articles`);
+    return webSearchItems;
+  }
+
+  console.error('[News] All news sources failed (TradingEconomics, Finnhub, RSS, Web Search)');
   throw new Error('All news sources failed');
 }
 
@@ -576,7 +692,7 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const format = searchParams.get('format') || 'ticker';
-  const forceRefresh = searchParams.get('refresh') === 'true';
+  const forceRefresh = searchParams.get('refresh') === 'true' || searchParams.get('forceRefresh') === 'true';
 
   try {
     // 1. Try KV cache first (Cloudflare Workers)

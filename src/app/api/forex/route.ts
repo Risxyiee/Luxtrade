@@ -48,6 +48,56 @@ async function getTwelveDataKey(): Promise<string> {
   return _envCache.TWELVE_DATA_API_KEY || ''
 }
 
+// ── Price sanity validation ──────────────────────────────────────────
+// Validates that a price is reasonable for a given symbol before caching or returning.
+// Returns null if the price is clearly stale/wrong, otherwise returns the price unchanged.
+function validatePrice(symbol: string, price: number): number | null {
+  const info = FOREX_SYMBOLS[symbol]
+  if (!info) return price // Unknown symbol, pass through
+
+  if (isNaN(price) || price <= 0) return null
+
+  // Gold (XAU/USD) — In 2025, gold is ~3000+. Anything below 2000 is clearly stale/wrong.
+  if (info.from === 'XAU' && price < 2000) {
+    console.warn(`[Forex] ✗ Sanity check FAILED: ${symbol} price ${price} is below 2000 (stale/wrong data)`)
+    return null
+  }
+
+  // Silver (XAG/USD) — In 2025, silver is ~30+. Anything below 10 is clearly stale/wrong.
+  if (info.from === 'XAG' && price < 10) {
+    console.warn(`[Forex] ✗ Sanity check FAILED: ${symbol} price ${price} is below 10 (stale/wrong data)`)
+    return null
+  }
+
+  // Forex major pairs should be in reasonable ranges
+  // JPY pairs: typically 100-200 range
+  if (info.to === 'JPY' && price < 50) {
+    console.warn(`[Forex] ✗ Sanity check FAILED: ${symbol} price ${price} is below 50 for JPY pair (stale/wrong data)`)
+    return null
+  }
+  // Non-JPY forex: typically 0.5-2.0 range
+  if (info.to !== 'JPY' && info.from !== 'XAU' && info.from !== 'XAG') {
+    if (price < 0.1 || price > 100) {
+      console.warn(`[Forex] ✗ Sanity check FAILED: ${symbol} price ${price} is out of normal forex range (stale/wrong data)`)
+      return null
+    }
+  }
+
+  return price
+}
+
+// Validate an array of candles, filtering out any with invalid prices
+function validateCandles(symbol: string, candles: any[]): any[] {
+  return candles.filter(candle => {
+    const validClose = validatePrice(symbol, candle.close)
+    if (validClose === null) return false
+    // Also check open/high/low are in reasonable range (not as strict as close)
+    if (candle.open <= 0 || candle.high <= 0 || candle.low <= 0) return false
+    if (candle.high < candle.low) return false
+    return true
+  })
+}
+
 // ── In-memory cache with per-interval TTL ────────────────────────────
 interface CacheEntry { data: any[]; timestamp: number; source: string }
 const cache = new Map<string, CacheEntry>()
@@ -65,7 +115,23 @@ function getCacheTtl(interval: string, limit: number): number {
 
 function getCached(key: string, interval: string, limit: number): CacheEntry | null {
   const entry = cache.get(key)
-  if (entry && Date.now() - entry.timestamp < getCacheTtl(interval, limit)) return entry
+  if (entry && Date.now() - entry.timestamp < getCacheTtl(interval, limit)) {
+    // Validate cached data before returning (e.g., stale XAU prices)
+    const symbol = key.split(':')[0]
+    const validatedData = validateCandles(symbol, entry.data)
+    if (validatedData.length === 0 && entry.data.length > 0) {
+      // All candles failed sanity check — cache is stale, invalidate it
+      console.warn(`[Forex] Cache entry for ${key} failed sanity validation — invalidating`)
+      cache.delete(key)
+      return null
+    }
+    // Return validated data (may be same as original if all passed)
+    if (validatedData.length < entry.data.length) {
+      // Some candles were filtered out — update the cache
+      entry.data = validatedData
+    }
+    return entry
+  }
   cache.delete(key)
   return null
 }
@@ -91,7 +157,22 @@ async function getForexKVCache(key: string): Promise<CacheEntry | null> {
     if (!kv) return null
     const raw = await kv.get(`forex:${key}`, 'text')
     if (!raw) return null
-    return JSON.parse(raw) as CacheEntry
+    const entry = JSON.parse(raw) as CacheEntry
+
+    // Validate KV cached data before returning (e.g., stale XAU prices)
+    const symbol = key.split(':')[0]
+    const validatedData = validateCandles(symbol, entry.data)
+    if (validatedData.length === 0 && entry.data.length > 0) {
+      // All candles failed sanity check — KV cache is stale, skip it
+      console.warn(`[Forex] KV cache entry for ${key} failed sanity validation — skipping`)
+      return null
+    }
+    if (validatedData.length < entry.data.length) {
+      // Some candles were filtered out — update entry
+      entry.data = validatedData
+    }
+
+    return entry
   } catch {
     return null
   }
@@ -138,9 +219,9 @@ async function fetchTwelveDataPrice(symbol: string): Promise<any[] | null> {
     const price = parseFloat(json.price)
     if (isNaN(price) || price <= 0) return null
 
-    // Sanity check for commodity pairs
-    if (info.from === 'XAU' && price < 100) return null
-    if (info.from === 'XAG' && price < 5) return null
+    // Sanity check for commodity pairs (stricter: validate full price range)
+    const validatedPrice = validatePrice(symbol, price)
+    if (validatedPrice === null) return null
 
     // Return as a single-candle array compatible with the existing format
     return [{
@@ -195,10 +276,8 @@ async function fetchTwelveData(symbol: string, interval: string, limit: number):
       }))
       .filter((k: any) => {
         if (k.time <= 0 || k.high < k.low || k.open <= 0) return false
-        // Sanity check for commodity pairs
-        if (info.from === 'XAU' && k.close < 100) return false
-        if (info.from === 'XAG' && k.close < 5) return false
-        return true
+        // Use centralized sanity validation (stricter: XAU < 2000 rejected)
+        return validatePrice(symbol, k.close) !== null
       })
       .sort((a: any, b: any) => a.time - b.time)
   } catch {
@@ -255,10 +334,8 @@ async function fetchAlphaVantage(symbol: string, limit: number): Promise<any[] |
       }))
       .filter((k: any) => {
         if (k.time <= 0 || k.high < k.low || k.open <= 0) return false
-        // Sanity check: XAU/USD should be > 100, XAG/USD > 10
-        if (isCommodity && info.from === 'XAU' && k.close < 100) return false
-        if (isCommodity && info.from === 'XAG' && k.close < 5) return false
-        return true
+        // Use centralized sanity validation (stricter: XAU < 2000 rejected)
+        return validatePrice(symbol, k.close) !== null
       })
       .sort((a: any, b: any) => a.time - b.time)
   } catch {
@@ -329,10 +406,8 @@ async function fetchYahooFinance(symbol: string, interval: string, limit: number
       // Skip candles with null values
       if (open == null || high == null || low == null || close == null) continue
       if (high < low || open <= 0) continue
-      // Sanity check: XAU/USD should be > 100, XAG/USD > 5
-      const isCommodity = info.from === 'XAU' || info.from === 'XAG'
-      if (isCommodity && info.from === 'XAU' && close < 100) continue
-      if (isCommodity && info.from === 'XAG' && close < 5) continue
+      // Use centralized sanity validation (stricter: XAU < 2000 rejected)
+      if (validatePrice(symbol, close) === null) continue
       candles.push({
         time: timestamps[i],
         open: parseFloat(open.toFixed(info.decimals)),

@@ -191,13 +191,13 @@ function EditableFieldWithNA({
             )}
             <Input
               type="number"
-              value={value}
+              value={value || ''}
               onChange={(e) => {
                 const raw = e.target.value
                 onChange(raw === '' ? 0 : Number(raw))
               }}
               className={`bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-blue-900/30 text-white text-sm ${prefix ? 'pl-7' : ''} ${suffix ? 'pr-8' : ''}`}
-              placeholder={placeholder}
+              placeholder={placeholder || '0'}
             />
             {suffix && (
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-lux-text-muted dark:text-gray-500">{suffix}</span>
@@ -420,10 +420,11 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
     setEditDailyPL(ch.dailyPL || 0)
     setEditTotalPL(ch.totalPL || 0)
     setEditChallengePhase(ch.challengePhase || 'phase1')
-    // Set N/A toggles based on whether values exist
-    setEditMaxDailyLossEnabled(ch.maxDailyLoss > 0)
-    setEditMaxTotalDDEnabled(ch.maxTotalDD > 0)
-    setEditProfitTargetEnabled(ch.profitTarget > 0)
+    // Set N/A toggles — always enable fields by default so user can edit them
+    // The N/A toggle is opt-in to DISABLE a field, not opt-out to enable it
+    setEditMaxDailyLossEnabled(true)
+    setEditMaxTotalDDEnabled(true)
+    setEditProfitTargetEnabled(true)
     setEditConsistencyRuleEnabled((ch.consistencyRule || 0) > 0)
     setEditBestDayPLEnabled(true)
     setEditDailyPLEnabled(true)

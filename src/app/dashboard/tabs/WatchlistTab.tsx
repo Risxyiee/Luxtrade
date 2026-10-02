@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { Eye, Plus, Trash2, TrendingUp as TrendingUpIcon, Bell, BellRing, Crown, Lock, CheckCircle2 } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Eye, Plus, Trash2, TrendingUp as TrendingUpIcon, Bell, BellRing, Crown, Lock, CheckCircle2, RefreshCw, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { toast } from 'sonner'
@@ -48,6 +48,15 @@ export default function WatchlistTab({
   // Current prices per symbol (from /api/forex polling)
   const [currentPrices, setCurrentPrices] = useState<Record<string, number>>({})
 
+  // Previous prices per symbol (for cross-detection of target price)
+  const [previousPrices, setPreviousPrices] = useState<Record<string, number>>({})
+
+  // Last time prices were successfully fetched
+  const [lastPriceUpdate, setLastPriceUpdate] = useState<number>(0)
+
+  // Whether a price fetch is in progress
+  const [priceLoading, setPriceLoading] = useState(false)
+
   // Triggered alert IDs — items whose target price was reached
   const [triggeredAlerts, setTriggeredAlerts] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set()
@@ -64,9 +73,11 @@ export default function WatchlistTab({
   const triggeredAlertsRef = useRef(triggeredAlerts)
   const itemsRef = useRef(items)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const currentPricesRef = useRef(currentPrices)
   alertItemsRef.current = alertItems
   triggeredAlertsRef.current = triggeredAlerts
   itemsRef.current = items
+  currentPricesRef.current = currentPrices
 
   const toggleAlert = (id: string) => {
     setAlertItems(prev => {
@@ -81,6 +92,42 @@ export default function WatchlistTab({
     })
   }
 
+  // Format price for display
+  const formatPrice = (symbol: string, price: number) => {
+    return price >= 100 ? price.toFixed(2) : price.toFixed(symbol.includes('JPY') ? 3 : 5)
+  }
+
+  // Manual refresh handler
+  const refreshPrices = useCallback(async () => {
+    const symbolsToFetch = [...new Set(items.map(i => i.symbol))]
+    if (symbolsToFetch.length === 0) return
+
+    setPriceLoading(true)
+    const priceMap: Record<string, number> = {}
+
+    await Promise.all(symbolsToFetch.map(async (symbol) => {
+      try {
+        const res = await fetch(`/api/forex?symbol=${symbol}&limit=1&interval=1h&nocache=true`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (data.success && data.data?.length > 0) {
+          priceMap[symbol] = data.data[data.data.length - 1].close
+        }
+      } catch {
+        // Silently ignore fetch errors
+      }
+    }))
+
+    if (Object.keys(priceMap).length > 0) {
+      setCurrentPrices(prev => {
+        setPreviousPrices(prev) // Save previous prices for cross-detection
+        return { ...prev, ...priceMap }
+      })
+      setLastPriceUpdate(Date.now())
+    }
+    setPriceLoading(false)
+  }, [items])
+
   // Price polling for items with alerts enabled
   useEffect(() => {
     if (items.length === 0) return
@@ -92,9 +139,11 @@ export default function WatchlistTab({
       const currentAlertItems = itemsRef.current.filter(item => alertItemsRef.current.has(item.id))
       if (currentAlertItems.length === 0) return
 
-      const uniqueSymbols = [...new Set(currentAlertItems.map(i => i.symbol))]
+      // Also fetch prices for ALL items (not just alert items) so the UI shows current prices
+      const uniqueSymbols = [...new Set(itemsRef.current.map(i => i.symbol))]
       const priceMap: Record<string, number> = {}
 
+      setPriceLoading(true)
       await Promise.all(uniqueSymbols.map(async (symbol) => {
         try {
           const res = await fetch(`/api/forex?symbol=${symbol}&limit=1&interval=1h&nocache=true`)
@@ -108,13 +157,34 @@ export default function WatchlistTab({
         }
       }))
 
-      setCurrentPrices(prev => ({ ...prev, ...priceMap }))
+      const prevPrices = currentPricesRef.current
+      setCurrentPrices(prev => {
+        setPreviousPrices(prev) // Save previous prices for cross-detection
+        return { ...prev, ...priceMap }
+      })
+      if (Object.keys(priceMap).length > 0) {
+        setLastPriceUpdate(Date.now())
+      }
+      setPriceLoading(false)
 
       // Check alerts against fetched prices
       currentAlertItems.forEach(item => {
         const price = priceMap[item.symbol]
+        const prevPrice = prevPrices[item.symbol]
         if (price && item.target_price) {
-          const reached = Math.abs(price - item.target_price) / item.target_price < 0.001 // Within 0.1%
+          const target = item.target_price
+
+          // Method 1: Within 0.5% of target (more tolerant for volatile instruments)
+          const withinThreshold = Math.abs(price - target) / target < 0.005
+
+          // Method 2: Cross-detection — price crossed the target between polls
+          // If previous price was on one side and current price on the other, the target was crossed
+          const crossedUp = prevPrice != null && prevPrice < target && price >= target
+          const crossedDown = prevPrice != null && prevPrice > target && price <= target
+          const crossedTarget = crossedUp || crossedDown
+
+          const reached = withinThreshold || crossedTarget
+
           if (reached && !triggeredAlertsRef.current.has(item.id)) {
             setTriggeredAlerts(prev => {
               const next = new Set([...prev, item.id])
@@ -122,9 +192,12 @@ export default function WatchlistTab({
               return next
             })
             // Toast notification
+            const detectionMethod = crossedTarget && !withinThreshold
+              ? (language === 'id' ? ' (melewati target)' : ' (crossed target)')
+              : ''
             const msg = language === 'id'
-              ? `🎯 ${item.symbol} — Target ${item.target_price} tercapai! Harga: ${price >= 100 ? price.toFixed(2) : price.toFixed(item.symbol.includes('JPY') ? 3 : 5)}`
-              : `🎯 ${item.symbol} — Target ${item.target_price} reached! Price: ${price >= 100 ? price.toFixed(2) : price.toFixed(item.symbol.includes('JPY') ? 3 : 5)}`
+              ? `🎯 ${item.symbol} — Target ${target} tercapai! Harga: ${formatPrice(item.symbol, price)}${detectionMethod}`
+              : `🎯 ${item.symbol} — Target ${target} reached! Price: ${formatPrice(item.symbol, price)}${detectionMethod}`
             toast.success(msg, { duration: 8000 })
             // Auto-disable alert after trigger
             toggleAlert(item.id)
@@ -135,7 +208,7 @@ export default function WatchlistTab({
 
     // Poll prices immediately — no artificial delay
     pollPrices()
-    intervalRef.current = setInterval(pollPrices, 30000) // Every 30s for fresher prices
+    intervalRef.current = setInterval(pollPrices, 15000) // Every 15s for more responsive alerts
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
@@ -172,9 +245,23 @@ export default function WatchlistTab({
           <h3 className="text-xl font-bold">{language === 'id' ? 'Daftar Pantauan' : 'Watchlist'}</h3>
           <p className="text-sm text-lux-text-secondary dark:text-gray-400">{language === 'id' ? 'Lacak peluang potensial' : 'Track potential opportunities'}</p>
         </div>
-        <Button onClick={onAdd} className="bg-gradient-to-r from-blue-500 to-cyan-600">
-          <Plus className="w-4 h-4 mr-2" />{language === 'id' ? 'Tambah Simbol' : 'Add Symbol'}
-        </Button>
+        <div className="flex items-center gap-2">
+          {items.length > 0 && (
+            <Button
+              onClick={refreshPrices}
+              disabled={priceLoading}
+              variant="outline"
+              size="sm"
+              className="border-lux-border dark:border-blue-900/30 text-lux-text-secondary dark:text-gray-400 hover:text-blue-400"
+            >
+              <RefreshCw className={`w-4 h-4 mr-1 ${priceLoading ? 'animate-spin' : ''}`} />
+              {language === 'id' ? 'Segarkan' : 'Refresh'}
+            </Button>
+          )}
+          <Button onClick={onAdd} className="bg-gradient-to-r from-blue-500 to-cyan-600">
+            <Plus className="w-4 h-4 mr-2" />{language === 'id' ? 'Tambah Simbol' : 'Add Symbol'}
+          </Button>
+        </div>
       </div>
 
       {items.length === 0 ? (
@@ -229,12 +316,26 @@ export default function WatchlistTab({
                       </div>
                     </div>
                     {/* Current price from polling */}
-                    {currentPrices[item.symbol] != null && (
-                      <div className="mb-1">
+                    {currentPrices[item.symbol] != null ? (
+                      <div className="mb-1 flex items-center gap-1.5">
                         <span className="text-xs text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Harga: ' : 'Price: '}</span>
-                        <span className="text-sm font-mono text-blue-400">{currentPrices[item.symbol] >= 100 ? currentPrices[item.symbol].toFixed(2) : currentPrices[item.symbol].toFixed(item.symbol.includes('JPY') ? 3 : 5)}</span>
+                        <span className="text-sm font-mono text-blue-400">{formatPrice(item.symbol, currentPrices[item.symbol])}</span>
+                        {/* Stale indicator: price data > 60s old */}
+                        {lastPriceUpdate > 0 && (Date.now() - lastPriceUpdate > 60000) && (
+                          <AlertTriangle className="w-3 h-3 text-amber-400" title={language === 'id' ? 'Data harga mungkin basi' : 'Price data may be stale'} />
+                        )}
                       </div>
-                    )}
+                    ) : (
+                      /* Show loading indicator when price is not yet available */
+                      <div className="mb-1">
+                        <span className="text-xs text-lux-text-muted dark:text-gray-500">
+                          {priceLoading
+                            ? (language === 'id' ? 'Memuat harga...' : 'Loading price...')
+                            : (language === 'id' ? 'Harga tidak tersedia' : 'Price unavailable')
+                          }
+                        </span>
+                      </div>
+                    )
                     {item.target_price && (
                       <div className="mb-2">
                         <span className="text-xs text-lux-text-muted dark:text-gray-500">{language === 'id' ? 'Target: ' : 'Target: '}</span>
@@ -254,12 +355,14 @@ export default function WatchlistTab({
                     )}
                     <div className="flex items-center justify-between mt-2">
                       <p className="text-xs text-gray-600">{language === 'id' ? 'Ditambahkan' : 'Added'} {new Date(item.created_at).toLocaleDateString()}</p>
-                      {isAlertOn && (
-                        <span className="text-[10px] text-amber-400/80 font-medium flex items-center gap-1">
-                          <BellRing className="w-3 h-3" />
-                          {language === 'id' ? 'Alert ON' : 'Alert ON'}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {isAlertOn && (
+                          <span className="text-[10px] text-amber-400/80 font-medium flex items-center gap-1">
+                            <BellRing className="w-3 h-3" />
+                            {language === 'id' ? 'Alert ON' : 'Alert ON'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -267,10 +370,19 @@ export default function WatchlistTab({
             })}
           </div>
 
-          {/* Alert notice */}
-          <p className="text-xs text-lux-text-muted dark:text-gray-500 text-center mt-2">
-            🔔 {language === 'id' ? 'Alert aktif — harga dicek setiap 30 detik' : 'Alerts active — prices checked every 30s'}
-          </p>
+          {/* Alert notice + last update */}
+          <div className="flex flex-col items-center gap-1 mt-2">
+            {alertItems.size > 0 && (
+              <p className="text-xs text-lux-text-muted dark:text-gray-500 text-center">
+                🔔 {language === 'id' ? 'Alert aktif — harga dicek setiap 15 detik' : 'Alerts active — prices checked every 15s'}
+              </p>
+            )}
+            {lastPriceUpdate > 0 && (
+              <p className="text-xs text-lux-text-muted/60 dark:text-gray-600 text-center">
+                {language === 'id' ? 'Harga diperbarui' : 'Prices updated'}: {new Date(lastPriceUpdate).toLocaleTimeString()}
+              </p>
+            )}
+          </div>
         </>
       )}
     </div>
