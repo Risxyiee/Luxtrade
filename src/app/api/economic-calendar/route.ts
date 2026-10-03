@@ -48,15 +48,47 @@ const CACHE_DURATION_RATE_LIMITED = 30 * 60 * 1000; // 30 min when rate limited
 // We also try getCloudflareContext().env as a fallback.
 let _envCache: Record<string, string> | null = null;
 
+/** Known placeholder values that should NOT be treated as real API keys */
+const PLACEHOLDER_PATTERNS = [
+  'your_', 'xxx', 'sk-or-', 'sk-your', 'hf_your',
+  're_xxxxxxxxxx', 'BNTL6FFlf', // literal public keys/placeholder patterns
+];
+
+function isPlaceholder(value: string): boolean {
+  if (!value || value.length < 8) return true; // Real API keys are always 8+ chars
+  const lower = value.toLowerCase();
+  return PLACEHOLDER_PATTERNS.some(p => lower.startsWith(p));
+}
+
 async function getEnvVar(key: string): Promise<string> {
+  // 1. process.env — works when OpenNext's populateProcessEnv has run
   const fromProcess = process.env[key];
-  if (fromProcess && fromProcess.length > 0) return fromProcess;
+  if (fromProcess && fromProcess.length > 0 && !isPlaceholder(fromProcess)) {
+    return fromProcess;
+  }
+
+  // 2. getCloudflareContext().env — works in CF Workers edge runtime
+  //    Try both sync and async variants for maximum compatibility
   try {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+    // Try async variant first (more reliable in some OpenNext versions)
+    try {
+      const ctx = await getCloudflareContext({ async: true });
+      const fromCtx = ctx?.env?.[key];
+      if (fromCtx && typeof fromCtx === 'string' && fromCtx.length > 0 && !isPlaceholder(fromCtx)) {
+        return fromCtx;
+      }
+    } catch {}
+    // Fallback to sync variant
     const ctx = getCloudflareContext();
     const fromCtx = ctx?.env?.[key];
-    if (fromCtx && typeof fromCtx === 'string' && fromCtx.length > 0) return fromCtx;
-  } catch {}
+    if (fromCtx && typeof fromCtx === 'string' && fromCtx.length > 0 && !isPlaceholder(fromCtx)) {
+      return fromCtx;
+    }
+  } catch {
+    // @opennextjs/cloudflare not available (local dev without wrangler)
+  }
+
   return '';
 }
 
@@ -779,6 +811,13 @@ async function getKVCache(): Promise<CacheEntry | null> {
       return null;
     }
 
+    // Also invalidate if source indicates fallback data
+    if (entry.source && (entry.source.includes('Fallback') || entry.unavailable === true)) {
+      console.warn('[EconCalendar] KV cache contains fallback data (source: ' + entry.source + ') — invalidating');
+      try { await kv.delete('economic_calendar_cache'); } catch {}
+      return null;
+    }
+
     return entry;
   } catch { return null; }
 }
@@ -809,6 +848,48 @@ export async function GET(request: NextRequest) {
   const now = new Date();
   const serverTime = now.toISOString();
 
+  // Debug mode: return API key availability without making API calls
+  if (searchParams.get('debug') === 'true') {
+    const fhKey = await getFinnhubKey();
+    const rapKey = await getRapidApiKey();
+    const fcsKey = await getFcsApiKey();
+    // Also check if CF context is available
+    let cfContextAvailable = false;
+    let cfEnvKeys: string[] = [];
+    try {
+      const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+      try {
+        const ctx = await getCloudflareContext({ async: true });
+        cfContextAvailable = !!ctx?.env;
+        if (ctx?.env) cfEnvKeys = Object.keys(ctx.env).filter(k => !k.startsWith('NEXT_') && !k.startsWith('ASSETS') && !k.includes('CACHE'));
+      } catch {}
+      if (!cfContextAvailable) {
+        const ctx = getCloudflareContext();
+        cfContextAvailable = !!ctx?.env;
+        if (ctx?.env) cfEnvKeys = Object.keys(ctx.env).filter(k => !k.startsWith('NEXT_') && !k.startsWith('ASSETS') && !k.includes('CACHE'));
+      }
+    } catch {}
+    return NextResponse.json({
+      environment: process.env.NODE_ENV || 'unknown',
+      cfContextAvailable,
+      cfEnvKeys,
+      apiKeys: {
+        FINNHUB_API_KEY: fhKey ? `SET (${fhKey.length} chars, starts: ${fhKey.substring(0, 4)}...)` : 'NOT SET',
+        RAPIDAPI_KEY: rapKey ? `SET (${rapKey.length} chars, starts: ${rapKey.substring(0, 4)}...)` : 'NOT SET',
+        FCSAPI_KEY: fcsKey ? `SET (${fcsKey.length} chars)` : 'NOT SET',
+        RAPIDAPI_TRADING_ECONOMICS_KEY: (await getEnvVar('RAPIDAPI_TRADING_ECONOMICS_KEY')) ? 'SET' : 'NOT SET',
+      },
+      processEnv: {
+        FINNHUB_API_KEY: process.env.FINNHUB_API_KEY ? `exists (${process.env.FINNHUB_API_KEY.length} chars)` : 'undefined',
+        RAPIDAPI_KEY: process.env.RAPIDAPI_KEY ? `exists (${process.env.RAPIDAPI_KEY.length} chars)` : 'undefined',
+      },
+      cacheStatus: {
+        inMemory: calendarCache ? `${calendarCache.events.length} events, source: ${calendarCache.source}` : 'empty',
+      },
+      now: serverTime,
+    });
+  }
+
   try {
     // 1. Try KV cache
     if (!forceRefresh) {
@@ -832,6 +913,10 @@ export async function GET(request: NextRequest) {
       // Detect stale sample data in memory cache
       if (isSampleCalendarData(calendarCache.events)) {
         console.warn('[EconCalendar] In-memory cache contains stale sample data — invalidating');
+        calendarCache = null;
+      } else if (calendarCache.source && (calendarCache.source.includes('Fallback') || calendarCache.unavailable === true)) {
+        // Also invalidate if cached data is from fallback
+        console.warn('[EconCalendar] In-memory cache contains fallback data — invalidating');
         calendarCache = null;
       } else {
         let events = calendarCache.events;
