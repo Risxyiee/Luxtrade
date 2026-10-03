@@ -368,3 +368,33 @@ Stage Summary:
   - /src/app/dashboard/tabs/MarketNewsTab.tsx
   - /src/app/dashboard/components/EconomicCalendarWidget.tsx
   - /.env.example
+
+---
+Task ID: 5
+Agent: main
+Task: Fix API key reading from Cloudflare Workers env - ensure secrets are properly accessed
+
+Work Log:
+- User confirmed all API keys are set in Cloudflare Workers secrets (FINNHUB_API_KEY, RAPIDAPI_KEY, FCSAPI_KEY, etc.)
+- Identified critical bug: getEnvVar() could return placeholder values like "your_finnhub_api_key_here" from .env.example
+- Added isPlaceholder() function to filter out known placeholder patterns (your_, xxx, sk-or-, etc.)
+- Improved getEnvVar() to try BOTH sync and async variants of getCloudflareContext() for maximum compatibility
+- Added debug endpoint: /api/economic-calendar?debug=true and /api/news?debug=true
+  - Shows API key availability (SET/NOT SET, char count, first 4 chars)
+  - Shows process.env status
+  - Shows cfContextAvailable flag
+  - Shows cfEnvKeys (all available env keys from CF context)
+  - Shows cache status
+- Added KV cache invalidation for fallback data (checks source.includes('Fallback') || unavailable === true)
+- Added in-memory cache invalidation for fallback data
+
+Stage Summary:
+- getEnvVar() now properly filters placeholder values and tries both sync/async CF context
+- Debug endpoints available for troubleshooting in production
+- Cache invalidation now catches fallback data from both KV and in-memory caches
+- All changes lint-clean
+- Key diagnostic: User should visit /api/economic-calendar?debug=true in production to verify:
+  1. cfContextAvailable = true
+  2. FINNHUB_API_KEY = "SET (XX chars...)"
+  3. RAPIDAPI_KEY = "SET (XX chars...)"
+  If these show NOT SET, the problem is with how OpenNext reads CF Workers secrets
