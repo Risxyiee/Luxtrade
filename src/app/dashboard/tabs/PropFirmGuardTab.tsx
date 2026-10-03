@@ -170,6 +170,18 @@ function EditableFieldWithNA({
   placeholder?: string
   helperText?: string
 }) {
+  // Use string state for the input so user can freely type/edit
+  // Sync from parent value prop only when not focused
+  const [inputValue, setInputValue] = useState<string>(String(value ?? ''))
+  const [isFocused, setIsFocused] = useState(false)
+
+  // Sync from parent when not focused (e.g., dialog opens with challenge data)
+  useEffect(() => {
+    if (!isFocused) {
+      setInputValue(value === 0 && !prefix ? '' : String(value ?? ''))
+    }
+  }, [value, isFocused, prefix])
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -191,10 +203,18 @@ function EditableFieldWithNA({
             )}
             <Input
               type="number"
-              value={value === 0 ? 0 : (value || '')}
+              value={inputValue}
               onChange={(e) => {
-                const raw = e.target.value
-                onChange(raw === '' ? 0 : Number(raw))
+                setInputValue(e.target.value)
+                onChange(e.target.value === '' ? 0 : Number(e.target.value))
+              }}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => {
+                setIsFocused(false)
+                // Normalize on blur: if empty, set to 0
+                const num = inputValue === '' ? 0 : Number(inputValue)
+                setInputValue(String(num))
+                onChange(num)
               }}
               className={`bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-blue-900/30 text-white text-sm ${prefix ? 'pl-7' : ''} ${suffix ? 'pr-8' : ''}`}
               placeholder={placeholder || '0'}
@@ -1042,7 +1062,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-lux-text-muted dark:text-gray-500">$</span>
                 <Input
                   type="number"
-                  value={editAccountSize === 0 ? 0 : (editAccountSize || '')}
+                  value={editAccountSize || ''}
                   onChange={(e) => setEditAccountSize(e.target.value === '' ? 0 : Number(e.target.value))}
                   className="bg-lux-surface-hover dark:bg-white/5 border-lux-border dark:border-blue-900/30 text-white text-sm pl-7"
                   min={0}

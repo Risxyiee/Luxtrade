@@ -469,207 +469,159 @@ interface WebSearchResult {
  * into CalendarEvent format.
  */
 async function fetchWebSearchCalendar(): Promise<CalendarEvent[]> {
-  try {
-    const spawnFn = getSpawn();
-    if (!spawnFn) {
-      console.warn('[EconCalendar] child_process not available (CF Workers) — skipping web-search fallback');
-      return [];
-    }
-    console.log('[EconCalendar] Invoking z-ai-web-dev-sdk web-search...');
-    const today = new Date();
-    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    // Use spawn with promise wrapper for non-blocking execution
-    const query = `NFP nonfarm payrolls CPI FOMC ISM PMI economic data release this week ${dateStr} USD EUR GBP`;
-    const argsJson = JSON.stringify({ query, num: 15 });
-    const result = await new Promise<string>((resolve, reject) => {
-      const proc = spawnFn('npx', ['z-ai-web-dev-sdk', 'function', '--name', 'web_search', '--args', argsJson], {
-        timeout: 15000,
-      });
-      let stdout = '';
-      let stderr = '';
-      proc.stdout.on('data', (d) => { stdout += d; });
-      proc.stderr.on('data', (d) => { stderr += d; });
-      proc.on('close', (code) => {
-        if (code === 0) resolve(stdout);
-        else reject(new Error(`Exit code ${code}: ${stderr.slice(0, 200)}`));
-      });
-      proc.on('error', reject);
-    });
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const query = `NFP nonfarm payrolls CPI FOMC ISM PMI economic data release this week ${dateStr} USD EUR GBP`;
 
-    // Extract JSON from output (CLI prints emoji status lines before/after JSON)
-    // The JSON array is the main content, everything else is status messages
-    let jsonStr = '';
-    let inArray = false;
-    let bracketDepth = 0;
-    for (const line of result.split('\n')) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.includes('🚀') || trimmed.includes('🎉')) continue;
-      if (!inArray && trimmed.startsWith('[')) {
-        inArray = true;
-        jsonStr = trimmed;
-        bracketDepth = (trimmed.match(/\[/g) || []).length - (trimmed.match(/\]/g) || []).length;
-        if (bracketDepth === 0) break; // Single-line JSON
-        continue;
-      }
-      if (inArray) {
-        jsonStr += '\n' + line;
-        bracketDepth += (line.match(/\[/g) || []).length - (line.match(/\]/g) || []).length;
-        if (bracketDepth <= 0) break;
-      }
-    }
+  // Currency detection from text
+  const currencyKeywords: Record<string, string[]> = {
+    USD: ['us ', 'united states', 'usd', 'nonfarm', 'nfp', 'fomc', 'fed ', 'federal reserve', 'jobless claims', 'us cpi', 'us gdp', 'us retail', 'us pmi', 'us housing', 'us durable', 'ism', 'adp employment', 'us payrolls', 'unemployment rate'],
+    EUR: ['euro', 'eur', 'ecb', 'german', 'eurozone', 'eu pmi', 'eu cpi', 'eu gdp', 'ez cpi'],
+    GBP: ['pound', 'sterling', 'gbp', 'boe', 'bank of england', 'uk gdp', 'uk cpi', 'uk retail', 'uk pmi'],
+    JPY: ['yen', 'jpy', 'boj', 'bank of japan', 'japan cpi', 'japan gdp', 'japan pmi'],
+    AUD: ['australian dollar', 'aud', 'rba', 'reserve bank of australia', 'au pmi', 'au cpi'],
+    CAD: ['canadian dollar', 'cad', 'boc', 'bank of canada', 'ca retail', 'ca gdp'],
+    CHF: ['swiss franc', 'chf', 'snb', 'swiss national bank'],
+    NZD: ['new zealand', 'nzd', 'rbnz', 'nz gdp'],
+    CNY: ['yuan', 'cny', 'pboc', 'china pmi', 'china gdp'],
+  };
+  const highImpactKeywords = ['nfp', 'nonfarm', 'non-farm', 'fomc', 'fed rate', 'interest rate decision', 'cpi', 'gdp', 'rate decision', 'payrolls', 'jobless claims', 'unemployment rate'];
+  const mediumImpactKeywords = ['pmi', 'retail sales', 'ppi', 'housing', 'consumer confidence', 'industrial production', 'trade balance', 'consumer price'];
 
-    if (!jsonStr) {
-      console.warn('[EconCalendar] Web search: no JSON found in output');
-      return [];
-    }
-
-    const data = JSON.parse(jsonStr) as WebSearchResult[];
-    if (!Array.isArray(data) || data.length === 0) {
-      console.warn('[EconCalendar] Web search: empty results');
-      return [];
-    }
-
+  // Helper to parse web search results into calendar events
+  function parseSearchResultsToEvents(results: { name?: string; snippet?: string; url?: string; date?: string }[]): CalendarEvent[] {
     const events: CalendarEvent[] = [];
-    const todayStr = today.toISOString().split('T')[0];
 
-    // Currency detection from text
-    const currencyKeywords: Record<string, string[]> = {
-      USD: ['us ', 'united states', 'usd', 'nonfarm', 'nfp', 'fomc', 'fed ', 'federal reserve', 'jobless claims', 'us cpi', 'us gdp', 'us retail', 'us pmi', 'us housing', 'us durable', 'ism', 'adp employment', 'us payrolls', 'unemployment rate'],
-      EUR: ['euro', 'eur', 'ecb', 'german', 'eurozone', 'eu pmi', 'eu cpi', 'eu gdp', 'ez cpi'],
-      GBP: ['pound', 'sterling', 'gbp', 'boe', 'bank of england', 'uk gdp', 'uk cpi', 'uk retail', 'uk pmi'],
-      JPY: ['yen', 'jpy', 'boj', 'bank of japan', 'japan cpi', 'japan gdp', 'japan pmi'],
-      AUD: ['australian dollar', 'aud', 'rba', 'reserve bank of australia', 'au pmi', 'au cpi'],
-      CAD: ['canadian dollar', 'cad', 'boc', 'bank of canada', 'ca retail', 'ca gdp'],
-      CHF: ['swiss franc', 'chf', 'snb', 'swiss national bank'],
-      NZD: ['new zealand', 'nzd', 'rbnz', 'nz gdp'],
-      CNY: ['yuan', 'cny', 'pboc', 'china pmi', 'china gdp'],
-    };
-
-    // Impact detection from text
-    const highImpactKeywords = ['nfp', 'nonfarm', 'non-farm', 'fomc', 'fed rate', 'interest rate decision', 'cpi', 'gdp', 'rate decision', 'payrolls', 'jobless claims', 'unemployment rate'];
-    const mediumImpactKeywords = ['pmi', 'retail sales', 'ppi', 'housing', 'consumer confidence', 'industrial production', 'trade balance', 'consumer price'];
-
-    for (const r of data) {
+    for (const r of results) {
       if (!r.name && !r.snippet) continue;
-
       const text = `${r.name} ${r.snippet}`.toLowerCase();
 
       // Detect currency
       let currency = '';
       for (const [curr, keywords] of Object.entries(currencyKeywords)) {
         for (const kw of keywords) {
-          if (text.includes(kw)) {
-            currency = curr;
-            break;
-          }
+          if (text.includes(kw)) { currency = curr; break; }
         }
         if (currency) break;
       }
-
-      // If no currency detected, try to extract from name (e.g., "USD Nonfarm Payrolls")
       if (!currency) {
         const currMatch = r.name?.match(/\b(USD|EUR|GBP|JPY|AUD|CAD|CHF|NZD|CNY)\b/i);
         if (currMatch) currency = currMatch[1].toUpperCase();
       }
-
-      // Skip if no relevant currency found
       if (!currency) continue;
 
       // Detect impact
       let impact: 'high' | 'medium' | 'low' = 'low';
-      for (const kw of highImpactKeywords) {
-        if (text.includes(kw)) { impact = 'high'; break; }
-      }
-      if (impact === 'low') {
-        for (const kw of mediumImpactKeywords) {
-          if (text.includes(kw)) { impact = 'medium'; break; }
-        }
-      }
+      for (const kw of highImpactKeywords) { if (text.includes(kw)) { impact = 'high'; break; } }
+      if (impact === 'low') { for (const kw of mediumImpactKeywords) { if (text.includes(kw)) { impact = 'medium'; break; } } }
 
-      // Extract event name — use the search result name, clean it up
+      // Extract event name
       let eventTitle = (r.name || 'Economic Event')
         .replace(/\s*[-|–—]\s*(Forex Factory|Investing\.com|FXStreet|Trading Economics|Myfxbook|XTB|ActionForex|MarketWatch|BeInCrypto|GoMarkets|TradingCharts|Mitrade|YouTube|Facebook|BLS\.gov|Bloomberg|Forex\.com|Reuters|IG|Tickmill|LeapRate|Lirunex|CBCX Markets|RCG Markets).*$/i, '')
-        .replace(/\s*\(\d{2}\.\d{2}\.\d{4}\)\s*/g, '') // Remove dates like (02.10.2026)
+        .replace(/\s*\(\d{2}\.\d{2}\.\d{4}\)\s*/g, '')
         .trim();
-      
-      // If the title is too generic (just "Economic Calendar"), enrich with snippet info
-      if (eventTitle.toLowerCase().includes('economic calendar') && r.snippet) {
-        // Try to extract a specific event from the snippet
-        const eventPatterns = [
-          /(?:Nonfarm|Non-farm|NFP)\s+Payrolls/i,
-          /Unemployment\s+Rate/i,
-          /(?:CPI|Consumer\s+Price\s+Index)/i,
-          /(?:PMI|Purchasing\s+Managers\s+Index)/i,
-          /(?:GDP|Gross\s+Domestic\s+Product)/i,
-          /Retail\s+Sales/i,
-          /Jobless\s+Claims/i,
-          /ISM\s+Manufacturing/i,
-          /ISM\s+Services/i,
-          /Durable\s+Goods/i,
-          /Housing\s+Starts/i,
-          /Building\s+Permits/i,
-          /Industrial\s+Production/i,
-          /Trade\s+Balance/i,
-          /PPI/i,
-          /FOMC/i,
-        ];
-        for (const pattern of eventPatterns) {
-          const match = r.snippet.match(pattern);
-          if (match) {
-            eventTitle = match[0];
-            break;
-          }
-        }
-      }
 
-      // Skip if title is still too generic
+      if (eventTitle.toLowerCase().includes('economic calendar') && r.snippet) {
+        const eventPatterns = [/(?:Nonfarm|Non-farm|NFP)\s+Payrolls/i, /Unemployment\s+Rate/i, /(?:CPI|Consumer\s+Price\s+Index)/i, /(?:PMI|Purchasing\s+Managers\s+Index)/i, /(?:GDP|Gross\s+Domestic\s+Product)/i, /Retail\s+Sales/i, /Jobless\s+Claims/i, /ISM\s+Manufacturing/i, /FOMC/i];
+        for (const pattern of eventPatterns) { const match = r.snippet.match(pattern); if (match) { eventTitle = match[0]; break; } }
+      }
       if (eventTitle.toLowerCase() === 'economic calendar' || eventTitle.length < 5) continue;
 
-      // Try to extract date from snippet or name
       let eventDate = todayStr;
       let eventTime = '08:30';
       const timeMatch = text.match(/(\d{1,2}:\d{2})\s*(am|pm|gmt|utc|et|est)?/i);
       if (timeMatch) {
         eventTime = timeMatch[1];
-        // Convert 12h to 24h if needed
-        if (timeMatch[2]?.toLowerCase() === 'pm' && !eventTime.startsWith('12')) {
-          const [h, m] = eventTime.split(':');
-          eventTime = `${Number(h) + 12}:${m}`;
-        }
+        if (timeMatch[2]?.toLowerCase() === 'pm' && !eventTime.startsWith('12')) { const [h, m] = eventTime.split(':'); eventTime = `${Number(h) + 12}:${m}`; }
       }
 
-      // Deduplicate by normalizing event names (e.g., "Nonfarm Payrolls" and "Non Farm Payrolls" are the same)
-      const normalizedTitle = eventTitle
-        .replace(/non-?farm\s+payrolls?/i, 'NFP')
-        .replace(/unemployment\s+rate/i, 'Unemployment Rate')
-        .replace(/consumer\s+price\s+index/i, 'CPI')
-        .replace(/purchasing\s+managers'??\s+index/i, 'PMI')
-        .replace(/gross\s+domestic\s+product/i, 'GDP')
-        .replace(/federal\s+open\s+market\s+committee/i, 'FOMC')
-        .substring(0, 30);
-
+      const normalizedTitle = eventTitle.replace(/non-?farm\s+payrolls?s?/i, 'NFP').replace(/unemployment\s+rate/i, 'Unemployment Rate').replace(/consumer\s+price\s+index/i, 'CPI').replace(/purchasing\s+managers'??\s+index/i, 'PMI').replace(/gross\s+domestic\s+product/i, 'GDP').replace(/federal\s+open\s+market\s+committee/i, 'FOMC').substring(0, 30);
       const dedupeKey = currency + '-' + eventDate + '-' + normalizedTitle;
       if (events.some(e => (e.currency + '-' + e.date + '-' + e.event.substring(0, 30)) === dedupeKey)) continue;
 
-      events.push({
-        id: 'ws-' + events.length + '-' + currency + '-' + eventDate,
-        date: eventDate,
-        time: eventTime,
-        dateTime: buildDateTime(eventDate, eventTime),
-        currency,
-        impact,
-        event: eventTitle,
-        forecast: '',
-        previous: '',
-      });
+      events.push({ id: 'ws-' + events.length + '-' + currency + '-' + eventDate, date: eventDate, time: eventTime, dateTime: buildDateTime(eventDate, eventTime), currency, impact, event: eventTitle, forecast: '', previous: '' });
     }
-
-    console.log('[EconCalendar] Web search: ' + events.length + ' events');
     return sortEvents(events);
-  } catch (err: any) {
-    console.error('[EconCalendar] Web search failed: ' + err.message);
-    return [];
   }
+
+  // Strategy 1: z-ai-web-dev-sdk CLI (Node.js only)
+  try {
+    const spawnFn = getSpawn();
+    if (spawnFn) {
+      console.log('[EconCalendar] Invoking z-ai-web-dev-sdk web-search...');
+      const argsJson = JSON.stringify({ query, num: 15 });
+      const result = await new Promise<string>((resolve, reject) => {
+        const proc = spawnFn('npx', ['z-ai-web-dev-sdk', 'function', '--name', 'web_search', '--args', argsJson], { timeout: 15000 });
+        let stdout = ''; let stderr = '';
+        proc.stdout.on('data', (d) => { stdout += d; });
+        proc.stderr.on('data', (d) => { stderr += d; });
+        proc.on('close', (code) => { if (code === 0) resolve(stdout); else reject(new Error(`Exit code ${code}: ${stderr.slice(0, 200)}`)); });
+        proc.on('error', reject);
+      });
+
+      let jsonStr = ''; let inArray = false; let bracketDepth = 0;
+      for (const line of result.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.includes('🚀') || trimmed.includes('🎉')) continue;
+        if (!inArray && trimmed.startsWith('[')) { inArray = true; jsonStr = trimmed; bracketDepth = (trimmed.match(/\[/g) || []).length - (trimmed.match(/\]/g) || []).length; if (bracketDepth === 0) break; continue; }
+        if (inArray) { jsonStr += '\n' + line; bracketDepth += (line.match(/\[/g) || []).length - (line.match(/\]/g) || []).length; if (bracketDepth <= 0) break; }
+      }
+
+      if (jsonStr) {
+        const data = JSON.parse(jsonStr) as WebSearchResult[];
+        if (Array.isArray(data) && data.length > 0) {
+          const events = parseSearchResultsToEvents(data);
+          if (events.length > 0) {
+            console.log('[EconCalendar] Web search (CLI): ' + events.length + ' events');
+            return events;
+          }
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error('[EconCalendar] Web search CLI failed: ' + err.message);
+  }
+
+  // Strategy 2: DuckDuckGo HTML search (works in CF Workers/Edge via fetch)
+  try {
+    console.log('[EconCalendar] Trying DuckDuckGo search as edge-compatible fallback...');
+    const ddgResp = await fetch('https://lite.duckduckgo.com/lite/?q=' + encodeURIComponent(query), {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36', 'Accept': 'text/html' },
+      signal: AbortSignal.timeout(10000),
+      redirect: 'follow',
+    });
+
+    if (ddgResp.ok) {
+      const html = await ddgResp.text();
+      const linkRegex = /<a[^>]*class="result-link"[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi;
+      const snippetRegex = /<td[^>]*class="result-snippet"[^>]*>(.*?)<\/td>/gi;
+      const ddgResults: { name: string; snippet: string; url: string }[] = [];
+
+      let linkMatch; let idx = 0;
+      while ((linkMatch = linkRegex.exec(html)) !== null && idx < 15) {
+        const url = linkMatch[1]; const titleRaw = linkMatch[2].replace(/<[^>]*>/g, '').trim();
+        if (!url.startsWith('http') || !titleRaw) continue;
+        const snippetMatch = snippetRegex.exec(html);
+        const snippet = snippetMatch ? snippetMatch[1].replace(/<[^>]*>/g, '').trim() : '';
+        ddgResults.push({ name: titleRaw, snippet, url });
+        idx++;
+      }
+
+      if (ddgResults.length > 0) {
+        const events = parseSearchResultsToEvents(ddgResults);
+        if (events.length > 0) {
+          console.log('[EconCalendar] DuckDuckGo search: ' + events.length + ' events');
+          return events;
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error('[EconCalendar] DuckDuckGo search failed: ' + err.message);
+  }
+
+  console.warn('[EconCalendar] All web search strategies failed');
+  return [];
 }
 
 // ─── 4. Fallback Calendar (guaranteed, no API needed) ─────────────────────
