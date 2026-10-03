@@ -374,11 +374,28 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
 
   return (
     <div className="space-y-6">
+      {/* Fallback Data Warning */}
+      {unavailableMsg && !calLoading && (
+        <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+          <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-amber-400">
+              {L ? 'Data Kalender Bukan Live' : 'Calendar Data Is Not Live'}
+            </p>
+            <p className="text-xs text-amber-400/70 mt-1">
+              {L
+                ? 'API key belum dikonfigurasi. Data yang ditampilkan adalah jadwal statis. Set FINNHUB_API_KEY atau RAPIDAPI_KEY di Cloudflare Workers secrets untuk data real-time.'
+                : 'API key not configured. Showing static schedule. Set FINNHUB_API_KEY or RAPIDAPI_KEY in Cloudflare Workers secrets for real-time data.'}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Source & Notification Badge Row */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.05]">
-          <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-          <span className="text-xs text-lux-text-muted dark:text-gray-500">
+          <div className={`w-2 h-2 rounded-full ${source.includes('Fallback') ? 'bg-amber-500' : 'bg-blue-500 animate-pulse'}`} />
+          <span className={`text-xs ${source.includes('Fallback') ? 'text-amber-400' : 'text-lux-text-muted dark:text-gray-500'}`}>
             {source ? (L ? 'Sumber: ' : 'Source: ') + source : (L ? 'Memuat...' : 'Loading...')}
           </span>
         </div>

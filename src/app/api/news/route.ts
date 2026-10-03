@@ -824,8 +824,22 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fetch fresh data
-    const allResults = await fetchFullNews();
+    // Fetch fresh data (with 25s timeout to avoid hanging on slow web searches)
+    let allResults: FullNewsItem[];
+    try {
+      allResults = await Promise.race([
+        fetchFullNews(),
+        new Promise<FullNewsItem[]>((resolve) =>
+          setTimeout(() => {
+            console.warn('[News] Cascade timed out after 25s');
+            resolve([]);
+          }, 25000)
+        ),
+      ]);
+    } catch (err: any) {
+      console.error('[News] Cascade error:', err.message);
+      allResults = [];
+    }
     const isRateLimited = (fetchFullNews as any)._lastRateLimited === true;
     const cacheTTL = isRateLimited ? CACHE_DURATION_RATE_LIMITED : CACHE_DURATION;
 

@@ -669,8 +669,13 @@ async function fetchFallbackCalendar(): Promise<CalendarEvent[]> {
 async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source: string; unavailable: boolean }> {
   const errors: string[] = [];
 
+  // Log API key availability at start of cascade
+  const fhKey = await getFinnhubKey();
+  const rapKey = await getRapidApiKey();
+  console.log(`[EconCalendar] API keys available: Finnhub=${fhKey ? 'YES(' + fhKey.substring(0, 6) + '...)' : 'NO'}, RapidAPI=${rapKey ? 'YES(' + rapKey.substring(0, 6) + '...)' : 'NO'}`);
+
   // 1. Finnhub (FREE tier: 60 calls/min)
-  if (await getFinnhubKey()) {
+  if (fhKey) {
     try {
       const events = await fetchFinnhubCalendar();
       if (events.length > 0) return { events, source: 'Finnhub (Live)', unavailable: false };
@@ -683,7 +688,7 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
   }
 
   // 2. TradingEconomics Calendar (RapidAPI)
-  if (await getRapidApiKey()) {
+  if (rapKey) {
     try {
       const events = await fetchTECalendar();
       if (events.length > 0) return { events, source: 'TradingEconomics (Live)', unavailable: false };
@@ -719,7 +724,7 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
   // 6. Fallback (guaranteed, no external call)
   console.warn('[EconCalendar] All live APIs and web search failed, using fallback schedule. Errors:', errors.join('; '));
   const events = await fetchFallbackCalendar();
-  return { events, source: 'Fallback Schedule', unavailable: false };
+  return { events, source: 'Fallback Schedule (bukan data live)', unavailable: true };
 }
 
 // ─── Sample Data Detection ────────────────────────────────────────────────
@@ -743,8 +748,11 @@ function isSampleCalendarData(events: CalendarEvent[]): boolean {
     for (const indicator of sampleIndicators) {
       if (item.event.toLowerCase().includes(indicator)) return true;
     }
-    // Events with no id prefix (not fh-, te-, fcs-, mfb-, inv-, ws-, fb-)
-    // are likely from a broken fallback
+    // fb- prefix = hardcoded fallback data (not live API data)
+    // Live API data has prefixes: fh- (Finnhub), te- (TradingEconomics),
+    // ws- (Web Search), inv- (Investing.com)
+    if (item.id && item.id.startsWith('fb-')) return true;
+    // Events with no id prefix at all are likely from a broken fallback
     if (!item.id || !item.id.match(/^(fh-|te-|fcs-|mfb-|inv-|ws-|fb-)/)) return true;
   }
   return false;
@@ -839,8 +847,26 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 3. Fetch fresh data
-    const { events: allEvents, source, unavailable } = await fetchCalendarEvents();
+    // 3. Fetch fresh data (with 25s timeout to avoid hanging on slow web searches)
+    let fetchResult: { events: CalendarEvent[]; source: string; unavailable: boolean };
+    try {
+      fetchResult = await Promise.race([
+        fetchCalendarEvents(),
+        new Promise<{ events: CalendarEvent[]; source: string; unavailable: boolean }>((resolve) =>
+          setTimeout(() => {
+            console.warn('[EconCalendar] Cascade timed out after 25s, using fallback');
+            fetchFallbackCalendar().then(events =>
+              resolve({ events, source: 'Fallback Schedule (timeout)', unavailable: true })
+            );
+          }, 25000)
+        ),
+      ]);
+    } catch (err: any) {
+      console.error('[EconCalendar] Cascade error:', err.message);
+      const fallbackEvents = await fetchFallbackCalendar();
+      fetchResult = { events: fallbackEvents, source: 'Fallback Schedule (error)', unavailable: true };
+    }
+    const { events: allEvents, source, unavailable } = fetchResult;
 
     const cacheTTL = (unavailable && allEvents.length === 0) ? 60 * 1000 : CACHE_DURATION;
     const newCache: CacheEntry = { events: allEvents, timestamp: Date.now(), source, unavailable };

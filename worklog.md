@@ -334,3 +334,37 @@ Stage Summary:
 - **Economic Calendar API**: Returns 10 real events from web search (e.g., NFP, CPI, FOMC data). Falls back to static schedule only if all live sources fail.
 - **Forex API**: XAUUSD now returns real price ~4187 (not stale 1123). Price validation rejects prices < 2000 for gold.
 - **All APIs tested and working**: News returns real articles, Calendar returns real events, Forex returns real prices.
+
+---
+Task ID: 4
+Agent: main
+Task: Fix Kalender Ekonomi & Berita Pasar - ensure real API calls with env variables
+
+Work Log:
+- Investigated current API architecture for both /api/news and /api/economic-calendar
+- Found that isSampleCalendarData() was allowing fb- prefixed fallback data through cache (not invalidating it)
+- Fixed isSampleCalendarData() to detect fb- prefix as fallback/sample data and invalidate cache
+- Marked fallback calendar data as unavailable: true so frontend shows warning
+- Added FINNHUB_API_KEY and RAPIDAPI_KEY to .env.example with clear instructions
+- Added API key availability logging to both routes: "[EconCalendar] API keys available: Finnhub=YES/NO, RapidAPI=YES/NO"
+- Added 25s timeout to both API cascades to prevent hanging on slow web searches
+- Added fallback warning banner to EconomicCalendarTab when data is not live
+- Added fallback warning banner to MarketNewsTab when news data is unavailable
+- Added fallback indicator to EconomicCalendarWidget when using static data
+- Changed fallback source label from "Fallback Schedule" to "Fallback Schedule (bukan data live)"
+- Ran lint check - all clean
+- Verified calendar API returns proper response with source tracking
+
+Stage Summary:
+- Both APIs now properly detect and invalidate cached fallback/sample data
+- Frontend shows clear amber warnings when API keys are not configured
+- API key availability is logged at the start of each cascade for debugging
+- 25s timeout prevents API routes from hanging indefinitely on slow web searches
+- FINNHUB_API_KEY added to .env.example (free tier: 60 calls/min)
+- Key files modified: 
+  - /src/app/api/economic-calendar/route.ts
+  - /src/app/api/news/route.ts
+  - /src/app/dashboard/tabs/EconomicCalendarTab.tsx
+  - /src/app/dashboard/tabs/MarketNewsTab.tsx
+  - /src/app/dashboard/components/EconomicCalendarWidget.tsx
+  - /.env.example
