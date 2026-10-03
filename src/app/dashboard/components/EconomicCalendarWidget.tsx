@@ -90,6 +90,7 @@ function MiniCountdown({ dateTime }: { dateTime: string }) {
 export default function EconomicCalendarWidget({ language, onViewAll }: EconomicCalendarWidgetProps) {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
+  const [isFallback, setIsFallback] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const userOffset = useMemo(() => getUserUtcOffset(), [])
 
@@ -106,6 +107,7 @@ export default function EconomicCalendarWidget({ language, onViewAll }: Economic
         const majorCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD']
         const filtered = allEvents.filter((e: CalendarEvent) => majorCurrencies.includes(e.currency))
         setEvents(filtered.slice(0, 5))
+        setIsFallback(data.unavailable === true || (data.source || '').includes('Fallback'))
       }
     } catch { /* silent */ } finally { setLoading(false) }
   }, [userOffset])
@@ -165,6 +167,13 @@ export default function EconomicCalendarWidget({ language, onViewAll }: Economic
           </div>
         ) : (
           <div className="space-y-2">
+            {/* Fallback indicator */}
+            {isFallback && (
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-amber-500/10 border border-amber-500/20 mb-1">
+                <AlertTriangle className="w-3 h-3 text-amber-500" />
+                <span className="text-[9px] text-amber-400">{L ? 'Data statis (API key belum diset)' : 'Static data (API key not set)'}</span>
+              </div>
+            )}
             {/* Next Event Highlight */}
             {nextEvent && (
               <div className="flex items-center gap-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20 mb-2">
