@@ -398,3 +398,57 @@ Stage Summary:
   2. FINNHUB_API_KEY = "SET (XX chars...)"
   3. RAPIDAPI_KEY = "SET (XX chars...)"
   If these show NOT SET, the problem is with how OpenNext reads CF Workers secrets
+
+---
+Task ID: 6
+Agent: main
+Task: Fix API key reading from Cloudflare Workers - make getEnvVar() robust with logging and type coercion
+
+Work Log:
+- Read all 3 API route files (economic-calendar, news, forex) to understand how they read env vars
+- Identified critical issues in getEnvVar():
+  1. Silent failures: getCloudflareContext() errors were caught with empty catch blocks, providing zero diagnostic info
+  2. `typeof fromCtx === 'string'` check was too strict - CF Workers env values might not be plain strings in some runtimes
+  3. `BNTL6FFlf` in PLACEHOLDER_PATTERNS was incorrectly blocking VAPID public key values (not API keys)
+  4. `isPlaceholder` required length >= 8, but some valid API keys could be 6-7 chars
+  5. No logging at all when keys ARE found or NOT found - impossible to debug in production
+- Applied fixes to all 3 API routes:
+
+  /api/economic-calendar/route.ts:
+  - Removed `BNTL6FFlf` from PLACEHOLDER_PATTERNS (it's a VAPID key, not relevant to Finnhub/RapidAPI)
+  - Changed minimum key length from 8 to 6 chars
+  - Added `coerceEnvString()` function to handle non-string CF env values
+  - Added detailed logging at every step of getEnvVar():
+    - When key found in process.env: logs char count and first 4 chars
+    - When key found in CF ctx.env (async): logs char count and first 4 chars
+    - When key found in CF ctx.env (sync): logs char count and first 4 chars
+    - When key looks like placeholder: warns with first 12 chars
+    - When getCloudflareContext({async:true}) fails: logs error message
+    - When getCloudflareContext() sync fails: logs error message
+    - When @opennextjs/cloudflare import fails: logs error message
+    - When key NOT FOUND in any source: explicit warning
+  - Wrapped both sync and async CF context calls in try/catch with error logging
+
+  /api/news/route.ts:
+  - Same fixes as economic-calendar (placeholder patterns, min length, coerceEnvString, logging)
+  - Logger prefix: [News:getEnvVar] instead of [EconCalendar:getEnvVar]
+
+  /api/forex/route.ts:
+  - Added coerceEnvString() function (was missing)
+  - Added async variant of getCloudflareContext() (was only using sync)
+  - Added detailed logging for all key lookups
+  - Logger prefix: [Forex:getEnvVar]
+
+Stage Summary:
+- All 3 API routes now have robust getEnvVar() with:
+  - `coerceEnvString()` for type-safe CF env value reading
+  - `BNTL6FFlf` removed from placeholder patterns (was incorrectly blocking valid values)
+  - Minimum key length reduced from 8 to 6 chars
+  - Comprehensive logging at every step (found, placeholder, not found, error)
+  - Both sync and async CF context variants with individual error logging
+- These logs will appear in Cloudflare Workers real-time logs, making it possible to diagnose exactly WHERE and WHY API keys are not being found
+- Key diagnostic flow: In production CF Workers logs, user will now see:
+  - `[EconCalendar:getEnvVar] FINNHUB_API_KEY found in CF ctx.env (async)` → key IS accessible
+  - `[EconCalendar:getEnvVar] FINNHUB_API_KEY NOT FOUND in any source` → key is NOT accessible, and we know process.env failed AND CF context failed
+  - `[EconCalendar:getEnvVar] getCloudflareContext({async:true}) failed: <error>` → tells exactly why CF context failed
+- Lint: Clean (no errors)
