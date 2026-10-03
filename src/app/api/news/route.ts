@@ -37,44 +37,86 @@ const TE_ENDPOINT = 'https://trading-economics-scraper.p.rapidapi.com/get_tradin
 /** Known placeholder values that should NOT be treated as real API keys */
 const PLACEHOLDER_PATTERNS = [
   'your_', 'xxx', 'sk-or-', 'sk-your', 'hf_your',
-  're_xxxxxxxxxx', 'BNTL6FFlf',
+  're_xxxxxxxxxx', // literal placeholder patterns
 ];
 
 function isPlaceholder(value: string): boolean {
-  if (!value || value.length < 8) return true; // Real API keys are always 8+ chars
+  if (!value || value.length < 6) return true; // Real API keys are always 6+ chars
   const lower = value.toLowerCase();
   return PLACEHOLDER_PATTERNS.some(p => lower.startsWith(p));
+}
+
+/**
+ * Coerce a value from CF env to a string.
+ * CF Workers env values can be strings or sometimes other primitives.
+ */
+function coerceEnvString(val: unknown): string {
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+  if (val && typeof val === 'object' && 'toString' in val) {
+    try { const s = String(val); if (s && s !== '[object Object]') return s; } catch {}
+  }
+  return '';
 }
 
 async function getEnvVar(key: string): Promise<string> {
   // 1. process.env — works when OpenNext's populateProcessEnv has run
   const fromProcess = process.env[key];
   if (fromProcess && fromProcess.length > 0 && !isPlaceholder(fromProcess)) {
+    console.log(`[News:getEnvVar] ${key} found in process.env (${fromProcess.length} chars, starts: ${fromProcess.substring(0, 4)}...)`);
     return fromProcess;
+  }
+  if (fromProcess && fromProcess.length > 0 && isPlaceholder(fromProcess)) {
+    console.warn(`[News:getEnvVar] ${key} in process.env but looks like a PLACEHOLDER: "${fromProcess.substring(0, 12)}..."`);
   }
 
   // 2. getCloudflareContext().env — works in CF Workers edge runtime
   //    Try both sync and async variants for maximum compatibility
   try {
-    const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+    const cfMod = await import('@opennextjs/cloudflare');
+    const getCloudflareContext = cfMod.getCloudflareContext;
+
     // Try async variant first (more reliable in some OpenNext versions)
     try {
       const ctx = await getCloudflareContext({ async: true });
-      const fromCtx = ctx?.env?.[key];
-      if (fromCtx && typeof fromCtx === 'string' && fromCtx.length > 0 && !isPlaceholder(fromCtx)) {
-        return fromCtx;
+      if (ctx?.env) {
+        const raw = ctx.env[key];
+        const fromCtx = coerceEnvString(raw);
+        if (fromCtx && fromCtx.length > 0 && !isPlaceholder(fromCtx)) {
+          console.log(`[News:getEnvVar] ${key} found in CF ctx.env (async) (${fromCtx.length} chars, starts: ${fromCtx.substring(0, 4)}...)`);
+          return fromCtx;
+        }
+        if (fromCtx && fromCtx.length > 0 && isPlaceholder(fromCtx)) {
+          console.warn(`[News:getEnvVar] ${key} in CF ctx.env (async) but looks like a PLACEHOLDER: "${fromCtx.substring(0, 12)}..."`);
+        }
       }
-    } catch {}
-    // Fallback to sync variant
-    const ctx = getCloudflareContext();
-    const fromCtx = ctx?.env?.[key];
-    if (fromCtx && typeof fromCtx === 'string' && fromCtx.length > 0 && !isPlaceholder(fromCtx)) {
-      return fromCtx;
+    } catch (asyncErr: any) {
+      console.warn(`[News:getEnvVar] getCloudflareContext({async:true}) failed: ${asyncErr?.message || asyncErr}`);
     }
-  } catch {
+
+    // Fallback to sync variant
+    try {
+      const ctx = getCloudflareContext();
+      if (ctx?.env) {
+        const raw = ctx.env[key];
+        const fromCtx = coerceEnvString(raw);
+        if (fromCtx && fromCtx.length > 0 && !isPlaceholder(fromCtx)) {
+          console.log(`[News:getEnvVar] ${key} found in CF ctx.env (sync) (${fromCtx.length} chars, starts: ${fromCtx.substring(0, 4)}...)`);
+          return fromCtx;
+        }
+        if (fromCtx && fromCtx.length > 0 && isPlaceholder(fromCtx)) {
+          console.warn(`[News:getEnvVar] ${key} in CF ctx.env (sync) but looks like a PLACEHOLDER: "${fromCtx.substring(0, 12)}..."`);
+        }
+      }
+    } catch (syncErr: any) {
+      console.warn(`[News:getEnvVar] getCloudflareContext() sync failed: ${syncErr?.message || syncErr}`);
+    }
+  } catch (importErr: any) {
     // @opennextjs/cloudflare not available (local dev without wrangler)
+    console.info(`[News:getEnvVar] @opennextjs/cloudflare import failed (local dev?): ${importErr?.message || importErr}`);
   }
 
+  console.warn(`[News:getEnvVar] ${key} NOT FOUND in any source (process.env or CF ctx.env)`);
   return '';
 }
 

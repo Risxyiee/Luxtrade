@@ -61,15 +61,41 @@ function normalizeSymbol(rawSymbol: string): string {
 // We also try getCloudflareContext().env as a fallback.
 let _envCache: Record<string, string> | null = null
 
+function coerceEnvString(val: unknown): string {
+  if (typeof val === 'string') return val
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val)
+  if (val && typeof val === 'object' && 'toString' in val) {
+    try { const s = String(val); if (s && s !== '[object Object]') return s } catch {}
+  }
+  return ''
+}
+
 async function getEnvVar(key: string): Promise<string> {
   const fromProcess = process.env[key]
-  if (fromProcess && fromProcess.length > 0) return fromProcess
+  if (fromProcess && fromProcess.length > 0) {
+    console.log(`[Forex:getEnvVar] ${key} found in process.env (${fromProcess.length} chars)`)
+    return fromProcess
+  }
   try {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare')
-    const ctx = getCloudflareContext()
-    const fromCtx = ctx?.env?.[key]
-    if (fromCtx && typeof fromCtx === 'string' && fromCtx.length > 0) return fromCtx
+    try {
+      const ctx = await getCloudflareContext({ async: true })
+      const fromCtx = coerceEnvString(ctx?.env?.[key])
+      if (fromCtx && fromCtx.length > 0) {
+        console.log(`[Forex:getEnvVar] ${key} found in CF ctx.env (async) (${fromCtx.length} chars)`)
+        return fromCtx
+      }
+    } catch {}
+    try {
+      const ctx = getCloudflareContext()
+      const fromCtx = coerceEnvString(ctx?.env?.[key])
+      if (fromCtx && fromCtx.length > 0) {
+        console.log(`[Forex:getEnvVar] ${key} found in CF ctx.env (sync) (${fromCtx.length} chars)`)
+        return fromCtx
+      }
+    } catch {}
   } catch {}
+  console.warn(`[Forex:getEnvVar] ${key} NOT FOUND in any source`)
   return ''
 }
 
