@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
       .from('prop_firm_challenges')
       .select('*')
       .eq('user_id', user.id)
+      .eq('is_active', true)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -504,17 +505,18 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Challenge not found' }, { status: 404 })
     }
 
-    // Soft delete (deactivate)
-    const { error: updateError } = await admin
+    // Hard delete — remove the challenge from the database
+    const { error: deleteError } = await admin
       .from('prop_firm_challenges')
-      .update({ is_active: false })
+      .delete()
       .eq('id', id)
 
-    if (updateError) {
-      console.error('[prop-firm-guard] DELETE update error:', updateError)
-      return NextResponse.json({ error: updateError.message }, { status: 500 })
+    if (deleteError) {
+      console.error('[prop-firm-guard] DELETE error:', deleteError)
+      return NextResponse.json({ error: deleteError.message }, { status: 500 })
     }
 
+    console.log('[prop-firm-guard] DELETE success, id:', id)
     return NextResponse.json({ success: true })
   } catch (error: any) {
     console.error('[prop-firm-guard] DELETE error:', error)
