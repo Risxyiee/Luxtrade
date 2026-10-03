@@ -395,91 +395,139 @@ interface WebSearchResult {
 /**
  * Fetch real-time forex/trading news via z-ai-web-dev-sdk web-search.
  * This is used as a fallback when all RSS feeds and API sources fail.
+ * Supports both Node.js (child_process) and Edge/CF Workers (fetch via DuckDuckGo).
  */
 async function fetchWebSearchNews(): Promise<FullNewsItem[]> {
+  // Strategy 1: Try z-ai-web-dev-sdk CLI (Node.js only)
   try {
     const spawnFn = getSpawn();
-    if (!spawnFn) {
-      console.warn('[News] child_process not available (CF Workers) — skipping web-search fallback');
-      return [];
-    }
-    console.log('[News] Invoking z-ai-web-dev-sdk web-search...');
-    // Use spawn with promise wrapper for non-blocking execution
-    const newsArgsJson = JSON.stringify({ query: 'forex trading news today USD EUR GBP JPY', num: 15 });
-    const result = await new Promise<string>((resolve, reject) => {
-      const proc = spawnFn('npx', ['z-ai-web-dev-sdk', 'function', '--name', 'web_search', '--args', newsArgsJson], {
-        timeout: 15000,
+    if (spawnFn) {
+      console.log('[News] Invoking z-ai-web-dev-sdk web-search...');
+      // Use spawn with promise wrapper for non-blocking execution
+      const newsArgsJson = JSON.stringify({ query: 'forex trading news today USD EUR GBP JPY', num: 15 });
+      const result = await new Promise<string>((resolve, reject) => {
+        const proc = spawnFn('npx', ['z-ai-web-dev-sdk', 'function', '--name', 'web_search', '--args', newsArgsJson], {
+          timeout: 15000,
+        });
+        let stdout = '';
+        let stderr = '';
+        proc.stdout.on('data', (d) => { stdout += d; });
+        proc.stderr.on('data', (d) => { stderr += d; });
+        proc.on('close', (code) => {
+          if (code === 0) resolve(stdout);
+          else reject(new Error(`Exit code ${code}: ${stderr.slice(0, 200)}`));
+        });
+        proc.on('error', reject);
       });
-      let stdout = '';
-      let stderr = '';
-      proc.stdout.on('data', (d) => { stdout += d; });
-      proc.stderr.on('data', (d) => { stderr += d; });
-      proc.on('close', (code) => {
-        if (code === 0) resolve(stdout);
-        else reject(new Error(`Exit code ${code}: ${stderr.slice(0, 200)}`));
-      });
-      proc.on('error', reject);
-    });
 
-    // Extract JSON from output (CLI prints emoji status lines before/after JSON)
-    // The JSON array is the main content, everything else is status messages
-    let jsonStr = '';
-    let inArray = false;
-    let bracketDepth = 0;
-    for (const line of result.split('\n')) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.includes('🚀') || trimmed.includes('🎉')) continue;
-      if (!inArray && trimmed.startsWith('[')) {
-        inArray = true;
-        jsonStr = trimmed;
-        bracketDepth = (trimmed.match(/\[/g) || []).length - (trimmed.match(/\]/g) || []).length;
-        if (bracketDepth === 0) break; // Single-line JSON
-        continue;
+      // Extract JSON from output (CLI prints emoji status lines before/after JSON)
+      // The JSON array is the main content, everything else is status messages
+      let jsonStr = '';
+      let inArray = false;
+      let bracketDepth = 0;
+      for (const line of result.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.includes('🚀') || trimmed.includes('🎉')) continue;
+        if (!inArray && trimmed.startsWith('[')) {
+          inArray = true;
+          jsonStr = trimmed;
+          bracketDepth = (trimmed.match(/\[/g) || []).length - (trimmed.match(/\]/g) || []).length;
+          if (bracketDepth === 0) break; // Single-line JSON
+          continue;
+        }
+        if (inArray) {
+          jsonStr += '\n' + line;
+          bracketDepth += (line.match(/\[/g) || []).length - (line.match(/\]/g) || []).length;
+          if (bracketDepth <= 0) break;
+        }
       }
-      if (inArray) {
-        jsonStr += '\n' + line;
-        bracketDepth += (line.match(/\[/g) || []).length - (line.match(/\]/g) || []).length;
-        if (bracketDepth <= 0) break;
+
+      if (!jsonStr) {
+        console.warn('[News] Web search: no JSON found in output');
+      } else {
+        const data = JSON.parse(jsonStr) as WebSearchResult[];
+        if (Array.isArray(data) && data.length > 0) {
+          const items: FullNewsItem[] = data
+            .filter((r) => r.name && r.url)
+            .map((r) => ({
+              title: r.name,
+              source: r.host_name || 'Web Search',
+              url: r.url,
+              snippet: (r.snippet || '').substring(0, 200) + ((r.snippet || '').length > 200 ? '...' : ''),
+              date: r.date || new Date().toISOString(),
+              type: classifyImpact(r.name, r.snippet || ''),
+            }));
+
+          // Sort by impact then by date
+          const importanceOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+          items.sort((a, b) => {
+            const aImp = importanceOrder[a.type] ?? 99;
+            const bImp = importanceOrder[b.type] ?? 99;
+            if (aImp !== bImp) return aImp - bImp;
+            return b.date.localeCompare(a.date);
+          });
+
+          console.log(`[News] Web search (CLI) returned ${items.length} articles`);
+          return items;
+        }
       }
     }
-
-    if (!jsonStr) {
-      console.warn('[News] Web search: no JSON found in output');
-      return [];
-    }
-
-    const data = JSON.parse(jsonStr) as WebSearchResult[];
-    if (!Array.isArray(data) || data.length === 0) {
-      console.warn('[News] Web search: empty results');
-      return [];
-    }
-
-    const items: FullNewsItem[] = data
-      .filter((r) => r.name && r.url)
-      .map((r) => ({
-        title: r.name,
-        source: r.host_name || 'Web Search',
-        url: r.url,
-        snippet: (r.snippet || '').substring(0, 200) + ((r.snippet || '').length > 200 ? '...' : ''),
-        date: r.date || new Date().toISOString(),
-        type: classifyImpact(r.name, r.snippet || ''),
-      }));
-
-    // Sort by impact then by date
-    const importanceOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
-    items.sort((a, b) => {
-      const aImp = importanceOrder[a.type] ?? 99;
-      const bImp = importanceOrder[b.type] ?? 99;
-      if (aImp !== bImp) return aImp - bImp;
-      return b.date.localeCompare(a.date);
-    });
-
-    console.log(`[News] Web search returned ${items.length} articles`);
-    return items;
   } catch (err: any) {
-    console.error(`[News] Web search failed: ${err.message}`);
-    return [];
+    console.error(`[News] Web search CLI failed: ${err.message}`);
   }
+
+  // Strategy 2: DuckDuckGo HTML search (works in CF Workers/Edge via fetch)
+  try {
+    console.log('[News] Trying DuckDuckGo search as edge-compatible fallback...');
+    const ddgResp = await fetch('https://lite.duckduckgo.com/lite/?q=forex+trading+news+today', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Accept': 'text/html',
+      },
+      signal: AbortSignal.timeout(10000),
+      redirect: 'follow',
+    });
+
+    if (ddgResp.ok) {
+      const html = await ddgResp.text();
+      // Parse DDG Lite results - they use <a class="result-link" href="...">
+      const linkRegex = /<a[^>]*class="result-link"[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi;
+      const snippetRegex = /<td[^>]*class="result-snippet"[^>]*>(.*?)<\/td>/gi;
+      const items: FullNewsItem[] = [];
+
+      let linkMatch;
+      let idx = 0;
+      while ((linkMatch = linkRegex.exec(html)) !== null && idx < 20) {
+        const url = linkMatch[1];
+        const titleRaw = linkMatch[2].replace(/<[^>]*>/g, '').trim();
+        if (!url.startsWith('http') || !titleRaw) continue;
+
+        // Get corresponding snippet
+        const snippetMatch = snippetRegex.exec(html);
+        const snippet = snippetMatch ? snippetMatch[1].replace(/<[^>]*>/g, '').trim().substring(0, 200) : '';
+
+        items.push({
+          title: titleRaw,
+          source: new URL(url).hostname.replace('www.', ''),
+          url,
+          snippet,
+          date: new Date().toISOString(),
+          type: classifyImpact(titleRaw, snippet),
+        });
+        idx++;
+      }
+
+      if (items.length > 0) {
+        console.log(`[News] DuckDuckGo search returned ${items.length} articles`);
+        return items;
+      }
+    }
+  } catch (err: any) {
+    console.error(`[News] DuckDuckGo search failed: ${err.message}`);
+  }
+
+  console.warn('[News] All web search strategies failed');
+  return [];
 }
 
 // ==================== MAIN FETCH LOGIC ====================
