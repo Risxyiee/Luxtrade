@@ -308,11 +308,16 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
         credentials: 'include',
       })
       if (res.ok) {
-        toast.success(t('Pemeriksaan selesai', 'Check complete'))
+        const data = await res.json()
+        const msg = data.message || t('Pemeriksaan selesai', 'Check complete')
+        toast.success(msg)
         fetchChallenges()
+      } else {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err.error || t('Gagal menjalankan pemeriksaan', 'Failed to run check'))
       }
-    } catch {
-      toast.error(t('Gagal menjalankan pemeriksaan', 'Failed to run check'))
+    } catch (err: any) {
+      toast.error(err.message || t('Gagal menjalankan pemeriksaan', 'Failed to run check'))
     } finally {
       setChecking(false)
     }
@@ -398,13 +403,16 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
         method: 'DELETE',
         credentials: 'include',
       })
-      if (!res.ok) throw new Error('Failed to delete')
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to delete')
+      }
       toast.success(t('Challenge dihapus', 'Challenge deleted'))
       setDeleteDialogOpen(false)
       setSelectedChallenge(null)
       fetchChallenges()
-    } catch {
-      toast.error(t('Gagal menghapus', 'Failed to delete'))
+    } catch (err: any) {
+      toast.error(err.message || t('Gagal menghapus', 'Failed to delete'))
     }
   }
 
