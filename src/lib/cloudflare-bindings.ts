@@ -165,7 +165,19 @@ export async function getEnvVar(key: string): Promise<string> {
     return fromProcess;
   }
 
-  console.warn(`[getEnvVar] ${key} NOT FOUND in any source`);
+  // 3. Last resort: try globalThis.__env__ or globalThis.env (some CF Workers setups)
+  try {
+    const globalEnv = (globalThis as any).__env__ || (globalThis as any).env;
+    if (globalEnv) {
+      const val = globalEnv[key];
+      if (val && typeof val === 'string' && val.length > 0 && !isPlaceholderEnvVar(val)) {
+        console.log(`[getEnvVar] ${key} found in globalThis env, ${val.length} chars`);
+        return val;
+      }
+    }
+  } catch {}
+
+  console.warn(`[getEnvVar] ${key} NOT FOUND in any source (CF ctx.env, process.env, globalThis)`);
   return '';
 }
 
