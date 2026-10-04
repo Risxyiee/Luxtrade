@@ -13,23 +13,8 @@ const CRON_ROUTES = {
   '0 3 * * 1': ['/api/cron/weekly-summary'],
 }
 
-// The symbol used by @opennextjs/cloudflare to store the CF context on globalThis.
-// Setting it HERE (before delegating to the OpenNext worker) guarantees that
-// getCloudflareContext() returns the env immediately — even if the OpenNext
-// worker's own init hasn't run yet or the dynamic import has a timing gap.
-const __cloudflareContextSymbol = Symbol.for('__cloudflare-context__')
-
 export default {
   async fetch(request, env, ctx) {
-    // Explicitly set the Cloudflare context on globalThis so that
-    // @opennextjs/cloudflare's getCloudflareContext() can find it.
-    // This is the SAME thing OpenNext's worker.js does internally,
-    // but setting it here guarantees availability from the first line
-    // of any Next.js route handler.
-    if (!globalThis[__cloudflareContextSymbol]) {
-      globalThis[__cloudflareContextSymbol] = { env, cf: request.cf, ctx }
-    }
-
     // Delegate to the OpenNext-generated worker
     try {
       const worker = await import('./.open-next/worker.js')
