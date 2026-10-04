@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
-import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { getSupabaseAdminAsync } from '@/lib/supabase-admin-alt'
 import { sendEmail, getPropFirmAlertHtml } from '@/lib/email'
 import { sendPushToUser } from '@/lib/web-push'
 
@@ -24,7 +24,7 @@ export const dynamic = 'force-dynamic'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://luxtradee.web.id'
 
-async function calculateDailyPL(admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>, userId: string, accountId?: string | null): Promise<number> {
+async function calculateDailyPL(admin: NonNullable<Awaited<ReturnType<typeof getSupabaseAdminAsync>>>, userId: string, accountId?: string | null): Promise<number> {
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
 
@@ -43,7 +43,7 @@ async function calculateDailyPL(admin: NonNullable<ReturnType<typeof getSupabase
   return trades.reduce((sum: number, t: any) => sum + (Number(t.profit_loss) || 0), 0)
 }
 
-async function calculateTotalPL(admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>, userId: string, accountId?: string | null): Promise<number> {
+async function calculateTotalPL(admin: NonNullable<Awaited<ReturnType<typeof getSupabaseAdminAsync>>>, userId: string, accountId?: string | null): Promise<number> {
   let query = admin
     .from('trades')
     .select('profit_loss')
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
   const { user, response } = await requireAuth(request)
   if (!user || response) return response
 
-  const admin = getSupabaseAdmin()
+  const admin = await getSupabaseAdminAsync()
   if (!admin) {
     return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
   }

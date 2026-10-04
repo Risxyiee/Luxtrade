@@ -2,11 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getEnvVar as getCfEnvVar } from '@/lib/cloudflare-bindings';
 
 // Lazy accessor for child_process.spawn — not available on Cloudflare Workers
+// In CF Workers, require('child_process') throws "[unenv] child_process.spawn is not implemented yet!"
+// even though the module object exists. We need to check if spawn is actually callable.
 let _spawn: any = undefined; // undefined=not tried, null=unavailable
 function getSpawn(): any {
   if (_spawn !== undefined) return _spawn;
   try {
-    _spawn = require('child_process').spawn;
+    const cp = require('child_process');
+    // Even if require succeeds, spawn might be a stub that throws at call time
+    // Check if it's a real function by testing its type
+    if (cp && typeof cp.spawn === 'function') {
+      // Additional check: try to detect unenv stubs by checking function toString
+      const spawnStr = cp.spawn.toString();
+      if (spawnStr.includes('not implemented') || spawnStr.includes('unenv')) {
+        _spawn = null;
+      } else {
+        _spawn = cp.spawn;
+      }
+    } else {
+      _spawn = null;
+    }
   } catch {
     _spawn = null; // CF Workers or other environments without child_process
   }

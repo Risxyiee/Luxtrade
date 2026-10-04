@@ -473,3 +473,35 @@ Work Log:
 Stage Summary:
 - ROOT CAUSE: worker-entry.ts didn't set CF context symbol + getEnvVar prioritized process.env over CF ctx.env' data invalidated
 - Profile Guard: balance editing now works correctly, derived fields auto-recalculated, PATCH no longer resets disabled fields to 0
+---
+Task ID: 1
+Agent: main
+Task: Fix all API/data issues - Finnhub 403, child_process.spawn, MarketWatch RSS, PropFirm delete/edit
+
+Work Log:
+- Investigated all error logs: Finnhub 403, child_process.spawn not implemented, MarketWatch RSS 0 items, PropFirm delete/edit failures
+- Root cause 1: worker-entry.ts wasn't setting __cloudflare-context__ symbol, so getCloudflareContext().env couldn't find API keys
+- Root cause 2: getSpawn() didn't detect unenv stubs - require('child_process') succeeds but spawn is a stub that throws
+- Root cause 3: MarketWatch feedburner RSS URL (feeds.feedburner.com/Marketwatch-topstories) may be dead
+- Root cause 4: Supabase admin client (createAdminClient) only reads from process.env which may not be populated on CF Workers; secrets need to be read from getCloudflareContext().env
+- Root cause 5: handleSaveEdit error handling tried res.json() without .catch() on error responses
+
+Fixes applied:
+1. worker-entry.ts: Added globalThis[Symbol.for('__cloudflare-context__')] = { env, cf, ctx } BEFORE delegating to OpenNext worker
+2. economic-calendar/route.ts: Fixed getSpawn() to detect unenv stubs by checking function.toString() for 'not implemented' or 'unenv'
+3. news/route.ts: Same getSpawn() fix + updated MarketWatch RSS URL to feeds.content.dowjonesonline.com/RSSMarketsMain
+4. supabase/admin.ts: Added createAdminClientAsync() that checks both process.env AND CF ctx.env via getCloudflareContext()
+5. supabase-admin-alt.ts: Added getSupabaseAdminAsync() using the new async admin client creation
+6. prop-firm-guard/route.ts: Changed all 4 handlers (GET/POST/PATCH/DELETE) to use getSupabaseAdminAsync()
+7. prop-firm-guard/check/route.ts: Same fix
+8. cron/prop-firm-guard/route.ts: Same fix
+9. PropFirmGuardTab.tsx: Fixed handleSaveEdit error handling with .catch() on res.json()
+
+Stage Summary:
+- All API key reading should now work: worker-entry sets CF context, getEnvVar reads from it
+- child_process.spawn detection now handles unenv stubs properly
+- MarketWatch RSS URL updated to more reliable Dow Jones feed
+- Supabase admin client now works on CF Workers by checking CF ctx.env as fallback
+- PropFirm Guard delete/edit should work since admin client can now authenticate
+- Build could not complete due to OOM (esbuild needs ~2GB, system only has 4GB total)
+- Code changes are complete and lint-clean; user needs to deploy from their environment

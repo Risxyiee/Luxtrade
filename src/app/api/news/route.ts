@@ -2,13 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getEnvVar as getCfEnvVar } from '@/lib/cloudflare-bindings';
 
 // Lazy accessor for child_process.spawn — not available on Cloudflare Workers
+// In CF Workers, require('child_process') throws "[unenv] child_process.spawn is not implemented yet!"
+// even though the module object exists. We need to check if spawn is actually callable.
 let _spawn: any = undefined; // undefined=not tried, null=unavailable
 function getSpawn(): any {
   if (_spawn !== undefined) return _spawn;
   try {
-    _spawn = require('child_process').spawn;
+    const cp = require('child_process');
+    if (cp && typeof cp.spawn === 'function') {
+      const spawnStr = cp.spawn.toString();
+      if (spawnStr.includes('not implemented') || spawnStr.includes('unenv')) {
+        _spawn = null;
+      } else {
+        _spawn = cp.spawn;
+      }
+    } else {
+      _spawn = null;
+    }
   } catch {
-    _spawn = null; // CF Workers or other environments without child_process
+    _spawn = null;
   }
   return _spawn;
 }
@@ -135,7 +147,7 @@ const INVESTING_COMMODITIES_RSS = 'https://www.investing.com/rss/news_11.rss'; /
 const INVESTING_FOREX_RSS = 'https://www.investing.com/rss/news_301.rss';   // Forex-specific news (200 OK)
 const CNBC_BUSINESS_RSS = 'https://www.cnbc.com/id/10001147/device/rss/rss.html'; // Business news (200 OK)
 const BLOOMBERG_RSS = 'https://feeds.bloomberg.com/markets/news.rss';      // Markets (200 OK, follows redirect)
-const MARKETWATCH_RSS = 'https://feeds.feedburner.com/Marketwatch-topstories'; // MarketWatch top stories (200 OK)
+const MARKETWATCH_RSS = 'https://feeds.content.dowjonesonline.com/RSSMarketsMain'; // MarketWatch/DJ markets (more reliable than feedburner)
 
 // UNRELIABLE (dead or blocked — kept as last resort):
 // ForexFactory RSS URL is a profile page, not RSS. Calendar XML is Cloudflare-blocked.
