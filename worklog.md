@@ -452,3 +452,24 @@ Stage Summary:
   - `[EconCalendar:getEnvVar] FINNHUB_API_KEY NOT FOUND in any source` → key is NOT accessible, and we know process.env failed AND CF context failed
   - `[EconCalendar:getEnvVar] getCloudflareContext({async:true}) failed: <error>` → tells exactly why CF context failed
 - Lint: Clean (no errors)
+---
+Task ID: 1
+Agent: main
+Task: Fix API key connection to CF Workers, News showing 1 item, Profile Guard issues
+
+Work Log:
+- Investigated root cause of API keys not being read from CF Workers
+- Found that worker-entry.ts didn't set globalThis[Symbol.for("__cloudflare-context__")] before delegating to OpenNext worker
+- Found that centralized getEnvVar checked process.env FIRST (wrong priority for CF Workers production)
+- Fixed worker-entry.ts to explicitly set the CF context symbol before delegating
+- Fixed centralized getEnvVar to prioritize CF ctx.env over process.env, added placeholder detection and logging
+- Fixed forex/route.ts with same pattern (CF context first, process.env fallback, placeholder detection)
+- Fixed news/route.ts to invalidate KV cache entries with < 3 items (likely from when API keys were broken)
+- Fixed prop-firm-guard/route.ts PATCH to auto-recalculate derived fields when balance changes
+- Fixed PropFirmGuardTab.tsx PATCH to only send enabled fields (omit disabled instead of sending 0)
+- Fixed PropFirmGuardTab.tsx POST error handling with .catch() and debug logging
+- Committed and pushed to GitHub (commit 59699695)
+
+Stage Summary:
+- ROOT CAUSE: worker-entry.ts didn't set CF context symbol + getEnvVar prioritized process.env over CF ctx.env' data invalidated
+- Profile Guard: balance editing now works correctly, derived fields auto-recalculated, PATCH no longer resets disabled fields to 0
