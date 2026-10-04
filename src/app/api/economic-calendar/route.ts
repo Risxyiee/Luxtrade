@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getEnvVar as getCfEnvVar } from '@/lib/cloudflare-bindings';
 
 // Lazy accessor for child_process.spawn — not available on Cloudflare Workers
 let _spawn: any = undefined; // undefined=not tried, null=unavailable
@@ -74,63 +75,61 @@ function coerceEnvString(val: unknown): string {
 }
 
 async function getEnvVar(key: string): Promise<string> {
-  // 1. process.env — works when OpenNext's populateProcessEnv has run
-  const fromProcess = process.env[key];
-  if (fromProcess && fromProcess.length > 0 && !isPlaceholder(fromProcess)) {
-    console.log(`[EconCalendar:getEnvVar] ${key} found in process.env (${fromProcess.length} chars, starts: ${fromProcess.substring(0, 4)}...)`);
-    return fromProcess;
+  // 1. Try the centralized CF env var reader (handles process.env + CF ctx.env)
+  const centralized = await getCfEnvVar(key);
+  if (centralized && centralized.length > 0 && !isPlaceholder(centralized)) {
+    console.log(`[EconCalendar:getEnvVar] ${key} found via centralized getter (${centralized.length} chars, starts: ${centralized.substring(0, 4)}...)`);
+    return centralized;
   }
-  if (fromProcess && fromProcess.length > 0 && isPlaceholder(fromProcess)) {
-    console.warn(`[EconCalendar:getEnvVar] ${key} in process.env but looks like a PLACEHOLDER: "${fromProcess.substring(0, 12)}..."`);
+  if (centralized && centralized.length > 0 && isPlaceholder(centralized)) {
+    console.warn(`[EconCalendar:getEnvVar] ${key} found but looks like PLACEHOLDER: "${centralized.substring(0, 12)}..."`);
   }
 
-  // 2. getCloudflareContext().env — works in CF Workers edge runtime
-  //    Try both sync and async variants for maximum compatibility
+  // 2. Fallback: direct process.env check (redundant but safe)
+  const fromProcess = process.env[key];
+  if (fromProcess && fromProcess.length > 0 && !isPlaceholder(fromProcess)) {
+    console.log(`[EconCalendar:getEnvVar] ${key} found in process.env fallback (${fromProcess.length} chars)`);
+    return fromProcess;
+  }
+
+  // 3. Fallback: direct CF context access with logging
   try {
     const cfMod = await import('@opennextjs/cloudflare');
     const getCloudflareContext = cfMod.getCloudflareContext;
-
-    // Try async variant first (more reliable in some OpenNext versions)
     try {
       const ctx = await getCloudflareContext({ async: true });
       if (ctx?.env) {
         const raw = ctx.env[key];
         const fromCtx = coerceEnvString(raw);
         if (fromCtx && fromCtx.length > 0 && !isPlaceholder(fromCtx)) {
-          console.log(`[EconCalendar:getEnvVar] ${key} found in CF ctx.env (async) (${fromCtx.length} chars, starts: ${fromCtx.substring(0, 4)}...)`);
+          console.log(`[EconCalendar:getEnvVar] ${key} found in direct CF ctx.env (async) (${fromCtx.length} chars)`);
           return fromCtx;
         }
-        if (fromCtx && fromCtx.length > 0 && isPlaceholder(fromCtx)) {
-          console.warn(`[EconCalendar:getEnvVar] ${key} in CF ctx.env (async) but looks like a PLACEHOLDER: "${fromCtx.substring(0, 12)}..."`);
-        }
+        // Log what keys ARE available for debugging
+        const envKeys = Object.keys(ctx.env).filter(k => !k.startsWith('NEXT_') && !k.startsWith('ASSETS'));
+        console.warn(`[EconCalendar:getEnvVar] ${key} NOT in CF ctx.env (async). Available keys: [${envKeys.join(', ')}]`);
       }
     } catch (asyncErr: any) {
       console.warn(`[EconCalendar:getEnvVar] getCloudflareContext({async:true}) failed: ${asyncErr?.message || asyncErr}`);
     }
-
-    // Fallback to sync variant
     try {
       const ctx = getCloudflareContext();
       if (ctx?.env) {
         const raw = ctx.env[key];
         const fromCtx = coerceEnvString(raw);
         if (fromCtx && fromCtx.length > 0 && !isPlaceholder(fromCtx)) {
-          console.log(`[EconCalendar:getEnvVar] ${key} found in CF ctx.env (sync) (${fromCtx.length} chars, starts: ${fromCtx.substring(0, 4)}...)`);
+          console.log(`[EconCalendar:getEnvVar] ${key} found in direct CF ctx.env (sync) (${fromCtx.length} chars)`);
           return fromCtx;
-        }
-        if (fromCtx && fromCtx.length > 0 && isPlaceholder(fromCtx)) {
-          console.warn(`[EconCalendar:getEnvVar] ${key} in CF ctx.env (sync) but looks like a PLACEHOLDER: "${fromCtx.substring(0, 12)}..."`);
         }
       }
     } catch (syncErr: any) {
       console.warn(`[EconCalendar:getEnvVar] getCloudflareContext() sync failed: ${syncErr?.message || syncErr}`);
     }
   } catch (importErr: any) {
-    // @opennextjs/cloudflare not available (local dev without wrangler)
-    console.info(`[EconCalendar:getEnvVar] @opennextjs/cloudflare import failed (local dev?): ${importErr?.message || importErr}`);
+    console.info(`[EconCalendar:getEnvVar] @opennextjs/cloudflare import failed: ${importErr?.message || importErr}`);
   }
 
-  console.warn(`[EconCalendar:getEnvVar] ${key} NOT FOUND in any source (process.env or CF ctx.env)`);
+  console.warn(`[EconCalendar:getEnvVar] ${key} NOT FOUND in any source`);
   return '';
 }
 
@@ -742,17 +741,24 @@ async function fetchFallbackCalendar(): Promise<CalendarEvent[]> {
 // ─── Cascade: Real APIs first, web search, fallback last ──────────────────
 async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source: string; unavailable: boolean }> {
   const errors: string[] = [];
+  const collectedEvents: CalendarEvent[] = [];
+  let primarySource = '';
 
   // Log API key availability at start of cascade
   const fhKey = await getFinnhubKey();
   const rapKey = await getRapidApiKey();
-  console.log(`[EconCalendar] API keys available: Finnhub=${fhKey ? 'YES(' + fhKey.substring(0, 6) + '...)' : 'NO'}, RapidAPI=${rapKey ? 'YES(' + rapKey.substring(0, 6) + '...)' : 'NO'}`);
+  const fcsKey = await getFcsApiKey();
+  console.log(`[EconCalendar] API keys available: Finnhub=${fhKey ? 'YES(' + fhKey.substring(0, 6) + '...)' : 'NO'}, RapidAPI=${rapKey ? 'YES(' + rapKey.substring(0, 6) + '...)' : 'NO'}, FCSAPI=${fcsKey ? 'YES' : 'NO'}`);
 
   // 1. Finnhub (FREE tier: 60 calls/min)
   if (fhKey) {
     try {
       const events = await fetchFinnhubCalendar();
-      if (events.length > 0) return { events, source: 'Finnhub (Live)', unavailable: false };
+      if (events.length > 0) {
+        primarySource = 'Finnhub (Live)';
+        collectedEvents.push(...events);
+        console.log(`[EconCalendar] Finnhub: ${events.length} events collected`);
+      }
     } catch (err: any) {
       errors.push('Finnhub: ' + err.message);
       console.error('[EconCalendar] Finnhub failed:', err.message);
@@ -761,17 +767,35 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     console.info('[EconCalendar] FINNHUB_API_KEY not set, skipping');
   }
 
-  // 2. TradingEconomics Calendar (RapidAPI)
+  // 2. TradingEconomics Calendar (RapidAPI) — collect, don't return early
   if (rapKey) {
     try {
       const events = await fetchTECalendar();
-      if (events.length > 0) return { events, source: 'TradingEconomics (Live)', unavailable: false };
+      if (events.length > 0) {
+        if (!primarySource) primarySource = 'TradingEconomics (Live)';
+        collectedEvents.push(...events);
+        console.log(`[EconCalendar] TradingEconomics: ${events.length} events, total now ${collectedEvents.length}`);
+      }
     } catch (err: any) {
       errors.push('TE: ' + err.message);
       console.error('[EconCalendar] TradingEconomics failed:', err.message);
     }
   } else {
     console.info('[EconCalendar] RAPIDAPI_KEY not set, skipping');
+  }
+
+  // If we have API data, deduplicate and return
+  if (collectedEvents.length > 0) {
+    // Deduplicate by currency+date+event name
+    const seen = new Set<string>();
+    const deduped = collectedEvents.filter(e => {
+      const key = e.currency + '-' + e.date + '-' + e.event.substring(0, 30);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    console.log(`[EconCalendar] Merged ${deduped.length} events from API sources (from ${collectedEvents.length} total)`);
+    return { events: sortEvents(deduped), source: primarySource || 'API (Live)', unavailable: false };
   }
 
   // 3. Web Search via z-ai-web-dev-sdk (real-time economic calendar data)

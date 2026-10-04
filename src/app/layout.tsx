@@ -130,7 +130,7 @@ export default function RootLayout({
               {children}
             </Providers>
           </LanguageProvider>
-          <Toaster position="top-right" />
+          <Toaster position="top-right" richColors closeButton toastOptions={{ duration: 4000 }} />
           <PWAInstallPrompt />
           <ServiceWorkerRegistration />
 
