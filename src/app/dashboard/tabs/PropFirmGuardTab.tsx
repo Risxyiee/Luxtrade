@@ -309,15 +309,9 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
       })
       if (res.ok) {
         const data = await res.json()
-        const processed = data.processed || 0
-        const alerts = data.alertsSent || 0
-        const breaches = data.breaches || 0
         const msg = data.message || t('Pemeriksaan selesai', 'Check complete')
-        toast.success(t(
-          `Cek selesai: ${processed} challenge, ${alerts} alert, ${breaches} breach`,
-          `Check done: ${processed} challenges, ${alerts} alerts, ${breaches} breaches`
-        ), { description: msg })
-        await fetchChallenges()
+        toast.success(msg)
+        fetchChallenges()
       } else {
         const err = await res.json().catch(() => ({}))
         toast.error(err.error || t('Gagal menjalankan pemeriksaan', 'Failed to run check'))
@@ -361,9 +355,9 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
         throw new Error(err.error || 'Failed to create')
       }
 
-      toast.success(t('Challenge berhasil dibuat!', 'Challenge created successfully!'))
+      toast.success(t('Challenge berhasil dibuat!', 'Challenge created!'))
       setAddDialogOpen(false)
-      await fetchChallenges()
+      fetchChallenges()
     } catch (err: any) {
       toast.error(err.message || t('Gagal membuat challenge', 'Failed to create challenge'))
     }
@@ -395,8 +389,8 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
         body: JSON.stringify({ id, resetBreach: true }),
       })
       if (!res.ok) throw new Error('Failed to reset')
-      toast.success(t('Breach berhasil direset!', 'Breach reset successfully!'))
-      await fetchChallenges()
+      toast.success(t('Breach berhasil direset', 'Breach reset successfully'))
+      fetchChallenges()
     } catch {
       toast.error(t('Gagal mereset breach', 'Failed to reset breach'))
     }
@@ -413,10 +407,10 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
         const err = await res.json().catch(() => ({}))
         throw new Error(err.error || 'Failed to delete')
       }
-      toast.success(t('Challenge berhasil dihapus!', 'Challenge deleted successfully!'))
+      toast.success(t('Challenge dihapus', 'Challenge deleted'))
       setDeleteDialogOpen(false)
       setSelectedChallenge(null)
-      await fetchChallenges()
+      fetchChallenges()
     } catch (err: any) {
       toast.error(err.message || t('Gagal menghapus', 'Failed to delete'))
     }
@@ -471,24 +465,21 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
   const handleSaveEdit = async () => {
     if (!selectedChallenge) return
     try {
-      const patchBody: Record<string, any> = {
+      const patchBody = {
         id: selectedChallenge.id,
         firmName: editFirmName,
         accountSize: editAccountSize,
+        maxDailyLoss: editMaxDailyLossEnabled ? editMaxDailyLoss : 0,
+        maxTotalDD: editMaxTotalDDEnabled ? editMaxTotalDD : 0,
+        profitTarget: editProfitTargetEnabled ? editProfitTarget : 0,
         alertAtPercent: editAlertPercent,
+        currentBalance: editCurrentBalanceEnabled ? editCurrentBalance : 0,
+        consistencyRule: editConsistencyRuleEnabled ? editConsistencyRule : 0,
+        bestDayPL: editBestDayPLEnabled ? editBestDayPL : 0,
+        dailyPL: editDailyPLEnabled ? editDailyPL : 0,
+        totalPL: editTotalPLEnabled ? editTotalPL : 0,
         challengePhase: editChallengePhase,
       }
-      // Only include optional fields when their toggle is enabled
-      // When disabled, don't send them (API will keep existing DB values)
-      if (editMaxDailyLossEnabled) patchBody.maxDailyLoss = editMaxDailyLoss
-      if (editMaxTotalDDEnabled) patchBody.maxTotalDD = editMaxTotalDD
-      if (editProfitTargetEnabled) patchBody.profitTarget = editProfitTarget
-      if (editCurrentBalanceEnabled) patchBody.currentBalance = editCurrentBalance
-      if (editConsistencyRuleEnabled) patchBody.consistencyRule = editConsistencyRule
-      if (editBestDayPLEnabled) patchBody.bestDayPL = editBestDayPL
-      if (editDailyPLEnabled) patchBody.dailyPL = editDailyPL
-      if (editTotalPLEnabled) patchBody.totalPL = editTotalPL
-
       console.log('[PropFirmGuard] PATCH save:', patchBody)
       const res = await fetch('/api/prop-firm-guard', {
         method: 'PATCH',
@@ -498,7 +489,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
         body: JSON.stringify(patchBody),
       })
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
+        const err = await res.json()
         console.error('[PropFirmGuard] PATCH error:', err)
         throw new Error(err.error || 'Failed to update')
       }
@@ -507,8 +498,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
       toast.success(t('Challenge berhasil diupdate!', 'Challenge updated!'))
       setEditDialogOpen(false)
       setSelectedChallenge(null)
-      // Refresh challenges to show updated data
-      await fetchChallenges()
+      fetchChallenges()
     } catch (err: any) {
       console.error('[PropFirmGuard] Save edit failed:', err)
       toast.error(err.message || t('Gagal mengupdate', 'Failed to update'))
