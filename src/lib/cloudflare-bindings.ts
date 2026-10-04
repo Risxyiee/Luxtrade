@@ -93,47 +93,79 @@ export async function getCloudflareEnv(): Promise<CloudflareBindings> {
   }
 }
 
+/** Known placeholder patterns that should NOT be treated as real API keys */
+const PLACEHOLDER_PATTERNS = [
+  'your_', 'xxx', 'sk-or-', 'sk-your', 'hf_your',
+  're_xxxxxxxxxx',
+]
+
+function isPlaceholderEnvVar(value: string): boolean {
+  if (!value || value.length < 4) return true
+  const lower = value.toLowerCase()
+  return PLACEHOLDER_PATTERNS.some(p => lower.startsWith(p))
+}
+
 /**
  * Get an environment variable from Cloudflare Workers env (secrets + vars).
  * This is the centralized way to read API keys and other env vars in CF Workers.
- * Falls back to process.env for local development.
+ *
+ * Resolution order (CF Workers production):
+ *  1. getCloudflareContext().env[key]  — the canonical source for CF secrets/vars
+ *  2. process.env[key]                 — fallback (OpenNext may populate this)
+ *
+ * Resolution order (local dev):
+ *  1. process.env[key]                 — set via .dev.vars or shell env
+ *  2. getCloudflareContext().env[key]  — works if wrangler dev is proxying
  */
 export async function getEnvVar(key: string): Promise<string> {
-  // 1. Try process.env first (works in local dev and when OpenNext populates it)
-  const fromProcess = process.env[key];
-  if (fromProcess && fromProcess.length > 0) {
-    return fromProcess;
-  }
-
-  // 2. Try CF Workers env via getCloudflareContext
+  // 1. Try CF Workers env via getCloudflareContext (PRIMARY for production)
   try {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+
     // Try async variant first
     try {
       const ctx = await getCloudflareContext({ async: true });
       if (ctx?.env) {
         const val = (ctx.env as any)[key];
-        if (typeof val === 'string' && val.length > 0) return val;
         if (val != null) {
-          const s = String(val);
-          if (s && s !== '[object Object]') return s;
+          const s = typeof val === 'string' ? val : String(val);
+          if (s && s !== '[object Object]' && !isPlaceholderEnvVar(s)) {
+            console.log(`[getEnvVar] ${key} found in CF ctx.env (async), ${s.length} chars`);
+            return s;
+          }
+          if (s && isPlaceholderEnvVar(s)) {
+            console.warn(`[getEnvVar] ${key} in CF ctx.env (async) looks like placeholder: "${s.substring(0, 12)}..."`);
+          }
         }
       }
     } catch {}
+
     // Sync variant fallback
     try {
       const ctx = getCloudflareContext();
       if (ctx?.env) {
         const val = (ctx.env as any)[key];
-        if (typeof val === 'string' && val.length > 0) return val;
         if (val != null) {
-          const s = String(val);
-          if (s && s !== '[object Object]') return s;
+          const s = typeof val === 'string' ? val : String(val);
+          if (s && s !== '[object Object]' && !isPlaceholderEnvVar(s)) {
+            console.log(`[getEnvVar] ${key} found in CF ctx.env (sync), ${s.length} chars`);
+            return s;
+          }
         }
       }
     } catch {}
-  } catch {}
+  } catch (importErr: any) {
+    console.info(`[getEnvVar] @opennextjs/cloudflare not available: ${importErr?.message || importErr}`);
+  }
 
+  // 2. Try process.env (works in local dev and when OpenNext populates it)
+  const fromProcess = process.env[key];
+  if (fromProcess && fromProcess.length > 0 && !isPlaceholderEnvVar(fromProcess)) {
+    console.log(`[getEnvVar] ${key} found in process.env, ${fromProcess.length} chars`);
+    return fromProcess;
+  }
+
+  console.warn(`[getEnvVar] ${key} NOT FOUND in any source`);
   return '';
 }
 

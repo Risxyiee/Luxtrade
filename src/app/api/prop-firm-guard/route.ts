@@ -342,6 +342,26 @@ export async function PATCH(request: NextRequest) {
 
     if (updates.currentBalance !== undefined) {
       data.current_balance = updates.currentBalance
+      // Auto-recalculate derived metrics when balance changes
+      const acctSize = updates.accountSize ?? existing.account_size
+      const maxDailyLoss = updates.maxDailyLoss ?? existing.max_daily_loss
+      const maxTotalDD = updates.maxTotalDD ?? existing.max_total_dd
+      const profitTarget = updates.profitTarget ?? existing.profit_target
+      const dailyPL = updates.dailyPL ?? existing.daily_pl ?? 0
+      const totalPL = updates.totalPL ?? existing.total_pl ?? 0
+      // current_daily_dd = maxDailyLoss - dailyPL (how close to daily loss limit)
+      if (maxDailyLoss > 0) {
+        data.current_daily_dd = Math.max(0, (maxDailyLoss - Math.abs(dailyPL < 0 ? dailyPL : 0)) / maxDailyLoss * 100)
+      }
+      // current_total_dd = how much of total DD limit is used
+      if (maxTotalDD > 0 && acctSize > 0) {
+        const usedDD = acctSize - updates.currentBalance
+        data.current_total_dd = Math.max(0, usedDD / maxTotalDD * 100)
+      }
+      // current_progress = progress toward profit target
+      if (profitTarget > 0) {
+        data.current_progress = Math.max(0, Math.min(100, totalPL / profitTarget * 100))
+      }
     }
 
     if (updates.consistencyRule !== undefined) {
