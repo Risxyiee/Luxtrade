@@ -70,18 +70,26 @@ function coerceEnvString(val: unknown): string {
   return ''
 }
 
+/** Known placeholder patterns that should NOT be treated as real API keys */
+const FOREX_PLACEHOLDER_PATTERNS = [
+  'your_', 'xxx', 'sk-or-', 'sk-your', 'hf_your',
+  're_xxxxxxxxxx',
+]
+
+function isPlaceholderEnvVar(value: string): boolean {
+  if (!value || value.length < 4) return true
+  const lower = value.toLowerCase()
+  return FOREX_PLACEHOLDER_PATTERNS.some(p => lower.startsWith(p))
+}
+
 async function getEnvVar(key: string): Promise<string> {
-  const fromProcess = process.env[key]
-  if (fromProcess && fromProcess.length > 0) {
-    console.log(`[Forex:getEnvVar] ${key} found in process.env (${fromProcess.length} chars)`)
-    return fromProcess
-  }
+  // 1. Try CF Workers env FIRST (primary for production)
   try {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare')
     try {
       const ctx = await getCloudflareContext({ async: true })
       const fromCtx = coerceEnvString(ctx?.env?.[key])
-      if (fromCtx && fromCtx.length > 0) {
+      if (fromCtx && fromCtx.length > 0 && !isPlaceholderEnvVar(fromCtx)) {
         console.log(`[Forex:getEnvVar] ${key} found in CF ctx.env (async) (${fromCtx.length} chars)`)
         return fromCtx
       }
@@ -89,12 +97,18 @@ async function getEnvVar(key: string): Promise<string> {
     try {
       const ctx = getCloudflareContext()
       const fromCtx = coerceEnvString(ctx?.env?.[key])
-      if (fromCtx && fromCtx.length > 0) {
+      if (fromCtx && fromCtx.length > 0 && !isPlaceholderEnvVar(fromCtx)) {
         console.log(`[Forex:getEnvVar] ${key} found in CF ctx.env (sync) (${fromCtx.length} chars)`)
         return fromCtx
       }
     } catch {}
   } catch {}
+  // 2. Fallback: process.env (local dev)
+  const fromProcess = process.env[key]
+  if (fromProcess && fromProcess.length > 0 && !isPlaceholderEnvVar(fromProcess)) {
+    console.log(`[Forex:getEnvVar] ${key} found in process.env (${fromProcess.length} chars)`)
+    return fromProcess
+  }
   console.warn(`[Forex:getEnvVar] ${key} NOT FOUND in any source`)
   return ''
 }

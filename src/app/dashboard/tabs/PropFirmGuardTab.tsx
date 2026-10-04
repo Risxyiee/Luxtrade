@@ -351,10 +351,13 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
       })
 
       if (!res.ok) {
-        const err = await res.json()
+        const err = await res.json().catch(() => ({}))
         throw new Error(err.error || 'Failed to create')
       }
 
+      // Consume response body to avoid unhandled stream
+      await res.json().catch(() => ({}))
+      console.log('[PropFirmGuard] Challenge created successfully')
       toast.success(t('Challenge berhasil dibuat!', 'Challenge created!'))
       setAddDialogOpen(false)
       fetchChallenges()
@@ -465,21 +468,23 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
   const handleSaveEdit = async () => {
     if (!selectedChallenge) return
     try {
-      const patchBody = {
+      const patchBody: Record<string, any> = {
         id: selectedChallenge.id,
         firmName: editFirmName,
         accountSize: editAccountSize,
-        maxDailyLoss: editMaxDailyLossEnabled ? editMaxDailyLoss : 0,
-        maxTotalDD: editMaxTotalDDEnabled ? editMaxTotalDD : 0,
-        profitTarget: editProfitTargetEnabled ? editProfitTarget : 0,
         alertAtPercent: editAlertPercent,
-        currentBalance: editCurrentBalanceEnabled ? editCurrentBalance : 0,
-        consistencyRule: editConsistencyRuleEnabled ? editConsistencyRule : 0,
-        bestDayPL: editBestDayPLEnabled ? editBestDayPL : 0,
-        dailyPL: editDailyPLEnabled ? editDailyPL : 0,
-        totalPL: editTotalPLEnabled ? editTotalPL : 0,
         challengePhase: editChallengePhase,
       }
+      // Only include fields that are enabled — if disabled, don't send them
+      // (prevents accidentally resetting values to 0)
+      if (editMaxDailyLossEnabled) patchBody.maxDailyLoss = editMaxDailyLoss
+      if (editMaxTotalDDEnabled) patchBody.maxTotalDD = editMaxTotalDD
+      if (editProfitTargetEnabled) patchBody.profitTarget = editProfitTarget
+      if (editCurrentBalanceEnabled) patchBody.currentBalance = editCurrentBalance
+      if (editConsistencyRuleEnabled) patchBody.consistencyRule = editConsistencyRule
+      if (editBestDayPLEnabled) patchBody.bestDayPL = editBestDayPL
+      if (editDailyPLEnabled) patchBody.dailyPL = editDailyPL
+      if (editTotalPLEnabled) patchBody.totalPL = editTotalPL
       console.log('[PropFirmGuard] PATCH save:', patchBody)
       const res = await fetch('/api/prop-firm-guard', {
         method: 'PATCH',

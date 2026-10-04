@@ -803,6 +803,13 @@ async function getNewsKVCache(): Promise<NewsCacheEntry | null> {
       return null;
     }
 
+    // Invalidate suspiciously small caches (< 3 items is likely from when API keys were broken)
+    if (entry.items.length < 3) {
+      console.warn(`[News] KV cache has only ${entry.items.length} items — likely from when API keys were unavailable, invalidating`);
+      try { await kv.delete('news_cache'); } catch {}
+      return null;
+    }
+
     return entry;
   } catch {
     return null;
