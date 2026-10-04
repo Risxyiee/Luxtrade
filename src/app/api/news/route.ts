@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getEnvVar as getCfEnvVar } from '@/lib/cloudflare-bindings';
 
 // Lazy accessor for child_process.spawn — not available on Cloudflare Workers
 let _spawn: any = undefined; // undefined=not tried, null=unavailable
@@ -60,63 +61,60 @@ function coerceEnvString(val: unknown): string {
 }
 
 async function getEnvVar(key: string): Promise<string> {
-  // 1. process.env — works when OpenNext's populateProcessEnv has run
-  const fromProcess = process.env[key];
-  if (fromProcess && fromProcess.length > 0 && !isPlaceholder(fromProcess)) {
-    console.log(`[News:getEnvVar] ${key} found in process.env (${fromProcess.length} chars, starts: ${fromProcess.substring(0, 4)}...)`);
-    return fromProcess;
+  // 1. Try the centralized CF env var reader (handles process.env + CF ctx.env)
+  const centralized = await getCfEnvVar(key);
+  if (centralized && centralized.length > 0 && !isPlaceholder(centralized)) {
+    console.log(`[News:getEnvVar] ${key} found via centralized getter (${centralized.length} chars, starts: ${centralized.substring(0, 4)}...)`);
+    return centralized;
   }
-  if (fromProcess && fromProcess.length > 0 && isPlaceholder(fromProcess)) {
-    console.warn(`[News:getEnvVar] ${key} in process.env but looks like a PLACEHOLDER: "${fromProcess.substring(0, 12)}..."`);
+  if (centralized && centralized.length > 0 && isPlaceholder(centralized)) {
+    console.warn(`[News:getEnvVar] ${key} found but looks like PLACEHOLDER: "${centralized.substring(0, 12)}..."`);
   }
 
-  // 2. getCloudflareContext().env — works in CF Workers edge runtime
-  //    Try both sync and async variants for maximum compatibility
+  // 2. Fallback: direct process.env check
+  const fromProcess = process.env[key];
+  if (fromProcess && fromProcess.length > 0 && !isPlaceholder(fromProcess)) {
+    console.log(`[News:getEnvVar] ${key} found in process.env fallback (${fromProcess.length} chars)`);
+    return fromProcess;
+  }
+
+  // 3. Fallback: direct CF context access with logging
   try {
     const cfMod = await import('@opennextjs/cloudflare');
     const getCloudflareContext = cfMod.getCloudflareContext;
-
-    // Try async variant first (more reliable in some OpenNext versions)
     try {
       const ctx = await getCloudflareContext({ async: true });
       if (ctx?.env) {
         const raw = ctx.env[key];
         const fromCtx = coerceEnvString(raw);
         if (fromCtx && fromCtx.length > 0 && !isPlaceholder(fromCtx)) {
-          console.log(`[News:getEnvVar] ${key} found in CF ctx.env (async) (${fromCtx.length} chars, starts: ${fromCtx.substring(0, 4)}...)`);
+          console.log(`[News:getEnvVar] ${key} found in direct CF ctx.env (async) (${fromCtx.length} chars)`);
           return fromCtx;
         }
-        if (fromCtx && fromCtx.length > 0 && isPlaceholder(fromCtx)) {
-          console.warn(`[News:getEnvVar] ${key} in CF ctx.env (async) but looks like a PLACEHOLDER: "${fromCtx.substring(0, 12)}..."`);
-        }
+        const envKeys = Object.keys(ctx.env).filter(k => !k.startsWith('NEXT_') && !k.startsWith('ASSETS'));
+        console.warn(`[News:getEnvVar] ${key} NOT in CF ctx.env (async). Available keys: [${envKeys.join(', ')}]`);
       }
     } catch (asyncErr: any) {
       console.warn(`[News:getEnvVar] getCloudflareContext({async:true}) failed: ${asyncErr?.message || asyncErr}`);
     }
-
-    // Fallback to sync variant
     try {
       const ctx = getCloudflareContext();
       if (ctx?.env) {
         const raw = ctx.env[key];
         const fromCtx = coerceEnvString(raw);
         if (fromCtx && fromCtx.length > 0 && !isPlaceholder(fromCtx)) {
-          console.log(`[News:getEnvVar] ${key} found in CF ctx.env (sync) (${fromCtx.length} chars, starts: ${fromCtx.substring(0, 4)}...)`);
+          console.log(`[News:getEnvVar] ${key} found in direct CF ctx.env (sync) (${fromCtx.length} chars)`);
           return fromCtx;
-        }
-        if (fromCtx && fromCtx.length > 0 && isPlaceholder(fromCtx)) {
-          console.warn(`[News:getEnvVar] ${key} in CF ctx.env (sync) but looks like a PLACEHOLDER: "${fromCtx.substring(0, 12)}..."`);
         }
       }
     } catch (syncErr: any) {
       console.warn(`[News:getEnvVar] getCloudflareContext() sync failed: ${syncErr?.message || syncErr}`);
     }
   } catch (importErr: any) {
-    // @opennextjs/cloudflare not available (local dev without wrangler)
-    console.info(`[News:getEnvVar] @opennextjs/cloudflare import failed (local dev?): ${importErr?.message || importErr}`);
+    console.info(`[News:getEnvVar] @opennextjs/cloudflare import failed: ${importErr?.message || importErr}`);
   }
 
-  console.warn(`[News:getEnvVar] ${key} NOT FOUND in any source (process.env or CF ctx.env)`);
+  console.warn(`[News:getEnvVar] ${key} NOT FOUND in any source`);
   return '';
 }
 
@@ -330,7 +328,7 @@ async function fetchFinnhubNews(): Promise<FullNewsItem[]> {
 
   const items: FullNewsItem[] = data
     .filter((item: any) => item.headline && item.url)
-    .slice(0, 30)
+    .slice(0, 50)
     .map((item: any) => ({
       title: item.headline,
       source: item.source || 'Finnhub',
@@ -628,7 +626,9 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
       const items = await fetchTradingEconomicsNews();
       if (items.length > 0) {
         primarySource = 'TradingEconomics';
-        return items;
+        // DON'T return early — collect and continue to RSS for more articles
+        collectedItems.push(...items);
+        console.log(`[News] TradingEconomics: ${items.length} articles collected, continuing to RSS for more`);
       }
     } catch (err: any) {
       const isRateLimit = err?.isRateLimit === true;
@@ -650,8 +650,10 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
       console.log('[News] Fetching from Finnhub...');
       const items = await fetchFinnhubNews();
       if (items.length > 0) {
-        primarySource = 'Finnhub';
-        return items;
+        if (!primarySource) primarySource = 'Finnhub';
+        // Collect Finnhub articles too
+        collectedItems.push(...items);
+        console.log(`[News] Finnhub: ${items.length} articles collected, total now ${collectedItems.length}`);
       }
     } catch (err: any) {
       console.info(`[News] Finnhub unavailable: ${err.message}`);
@@ -697,16 +699,19 @@ async function fetchFullNews(): Promise<FullNewsItem[]> {
       return b.date.localeCompare(a.date);
     });
 
-    console.log(`[News] Merged ${deduped.length} articles from RSS feeds (from ${collectedItems.length} total before dedup)`);
+    console.log(`[News] Merged ${deduped.length} articles from API + RSS (from ${collectedItems.length} total before dedup)`);
     return deduped;
   }
 
   // FALLBACK 3: z-ai-web-dev-sdk web-search (real-time search results)
-  console.log('[News] Trying web-search via z-ai-web-dev-sdk...');
-  const webSearchItems = await fetchWebSearchNews();
-  if (webSearchItems.length > 0) {
-    console.log(`[News] Web search returned ${webSearchItems.length} articles`);
-    return webSearchItems;
+  // Only try if we have NO articles at all from API + RSS
+  if (collectedItems.length === 0) {
+    console.log('[News] Trying web-search via z-ai-web-dev-sdk...');
+    const webSearchItems = await fetchWebSearchNews();
+    if (webSearchItems.length > 0) {
+      console.log(`[News] Web search returned ${webSearchItems.length} articles`);
+      return webSearchItems;
+    }
   }
 
   console.error('[News] All news sources failed (TradingEconomics, Finnhub, RSS, Web Search)');
@@ -868,7 +873,7 @@ export async function GET(request: NextRequest) {
         if (format === 'full') {
           return NextResponse.json({
             success: true, cached: true, cacheSource: 'kv',
-            news: cachedItems.slice(0, 30),
+            news: cachedItems.slice(0, 50),
             fetchedAt: new Date(kvEntry.timestamp).toISOString(),
             totalSources: cachedItems.length,
           });
@@ -901,7 +906,7 @@ export async function GET(request: NextRequest) {
         if (format === 'full') {
           return NextResponse.json({
             success: true, cached: true, cacheSource: 'memory',
-            news: cachedItems.slice(0, 30),
+            news: cachedItems.slice(0, 50),
             fetchedAt: new Date(fullNewsCache.timestamp).toISOString(),
             totalSources: cachedItems.length,
           });
@@ -953,7 +958,7 @@ export async function GET(request: NextRequest) {
     if (format === 'full') {
       return NextResponse.json({
         success: true, cached: false,
-        news: allResults.slice(0, 30),
+        news: allResults.slice(0, 50),
         fetchedAt: new Date().toISOString(),
         totalSources: allResults.length,
         rateLimited: isRateLimited || undefined,

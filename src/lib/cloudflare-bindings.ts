@@ -79,12 +79,62 @@ export interface CloudflareBindings {
 export async function getCloudflareEnv(): Promise<CloudflareBindings> {
   try {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+    // Try async variant first (more reliable in some OpenNext versions)
+    try {
+      const ctx = await getCloudflareContext({ async: true });
+      if (ctx?.env) return ctx.env as CloudflareBindings;
+    } catch {}
+    // Fallback to sync variant
     const ctx = getCloudflareContext();
     return (ctx?.env ?? {}) as CloudflareBindings;
   } catch {
     // @opennextjs/cloudflare not available (local dev without wrangler)
     return {} as CloudflareBindings;
   }
+}
+
+/**
+ * Get an environment variable from Cloudflare Workers env (secrets + vars).
+ * This is the centralized way to read API keys and other env vars in CF Workers.
+ * Falls back to process.env for local development.
+ */
+export async function getEnvVar(key: string): Promise<string> {
+  // 1. Try process.env first (works in local dev and when OpenNext populates it)
+  const fromProcess = process.env[key];
+  if (fromProcess && fromProcess.length > 0) {
+    return fromProcess;
+  }
+
+  // 2. Try CF Workers env via getCloudflareContext
+  try {
+    const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+    // Try async variant first
+    try {
+      const ctx = await getCloudflareContext({ async: true });
+      if (ctx?.env) {
+        const val = (ctx.env as any)[key];
+        if (typeof val === 'string' && val.length > 0) return val;
+        if (val != null) {
+          const s = String(val);
+          if (s && s !== '[object Object]') return s;
+        }
+      }
+    } catch {}
+    // Sync variant fallback
+    try {
+      const ctx = getCloudflareContext();
+      if (ctx?.env) {
+        const val = (ctx.env as any)[key];
+        if (typeof val === 'string' && val.length > 0) return val;
+        if (val != null) {
+          const s = String(val);
+          if (s && s !== '[object Object]') return s;
+        }
+      }
+    } catch {}
+  } catch {}
+
+  return '';
 }
 
 /** Shorthand: get typed bindings */
