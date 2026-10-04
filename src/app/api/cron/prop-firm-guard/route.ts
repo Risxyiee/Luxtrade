@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { getSupabaseAdminAsync } from '@/lib/supabase-admin-alt'
 import { sendEmail, getPropFirmAlertHtml } from '@/lib/email'
 import { sendPushToUser } from '@/lib/web-push'
 
@@ -71,7 +71,7 @@ interface ChallengeWithUser {
   userName: string | null
 }
 
-async function getActiveChallenges(admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>, targetUid?: string): Promise<ChallengeWithUser[]> {
+async function getActiveChallenges(admin: NonNullable<Awaited<ReturnType<typeof getSupabaseAdminAsync>>>, targetUid?: string): Promise<ChallengeWithUser[]> {
   let query = admin
     .from('prop_firm_challenges')
     .select('*')
@@ -138,7 +138,7 @@ async function getActiveChallenges(admin: NonNullable<ReturnType<typeof getSupab
  * Calculate daily P/L for a challenge's trades today.
  * Uses the tradingAccountId if set, otherwise all user trades.
  */
-async function calculateDailyPL(admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>, challenge: ChallengeWithUser): Promise<number> {
+async function calculateDailyPL(admin: NonNullable<Awaited<ReturnType<typeof getSupabaseAdminAsync>>>, challenge: ChallengeWithUser): Promise<number> {
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
 
@@ -162,7 +162,7 @@ async function calculateDailyPL(admin: NonNullable<ReturnType<typeof getSupabase
 /**
  * Calculate total P/L for all trades in this challenge.
  */
-async function calculateTotalPL(admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>, challenge: ChallengeWithUser): Promise<number> {
+async function calculateTotalPL(admin: NonNullable<Awaited<ReturnType<typeof getSupabaseAdminAsync>>>, challenge: ChallengeWithUser): Promise<number> {
   let query = admin
     .from('trades')
     .select('profit_loss')
@@ -203,7 +203,7 @@ function getAlertInfo(
 }
 
 async function sendAlert(
-  admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
+  admin: NonNullable<Awaited<ReturnType<typeof getSupabaseAdminAsync>>>,
   challenge: ChallengeWithUser,
   alertType: 'daily_dd' | 'total_dd' | 'breach' | 'profit_target',
   severity: 'warning' | 'urgent' | 'breach' | 'success',
@@ -307,7 +307,7 @@ async function handleRequest(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const admin = getSupabaseAdmin()
+  const admin = await getSupabaseAdminAsync()
   if (!admin) {
     return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
   }

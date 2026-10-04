@@ -494,7 +494,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
         body: JSON.stringify(patchBody),
       })
       if (!res.ok) {
-        const err = await res.json()
+        const err = await res.json().catch(() => ({}))
         console.error('[PropFirmGuard] PATCH error:', err)
         throw new Error(err.error || 'Failed to update')
       }

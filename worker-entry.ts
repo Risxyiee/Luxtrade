@@ -15,6 +15,16 @@ const CRON_ROUTES = {
 
 export default {
   async fetch(request, env, ctx) {
+    // Expose the CF Workers env to getCloudflareContext() BEFORE delegating to OpenNext.
+    // This ensures API routes can read secrets (FINNHUB_API_KEY, RAPIDAPI_KEY, etc.)
+    // via @opennextjs/cloudflare's getCloudflareContext().env
+    try {
+      const __cfCtxSym = Symbol.for('__cloudflare-context__')
+      if (!globalThis[__cfCtxSym]) {
+        globalThis[__cfCtxSym] = { env, cf: request.cf, ctx }
+      }
+    } catch {}
+
     // Delegate to the OpenNext-generated worker
     try {
       const worker = await import('./.open-next/worker.js')

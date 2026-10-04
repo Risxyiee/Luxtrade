@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
-import { getSupabaseAdmin } from '@/lib/supabase-admin-alt'
+import { getSupabaseAdminAsync } from '@/lib/supabase-admin-alt'
 
 /**
  * /api/prop-firm-guard
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
   const { user, response } = await requireAuth(request)
   if (!user || response) return response
 
-  const admin = getSupabaseAdmin()
+  const admin = await getSupabaseAdminAsync()
   if (!admin) {
     return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
   }
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
   const { user, response } = await requireAuth(request)
   if (!user || response) return response
 
-  const admin = getSupabaseAdmin()
+  const admin = await getSupabaseAdminAsync()
   if (!admin) {
     return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
   }
@@ -258,7 +258,7 @@ export async function PATCH(request: NextRequest) {
   const { user, response } = await requireAuth(request)
   if (!user || response) return response
 
-  const admin = getSupabaseAdmin()
+  const admin = await getSupabaseAdminAsync()
   if (!admin) {
     return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
   }
@@ -496,7 +496,7 @@ export async function DELETE(request: NextRequest) {
   const { user, response } = await requireAuth(request)
   if (!user || response) return response
 
-  const admin = getSupabaseAdmin()
+  const admin = await getSupabaseAdminAsync()
   if (!admin) {
     return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
   }
