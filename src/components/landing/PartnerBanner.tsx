@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, ExternalLink, Building2 } from 'lucide-react'
 import Image from 'next/image'
 
-const PARTNER_URL = 'https://primeacademyfx.com/'
+const PARTNER_URL = 'https://partners.primeacademyfx.com/s/dcRFQ'
 
 interface PartnerBannerProps {
   language?: 'id' | 'en'
@@ -104,7 +104,7 @@ export default function PartnerBanner({ language = 'id' }: PartnerBannerProps) {
                 <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
               </a>
               <span className="text-[10px] text-white/40">
-                primeacademyfx.com
+                partners.primeacademyfx.com
               </span>
             </div>
           </div>
