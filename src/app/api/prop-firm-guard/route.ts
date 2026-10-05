@@ -264,6 +264,40 @@ export async function POST(request: NextRequest) {
     }
 
     const challenge = toCamelCase(data)
+
+    // Sync trading_accounts.initial_balance with the challenge's account_size
+    // This ensures the equity curve uses the correct starting balance
+    try {
+      if (tradingAccountId) {
+        // Update the specific linked trading account
+        await admin
+          .from('trading_accounts')
+          .update({ initial_balance: accountSize, current_balance: accountSize })
+          .eq('id', tradingAccountId)
+          .eq('user_id', user.id)
+        console.log(`[prop-firm-guard] POST: synced trading_account ${tradingAccountId} initial_balance to ${accountSize}`)
+      } else {
+        // Update the user's default trading account if it has no initial_balance
+        const { data: defaultAcct } = await admin
+          .from('trading_accounts')
+          .select('id, initial_balance')
+          .eq('user_id', user.id)
+          .eq('is_default', true)
+          .limit(1)
+
+        if (defaultAcct && defaultAcct.length > 0 && (!defaultAcct[0].initial_balance || defaultAcct[0].initial_balance === 0)) {
+          await admin
+            .from('trading_accounts')
+            .update({ initial_balance: accountSize, current_balance: accountSize })
+            .eq('id', defaultAcct[0].id)
+          console.log(`[prop-firm-guard] POST: synced default trading_account initial_balance to ${accountSize}`)
+        }
+      }
+    } catch (syncErr) {
+      // Non-critical — don't fail the challenge creation
+      console.warn('[prop-firm-guard] POST: could not sync trading_account initial_balance:', syncErr)
+    }
+
     return NextResponse.json({ challenge }, { status: 201 })
   } catch (error: any) {
     console.error('[prop-firm-guard] POST error:', error)
@@ -528,6 +562,46 @@ export async function PATCH(request: NextRequest) {
 
     const challenge = toCamelCase(updated)
     console.log('[prop-firm-guard] PATCH success, updated fields:', Object.keys(data), 'result:', challenge)
+
+    // If accountSize was changed, also sync trading_accounts.initial_balance
+    if (updates.accountSize !== undefined && updates.accountSize > 0) {
+      try {
+        // Check if challenge has a linked trading account
+        const { data: ch } = await admin
+          .from('prop_firm_challenges')
+          .select('trading_account_id')
+          .eq('id', id)
+          .single()
+
+        if (ch?.trading_account_id) {
+          await admin
+            .from('trading_accounts')
+            .update({ initial_balance: updates.accountSize })
+            .eq('id', ch.trading_account_id)
+            .eq('user_id', user.id)
+          console.log(`[prop-firm-guard] PATCH: synced trading_account initial_balance to ${updates.accountSize}`)
+        } else {
+          // Update default trading account
+          const { data: defaultAcct } = await admin
+            .from('trading_accounts')
+            .select('id, initial_balance')
+            .eq('user_id', user.id)
+            .eq('is_default', true)
+            .limit(1)
+
+          if (defaultAcct && defaultAcct.length > 0) {
+            await admin
+              .from('trading_accounts')
+              .update({ initial_balance: updates.accountSize })
+              .eq('id', defaultAcct[0].id)
+            console.log(`[prop-firm-guard] PATCH: synced default trading_account initial_balance to ${updates.accountSize}`)
+          }
+        }
+      } catch (syncErr) {
+        console.warn('[prop-firm-guard] PATCH: could not sync trading_account initial_balance:', syncErr)
+      }
+    }
+
     return NextResponse.json({ challenge })
   } catch (error: any) {
     console.error('[prop-firm-guard] PATCH error:', error)

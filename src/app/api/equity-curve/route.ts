@@ -5,7 +5,6 @@ import { createClientForApi } from '@/lib/supabase/server'
 export const dynamic = 'force-dynamic'
 
 const MAX_POINTS = 80
-const DEFAULT_BALANCE = 10000
 
 interface EquityPoint {
   date: string
@@ -104,13 +103,40 @@ export async function GET(request: NextRequest) {
     const { data: accounts } = await accountQuery
 
     const account = accounts && accounts.length > 0 ? accounts[0] : null
-    const initialBalance = account
-      ? (account.initial_balance || DEFAULT_BALANCE)
-      : DEFAULT_BALANCE
+
+    // Resolve initial balance with smart fallback chain:
+    // 1. trading_accounts.initial_balance (if > 0)
+    // 2. prop_firm_challenges.account_size (user's active challenge)
+    // 3. No fallback — use 0 (don't assume $10,000)
+    let initialBalance = account?.initial_balance && account.initial_balance > 0
+      ? account.initial_balance
+      : 0
+
+    if (initialBalance === 0) {
+      // Fallback: check user's active PropFirmGuard challenge for account_size
+      try {
+        const { data: challenges } = await supabase
+          .from('prop_firm_challenges')
+          .select('account_size')
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+
+        if (challenges && challenges.length > 0 && challenges[0].account_size > 0) {
+          initialBalance = challenges[0].account_size
+          console.log(`[equity-curve] No trading_account.initial_balance, using prop_firm_challenges.account_size: ${initialBalance}`)
+        }
+      } catch (e) {
+        // prop_firm_challenges table may not exist — ignore
+        console.warn('[equity-curve] Could not query prop_firm_challenges:', e)
+      }
+    }
+
     // Use current_balance from account if available (user may have set it manually)
     const accountCurrentBalance = account
-      ? (account.current_balance || account.initial_balance || DEFAULT_BALANCE)
-      : DEFAULT_BALANCE
+      ? (account.current_balance || account.initial_balance || initialBalance)
+      : initialBalance
 
     const dateFilter = buildPeriodFilter(period)
 
