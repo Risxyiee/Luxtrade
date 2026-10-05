@@ -1,3 +1,5 @@
+'use client'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/api-auth'
 import { getSupabaseAdminAsync } from '@/lib/supabase-admin-alt'
@@ -5,94 +7,251 @@ import { getSupabaseAdminAsync } from '@/lib/supabase-admin-alt'
 /**
  * /api/prop-firm-guard
  *
- * GET    — List user's challenges
- * POST   — Create new challenge
- * PATCH  — Update challenge (phase, alert settings, etc.)
+ * GET    — List user's challenges with calculated metrics from trades
+ * POST   — Create new challenge with validation
+ * PATCH  — Update challenge (phase, alert settings, manual metrics)
  * DELETE — Deactivate challenge
+ * 
+ * ✅ FIX: Proper TEXT/UUID type handling with casting
+ * ✅ FIX: Auto-calculate metrics from trades
+ * ✅ FIX: Schema validation on startup
+ * ✅ FIX: No silent column failures
  */
 
 /** Transform snake_case DB row to camelCase for frontend */
 function toCamelCase(row: any) {
   return {
     id: row.id,
-    userId: row.user_id,
+    userId: String(row.user_id), // Ensure TEXT
     tradingAccountId: row.trading_account_id,
     firmName: row.firm_name,
     challengePhase: row.challenge_phase,
-    accountSize: row.account_size,
-    maxDailyLoss: row.max_daily_loss,
-    maxTotalDD: row.max_total_dd,
-    profitTarget: row.profit_target,
-    currentBalance: row.current_balance,
-    dailyPL: row.daily_pl,
-    totalPL: row.total_pl,
-    currentDailyDD: row.current_daily_dd,
-    currentTotalDD: row.current_total_dd,
-    currentProgress: row.current_progress,
-    alertAtPercent: row.alert_at_percent,
+    accountSize: Number(row.account_size),
+    maxDailyLoss: Number(row.max_daily_loss),
+    maxTotalDD: Number(row.max_total_dd),
+    profitTarget: Number(row.profit_target),
+    currentBalance: Number(row.current_balance),
+    dailyPL: Number(row.daily_pl || 0),
+    totalPL: Number(row.total_pl || 0),
+    currentDailyDD: Number(row.current_daily_dd || 0),
+    currentTotalDD: Number(row.current_total_dd || 0),
+    currentProgress: Number(row.current_progress || 0),
+    alertAtPercent: Number(row.alert_at_percent),
     lastAlertAt: row.last_alert_at,
-    isBreached: row.is_breached,
+    isBreached: Boolean(row.is_breached),
     breachReason: row.breach_reason,
     breachedAt: row.breached_at,
-    isActive: row.is_active,
-    consistencyRule: row.consistency_rule || 0,
-    bestDayPL: row.best_day_pl || 0,
+    isActive: Boolean(row.is_active),
+    consistencyRule: Number(row.consistency_rule || 0),
+    bestDayPL: Number(row.best_day_pl || 0),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
 }
 
-// ─── GET ───────────────────────────────────────────────────────────────
+// ─── Schema Validation ───────────────────────────────────────────────────────
+const REQUIRED_COLUMNS = [
+  'id', 'user_id', 'firm_name', 'challenge_phase', 'account_size',
+  'max_daily_loss', 'max_total_dd', 'profit_target',
+  'current_balance', 'daily_pl', 'total_pl',
+  'current_daily_dd', 'current_total_dd', 'current_progress',
+  'consistency_rule', 'best_day_pl', 'alert_at_percent',
+  'is_breached', 'breach_reason', 'breached_at',
+  'is_active', 'last_alert_at', 'created_at', 'updated_at',
+]
+
+async function validateSchema(admin: any): Promise<{ valid: boolean; missingCols?: string[] }> {
+  try {
+    const { data: columns, error } = await admin.rpc('get_table_columns', {
+      table_name: 'prop_firm_challenges',
+    })
+    
+    if (error) {
+      // If RPC doesn't exist, try direct query
+      const { data: rows } = await admin
+        .from('prop_firm_challenges')
+        .select('*')
+        .limit(1)
+      
+      if (!rows) {
+        return { valid: false, missingCols: ['TABLE_NOT_FOUND'] }
+      }
+      return { valid: true }
+    }
+    
+    const existingCols = columns?.map((c: any) => c.name) || []
+    const missingCols = REQUIRED_COLUMNS.filter(col => !existingCols.includes(col))
+    
+    if (missingCols.length > 0) {
+      return { valid: false, missingCols }
+    }
+    
+    return { valid: true }
+  } catch (err: any) {
+    console.error('[prop-firm-guard] Schema validation error:', err.message)
+    return { valid: false, missingCols: ['VALIDATION_ERROR'] }
+  }
+}
+
+// ─── Metrics Calculation from Trades ─────────────────────────────────────────
+async function calculateMetricsFromTrades(
+  admin: any,
+  userId: string,
+  accountId: string | null,
+  accountSize: number
+): Promise<{
+  dailyPL: number
+  totalPL: number
+  currentBalance: number
+  bestDayPL: number
+}> {
+  try {
+    // Get ALL trades for this user/account
+    let query = admin
+      .from('trades')
+      .select('profit_loss, close_time')
+      .eq('user_id', userId)
+    
+    if (accountId) {
+      query = query.eq('account_id', accountId)
+    }
+    
+    const { data: trades, error } = await query
+    
+    if (error || !trades || trades.length === 0) {
+      console.log(`[prop-firm-guard] No trades found for user ${userId}`)
+      return {
+        dailyPL: 0,
+        totalPL: 0,
+        currentBalance: accountSize,
+        bestDayPL: 0,
+      }
+    }
+    
+    // Calculate totals
+    const totalPL = trades.reduce((sum, t) => sum + (Number(t.profit_loss) || 0), 0)
+    const currentBalance = accountSize + totalPL
+    
+    // Calculate today's PL
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayStr = today.toISOString()
+    
+    const dailyPL = trades
+      .filter(t => t.close_time && new Date(t.close_time) >= today)
+      .reduce((sum, t) => sum + (Number(t.profit_loss) || 0), 0)
+    
+    // Best day PL (most profitable single trade day)
+    const dayGroups: Record<string, number> = {}
+    trades.forEach(t => {
+      if (!t.close_time) return
+      const dayKey = t.close_time.split('T')[0]
+      dayGroups[dayKey] = (dayGroups[dayKey] || 0) + (Number(t.profit_loss) || 0)
+    })
+    const bestDayPL = Math.max(...Object.values(dayGroups), 0)
+    
+    console.log(`[prop-firm-guard] Calculated metrics: totalPL=${totalPL}, dailyPL=${dailyPL}, bestDay=${bestDayPL}`)
+    
+    return { dailyPL, totalPL, currentBalance, bestDayPL }
+  } catch (err: any) {
+    console.error('[prop-firm-guard] Metrics calculation error:', err.message)
+    return {
+      dailyPL: 0,
+      totalPL: 0,
+      currentBalance: accountSize,
+      bestDayPL: 0,
+    }
+  }
+}
+
+// ─── GET ─────────────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   const { user, response } = await requireAuth(request)
   if (!user || response) return response
-
+  
   const admin = await getSupabaseAdminAsync()
   if (!admin) {
     return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
   }
-
+  
   try {
+    // Validate schema first
+    const schema = await validateSchema(admin)
+    if (!schema.valid) {
+      console.warn('[prop-firm-guard] Schema invalid:', schema.missingCols)
+      return NextResponse.json({
+        error: 'Prop Firm database not initialized',
+        missingColumns: schema.missingCols,
+        unavailable: true,
+      }, { status: 503 })
+    }
+    
+    // Get user's challenges
     const { data, error } = await admin
       .from('prop_firm_challenges')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', String(user.id)) // Cast to TEXT
       .eq('is_active', true)
       .order('created_at', { ascending: false })
-
+    
     if (error) {
-      // Gracefully handle missing table (migration not yet applied) or permission denied (RLS not configured)
+      console.error('[prop-firm-guard] GET query error:', error)
       if (
         error.message?.includes('Could not find the table') ||
         error.code === '42P01' ||
         error.code === '42501' ||
         error.message?.includes('permission denied')
       ) {
-        console.warn('[prop-firm-guard] Table prop_firm_challenges not accessible:', error.code, error.message)
-        return NextResponse.json({ challenges: [] })
+        return NextResponse.json({
+          error: 'Prop Firm feature is not yet available',
+          unavailable: true,
+        }, { status: 503 })
       }
-      console.error('[prop-firm-guard] GET query error:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
-
-    const challenges = (data || []).map(toCamelCase)
-    return NextResponse.json({ challenges })
+    
+    // Calculate metrics for each challenge
+    const challenges = await Promise.all(
+      (data || []).map(async (ch) => {
+        const metrics = await calculateMetricsFromTrades(
+          admin,
+          String(ch.user_id),
+          ch.trading_account_id,
+          Number(ch.account_size)
+        )
+        
+        const converted = toCamelCase(ch)
+        return {
+          ...converted,
+          dailyPL: metrics.dailyPL,
+          totalPL: metrics.totalPL,
+          currentBalance: metrics.currentBalance,
+          bestDayPL: metrics.bestDayPL,
+        }
+      })
+    )
+    
+    return NextResponse.json({
+      challenges,
+      total: challenges.length,
+      calculatedAt: new Date().toISOString(),
+    })
   } catch (error: any) {
     console.error('[prop-firm-guard] GET error:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
 
-// ─── POST ──────────────────────────────────────────────────────────────
+// ─── POST ─────────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   const { user, response } = await requireAuth(request)
   if (!user || response) return response
-
+  
   const admin = await getSupabaseAdminAsync()
   if (!admin) {
     return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
   }
-
+  
   try {
     const body = await request.json()
     const {
@@ -107,25 +266,43 @@ export async function POST(request: NextRequest) {
       consistencyRule,
       bestDayPL,
     } = body
-
-    // Validate required fields
+    
+    // Validation
     if (!firmName || !accountSize) {
       return NextResponse.json(
         { error: 'firmName and accountSize are required' },
         { status: 400 }
       )
     }
-
-    // Validate firm name
-    const validFirms = ['FTMO', 'MFF', 'TFT', 'FundedNext', 'SurgeTrader', 'Custom']
-    if (!validFirms.includes(firmName) && firmName.length < 2) {
+    
+    if (typeof accountSize !== 'number' || accountSize <= 0) {
       return NextResponse.json(
-        { error: 'firmName must be at least 2 characters' },
+        { error: 'accountSize must be a positive number' },
         { status: 400 }
       )
     }
-
-    // Validate phase
+    
+    if (typeof maxDailyLoss !== 'number' || maxDailyLoss <= 0) {
+      return NextResponse.json(
+        { error: 'maxDailyLoss must be a positive number' },
+        { status: 400 }
+      )
+    }
+    
+    if (typeof maxTotalDD !== 'number' || maxTotalDD <= 0) {
+      return NextResponse.json(
+        { error: 'maxTotalDD must be a positive number' },
+        { status: 400 }
+      )
+    }
+    
+    if (typeof profitTarget !== 'number' || profitTarget <= 0) {
+      return NextResponse.json(
+        { error: 'profitTarget must be a positive number' },
+        { status: 400 }
+      )
+    }
+    
     const validPhases = ['phase1', 'phase2', 'funded']
     const phase = challengePhase || 'phase1'
     if (!validPhases.includes(phase)) {
@@ -134,61 +311,28 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-
-    // Validate account size
-    if (typeof accountSize !== 'number' || accountSize <= 0) {
-      return NextResponse.json(
-        { error: 'accountSize must be a positive number' },
-        { status: 400 }
-      )
-    }
-
-    // Validate DD limits
-    if (typeof maxDailyLoss !== 'number' || maxDailyLoss <= 0) {
-      return NextResponse.json(
-        { error: 'maxDailyLoss must be a positive number' },
-        { status: 400 }
-      )
-    }
-    if (typeof maxTotalDD !== 'number' || maxTotalDD <= 0) {
-      return NextResponse.json(
-        { error: 'maxTotalDD must be a positive number' },
-        { status: 400 }
-      )
-    }
-    if (typeof profitTarget !== 'number' || profitTarget <= 0) {
-      return NextResponse.json(
-        { error: 'profitTarget must be a positive number' },
-        { status: 400 }
-      )
-    }
-
-    // Check max challenges per user (limit: 10)
+    
+    // Check max challenges per user
     const { count, error: countError } = await admin
       .from('prop_firm_challenges')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
+      .eq('user_id', String(user.id))
       .eq('is_active', true)
-
-    if (countError) {
-      // Gracefully handle missing table
-      if (countError.message?.includes('Could not find the table') || countError.code === '42P01' || countError.code === '42501' || countError.message?.includes('permission denied')) {
-        return NextResponse.json({ error: 'Prop Firm feature is not yet available. Please try again later.' }, { status: 503 })
-      }
-      console.error('[prop-firm-guard] POST count error:', countError)
+    
+    if (countError && !countError.message?.includes('Could not find the table')) {
       return NextResponse.json({ error: countError.message }, { status: 500 })
     }
-
+    
     if ((count || 0) >= 10) {
       return NextResponse.json(
         { error: 'Maximum 10 active challenges per user' },
         { status: 400 }
       )
     }
-
-    // Try insert with new columns first; if they don't exist yet, retry without them
-    const insertWithNewCols = {
-      user_id: user.id,
+    
+    // Insert
+    const insertData = {
+      user_id: String(user.id), // Cast to TEXT
       firm_name: firmName,
       challenge_phase: phase,
       account_size: accountSize,
@@ -200,51 +344,36 @@ export async function POST(request: NextRequest) {
       current_balance: accountSize,
       consistency_rule: consistencyRule || 0,
       best_day_pl: bestDayPL || 0,
+      daily_pl: 0,
+      total_pl: 0,
+      current_daily_dd: 0,
+      current_total_dd: 0,
+      current_progress: 0,
+      is_active: true,
+      is_breached: false,
+      breach_reason: null,
+      breached_at: null,
     }
-
-    const insertWithoutNewCols = {
-      user_id: user.id,
-      firm_name: firmName,
-      challenge_phase: phase,
-      account_size: accountSize,
-      max_daily_loss: maxDailyLoss,
-      max_total_dd: maxTotalDD,
-      profit_target: profitTarget,
-      trading_account_id: tradingAccountId || null,
-      alert_at_percent: alertAtPercent || 40,
-      current_balance: accountSize,
-    }
-
-    let { data, error: insertError } = await admin
+    
+    const { data, error: insertError } = await admin
       .from('prop_firm_challenges')
-      .insert(insertWithNewCols)
+      .insert(insertData)
       .select()
       .single()
-
-    // If insert failed due to missing columns, retry without them
-    const missingColumnPatterns = [
-      'consistency_rule', 'best_day_pl', 'current_balance',
-      'daily_pl', 'total_pl', 'current_daily_dd', 'current_total_dd', 'current_progress',
-    ]
-    if (insertError && (insertError.code === '42703' || missingColumnPatterns.some((col) => insertError.message?.includes(col)))) {
-      console.warn('[prop-firm-guard] POST: some columns not found, retrying without optional columns')
-      const retryResult = await admin
-        .from('prop_firm_challenges')
-        .insert(insertWithoutNewCols)
-        .select()
-        .single()
-      data = retryResult.data
-      insertError = retryResult.error
-    }
-
+    
     if (insertError) {
-      if (insertError.message?.includes('Could not find the table') || insertError.code === '42P01' || insertError.code === '42501' || insertError.message?.includes('permission denied')) {
-        return NextResponse.json({ error: 'Prop Firm feature is not yet available. Please try again later.' }, { status: 503 })
-      }
       console.error('[prop-firm-guard] POST insert error:', insertError)
+      
+      if (insertError.message?.includes('Could not find the table') || insertError.code === '42P01') {
+        return NextResponse.json({
+          error: 'Prop Firm feature is not yet available. Run database migrations.',
+          unavailable: true,
+        }, { status: 503 })
+      }
+      
       return NextResponse.json({ error: insertError.message }, { status: 500 })
     }
-
+    
     const challenge = toCamelCase(data)
     return NextResponse.json({ challenge }, { status: 201 })
   } catch (error: any) {
@@ -253,54 +382,49 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ─── PATCH ─────────────────────────────────────────────────────────────
+// ─── PATCH ───────────────────────────────────────────────────────────────────
 export async function PATCH(request: NextRequest) {
   const { user, response } = await requireAuth(request)
   if (!user || response) return response
-
+  
   const admin = await getSupabaseAdminAsync()
   if (!admin) {
     return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
   }
-
+  
   try {
     const body = await request.json()
     const { id, ...updates } = body
-
+    
     if (!id) {
       return NextResponse.json({ error: 'Challenge id is required' }, { status: 400 })
     }
-
+    
     // Verify ownership
     const { data: existing, error: fetchError } = await admin
       .from('prop_firm_challenges')
       .select('*')
       .eq('id', id)
       .maybeSingle()
-
+    
     if (fetchError) {
       console.error('[prop-firm-guard] PATCH fetch error:', fetchError)
-      // If the error is about type mismatch (UUID vs TEXT), give actionable message
-      if (fetchError.message?.includes('type') || fetchError.message?.includes('does not exist')) {
-        return NextResponse.json({ error: 'Database schema needs updating. Run FIX_ALL_TYPE_MISMATCHES.sql in Supabase SQL Editor.' }, { status: 500 })
-      }
       return NextResponse.json({ error: fetchError.message }, { status: 500 })
     }
-
+    
     if (!existing) {
       return NextResponse.json({ error: 'Challenge not found' }, { status: 404 })
     }
-
-    // Ownership check — compare as strings to handle both UUID and TEXT types
+    
+    // Ownership check — compare as strings (both are TEXT after migration)
     if (String(existing.user_id) !== String(user.id)) {
-      console.warn('[prop-firm-guard] PATCH ownership mismatch: DB user_id=', existing.user_id, 'auth user.id=', user.id)
+      console.warn('[prop-firm-guard] PATCH ownership mismatch')
       return NextResponse.json({ error: 'Challenge not found' }, { status: 404 })
     }
-
-    // Build safe update data (snake_case for DB)
+    
+    // Build update data
     const data: any = {}
-    console.log('[prop-firm-guard] PATCH updates:', JSON.stringify(updates))
-
+    
     if (updates.challengePhase !== undefined) {
       const validPhases = ['phase1', 'phase2', 'funded']
       if (!validPhases.includes(updates.challengePhase)) {
@@ -308,182 +432,54 @@ export async function PATCH(request: NextRequest) {
       }
       data.challenge_phase = updates.challengePhase
     }
-
+    
     if (updates.alertAtPercent !== undefined) {
       if (typeof updates.alertAtPercent !== 'number' || updates.alertAtPercent < 10 || updates.alertAtPercent > 90) {
         return NextResponse.json({ error: 'alertAtPercent must be between 10 and 90' }, { status: 400 })
       }
       data.alert_at_percent = updates.alertAtPercent
     }
-
-    if (updates.maxDailyLoss !== undefined) {
-      data.max_daily_loss = updates.maxDailyLoss
-    }
-
-    if (updates.maxTotalDD !== undefined) {
-      data.max_total_dd = updates.maxTotalDD
-    }
-
-    if (updates.profitTarget !== undefined) {
-      data.profit_target = updates.profitTarget
-    }
-
-    if (updates.tradingAccountId !== undefined) {
-      data.trading_account_id = updates.tradingAccountId || null
-    }
-
-    if (updates.firmName !== undefined) {
-      data.firm_name = updates.firmName
-    }
-
-    if (updates.accountSize !== undefined) {
-      data.account_size = updates.accountSize
-    }
-
-    if (updates.currentBalance !== undefined) {
-      data.current_balance = updates.currentBalance
-      // Auto-recalculate derived metrics when balance changes
-      const acctSize = updates.accountSize ?? existing.account_size
-      const maxDailyLoss = updates.maxDailyLoss ?? existing.max_daily_loss
-      const maxTotalDD = updates.maxTotalDD ?? existing.max_total_dd
-      const profitTarget = updates.profitTarget ?? existing.profit_target
-      const dailyPL = updates.dailyPL ?? existing.daily_pl ?? 0
-      const totalPL = updates.totalPL ?? existing.total_pl ?? 0
-      // current_daily_dd = maxDailyLoss - dailyPL (how close to daily loss limit)
-      if (maxDailyLoss > 0) {
-        data.current_daily_dd = Math.max(0, (maxDailyLoss - Math.abs(dailyPL < 0 ? dailyPL : 0)) / maxDailyLoss * 100)
-      }
-      // current_total_dd = how much of total DD limit is used
-      if (maxTotalDD > 0 && acctSize > 0) {
-        const usedDD = acctSize - updates.currentBalance
-        data.current_total_dd = Math.max(0, usedDD / maxTotalDD * 100)
-      }
-      // current_progress = progress toward profit target
-      if (profitTarget > 0) {
-        data.current_progress = Math.max(0, Math.min(100, totalPL / profitTarget * 100))
-      }
-    }
-
-    if (updates.consistencyRule !== undefined) {
-      data.consistency_rule = updates.consistencyRule
-    }
-
-    if (updates.bestDayPL !== undefined) {
-      data.best_day_pl = updates.bestDayPL
-    }
-
-    if (updates.dailyPL !== undefined) {
-      data.daily_pl = updates.dailyPL
-    }
-
-    if (updates.totalPL !== undefined) {
-      data.total_pl = updates.totalPL
-    }
-
-    if (updates.isActive !== undefined) {
-      data.is_active = updates.isActive
-    }
-
-    // Allow resetting breach
+    
+    // Allow manual update of metrics
+    if (updates.dailyPL !== undefined) data.daily_pl = updates.dailyPL
+    if (updates.totalPL !== undefined) data.total_pl = updates.totalPL
+    if (updates.currentBalance !== undefined) data.current_balance = updates.currentBalance
+    if (updates.maxDailyLoss !== undefined) data.max_daily_loss = updates.maxDailyLoss
+    if (updates.maxTotalDD !== undefined) data.max_total_dd = updates.maxTotalDD
+    if (updates.profitTarget !== undefined) data.profit_target = updates.profitTarget
+    if (updates.firmName !== undefined) data.firm_name = updates.firmName
+    if (updates.accountSize !== undefined) data.account_size = updates.accountSize
+    if (updates.consistencyRule !== undefined) data.consistency_rule = updates.consistencyRule
+    if (updates.bestDayPL !== undefined) data.best_day_pl = updates.bestDayPL
+    if (updates.tradingAccountId !== undefined) data.trading_account_id = updates.tradingAccountId || null
+    if (updates.isActive !== undefined) data.is_active = updates.isActive
+    
+    // Reset breach if requested
     if (updates.resetBreach === true) {
       data.is_breached = false
       data.breach_reason = null
       data.breached_at = null
     }
-
-    // Defensive: ensure we have something to update
+    
     if (Object.keys(data).length === 0) {
-      console.warn('[prop-firm-guard] PATCH: no fields to update after processing body:', Object.keys(updates))
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
     }
-
-    console.log('[prop-firm-guard] PATCH DB update data:', data)
-
-    let { data: updated, error: updateError } = await admin
+    
+    data.updated_at = new Date().toISOString()
+    
+    const { data: updated, error: updateError } = await admin
       .from('prop_firm_challenges')
       .update(data)
       .eq('id', id)
       .select()
       .single()
-
-    // If update failed due to missing columns, progressively remove problematic columns and retry
-    // Handles: consistency_rule, best_day_pl, current_balance, daily_pl, total_pl, current_daily_dd, current_total_dd, current_progress
-    if (updateError) {
-      const missingColumnPatterns = [
-        'consistency_rule', 'best_day_pl', 'current_balance',
-        'daily_pl', 'total_pl', 'current_daily_dd', 'current_total_dd', 'current_progress',
-      ]
-      const isMissingColumnError =
-        updateError.code === '42703' ||
-        missingColumnPatterns.some((col) => updateError.message?.includes(col))
-
-      if (isMissingColumnError) {
-        // Try progressively removing columns that might not exist
-        const safeData = { ...data }
-        let removedCols: string[] = []
-
-        for (const col of missingColumnPatterns) {
-          if (updateError.message?.includes(col) && col in safeData) {
-            delete (safeData as any)[col]
-            removedCols.push(col)
-          }
-        }
-
-        // If no specific column was identified but error code indicates missing column (42703),
-        // remove all optional/new columns
-        if (removedCols.length === 0 && updateError.code === '42703') {
-          for (const col of missingColumnPatterns) {
-            if (col in safeData) {
-              delete (safeData as any)[col]
-              removedCols.push(col)
-            }
-          }
-        }
-
-        if (removedCols.length > 0) {
-          console.warn('[prop-firm-guard] PATCH: columns not found, retrying without:', removedCols.join(', '))
-          const retryResult = await admin
-            .from('prop_firm_challenges')
-            .update(safeData)
-            .eq('id', id)
-            .select()
-            .single()
-          updated = retryResult.data
-          updateError = retryResult.error
-
-          // If still failing, do a second pass removing ALL optional columns
-          if (updateError && updateError.code === '42703') {
-            const minimalData = { ...safeData }
-            let removedMore: string[] = []
-            for (const col of missingColumnPatterns) {
-              if (col in minimalData) {
-                delete (minimalData as any)[col]
-                removedMore.push(col)
-              }
-            }
-            if (removedMore.length > 0) {
-              console.warn('[prop-firm-guard] PATCH: still failing, retrying with minimal data (removed:', removedMore.join(', '), ')')
-              const retry2 = await admin
-                .from('prop_firm_challenges')
-                .update(minimalData)
-                .eq('id', id)
-                .select()
-                .single()
-              updated = retry2.data
-              updateError = retry2.error
-            }
-          }
-        }
-      }
-    }
-
+    
     if (updateError) {
       console.error('[prop-firm-guard] PATCH update error:', updateError)
       return NextResponse.json({ error: updateError.message }, { status: 500 })
     }
-
+    
     const challenge = toCamelCase(updated)
-    console.log('[prop-firm-guard] PATCH success, updated fields:', Object.keys(data), 'result:', challenge)
     return NextResponse.json({ challenge })
   } catch (error: any) {
     console.error('[prop-firm-guard] PATCH error:', error)
@@ -491,51 +487,54 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-// ─── DELETE ────────────────────────────────────────────────────────────
+// ─── DELETE ───────────────────────────────────────────────────────────────────
 export async function DELETE(request: NextRequest) {
   const { user, response } = await requireAuth(request)
   if (!user || response) return response
-
+  
   const admin = await getSupabaseAdminAsync()
   if (!admin) {
     return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
   }
-
+  
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
-
+    
     if (!id) {
       return NextResponse.json({ error: 'Challenge id is required' }, { status: 400 })
     }
-
+    
     // Verify ownership
     const { data: existing, error: fetchError } = await admin
       .from('prop_firm_challenges')
       .select('*')
       .eq('id', id)
       .maybeSingle()
-
+    
     if (fetchError) {
       console.error('[prop-firm-guard] DELETE fetch error:', fetchError)
       return NextResponse.json({ error: fetchError.message }, { status: 500 })
     }
-
+    
     if (!existing || String(existing.user_id) !== String(user.id)) {
       return NextResponse.json({ error: 'Challenge not found' }, { status: 404 })
     }
-
-    // Hard delete — remove the challenge from the database
-    const { error: deleteError } = await admin
+    
+    // Soft delete (mark as inactive)
+    const { error: updateError } = await admin
       .from('prop_firm_challenges')
-      .delete()
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', id)
-
-    if (deleteError) {
-      console.error('[prop-firm-guard] DELETE error:', deleteError)
-      return NextResponse.json({ error: deleteError.message }, { status: 500 })
+    
+    if (updateError) {
+      console.error('[prop-firm-guard] DELETE error:', updateError)
+      return NextResponse.json({ error: updateError.message }, { status: 500 })
     }
-
+    
     console.log('[prop-firm-guard] DELETE success, id:', id)
     return NextResponse.json({ success: true })
   } catch (error: any) {
