@@ -1,32 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getEnvVar as getCfEnvVar } from '@/lib/cloudflare-bindings';
-
-// Lazy accessor for child_process.spawn — not available on Cloudflare Workers
-// In CF Workers, require('child_process') throws "[unenv] child_process.spawn is not implemented yet!"
-// even though the module object exists. We need to check if spawn is actually callable.
-let _spawn: any = undefined; // undefined=not tried, null=unavailable
-function getSpawn(): any {
-  if (_spawn !== undefined) return _spawn;
-  try {
-    const cp = require('child_process');
-    // Even if require succeeds, spawn might be a stub that throws at call time
-    // Check if it's a real function by testing its type
-    if (cp && typeof cp.spawn === 'function') {
-      // Additional check: try to detect unenv stubs by checking function toString
-      const spawnStr = cp.spawn.toString();
-      if (spawnStr.includes('not implemented') || spawnStr.includes('unenv')) {
-        _spawn = null;
-      } else {
-        _spawn = cp.spawn;
-      }
-    } else {
-      _spawn = null;
-    }
-  } catch {
-    _spawn = null; // CF Workers or other environments without child_process
-  }
-  return _spawn;
-}
+import { getEnvVar } from '@/lib/cloudflare-bindings';
 
 export const dynamic = 'force-dynamic'
 
@@ -58,95 +31,7 @@ const CACHE_DURATION = 10 * 60 * 1000; // 10 min
 const CACHE_DURATION_RATE_LIMITED = 30 * 60 * 1000; // 30 min when rate limited
 
 // ─── API Key Helpers ────────────────────────────────────────────────────────
-// In OpenNext/CF Workers, the init.js template populates process.env from
-// the CF env (secrets + [vars]) at request time via populateProcessEnv().
-// So process.env.FOO works for both secrets and vars.
-// We also try getCloudflareContext().env as a fallback.
 let _envCache: Record<string, string> | null = null;
-
-/** Known placeholder values that should NOT be treated as real API keys */
-const PLACEHOLDER_PATTERNS = [
-  'your_', 'xxx', 'sk-or-', 'sk-your', 'hf_your',
-  're_xxxxxxxxxx', // literal placeholder patterns
-];
-
-function isPlaceholder(value: string): boolean {
-  if (!value || value.length < 6) return true; // Real API keys are always 6+ chars
-  const lower = value.toLowerCase();
-  return PLACEHOLDER_PATTERNS.some(p => lower.startsWith(p));
-}
-
-/**
- * Coerce a value from CF env to a string.
- * CF Workers env values can be strings or sometimes other primitives.
- */
-function coerceEnvString(val: unknown): string {
-  if (typeof val === 'string') return val;
-  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
-  if (val && typeof val === 'object' && 'toString' in val) {
-    try { const s = String(val); if (s && s !== '[object Object]') return s; } catch {}
-  }
-  return '';
-}
-
-async function getEnvVar(key: string): Promise<string> {
-  // 1. Try the centralized CF env var reader (handles process.env + CF ctx.env)
-  const centralized = await getCfEnvVar(key);
-  if (centralized && centralized.length > 0 && !isPlaceholder(centralized)) {
-    console.log(`[EconCalendar:getEnvVar] ${key} found via centralized getter (${centralized.length} chars, starts: ${centralized.substring(0, 4)}...)`);
-    return centralized;
-  }
-  if (centralized && centralized.length > 0 && isPlaceholder(centralized)) {
-    console.warn(`[EconCalendar:getEnvVar] ${key} found but looks like PLACEHOLDER: "${centralized.substring(0, 12)}..."`);
-  }
-
-  // 2. Fallback: direct process.env check (redundant but safe)
-  const fromProcess = process.env[key];
-  if (fromProcess && fromProcess.length > 0 && !isPlaceholder(fromProcess)) {
-    console.log(`[EconCalendar:getEnvVar] ${key} found in process.env fallback (${fromProcess.length} chars)`);
-    return fromProcess;
-  }
-
-  // 3. Fallback: direct CF context access with logging
-  try {
-    const cfMod = await import('@opennextjs/cloudflare');
-    const getCloudflareContext = cfMod.getCloudflareContext;
-    try {
-      const ctx = await getCloudflareContext({ async: true });
-      if (ctx?.env) {
-        const raw = ctx.env[key];
-        const fromCtx = coerceEnvString(raw);
-        if (fromCtx && fromCtx.length > 0 && !isPlaceholder(fromCtx)) {
-          console.log(`[EconCalendar:getEnvVar] ${key} found in direct CF ctx.env (async) (${fromCtx.length} chars)`);
-          return fromCtx;
-        }
-        // Log what keys ARE available for debugging
-        const envKeys = Object.keys(ctx.env).filter(k => !k.startsWith('NEXT_') && !k.startsWith('ASSETS'));
-        console.warn(`[EconCalendar:getEnvVar] ${key} NOT in CF ctx.env (async). Available keys: [${envKeys.join(', ')}]`);
-      }
-    } catch (asyncErr: any) {
-      console.warn(`[EconCalendar:getEnvVar] getCloudflareContext({async:true}) failed: ${asyncErr?.message || asyncErr}`);
-    }
-    try {
-      const ctx = getCloudflareContext();
-      if (ctx?.env) {
-        const raw = ctx.env[key];
-        const fromCtx = coerceEnvString(raw);
-        if (fromCtx && fromCtx.length > 0 && !isPlaceholder(fromCtx)) {
-          console.log(`[EconCalendar:getEnvVar] ${key} found in direct CF ctx.env (sync) (${fromCtx.length} chars)`);
-          return fromCtx;
-        }
-      }
-    } catch (syncErr: any) {
-      console.warn(`[EconCalendar:getEnvVar] getCloudflareContext() sync failed: ${syncErr?.message || syncErr}`);
-    }
-  } catch (importErr: any) {
-    console.info(`[EconCalendar:getEnvVar] @opennextjs/cloudflare import failed: ${importErr?.message || importErr}`);
-  }
-
-  console.warn(`[EconCalendar:getEnvVar] ${key} NOT FOUND in any source`);
-  return '';
-}
 
 async function getFinnhubKey(): Promise<string> {
   _envCache ??= {};
@@ -191,7 +76,59 @@ function sortEvents(events: CalendarEvent[]): CalendarEvent[] {
   });
 }
 
-// ─── 1. Finnhub Calendar (FREE tier: 60 calls/min) ────────────────────────
+// ─── 1. FCSAPI.com Calendar (free tier available without key) ──────────────
+async function fetchFcsApiCalendar(): Promise<CalendarEvent[]> {
+  const fcsKey = await getFcsApiKey();
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const url = fcsKey
+    ? `https://fcsapi.com/api-v3/forex/calendar?date=${dateStr}&key=${fcsKey}`
+    : `https://fcsapi.com/api-v3/forex/calendar?date=${dateStr}`;
+
+  const res = await fetch(url, {
+    headers: { 'Accept': 'application/json' },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error('FCSAPI returned ' + res.status);
+
+  const text = await res.text();
+  let json: any;
+  try { json = JSON.parse(text); } catch { throw new Error('FCSAPI returned non-JSON'); }
+  const rawData = json.response || json.data || json;
+  if (!Array.isArray(rawData) || rawData.length === 0) throw new Error('Empty data');
+
+  const events: CalendarEvent[] = [];
+  const todayStr = today.toISOString().split('T')[0];
+  for (const item of rawData) {
+    const currency = (item.currency || '').toUpperCase();
+    if (!currency || currency.length > 4) continue;
+    const impactStr = String(item.impact || item.priority || '').toLowerCase();
+    const impact: 'high' | 'medium' | 'low' =
+      impactStr === 'high' || impactStr === '3' || impactStr === 'hot' ? 'high' :
+      impactStr === 'medium' || impactStr === '2' ? 'medium' : 'low';
+    const eventTitle = item.event || item.title || 'Economic Event';
+    const eventDate = item.date || todayStr;
+    const eventTime = item.time || '08:30';
+
+    const dedupeKey = currency + '-' + eventDate + '-' + eventTitle.substring(0, 30);
+    if (events.some(e => (e.currency + '-' + e.date + '-' + e.event.substring(0, 30)) === dedupeKey)) continue;
+
+    events.push({
+      id: 'fcs-' + events.length + '-' + currency + '-' + eventDate,
+      date: eventDate, time: eventTime,
+      dateTime: buildDateTime(eventDate, eventTime),
+      currency, impact, event: eventTitle,
+      actual: item.actual != null ? String(item.actual) : undefined,
+      forecast: item.forecast != null ? String(item.forecast) : '',
+      previous: item.previous != null ? String(item.previous) : '',
+    });
+  }
+
+  console.log('[EconCalendar] FCSAPI: ' + events.length + ' events');
+  return sortEvents(events);
+}
+
+// ─── 2. Finnhub Calendar (FREE tier: 60 calls/min) ────────────────────────
 async function fetchFinnhubCalendar(): Promise<CalendarEvent[]> {
   const apiKey = await getFinnhubKey();
   if (!apiKey) throw new Error('No FINNHUB_API_KEY');
@@ -203,7 +140,14 @@ async function fetchFinnhubCalendar(): Promise<CalendarEvent[]> {
   });
 
   if (!res.ok) {
-    if (res.status === 429) { const e = new Error('Rate limited'); (e as any).isRateLimit = true; throw e; }
+    if (res.status === 429) {
+      const e = new Error('Rate limited');
+      (e as any).isRateLimit = true;
+      throw e;
+    }
+    if (res.status === 403) {
+      throw new Error('Finnhub 403 — API key may be invalid or free tier restricted from CF Workers IP');
+    }
     throw new Error('Finnhub returned ' + res.status);
   }
 
@@ -225,7 +169,9 @@ async function fetchFinnhubCalendar(): Promise<CalendarEvent[]> {
     if (currency.length > 4) continue;
 
     const impactStr = String(item.impact || 'low').toLowerCase();
-    const impact: 'high' | 'medium' | 'low' = impactStr === 'high' || impactStr === '3' ? 'high' : impactStr === 'medium' || impactStr === '2' ? 'medium' : 'low';
+    const impact: 'high' | 'medium' | 'low' =
+      impactStr === 'high' || impactStr === '3' ? 'high' :
+      impactStr === 'medium' || impactStr === '2' ? 'medium' : 'low';
     const eventTitle = (item.indicator || item.event || 'Economic Event') as string;
 
     const rawTime = (item.time || '') as string;
@@ -252,39 +198,64 @@ async function fetchFinnhubCalendar(): Promise<CalendarEvent[]> {
   return sortEvents(events);
 }
 
-// ─── 2. FCSAPI.com Calendar ────────────────────────────────────────────────
-async function fetchFcsApiCalendar(): Promise<CalendarEvent[]> {
-  const fcsKey = await getFcsApiKey();
+// ─── 3. TradingEconomics Calendar (RapidAPI) ──────────────────────────────
+async function fetchTECalendar(): Promise<CalendarEvent[]> {
+  const apiKey = await getRapidApiKey();
+  if (!apiKey) throw new Error('No RAPIDAPI_KEY');
+
   const today = new Date();
-  const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  // FCSAPI v3 calendar endpoint (economic_calendar was removed, use 'calendar')
-  const url = fcsKey ? `https://fcsapi.com/api-v3/forex/calendar?date=${dateStr}&key=${fcsKey}` : `https://fcsapi.com/api-v3/forex/calendar?date=${dateStr}`;
+  const todayStr = today.toISOString().split('T')[0];
+  const endDate = new Date(today);
+  endDate.setDate(endDate.getDate() + 7);
+  const endStr = endDate.toISOString().split('T')[0];
 
-  const res = await fetch(url, { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout(8000) });
-  if (!res.ok) throw new Error('FCSAPI returned ' + res.status);
+  const url = `https://trading-economics-scraper.p.rapidapi.com/get_calendar?country=United%20States,United%20Kingdom,Euro%20Zone,Japan,Australia,Canada,Switzerland,New%20Zealand&importance=3,2,1&start_date=${todayStr}&end_date=${endStr}`;
 
-  const text = await res.text();
-  let json: any;
-  try { json = JSON.parse(text); } catch { throw new Error('FCSAPI returned non-JSON'); }
-  const rawData = json.response || json.data || json;
-  if (!Array.isArray(rawData) || rawData.length === 0) throw new Error('Empty data');
+  const res = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      'x-rapidapi-host': 'trading-economics-scraper.p.rapidapi.com',
+      'x-rapidapi-key': apiKey,
+    },
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!res.ok) {
+    if (res.status === 429) {
+      const e = new Error('Rate limited');
+      (e as any).isRateLimit = true;
+      throw e;
+    }
+    throw new Error('TE Calendar returned ' + res.status);
+  }
+
+  const data = await res.json();
+  if (!Array.isArray(data) || data.length === 0) throw new Error('Empty data');
+
+  const countryToCurrency: Record<string, string> = {
+    'United States': 'USD', 'United Kingdom': 'GBP', 'Euro Zone': 'EUR', 'Japan': 'JPY',
+    'Australia': 'AUD', 'Canada': 'CAD', 'Switzerland': 'CHF', 'New Zealand': 'NZD',
+  };
 
   const events: CalendarEvent[] = [];
-  const todayStr = today.toISOString().split('T')[0];
-  for (const item of rawData) {
-    const currency = (item.currency || '').toUpperCase();
+  for (const item of data) {
+    const countryName = item.country || '';
+    const currency = countryToCurrency[countryName] || (item.currency || '').toUpperCase();
     if (!currency || currency.length > 4) continue;
-    const impactStr = String(item.impact || item.priority || '').toLowerCase();
-    const impact: 'high' | 'medium' | 'low' = impactStr === 'high' || impactStr === '3' || impactStr === 'hot' ? 'high' : impactStr === 'medium' || impactStr === '2' ? 'medium' : 'low';
-    const eventTitle = item.event || item.title || 'Economic Event';
-    const eventDate = item.date || todayStr;
+
+    const impStr = String(item.importance || item.priority || '').toLowerCase();
+    const impact: 'high' | 'medium' | 'low' =
+      impStr === '3' || impStr === 'high' ? 'high' :
+      impStr === '2' || impStr === 'medium' ? 'medium' : 'low';
+    const eventTitle = item.event || item.indicator || item.title || 'Economic Event';
+    const eventDate = (item.date || todayStr).split('T')[0];
     const eventTime = item.time || '08:30';
 
     const dedupeKey = currency + '-' + eventDate + '-' + eventTitle.substring(0, 30);
     if (events.some(e => (e.currency + '-' + e.date + '-' + e.event.substring(0, 30)) === dedupeKey)) continue;
 
     events.push({
-      id: 'fcs-' + events.length + '-' + currency + '-' + eventDate,
+      id: 'te-' + events.length + '-' + currency + '-' + eventDate,
       date: eventDate, time: eventTime,
       dateTime: buildDateTime(eventDate, eventTime),
       currency, impact, event: eventTitle,
@@ -294,14 +265,13 @@ async function fetchFcsApiCalendar(): Promise<CalendarEvent[]> {
     });
   }
 
-  console.log('[EconCalendar] FCSAPI: ' + events.length + ' events');
+  console.log('[EconCalendar] TradingEconomics: ' + events.length + ' events');
   return sortEvents(events);
 }
 
-// ─── 3. MyFXBook Calendar (FREE, no API key) ──────────────────────────────
+// ─── 4. MyFXBook Calendar RSS (FREE, no API key) ──────────────────────────
 async function fetchMyFXBookCalendar(): Promise<CalendarEvent[]> {
   const todayStr = new Date().toISOString().split('T')[0];
-  // MyFXBook community.json was blocked (403); try the RSS feed instead
   const res = await fetch('https://www.myfxbook.com/calendar.feed', {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
@@ -313,7 +283,6 @@ async function fetchMyFXBookCalendar(): Promise<CalendarEvent[]> {
   });
   if (!res.ok) throw new Error('MyFXBook returned ' + res.status);
 
-  // Parse RSS/XML feed from MyFXBook
   const xml = await res.text();
   if (!xml.includes('<item') && !xml.includes('<entry')) throw new Error('MyFXBook response is not RSS/XML');
 
@@ -323,18 +292,15 @@ async function fetchMyFXBookCalendar(): Promise<CalendarEvent[]> {
   while ((match = itemRegex.exec(xml)) !== null && events.length < 80) {
     const itemXml = match[1];
 
-    // Extract title
     const titleMatch = itemXml.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i)
       || itemXml.match(/<title>([\s\S]*?)<\/title>/i);
     const eventTitle = titleMatch?.[1]?.trim() || '';
     if (!eventTitle || eventTitle.length < 3) continue;
 
-    // Extract currency from title (e.g. "USD Nonfarm Payrolls")
     const currMatch = eventTitle.match(/^(USD|EUR|GBP|JPY|AUD|CAD|CHF|NZD|CNY)\b/i);
     const currency = currMatch ? currMatch[1].toUpperCase() : '';
     if (!currency) continue;
 
-    // Extract date/time
     const dateMatch = itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/i);
     let eventDate = todayStr, eventTime = '08:30';
     if (dateMatch?.[1]) {
@@ -342,22 +308,19 @@ async function fetchMyFXBookCalendar(): Promise<CalendarEvent[]> {
         const d = new Date(dateMatch[1].trim());
         if (!isNaN(d.getTime())) {
           eventDate = d.toISOString().split('T')[0];
-          eventTime = d.toISOString().substring(11, 16); // HH:MM
+          eventTime = d.toISOString().substring(11, 16);
         }
       } catch {}
     }
 
-    // Extract description for impact/actual/forecast
     const descMatch = itemXml.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i)
       || itemXml.match(/<description>([\s\S]*?)<\/description>/i);
     const desc = descMatch?.[1]?.trim() || '';
 
-    // Determine impact from description
     const impact: 'high' | 'medium' | 'low' =
       /\b(high|critical|3)\b/i.test(desc) || /\bhigh\s*impact\b/i.test(eventTitle) ? 'high' :
       /\b(medium|moderate|2)\b/i.test(desc) ? 'medium' : 'low';
 
-    // Try to extract actual/forecast/previous from description
     const actualMatch = desc.match(/Actual[:\s]*([\-\d.]+%?)/i);
     const forecastMatch = desc.match(/Forecast[:\s]*([\-\d.]+%?)/i);
     const previousMatch = desc.match(/Previous[:\s]*([\-\d.]+%?)/i);
@@ -381,188 +344,13 @@ async function fetchMyFXBookCalendar(): Promise<CalendarEvent[]> {
   return sortEvents(events);
 }
 
-// ─── 3b. TradingEconomics Calendar (RapidAPI, same key as news) ──────────────
-async function fetchTECalendar(): Promise<CalendarEvent[]> {
-  const apiKey = await getRapidApiKey();
-  if (!apiKey) throw new Error('No RAPIDAPI_KEY');
-
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-  // Get this week's data
-  const endDate = new Date(today);
-  endDate.setDate(endDate.getDate() + 7);
-  const endStr = endDate.toISOString().split('T')[0];
-
-  const url = `https://trading-economics-scraper.p.rapidapi.com/get_calendar?country=United%20States,United%20Kingdom,Euro%20Zone,Japan,Australia,Canada,Switzerland,New%20Zealand&importance=3,2,1&start_date=${todayStr}&end_date=${endStr}`;
-
-  const res = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      'x-rapidapi-host': 'trading-economics-scraper.p.rapidapi.com',
-      'x-rapidapi-key': apiKey,
-    },
-    signal: AbortSignal.timeout(10000),
-  });
-
-  if (!res.ok) {
-    if (res.status === 429) { const e = new Error('Rate limited'); (e as any).isRateLimit = true; throw e; }
-    throw new Error('TE Calendar returned ' + res.status);
-  }
-
-  const data = await res.json();
-  if (!Array.isArray(data) || data.length === 0) throw new Error('Empty data');
-
-  const countryToCurrency: Record<string, string> = {
-    'United States': 'USD', 'United Kingdom': 'GBP', 'Euro Zone': 'EUR', 'Japan': 'JPY',
-    'Australia': 'AUD', 'Canada': 'CAD', 'Switzerland': 'CHF', 'New Zealand': 'NZD',
-  };
-
-  const events: CalendarEvent[] = [];
-  for (const item of data) {
-    const countryName = item.country || '';
-    const currency = countryToCurrency[countryName] || (item.currency || '').toUpperCase();
-    if (!currency || currency.length > 4) continue;
-
-    const impStr = String(item.importance || item.priority || '').toLowerCase();
-    const impact: 'high' | 'medium' | 'low' = impStr === '3' || impStr === 'high' ? 'high' : impStr === '2' || impStr === 'medium' ? 'medium' : 'low';
-    const eventTitle = item.event || item.indicator || item.title || 'Economic Event';
-    const eventDate = (item.date || todayStr).split('T')[0];
-    const eventTime = item.time || '08:30';
-
-    const dedupeKey = currency + '-' + eventDate + '-' + eventTitle.substring(0, 30);
-    if (events.some(e => (e.currency + '-' + e.date + '-' + e.event.substring(0, 30)) === dedupeKey)) continue;
-
-    events.push({
-      id: 'te-' + events.length + '-' + currency + '-' + eventDate,
-      date: eventDate, time: eventTime,
-      dateTime: buildDateTime(eventDate, eventTime),
-      currency, impact, event: eventTitle,
-      actual: item.actual != null ? String(item.actual) : undefined,
-      forecast: item.forecast != null ? String(item.forecast) : '',
-      previous: item.previous != null ? String(item.previous) : '',
-    });
-  }
-
-  console.log('[EconCalendar] TradingEconomics: ' + events.length + ' events');
-  return sortEvents(events);
-}
-
-// ─── 3c. Investing.com Calendar via scraping (FREE, no API key) ─────────────
-async function fetchInvestingCalendar(): Promise<CalendarEvent[]> {
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-
-  // Try multiple CORS proxies since allorigins.win is unreliable
-  const investingUrl = 'https://www.investing.com/economic-calendar/';
-  const proxyUrls = [
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(investingUrl)}`,
-    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(investingUrl)}`,
-  ];
-
-  let res: Response | null = null;
-  for (const proxyUrl of proxyUrls) {
-    try {
-      const attempt = await fetch(proxyUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-          'Accept': 'text/html, application/xhtml+xml, */*;',
-          'Accept-Language': 'en-US,en;q=0.9',
-        },
-        signal: AbortSignal.timeout(8000),
-      });
-      if (attempt.ok) { res = attempt; break; }
-    } catch { /* try next proxy */ }
-  }
-  if (!res) throw new Error('All Investing.com proxies failed');
-
-  const html = await res.text();
-
-  // Parse the HTML table for economic events
-  const events: CalendarEvent[] = [];
-  const currencyMap: Record<string, string> = {
-    'USD': 'USD', 'EUR': 'EUR', 'GBP': 'GBP', 'JPY': 'JPY',
-    'AUD': 'AUD', 'CAD': 'CAD', 'CHF': 'CHF', 'NZD': 'NZD',
-    'CNY': 'CNY', 'KRW': 'KRW',
-  };
-
-  // Try to extract event rows from the HTML
-  const rowRegex = /<tr[^>]*data-event-id[^>]*>([\s\S]*?)<\/tr>/gi;
-  let rowMatch;
-
-  while ((rowMatch = rowRegex.exec(html)) !== null && events.length < 80) {
-    const rowHtml = rowMatch[1];
-
-    // Extract currency
-    const currMatch = rowHtml.match(/class="[^"]*flagCur[^"]*"[^>]*>([A-Z]{3})<\/span>/i)
-      || rowHtml.match(/>(USD|EUR|GBP|JPY|AUD|CAD|CHF|NZD)</i);
-    const currency = currMatch ? currencyMap[currMatch[1]] || currMatch[1] : '';
-    if (!currency) continue;
-
-    // Extract event name
-    const nameMatch = rowHtml.match(/class="[^"]*event[^"]*"[^>]*>([^<]+)/i)
-      || rowHtml.match(/<td[^>]*>\s*<a[^>]*>([^<]+)/i);
-    const eventTitle = nameMatch ? nameMatch[1].trim() : '';
-    if (!eventTitle || eventTitle.length < 3) continue;
-
-    // Extract impact
-    const highImp = rowHtml.includes('highVol') || rowHtml.includes('highImp') || rowHtml.match(/class="[^"]*sentiment[^"]*bullish[^"]*3/i);
-    const medImp = rowHtml.includes('medVol') || rowHtml.includes('medImp') || rowHtml.match(/class="[^"]*sentiment[^"]*bullish[^"]*2/i);
-    const impact: 'high' | 'medium' | 'low' = highImp ? 'high' : medImp ? 'medium' : 'low';
-
-    // Extract date/time
-    const timeMatch = rowHtml.match(/(\d{2}:\d{2})/);
-    const eventTime = timeMatch ? timeMatch[1] : '08:30';
-
-    // Extract actual/forecast/previous
-    const tdValues: string[] = [];
-    const tdRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-    let tdMatch;
-    while ((tdMatch = tdRegex.exec(rowHtml)) !== null) {
-      const val = tdMatch[1].replace(/<[^>]*>/g, '').trim();
-      tdValues.push(val);
-    }
-
-    const dedupeKey = currency + '-' + todayStr + '-' + eventTitle.substring(0, 30);
-    if (events.some(e => (e.currency + '-' + e.date + '-' + e.event.substring(0, 30)) === dedupeKey)) continue;
-
-    events.push({
-      id: 'inv-' + events.length + '-' + currency + '-' + todayStr,
-      date: todayStr, time: eventTime,
-      dateTime: buildDateTime(todayStr, eventTime),
-      currency, impact, event: eventTitle,
-      actual: tdValues[0] || undefined,
-      forecast: tdValues[1] || '',
-      previous: tdValues[2] || '',
-    });
-  }
-
-  if (events.length === 0) throw new Error('No events parsed from Investing.com');
-  console.log('[EconCalendar] Investing.com: ' + events.length + ' events');
-  return sortEvents(events);
-}
-
-// ─── 5. Web Search Calendar (z-ai-web-dev-sdk) ────────────────────────────
-
-interface WebSearchResult {
-  url: string;
-  name: string;
-  snippet: string;
-  host_name: string;
-  date: string;
-}
-
-/**
- * Fetch real-time economic calendar data via z-ai-web-dev-sdk web-search.
- * Searches for current/upcoming high-impact economic events and parses them
- * into CalendarEvent format.
- */
+// ─── 5. Web Search via DuckDuckGo (CF Workers compatible) ──────────────────
 async function fetchWebSearchCalendar(): Promise<CalendarEvent[]> {
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
   const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const query = `NFP nonfarm payrolls CPI FOMC ISM PMI economic data release this week ${dateStr} USD EUR GBP`;
 
-  // Currency detection from text
   const currencyKeywords: Record<string, string[]> = {
     USD: ['us ', 'united states', 'usd', 'nonfarm', 'nfp', 'fomc', 'fed ', 'federal reserve', 'jobless claims', 'us cpi', 'us gdp', 'us retail', 'us pmi', 'us housing', 'us durable', 'ism', 'adp employment', 'us payrolls', 'unemployment rate'],
     EUR: ['euro', 'eur', 'ecb', 'german', 'eurozone', 'eu pmi', 'eu cpi', 'eu gdp', 'ez cpi'],
@@ -577,7 +365,6 @@ async function fetchWebSearchCalendar(): Promise<CalendarEvent[]> {
   const highImpactKeywords = ['nfp', 'nonfarm', 'non-farm', 'fomc', 'fed rate', 'interest rate decision', 'cpi', 'gdp', 'rate decision', 'payrolls', 'jobless claims', 'unemployment rate'];
   const mediumImpactKeywords = ['pmi', 'retail sales', 'ppi', 'housing', 'consumer confidence', 'industrial production', 'trade balance', 'consumer price'];
 
-  // Helper to parse web search results into calendar events
   function parseSearchResultsToEvents(results: { name?: string; snippet?: string; url?: string; date?: string }[]): CalendarEvent[] {
     const events: CalendarEvent[] = [];
 
@@ -585,7 +372,6 @@ async function fetchWebSearchCalendar(): Promise<CalendarEvent[]> {
       if (!r.name && !r.snippet) continue;
       const text = `${r.name} ${r.snippet}`.toLowerCase();
 
-      // Detect currency
       let currency = '';
       for (const [curr, keywords] of Object.entries(currencyKeywords)) {
         for (const kw of keywords) {
@@ -599,12 +385,10 @@ async function fetchWebSearchCalendar(): Promise<CalendarEvent[]> {
       }
       if (!currency) continue;
 
-      // Detect impact
       let impact: 'high' | 'medium' | 'low' = 'low';
       for (const kw of highImpactKeywords) { if (text.includes(kw)) { impact = 'high'; break; } }
       if (impact === 'low') { for (const kw of mediumImpactKeywords) { if (text.includes(kw)) { impact = 'medium'; break; } } }
 
-      // Extract event name
       let eventTitle = (r.name || 'Economic Event')
         .replace(/\s*[-|–—]\s*(Forex Factory|Investing\.com|FXStreet|Trading Economics|Myfxbook|XTB|ActionForex|MarketWatch|BeInCrypto|GoMarkets|TradingCharts|Mitrade|YouTube|Facebook|BLS\.gov|Bloomberg|Forex\.com|Reuters|IG|Tickmill|LeapRate|Lirunex|CBCX Markets|RCG Markets).*$/i, '')
         .replace(/\s*\(\d{2}\.\d{2}\.\d{4}\)\s*/g, '')
@@ -621,61 +405,41 @@ async function fetchWebSearchCalendar(): Promise<CalendarEvent[]> {
       const timeMatch = text.match(/(\d{1,2}:\d{2})\s*(am|pm|gmt|utc|et|est)?/i);
       if (timeMatch) {
         eventTime = timeMatch[1];
-        if (timeMatch[2]?.toLowerCase() === 'pm' && !eventTime.startsWith('12')) { const [h, m] = eventTime.split(':'); eventTime = `${Number(h) + 12}:${m}`; }
+        if (timeMatch[2]?.toLowerCase() === 'pm' && !eventTime.startsWith('12')) {
+          const [h, m] = eventTime.split(':');
+          eventTime = `${Number(h) + 12}:${m}`;
+        }
       }
 
-      const normalizedTitle = eventTitle.replace(/non-?farm\s+payrolls?s?/i, 'NFP').replace(/unemployment\s+rate/i, 'Unemployment Rate').replace(/consumer\s+price\s+index/i, 'CPI').replace(/purchasing\s+managers'??\s+index/i, 'PMI').replace(/gross\s+domestic\s+product/i, 'GDP').replace(/federal\s+open\s+market\s+committee/i, 'FOMC').substring(0, 30);
+      const normalizedTitle = eventTitle
+        .replace(/non-?farm\s+payrolls?s?/i, 'NFP')
+        .replace(/unemployment\s+rate/i, 'Unemployment Rate')
+        .replace(/consumer\s+price\s+index/i, 'CPI')
+        .replace(/purchasing\s+managers'??\s+index/i, 'PMI')
+        .replace(/gross\s+domestic\s+product/i, 'GDP')
+        .replace(/federal\s+open\s+market\s+committee/i, 'FOMC')
+        .substring(0, 30);
       const dedupeKey = currency + '-' + eventDate + '-' + normalizedTitle;
       if (events.some(e => (e.currency + '-' + e.date + '-' + e.event.substring(0, 30)) === dedupeKey)) continue;
 
-      events.push({ id: 'ws-' + events.length + '-' + currency + '-' + eventDate, date: eventDate, time: eventTime, dateTime: buildDateTime(eventDate, eventTime), currency, impact, event: eventTitle, forecast: '', previous: '' });
+      events.push({
+        id: 'ws-' + events.length + '-' + currency + '-' + eventDate,
+        date: eventDate, time: eventTime,
+        dateTime: buildDateTime(eventDate, eventTime),
+        currency, impact, event: eventTitle, forecast: '', previous: '',
+      });
     }
     return sortEvents(events);
   }
 
-  // Strategy 1: z-ai-web-dev-sdk CLI (Node.js only)
+  // DuckDuckGo HTML search (works in CF Workers/Edge via fetch)
   try {
-    const spawnFn = getSpawn();
-    if (spawnFn) {
-      console.log('[EconCalendar] Invoking z-ai-web-dev-sdk web-search...');
-      const argsJson = JSON.stringify({ query, num: 15 });
-      const result = await new Promise<string>((resolve, reject) => {
-        const proc = spawnFn('npx', ['z-ai-web-dev-sdk', 'function', '--name', 'web_search', '--args', argsJson], { timeout: 15000 });
-        let stdout = ''; let stderr = '';
-        proc.stdout.on('data', (d) => { stdout += d; });
-        proc.stderr.on('data', (d) => { stderr += d; });
-        proc.on('close', (code) => { if (code === 0) resolve(stdout); else reject(new Error(`Exit code ${code}: ${stderr.slice(0, 200)}`)); });
-        proc.on('error', reject);
-      });
-
-      let jsonStr = ''; let inArray = false; let bracketDepth = 0;
-      for (const line of result.split('\n')) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.includes('🚀') || trimmed.includes('🎉')) continue;
-        if (!inArray && trimmed.startsWith('[')) { inArray = true; jsonStr = trimmed; bracketDepth = (trimmed.match(/\[/g) || []).length - (trimmed.match(/\]/g) || []).length; if (bracketDepth === 0) break; continue; }
-        if (inArray) { jsonStr += '\n' + line; bracketDepth += (line.match(/\[/g) || []).length - (line.match(/\]/g) || []).length; if (bracketDepth <= 0) break; }
-      }
-
-      if (jsonStr) {
-        const data = JSON.parse(jsonStr) as WebSearchResult[];
-        if (Array.isArray(data) && data.length > 0) {
-          const events = parseSearchResultsToEvents(data);
-          if (events.length > 0) {
-            console.log('[EconCalendar] Web search (CLI): ' + events.length + ' events');
-            return events;
-          }
-        }
-      }
-    }
-  } catch (err: any) {
-    console.error('[EconCalendar] Web search CLI failed: ' + err.message);
-  }
-
-  // Strategy 2: DuckDuckGo HTML search (works in CF Workers/Edge via fetch)
-  try {
-    console.log('[EconCalendar] Trying DuckDuckGo search as edge-compatible fallback...');
+    console.log('[EconCalendar] Trying DuckDuckGo search for economic calendar...');
     const ddgResp = await fetch('https://lite.duckduckgo.com/lite/?q=' + encodeURIComponent(query), {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36', 'Accept': 'text/html' },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Accept': 'text/html',
+      },
       signal: AbortSignal.timeout(10000),
       redirect: 'follow',
     });
@@ -686,9 +450,11 @@ async function fetchWebSearchCalendar(): Promise<CalendarEvent[]> {
       const snippetRegex = /<td[^>]*class="result-snippet"[^>]*>(.*?)<\/td>/gi;
       const ddgResults: { name: string; snippet: string; url: string }[] = [];
 
-      let linkMatch; let idx = 0;
+      let linkMatch;
+      let idx = 0;
       while ((linkMatch = linkRegex.exec(html)) !== null && idx < 15) {
-        const url = linkMatch[1]; const titleRaw = linkMatch[2].replace(/<[^>]*>/g, '').trim();
+        const url = linkMatch[1];
+        const titleRaw = linkMatch[2].replace(/<[^>]*>/g, '').trim();
         if (!url.startsWith('http') || !titleRaw) continue;
         const snippetMatch = snippetRegex.exec(html);
         const snippet = snippetMatch ? snippetMatch[1].replace(/<[^>]*>/g, '').trim() : '';
@@ -708,11 +474,11 @@ async function fetchWebSearchCalendar(): Promise<CalendarEvent[]> {
     console.error('[EconCalendar] DuckDuckGo search failed: ' + err.message);
   }
 
-  console.warn('[EconCalendar] All web search strategies failed');
+  console.warn('[EconCalendar] Web search failed');
   return [];
 }
 
-// ─── 4. Fallback Calendar (guaranteed, no API needed) ─────────────────────
+// ─── 6. Fallback Calendar (guaranteed, no API needed) ─────────────────────
 async function fetchFallbackCalendar(): Promise<CalendarEvent[]> {
   const today = new Date();
   const events: CalendarEvent[] = [];
@@ -753,7 +519,7 @@ async function fetchFallbackCalendar(): Promise<CalendarEvent[]> {
   return sortEvents(events);
 }
 
-// ─── Cascade: Real APIs first, web search, fallback last ──────────────────
+// ─── Cascade: Real APIs first, free sources, web search, fallback last ─────
 async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source: string; unavailable: boolean }> {
   const errors: string[] = [];
   const collectedEvents: CalendarEvent[] = [];
@@ -763,26 +529,37 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
   const fhKey = await getFinnhubKey();
   const rapKey = await getRapidApiKey();
   const fcsKey = await getFcsApiKey();
-  console.log(`[EconCalendar] API keys available: Finnhub=${fhKey ? 'YES(' + fhKey.substring(0, 6) + '...)' : 'NO'}, RapidAPI=${rapKey ? 'YES(' + rapKey.substring(0, 6) + '...)' : 'NO'}, FCSAPI=${fcsKey ? 'YES' : 'NO'}`);
+  console.log(`[EconCalendar] API keys: Finnhub=${fhKey ? 'YES' : 'NO'}, RapidAPI=${rapKey ? 'YES' : 'NO'}, FCSAPI=${fcsKey ? 'YES' : 'NO'}`);
 
-  // 1. Finnhub (FREE tier: 60 calls/min)
+  // 1. FCSAPI (free tier, no key required) — try first since it's free and reliable
+  try {
+    const events = await fetchFcsApiCalendar();
+    if (events.length > 0) {
+      primarySource = 'FCSAPI (Live)';
+      collectedEvents.push(...events);
+      console.log(`[EconCalendar] FCSAPI: ${events.length} events collected`);
+    }
+  } catch (err: any) {
+    errors.push('FCSAPI: ' + err.message);
+    console.error('[EconCalendar] FCSAPI failed:', err.message);
+  }
+
+  // 2. Finnhub (FREE tier: 60 calls/min)
   if (fhKey) {
     try {
       const events = await fetchFinnhubCalendar();
       if (events.length > 0) {
-        primarySource = 'Finnhub (Live)';
+        if (!primarySource) primarySource = 'Finnhub (Live)';
         collectedEvents.push(...events);
-        console.log(`[EconCalendar] Finnhub: ${events.length} events collected`);
+        console.log(`[EconCalendar] Finnhub: ${events.length} events, total now ${collectedEvents.length}`);
       }
     } catch (err: any) {
       errors.push('Finnhub: ' + err.message);
       console.error('[EconCalendar] Finnhub failed:', err.message);
     }
-  } else {
-    console.info('[EconCalendar] FINNHUB_API_KEY not set, skipping');
   }
 
-  // 2. TradingEconomics Calendar (RapidAPI) — collect, don't return early
+  // 3. TradingEconomics Calendar (RapidAPI)
   if (rapKey) {
     try {
       const events = await fetchTECalendar();
@@ -795,13 +572,23 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
       errors.push('TE: ' + err.message);
       console.error('[EconCalendar] TradingEconomics failed:', err.message);
     }
-  } else {
-    console.info('[EconCalendar] RAPIDAPI_KEY not set, skipping');
+  }
+
+  // 4. MyFXBook RSS (free, no key)
+  try {
+    const events = await fetchMyFXBookCalendar();
+    if (events.length > 0) {
+      if (!primarySource) primarySource = 'MyFXBook (Live)';
+      collectedEvents.push(...events);
+      console.log(`[EconCalendar] MyFXBook: ${events.length} events, total now ${collectedEvents.length}`);
+    }
+  } catch (err: any) {
+    errors.push('MyFXBook: ' + err.message);
+    console.error('[EconCalendar] MyFXBook failed:', err.message);
   }
 
   // If we have API data, deduplicate and return
   if (collectedEvents.length > 0) {
-    // Deduplicate by currency+date+event name
     const seen = new Set<string>();
     const deduped = collectedEvents.filter(e => {
       const key = e.currency + '-' + e.date + '-' + e.event.substring(0, 30);
@@ -813,7 +600,7 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     return { events: sortEvents(deduped), source: primarySource || 'API (Live)', unavailable: false };
   }
 
-  // 3. Web Search via z-ai-web-dev-sdk (real-time economic calendar data)
+  // 5. Web Search via DuckDuckGo (CF Workers compatible)
   try {
     const webSearchEvents = await fetchWebSearchCalendar();
     if (webSearchEvents.length > 0) {
@@ -824,16 +611,6 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     console.error('[EconCalendar] Web search failed:', err.message);
   }
 
-  // 3. Investing.com calendar (free, via CORS proxy — skip by default, very slow)
-  // Skip Investing.com scraping — the CORS proxy is unreliable and adds 12s+ latency.
-  // If a reliable proxy becomes available, re-enable this.
-
-  // 4. FCSAPI (dead endpoint — skip, saves 8s timeout)
-  // FCSAPI v3 /economic_calendar endpoint returns 404. Skip to avoid timeout.
-
-  // 5. MyFXBook (blocked 403 — skip, saves 8s timeout)
-  // MyFXBook calendar.community.json returns 403. Skip to avoid timeout.
-
   // 6. Fallback (guaranteed, no external call)
   console.warn('[EconCalendar] All live APIs and web search failed, using fallback schedule. Errors:', errors.join('; '));
   const events = await fetchFallbackCalendar();
@@ -841,31 +618,14 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
 }
 
 // ─── Sample Data Detection ────────────────────────────────────────────────
-
-/**
- * Detect if cached calendar events are stale sample/placeholder data.
- * This catches old cached data that was generated when all sources failed.
- */
 function isSampleCalendarData(events: CalendarEvent[]): boolean {
-  if (events.length === 0) return true; // Empty = came from "all sources failed" fallback
-  // Check for fallback schedule indicators (source contains 'Fallback')
-  // and for placeholder patterns in event names
-  const sampleIndicators = [
-    'unavailable',
-    'sample',
-    'placeholder',
-    'lorem ipsum',
-    'temporarily unavailable',
-  ];
-  for (const item of events.slice(0, 5)) { // Check first 5 items
+  if (events.length === 0) return true;
+  const sampleIndicators = ['unavailable', 'sample', 'placeholder', 'lorem ipsum', 'temporarily unavailable'];
+  for (const item of events.slice(0, 5)) {
     for (const indicator of sampleIndicators) {
       if (item.event.toLowerCase().includes(indicator)) return true;
     }
-    // fb- prefix = hardcoded fallback data (not live API data)
-    // Live API data has prefixes: fh- (Finnhub), te- (TradingEconomics),
-    // ws- (Web Search), inv- (Investing.com)
     if (item.id && item.id.startsWith('fb-')) return true;
-    // Events with no id prefix at all are likely from a broken fallback
     if (!item.id || !item.id.match(/^(fh-|te-|fcs-|mfb-|inv-|ws-|fb-)/)) return true;
   }
   return false;
@@ -934,7 +694,6 @@ export async function GET(request: NextRequest) {
     const fhKey = await getFinnhubKey();
     const rapKey = await getRapidApiKey();
     const fcsKey = await getFcsApiKey();
-    // Also check if CF context is available
     let cfContextAvailable = false;
     let cfEnvKeys: string[] = [];
     try {
@@ -958,7 +717,6 @@ export async function GET(request: NextRequest) {
         FINNHUB_API_KEY: fhKey ? `SET (${fhKey.length} chars, starts: ${fhKey.substring(0, 4)}...)` : 'NOT SET',
         RAPIDAPI_KEY: rapKey ? `SET (${rapKey.length} chars, starts: ${rapKey.substring(0, 4)}...)` : 'NOT SET',
         FCSAPI_KEY: fcsKey ? `SET (${fcsKey.length} chars)` : 'NOT SET',
-        RAPIDAPI_TRADING_ECONOMICS_KEY: (await getEnvVar('RAPIDAPI_TRADING_ECONOMICS_KEY')) ? 'SET' : 'NOT SET',
       },
       processEnv: {
         FINNHUB_API_KEY: process.env.FINNHUB_API_KEY ? `exists (${process.env.FINNHUB_API_KEY.length} chars)` : 'undefined',
@@ -991,12 +749,10 @@ export async function GET(request: NextRequest) {
 
     // 2. Try in-memory cache (also detect stale sample data)
     if (!forceRefresh && calendarCache && Date.now() - calendarCache.timestamp < CACHE_DURATION) {
-      // Detect stale sample data in memory cache
       if (isSampleCalendarData(calendarCache.events)) {
         console.warn('[EconCalendar] In-memory cache contains stale sample data — invalidating');
         calendarCache = null;
       } else if (calendarCache.source && (calendarCache.source.includes('Fallback') || calendarCache.unavailable === true)) {
-        // Also invalidate if cached data is from fallback
         console.warn('[EconCalendar] In-memory cache contains fallback data — invalidating');
         calendarCache = null;
       } else {
@@ -1013,18 +769,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 3. Fetch fresh data (with 25s timeout to avoid hanging on slow web searches)
+    // 3. Fetch fresh data (with 20s timeout to avoid hanging)
     let fetchResult: { events: CalendarEvent[]; source: string; unavailable: boolean };
     try {
       fetchResult = await Promise.race([
         fetchCalendarEvents(),
         new Promise<{ events: CalendarEvent[]; source: string; unavailable: boolean }>((resolve) =>
           setTimeout(() => {
-            console.warn('[EconCalendar] Cascade timed out after 25s, using fallback');
+            console.warn('[EconCalendar] Cascade timed out after 20s, using fallback');
             fetchFallbackCalendar().then(events =>
               resolve({ events, source: 'Fallback Schedule (timeout)', unavailable: true })
             );
-          }, 25000)
+          }, 20000)
         ),
       ]);
     } catch (err: any) {
