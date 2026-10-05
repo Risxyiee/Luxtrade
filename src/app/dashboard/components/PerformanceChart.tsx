@@ -9,6 +9,7 @@ interface PerformanceChartProps {
   analytics?: {
     equityCurve?: { date: string; equity: number }[]
     totalPL?: number
+    initialBalance?: number
   } | null
   chartAnimated: boolean
 }
@@ -33,7 +34,12 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
           <div className="flex items-center gap-2">
             <span className="text-sm text-lux-text-secondary dark:text-gray-400">Current:</span>
             <span className={`text-lg font-bold ${(analytics?.totalPL || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              ${(10000 + (analytics?.totalPL || 0)).toFixed(0)}
+              ${(() => {
+                const lastEquity = analytics?.equityCurve?.[analytics.equityCurve.length - 1]?.equity
+                return lastEquity != null
+                  ? lastEquity.toFixed(0)
+                  : ((analytics?.initialBalance || 0) + (analytics?.totalPL || 0)).toFixed(0)
+              })()}
             </span>
           </div>
         </CardHeader>

@@ -27,7 +27,7 @@ const FIRM_PRESETS: Record<string, { maxDailyLoss: number; maxTotalDD: number; p
   Custom: { maxDailyLoss: 5, maxTotalDD: 10, profitTarget: 10, consistencyRule: 0 },
 }
 
-const ACCOUNT_SIZES = [10000, 25000, 50000, 100000, 200000, 500000]
+const ACCOUNT_SIZES = [5000, 10000, 25000, 50000, 100000, 200000, 500000]
 
 interface Challenge {
   id: string
@@ -247,7 +247,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
   // Add form state
   const [formFirm, setFormFirm] = useState('FTMO')
   const [formCustomFirmName, setFormCustomFirmName] = useState('')
-  const [formAccountSize, setFormAccountSize] = useState(100000)
+  const [formAccountSize, setFormAccountSize] = useState(10000)
   const [formPhase, setFormPhase] = useState('phase1')
   const [formAlertPercent, setFormAlertPercent] = useState(40)
 
@@ -552,7 +552,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
             onClick={() => {
               setFormFirm('FTMO')
               setFormCustomFirmName('')
-              setFormAccountSize(100000)
+              setFormAccountSize(10000)
               setFormPhase('phase1')
               setFormAlertPercent(40)
               setAddDialogOpen(true)

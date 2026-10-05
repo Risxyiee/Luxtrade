@@ -161,7 +161,8 @@ export async function GET(request: NextRequest) {
 
     // ─── Fetch user's trading account for initial balance ───
     // If accountId is specified, use that account; otherwise use default
-    let startBalance = 10000
+    // Fallback chain: trading_accounts.initial_balance → prop_firm_challenges.account_size → 0
+    let startBalance = 0
     try {
       let accountQuery = client
         .from('trading_accounts')
@@ -186,6 +187,25 @@ export async function GET(request: NextRequest) {
       }
     } catch (e) {
       console.warn('[analytics] Could not fetch trading account for initial balance:', e)
+    }
+
+    // Fallback: check PropFirmGuard challenge account_size if trading_accounts.initial_balance is 0
+    if (startBalance === 0) {
+      try {
+        const { data: challenges } = await client
+          .from('prop_firm_challenges')
+          .select('account_size')
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+
+        if (challenges && challenges.length > 0 && challenges[0].account_size > 0) {
+          startBalance = challenges[0].account_size
+        }
+      } catch (e) {
+        // prop_firm_challenges table may not exist — ignore
+      }
     }
 
     // ─── Compute aggregates in-memory from the single trades fetch ───

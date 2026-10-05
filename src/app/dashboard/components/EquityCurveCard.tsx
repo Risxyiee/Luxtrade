@@ -553,7 +553,7 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccoun
         <Tooltip
           point={hoveredPoint}
           chartData={data}
-          initialBalance={data?.initialBalance ?? 10000}
+          initialBalance={data?.initialBalance ?? 0}
           language={language}
           position={mousePos}
         />
