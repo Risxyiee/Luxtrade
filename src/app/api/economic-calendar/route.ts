@@ -741,9 +741,10 @@ async function getKVCache(): Promise<CacheEntry | null> {
       return null;
     }
 
-    // Also invalidate if source indicates fallback data
-    if (entry.source && (entry.source.includes('Fallback') || entry.unavailable === true)) {
-      console.warn('[EconCalendar] KV cache contains fallback data (source: ' + entry.source + ') — invalidating');
+    // Serve fallback data from cache too — it's better than empty!
+    // Only skip if cache is completely stale (older than 30 min for fallback)
+    if (entry.unavailable === true && Date.now() - entry.timestamp > CACHE_DURATION_RATE_LIMITED) {
+      console.warn('[EconCalendar] KV cache fallback data is stale (>30min) — invalidating');
       try { await kv.delete('economic_calendar_cache'); } catch {}
       return null;
     }
@@ -836,13 +837,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 2. Try in-memory cache (also detect stale sample data)
+    // 2. Try in-memory cache (serve even fallback data — it's better than empty)
     if (!forceRefresh && calendarCache && Date.now() - calendarCache.timestamp < CACHE_DURATION) {
       if (isSampleCalendarData(calendarCache.events)) {
         console.warn('[EconCalendar] In-memory cache contains stale sample data — invalidating');
-        calendarCache = null;
-      } else if (calendarCache.source && (calendarCache.source.includes('Fallback') || calendarCache.unavailable === true)) {
-        console.warn('[EconCalendar] In-memory cache contains fallback data — invalidating');
         calendarCache = null;
       } else {
         let events = calendarCache.events;
@@ -912,13 +910,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // NEVER return 500 — always 200 with empty array + unavailable flag
+    // NEVER return 500 — always 200 with fallback data
+    const fallbackEvents = await fetchFallbackCalendar();
     return NextResponse.json({
-      success: true, cached: false, events: [],
-      totalAvailable: 0, source: 'Unavailable',
+      success: true, cached: false, events: fallbackEvents,
+      totalAvailable: fallbackEvents.length, source: 'Fallback Schedule (error)',
       fetchedAt: new Date().toISOString(), now: serverTime,
       timezone: timezone || null, unavailable: true,
-      message: 'Calendar data temporarily unavailable. Please try again in a few minutes.',
+      message: 'Live data unavailable, showing estimated schedule.',
     });
   }
 }
