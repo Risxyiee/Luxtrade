@@ -784,25 +784,73 @@ export async function GET(request: NextRequest) {
     const fhKey = await getFinnhubKey();
     const rapKey = await getRapidApiKey();
     const fcsKey = await getFcsApiKey();
+
+    // Check direct globalThis access (most reliable in CF Workers)
+    let globalThisEnvAvailable = false;
+    let globalThisEnvKeys: string[] = [];
+    let globalThisCtxDetail: string = 'not set';
+    try {
+      const sym = Symbol.for('__cloudflare-context__');
+      const ctx = (globalThis as any)[sym];
+      if (ctx) {
+        globalThisCtxDetail = `set, env=${typeof ctx.env}, cf=${typeof ctx.cf}`;
+        if (ctx.env) {
+          globalThisEnvAvailable = true;
+          globalThisEnvKeys = Object.keys(ctx.env).filter(k => !k.startsWith('NEXT_') && k !== 'ASSETS');
+          // Check specific secret keys
+          const secretKeys = ['FINNHUB_API_KEY', 'RAPIDAPI_KEY', 'RAPIDAPI_TRADING_ECONOMICS_KEY', 'FCSAPI_KEY'];
+          for (const k of secretKeys) {
+            const v = (ctx.env as any)[k];
+            if (v != null) {
+              globalThisEnvKeys.push(`✓ ${k} (${String(v).length} chars)`);
+            } else {
+              globalThisEnvKeys.push(`✗ ${k} = undefined`);
+            }
+          }
+        }
+      }
+    } catch (e: any) {
+      globalThisCtxDetail = `error: ${e?.message}`;
+    }
+
+    // Check getCloudflareContext()
     let cfContextAvailable = false;
     let cfEnvKeys: string[] = [];
+    let cfContextError = '';
     try {
       const { getCloudflareContext } = await import('@opennextjs/cloudflare');
       try {
         const ctx = await getCloudflareContext({ async: true });
         cfContextAvailable = !!ctx?.env;
         if (ctx?.env) cfEnvKeys = Object.keys(ctx.env).filter(k => !k.startsWith('NEXT_') && !k.startsWith('ASSETS') && !k.includes('CACHE'));
-      } catch {}
-      if (!cfContextAvailable) {
-        const ctx = getCloudflareContext();
-        cfContextAvailable = !!ctx?.env;
-        if (ctx?.env) cfEnvKeys = Object.keys(ctx.env).filter(k => !k.startsWith('NEXT_') && !k.startsWith('ASSETS') && !k.includes('CACHE'));
+      } catch (asyncErr: any) {
+        cfContextError = `async: ${asyncErr?.message}`;
       }
-    } catch {}
+      if (!cfContextAvailable) {
+        try {
+          const ctx = getCloudflareContext();
+          cfContextAvailable = !!ctx?.env;
+          if (ctx?.env) cfEnvKeys = Object.keys(ctx.env).filter(k => !k.startsWith('NEXT_') && !k.startsWith('ASSETS') && !k.includes('CACHE'));
+        } catch (syncErr: any) {
+          cfContextError += `; sync: ${syncErr?.message}`;
+        }
+      }
+    } catch (importErr: any) {
+      cfContextError = `import: ${importErr?.message}`;
+    }
+
     return NextResponse.json({
       environment: process.env.NODE_ENV || 'unknown',
-      cfContextAvailable,
-      cfEnvKeys,
+      directGlobalThisAccess: {
+        available: globalThisEnvAvailable,
+        ctxDetail: globalThisCtxDetail,
+        envKeys: globalThisEnvKeys,
+      },
+      getCloudflareContext: {
+        available: cfContextAvailable,
+        envKeys: cfEnvKeys,
+        error: cfContextError || undefined,
+      },
       apiKeys: {
         FINNHUB_API_KEY: fhKey ? `SET (${fhKey.length} chars, starts: ${fhKey.substring(0, 4)}...)` : 'NOT SET',
         RAPIDAPI_KEY: rapKey ? `SET (${rapKey.length} chars, starts: ${rapKey.substring(0, 4)}...)` : 'NOT SET',

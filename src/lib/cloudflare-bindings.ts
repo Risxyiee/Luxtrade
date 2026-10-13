@@ -105,6 +105,9 @@ function isPlaceholderEnvVar(value: string): boolean {
   return PLACEHOLDER_PATTERNS.some(p => lower.startsWith(p))
 }
 
+/** Diagnostic logging flag — only log env keys once per process */
+let _envDiagnosticLogged = false
+
 /**
  * Get an environment variable from Cloudflare Workers env (secrets + vars).
  * This is the centralized way to read API keys and other env vars in CF Workers.
@@ -118,7 +121,35 @@ function isPlaceholderEnvVar(value: string): boolean {
  *  2. getCloudflareContext().env[key]  — works if wrangler dev is proxying
  */
 export async function getEnvVar(key: string): Promise<string> {
-  // 1. Try CF Workers env via getCloudflareContext (PRIMARY for production)
+  // 0. Try direct globalThis access FIRST (most reliable in CF Workers)
+  //    In production, worker-entry.ts sets globalThis[Symbol.for('__cloudflare-context__')] = { env, cf, ctx }
+  //    before delegating to OpenNext. This is the most direct path to secrets.
+  try {
+    const sym = Symbol.for('__cloudflare-context__')
+    const ctx = (globalThis as any)[sym]
+    if (ctx?.env) {
+      const val = (ctx.env as any)[key]
+      if (val != null) {
+        const s = typeof val === 'string' ? val : String(val)
+        if (s && s !== '[object Object]' && !isPlaceholderEnvVar(s)) {
+          return s
+        }
+        if (s && isPlaceholderEnvVar(s)) {
+          console.warn(`[getEnvVar] ${key} in globalThis ctx.env looks like placeholder: "${s.substring(0, 12)}..."`)
+        }
+      }
+      // Key not found in env — log what keys ARE available (first call only)
+      if (!_envDiagnosticLogged) {
+        _envDiagnosticLogged = true
+        const envKeys = Object.keys(ctx.env).filter(k => !k.startsWith('NEXT_') && k !== 'ASSETS')
+        console.log(`[getEnvVar] CF env keys available: [${envKeys.join(', ')}]`)
+      }
+    }
+  } catch (e: any) {
+    console.warn(`[getEnvVar] Direct globalThis access failed: ${e?.message || e}`)
+  }
+
+  // 1. Try getCloudflareContext() from @opennextjs/cloudflare
   try {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare');
 
@@ -130,15 +161,13 @@ export async function getEnvVar(key: string): Promise<string> {
         if (val != null) {
           const s = typeof val === 'string' ? val : String(val);
           if (s && s !== '[object Object]' && !isPlaceholderEnvVar(s)) {
-            console.log(`[getEnvVar] ${key} found in CF ctx.env (async), ${s.length} chars`);
             return s;
-          }
-          if (s && isPlaceholderEnvVar(s)) {
-            console.warn(`[getEnvVar] ${key} in CF ctx.env (async) looks like placeholder: "${s.substring(0, 12)}..."`);
           }
         }
       }
-    } catch {}
+    } catch (asyncErr: any) {
+      console.warn(`[getEnvVar] getCloudflareContext({async:true}) failed: ${asyncErr?.message || asyncErr}`);
+    }
 
     // Sync variant fallback
     try {
@@ -148,12 +177,13 @@ export async function getEnvVar(key: string): Promise<string> {
         if (val != null) {
           const s = typeof val === 'string' ? val : String(val);
           if (s && s !== '[object Object]' && !isPlaceholderEnvVar(s)) {
-            console.log(`[getEnvVar] ${key} found in CF ctx.env (sync), ${s.length} chars`);
             return s;
           }
         }
       }
-    } catch {}
+    } catch (syncErr: any) {
+      console.warn(`[getEnvVar] getCloudflareContext() sync failed: ${syncErr?.message || syncErr}`);
+    }
   } catch (importErr: any) {
     console.info(`[getEnvVar] @opennextjs/cloudflare not available: ${importErr?.message || importErr}`);
   }
@@ -161,7 +191,6 @@ export async function getEnvVar(key: string): Promise<string> {
   // 2. Try process.env (works in local dev and when OpenNext populates it)
   const fromProcess = process.env[key];
   if (fromProcess && fromProcess.length > 0 && !isPlaceholderEnvVar(fromProcess)) {
-    console.log(`[getEnvVar] ${key} found in process.env, ${fromProcess.length} chars`);
     return fromProcess;
   }
 
