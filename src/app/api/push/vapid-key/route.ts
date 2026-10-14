@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getVapidPublicKey } from '@/lib/web-push'
 
 export async function GET() {
-  const key = getVapidPublicKey()
+  const key = await getVapidPublicKey()
   if (!key) {
     return NextResponse.json({ error: 'Push notifications not configured' }, { status: 503 })
   }

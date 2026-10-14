@@ -11,6 +11,9 @@ import { getSupabaseAdminAsync } from '@/lib/supabase-admin-alt'
  * DELETE — Deactivate challenge
  */
 
+/** Full column list for prop_firm_challenges select — keeps .select() in sync with toCamelCase() */
+const PROP_FIRM_ALL_COLUMNS = 'id,user_id,firm_name,challenge_phase,account_size,max_daily_loss,max_total_dd,profit_target,current_balance,alert_at_percent,is_active,is_breached,created_at,updated_at,daily_pl,total_pl,current_daily_dd,current_total_dd,current_progress,consistency_rule,best_day_pl,trading_account_id,last_alert_at,breach_reason,breached_at'
+
 /** Transform snake_case DB row to camelCase for frontend */
 function toCamelCase(row: any) {
   return {
@@ -382,7 +385,8 @@ export async function PATCH(request: NextRequest) {
           .from('prop_firm_challenges')
           .update(data2)
           .eq('id', id)
-          .select('id,user_id,firm_name,challenge_phase,account_size,max_daily_loss,max_total_dd,profit_target,current_balance,alert_at_percent,is_active,is_breached,created_at,updated_at')
+          .eq('user_id', user.id)
+          .select(PROP_FIRM_ALL_COLUMNS)
           .single()
         if (updateError2) {
           console.error('[prop-firm-guard] PATCH update error (minimal):', updateError2)
@@ -513,7 +517,8 @@ export async function PATCH(request: NextRequest) {
       .from('prop_firm_challenges')
       .update(data)
       .eq('id', id)
-      .select('id,user_id,firm_name,challenge_phase,account_size,max_daily_loss,max_total_dd,profit_target,current_balance,alert_at_percent,is_active,is_breached,created_at,updated_at')
+      .eq('user_id', user.id)
+      .select(PROP_FIRM_ALL_COLUMNS)
       .single()
 
     // If update failed due to missing columns, progressively remove problematic columns and retry
@@ -547,7 +552,8 @@ export async function PATCH(request: NextRequest) {
             .from('prop_firm_challenges')
             .update(safeData)
             .eq('id', id)
-            .select('id,user_id,firm_name,challenge_phase,account_size,max_daily_loss,max_total_dd,profit_target,current_balance,alert_at_percent,is_active,is_breached,created_at,updated_at')
+            .eq('user_id', user.id)
+            .select(PROP_FIRM_ALL_COLUMNS)
             .single()
           updated = retryResult.data
           updateError = retryResult.error

@@ -152,6 +152,7 @@ export default function TabContent({
               profile={profile}
               tradingAccounts={tradingAccounts}
               selectedAccountId={selectedAccountId}
+              onTabChange={setActiveTab}
             />
           )}
 

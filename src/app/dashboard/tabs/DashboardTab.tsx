@@ -17,6 +17,7 @@ import ActivityFeed from '@/components/ActivityFeed'
 import { useConfetti } from '@/hooks/useConfetti'
 import AnimatedStatCard from '../components/AnimatedStatCard'
 import { ExportButtons } from '../components/ExportButtons'
+import PropFirmGuardSummary from '../components/PropFirmGuardSummary'
 import type { Trade, JournalEntry, Analytics } from '@/types'
 import {
   BarChart, Bar, Cell, CartesianGrid, Tooltip, ResponsiveContainer, XAxis, YAxis
@@ -187,6 +188,7 @@ interface DashboardTabProps {
   profile?: any
   tradingAccounts?: any[]
   selectedAccountId?: string | null
+  onTabChange?: (tab: string) => void
 }
 
 function DashboardTab({
@@ -204,7 +206,8 @@ function DashboardTab({
   isPro,
   profile,
   tradingAccounts,
-  selectedAccountId
+  selectedAccountId,
+  onTabChange
 }: DashboardTabProps) {
   const { repeatCount, isMobile } = useMotionSafe()
   const hasData = trades.length > 0
@@ -349,6 +352,14 @@ function DashboardTab({
           )}
         </div>
       </motion.div>
+
+      {/* ============================================ */}
+      {/* 1.6 PROPFIRM GUARD SUMMARY WIDGET            */}
+      {/* ============================================ */}
+      <PropFirmGuardSummary
+        language={language}
+        onOpenGuard={onTabChange ? () => onTabChange('propfirm') : undefined}
+      />
 
       {/* ============================================ */}
       {/* 2. LIGHTWEIGHT EQUITY CURVE (SVG, no recharts) */}
