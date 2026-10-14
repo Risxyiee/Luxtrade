@@ -257,41 +257,105 @@ async function replayQueuedRequests(): Promise<void> {
 // ─── Push Notification Handlers ──────────────────────────────────────────────
 
 sw.addEventListener('push', (event) => {
-  let data: { title?: string; body?: string; icon?: string; badge?: string; url?: string; tag?: string; type?: string; vibrate?: number[] } = {}
+  // ── Parse push data with robust fallbacks ──────────────────────────────
+  let data: { title?: string; body?: string; icon?: string; badge?: string; url?: string; tag?: string; type?: string; vibrate?: number[]; actions?: Array<{ action: string; title: string; icon?: string }> } = {}
 
-  try {
-    data = event.data?.json() ?? {}
-  } catch {
-    data.body = event.data?.text() ?? 'New notification from LuxTradee'
+  if (event.data) {
+    try {
+      const parsed = event.data.json()
+      if (parsed && typeof parsed === 'object') {
+        data = parsed
+      } else {
+        // JSON parsed but wasn't an object — use as body text
+        data.body = String(parsed)
+      }
+    } catch {
+      // JSON parse failed — try plain text
+      try {
+        const text = event.data.text()
+        if (text && text.trim()) {
+          data.body = text
+        }
+      } catch {
+        // data.text() also failed — use default
+      }
+    }
+  } else {
+    // No data at all — push event without payload (tickle)
+    console.log('[sw] Push event received with no data — showing default notification')
   }
 
+  // ── Build notification with safe defaults ──────────────────────────────
   const title = data.title || 'LuxTradee'
   const isTradeAlert = data.type === 'trade' || data.type === 'price-alert'
+  const isRiskAlert = data.type === 'price-alert' && (data.body?.toLowerCase().includes('drawdown') || data.body?.toLowerCase().includes('risk'))
 
-  const options: NotificationOptions & { vibrate?: number[] } = {
-    body: data.body || '',
+  // Ensure body is always a non-empty string for visibility
+  const body = data.body || (isRiskAlert ? '⚠️ Peringatan risiko akun terdeteksi' : 'Notifikasi baru dari LuxTradee')
+
+  const options: NotificationOptions & { vibrate?: number[]; renotify?: boolean; actions?: Array<{ action: string; title: string; icon?: string }> } = {
+    body,
+    // Default icon/badge — ensures notification shows even if custom icons fail to load
     icon: data.icon || '/icon-512x512.png',
     badge: data.badge || '/icon-192x192.png',
-    tag: data.tag || 'default',
-    vibrate: data.vibrate || (isTradeAlert ? [200, 100, 200] : [100]),
+    tag: data.tag || (isRiskAlert ? 'risk-alert' : isTradeAlert ? 'trade-alert' : 'default'),
+    vibrate: data.vibrate || (isRiskAlert ? [300, 100, 300, 100, 300] : isTradeAlert ? [200, 100, 200] : [100]),
     data: {
       url: data.url || '/',
       type: data.type || 'general',
+      receivedAt: Date.now(),
     },
-    requireInteraction: isTradeAlert,
+    // Risk alerts and trade alerts should stay visible until user interacts
+    requireInteraction: isTradeAlert || isRiskAlert,
     silent: false,
+    // Renotify if same tag is used — important for repeated DD warnings
+    renotify: isRiskAlert,
   }
 
-  event.waitUntil(sw.registration.showNotification(title, options))
+  // Add actions for risk alerts (if supported)
+  if (isRiskAlert && 'actions' in Notification.prototype) {
+    options.actions = data.actions || [
+      { action: 'view', title: '👀 Lihat Detail' },
+      { action: 'dismiss', title: '✕ Tutup' },
+    ]
+  }
+
+  // ── Show notification with error handling ──────────────────────────────
+  event.waitUntil(
+    sw.registration.showNotification(title, options).catch((err) => {
+      console.error('[sw] showNotification failed:', err)
+
+      // Fallback: try with minimal options (some browsers reject complex options)
+      return sw.registration.showNotification(title, {
+        body,
+        icon: '/icon-512x512.png',
+        badge: '/icon-192x192.png',
+        tag: options.tag,
+        data: options.data,
+      }).catch((fallbackErr) => {
+        console.error('[sw] Even minimal showNotification failed:', fallbackErr)
+        // Nothing more we can do — notification will not show
+      })
+    })
+  )
 })
 
 sw.addEventListener('notificationclick', (event) => {
   event.notification.close()
 
-  const urlToOpen = (event.notification.data as { url?: string })?.url || '/'
+  // Handle action buttons (e.g., "Lihat Detail" / "Tutup" on risk alerts)
+  const action = event.action
+  if (action === 'dismiss') {
+    // User explicitly dismissed — do nothing
+    return
+  }
+
+  const notificationData = (event.notification.data as { url?: string; type?: string; receivedAt?: number }) || {}
+  const urlToOpen = notificationData.url || '/'
 
   event.waitUntil(
     sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Try to find an existing window/tab to focus
       for (const client of clientList) {
         if (client.url.includes(sw.location.origin) && 'focus' in client) {
           return (client as WindowClient).navigate(urlToOpen).then((c) => {
@@ -299,7 +363,12 @@ sw.addEventListener('notificationclick', (event) => {
           })
         }
       }
+      // No existing window — open a new one
       return sw.clients.openWindow(urlToOpen)
+    }).catch((err) => {
+      console.error('[sw] notificationclick handler failed:', err)
+      // Last resort: try to open window directly
+      return sw.clients.openWindow(urlToOpen).catch(() => {})
     })
   )
 })

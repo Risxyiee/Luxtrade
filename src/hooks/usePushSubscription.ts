@@ -101,9 +101,14 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
       const reg = registrationRef.current || await navigator.serviceWorker.ready
 
       // Subscribe to push
+      // NOTE: We pass a Uint8Array and cast to BufferSource for the type system.
+      // On some browsers, using .buffer directly is dangerous because
+      // TypedArray.buffer may have non-zero byteOffset, causing InvalidStateError.
+      // Passing the Uint8Array directly is the correct approach per the PushManager spec.
+      const applicationServerKey = urlBase64ToUint8Array(publicKey) as unknown as BufferSource
       const subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey).buffer as ArrayBuffer,
+        applicationServerKey,
       })
 
       const subJson = subscription.toJSON()
