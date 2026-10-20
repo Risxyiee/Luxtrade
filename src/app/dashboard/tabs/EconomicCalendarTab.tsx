@@ -193,11 +193,14 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
     }
   }, [notifyEnabled])
 
-  const fetchCalendar = useCallback(async () => {
+  const fetchCalendar = useCallback(async (forceRefresh = false) => {
     setCalLoading(true)
     setUnavailableMsg(null)
     try {
-      const res = await fetch('/api/economic-calendar?tz=' + encodeURIComponent(userOffset), { credentials: 'include' })
+      const url = forceRefresh
+        ? '/api/economic-calendar?tz=' + encodeURIComponent(userOffset) + '&forceRefresh=true'
+        : '/api/economic-calendar?tz=' + encodeURIComponent(userOffset)
+      const res = await fetch(url, { credentials: 'include' })
       if (res.ok) {
         const data = await res.json()
         setEvents(data.events || [])
@@ -384,8 +387,8 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
             </p>
             <p className="text-xs text-amber-400/70 mt-1">
               {L
-                ? 'API key belum dikonfigurasi. Data yang ditampilkan adalah jadwal statis. Set FINNHUB_API_KEY atau RAPIDAPI_KEY di Cloudflare Workers secrets untuk data real-time.'
-                : 'API key not configured. Showing static schedule. Set FINNHUB_API_KEY or RAPIDAPI_KEY in Cloudflare Workers secrets for real-time data.'}
+                ? 'Sumber API sedang tidak bisa diakses (kemungkinan diblokir IP). Menampilkan jadwal estimasi. Coba refresh beberapa saat, atau hubungi admin untuk konfigurasi API key.'
+                : 'API sources may be temporarily blocked (IP restriction). Showing estimated schedule. Try refreshing in a moment, or contact admin for API key configuration.'}
             </p>
           </div>
         </div>
@@ -468,7 +471,7 @@ function EconomicCalendarTab({ language, isPro, onUpgrade }: EconomicCalendarTab
               {t.lastUpdated}: {new Date(lastFetched).toLocaleTimeString(language === 'id' ? 'id-ID' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
-          <Button variant="outline" size="sm" onClick={fetchCalendar} disabled={calLoading} className="border-lux-border dark:border-blue-900/30 hover:bg-blue-500/10">
+          <Button variant="outline" size="sm" onClick={() => fetchCalendar(true)} disabled={calLoading} className="border-lux-border dark:border-blue-900/30 hover:bg-blue-500/10">
             <RefreshCw className={`w-4 h-4 mr-1.5 ${calLoading ? 'animate-spin' : ''}`} />
             {t.refresh}
           </Button>

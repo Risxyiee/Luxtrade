@@ -601,21 +601,27 @@ async function fetchFallbackCalendar(): Promise<CalendarEvent[]> {
 
 let _zaiInstance: any = null;
 let _zaiInitAttempted = false;
+let _zaiInitTime = 0;
 async function getZAI(): Promise<any | null> {
   if (_zaiInstance) return _zaiInstance;
-  if (_zaiInitAttempted) return null; // Don't retry if init already failed
+  // Allow retry after 60s if init previously failed (env may become available)
+  if (_zaiInitAttempted && Date.now() - _zaiInitTime < 60000) return null;
   _zaiInitAttempted = true;
+  _zaiInitTime = Date.now();
   try {
     const ZAIMod = await import('z-ai-web-dev-sdk');
     // Set a timeout for ZAI creation — if it takes too long, skip it
     _zaiInstance = await Promise.race([
       ZAIMod.default.create(),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
     ]);
     if (!_zaiInstance) {
-      console.warn('[EconCalendar] z-ai-web-dev-sdk init timed out (5s) — skipping ZAI provider');
+      console.warn('[EconCalendar] z-ai-web-dev-sdk init timed out (8s) — will retry in 60s');
+      _zaiInitAttempted = true; // Mark as attempted but allow retry
+      _zaiInstance = null;
     } else {
       console.log('[EconCalendar] z-ai-web-dev-sdk initialized successfully');
+      _zaiInitAttempted = true; // Permanently mark as attempted on success
     }
     return _zaiInstance;
   } catch (err: any) {
@@ -1078,22 +1084,19 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
   const fcsKey = await getFcsApiKey();
   console.log(`[EconCalendar] API keys: Finnhub=${fhKey ? 'YES' : 'NO'}, RapidAPI=${rapKey ? 'YES' : 'NO'}, FCSAPI=${fcsKey ? 'YES' : 'NO'}`);
 
-  // 0. z-ai-web-dev-sdk (MOST RELIABLE — works from CF Workers without IP blocking)
-  // Only use in production (CF Workers); skip in local dev where ZAI SDK may hang
-  if (process.env.NODE_ENV === 'production') {
-    try {
-      const zaiEvents = await fetchZaiCalendar();
-      if (zaiEvents.length > 0) {
-        primarySource = 'ZAI WebSearch+Reader (Live)';
-        collectedEvents.push(...zaiEvents);
-        console.log(`[EconCalendar] ZAI: ${zaiEvents.length} events collected`);
-      }
-    } catch (err: any) {
-      errors.push('ZAI: ' + err.message);
-      console.error('[EconCalendar] ZAI failed:', err.message);
+  // 0. z-ai-web-dev-sdk (MOST RELIABLE — works without IP blocking)
+  // Previously only enabled in production; now always attempted since
+  // all other providers tend to get IP-blocked from sandbox/CF Workers.
+  try {
+    const zaiEvents = await fetchZaiCalendar();
+    if (zaiEvents.length > 0) {
+      primarySource = 'ZAI WebSearch+Reader (Live)';
+      collectedEvents.push(...zaiEvents);
+      console.log(`[EconCalendar] ZAI: ${zaiEvents.length} events collected`);
     }
-  } else {
-    console.log('[EconCalendar] Skipping ZAI in dev mode');
+  } catch (err: any) {
+    errors.push('ZAI: ' + err.message);
+    console.error('[EconCalendar] ZAI failed:', err.message);
   }
 
   // 1. FCSAPI (free tier, no key required)

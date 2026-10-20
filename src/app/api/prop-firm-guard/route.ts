@@ -14,6 +14,9 @@ import { getSupabaseAdminAsync } from '@/lib/supabase-admin-alt'
 /** Full column list for prop_firm_challenges select — keeps .select() in sync with toCamelCase() */
 const PROP_FIRM_ALL_COLUMNS = 'id,user_id,firm_name,challenge_phase,account_size,max_daily_loss,max_total_dd,profit_target,current_balance,alert_at_percent,is_active,is_breached,created_at,updated_at,daily_pl,total_pl,current_daily_dd,current_total_dd,current_progress,consistency_rule,best_day_pl,trading_account_id,last_alert_at,breach_reason,breached_at'
 
+/** Minimal safe column list — columns that are guaranteed to exist even without the latest migration */
+const PROP_FIRM_SAFE_COLUMNS = 'id,user_id,firm_name,challenge_phase,account_size,max_daily_loss,max_total_dd,profit_target,current_balance,alert_at_percent,is_active,is_breached,breach_reason,breached_at,trading_account_id,last_alert_at,created_at,updated_at'
+
 /** Transform snake_case DB row to camelCase for frontend */
 function toCamelCase(row: any) {
   return {
@@ -381,16 +384,30 @@ export async function PATCH(request: NextRequest) {
         const optionalCols = ['consistency_rule','best_day_pl','current_daily_dd','current_total_dd','current_progress']
         for (const c of optionalCols) delete (data2 as any)[c]
 
-        const { data: updated2, error: updateError2 } = await admin
+        // Step 1: Perform the UPDATE without .select() — ensures the update succeeds
+        // even if some select columns don't exist yet in the DB schema
+        const { error: updateOnlyError2 } = await admin
           .from('prop_firm_challenges')
           .update(data2)
           .eq('id', id)
           .eq('user_id', user.id)
-          .select(PROP_FIRM_ALL_COLUMNS)
+
+        if (updateOnlyError2) {
+          console.error('[prop-firm-guard] PATCH update error (minimal path):', updateOnlyError2)
+          return NextResponse.json({ error: updateOnlyError2.message }, { status: 500 })
+        }
+
+        // Step 2: SELECT the updated row back — use safe columns first, fall back to minimal
+        const { data: updated2, error: selectError2 } = await admin
+          .from('prop_firm_challenges')
+          .select(PROP_FIRM_SAFE_COLUMNS)
+          .eq('id', id)
+          .eq('user_id', user.id)
           .single()
-        if (updateError2) {
-          console.error('[prop-firm-guard] PATCH update error (minimal):', updateError2)
-          return NextResponse.json({ error: updateError2.message }, { status: 500 })
+
+        if (selectError2) {
+          console.warn('[prop-firm-guard] PATCH: safe select failed (minimal path), returning update-acknowledged:', selectError2.message)
+          return NextResponse.json({ challenge: { id, updatedAt: new Date().toISOString() } })
         }
         return NextResponse.json({ challenge: toCamelCase(updated2) })
       }
@@ -513,31 +530,30 @@ export async function PATCH(request: NextRequest) {
 
     console.log('[prop-firm-guard] PATCH DB update data:', data)
 
-    let { data: updated, error: updateError } = await admin
+    // ── Step 1: Perform the UPDATE without .select() ──
+    // This ensures the update succeeds even if some SELECT columns don't exist yet in the DB schema.
+    // If the update itself fails due to missing columns in the DATA, we strip those columns and retry.
+    const { error: updateOnlyError } = await admin
       .from('prop_firm_challenges')
       .update(data)
       .eq('id', id)
       .eq('user_id', user.id)
-      .select(PROP_FIRM_ALL_COLUMNS)
-      .single()
 
-    // If update failed due to missing columns, progressively remove problematic columns and retry
-    // Handles: consistency_rule, best_day_pl, current_balance, daily_pl, total_pl, current_daily_dd, current_total_dd, current_progress
-    // Error codes: 42703 (PostgreSQL undefined column), PGRST204 (PostgREST schema cache miss)
-    if (updateError) {
+    if (updateOnlyError) {
+      // Check if the error is due to missing columns in the update DATA (not the select)
       const missingColumnPatterns = [
         'consistency_rule', 'best_day_pl', 'current_balance',
         'daily_pl', 'total_pl', 'current_daily_dd', 'current_total_dd', 'current_progress',
       ]
       const isMissingColumnError =
-        updateError.code === '42703' ||
-        updateError.code === 'PGRST204' ||
-        missingColumnPatterns.some((col) => updateError.message?.includes(col))
+        updateOnlyError.code === '42703' ||
+        updateOnlyError.code === 'PGRST204' ||
+        missingColumnPatterns.some((col) => updateOnlyError.message?.includes(col))
 
       if (isMissingColumnError) {
-        // Remove ALL optional/new columns from the update data and retry
+        // Strip ALL optional/new columns from the update data and retry the update (still without .select())
         const safeData = { ...data }
-        let removedCols: string[] = []
+        const removedCols: string[] = []
 
         for (const col of missingColumnPatterns) {
           if (col in safeData) {
@@ -547,23 +563,61 @@ export async function PATCH(request: NextRequest) {
         }
 
         if (removedCols.length > 0) {
-          console.warn('[prop-firm-guard] PATCH: columns not found in DB, retrying without:', removedCols.join(', '))
-          const retryResult = await admin
+          console.warn('[prop-firm-guard] PATCH: columns not found in DB, retrying update without:', removedCols.join(', '))
+          const { error: retryUpdateError } = await admin
             .from('prop_firm_challenges')
             .update(safeData)
             .eq('id', id)
             .eq('user_id', user.id)
-            .select(PROP_FIRM_ALL_COLUMNS)
-            .single()
-          updated = retryResult.data
-          updateError = retryResult.error
+
+          if (retryUpdateError) {
+            console.error('[prop-firm-guard] PATCH retry update error:', retryUpdateError)
+            return NextResponse.json({ error: retryUpdateError.message }, { status: 500 })
+          }
+        } else {
+          // No columns to strip — the error is from something else
+          console.error('[prop-firm-guard] PATCH update error:', updateOnlyError)
+          return NextResponse.json({ error: updateOnlyError.message }, { status: 500 })
         }
+      } else {
+        console.error('[prop-firm-guard] PATCH update error:', updateOnlyError)
+        return NextResponse.json({ error: updateOnlyError.message }, { status: 500 })
       }
     }
 
-    if (updateError) {
-      console.error('[prop-firm-guard] PATCH update error:', updateError)
-      return NextResponse.json({ error: updateError.message }, { status: 500 })
+    // ── Step 2: SELECT the updated row back ──
+    // Try with full columns first; if select fails with column errors, retry with safe columns.
+    // Even if select fails, the update has already succeeded.
+    let updated: any = null
+    const { data: selectedRow, error: selectError } = await admin
+      .from('prop_firm_challenges')
+      .select(PROP_FIRM_ALL_COLUMNS)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (selectError && (selectError.code === '42703' || selectError.code === 'PGRST204' || selectError.message?.includes('Could not find the'))) {
+      // Full select failed due to missing columns — retry with minimal safe columns
+      console.warn('[prop-firm-guard] PATCH: select with all columns failed, retrying with safe columns:', selectError.message)
+      const { data: safeRow, error: safeSelectError } = await admin
+        .from('prop_firm_challenges')
+        .select(PROP_FIRM_SAFE_COLUMNS)
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .single()
+
+      if (safeSelectError) {
+        console.warn('[prop-firm-guard] PATCH: safe select also failed, returning update-acknowledged:', safeSelectError.message)
+        // Update succeeded but we can't read the row back — return minimal success response
+        return NextResponse.json({ challenge: { id, ...updates, updatedAt: new Date().toISOString() } })
+      }
+      updated = safeRow
+    } else if (selectError) {
+      console.warn('[prop-firm-guard] PATCH: select error (non-column), returning update-acknowledged:', selectError.message)
+      // Update succeeded but select failed for a non-column reason — still return success
+      return NextResponse.json({ challenge: { id, ...updates, updatedAt: new Date().toISOString() } })
+    } else {
+      updated = selectedRow
     }
 
     const challenge = toCamelCase(updated)

@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Shield, AlertTriangle, ChevronRight, Loader2 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { Shield, AlertTriangle, ChevronRight, Loader2, Clock, XCircle } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 // ─── Challenge type (mirrors PropFirmGuardTab) ─────────────────────
 interface Challenge {
@@ -39,20 +39,134 @@ interface PropFirmGuardSummaryProps {
   onOpenGuard?: () => void
 }
 
+// ─── Alert severity type ───────────────────────────────────────────
+type AlertSeverity = 'breach' | 'urgent' | 'warning'
+
+interface ChallengeAlert {
+  challengeId: string
+  firmName: string
+  severity: AlertSeverity
+  ddType: 'daily' | 'total'
+  currentDD: number
+  ddLimit: number
+  percentOfLimit: number
+  isBreached: boolean
+  breachReason: string | null
+}
+
+// ─── Compute % of DD limit for a challenge ────────────────────────
+function computeChallengeAlerts(c: Challenge): ChallengeAlert[] {
+  const alerts: ChallengeAlert[] = []
+
+  // Breached challenges always produce a breach alert
+  if (c.isBreached) {
+    const dailyDDLimitPct = c.accountSize > 0 ? (c.maxDailyLoss / c.accountSize) * 100 : 0
+    const dailyPctOfLimit = dailyDDLimitPct > 0 ? (c.currentDailyDD / dailyDDLimitPct) * 100 : 0
+    alerts.push({
+      challengeId: c.id,
+      firmName: c.firmName,
+      severity: 'breach',
+      ddType: 'daily',
+      currentDD: c.currentDailyDD,
+      ddLimit: dailyDDLimitPct,
+      percentOfLimit: dailyPctOfLimit,
+      isBreached: true,
+      breachReason: c.breachReason,
+    })
+    return alerts
+  }
+
+  // Daily DD check
+  const dailyDDLimitPct = c.accountSize > 0 ? (c.maxDailyLoss / c.accountSize) * 100 : 0
+  const dailyPctOfLimit = dailyDDLimitPct > 0 ? (c.currentDailyDD / dailyDDLimitPct) * 100 : 0
+  if (dailyPctOfLimit >= c.alertAtPercent) {
+    let severity: AlertSeverity = 'warning'
+    if (dailyPctOfLimit >= 100) severity = 'breach'
+    else if (dailyPctOfLimit >= 80) severity = 'urgent'
+    alerts.push({
+      challengeId: c.id,
+      firmName: c.firmName,
+      severity,
+      ddType: 'daily',
+      currentDD: c.currentDailyDD,
+      ddLimit: dailyDDLimitPct,
+      percentOfLimit: dailyPctOfLimit,
+      isBreached: false,
+      breachReason: null,
+    })
+  }
+
+  // Total DD check
+  const totalDDLimitPct = c.accountSize > 0 ? (c.maxTotalDD / c.accountSize) * 100 : 0
+  const totalPctOfLimit = totalDDLimitPct > 0 ? (c.currentTotalDD / totalDDLimitPct) * 100 : 0
+  if (totalPctOfLimit >= c.alertAtPercent) {
+    let severity: AlertSeverity = 'warning'
+    if (totalPctOfLimit >= 100) severity = 'breach'
+    else if (totalPctOfLimit >= 80) severity = 'urgent'
+    alerts.push({
+      challengeId: c.id,
+      firmName: c.firmName,
+      severity,
+      ddType: 'total',
+      currentDD: c.currentTotalDD,
+      ddLimit: totalDDLimitPct,
+      percentOfLimit: totalPctOfLimit,
+      isBreached: false,
+      breachReason: null,
+    })
+  }
+
+  return alerts
+}
+
+// ─── Pick the most urgent alert (breach > urgent > warning) ───────
+const SEVERITY_ORDER: Record<AlertSeverity, number> = { breach: 3, urgent: 2, warning: 1 }
+
+function pickMostUrgent(alerts: ChallengeAlert[]): ChallengeAlert | null {
+  if (alerts.length === 0) return null
+  return alerts.reduce((worst, cur) =>
+    SEVERITY_ORDER[cur.severity] > SEVERITY_ORDER[worst.severity] ? cur : worst
+  , alerts[0])
+}
+
+// ─── Relative time formatter ───────────────────────────────────────
+function formatRelativeTime(isoString: string, language: 'id' | 'en'): string {
+  const now = Date.now()
+  const then = new Date(isoString).getTime()
+  const diffSec = Math.floor((now - then) / 1000)
+
+  if (diffSec < 60) return language === 'id' ? 'Baru saja' : 'Just now'
+  if (diffSec < 3600) {
+    const mins = Math.floor(diffSec / 60)
+    return language === 'id' ? `${mins} mnt lalu` : `${mins}m ago`
+  }
+  if (diffSec < 86400) {
+    const hrs = Math.floor(diffSec / 3600)
+    return language === 'id' ? `${hrs} jam lalu` : `${hrs}h ago`
+  }
+  const days = Math.floor(diffSec / 86400)
+  return language === 'id' ? `${days} hr lalu` : `${days}d ago`
+}
+
 export default function PropFirmGuardSummary({ language, onOpenGuard }: PropFirmGuardSummaryProps) {
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [fetchedAt, setFetchedAt] = useState<Date | null>(null)
 
   useEffect(() => {
     let cancelled = false
     async function fetchChallenges() {
       try {
-        const res = await fetch('/api/prop-firm-guard')
+        const res = await fetch('/api/prop-firm-guard', {
+          credentials: 'include',
+          cache: 'no-store',
+        })
         if (!res.ok) throw new Error('Failed to fetch')
         const data = await res.json()
         if (!cancelled) {
           setChallenges(data.challenges || [])
+          setFetchedAt(new Date())
           setError(false)
         }
       } catch {
@@ -71,7 +185,26 @@ export default function PropFirmGuardSummary({ language, onOpenGuard }: PropFirm
   const activeCount = activeChallenges.length
   const breachedCount = breachedChallenges.length
 
-  // Highest drawdown % across all challenges (daily + total, as % of limit)
+  // Compute % of limit for each challenge (matching PropFirmGuardTab logic)
+  const allAlerts = challenges.flatMap(computeChallengeAlerts)
+  const topAlert = pickMostUrgent(allAlerts)
+
+  // Highest DD as % of limit (for display)
+  const highestDailyDDPctOfLimit = challenges.length > 0
+    ? Math.max(...challenges.map(c => {
+        const limitPct = c.accountSize > 0 ? (c.maxDailyLoss / c.accountSize) * 100 : 0
+        return limitPct > 0 ? (c.currentDailyDD / limitPct) * 100 : 0
+      }))
+    : 0
+  const highestTotalDDPctOfLimit = challenges.length > 0
+    ? Math.max(...challenges.map(c => {
+        const limitPct = c.accountSize > 0 ? (c.maxTotalDD / c.accountSize) * 100 : 0
+        return limitPct > 0 ? (c.currentTotalDD / limitPct) * 100 : 0
+      }))
+    : 0
+  const highestDDPctOfLimit = Math.max(highestDailyDDPctOfLimit, highestTotalDDPctOfLimit)
+
+  // Highest raw DD % of account size (for label)
   const highestDailyDD = challenges.length > 0
     ? Math.max(...challenges.map(c => c.currentDailyDD))
     : 0
@@ -85,11 +218,19 @@ export default function PropFirmGuardSummary({ language, onOpenGuard }: PropFirm
     ? Math.max(...activeChallenges.map(c => c.currentProgress))
     : 0
 
+  // Last checked timestamp (most recent updatedAt)
+  const lastChecked = challenges.length > 0
+    ? challenges.reduce((latest, c) => {
+        const t = new Date(c.updatedAt).getTime()
+        return t > latest ? t : latest
+      }, 0)
+    : null
+
   // Determine alert level: green / amber / red
   let ddLevel: 'green' | 'amber' | 'red' = 'green'
-  if (breachedCount > 0 || highestDD >= 90) {
+  if (breachedCount > 0 || highestDDPctOfLimit >= 90) {
     ddLevel = 'red'
-  } else if (highestDD >= 70) {
+  } else if (highestDDPctOfLimit >= 70) {
     ddLevel = 'amber'
   }
 
@@ -121,6 +262,31 @@ export default function PropFirmGuardSummary({ language, onOpenGuard }: PropFirm
   }
 
   const styles = levelStyles[ddLevel]
+
+  // ─── Alert banner config ────────────────────────────────────────
+  const alertConfig = topAlert ? {
+    breach: {
+      bg: 'bg-red-500/15 dark:bg-red-500/20',
+      border: 'border-red-500/40',
+      icon: <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />,
+      text: 'text-red-300',
+      pulseClass: 'animate-pulse',
+    },
+    urgent: {
+      bg: 'bg-orange-500/15 dark:bg-orange-500/20',
+      border: 'border-orange-500/40',
+      icon: <AlertTriangle className="w-4 h-4 text-orange-400 flex-shrink-0" />,
+      text: 'text-orange-300',
+      pulseClass: '',
+    },
+    warning: {
+      bg: 'bg-amber-500/15 dark:bg-amber-500/20',
+      border: 'border-amber-500/40',
+      icon: <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />,
+      text: 'text-amber-300',
+      pulseClass: '',
+    },
+  }[topAlert.severity] : null
 
   // ─── Loading state ──────────────────────────────────────────────
   if (loading) {
@@ -185,7 +351,8 @@ export default function PropFirmGuardSummary({ language, onOpenGuard }: PropFirm
           <div className={`absolute -top-8 -right-8 w-24 h-24 ${ddLevel === 'red' ? 'bg-red-500/10' : ddLevel === 'amber' ? 'bg-amber-500/10' : 'bg-emerald-500/10'} rounded-full blur-3xl`} />
         </div>
 
-        <CardContent className="relative p-4">
+        <CardContent className="relative p-4 space-y-3">
+          {/* ── Row 1: Icon + Title + Stats ── */}
           <div className="flex items-center gap-3">
             {/* Icon + indicator */}
             <div className="relative flex-shrink-0">
@@ -212,14 +379,27 @@ export default function PropFirmGuardSummary({ language, onOpenGuard }: PropFirm
               </div>
 
               {/* Compact stats row */}
-              <div className="flex items-center gap-3 text-xs">
+              <div className="flex items-center gap-2 text-xs flex-wrap">
                 <span className="text-lux-text-muted dark:text-gray-400">
                   {activeCount} {language === 'id' ? 'aktif' : 'active'}
                 </span>
                 <span className="text-lux-text-muted dark:text-gray-600">•</span>
-                <span className={`font-medium ${ddLevel === 'red' ? 'text-red-400' : ddLevel === 'amber' ? 'text-amber-400' : 'text-emerald-400'}`}>
+                {/* ── Prominent DD% Badge ── */}
+                <Badge
+                  variant="outline"
+                  className={`text-[11px] px-2 py-0 h-5 font-semibold ${
+                    ddLevel === 'red'
+                      ? 'bg-red-500/15 text-red-300 border-red-500/30'
+                      : ddLevel === 'amber'
+                        ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                        : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                  }`}
+                >
                   DD {highestDD.toFixed(1)}%
-                </span>
+                  <span className="text-[9px] opacity-60 ml-0.5">
+                    ({highestDDPctOfLimit.toFixed(0)}%{language === 'id' ? ' limit' : ' limit'})
+                  </span>
+                </Badge>
                 {activeCount > 0 && bestProgress > 0 && (
                   <>
                     <span className="text-lux-text-muted dark:text-gray-600">•</span>
@@ -241,6 +421,79 @@ export default function PropFirmGuardSummary({ language, onOpenGuard }: PropFirm
               >
                 <ChevronRight className="w-4 h-4" />
               </Button>
+            )}
+          </div>
+
+          {/* ── Row 2: Alert Banner (animated, visible when alert active) ── */}
+          <AnimatePresence>
+            {topAlert && alertConfig && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                animate={{ opacity: 1, height: 'auto', scale: 1 }}
+                exit={{ opacity: 0, height: 0, scale: 0.95 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+              >
+                <button
+                  type="button"
+                  onClick={onOpenGuard}
+                  className={`w-full rounded-lg border ${alertConfig.border} ${alertConfig.bg} px-3 py-2 flex items-center gap-2 text-left transition-colors hover:brightness-110 ${alertConfig.pulseClass}`}
+                  role="alert"
+                >
+                  {/* Pulsing glow ring for breach */}
+                  {topAlert.severity === 'breach' && (
+                    <span className="absolute inset-0 rounded-lg ring-2 ring-red-500/40 animate-ping pointer-events-none" />
+                  )}
+                  {alertConfig.icon}
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-semibold ${alertConfig.text} leading-tight`}>
+                      {topAlert.isBreached
+                        ? (language === 'id'
+                            ? `BREACH: ${topAlert.firmName}`
+                            : `BREACH: ${topAlert.firmName}`)
+                        : topAlert.severity === 'urgent'
+                          ? (language === 'id'
+                              ? `URGENT: ${topAlert.firmName}`
+                              : `URGENT: ${topAlert.firmName}`)
+                          : (language === 'id'
+                              ? `Peringatan: ${topAlert.firmName}`
+                              : `Warning: ${topAlert.firmName}`)
+                      }
+                    </p>
+                    <p className="text-[10px] text-lux-text-muted dark:text-gray-400 leading-tight mt-0.5 truncate">
+                      {topAlert.isBreached && topAlert.breachReason
+                        ? topAlert.breachReason
+                        : (language === 'id'
+                            ? `${topAlert.ddType === 'daily' ? 'DD Harian' : 'DD Total'} ${topAlert.currentDD.toFixed(1)}% / ${topAlert.ddLimit.toFixed(1)}% limit (${topAlert.percentOfLimit.toFixed(0)}%)`
+                            : `${topAlert.ddType === 'daily' ? 'Daily DD' : 'Total DD'} ${topAlert.currentDD.toFixed(1)}% / ${topAlert.ddLimit.toFixed(1)}% limit (${topAlert.percentOfLimit.toFixed(0)}%)`)
+                      }
+                    </p>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-lux-text-muted dark:text-gray-500 flex-shrink-0" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ── Row 3: Last Checked Timestamp ── */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1 text-[10px] text-lux-text-muted dark:text-gray-500">
+              <Clock className="w-3 h-3" />
+              <span>
+                {language === 'id' ? 'Terakhir dicek' : 'Last checked'}{' '}
+                {lastChecked
+                  ? formatRelativeTime(new Date(lastChecked).toISOString(), language)
+                  : (language === 'id' ? 'Baru saja' : 'Just now')
+                }
+              </span>
+            </div>
+            {onOpenGuard && (
+              <button
+                type="button"
+                onClick={onOpenGuard}
+                className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                {language === 'id' ? 'Lihat detail →' : 'View details →'}
+              </button>
             )}
           </div>
         </CardContent>

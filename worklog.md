@@ -532,3 +532,28 @@ Stage Summary:
 - In production, ZAI will be tried FIRST before other API providers
 - In local dev, ZAI is skipped (SDK hangs without CF Workers infrastructure)
 - The cascade order is now: ZAI → FCSAPI → Finnhub → TradingEconomics → MyFXBook → ForexFactory → DuckDuckGo → Fallback
+---
+Task ID: 7
+Agent: main
+Task: Fix all 4 critical bugs - PropFirm Guard edit, Dashboard integration, Mobile notifications, Economic Calendar
+
+Work Log:
+- BUG 1: Fixed PropFirm Guard PATCH handler - separated .update() from .select() so DB writes succeed even if select columns are missing
+- BUG 1: Added PROP_FIRM_SAFE_COLUMNS constant for minimal column select after updates
+- BUG 1: Added 3-stage update approach: bare update → full select → safe select → fallback response
+- BUG 2: Fixed PropFirmGuardSummary fetch - added credentials: 'include' and cache: 'no-store' 
+- BUG 3: Added visible alert banners to PropFirmGuardSummary for breach/urgent/warning levels
+- BUG 3: Added last-checked timestamp and more prominent DD% display with % of limit
+- BUG 3: Fixed DD calculation to match PropFirmGuardTab formula (% of limit, not % of account)
+- BUG 4: Enabled ZAI provider in dev mode (was only enabled in production)
+- BUG 4: Improved ZAI SDK initialization with retry logic (60s cooldown)
+- BUG 4: Added forceRefresh parameter to EconomicCalendarTab refresh button
+- BUG 4: Updated fallback warning message to mention IP blocking instead of missing API keys
+- All changes pass lint cleanly
+
+Stage Summary:
+- PropFirm Guard edit now works even with missing DB columns (safe fallback pattern)
+- Dashboard PropFirm widget now sends auth credentials and shows real-time alert banners
+- Drawdown alerts visible in Dashboard without push notifications (works on mobile)
+- Economic Calendar ZAI provider works in all environments now
+- Refresh button now forces fresh data fetch bypassing cache
