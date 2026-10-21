@@ -142,12 +142,60 @@ async function fetchTECalendar(): Promise<CalendarEvent[]> {
 }
 
 /**
- * Fetch calendar events with fallback
+ * Fetch calendar events — try Faireconomy first (free, reliable), then TradingEconomics, then sample
  */
 async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; unavailable: boolean }> {
-  const apiKey = getTeApiKey();
+  // 0. Try Faireconomy.media (free ForexFactory JSON — works from CF Workers!)
+  try {
+    console.log('[Calendar] Fetching from Faireconomy.media...');
+    const res = await fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json', {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const events: CalendarEvent[] = [];
+        for (const item of data) {
+          const currency = (item.country || '').toUpperCase();
+          if (!currency || currency.length > 4 || currency === 'ALL') continue;
+          const impactStr = String(item.impact || '').toLowerCase();
+          if (impactStr === 'holiday') continue;
+          const impact: 'high' | 'medium' | 'low' =
+            impactStr === 'high' || impactStr === '3' ? 'high' :
+            impactStr === 'medium' || impactStr === '2' ? 'medium' : 'low';
+          const eventTitle = (item.title || '').trim();
+          if (!eventTitle || eventTitle.length < 3) continue;
+          let eventDate = '';
+          let eventTime = '';
+          if (item.date) {
+            try {
+              const d = new Date(item.date);
+              if (!isNaN(d.getTime())) {
+                eventDate = d.toISOString().split('T')[0];
+                eventTime = d.toISOString().substring(11, 16);
+              }
+            } catch {}
+          }
+          events.push({
+            date: eventDate, time: eventTime, currency, impact, event: eventTitle,
+            actual: item.actual != null ? String(item.actual) : undefined,
+            forecast: item.forecast != null ? String(item.forecast) : '',
+            previous: item.previous != null ? String(item.previous) : '',
+          });
+        }
+        if (events.length > 0) {
+          console.log(`[Calendar] Fetched ${events.length} events from Faireconomy`);
+          return { events, unavailable: false };
+        }
+      }
+    }
+  } catch (err: any) {
+    console.info(`[Calendar] Faireconomy unavailable: ${err.message}`);
+  }
 
-  // Try TradingEconomics if API key is available
+  // 1. Try TradingEconomics if API key is available
+  const apiKey = getTeApiKey();
   if (apiKey) {
     try {
       console.log('[Calendar] Fetching from TradingEconomics...');
@@ -155,16 +203,15 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; unavail
       console.log(`[Calendar] Fetched ${events.length} events from TradingEconomics`);
       return { events, unavailable: false };
     } catch (err: any) {
-      // Silent info for external API failures
       console.info(`[Calendar] TradingEconomics unavailable, using sample data`);
     }
   } else {
-    console.info('[Calendar] RAPIDAPI_TRADING_ECONOMICS_KEY not set, using sample data');
+    console.info('[Calendar] RAPIDAPI_TRADING_ECONOMICS_KEY not set');
   }
 
-  // Fallback: Return sample data when API is unavailable
+  // 2. Fallback: Return sample data when all sources fail
   console.info('[Calendar] Using sample calendar data as fallback');
-  return { events: SAMPLE_EVENTS, unavailable: false };
+  return { events: SAMPLE_EVENTS, unavailable: true };
 }
 
 export async function GET(request: NextRequest) {

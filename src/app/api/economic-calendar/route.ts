@@ -76,7 +76,84 @@ function sortEvents(events: CalendarEvent[]): CalendarEvent[] {
   });
 }
 
-// ─── 1. FCSAPI.com Calendar (free tier available without key) ──────────────
+// ─── 1. Faireconomy.media / ForexFactory JSON (FREE, no API key, works from CF Workers) ──
+async function fetchFaireconomyCalendar(): Promise<CalendarEvent[]> {
+  const urls = [
+    'https://nfs.faireconomy.media/ff_calendar_thisweek.json',
+    'https://nfs.faireconomy.media/ff_calendar_nextweek.json',
+  ];
+  const events: CalendarEvent[] = [];
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) {
+        console.warn(`[EconCalendar] Faireconomy ${url} returned ${res.status}`);
+        continue;
+      }
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) continue;
+
+      for (const item of data) {
+        const currency = (item.country || '').toUpperCase();
+        if (!currency || currency.length > 4) continue;
+        // Skip "All" or non-currency entries
+        if (currency === 'ALL' || currency.length < 2) continue;
+
+        const impactStr = String(item.impact || '').toLowerCase();
+        const impact: 'high' | 'medium' | 'low' =
+          impactStr === 'high' || impactStr === '3' || impactStr === 'hot' ? 'high' :
+          impactStr === 'medium' || impactStr === '2' ? 'medium' : 'low';
+        // Skip "Holiday" impact entries
+        if (impactStr === 'holiday') continue;
+
+        const eventTitle = (item.title || 'Economic Event').trim();
+        if (!eventTitle || eventTitle.length < 3) continue;
+
+        // Parse date — format: "2026-10-21T02:00:00-04:00"
+        let eventDate = new Date().toISOString().split('T')[0];
+        let eventTime = '08:30';
+        if (item.date) {
+          try {
+            const d = new Date(item.date);
+            if (!isNaN(d.getTime())) {
+              // Convert to UTC for consistency
+              eventDate = d.toISOString().split('T')[0];
+              eventTime = d.toISOString().substring(11, 16);
+            }
+          } catch {}
+        }
+
+        const dedupeKey = currency + '-' + eventDate + '-' + eventTitle.substring(0, 30);
+        if (events.some(e => (e.currency + '-' + e.date + '-' + e.event.substring(0, 30)) === dedupeKey)) continue;
+
+        events.push({
+          id: 'fe-' + events.length + '-' + currency + '-' + eventDate,
+          date: eventDate,
+          time: eventTime,
+          dateTime: buildDateTime(eventDate, eventTime),
+          currency,
+          impact,
+          event: eventTitle,
+          actual: item.actual != null ? String(item.actual) : undefined,
+          forecast: item.forecast != null ? String(item.forecast) : '',
+          previous: item.previous != null ? String(item.previous) : '',
+        });
+      }
+    } catch (err: any) {
+      console.warn(`[EconCalendar] Faireconomy fetch error: ${err.message}`);
+    }
+  }
+
+  if (events.length === 0) throw new Error('No events from Faireconomy');
+  console.log('[EconCalendar] Faireconomy: ' + events.length + ' events');
+  return sortEvents(events);
+}
+
+// ─── 2. FCSAPI.com Calendar (DEAD — returns 404, kept as fallback) ──────────
 async function fetchFcsApiCalendar(): Promise<CalendarEvent[]> {
   const fcsKey = await getFcsApiKey();
   const today = new Date();
@@ -1072,7 +1149,7 @@ function parseSearchSnippetsToEvents(
   return sortEvents(events);
 }
 
-// ─── Cascade: ZAI first (most reliable), then APIs, web search, fallback last ─
+// ─── Cascade: Faireconomy first (free + reliable), then APIs, web search, fallback last ─
 async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source: string; unavailable: boolean }> {
   const errors: string[] = [];
   const collectedEvents: CalendarEvent[] = [];
@@ -1084,13 +1161,37 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
   const fcsKey = await getFcsApiKey();
   console.log(`[EconCalendar] API keys: Finnhub=${fhKey ? 'YES' : 'NO'}, RapidAPI=${rapKey ? 'YES' : 'NO'}, FCSAPI=${fcsKey ? 'YES' : 'NO'}`);
 
-  // 0. z-ai-web-dev-sdk (MOST RELIABLE — works without IP blocking)
-  // Previously only enabled in production; now always attempted since
-  // all other providers tend to get IP-blocked from sandbox/CF Workers.
+  // 0. Faireconomy.media / ForexFactory JSON (BEST — free, no key, works from CF Workers)
+  try {
+    const feEvents = await fetchFaireconomyCalendar();
+    if (feEvents.length > 0) {
+      primarySource = 'ForexFactory/Faireconomy (Live)';
+      collectedEvents.push(...feEvents);
+      console.log(`[EconCalendar] Faireconomy: ${feEvents.length} events collected`);
+    }
+  } catch (err: any) {
+    errors.push('Faireconomy: ' + err.message);
+    console.error('[EconCalendar] Faireconomy failed:', err.message);
+  }
+
+  // If Faireconomy gave us good data, we can return early — no need to hit other APIs
+  if (collectedEvents.length >= 15) {
+    const seen = new Set<string>();
+    const deduped = collectedEvents.filter(e => {
+      const key = e.currency + '-' + e.date + '-' + e.event.substring(0, 30);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    console.log(`[EconCalendar] Early return: ${deduped.length} events from Faireconomy (sufficient)`);
+    return { events: sortEvents(deduped), source: primarySource || 'ForexFactory/Faireconomy (Live)', unavailable: false };
+  }
+
+  // 1. z-ai-web-dev-sdk (backup — works without IP blocking if config is available)
   try {
     const zaiEvents = await fetchZaiCalendar();
     if (zaiEvents.length > 0) {
-      primarySource = 'ZAI WebSearch+Reader (Live)';
+      if (!primarySource) primarySource = 'ZAI WebSearch+Reader (Live)';
       collectedEvents.push(...zaiEvents);
       console.log(`[EconCalendar] ZAI: ${zaiEvents.length} events collected`);
     }
@@ -1099,35 +1200,7 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     console.error('[EconCalendar] ZAI failed:', err.message);
   }
 
-  // 1. FCSAPI (free tier, no key required)
-  try {
-    const events = await fetchFcsApiCalendar();
-    if (events.length > 0) {
-      if (!primarySource) primarySource = 'FCSAPI (Live)';
-      collectedEvents.push(...events);
-      console.log(`[EconCalendar] FCSAPI: ${events.length} events collected`);
-    }
-  } catch (err: any) {
-    errors.push('FCSAPI: ' + err.message);
-    console.error('[EconCalendar] FCSAPI failed:', err.message);
-  }
-
-  // 2. Finnhub (FREE tier: 60 calls/min)
-  if (fhKey) {
-    try {
-      const events = await fetchFinnhubCalendar();
-      if (events.length > 0) {
-        if (!primarySource) primarySource = 'Finnhub (Live)';
-        collectedEvents.push(...events);
-        console.log(`[EconCalendar] Finnhub: ${events.length} events, total now ${collectedEvents.length}`);
-      }
-    } catch (err: any) {
-      errors.push('Finnhub: ' + err.message);
-      console.error('[EconCalendar] Finnhub failed:', err.message);
-    }
-  }
-
-  // 3. TradingEconomics Calendar (RapidAPI)
+  // 2. TradingEconomics Calendar (RapidAPI — proxy, works from CF Workers)
   if (rapKey) {
     try {
       const events = await fetchTECalendar();
@@ -1142,7 +1215,37 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     }
   }
 
-  // 4. MyFXBook RSS (free, no key)
+  // 3. Finnhub (gets 403 from CF Workers IP, but works from other servers)
+  if (fhKey) {
+    try {
+      const events = await fetchFinnhubCalendar();
+      if (events.length > 0) {
+        if (!primarySource) primarySource = 'Finnhub (Live)';
+        collectedEvents.push(...events);
+        console.log(`[EconCalendar] Finnhub: ${events.length} events, total now ${collectedEvents.length}`);
+      }
+    } catch (err: any) {
+      errors.push('Finnhub: ' + err.message);
+      console.error('[EconCalendar] Finnhub failed:', err.message);
+    }
+  }
+
+  // 4. FCSAPI (DEAD — returns 404, skip unless key is provided)
+  if (fcsKey) {
+    try {
+      const events = await fetchFcsApiCalendar();
+      if (events.length > 0) {
+        if (!primarySource) primarySource = 'FCSAPI (Live)';
+        collectedEvents.push(...events);
+        console.log(`[EconCalendar] FCSAPI: ${events.length} events collected`);
+      }
+    } catch (err: any) {
+      errors.push('FCSAPI: ' + err.message);
+      console.error('[EconCalendar] FCSAPI failed:', err.message);
+    }
+  }
+
+  // 5. MyFXBook RSS (returns 403/404 from CF Workers, kept as backup)
   try {
     const events = await fetchMyFXBookCalendar();
     if (events.length > 0) {
@@ -1155,7 +1258,7 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     console.error('[EconCalendar] MyFXBook failed:', err.message);
   }
 
-  // 5. ForexFactory RSS (free, no key)
+  // 6. ForexFactory RSS (gets 403 from CF Workers, kept as last API attempt)
   try {
     const events = await fetchForexFactoryCalendar();
     if (events.length > 0) {
@@ -1181,7 +1284,7 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     return { events: sortEvents(deduped), source: primarySource || 'API (Live)', unavailable: false };
   }
 
-  // 6. Web Search via DuckDuckGo (CF Workers compatible)
+  // 7. Web Search via DuckDuckGo (gets CAPTCHA from sandbox, may work from CF Workers)
   try {
     const webSearchEvents = await fetchWebSearchCalendar();
     if (webSearchEvents.length > 0) {
@@ -1192,7 +1295,7 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     console.error('[EconCalendar] Web search failed:', err.message);
   }
 
-  // 7. Fallback (guaranteed, no external call)
+  // 8. Fallback (guaranteed, no external call — only used if ALL sources fail)
   console.warn('[EconCalendar] All live APIs and web search failed, using fallback schedule. Errors:', errors.join('; '));
   const events = await fetchFallbackCalendar();
   return { events, source: 'Fallback Schedule (bukan data live)', unavailable: true };
@@ -1207,7 +1310,7 @@ function isSampleCalendarData(events: CalendarEvent[]): boolean {
       if (item.event.toLowerCase().includes(indicator)) return true;
     }
     if (item.id && item.id.startsWith('fb-')) return true;
-    if (!item.id || !item.id.match(/^(fh-|te-|fcs-|mfb-|ff-|inv-|ws-|zai-|fb-)/)) return true;
+    if (!item.id || !item.id.match(/^(fh-|te-|fcs-|mfb-|ff-|inv-|ws-|zai-|fb-|fe-)/)) return true;
   }
   return false;
 }
