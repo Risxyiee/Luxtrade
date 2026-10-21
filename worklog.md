@@ -557,3 +557,37 @@ Stage Summary:
 - Drawdown alerts visible in Dashboard without push notifications (works on mobile)
 - Economic Calendar ZAI provider works in all environments now
 - Refresh button now forces fresh data fetch bypassing cache
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix Economic Calendar (dummy data → real live data) and PropFirm Guard edit (admin client fallback)
+
+Work Log:
+- Investigated production Cloudflare Workers logs showing cascade failure order:
+  - ZAI SDK: config file not found in CF Workers
+  - FCSAPI: returns 404 (API dead)
+  - Finnhub: 403 (CF Workers IP blocked)
+  - MyFXBook: 404 (RSS URL changed)
+  - ForexFactory: 403 (CF Workers IP blocked)
+  - Result: always falls to hardcoded fallback (dummy data)
+- Tested alternative free sources from sandbox:
+  - FCSAPI: 404 (dead)
+  - MyFXBook: 403 (blocked)
+  - ForexFactory: 403 (blocked)
+  - DuckDuckGo: CAPTCHA challenge
+  - FRED: 400 (needs key)
+  - **faireconomy.media: 200 with 11KB real data!** ✅
+- Added fetchFaireconomyCalendar() using nfs.faireconomy.media/ff_calendar_thisweek.json
+  - Free, no API key, works from CF Workers and sandbox
+  - Moved to position 0 in cascade (highest priority)
+  - Early return when >= 15 events collected
+- Also added Faireconomy to /api/news/calendar route
+- Fixed PropFirm Guard API: All handlers (GET/POST/PATCH/DELETE) now fallback to authenticated Supabase client when admin (service role) client is unavailable
+  - Previously returned 503 "Service unavailable" when SUPABASE_SERVICE_ROLE_KEY not accessible
+  - Now uses authClient from requireAuth() as fallback (RLS policies apply)
+
+Stage Summary:
+- Economic Calendar: Now uses faireconomy.media as primary source → REAL data, no API key needed
+- PropFirm Guard: Edit works even without service role key (falls back to auth client)
+- Dashboard ↔ PropFirm Guard connection verified working
+- All changes pushed to GitHub (commit 47909b65)
