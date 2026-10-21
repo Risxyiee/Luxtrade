@@ -50,11 +50,13 @@ function toCamelCase(row: any) {
 
 // ─── GET ───────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
-  const { user, response } = await requireAuth(request)
+  const { user, client: authClient, response } = await requireAuth(request)
   if (!user || response) return response
 
+  // Try admin client first (bypasses RLS), fallback to authenticated client (RLS applies)
   const admin = await getSupabaseAdminAsync()
-  if (!admin) {
+  const db = admin || authClient
+  if (!db) {
     return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
   }
 
@@ -63,7 +65,7 @@ export async function GET(request: NextRequest) {
     // Newer columns (consistency_rule, best_day_pl) may not exist if migration hasn't run
     const selectColumns = 'id,user_id,trading_account_id,firm_name,challenge_phase,account_size,max_daily_loss,max_total_dd,profit_target,current_balance,daily_pl,total_pl,current_daily_dd,current_total_dd,current_progress,alert_at_percent,last_alert_at,is_breached,breach_reason,breached_at,is_active,consistency_rule,best_day_pl,created_at,updated_at'
 
-    let { data, error } = await admin
+    let { data, error } = await db
       .from('prop_firm_challenges')
       .select(selectColumns)
       .eq('user_id', user.id)
@@ -74,7 +76,7 @@ export async function GET(request: NextRequest) {
     if (error && (error.code === 'PGRST204' || error.code === '42703' || error.message?.includes('Could not find the'))) {
       console.warn('[prop-firm-guard] GET: some columns not found, retrying with minimal columns:', error.message)
       const minimalCols = 'id,user_id,trading_account_id,firm_name,challenge_phase,account_size,max_daily_loss,max_total_dd,profit_target,current_balance,daily_pl,total_pl,current_daily_dd,current_total_dd,current_progress,alert_at_percent,last_alert_at,is_breached,breach_reason,breached_at,is_active,created_at,updated_at'
-      const retry = await admin
+      const retry = await db
         .from('prop_firm_challenges')
         .select(minimalCols)
         .eq('user_id', user.id)
@@ -109,11 +111,13 @@ export async function GET(request: NextRequest) {
 
 // ─── POST ──────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
-  const { user, response } = await requireAuth(request)
+  const { user, client: authClient, response } = await requireAuth(request)
   if (!user || response) return response
 
+  // Try admin client first (bypasses RLS), fallback to authenticated client (RLS applies)
   const admin = await getSupabaseAdminAsync()
-  if (!admin) {
+  const db = admin || authClient
+  if (!db) {
     return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
   }
 
@@ -188,7 +192,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check max challenges per user (limit: 10)
-    const { count, error: countError } = await admin
+    const { count, error: countError } = await db
       .from('prop_firm_challenges')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
@@ -239,7 +243,7 @@ export async function POST(request: NextRequest) {
       current_balance: accountSize,
     }
 
-    let { data, error: insertError } = await admin
+    let { data, error: insertError } = await db
       .from('prop_firm_challenges')
       .insert(insertWithNewCols)
       .select()
@@ -252,7 +256,7 @@ export async function POST(request: NextRequest) {
     ]
     if (insertError && (insertError.code === '42703' || missingColumnPatterns.some((col) => insertError.message?.includes(col)))) {
       console.warn('[prop-firm-guard] POST: some columns not found, retrying without optional columns')
-      const retryResult = await admin
+      const retryResult = await db
         .from('prop_firm_challenges')
         .insert(insertWithoutNewCols)
         .select()
@@ -276,7 +280,7 @@ export async function POST(request: NextRequest) {
     try {
       if (tradingAccountId) {
         // Update the specific linked trading account
-        await admin
+        await db
           .from('trading_accounts')
           .update({ initial_balance: accountSize, current_balance: accountSize })
           .eq('id', tradingAccountId)
@@ -284,7 +288,7 @@ export async function POST(request: NextRequest) {
         console.log(`[prop-firm-guard] POST: synced trading_account ${tradingAccountId} initial_balance to ${accountSize}`)
       } else {
         // Update the user's default trading account if it has no initial_balance
-        const { data: defaultAcct } = await admin
+        const { data: defaultAcct } = await db
           .from('trading_accounts')
           .select('id, initial_balance')
           .eq('user_id', user.id)
@@ -292,7 +296,7 @@ export async function POST(request: NextRequest) {
           .limit(1)
 
         if (defaultAcct && defaultAcct.length > 0 && (!defaultAcct[0].initial_balance || defaultAcct[0].initial_balance === 0)) {
-          await admin
+          await db
             .from('trading_accounts')
             .update({ initial_balance: accountSize, current_balance: accountSize })
             .eq('id', defaultAcct[0].id)
@@ -313,12 +317,20 @@ export async function POST(request: NextRequest) {
 
 // ─── PATCH ─────────────────────────────────────────────────────────────
 export async function PATCH(request: NextRequest) {
-  const { user, response } = await requireAuth(request)
+  const { user, client: authClient, response } = await requireAuth(request)
   if (!user || response) return response
 
-  const admin = await getSupabaseAdminAsync()
-  if (!admin) {
+  // Try admin client first (bypasses RLS), fallback to authenticated client (RLS applies)
+  let admin = await getSupabaseAdminAsync()
+  const db = admin || authClient
+  const isUsingAdmin = !!admin
+
+  if (!db) {
     return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
+  }
+
+  if (!isUsingAdmin) {
+    console.warn('[prop-firm-guard] PATCH: Admin client unavailable, using authenticated client (RLS applies)')
   }
 
   try {
@@ -330,7 +342,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Verify ownership — use minimal column set to avoid PGRST204 errors
-    const { data: existing, error: fetchError } = await admin
+    const { data: existing, error: fetchError } = await db
       .from('prop_firm_challenges')
       .select('id,user_id,account_size,max_daily_loss,max_total_dd,profit_target,daily_pl,total_pl,current_balance')
       .eq('id', id)
@@ -340,7 +352,7 @@ export async function PATCH(request: NextRequest) {
       // If missing column error, try with just id and user_id
       if (fetchError.code === 'PGRST204' || fetchError.code === '42703') {
         console.warn('[prop-firm-guard] PATCH: select failed with missing column, retrying with minimal select')
-        const retry = await admin
+        const retry = await db
           .from('prop_firm_challenges')
           .select('id,user_id')
           .eq('id', id)
@@ -386,7 +398,7 @@ export async function PATCH(request: NextRequest) {
 
         // Step 1: Perform the UPDATE without .select() — ensures the update succeeds
         // even if some select columns don't exist yet in the DB schema
-        const { error: updateOnlyError2 } = await admin
+        const { error: updateOnlyError2 } = await db
           .from('prop_firm_challenges')
           .update(data2)
           .eq('id', id)
@@ -398,7 +410,7 @@ export async function PATCH(request: NextRequest) {
         }
 
         // Step 2: SELECT the updated row back — use safe columns first, fall back to minimal
-        const { data: updated2, error: selectError2 } = await admin
+        const { data: updated2, error: selectError2 } = await db
           .from('prop_firm_challenges')
           .select(PROP_FIRM_SAFE_COLUMNS)
           .eq('id', id)
@@ -533,7 +545,7 @@ export async function PATCH(request: NextRequest) {
     // ── Step 1: Perform the UPDATE without .select() ──
     // This ensures the update succeeds even if some SELECT columns don't exist yet in the DB schema.
     // If the update itself fails due to missing columns in the DATA, we strip those columns and retry.
-    const { error: updateOnlyError } = await admin
+    const { error: updateOnlyError } = await db
       .from('prop_firm_challenges')
       .update(data)
       .eq('id', id)
@@ -564,7 +576,7 @@ export async function PATCH(request: NextRequest) {
 
         if (removedCols.length > 0) {
           console.warn('[prop-firm-guard] PATCH: columns not found in DB, retrying update without:', removedCols.join(', '))
-          const { error: retryUpdateError } = await admin
+          const { error: retryUpdateError } = await db
             .from('prop_firm_challenges')
             .update(safeData)
             .eq('id', id)
@@ -589,7 +601,7 @@ export async function PATCH(request: NextRequest) {
     // Try with full columns first; if select fails with column errors, retry with safe columns.
     // Even if select fails, the update has already succeeded.
     let updated: any = null
-    const { data: selectedRow, error: selectError } = await admin
+    const { data: selectedRow, error: selectError } = await db
       .from('prop_firm_challenges')
       .select(PROP_FIRM_ALL_COLUMNS)
       .eq('id', id)
@@ -599,7 +611,7 @@ export async function PATCH(request: NextRequest) {
     if (selectError && (selectError.code === '42703' || selectError.code === 'PGRST204' || selectError.message?.includes('Could not find the'))) {
       // Full select failed due to missing columns — retry with minimal safe columns
       console.warn('[prop-firm-guard] PATCH: select with all columns failed, retrying with safe columns:', selectError.message)
-      const { data: safeRow, error: safeSelectError } = await admin
+      const { data: safeRow, error: safeSelectError } = await db
         .from('prop_firm_challenges')
         .select(PROP_FIRM_SAFE_COLUMNS)
         .eq('id', id)
@@ -627,14 +639,14 @@ export async function PATCH(request: NextRequest) {
     if (updates.accountSize !== undefined && updates.accountSize > 0) {
       try {
         // Check if challenge has a linked trading account
-        const { data: ch } = await admin
+        const { data: ch } = await db
           .from('prop_firm_challenges')
           .select('trading_account_id')
           .eq('id', id)
           .single()
 
         if (ch?.trading_account_id) {
-          await admin
+          await db
             .from('trading_accounts')
             .update({ initial_balance: updates.accountSize })
             .eq('id', ch.trading_account_id)
@@ -642,7 +654,7 @@ export async function PATCH(request: NextRequest) {
           console.log(`[prop-firm-guard] PATCH: synced trading_account initial_balance to ${updates.accountSize}`)
         } else {
           // Update default trading account
-          const { data: defaultAcct } = await admin
+          const { data: defaultAcct } = await db
             .from('trading_accounts')
             .select('id, initial_balance')
             .eq('user_id', user.id)
@@ -650,7 +662,7 @@ export async function PATCH(request: NextRequest) {
             .limit(1)
 
           if (defaultAcct && defaultAcct.length > 0) {
-            await admin
+            await db
               .from('trading_accounts')
               .update({ initial_balance: updates.accountSize })
               .eq('id', defaultAcct[0].id)
@@ -671,11 +683,13 @@ export async function PATCH(request: NextRequest) {
 
 // ─── DELETE ────────────────────────────────────────────────────────────
 export async function DELETE(request: NextRequest) {
-  const { user, response } = await requireAuth(request)
+  const { user, client: authClient, response } = await requireAuth(request)
   if (!user || response) return response
 
+  // Try admin client first (bypasses RLS), fallback to authenticated client (RLS applies)
   const admin = await getSupabaseAdminAsync()
-  if (!admin) {
+  const db = admin || authClient
+  if (!db) {
     return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
   }
 
@@ -688,7 +702,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Verify ownership — use minimal select to avoid PGRST204 errors
-    const { data: existing, error: fetchError } = await admin
+    const { data: existing, error: fetchError } = await db
       .from('prop_firm_challenges')
       .select('id,user_id')
       .eq('id', id)
@@ -699,7 +713,7 @@ export async function DELETE(request: NextRequest) {
       if (fetchError.code === 'PGRST204' || fetchError.code === '42703') {
         console.warn('[prop-firm-guard] DELETE: select failed, trying direct delete for id:', id)
         // Try direct delete — if ownership is wrong, RLS will prevent it
-        const { error: directDeleteError } = await admin
+        const { error: directDeleteError } = await db
           .from('prop_firm_challenges')
           .delete()
           .eq('id', id)
@@ -719,7 +733,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Hard delete — remove the challenge from the database
-    const { error: deleteError } = await admin
+    const { error: deleteError } = await db
       .from('prop_firm_challenges')
       .delete()
       .eq('id', id)
