@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 interface Article {
   id: string
+  slug: string
   title: string
   titleId: string
   excerpt: string
@@ -20,6 +21,7 @@ interface Article {
 const articles: Article[] = [
   {
     id: 'avoid-drawdown-breach',
+    slug: 'manajemen-risiko-trading-pemula',
     title: 'How to Avoid Drawdown Breach in Prop Firm Challenges',
     titleId: 'Cara Menghindari Drawdown Breach di Challenge Prop Firm',
     excerpt: 'Learn the exact strategies top traders use to stay within 5% daily and 10% max drawdown limits. Includes risk management techniques and real-life examples.',
@@ -30,6 +32,7 @@ const articles: Article[] = [
   },
   {
     id: 'pass-ftmo-challenge',
+    slug: 'membangun-strategi-trading-yang-teruji',
     title: 'Complete Guide to Passing FTMO Challenge on First Try',
     titleId: 'Panduan Lulus FTMO Challenge di Percobaan Pertama',
     excerpt: 'A step-by-step blueprint for passing the FTMO evaluation. From account setup to funded account, we cover everything you need to know.',
@@ -40,6 +43,7 @@ const articles: Article[] = [
   },
   {
     id: 'emotional-discipline',
+    slug: '5-kesalahan-psikologi-trading-paling-umum',
     title: 'Mastering Trading Psychology: Stop Revenge Trading',
     titleId: 'Menguasai Psikologi Trading: Berhenti Revenge Trading',
     excerpt: 'Revenge trading is the #1 killer of prop firm accounts. Discover how to identify emotional triggers and build a disciplined trading mindset.',
@@ -50,6 +54,7 @@ const articles: Article[] = [
   },
   {
     id: 'setup-prioritization',
+    slug: 'mengapa-95-persen-trader-gagal',
     title: 'Which Trading Setups Work Best for Prop Firms?',
     titleId: 'Setup Trading Mana yang Terbaik untuk Prop Firm?',
     excerpt: 'Not all setups are equal in prop firm challenges. We analyze which strategies consistently perform within strict drawdown limits.',
@@ -60,6 +65,7 @@ const articles: Article[] = [
   },
   {
     id: 'revenge-patterns',
+    slug: 'analisis-ai-dalam-trading-modern',
     title: 'Identifying and Breaking Revenge Trading Patterns',
     titleId: 'Mengidentifikasi dan Menghancurkan Pola Revenge Trading',
     excerpt: 'Use AI-powered analysis to detect revenge trading patterns in your journal. Learn practical techniques to break the cycle and protect your account.',
@@ -70,6 +76,7 @@ const articles: Article[] = [
   },
   {
     id: 'daily-routine',
+    slug: 'cara-menggunakan-jurnal-trading-untuk-menjadi-trader-konsisten',
     title: 'Daily Routine of Successful Prop Firm Traders',
     titleId: 'Rutinitas Harian Trader Prop Firm Sukses',
     excerpt: 'What separates traders who consistently pass challenges from those who keep failing? Their daily routine. Build a winning pre-trade checklist.',
@@ -85,9 +92,8 @@ interface ContentArticlesProps {
 }
 
 export default function ContentArticles({ language = 'id' }: ContentArticlesProps) {
-  const getArticleLink = (articleId: string) => {
-    // For now, link to blog (if exists) or dashboard
-    return `/dashboard`
+  const getArticleLink = (article: Article) => {
+    return `/blog/${article.slug}`
   }
 
   return (
@@ -124,7 +130,7 @@ export default function ContentArticles({ language = 'id' }: ContentArticlesProp
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
             >
-              <Link prefetch={false} href={getArticleLink(article.id)}>
+              <Link prefetch={false} href={getArticleLink(article)}>
                 <Card className="h-full bg-[#0a0a12]/60 backdrop-blur-xl border border-white/10 hover:border-blue-500/30 transition-colors group cursor-pointer">
                   <CardHeader>
                     <div className="flex items-start justify-between mb-4">
@@ -162,7 +168,7 @@ export default function ContentArticles({ language = 'id' }: ContentArticlesProp
           viewport={{ once: true }}
           className="text-center mt-12"
         >
-          <Link prefetch={false} href="/dashboard">
+          <Link prefetch={false} href="/blog">
             <span className="inline-flex items-center gap-2 px-6 py-3 bg-white/5 text-white font-medium rounded-xl hover:bg-white/10 border border-white/10 transition-colors">
               {language === 'en' ? 'View All Articles' : 'Lihat Semua Artikel'}
               <ArrowRight className="w-4 h-4" />

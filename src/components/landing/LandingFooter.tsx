@@ -48,7 +48,7 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
               <SocialIcons footer />
               {/* Twitter/X icon */}
               <a
-                href="#"
+                href="https://x.com/luxtradee"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Twitter / X"
@@ -69,9 +69,9 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
             <ul className="space-y-2.5">
               <li><a href="#features" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Fitur', 'Features')}</a></li>
               <li><a href="#pricing" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Harga', 'Pricing')}</a></li>
-              <li><a href="#roadmap" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Rencana', 'Roadmap')}</a></li>
-              <li><a href="#demo" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">Demo</a></li>
-              <li><a href="#changelog" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Changelog', 'Changelog')}</a></li>
+              <li><a href="/blog" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Pustaka Belajar', 'Learning Hub')}</a></li>
+              <li><a href="#cara-kerja" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Cara Kerja', 'How It Works')}</a></li>
+              <li><a href="#faq" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">FAQ</a></li>
             </ul>
           </div>
 
@@ -82,7 +82,7 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
             </h3>
             <ul className="space-y-2.5">
               <li><button onClick={() => openLegalPage('contact')} className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Kontak', 'Contact')}</button></li>
-              <li><a href="#about" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Tentang Kami', 'About Us')}</a></li>
+              <li><a href="/about" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Tentang Kami', 'About Us')}</a></li>
               <li><button onClick={() => openLegalPage('terms')} className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Ketentuan Layanan', 'Terms of Service')}</button></li>
               <li><button onClick={() => openLegalPage('privacy')} className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Kebijakan Privasi', 'Privacy Policy')}</button></li>
               <li><button onClick={() => openLegalPage('refund')} className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200">{t('Kebijakan Refund', 'Refund Policy')}</button></li>
@@ -104,10 +104,6 @@ export default function LandingFooter({ language, openLegalPage }: LandingFooter
                   luxtradee@gmail.com
                 </a>
               </li>
-              <li><a href="#" className="text-[13px] text-[#8892b0] hover:text-[#f0f2ff] transition-colors duration-200 flex items-center gap-1.5">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                {t('Status', 'Status Page')}
-              </a></li>
             </ul>
           </div>
         </div>
