@@ -129,9 +129,9 @@ export default function RootLayout({
               <CookieConsent />
               {children}
             </Providers>
+            <Toaster position="top-right" richColors closeButton toastOptions={{ duration: 4000 }} />
+            <PWAInstallPrompt />
           </LanguageProvider>
-          <Toaster position="top-right" richColors closeButton toastOptions={{ duration: 4000 }} />
-          <PWAInstallPrompt />
           <ServiceWorkerRegistration />
 
           {/* Page View Tracker (non-blocking, deferred) */}
