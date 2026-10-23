@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-export const dynamic9 = 'force-dynamic'
+export const dynamic = 'force-dynamic'
 
 /**
  * Pre-configured prop firm templates.

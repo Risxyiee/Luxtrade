@@ -16,6 +16,7 @@ import {
   XCircle, Loader2, ChevronRight, Edit2, RotateCcw, TrendingUp, Star
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { authFetch } from '@/lib/api-fetch'
 
 // ─── Firm Presets ─────────────────────────────────────────────────────
 const FIRM_PRESETS: Record<string, { maxDailyLoss: number; maxTotalDD: number; profitTarget: number; consistencyRule?: number }> = {
@@ -287,13 +288,12 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
   const fetchChallenges = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/prop-firm-guard', {
-        credentials: 'include',
-        cache: 'no-store',
-      })
+      const res = await authFetch('/api/prop-firm-guard')
       if (!res.ok) throw new Error('Failed to fetch')
       const data = await res.json()
       setChallenges(data.challenges || [])
+      // Notify other components (dashboard summary, etc.) that data changed
+      window.dispatchEvent(new CustomEvent('propfirm-data-changed'))
     } catch {
       toast.error(language === 'id' ? 'Gagal memuat data challenge' : 'Failed to load challenges')
     } finally {
@@ -307,9 +307,8 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
   const handleCheckNow = async () => {
     try {
       setChecking(true)
-      const res = await fetch('/api/prop-firm-guard/check', {
+      const res = await authFetch('/api/prop-firm-guard/check', {
         method: 'POST',
-        credentials: 'include',
       })
       if (res.ok) {
         const data = await res.json()
@@ -337,10 +336,8 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
       const profitTarget = (preset.profitTarget / 100) * formAccountSize
       const consistencyRule = preset.consistencyRule || 0
 
-      const res = await fetch('/api/prop-firm-guard', {
+      const res = await authFetch('/api/prop-firm-guard', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           firmName: effectiveFirmName,
           accountSize: formAccountSize,
@@ -373,10 +370,8 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
   // Update alert percent
   const handleUpdateAlert = async (id: string, alertPercent: number) => {
     try {
-      const res = await fetch('/api/prop-firm-guard', {
+      const res = await authFetch('/api/prop-firm-guard', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ id, alertAtPercent: alertPercent }),
       })
       if (!res.ok) throw new Error('Failed to update')
@@ -389,10 +384,8 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
   // Reset breach
   const handleResetBreach = async (id: string) => {
     try {
-      const res = await fetch('/api/prop-firm-guard', {
+      const res = await authFetch('/api/prop-firm-guard', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ id, resetBreach: true }),
       })
       if (!res.ok) throw new Error('Failed to reset')
@@ -406,9 +399,8 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
   // Delete challenge
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`/api/prop-firm-guard?id=${id}`, {
+      const res = await authFetch(`/api/prop-firm-guard?id=${id}`, {
         method: 'DELETE',
-        credentials: 'include',
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -426,10 +418,8 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
   // Update phase
   const handlePhaseChange = async (id: string, phase: string) => {
     try {
-      const res = await fetch('/api/prop-firm-guard', {
+      const res = await authFetch('/api/prop-firm-guard', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ id, challengePhase: phase }),
       })
       if (!res.ok) throw new Error('Failed to update')
@@ -497,11 +487,8 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
       if (editDailyPLEnabled) patchBody.dailyPL = safeNum(editDailyPL)
       if (editTotalPLEnabled) patchBody.totalPL = safeNum(editTotalPL)
       console.log('[PropFirmGuard] PATCH save:', patchBody)
-      const res = await fetch('/api/prop-firm-guard', {
+      const res = await authFetch('/api/prop-firm-guard', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        cache: 'no-store',
         body: JSON.stringify(patchBody),
       })
       if (!res.ok) {

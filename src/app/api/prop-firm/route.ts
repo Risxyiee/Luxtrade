@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 import { edgeCrypto } from '@/lib/edge-crypto'
 
-export const dynamic9 = 'force-dynamic'
+export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/prop-firm — List all prop firm rules for the authenticated user

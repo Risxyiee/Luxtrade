@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClientForApi } from '@/lib/supabase/server'
 
-export const dynamic9 = 'force-dynamic'
+export const dynamic = 'force-dynamic'
 
 interface TradeRecord {
   profit_loss: number
