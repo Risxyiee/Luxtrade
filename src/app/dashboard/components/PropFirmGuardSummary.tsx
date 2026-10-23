@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Shield, AlertTriangle, ChevronRight, Loader2, Clock, XCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { authFetch } from '@/lib/api-fetch'
 
 // ─── Challenge type (mirrors PropFirmGuardTab) ─────────────────────
 interface Challenge {
@@ -158,10 +159,7 @@ export default function PropFirmGuardSummary({ language, onOpenGuard }: PropFirm
     let cancelled = false
     async function fetchChallenges() {
       try {
-        const res = await fetch('/api/prop-firm-guard', {
-          credentials: 'include',
-          cache: 'no-store',
-        })
+        const res = await authFetch('/api/prop-firm-guard')
         if (!res.ok) throw new Error('Failed to fetch')
         const data = await res.json()
         if (!cancelled) {
@@ -176,7 +174,14 @@ export default function PropFirmGuardSummary({ language, onOpenGuard }: PropFirm
       }
     }
     fetchChallenges()
-    return () => { cancelled = true }
+
+    // Listen for data changes from PropFirmGuardTab (cross-component reactivity)
+    const handleDataChanged = () => { fetchChallenges() }
+    window.addEventListener('propfirm-data-changed', handleDataChanged)
+    return () => {
+      cancelled = true
+      window.removeEventListener('propfirm-data-changed', handleDataChanged)
+    }
   }, [])
 
   // ─── Derived metrics ────────────────────────────────────────────

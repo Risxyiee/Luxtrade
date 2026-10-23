@@ -122,7 +122,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json()
+    // Use request.text() + JSON.parse() to avoid CF Workers stream consumed error
+    const rawBody = await request.text()
+    const body = JSON.parse(rawBody)
     const {
       firmName,
       challengePhase,
@@ -334,7 +336,9 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const body = await request.json()
+    // Use request.text() + JSON.parse() to avoid CF Workers stream consumed error
+    const rawBody = await request.text()
+    const body = JSON.parse(rawBody)
     const { id, ...updates } = body
 
     if (!id) {

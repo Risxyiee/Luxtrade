@@ -19,6 +19,7 @@ import AnimatedStatCard from '../components/AnimatedStatCard'
 import { ExportButtons } from '../components/ExportButtons'
 import PropFirmGuardSummary from '../components/PropFirmGuardSummary'
 import type { Trade, JournalEntry, Analytics } from '@/types'
+import { authFetch } from '@/lib/api-fetch'
 import {
   BarChart, Bar, Cell, CartesianGrid, Tooltip, ResponsiveContainer, XAxis, YAxis
 } from 'recharts'
@@ -228,10 +229,7 @@ function DashboardTab({
     let cancelled = false
     async function fetchPropFirm() {
       try {
-        const res = await fetch('/api/prop-firm-guard', {
-          credentials: 'include',
-          cache: 'no-store',
-        })
+        const res = await authFetch('/api/prop-firm-guard')
         if (!res.ok) return
         const data = await res.json()
         const challenges = data.challenges || []
@@ -256,7 +254,13 @@ function DashboardTab({
       }
     }
     fetchPropFirm()
-    return () => { cancelled = true }
+    // Listen for data changes from PropFirmGuardTab (cross-component reactivity)
+    const handleDataChanged = () => { fetchPropFirm() }
+    window.addEventListener('propfirm-data-changed', handleDataChanged)
+    return () => {
+      cancelled = true
+      window.removeEventListener('propfirm-data-changed', handleDataChanged)
+    }
   }, [])
 
   // Confetti triggers
