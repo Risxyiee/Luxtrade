@@ -1,12 +1,30 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 /**
- * Try to read a secret from CF Workers env first, then process.env.
+ * Try to read a secret from CF Workers env, then process.env.
  * On CF Workers, secrets set via `wrangler secret put` are in the env object,
  * not necessarily in process.env at module-init time.
+ *
+ * FIX: Added globalThis[Symbol.for('__cloudflare-context__')].env check
+ * (same as centralized getEnvVar in cloudflare-bindings.ts) — this is the
+ * MOST reliable path in CF Workers production where worker-entry.ts sets the
+ * context before delegating to OpenNext. Without this, SUPABASE_SERVICE_ROLE_KEY
+ * is not found, admin client is null, and RLS blocks PATCH/DELETE operations.
  */
 async function getSecret(key: string): Promise<string | undefined> {
-  // 1. Try process.env first (fast, works if OpenNext populated it)
+  // 0. Try direct globalThis access FIRST (most reliable in CF Workers production)
+  //    worker-entry.ts sets globalThis[Symbol.for('__cloudflare-context__')] = { env, cf, ctx }
+  //    before delegating to OpenNext. This is the most direct path to secrets.
+  try {
+    const sym = Symbol.for('__cloudflare-context__')
+    const ctx = (globalThis as any)[sym]
+    if (ctx?.env) {
+      const val = (ctx.env as any)[key]
+      if (typeof val === 'string' && val.length > 0) return val
+    }
+  } catch {}
+
+  // 1. Try process.env (fast, works if OpenNext populated it)
   if (process.env[key]) return process.env[key]
 
   // 2. Try CF Workers env via getCloudflareContext
@@ -26,6 +44,15 @@ async function getSecret(key: string): Promise<string | undefined> {
         if (typeof val === 'string' && val.length > 0) return val;
       }
     } catch {}
+  } catch {}
+
+  // 3. Last resort: globalThis.__env__ or globalThis.env (some CF Workers setups)
+  try {
+    const globalEnv = (globalThis as any).__env__ || (globalThis as any).env;
+    if (globalEnv) {
+      const val = globalEnv[key];
+      if (typeof val === 'string' && val.length > 0) return val;
+    }
   } catch {}
 
   return undefined;

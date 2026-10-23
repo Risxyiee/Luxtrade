@@ -9,6 +9,8 @@ const DashboardTab = dynamic(() => import('../tabs/DashboardTab').then(m => ({ d
 
 // Push notification setup banner
 import PushNotificationSetup from '@/components/PushNotificationSetup'
+// iOS PWA install prompt banner
+import PWAInstallPrompt from '@/components/PWAInstallPrompt'
 
 // Lazy-loaded tab components — each chunk is only fetched when the tab is first visited
 const TradesTab = dynamic(() => import('../tabs/TradesTab').then(m => ({ default: m.default })), { loading: () => <TabSkeleton />, ssr: false })
@@ -124,6 +126,9 @@ export default function TabContent({
 }: TabContentProps) {
   return (
     <div className="w-full px-2 sm:px-4 lg:px-6 pb-24">
+          {/* iOS PWA install prompt — only shows on iPhone Safari (not standalone) */}
+          <PWAInstallPrompt variant="banner" />
+
           {/* Push notification setup banner — shows once per session */}
           <PushNotificationSetup />
 

@@ -87,11 +87,14 @@ async function fetchFaireconomyCalendar(): Promise<CalendarEvent[]> {
   for (const url of urls) {
     try {
       const res = await fetch(url, {
-        headers: { 'Accept': 'application/json' },
-        signal: AbortSignal.timeout(8000),
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
+        },
+        signal: AbortSignal.timeout(12000),
       });
       if (!res.ok) {
-        console.warn(`[EconCalendar] Faireconomy ${url} returned ${res.status}`);
+        console.warn(`[EconCalendar] Faireconomy ${url} returned ${res.status} ${res.statusText}`);
         continue;
       }
       const data = await res.json();
@@ -148,8 +151,8 @@ async function fetchFaireconomyCalendar(): Promise<CalendarEvent[]> {
     }
   }
 
-  if (events.length === 0) throw new Error('No events from Faireconomy');
-  console.log('[EconCalendar] Faireconomy: ' + events.length + ' events');
+  if (events.length === 0) throw new Error('No events from Faireconomy (both thisweek and nextweek returned empty)');
+  console.log('[EconCalendar] Faireconomy SUCCESS: ' + events.length + ' events');
   return sortEvents(events);
 }
 
@@ -1187,18 +1190,19 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     return { events: sortEvents(deduped), source: primarySource || 'ForexFactory/Faireconomy (Live)', unavailable: false };
   }
 
-  // 1. z-ai-web-dev-sdk (backup — works without IP blocking if config is available)
-  try {
-    const zaiEvents = await fetchZaiCalendar();
-    if (zaiEvents.length > 0) {
-      if (!primarySource) primarySource = 'ZAI WebSearch+Reader (Live)';
-      collectedEvents.push(...zaiEvents);
-      console.log(`[EconCalendar] ZAI: ${zaiEvents.length} events collected`);
-    }
-  } catch (err: any) {
-    errors.push('ZAI: ' + err.message);
-    console.error('[EconCalendar] ZAI failed:', err.message);
-  }
+  // 1. z-ai-web-dev-sdk — SKIPPED (readFile not implemented in CF Workers runtime)
+  // try {
+  //   const zaiEvents = await fetchZaiCalendar();
+  //   if (zaiEvents.length > 0) {
+  //     if (!primarySource) primarySource = 'ZAI WebSearch+Reader (Live)';
+  //     collectedEvents.push(...zaiEvents);
+  //     console.log(`[EconCalendar] ZAI: ${zaiEvents.length} events collected`);
+  //   }
+  // } catch (err: any) {
+  //   errors.push('ZAI: ' + err.message);
+  //   console.error('[EconCalendar] ZAI failed:', err.message);
+  // }
+  console.log('[EconCalendar] Skipping ZAI (not supported in CF Workers)');
 
   // 2. TradingEconomics Calendar (RapidAPI — proxy, works from CF Workers)
   if (rapKey) {
@@ -1215,61 +1219,65 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     }
   }
 
-  // 3. Finnhub (gets 403 from CF Workers IP, but works from other servers)
-  if (fhKey) {
-    try {
-      const events = await fetchFinnhubCalendar();
-      if (events.length > 0) {
-        if (!primarySource) primarySource = 'Finnhub (Live)';
-        collectedEvents.push(...events);
-        console.log(`[EconCalendar] Finnhub: ${events.length} events, total now ${collectedEvents.length}`);
-      }
-    } catch (err: any) {
-      errors.push('Finnhub: ' + err.message);
-      console.error('[EconCalendar] Finnhub failed:', err.message);
-    }
-  }
+  // 3. Finnhub — SKIPPED (returns 403 from CF Workers IPs on free tier)
+  // if (fhKey) {
+  //   try {
+  //     const events = await fetchFinnhubCalendar();
+  //     if (events.length > 0) {
+  //       if (!primarySource) primarySource = 'Finnhub (Live)';
+  //       collectedEvents.push(...events);
+  //       console.log(`[EconCalendar] Finnhub: ${events.length} events, total now ${collectedEvents.length}`);
+  //     }
+  //   } catch (err: any) {
+  //     errors.push('Finnhub: ' + err.message);
+  //     console.error('[EconCalendar] Finnhub failed:', err.message);
+  //   }
+  // }
+  console.log('[EconCalendar] Skipping Finnhub (403 from CF Workers)');
 
-  // 4. FCSAPI (DEAD — returns 404, skip unless key is provided)
-  if (fcsKey) {
-    try {
-      const events = await fetchFcsApiCalendar();
-      if (events.length > 0) {
-        if (!primarySource) primarySource = 'FCSAPI (Live)';
-        collectedEvents.push(...events);
-        console.log(`[EconCalendar] FCSAPI: ${events.length} events collected`);
-      }
-    } catch (err: any) {
-      errors.push('FCSAPI: ' + err.message);
-      console.error('[EconCalendar] FCSAPI failed:', err.message);
-    }
-  }
+  // 4. FCSAPI — SKIPPED (dead endpoint, returns 404)
+  // if (fcsKey) {
+  //   try {
+  //     const events = await fetchFcsApiCalendar();
+  //     if (events.length > 0) {
+  //       if (!primarySource) primarySource = 'FCSAPI (Live)';
+  //       collectedEvents.push(...events);
+  //       console.log(`[EconCalendar] FCSAPI: ${events.length} events collected`);
+  //     }
+  //   } catch (err: any) {
+  //     errors.push('FCSAPI: ' + err.message);
+  //     console.error('[EconCalendar] FCSAPI failed:', err.message);
+  //   }
+  // }
+  console.log('[EconCalendar] Skipping FCSAPI (dead endpoint, 404)');
 
-  // 5. MyFXBook RSS (returns 403/404 from CF Workers, kept as backup)
-  try {
-    const events = await fetchMyFXBookCalendar();
-    if (events.length > 0) {
-      if (!primarySource) primarySource = 'MyFXBook (Live)';
-      collectedEvents.push(...events);
-      console.log(`[EconCalendar] MyFXBook: ${events.length} events, total now ${collectedEvents.length}`);
-    }
-  } catch (err: any) {
-    errors.push('MyFXBook: ' + err.message);
-    console.error('[EconCalendar] MyFXBook failed:', err.message);
-  }
+  // 5. MyFXBook RSS — SKIPPED (returns 403/404 from CF Workers)
+  // try {
+  //   const events = await fetchMyFXBookCalendar();
+  //   if (events.length > 0) {
+  //     if (!primarySource) primarySource = 'MyFXBook (Live)';
+  //     collectedEvents.push(...events);
+  //     console.log(`[EconCalendar] MyFXBook: ${events.length} events, total now ${collectedEvents.length}`);
+  //   }
+  // } catch (err: any) {
+  //   errors.push('MyFXBook: ' + err.message);
+  //   console.error('[EconCalendar] MyFXBook failed:', err.message);
+  // }
+  console.log('[EconCalendar] Skipping MyFXBook (403/404 from CF Workers)');
 
-  // 6. ForexFactory RSS (gets 403 from CF Workers, kept as last API attempt)
-  try {
-    const events = await fetchForexFactoryCalendar();
-    if (events.length > 0) {
-      if (!primarySource) primarySource = 'ForexFactory (Live)';
-      collectedEvents.push(...events);
-      console.log(`[EconCalendar] ForexFactory: ${events.length} events, total now ${collectedEvents.length}`);
-    }
-  } catch (err: any) {
-    errors.push('ForexFactory: ' + err.message);
-    console.error('[EconCalendar] ForexFactory failed:', err.message);
-  }
+  // 6. ForexFactory RSS — SKIPPED (returns 403 from CF Workers)
+  // try {
+  //   const events = await fetchForexFactoryCalendar();
+  //   if (events.length > 0) {
+  //     if (!primarySource) primarySource = 'ForexFactory (Live)';
+  //     collectedEvents.push(...events);
+  //     console.log(`[EconCalendar] ForexFactory: ${events.length} events, total now ${collectedEvents.length}`);
+  //   }
+  // } catch (err: any) {
+  //   errors.push('ForexFactory: ' + err.message);
+  //   console.error('[EconCalendar] ForexFactory failed:', err.message);
+  // }
+  console.log('[EconCalendar] Skipping ForexFactory RSS (403 from CF Workers)');
 
   // If we have API data, deduplicate and return
   if (collectedEvents.length > 0) {
@@ -1284,16 +1292,17 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     return { events: sortEvents(deduped), source: primarySource || 'API (Live)', unavailable: false };
   }
 
-  // 7. Web Search via DuckDuckGo (gets CAPTCHA from sandbox, may work from CF Workers)
-  try {
-    const webSearchEvents = await fetchWebSearchCalendar();
-    if (webSearchEvents.length > 0) {
-      return { events: webSearchEvents, source: 'Web Search (Live)', unavailable: false };
-    }
-  } catch (err: any) {
-    errors.push('WebSearch: ' + err.message);
-    console.error('[EconCalendar] Web search failed:', err.message);
-  }
+  // 7. DuckDuckGo Web Search — SKIPPED (unreliable, CAPTCHA risk from CF Workers)
+  // try {
+  //   const webSearchEvents = await fetchWebSearchCalendar();
+  //   if (webSearchEvents.length > 0) {
+  //     return { events: webSearchEvents, source: 'Web Search (Live)', unavailable: false };
+  //   }
+  // } catch (err: any) {
+  //   errors.push('WebSearch: ' + err.message);
+  //   console.error('[EconCalendar] Web search failed:', err.message);
+  // }
+  console.log('[EconCalendar] Skipping DuckDuckGo (CAPTCHA risk)');
 
   // 8. Fallback (guaranteed, no external call — only used if ALL sources fail)
   console.warn('[EconCalendar] All live APIs and web search failed, using fallback schedule. Errors:', errors.join('; '));
@@ -1525,8 +1534,16 @@ export async function GET(request: NextRequest) {
 
     const cacheTTL = (unavailable && allEvents.length === 0) ? 60 * 1000 : CACHE_DURATION;
     const newCache: CacheEntry = { events: allEvents, timestamp: Date.now(), source, unavailable };
-    calendarCache = newCache;
-    await setKVCache(newCache, cacheTTL);
+
+    // Only cache live (non-fallback) data to prevent stale fallback from being served
+    if (unavailable) {
+      console.warn('[EconCalendar] Not caching fallback/unavailable data to prevent stale cache');
+      calendarCache = null; // Clear in-memory cache of any previous fallback too
+      // Don't write fallback to KV — let next request try live sources again
+    } else {
+      calendarCache = newCache;
+      await setKVCache(newCache, cacheTTL);
+    }
 
     let events = allEvents;
     if (impactFilter) events = events.filter(e => e.impact === impactFilter);

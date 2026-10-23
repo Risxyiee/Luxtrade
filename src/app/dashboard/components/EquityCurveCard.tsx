@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react'
 import {
   ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown,
-  Gem, Loader2, CreditCard
+  Gem, Loader2, CreditCard, Shield
 } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -169,6 +169,15 @@ function Tooltip({
 
 // ==================== MAIN COMPONENT ====================
 
+// Prop firm challenge summary for drawdown limit overlay
+interface PropFirmChallengeOverlay {
+  firmName: string
+  accountSize: number
+  totalDDLimitLine: number // accountSize - maxTotalDD (equity level that triggers breach)
+  currentBalance: number
+  isBreached: boolean
+}
+
 function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccountId, className }: EquityCurveCardProps) {
   const [data, setData] = useState<EquityData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -177,6 +186,7 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccoun
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<SVGSVGElement>(null)
   const [dimensions, setDimensions] = useState({ w: 600, h: 300 })
+  const [propFirmOverlays, setPropFirmOverlays] = useState<PropFirmChallengeOverlay[]>([])
 
   // Fetch data (re-fetch when selectedAccountId or tradingAccounts changes)
   // Also listen for custom refresh events from parent after mutations
@@ -198,6 +208,26 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccoun
       .then(d => { setData(d); setLoading(false) })
       .catch(() => setLoading(false))
   }, [selectedAccountId, tradingAccounts, refreshKey])
+
+  // Fetch prop firm challenges for drawdown limit overlay
+  useEffect(() => {
+    fetch('/api/prop-firm-guard', { credentials: 'include', cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d?.challenges) { setPropFirmOverlays([]); return }
+        const overlays: PropFirmChallengeOverlay[] = d.challenges
+          .filter((c: any) => c.isActive && !c.isBreached && c.accountSize > 0)
+          .map((c: any) => ({
+            firmName: c.firmName,
+            accountSize: c.accountSize,
+            totalDDLimitLine: c.accountSize - c.maxTotalDD, // the equity level where total DD is breached
+            currentBalance: c.currentBalance || c.accountSize,
+            isBreached: c.isBreached,
+          }))
+        setPropFirmOverlays(overlays)
+      })
+      .catch(() => setPropFirmOverlays([]))
+  }, [refreshKey])
 
   // Observe container size
   useEffect(() => {
@@ -466,6 +496,37 @@ function EquityCurveCardInner({ language = 'id', tradingAccounts, selectedAccoun
                   />
                 )
               })()}
+
+              {/* PropFirm Guard drawdown limit lines */}
+              {propFirmOverlays.map((pf, idx) => {
+                if (chart.maxY === chart.minY) return null
+                const y = 12 + (dimensions.h - 40) - ((pf.totalDDLimitLine - chart.minY) / (chart.maxY - chart.minY)) * (dimensions.h - 40)
+                if (y < 12 || y > dimensions.h - 28) return null
+                // Use different opacity for multiple challenges so they're distinguishable
+                const color = pf.isBreached ? '#ef4444' : idx === 0 ? '#f97316' : '#eab308'
+                return (
+                  <g key={`pfdd-${idx}`}>
+                    <line
+                      x1={50} y1={y} x2={dimensions.w - 12} y2={y}
+                      stroke={color}
+                      strokeDasharray="4 3"
+                      strokeOpacity={0.6}
+                      strokeWidth={1}
+                    />
+                    <text
+                      x={dimensions.w - 14}
+                      y={y - 3}
+                      fill={color}
+                      fillOpacity={0.7}
+                      fontSize="8"
+                      textAnchor="end"
+                      fontFamily="monospace"
+                    >
+                      {pf.firmName} DD limit
+                    </text>
+                  </g>
+                )
+              })}
 
               {/* Glow line (behind main) */}
               <path
