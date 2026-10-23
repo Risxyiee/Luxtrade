@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 import {
   DollarSign, Target, Activity, TrendingUp, TrendingDown,
   Sparkles, AlertTriangle, Clock, BarChart3, Plus,
-  Trophy, Flame, Loader2, CreditCard
+  Trophy, Flame, Loader2, CreditCard, Shield
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -215,6 +215,49 @@ function DashboardTab({
   const weeklyPerf = getWeeklyPerformance(trades)
   const activeStreak = calculateActiveStreak(trades)
   const { triggerMilestoneConfetti } = useConfetti()
+
+  // ─── PropFirm Guard data for stats grid ────────────────────────────
+  const [propFirmStats, setPropFirmStats] = useState<{
+    totalPL: number
+    maxDDPct: number
+    activeCount: number
+    breachedCount: number
+    bestProgress: number
+  } | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    async function fetchPropFirm() {
+      try {
+        const res = await fetch('/api/prop-firm-guard', {
+          credentials: 'include',
+          cache: 'no-store',
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        const challenges = data.challenges || []
+        if (!cancelled && challenges.length > 0) {
+          const active = challenges.filter((c: any) => c.isActive && !c.isBreached)
+          const breached = challenges.filter((c: any) => c.isBreached)
+          const totalPL = challenges.reduce((sum: number, c: any) => sum + (c.totalPL || 0), 0)
+          const maxDDPct = Math.max(...challenges.map((c: any) => {
+            const dailyDDPct = c.accountSize > 0 ? (c.maxDailyLoss / c.accountSize) * 100 : 0
+            const dailyPctOfLimit = dailyDDPct > 0 ? (c.currentDailyDD / dailyDDPct) * 100 : 0
+            const totalDDPct = c.accountSize > 0 ? (c.maxTotalDD / c.accountSize) * 100 : 0
+            const totalPctOfLimit = totalDDPct > 0 ? (c.currentTotalDD / totalDDPct) * 100 : 0
+            return Math.max(dailyPctOfLimit, totalPctOfLimit)
+          }), 0)
+          const bestProgress = active.length > 0
+            ? Math.max(...active.map((c: any) => c.currentProgress || 0))
+            : 0
+          setPropFirmStats({ totalPL, maxDDPct, activeCount: active.length, breachedCount: breached.length, bestProgress })
+        }
+      } catch {
+        // Silently ignore — PropFirm stats are optional
+      }
+    }
+    fetchPropFirm()
+    return () => { cancelled = true }
+  }, [])
 
   // Confetti triggers
   useEffect(() => {
@@ -465,6 +508,43 @@ function DashboardTab({
             icon={TrendingDown}
             color="red"
           />
+
+          {/* ─── PropFirm Guard Stats (connected from /api/prop-firm-guard) ─── */}
+          {propFirmStats && propFirmStats.activeCount > 0 && (
+            <>
+              {/* Challenge P/L */}
+              <AnimatedStatCard
+                title={language === 'id' ? 'Challenge P/L' : 'Challenge P/L'}
+                value={propFirmStats.totalPL}
+                prefix="$"
+                subtitle={`${propFirmStats.activeCount} ${language === 'id' ? 'aktif' : 'active'}${propFirmStats.breachedCount > 0 ? ` / ${propFirmStats.breachedCount} breach` : ''}`}
+                icon={Shield}
+                iconColor={propFirmStats.totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}
+                iconBgColor={propFirmStats.totalPL >= 0 ? 'bg-emerald-500/15' : 'bg-red-500/15'}
+                gradientBg={propFirmStats.totalPL >= 0 ? 'from-emerald-500/30 to-emerald-600/20' : 'from-red-500/30 to-red-600/20'}
+                valueColor={propFirmStats.totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}
+                color={propFirmStats.totalPL >= 0 ? 'emerald' : 'red'}
+              />
+              {/* Max DD % of limit */}
+              <AnimatedStatCard
+                title={language === 'id' ? 'Max DD' : 'Max DD'}
+                value={propFirmStats.maxDDPct}
+                suffix="%"
+                subtitle={propFirmStats.maxDDPct >= 80
+                  ? (language === 'id' ? 'Bahaya!' : 'Danger!')
+                  : propFirmStats.maxDDPct >= 60
+                    ? (language === 'id' ? 'Perhatian' : 'Caution')
+                    : (language === 'id' ? 'Aman' : 'Safe')}
+                icon={AlertTriangle}
+                iconColor={propFirmStats.maxDDPct >= 80 ? 'text-red-400' : propFirmStats.maxDDPct >= 60 ? 'text-amber-400' : 'text-emerald-400'}
+                iconBgColor={propFirmStats.maxDDPct >= 80 ? 'bg-red-500/15' : propFirmStats.maxDDPct >= 60 ? 'bg-amber-500/15' : 'bg-emerald-500/15'}
+                gradientBg={propFirmStats.maxDDPct >= 80 ? 'from-red-500/30 to-red-600/20' : propFirmStats.maxDDPct >= 60 ? 'from-amber-500/30 to-amber-600/20' : 'from-emerald-500/30 to-emerald-600/20'}
+                valueColor={propFirmStats.maxDDPct >= 80 ? 'text-red-400' : propFirmStats.maxDDPct >= 60 ? 'text-amber-400' : 'text-emerald-400'}
+                color={propFirmStats.maxDDPct >= 80 ? 'red' : propFirmStats.maxDDPct >= 60 ? 'amber' : 'emerald'}
+                decimals={1}
+              />
+            </>
+          )}
         </div>
       )}
 

@@ -486,24 +486,33 @@ export async function PATCH(request: NextRequest) {
     if (updates.currentBalance !== undefined) {
       data.current_balance = updates.currentBalance
       // Auto-recalculate derived metrics when balance changes
+      // IMPORTANT: These must use the SAME units as the check route:
+      //   current_daily_dd  = daily drawdown as % of account size (e.g. 2.5)
+      //   current_total_dd  = total drawdown as % of account size (e.g. 5.0)
+      //   current_progress   = % toward profit target (0-100)
       const acctSize = updates.accountSize ?? existing.account_size
       const maxDailyLoss = updates.maxDailyLoss ?? existing.max_daily_loss
       const maxTotalDD = updates.maxTotalDD ?? existing.max_total_dd
       const profitTarget = updates.profitTarget ?? existing.profit_target
       const dailyPL = updates.dailyPL ?? existing.daily_pl ?? 0
       const totalPL = updates.totalPL ?? existing.total_pl ?? 0
-      // current_daily_dd = maxDailyLoss - dailyPL (how close to daily loss limit)
-      if (maxDailyLoss > 0) {
-        data.current_daily_dd = Math.max(0, (maxDailyLoss - Math.abs(dailyPL < 0 ? dailyPL : 0)) / maxDailyLoss * 100)
+
+      // current_daily_dd: |daily loss| / account_size * 100  (matches check route)
+      if (acctSize > 0) {
+        const dailyLoss = Math.min(dailyPL, 0) // only negative P/L counts as loss
+        data.current_daily_dd = Math.max(0, Math.abs(dailyLoss) / acctSize * 100)
       }
-      // current_total_dd = how much of total DD limit is used
-      if (maxTotalDD > 0 && acctSize > 0) {
-        const usedDD = acctSize - updates.currentBalance
-        data.current_total_dd = Math.max(0, usedDD / maxTotalDD * 100)
+
+      // current_total_dd: |total loss| / account_size * 100  (matches check route)
+      if (acctSize > 0) {
+        const totalLoss = Math.min(totalPL, 0) // only negative P/L counts as loss
+        data.current_total_dd = Math.max(0, Math.abs(totalLoss) / acctSize * 100)
       }
-      // current_progress = progress toward profit target
+
+      // current_progress: total profit / profit target * 100  (matches check route)
       if (profitTarget > 0) {
-        data.current_progress = Math.max(0, Math.min(100, totalPL / profitTarget * 100))
+        const totalProfit = Math.max(totalPL, 0)
+        data.current_progress = Math.max(0, Math.min(100, totalProfit / profitTarget * 100))
       }
     }
 

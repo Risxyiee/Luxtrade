@@ -218,6 +218,12 @@ export default function PropFirmGuardSummary({ language, onOpenGuard }: PropFirm
     ? Math.max(...activeChallenges.map(c => c.currentProgress))
     : 0
 
+  // Total P/L across all challenges (for dashboard stats)
+  const totalChallengePL = challenges.reduce((sum, c) => sum + (c.totalPL || 0), 0)
+
+  // Total account size across all active challenges
+  const totalAccountSize = activeChallenges.reduce((sum, c) => sum + c.accountSize, 0)
+
   // Last checked timestamp (most recent updatedAt)
   const lastChecked = challenges.length > 0
     ? challenges.reduce((latest, c) => {
@@ -409,6 +415,26 @@ export default function PropFirmGuardSummary({ language, onOpenGuard }: PropFirm
                   </>
                 )}
               </div>
+
+              {/* Total P/L row — connects prop firm data to main dashboard metrics */}
+              {(totalChallengePL !== 0 || totalAccountSize > 0) && (
+                <div className="flex items-center gap-2 text-xs mt-1">
+                  <span className="text-lux-text-muted dark:text-gray-500">
+                    {language === 'id' ? 'Total P/L' : 'Total P/L'}:
+                  </span>
+                  <span className={`font-semibold ${totalChallengePL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {totalChallengePL >= 0 ? '+' : ''}${Math.abs(totalChallengePL).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                  {totalAccountSize > 0 && (
+                    <>
+                      <span className="text-lux-text-muted dark:text-gray-600">•</span>
+                      <span className="text-lux-text-muted dark:text-gray-500">
+                        {language === 'id' ? 'Modal' : 'Capital'}: ${totalAccountSize.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Open full tab button */}

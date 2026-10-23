@@ -11,7 +11,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Loader2, Save, Bell, Mail, AlertTriangle, TrendingUp, Flame, ShieldAlert } from 'lucide-react'
+import { Loader2, Save, Bell, Mail, AlertTriangle, TrendingUp, Flame, ShieldAlert, Smartphone, Info } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface NotificationPreferences {
@@ -78,6 +78,9 @@ const t = (key: string, lang: 'id' | 'en') => {
     alertSettings: { id: 'Pengaturan Peringatan', en: 'Alert Settings' },
     thresholdSettings: { id: 'Nilai Ambang Batas', en: 'Threshold Values' },
     generalSettings: { id: 'Umum', en: 'General' },
+    iosEmailFallback: { id: 'Di iPhone, push notification cuma jalan kalau app di-install ke Home Screen. Email alert otomatis jadi fallback.', en: 'On iPhone, push notifications only work when the app is installed to Home Screen. Email alerts automatically serve as fallback.' },
+    pushNotifications: { id: 'Push Notification', en: 'Push Notification' },
+    pushNotSupported: { id: 'Tidak didukung di browser ini', en: 'Not supported in this browser' },
   }
   return strings[key]?.[lang] || key
 }
@@ -86,6 +89,19 @@ export default function NotificationPreferences({ open, onOpenChange, language }
   const [prefs, setPrefs] = useState<NotificationPreferences>(DEFAULT_PREFS)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+
+  // Detect iOS Safari (not standalone) for email fallback note
+  const [isIOSSafari, setIsIOSSafari] = useState(false)
+  useEffect(() => {
+    if (typeof navigator === 'undefined') return
+    const ua = navigator.userAgent
+    const isIOS = /iPad|iPhone|iPod/.test(ua) && !('MSStream' in window)
+    const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|OPiOS/.test(ua)
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true
+    setIsIOSSafari(isIOS && isSafari && !isStandalone)
+  }, [])
 
   const fetchPrefs = useCallback(async () => {
     try {
@@ -214,6 +230,16 @@ export default function NotificationPreferences({ open, onOpenChange, language }
                   ))}
                 </div>
               </div>
+
+              {/* iOS Email Fallback Note */}
+              {isIOSSafari && (
+                <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-amber-500/8 border border-amber-500/15">
+                  <Smartphone className="w-4 h-4 text-amber-400/70 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-300/70 leading-relaxed">
+                    {t('iosEmailFallback', language)}
+                  </p>
+                </div>
+              )}
             </section>
 
             {/* Divider */}

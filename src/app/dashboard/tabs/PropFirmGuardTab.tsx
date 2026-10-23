@@ -206,13 +206,17 @@ function EditableFieldWithNA({
               value={inputValue}
               onChange={(e) => {
                 setInputValue(e.target.value)
-                onChange(e.target.value === '' ? 0 : Number(e.target.value))
+                const raw = e.target.value === '' ? 0 : Number(e.target.value)
+                // Guard: never propagate NaN or Infinity to parent state
+                const safe = Number.isFinite(raw) ? raw : 0
+                onChange(safe)
               }}
               onFocus={() => setIsFocused(true)}
               onBlur={() => {
                 setIsFocused(false)
-                // Normalize on blur: if empty, set to 0
-                const num = inputValue === '' ? 0 : Number(inputValue)
+                // Normalize on blur: if empty or invalid, set to 0
+                const raw = inputValue === '' ? 0 : Number(inputValue)
+                const num = Number.isFinite(raw) ? raw : 0
                 setInputValue(String(num))
                 onChange(num)
               }}
@@ -445,7 +449,7 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
     setEditMaxDailyLoss(ch.maxDailyLoss)
     setEditMaxTotalDD(ch.maxTotalDD)
     setEditProfitTarget(ch.profitTarget)
-    setEditAlertPercent(ch.alertAtPercent)
+    setEditAlertPercent(Math.max(10, Math.min(90, ch.alertAtPercent || 40)))
     setEditConsistencyRule(ch.consistencyRule || 0)
     setEditBestDayPL(ch.bestDayPL || 0)
     setEditDailyPL(ch.dailyPL || 0)
@@ -465,26 +469,33 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
   }
 
   // Save edit
+  const [saving, setSaving] = useState(false)
   const handleSaveEdit = async () => {
     if (!selectedChallenge) return
+    if (saving) return // prevent double-click
+    setSaving(true)
     try {
+      // Clamp alertAtPercent to valid range (10-90) to avoid PATCH validation errors
+      const safeAlertPercent = Math.max(10, Math.min(90, editAlertPercent))
+      // Guard against NaN / non-finite numbers in all numeric fields
+      const safeNum = (v: number) => (Number.isFinite(v) ? v : 0)
       const patchBody: Record<string, any> = {
         id: selectedChallenge.id,
         firmName: editFirmName,
-        accountSize: editAccountSize,
-        alertAtPercent: editAlertPercent,
+        accountSize: safeNum(editAccountSize),
+        alertAtPercent: safeAlertPercent,
         challengePhase: editChallengePhase,
       }
       // Only include fields that are enabled — if disabled, don't send them
       // (prevents accidentally resetting values to 0)
-      if (editMaxDailyLossEnabled) patchBody.maxDailyLoss = editMaxDailyLoss
-      if (editMaxTotalDDEnabled) patchBody.maxTotalDD = editMaxTotalDD
-      if (editProfitTargetEnabled) patchBody.profitTarget = editProfitTarget
-      if (editCurrentBalanceEnabled) patchBody.currentBalance = editCurrentBalance
-      if (editConsistencyRuleEnabled) patchBody.consistencyRule = editConsistencyRule
-      if (editBestDayPLEnabled) patchBody.bestDayPL = editBestDayPL
-      if (editDailyPLEnabled) patchBody.dailyPL = editDailyPL
-      if (editTotalPLEnabled) patchBody.totalPL = editTotalPL
+      if (editMaxDailyLossEnabled) patchBody.maxDailyLoss = safeNum(editMaxDailyLoss)
+      if (editMaxTotalDDEnabled) patchBody.maxTotalDD = safeNum(editMaxTotalDD)
+      if (editProfitTargetEnabled) patchBody.profitTarget = safeNum(editProfitTarget)
+      if (editCurrentBalanceEnabled) patchBody.currentBalance = safeNum(editCurrentBalance)
+      if (editConsistencyRuleEnabled) patchBody.consistencyRule = safeNum(editConsistencyRule)
+      if (editBestDayPLEnabled) patchBody.bestDayPL = safeNum(editBestDayPL)
+      if (editDailyPLEnabled) patchBody.dailyPL = safeNum(editDailyPL)
+      if (editTotalPLEnabled) patchBody.totalPL = safeNum(editTotalPL)
       console.log('[PropFirmGuard] PATCH save:', patchBody)
       const res = await fetch('/api/prop-firm-guard', {
         method: 'PATCH',
@@ -507,6 +518,8 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
     } catch (err: any) {
       console.error('[PropFirmGuard] Save edit failed:', err)
       toast.error(err.message || t('Gagal mengupdate', 'Failed to update'))
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -1199,10 +1212,11 @@ export default function PropFirmGuardTab({ language = 'id' }: { language?: 'id' 
 
             <Button
               onClick={handleSaveEdit}
+              disabled={saving}
               className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold"
             >
-              <Edit2 className="w-4 h-4 mr-2" />
-              {t('Simpan Perubahan', 'Save Changes')}
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Edit2 className="w-4 h-4 mr-2" />}
+              {saving ? t('Menyimpan...', 'Saving...') : t('Simpan Perubahan', 'Save Changes')}
             </Button>
           </div>
         </DialogContent>
