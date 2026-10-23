@@ -78,9 +78,11 @@ function sortEvents(events: CalendarEvent[]): CalendarEvent[] {
 
 // ─── 1. Faireconomy.media / ForexFactory JSON (FREE, no API key, works from CF Workers) ──
 async function fetchFaireconomyCalendar(): Promise<CalendarEvent[]> {
+  // NOTE: nextweek endpoint is dead (404), only thisweek works
+  // IMPORTANT: Faireconomy.media rate-limits requests without a Referer header
+  // from forexfactory.com — we must include it to bypass the 429 block.
   const urls = [
     'https://nfs.faireconomy.media/ff_calendar_thisweek.json',
-    'https://nfs.faireconomy.media/ff_calendar_nextweek.json',
   ];
   const events: CalendarEvent[] = [];
 
@@ -89,7 +91,8 @@ async function fetchFaireconomyCalendar(): Promise<CalendarEvent[]> {
       const res = await fetch(url, {
         headers: {
           'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Referer': 'https://www.forexfactory.com/',
         },
         signal: AbortSignal.timeout(12000),
       });
@@ -151,7 +154,7 @@ async function fetchFaireconomyCalendar(): Promise<CalendarEvent[]> {
     }
   }
 
-  if (events.length === 0) throw new Error('No events from Faireconomy (both thisweek and nextweek returned empty)');
+  if (events.length === 0) throw new Error('No events from Faireconomy (thisweek returned empty or rate-limited)');
   console.log('[EconCalendar] Faireconomy SUCCESS: ' + events.length + ' events');
   return sortEvents(events);
 }
@@ -289,7 +292,8 @@ async function fetchTECalendar(): Promise<CalendarEvent[]> {
   endDate.setDate(endDate.getDate() + 7);
   const endStr = endDate.toISOString().split('T')[0];
 
-  // Try the official TradingEconomics API endpoint (not the scraper which was removed)
+  // TradingEconomics calendar endpoint on RapidAPI
+  // Note: Free tier has strict rate limits (typically 500 req/month)
   const url = `https://tradingeconomics.p.rapidapi.com/calendar?country=United%20States,United%20Kingdom,Euro%20Zone,Japan,Australia,Canada,Switzerland,New%20Zealand&importance=3,2,1&start_date=${todayStr}&end_date=${endStr}`;
 
   const res = await fetch(url, {
@@ -297,8 +301,9 @@ async function fetchTECalendar(): Promise<CalendarEvent[]> {
       'Content-Type': 'application/json',
       'x-rapidapi-host': 'tradingeconomics.p.rapidapi.com',
       'x-rapidapi-key': apiKey,
+      'User-Agent': 'Mozilla/5.0 (compatible; LuxTradeBot/1.0)',
     },
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(15000),
   });
 
   if (!res.ok) {
@@ -1164,7 +1169,7 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
   const fcsKey = await getFcsApiKey();
   console.log(`[EconCalendar] API keys: Finnhub=${fhKey ? 'YES' : 'NO'}, RapidAPI=${rapKey ? 'YES' : 'NO'}, FCSAPI=${fcsKey ? 'YES' : 'NO'}`);
 
-  // 0. Faireconomy.media / ForexFactory JSON (BEST — free, no key, works from CF Workers)
+  // 0. Faireconomy.media / ForexFactory JSON (BEST — free, no key, works from CF Workers with Referer header)
   try {
     const feEvents = await fetchFaireconomyCalendar();
     if (feEvents.length > 0) {
