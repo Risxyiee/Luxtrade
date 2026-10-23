@@ -65,7 +65,16 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 export function useLanguage() {
   const context = useContext(LanguageContext)
   if (context === undefined) {
-    throw new Error('useLanguage must be used within a LanguageProvider')
+    // During SSR/prerendering, the LanguageProvider may not be available yet.
+    // Return safe defaults instead of throwing — this prevents build failures
+    // on static pages like /_not-found while still failing loudly if someone
+    // forgets the provider in a normal client render.
+    return {
+      language: 'id' as Language,
+      setLanguage: () => {},
+      t: (key: string) => key,
+      formatPrice: (amount: number) => `Rp ${amount.toLocaleString('id-ID')}`,
+    }
   }
   return context
 }
