@@ -693,3 +693,26 @@ Stage Summary:
 - After next deploy + user re-adding secrets, everything self-heals (vars in config, keep_vars insurance)
 - USER MUST: npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY + verify other secrets in dashboard (RESEND_API_KEY, VAPID_PRIVATE_KEY, MIDTRANS keys, FINNHUB/RAPIDAPI keys, GEMINI, CRON_SECRET)
 - Follow-up candidate: TradingEconomics guest:guest free source for econ calendar (RapidAPI TE 404); econ-calendar code untouched this turn
+
+---
+Task ID: 3
+Agent: Z.ai Code (main)
+Task: Fix production issues from observability logs — economic-calendar dual-source failure, verify SUPABASE_SERVICE_ROLE_KEY secret, silence NEXT_PUBLIC_SUPABASE_URL getEnvVar warn
+
+Work Log:
+- Confirmed user set SUPABASE_SERVICE_ROLE_KEY as dashboard secret; probed prod: /api/landing-stats 200 with real data (totalUsers:53), /api/supabase/config 200 isConfigured:true
+- Probed /api/economic-calendar?impact=high in prod: 200 with real Faireconomy events — the logged failures were transient (rate-limit window), but fallback chain was genuinely broken
+- Diagnosed TE RapidAPI 404: endpoint returns 404 {"message":"Too many requests"} even WITHOUT a key — RapidAPI gateway itself is refusing (quota/subscription), not a URL bug; TE is unreliable as the only live fallback
+- Confirmed ff_calendar_nextweek.json is still dead (404); only thisweek works — live chain = ONE free endpoint, fragile
+- FIX economic-calendar route: added last-good KV rescue cache (key economic_calendar_lastgood, 7-day TTL) written on every successful live fetch; when ALL sources fail, route now serves the saved real data (stale:true, cacheSource:kv-lastgood) instead of synthetic fallback; raised short-term cache window 10->30 min to cut upstream hits; rescue wired into both the unavailable branch and the outer catch
+- FIX EconomicCalendarWidget: added isStale state + sky-blue "Data tersimpan — sumber live sedang terganggu" banner (Clock icon) when stale rescue data is served
+- FIX /api/supabase/config: NEXT_PUBLIC_* now read via static build-time inlining first (dynamic process.env[key] inside getEnvVar cannot see inlined vars on Workers — root cause of the warn); getEnvVar only for non-prefixed alt names (SUPABASE_URL/SUPABASE_ANON_KEY)
+- Verified wrangler.jsonc has luxtradee_kv binding; cron econ-calendar-notify (15-min) already refreshes the short-term cache and thus the rescue copy
+- bun run lint clean; bare tsc TS1503 errors are pre-existing (named capture groups, not from these edits); committed 19507429 and pushed to origin/main
+
+Stage Summary:
+- Production now has a 3-layer calendar resilience: 30-min KV/memory cache -> live Faireconomy -> 7-day last-good KV rescue (real data, never dummy unless KV is empty)
+- SUPABASE_SERVICE_ROLE_KEY issue CLOSED (user-set dashboard secret, endpoint healthy)
+- getEnvVar NEXT_PUBLIC_SUPABASE_URL warn CLOSED at the source (config route no longer calls getEnvVar for inlined NEXT_PUBLIC_ names)
+- User does NOT need to run any SQL for this fix (KV-based, no new tables)
+- Note for user: dashboard secrets added as plain TEXT (not Encrypt) get wiped on wrangler deploy — SUPABASE_SERVICE_ROLE_KEY must be type Secret/Encrypt
