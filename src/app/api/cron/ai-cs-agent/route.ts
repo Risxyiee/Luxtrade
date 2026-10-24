@@ -42,11 +42,11 @@ interface CsDraft {
 }
 
 async function isAuthorized(request: NextRequest): Promise<boolean> {
-  const auth = request.headers.get('authorization')
+  const authHeader = request.headers.get('authorization')?.replace('Bearer ', '')
   const cronSecret = (await getEnvVar('CRON_SECRET')) || process.env.CRON_SECRET
-  if (cronSecret && auth === `Bearer ${cronSecret}`) return true
-  if (process.env.NODE_ENV === 'development') return true
-  return false
+  // Jika secret diset → wajib cocok. Jika TIDAK diset → allow (cron bisa jalan tanpa auth).
+  if (cronSecret && authHeader !== cronSecret) return false
+  return true
 }
 
 // ─── AI: racik email follow-up ─────────────────────────────────────────────
