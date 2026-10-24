@@ -591,3 +591,25 @@ Stage Summary:
 - PropFirm Guard: Edit works even without service role key (falls back to auth client)
 - Dashboard ↔ PropFirm Guard connection verified working
 - All changes pushed to GitHub (commit 47909b65)
+
+---
+Task ID: cron-fs-readdir-fix
+Agent: Z.ai Code (main)
+Task: Fix "[unenv] fs.readdir is not implemented yet!" crash on Cloudflare Workers — daily reminder & all cron routes
+
+Work Log:
+- Root cause: all 8 /api/cron/* routes used Prisma ($queryRaw/$executeRaw/findMany). Prisma's engine calls fs.readdir at runtime to locate the Rust binary → unenv shim throws on CF Workers
+- Created src/lib/cron-supabase.ts: getCronAdmin(), fetchAllRows() (paginated REST fetch, 1000/page), isMissingTableError() (42P01/PGRST205 graceful degradation), chunk(), CRON_LOG_TABLES_SQL
+- Rewrote to Supabase admin client (HTTPS REST, Workers-safe — same pattern as working auto-sync-trades): daily-reminder (+unsubscribe), weekly-summary (+unsubscribe), re-engage (+unsubscribe), downgrade-expired-pro, econ-calendar-notify
+- daily-reminder: EXISTS/NOT EXISTS SQL decomposed into recentTradeSet + loginActive chunked anyTrade checks + sent/unsub Sets; getWeeklyStats now REST + JS reduce
+- weekly-summary: SQL GROUP BY/FILTER aggregation moved to JS; weekly_summary_emails uses only Prisma-guaranteed columns (user_id, week_start, sent_at, status); unsub via status='unsubscribed'
+- re-engage: auth.users SQL replaced with admin.auth.admin.listUsers() pagination + JS window filtering
+- downgrade-expired-pro: CREATE TABLE DDL removed; NOT IN active-subscription protection computed in JS
+- Fixed own follow-up bug: sendDailyReminder missing admin arg (TS2554)
+- Verified: lint clean, tsc clean on changed files (auto-sync-trades TS2769 is pre-existing/untouched), dev server smoke test: homepage 200, all 5 cron endpoints + 3 unsubscribe pages respond, zero fs.readdir/unenv errors
+- Pushed commit f4c27d05 to GitHub main (triggers CF deploy)
+
+Stage Summary:
+- All cron email/notification routes now Workers-compatible; daily reminder feature works on luxtradee.web.id once deployed
+- Log tables daily_reminder_logs / re_engagement_emails likely missing in Supabase prod — routes degrade gracefully; user should paste CRON_LOG_TABLES_SQL (in src/lib/cron-supabase.ts) into Supabase SQL Editor for dedup + unsubscribe persistence
+- Secrets untouched
