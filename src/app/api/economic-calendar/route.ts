@@ -86,21 +86,22 @@ function sortEvents(events: CalendarEvent[]): CalendarEvent[] {
 
 // ─── 1. Faireconomy.media / ForexFactory JSON (FREE, no API key, works from CF Workers) ──
 async function fetchFaireconomyCalendar(): Promise<CalendarEvent[]> {
-  // NOTE: nextweek endpoint is dead (404), only thisweek works
   // IMPORTANT: Faireconomy.media rate-limits requests without a Referer header
   // from forexfactory.com — we must include it to bypass the 429 block.
+  // Try both thisweek and nextweek endpoints for more data coverage.
   const urls = [
     'https://nfs.faireconomy.media/ff_calendar_thisweek.json',
+    'https://nfs.faireconomy.media/ff_calendar_nextweek.json',
   ];
   const events: CalendarEvent[] = [];
 
-  // Two attempts with a short delay between them — the rate limiter is often a
-  // per-second burst limit, so one retry after a pause rescues transient hits.
-  const maxAttempts = 2;
+  // Three attempts with increasing delay — the rate limiter is often a
+  // per-second burst limit, so retries after a pause rescue transient hits.
+  const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     if (events.length > 0) break;
     if (attempt > 1) {
-      await new Promise(r => setTimeout(r, 1500));
+      await new Promise(r => setTimeout(r, attempt * 1000)); // 2s, 3s backoff
       console.log('[EconCalendar] Faireconomy retry attempt ' + attempt);
     }
 
@@ -1214,19 +1215,19 @@ async function fetchCalendarEvents(): Promise<{ events: CalendarEvent[]; source:
     return { events: sortEvents(deduped), source: primarySource || 'ForexFactory/Faireconomy (Live)', unavailable: false };
   }
 
-  // 1. z-ai-web-dev-sdk — SKIPPED (readFile not implemented in CF Workers runtime)
-  // try {
-  //   const zaiEvents = await fetchZaiCalendar();
-  //   if (zaiEvents.length > 0) {
-  //     if (!primarySource) primarySource = 'ZAI WebSearch+Reader (Live)';
-  //     collectedEvents.push(...zaiEvents);
-  //     console.log(`[EconCalendar] ZAI: ${zaiEvents.length} events collected`);
-  //   }
-  // } catch (err: any) {
-  //   errors.push('ZAI: ' + err.message);
-  //   console.error('[EconCalendar] ZAI failed:', err.message);
-  // }
-  console.log('[EconCalendar] Skipping ZAI (not supported in CF Workers)');
+  // 1. z-ai-web-dev-sdk — uses web_search + page_reader (fetch-based, works in CF Workers)
+  //    Re-enabled as fallback when Faireconomy is rate-limited (Nov 2025 prod fix).
+  try {
+    const zaiEvents = await fetchZaiCalendar();
+    if (zaiEvents.length > 0) {
+      if (!primarySource) primarySource = 'ZAI WebSearch+Reader (Live)';
+      collectedEvents.push(...zaiEvents);
+      console.log(`[EconCalendar] ZAI: ${zaiEvents.length} events collected`);
+    }
+  } catch (err: any) {
+    errors.push('ZAI: ' + err.message);
+    console.error('[EconCalendar] ZAI failed:', err.message);
+  }
 
   // 2. TradingEconomics Calendar (RapidAPI) — SKIPPED
   // RapidAPI removed/disabled the /calendar endpoint on tradingeconomics.p.rapidapi.com

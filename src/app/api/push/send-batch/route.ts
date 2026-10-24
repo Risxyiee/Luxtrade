@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { createAdminClientAsync } from '@/lib/supabase/admin'
 import { sendPushToUser, type PushPayload } from '@/lib/web-push'
 import { isUserPro } from '@/lib/pro-check'
 
@@ -35,13 +35,24 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Get all subscriptions for Pro users only
-    const subscriptions = await db.pushSubscription.findMany({
-      where: { userId: { in: proUserIds } },
-      select: { endpoint: true, p256dh: true, auth: true, userId: true },
-    })
+    const adminClient = await createAdminClientAsync()
+    if (!adminClient) {
+      console.error('[push/send-batch] Supabase admin client unavailable')
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
 
-    if (subscriptions.length === 0) {
+    // Get all subscriptions for Pro users only
+    const { data: subscriptions, error: subErr } = await adminClient
+      .from('push_subscriptions')
+      .select('endpoint, p256dh, auth, user_id')
+      .in('user_id', proUserIds)
+
+    if (subErr) {
+      console.error('[push/send-batch] Fetch subscriptions failed:', subErr.message)
+      return NextResponse.json({ error: 'Failed to fetch subscriptions' }, { status: 500 })
+    }
+
+    if (!subscriptions || subscriptions.length === 0) {
       return NextResponse.json({ sent: 0, skipped: skippedCount, message: 'No subscriptions found for Pro users' })
     }
 
@@ -58,9 +69,9 @@ export async function POST(req: NextRequest) {
     // Group by user to track per-user stats
     const byUser = new Map<string, Array<{ endpoint: string; p256dh: string; auth: string }>>()
     for (const sub of subscriptions) {
-      const arr = byUser.get(sub.userId) || []
+      const arr = byUser.get(sub.user_id) || []
       arr.push({ endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth })
-      byUser.set(sub.userId, arr)
+      byUser.set(sub.user_id, arr)
     }
 
     let totalSent = 0
@@ -83,9 +94,10 @@ export async function POST(req: NextRequest) {
 
     // Clean up expired
     if (allExpired.length > 0) {
-      await db.pushSubscription.deleteMany({
-        where: { endpoint: { in: allExpired } },
-      })
+      await adminClient
+        .from('push_subscriptions')
+        .delete()
+        .in('endpoint', allExpired)
     }
 
     return NextResponse.json({

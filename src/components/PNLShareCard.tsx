@@ -1,7 +1,7 @@
 'use client'
 
-import { memo } from 'react'
-import { TrendingUp, TrendingDown } from 'lucide-react'
+import { memo, useCallback } from 'react'
+import { TrendingUp, TrendingDown, Download } from 'lucide-react'
 
 interface PNLShareCardProps {
   symbol: string
@@ -26,7 +26,7 @@ const PNLShareCard = memo(function PNLShareCard({
 }: PNLShareCardProps) {
   const isProfit = profitLoss >= 0
   const isBuy = (type || '').toUpperCase() !== 'SELL'
-  const pnlFormatted = profitLoss.toLocaleString('en-US', {
+  const pnlFormatted = Math.abs(profitLoss).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
@@ -38,24 +38,44 @@ const PNLShareCard = memo(function PNLShareCard({
     return str.replace(/\.?0+$/, '') || '0'
   }
 
+  const handleDownload = useCallback(async () => {
+    const node = document.getElementById('pnl-share-card')
+    if (!node) return
+    try {
+      const { toPng } = await import('html-to-image')
+      const dataUrl = await toPng(node, {
+        pixelRatio: 3,
+        backgroundColor: '#0a0c12',
+        cacheBust: true,
+      })
+      const link = document.createElement('a')
+      const safeSymbol = (symbol || 'trade').replace(/[^A-Za-z0-9]/g, '')
+      link.download = `luxtradee-${safeSymbol}-pnl.png`
+      link.href = dataUrl
+      link.click()
+    } catch (err) {
+      console.error('[ShareCard] PNG download failed:', err)
+    }
+  }, [symbol])
+
   return (
     <div
       id="pnl-share-card"
-      className="w-80 rounded-2xl overflow-hidden bg-gradient-to-br from-[#0a0c12] via-[#0d1018] to-[#0f1219] border border-blue-500/25 shadow-2xl select-none"
+      className="w-[340px] rounded-2xl overflow-hidden bg-gradient-to-br from-[#0a0c12] via-[#0d1018] to-[#0f1219] border border-white/10 shadow-2xl select-none"
     >
       {/* Header — branding + session */}
-      <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-white/5 bg-white/[0.02]">
-        <div className="flex items-center gap-2.5">
+      <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/5 bg-white/[0.02]">
+        <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo.png"
             alt="LuxTradee"
-            width={26}
-            height={26}
-            className="rounded-md object-contain"
+            width={36}
+            height={36}
+            className="rounded-lg object-contain"
           />
           <div className="leading-tight">
-            <span className="text-sm font-bold text-white tracking-wide">LuxTradee</span>
+            <span className="text-[15px] font-bold text-white tracking-wide">LuxTradee</span>
             <div className="text-[9px] text-gray-500 uppercase tracking-[0.18em]">Trading Journal</div>
           </div>
         </div>
@@ -67,11 +87,11 @@ const PNLShareCard = memo(function PNLShareCard({
       </div>
 
       {/* Symbol + direction */}
-      <div className="px-5 pt-4">
-        <div className="flex items-center gap-2.5">
-          <span className="text-2xl font-extrabold text-white tracking-tight">{symbol}</span>
+      <div className="px-5 pt-5">
+        <div className="flex items-center gap-3">
+          <span className="text-[28px] font-extrabold text-white tracking-tight leading-none">{symbol}</span>
           <span
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold ${
               isBuy
                 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
                 : 'bg-red-500/15 text-red-400 border border-red-500/25'
@@ -83,57 +103,59 @@ const PNLShareCard = memo(function PNLShareCard({
         </div>
       </div>
 
-      {/* P&L hero */}
-      <div className="px-5 py-5 text-center">
+      {/* P&L hero — the main visual */}
+      <div className="px-5 py-6 text-center">
         <div
-          className={`inline-flex items-center gap-2.5 px-5 py-3 rounded-2xl border ${
+          className={`inline-flex items-center gap-3 px-6 py-4 rounded-2xl border ${
             isProfit
               ? 'bg-emerald-500/10 border-emerald-500/25'
               : 'bg-red-500/10 border-red-500/25'
           }`}
         >
           {isProfit ? (
-            <TrendingUp className="w-7 h-7 text-emerald-400" />
+            <TrendingUp className="w-8 h-8 text-emerald-400" />
           ) : (
-            <TrendingDown className="w-7 h-7 text-red-400" />
+            <TrendingDown className="w-8 h-8 text-red-400" />
           )}
           <span
-            className={`text-4xl font-extrabold tracking-tight tabular-nums ${
+            className={`text-[36px] font-extrabold tracking-tight tabular-nums ${
               isProfit ? 'text-emerald-400' : 'text-red-400'
             }`}
           >
-            {isProfit ? '+$' : '-$'}{pnlFormatted.replace(/^-/, '')}
+            {isProfit ? '+' : '-'}${pnlFormatted}
           </span>
         </div>
-        <div className="mt-2 text-[10px] text-gray-500 uppercase tracking-[0.25em]">
-          Trading Result
+        <div className="mt-2.5 text-[10px] text-gray-500 uppercase tracking-[0.25em]">
+          Profit & Loss
         </div>
       </div>
 
       {/* Trade details — 3-column grid */}
       <div className="px-5 pb-5">
-        <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-xl bg-white/[0.04] border border-white/5 px-2 py-2.5 text-center">
-            <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-0.5">Entry</div>
+        <div className="grid grid-cols-3 gap-2.5">
+          <div className="rounded-xl bg-white/[0.04] border border-white/5 px-2.5 py-3 text-center">
+            <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-1">Entry</div>
             <div className="text-[13px] font-semibold text-white font-mono">{fmtPrice(entryPrice)}</div>
           </div>
-          <div className="rounded-xl bg-white/[0.04] border border-white/5 px-2 py-2.5 text-center">
-            <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-0.5">Exit</div>
+          <div className="rounded-xl bg-white/[0.04] border border-white/5 px-2.5 py-3 text-center">
+            <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-1">Exit</div>
             <div className="text-[13px] font-semibold text-white font-mono">{fmtPrice(exitPrice)}</div>
           </div>
-          <div className="rounded-xl bg-white/[0.04] border border-white/5 px-2 py-2.5 text-center">
-            <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-0.5">Lot</div>
+          <div className="rounded-xl bg-white/[0.04] border border-white/5 px-2.5 py-3 text-center">
+            <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-1">Lot</div>
             <div className="text-[13px] font-semibold text-white font-mono">{lotSize ?? '-'}</div>
           </div>
         </div>
       </div>
 
-      {/* Footer — date + website */}
-      <div className="px-5 py-3 bg-white/[0.03] border-t border-white/5 flex items-center justify-between">
+      {/* Footer — date + website + download */}
+      <div className="px-5 py-3.5 bg-white/[0.03] border-t border-white/5 flex items-center justify-between">
         <span className="text-[11px] text-gray-400">{date}</span>
-        <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">
-          luxtradee.web.id
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">
+            luxtradee.web.id
+          </span>
+        </div>
       </div>
     </div>
   )

@@ -91,8 +91,8 @@ async function optimizeImage(bytes: ArrayBuffer): Promise<{ optimizedBase64: str
 
 // ==================== AI CALL WITH RETRY + MODEL FALLBACK ====================
 
-/** Fallback chain: 2.5-flash first (best quality), then 2.0-flash (separate quota pool). */
-const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash']
+/** Fallback chain: 2.5-flash (best quality) → 2.0-flash (separate quota) → 1.5-flash (oldest, most quota). */
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
 
 function isRetryableAIError(err: any): boolean {
   const msg = String(err?.message || '').toLowerCase()
@@ -300,15 +300,21 @@ export async function POST(request: NextRequest) {
       )
     } catch (err: any) {
       log('⛔', `AI call FAILED after ${(performance.now() - t2).toFixed(0)}ms: ${err.message}`)
+      const errMsg = String(err?.message || '').toLowerCase()
+      const isRateLimit = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('rate')
       return NextResponse.json(
         {
-          error: 'AI gagal menganalisis screenshot',
+          error: isRateLimit
+            ? 'Kuota AI sedang penuh. Tunggu 1-2 menit lalu coba lagi.'
+            : 'AI gagal menganalisis screenshot',
           detail: err.message,
           details: err.message,
-          hint: 'Coba lagi dalam 1 menit (kuota AI bisa sedang penuh). Jika terus gagal, hubungi admin.',
+          hint: isRateLimit
+            ? 'Semua model AI sedang rate-limited. Coba lagi dalam 1-2 menit.'
+            : 'Coba lagi dalam 1 menit. Jika terus gagal, hubungi admin.',
           step: 'ai_call',
         },
-        { status: 500 }
+        { status: isRateLimit ? 429 : 500 }
       )
     }
     log('✅', `AI responded in ${(performance.now() - t2).toFixed(0)}ms via gemini, ${aiResultText.length} chars`)
