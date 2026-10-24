@@ -631,3 +631,24 @@ Stage Summary:
 - Login path fully Supabase-based on Workers; config route Workers-safe
 - Prisma crash class eliminated project-wide via db.ts guard (even if old routes still import db)
 - User must DEPLOY (manual wrangler or CF git build) — past logs were from pre-fix build
+
+---
+Task ID: observability-config-cron-verify
+Agent: Z.ai Code (main)
+Task: Apply Workers observability config (user request) + verify cron endpoints local & production
+
+Work Log:
+- Validated user's observability JSON against wrangler 4.128.0 config-schema.json: issue_detection NOT in schema (would break wrangler deploy) - omitted; observability/logs/traces/invocation_logs/persist/head_sampling_rate all valid
+- Added observability block to wrangler.jsonc: enabled, sampling 100%, logs (invocation_logs+persist), traces (persist)
+- Git state on start: 2 UUID worklog commits + e8e398ea (db.ts global Prisma guard + supabase/config getEnvVar fix, pushed 08:40Z) already on origin; 290b6535 (worklog) was unpushed
+- Local smoke test (dev server): all 5 cron routes graceful, zero fs.readdir/unenv errors; econ-calendar-notify fully functional (faireconomy fetch OK); unsubscribe w/o uid = 400
+- Production probes luxtradee.web.id: / 200; /api/supabase/config returns URL+anonKey (e8e398ea LIVE); daily-reminder?dry=true "No active users to remind" 2.4s; weekly-summary?dry=true real week range; re-engage?dry=true OK - fs.readdir crash GONE in production, Supabase REST connected
+- Pushed a59ac376 (observability config; edit normalized indentation)
+- Did NOT trigger in production: econ-calendar-notify & downgrade-expired-pro (no dry mode, could mutate/send)
+
+Stage Summary:
+- Production already runs fixed build - fs.readdir crash eliminated
+- Observability config active after NEXT deploy (commit a59ac376)
+- Known caveat: wrangler.jsonc has no triggers.crons - if cron schedules were set via CF dashboard, next wrangler deploy may wipe them; schedules needed from user to add to config
+- daily-reminder dry returns 0 users (data-dependent: >=1 trade + login 14d + not unsub + not sent today); self-test via ?uid=<user_id>
+- Secrets untouched
