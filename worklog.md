@@ -673,3 +673,23 @@ Stage Summary:
 - Deploy cmd: bun run build && npx wrangler deploy
 - Recommend: npx wrangler secret put CRON_SECRET to lock cron routes from public trigger
 - Secrets untouched
+
+---
+Task ID: wrangler-config-consolidation-env-wipe-fix
+Agent: Z.ai Code (main)
+Task: Diagnose production logs - Supabase URL/service key wiped, cron dead, econ-calendar rate-limited
+
+Work Log:
+- Production probes confirmed: /api/supabase/config url="" ; daily-reminder "Database not available" (SUPABASE_SERVICE_ROLE_KEY gone); landing-stats 200 (graceful); economic-calendar currently OK (transient rate-limit earlier)
+- ROOT CAUSE: wrangler.toml AND wrangler.jsonc coexisted. Deploy resolves jsonc (evidence: */15 cron + observability live; scriptName "luxtradee" = Workers Builds name override). jsonc lacked keep_vars + full vars/bindings -> wrangler deploy wiped dashboard plain vars & dropped KV/AI/Images/Browser/Queue bindings that only existed in toml
+- KV binding loss also explains econ-calendar rate-limit noise: KV cache dead + econ cron every 15 min -> refetch every request
+- wrangler.jsonc rewritten as COMPLETE config: name luxtradee, main worker-entry.ts, keep_vars=true, KV luxtradee_kv (id 4d16...), IMAGES/ai_luxtrade/ai_run/queues.producers, 10 public vars (incl NEXT_PUBLIC_SUPABASE_URL + ANON KEY - public by design), observability, 4 crons
+- wrangler.toml DELETED (git history recoverable)
+- /api/supabase/config: added SUPABASE_URL / SUPABASE_ANON_KEY alt-name fallbacks
+- supabase/admin.ts + supabase-admin-alt.ts verified CF-aware - no code fix needed, bindings were the problem
+- Validated: all keys against wrangler 4.128.0 schema, JSONC parse OK, eslint clean, local smoke (home 200, config + cron graceful), pushed e25eaf69
+
+Stage Summary:
+- After next deploy + user re-adding secrets, everything self-heals (vars in config, keep_vars insurance)
+- USER MUST: npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY + verify other secrets in dashboard (RESEND_API_KEY, VAPID_PRIVATE_KEY, MIDTRANS keys, FINNHUB/RAPIDAPI keys, GEMINI, CRON_SECRET)
+- Follow-up candidate: TradingEconomics guest:guest free source for econ calendar (RapidAPI TE 404); econ-calendar code untouched this turn
