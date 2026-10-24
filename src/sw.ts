@@ -35,10 +35,11 @@ cleanupOutdatedCaches()
 // ─── Offline Fallback ─────────────────────────────────────────────────────────
 
 const OFFLINE_URL = '/offline.html'
-const CACHE_NAME = 'luxtradee-offline-v5'
-const STATIC_CACHE = 'luxtradee-static-v5'
-const PAGES_CACHE = 'luxtradee-pages-v5'
-const API_CACHE = 'luxtradee-api-v5'
+// v6: purge semua cache v5 — cache API lama berisi response basi (bug CacheFirst)
+const CACHE_NAME = 'luxtradee-offline-v6'
+const STATIC_CACHE = 'luxtradee-static-v6'
+const PAGES_CACHE = 'luxtradee-pages-v6'
+const API_CACHE = 'luxtradee-api-v6'
 
 const sw = self as unknown as ServiceWorkerGlobalScope
 
@@ -124,24 +125,45 @@ registerRoute(
   })
 )
 
-// ─── Cache API — NetworkOnly with offline fallback ───────────────────────────
-// When offline and cache miss, return a lightweight JSON error instead of hanging.
-// This prevents API calls from blocking the SW offline response.
+// ─── API — NetworkOnly (data selalu fresh) + whitelist NetworkFirst ──────────
+// FIX PERF: sebelumnya SELURUH /api/* di-cache CacheFirst 5 menit (padahal
+// komentar bilang NetworkOnly). Akibatnya response API basi ter-replay dari
+// cache SW — aksi admin (approve/reject) & data dashboard kelihatan "lambat"
+// / telat update, dan response POST ikut ter-cache (bahaya).
+//
+// Sekarang:
+//   1. Whitelist endpoint market data publik (GET saja, tanpa Authorization,
+//      sudah ada KV cache di server) → NetworkFirst timeout pendek + TTL
+//      10 menit (tetap dapat offline).
+//   2. Semua request /api/* lainnya → NetworkOnly. Gagal jaringan jatuh ke
+//      setCatchHandler → JSON error ringan (tidak hanging).
+
+const PUBLIC_GET_API_PREFIXES = ['/api/news', '/api/economic-calendar', '/api/forex']
 
 registerRoute(
-  ({ url }) => url.pathname.startsWith('/api/') && !url.pathname.startsWith('/api/chat'),
-  new CacheFirst({
+  ({ url, request }) =>
+    request.method === 'GET' &&
+    !request.headers.get('authorization') &&
+    PUBLIC_GET_API_PREFIXES.some((p) => url.pathname.startsWith(p)),
+  new NetworkFirst({
     cacheName: API_CACHE,
+    networkTimeoutSeconds: 2.5,
     plugins: [
       new ExpirationPlugin({
-        maxEntries: 60,
-        maxAgeSeconds: 5 * 60,
+        maxEntries: 30,
+        maxAgeSeconds: 10 * 60,
       }),
       new CacheableResponsePlugin({
-        statuses: [0, 200],
+        statuses: [200],
       }),
     ],
   })
+)
+
+// Semua API lainnya TIDAK BOLEH di-cache SW — langsung network tiap kali.
+registerRoute(
+  ({ url }) => url.pathname.startsWith('/api/'),
+  new NetworkOnly()
 )
 
 // ─── Navigation / HTML — NetworkFirst with fast timeout + Offline Fallback ────

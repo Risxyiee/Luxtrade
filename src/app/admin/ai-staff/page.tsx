@@ -94,6 +94,7 @@ export default function AiStaffPage() {
   const [csDrafts, setCsDrafts] = useState<Record<string, { subject: string; body: string }>>({})
   const [actingId, setActingId] = useState<string | null>(null)
   const [lastSync, setLastSync] = useState<Date | null>(null)
+  const [activeTab, setActiveTab] = useState<'cs' | 'marketing'>('cs')
   const draftsInitialized = useRef<Set<string>>(new Set())
 
   // ── Admin gate (pola sama dengan /admin-email) ──
@@ -150,10 +151,12 @@ export default function AiStaffPage() {
     if (isAdmin) loadTasks()
   }, [isAdmin, loadTasks])
 
-  // Auto-refresh tiap 60 detik (silent)
+  // Auto-refresh tiap 60 detik (silent) — PERF: pause saat tab tidak terlihat
   useEffect(() => {
     if (!isAdmin) return
-    const iv = setInterval(() => loadTasks(true), 60_000)
+    const iv = setInterval(() => {
+      if (document.visibilityState === 'visible') loadTasks(true)
+    }, 60_000)
     return () => clearInterval(iv)
   }, [isAdmin, loadTasks])
 
@@ -260,28 +263,14 @@ export default function AiStaffPage() {
 
       {/* ── Main ── */}
       <main className="relative flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-6">
-        {/* ── Stat strip (ringan) ── */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-5">
-          <StatChip
-            icon={<Mail className="w-3.5 h-3.5" />}
-            label="Email pending"
-            value={tasksLoading ? '—' : csTasks.length}
-            accent="purple"
-          />
-          <StatChip
-            icon={<Clapperboard className="w-3.5 h-3.5" />}
-            label="Konten pending"
-            value={tasksLoading ? '—' : mktTasks.length}
-            accent="emerald"
-          />
-          <StatChip
-            icon={<Zap className="w-3.5 h-3.5" />}
-            label="Agents"
-            value="2 online"
-            accent="amber"
-            pulse
-          />
-        </div>
+        {/* ── Kantor AI Staff (visual, pure CSS — 0 gambar, 0 lib tambahan) ── */}
+        <OfficeFloor
+          csCount={csTasks.length}
+          mktCount={mktTasks.length}
+          loading={tasksLoading}
+          activeTab={activeTab}
+          onSelect={setActiveTab}
+        />
 
         {tasksLoading && tasks.length === 0 ? (
           <div className="space-y-4">
@@ -299,7 +288,7 @@ export default function AiStaffPage() {
             ))}
           </div>
         ) : (
-          <Tabs defaultValue="cs" className="w-full">
+          <Tabs value={activeTab} onValueChange={v => setActiveTab(v as 'cs' | 'marketing')} className="w-full">
             <TabsList className="bg-[#0a0c12] border border-white/5 h-auto p-1 grid grid-cols-2 w-full sm:inline-grid sm:w-auto gap-1">
               <TabsTrigger
                 value="cs"
@@ -565,48 +554,278 @@ function EmptyState({ icon, title, subtitle }: { icon: React.ReactNode; title: s
   )
 }
 
-// ─── Stat chip (kartu statistik mini) ────────────────────────────────────────
-const STAT_ACCENTS = {
+// ══════════════════════════════════════════════════════════════════════════════
+// ─── KANTOR AI STAFF — visual "lantai kantor" 100% CSS (0 gambar, 0 chart lib) ──
+// Dua workstation: Aily (CS Agent) & Max (Marketing Agent).
+// Klik meja → pindah tab antrean agent tsb.
+// ══════════════════════════════════════════════════════════════════════════════
+
+type OfficeAccent = 'purple' | 'emerald'
+
+const OFFICE_ACCENTS: Record<OfficeAccent, {
+  ring: string; screen: string; text: string; lampGlow: string; plate: string
+}> = {
   purple: {
-    chip: 'border-purple-500/20 bg-purple-500/[0.05]',
-    bar: 'bg-gradient-to-b from-purple-400/80 to-purple-400/0',
+    ring: 'ring-purple-500/40',
+    screen: 'from-purple-950/70 via-[#0a0d18] to-[#05070d]',
     text: 'text-purple-300',
+    lampGlow: 'bg-purple-400/20',
+    plate: 'from-purple-500/25 to-transparent border-purple-500/30',
   },
   emerald: {
-    chip: 'border-emerald-500/20 bg-emerald-500/[0.05]',
-    bar: 'bg-gradient-to-b from-emerald-400/80 to-emerald-400/0',
+    ring: 'ring-emerald-500/40',
+    screen: 'from-emerald-950/70 via-[#0a0d18] to-[#05070d]',
     text: 'text-emerald-300',
+    lampGlow: 'bg-emerald-400/20',
+    plate: 'from-emerald-500/25 to-transparent border-emerald-500/30',
   },
-  amber: {
-    chip: 'border-amber-500/20 bg-amber-500/[0.05]',
-    bar: 'bg-gradient-to-b from-amber-400/80 to-amber-400/0',
-    text: 'text-amber-300',
-  },
-} as const
+}
 
-function StatChip({
-  icon,
-  label,
-  value,
-  accent,
-  pulse = false,
+// ── Ruangan kantor: dinding + jendela malam + papan kerja + jam dinding ──
+function OfficeFloor({
+  csCount, mktCount, loading, activeTab, onSelect,
 }: {
-  icon: React.ReactNode
-  label: string
-  value: React.ReactNode
-  accent: keyof typeof STAT_ACCENTS
-  pulse?: boolean
+  csCount: number
+  mktCount: number
+  loading: boolean
+  activeTab: 'cs' | 'marketing'
+  onSelect: (tab: 'cs' | 'marketing') => void
 }) {
-  const a = STAT_ACCENTS[accent]
   return (
-    <div className={`relative overflow-hidden rounded-xl border ${a.chip} p-3`}>
-      <div aria-hidden className={`absolute left-0 top-0 bottom-0 w-0.5 ${a.bar}`} />
-      <div className="flex items-center gap-1.5">
-        <span className={a.text}>{icon}</span>
-        <span className="text-[9px] sm:text-[10px] uppercase tracking-wide text-gray-500 truncate">{label}</span>
-        {pulse && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-auto flex-shrink-0" aria-hidden />}
+    <section
+      aria-label="Lantai kantor AI Staff"
+      className="relative overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-b from-[#0b0f1a] to-[#080b12] mb-5"
+    >
+      {/* Dinding: jendela + papan kerja + jam */}
+      <div className="flex items-start justify-between gap-2 sm:gap-3 px-3 sm:px-6 pt-4">
+        <WindowNight />
+        <ShiftBoard csCount={csCount} mktCount={mktCount} loading={loading} />
+        <WallClock />
       </div>
-      <p className={`mt-1 text-lg sm:text-xl font-bold ${a.text} leading-none`}>{value}</p>
+
+      {/* Meja kerja kedua agent */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5 px-3 sm:px-6 pt-3">
+        <Workstation
+          name="Aily"
+          role="Customer Service"
+          shift="Harian · 08.00 WIB"
+          accent="purple"
+          avatar={<Mail className="w-4 h-4 text-purple-300" />}
+          busyCount={csCount}
+          loading={loading}
+          active={activeTab === 'cs'}
+          onSelect={() => onSelect('cs')}
+        />
+        <Workstation
+          name="Max"
+          role="Content Creator"
+          shift="Senin · 10.00 WIB"
+          accent="emerald"
+          avatar={<Clapperboard className="w-4 h-4 text-emerald-300" />}
+          busyCount={mktCount}
+          loading={loading}
+          active={activeTab === 'marketing'}
+          onSelect={() => onSelect('marketing')}
+        />
+      </div>
+
+      {/* Lantai */}
+      <div aria-hidden className="mt-4 h-3 sm:h-4 bg-gradient-to-b from-[#2a3247] via-[#1b2233] to-[#11141d] border-t border-white/10" />
+    </section>
+  )
+}
+
+// ── Satu workstation: monitor + lampu meja + meja kayu + pelat nama ──
+function Workstation({
+  name, role, shift, accent, avatar, busyCount, loading, active, onSelect,
+}: {
+  name: string
+  role: string
+  shift: string
+  accent: OfficeAccent
+  avatar: React.ReactNode
+  busyCount: number
+  loading: boolean
+  active: boolean
+  onSelect: () => void
+}) {
+  const a = OFFICE_ACCENTS[accent]
+  const busy = !loading && busyCount > 0
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={active}
+      aria-label={`Meja ${name} — ${role}, ${busy ? `${busyCount} tugas menunggu approval` : 'antrean kosong'}. Klik untuk lihat antrean.`}
+      className={`group relative w-full text-left rounded-xl border p-3 sm:p-4 transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
+        active
+          ? `border-white/15 bg-white/[0.04] ring-2 ${a.ring}`
+          : 'border-white/5 bg-transparent hover:bg-white/[0.02] hover:border-white/10'
+      }`}
+    >
+      {/* Status badge kanan-atas */}
+      <div className="absolute top-2 right-2 z-10">
+        {loading ? (
+          <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] text-gray-400">
+            <RefreshCw className="w-2.5 h-2.5 animate-spin" /> cek
+          </span>
+        ) : busy ? (
+          <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[9px] font-medium text-amber-300">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" aria-hidden />
+            {busyCount} menunggu
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-medium text-emerald-300">
+            <Check className="w-2.5 h-2.5" /> clear
+          </span>
+        )}
+      </div>
+
+      {/* Monitor */}
+      <div className="mx-auto w-24 sm:w-28">
+        <div className="rounded-md border border-white/10 bg-[#0d1117] p-1 shadow-lg shadow-black/40">
+          <div className={`relative aspect-[4/3] rounded-sm bg-gradient-to-b ${a.screen} flex flex-col items-center justify-center overflow-hidden`}>
+            {loading ? (
+              <>
+                <span className="flex gap-1" aria-hidden>
+                  <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-bounce [animation-delay:0ms]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-bounce [animation-delay:150ms]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-bounce [animation-delay:300ms]" />
+                </span>
+                <span className="mt-1.5 text-[7px] uppercase tracking-widest text-gray-500">memuat</span>
+              </>
+            ) : busy ? (
+              <>
+                <span className={`text-2xl font-black leading-none ${a.text} tabular-nums`}>{busyCount}</span>
+                <span className="mt-1 text-[7px] uppercase tracking-widest text-gray-500">menunggu review</span>
+                {/* lampu LED status monitor */}
+                <span className="absolute bottom-1 right-1 w-1 h-1 rounded-full bg-amber-400 animate-pulse" aria-hidden />
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4 text-emerald-400/80" aria-hidden />
+                <span className="mt-1 text-[7px] uppercase tracking-widest text-gray-500">antrean kosong</span>
+                <span className="absolute bottom-1 right-1 w-1 h-1 rounded-full bg-emerald-400" aria-hidden />
+              </>
+            )}
+            {/* kilau kaca layar */}
+            <span aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.015] to-white/[0.05]" />
+          </div>
+        </div>
+        {/* stand monitor */}
+        <div className="mx-auto h-1.5 w-5 rounded-b-sm bg-white/10" aria-hidden />
+        <div className="mx-auto h-1 w-14 rounded-full bg-white/15" aria-hidden />
+      </div>
+
+      {/* Meja: lampu + mug + table top + kaki */}
+      <div className="relative mt-1.5" aria-hidden>
+        {/* lampu belajar */}
+        <div className="absolute -top-6 left-3 flex flex-col items-center">
+          <span className={`w-3.5 h-2 rounded-t-full ${busy ? 'bg-amber-400/90' : 'bg-white/25'} transition-colors`} />
+          {busy && <span className={`absolute top-1 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full ${a.lampGlow} blur-lg`} />}
+          <span className="w-0.5 h-4 origin-bottom rotate-[20deg] bg-white/20" />
+        </div>
+        {/* mug kopi */}
+        <div className="absolute -top-3 right-4 w-2.5 h-2.5 rounded-b-sm rounded-tl-sm bg-[#7c4a2d]/80 border-l-2 border-[#5b3620]" />
+        {/* table top */}
+        <div className="h-2 rounded-sm bg-gradient-to-b from-[#4a3b2d] to-[#2b2118] shadow-md shadow-black/40" />
+        {/* kaki meja */}
+        <div className="flex justify-between px-4">
+          <span className="w-1 h-5 sm:h-7 bg-[#2b2118] rounded-b" />
+          <span className="w-1 h-5 sm:h-7 bg-[#2b2118] rounded-b" />
+        </div>
+        {/* bayangan di lantai */}
+        <div className="mx-2 h-1 rounded-full bg-black/40 blur-[2px]" />
+      </div>
+
+      {/* Pelat nama karyawan */}
+      <div className={`mt-3 flex items-center gap-2.5 rounded-lg border bg-gradient-to-r p-2 ${a.plate}`}>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-[#05070d]">
+          {avatar}
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-xs font-semibold text-white">{name}</span>
+          <span className="block truncate text-[10px] text-gray-500">{role} · {shift}</span>
+        </span>
+        {/* lampu status karyawan */}
+        <span
+          className={`ml-auto h-2 w-2 shrink-0 rounded-full ${
+            loading ? 'bg-gray-500' : busy ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'
+          }`}
+          aria-hidden
+        />
+      </div>
+    </button>
+  )
+}
+
+// ── Jendela malam: langit gradasi + bulan + gedung dengan jendela menyala ──
+function WindowNight() {
+  const lit = {
+    backgroundImage: 'radial-gradient(circle, rgba(250,204,21,0.5) 0.5px, transparent 1.2px)',
+    backgroundSize: '4px 5px',
+  }
+  return (
+    <div
+      aria-hidden
+      className="relative h-12 w-16 shrink-0 overflow-hidden rounded-md border border-white/10 bg-gradient-to-b from-[#101830] to-[#1c2745] sm:h-16 sm:w-24"
+    >
+      {/* bulan sabit */}
+      <span className="absolute right-1.5 top-1 h-2 w-2 rounded-full bg-amber-100/90 sm:h-2.5 sm:w-2.5" />
+      <span className="absolute right-1 top-0.5 h-2 w-2 rounded-full bg-[#101830] sm:h-2.5 sm:w-2.5" />
+      {/* skyline */}
+      <span className="absolute bottom-0 left-0 h-5 w-3 bg-[#0a0f1f]" style={lit} />
+      <span className="absolute bottom-0 left-3 h-7 w-2.5 bg-[#0c1224]" style={lit} />
+      <span className="absolute bottom-0 right-4 h-6 w-2.5 bg-[#0c1224]" style={lit} />
+      <span className="absolute bottom-0 right-0 h-4 w-4 bg-[#0a0f1f]" style={lit} />
+      {/* palang jendela */}
+      <span className="absolute inset-y-0 left-1/2 w-px bg-white/10" />
+      <span className="absolute inset-x-0 top-1/2 h-px bg-white/10" />
+    </div>
+  )
+}
+
+// ── Papan kerja: shift & jumlah tugas per agent ──
+function ShiftBoard({ csCount, mktCount, loading }: { csCount: number; mktCount: number; loading: boolean }) {
+  return (
+    <div className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#070a12] px-2.5 py-2 sm:px-3">
+      <p className="mb-1 text-[8px] font-semibold uppercase tracking-wider text-gray-500 sm:text-[9px]">
+        Papan Kerja — WIB
+      </p>
+      <div className="space-y-0.5">
+        <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px]">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-purple-400" aria-hidden />
+          <span className="truncate text-gray-300">Aily</span>
+          <span className="hidden text-gray-600 sm:inline">harian 08.00</span>
+          <span className="ml-auto shrink-0 font-mono tabular-nums text-purple-300">{loading ? '—' : csCount}</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px]">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" aria-hidden />
+          <span className="truncate text-gray-300">Max</span>
+          <span className="hidden text-gray-600 sm:inline">Senin 10.00</span>
+          <span className="ml-auto shrink-0 font-mono tabular-nums text-emerald-300">{loading ? '—' : mktCount}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Jam dinding: waktu client, render setelah mount (aman hydration) ──
+function WallClock() {
+  const [time, setTime] = useState<string | null>(null)
+  useEffect(() => {
+    const f = () => setTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }))
+    f()
+    const iv = setInterval(f, 30_000)
+    return () => clearInterval(iv)
+  }, [])
+  return (
+    <div
+      aria-hidden
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-white/15 bg-[#05070d] shadow-inner sm:h-12 sm:w-12"
+    >
+      <span className="font-mono text-[8px] tabular-nums text-gray-300 sm:text-[10px]">{time ?? '--:--'}</span>
     </div>
   )
 }

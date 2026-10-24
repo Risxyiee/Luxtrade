@@ -79,12 +79,17 @@ function useCountdown(targetDate: string): { text: string; diffMs: number } {
     const target = new Date(targetDate).getTime()
     if (isNaN(target)) { setResult({ text: '', diffMs: 0 }); return }
 
+    // Guard anti re-render sia-sia: object baru tiap tick memaksa React render,
+    // jadi hanya setResult saat teks benar-benar berubah.
+    let lastText = ''
+    let timer: ReturnType<typeof setTimeout> | null = null
+
     const update = () => {
       const now = Date.now()
       const diff = target - now
 
       if (diff <= 0) {
-        setResult({ text: 'LIVE', diffMs: 0 })
+        if (lastText !== 'LIVE') { lastText = 'LIVE'; setResult({ text: 'LIVE', diffMs: 0 }) }
         return
       }
 
@@ -104,12 +109,24 @@ function useCountdown(targetDate: string): { text: string; diffMs: number } {
         text = seconds + 's'
       }
 
-      setResult({ text, diffMs: diff })
+      if (text !== lastText) {
+        lastText = text
+        setResult({ text, diffMs: diff })
+      }
+    }
+
+    // PERF adaptif: tick 1s hanya saat <1 menit (detik tampil). Sisanya 15s/60s —
+    // hemat CPU & baterai (sebelumnya tiap countdown re-render tiap 1 detik).
+    const tick = () => {
+      update()
+      const diff = target - Date.now()
+      const delay = diff <= 60_000 ? 1000 : diff <= 3_600_000 ? 15_000 : 60_000
+      timer = setTimeout(tick, document.visibilityState === 'visible' ? delay : 15_000)
     }
 
     update()
-    const interval = setInterval(update, 1000)
-    return () => clearInterval(interval)
+    timer = setTimeout(tick, 1000)
+    return () => { if (timer) clearTimeout(timer) }
   }, [targetDate])
 
   return result

@@ -81,6 +81,13 @@ async function listPending(admin: SupabaseClient) {
         counts: { cs: 0, marketing: 0 },
       }, { status: 503 })
     }
+    // Log error asli supaya 500 bisa didiagnosis dari CF Workers logs
+    console.error('[admin/ai-staff] listPending DB error:', {
+      code: (error as { code?: string }).code,
+      message: error.message,
+      details: (error as { details?: string }).details,
+      hint: (error as { hint?: string }).hint,
+    })
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 
@@ -96,14 +103,21 @@ async function listPending(admin: SupabaseClient) {
 }
 
 export async function GET(request: NextRequest) {
-  const { error: authError } = await requireAdmin(request)
-  if (authError) return authError
+  try {
+    const { error: authError } = await requireAdmin(request)
+    if (authError) return authError
 
-  const admin = await getCronAdmin()
-  if (!admin) {
-    return NextResponse.json({ success: false, error: 'Database unavailable' }, { status: 503 })
+    const admin = await getCronAdmin()
+    if (!admin) {
+      return NextResponse.json({ success: false, error: 'Database unavailable' }, { status: 503 })
+    }
+    return await listPending(admin)
+  } catch (error: unknown) {
+    // 500 yang sebelumnya "diam" sekarang tercatat di Workers logs
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('[admin/ai-staff] GET crashed:', msg, error instanceof Error ? error.stack : '')
+    return NextResponse.json({ success: false, error: msg }, { status: 500 })
   }
-  return listPending(admin)
 }
 
 export async function POST(request: NextRequest) {
